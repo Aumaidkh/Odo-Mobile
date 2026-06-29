@@ -34,3 +34,5 @@ dependencyResolutionManagement {
 include(":androidApp")
 include(":shared")
 include(":core:navigation")
+
+include(":feature:onboarding")
