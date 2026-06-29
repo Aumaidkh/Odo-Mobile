@@ -28,6 +28,8 @@ kotlin {
             // Functional error handling — Either<DomainError, T> at boundaries.
             // (Koin is supplied by the odo.koin convention plugin.)
             implementation(libs.arrow.core)
+            // App navigation (command bus + Nav3 host). Exposes Nav3 transitively.
+            implementation(projects.core.navigation)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

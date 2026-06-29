@@ -23,6 +23,11 @@ jvmTarget = "11"
 koin = "4.2.2"
 arrow = "2.2.3"
 
+# Navigation 3 (JetBrains Compose Multiplatform port — user-owned back stack)
+nav3 = "1.1.1"
+# Coroutines — SharedFlow command bus in :core:navigation
+kotlinxCoroutines = "1.10.2"
+
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -36,6 +41,14 @@ koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 # Arrow — Either<DomainError, T> at boundaries (functional error handling)
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+
+# Navigation 3 — the JetBrains Compose Multiplatform port publishes a single
+# `navigation3-ui` artifact that transitively brings the runtime/common types
+# (NavKey, the back stack, entryProvider) plus NavDisplay. Exposed as `api` from
+# :core:navigation so features/app get the Nav3 types through that one module.
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "nav3" }
+# Coroutines core — the command bus (MutableSharedFlow) is multiplatform.
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
