@@ -15,9 +15,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.ui)
+            // Core Compose UI artifacts come from the odo.compose.multiplatform
+            // convention plugin.
+            //
             // Navigation 3, re-exported (`api`) so a `:feature:*` / `:app` module
             // depending on :core:navigation also sees NavKey, NavDisplay,
             // entryProvider, NavEntry — keeping Nav3 a single dependency surface.

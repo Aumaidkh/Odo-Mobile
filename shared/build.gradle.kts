@@ -17,14 +17,10 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
         }
         commonMain.dependencies {
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.ui)
-            implementation(libs.compose.components.resources)
+            // Core Compose UI + lifecycle ViewModel artifacts come from the
+            // odo.compose.multiplatform convention plugin. Only module-specific
+            // extras are listed here.
             implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
             // Functional error handling — Either<DomainError, T> at boundaries.
             // (Koin is supplied by the odo.koin convention plugin.)
             implementation(libs.arrow.core)
