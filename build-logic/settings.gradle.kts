@@ -1,10 +1,9 @@
-rootProject.name = "Odo"
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+// Standalone settings for the build-logic *included build*. This is its own
+// Gradle build, wired into the root via `includeBuild("build-logic")` in the
+// root settings.gradle.kts. Keeping it separate isolates the convention-plugin
+// classpath from the application build classpath.
 
 pluginManagement {
-    // Wire in the build-logic composite build so the odo.* convention plugins
-    // are resolvable from every module's `plugins { }` block.
-    includeBuild("build-logic")
     repositories {
         google {
             mavenContent {
@@ -28,8 +27,16 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        gradlePluginPortal()
+    }
+    // Reuse the *single* version catalog from the main build so versions never
+    // diverge between the app and the plugins that configure it.
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
     }
 }
 
-include(":androidApp")
-include(":shared")
+rootProject.name = "build-logic"
+include(":convention")

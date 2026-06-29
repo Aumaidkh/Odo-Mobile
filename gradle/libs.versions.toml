@@ -14,7 +14,18 @@ junit = "4.13.2"
 kotlin = "2.4.0"
 material3 = "1.11.0-alpha07"
 
+# App identity / build config — single source of truth shared by every module
+odo-versionName = "1.0"
+odo-versionCode = "1"
+jvmTarget = "11"
+
 [libraries]
+# Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+composeMultiplatform-gradlePlugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "composeMultiplatform" }
+composeCompiler-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -39,3 +50,11 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+# Used only to compile build-logic with a Kotlin version that matches the
+# Kotlin Gradle plugin (newer than the one embedded in Gradle's kotlin-dsl).
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
+# Odo convention plugins (defined in build-logic, applied by feature/app modules)
+odo-kmpLibrary = { id = "odo.kmp.library" }
+odo-androidApplication = { id = "odo.android.application" }
+odo-composeMultiplatform = { id = "odo.compose.multiplatform" }
