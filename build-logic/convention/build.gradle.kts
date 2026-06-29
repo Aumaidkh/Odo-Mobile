@@ -52,5 +52,10 @@ gradlePlugin {
             implementationClass =
                 "com.hopcape.odo.buildlogic.ComposeMultiplatformConventionPlugin"
         }
+        register("koin") {
+            id = "odo.koin"
+            implementationClass =
+                "com.hopcape.odo.buildlogic.KoinConventionPlugin"
+        }
     }
 }

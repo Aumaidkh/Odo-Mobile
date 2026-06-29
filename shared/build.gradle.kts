@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.composeMultiplatform)
+    alias(libs.plugins.odo.koin)
 }
 
 kotlin {
@@ -24,6 +25,9 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // Functional error handling — Either<DomainError, T> at boundaries.
+            // (Koin is supplied by the odo.koin convention plugin.)
+            implementation(libs.arrow.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
