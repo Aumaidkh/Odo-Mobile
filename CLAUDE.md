@@ -37,6 +37,9 @@ The sequenced build plan, milestones (M0→M6→LAUNCH), and exit criteria live 
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones, exit criteria, module map + boundary contract (when) |
 | [`docs/TDD.md`](docs/TDD.md) | Technical design: architecture, ports/use cases, AI subsystem, sync, payments, security (how) |
 | [`docs/DB_SCHEMA.md`](docs/DB_SCHEMA.md) | **Authoritative** persistence layer: tables, enums, RLS, triggers, storage, migrations |
+| [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) | Git workflow: branching model, Conventional Commits, PR/squash-merge, tags & semver, secrets-never-committed (how code lands) |
+
+> **On the Git workflow:** follow [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) — short-lived `<type>/<kebab-summary>` branches cut from `main`, Conventional Commit messages (`type(scope): subject`, imperative, ≤50 chars), squash-merge via PR, never commit secrets/keystores/`.env`.
 
 > **On schema divergence:** the TDD §6.2 shows an *abridged/illustrative* SQL sketch; `docs/DB_SCHEMA.md` is the normalized, authoritative version. Where they differ (e.g. integer-paise money columns, `owner_id` denormalization, enum/lookup types, soft deletes), **DB_SCHEMA.md wins.** Likewise, ROADMAP and TDD describe the same target module structure with slightly different names (`:app`/`shared/:core:*` vs `composeApp/core/*`) — treat them as the same intent, not two designs.
 
