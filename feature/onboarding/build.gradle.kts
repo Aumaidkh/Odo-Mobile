@@ -21,9 +21,15 @@ kotlin {
             // Nav3 command bus + entry-provider registration. Features navigate
             // only through :core:navigation, never by importing another feature.
             implementation(projects.core.navigation)
+            // Domain use cases / entities / ports the presentation layer drives.
+            // Brings Arrow + coroutines-core transitively via domain's api deps.
+            implementation(projects.core.domain)
+            // koinViewModel() for the navigation route host (effect -> nav bridge).
+            implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

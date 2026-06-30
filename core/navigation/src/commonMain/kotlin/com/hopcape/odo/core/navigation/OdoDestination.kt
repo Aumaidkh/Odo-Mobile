@@ -33,6 +33,9 @@ sealed interface OdoDestination : NavKey {
     data class AddServiceLog(val carId: String) : OdoDestination
     data object BillScanner : OdoDestination
 
+    // --- Onboarding flow (first-run car setup) ---
+    data object Onboarding : OdoDestination
+
     // --- Auth flow ---
     data object AuthLogin : OdoDestination
     data object AuthOtp : OdoDestination
