@@ -11,7 +11,7 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
  * [CarForm] / [FormField]). Error strings are Hinglish, user-facing messages
  * derived from [com.hopcape.odo.core.domain.shared.DomainError] — the UI just shows them.
  */
-data class OnboardingUiState(
+internal data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.CAR_DETAILS,
 
     // --- Step 1: Car Details inputs + co-located field errors ---

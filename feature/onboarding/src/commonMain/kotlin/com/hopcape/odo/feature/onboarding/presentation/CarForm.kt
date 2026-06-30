@@ -8,7 +8,7 @@ import com.hopcape.odo.core.domain.car.usecase.AddCarCommand
  * together, so the two can never drift (editing the value always clears the
  * stale error; an error always belongs to a specific field).
  */
-data class FormField<T>(
+internal data class FormField<T>(
     val value: T? = null,
     val error: String? = null,
 ) {
@@ -26,7 +26,7 @@ data class FormField<T>(
  * `odometer` is raw text (the mandatory field, parsed to Int at the boundary) so
  * partial/invalid input round-trips without losing what the user typed.
  */
-data class CarForm(
+internal data class CarForm(
     val make: FormField<String> = FormField(),
     val model: FormField<String> = FormField(),
     val year: FormField<Int> = FormField(),

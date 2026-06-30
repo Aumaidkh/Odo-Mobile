@@ -5,7 +5,7 @@ package com.hopcape.odo.feature.onboarding.presentation
  * [OnboardingUiState] so the UI is a pure function of state and the flow stays
  * unit-testable without Compose.
  */
-enum class OnboardingStep {
+internal enum class OnboardingStep {
     CAR_DETAILS,
     HISTORY_IMPORT,
     GOAL_SELECTION,

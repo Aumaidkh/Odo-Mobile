@@ -9,7 +9,7 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
  * stamps the real `owner_id` on sync (DB_SCHEMA). When auth lands, a real provider
  * replaces this in the Koin graph; nothing else changes.
  */
-class LocalOwnerProvider : CurrentOwnerProvider {
+internal class LocalOwnerProvider : CurrentOwnerProvider {
     override fun currentOwnerId(): OwnerId = LOCAL_OWNER_ID
 
     private companion object {

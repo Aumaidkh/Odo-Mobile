@@ -24,6 +24,8 @@ kotlin {
             // Domain use cases / entities / ports the presentation layer drives.
             // Brings Arrow + coroutines-core transitively via domain's api deps.
             implementation(projects.core.domain)
+            // koinViewModel() for the navigation route host (effect -> nav bridge).
+            implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

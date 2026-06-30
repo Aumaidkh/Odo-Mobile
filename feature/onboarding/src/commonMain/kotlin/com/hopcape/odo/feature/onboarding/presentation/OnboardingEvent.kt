@@ -7,7 +7,7 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
  * User intents the UI dispatches to [OnboardingViewModel]. State-in / events-out:
  * the UI computes nothing — it only reports what the user did.
  */
-sealed interface OnboardingEvent {
+internal sealed interface OnboardingEvent {
 
     // --- Step 1: Car Details field changes ---
     data class MakeChanged(val value: String) : OnboardingEvent

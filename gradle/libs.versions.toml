@@ -44,6 +44,9 @@ composeCompiler-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
+# Koin + Compose Multiplatform — koinViewModel()/koinInject() for feature route hosts.
+# koin-compose-viewmodel brings koin-compose transitively.
+koin-composeViewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 # Arrow — Either<DomainError, T> at boundaries (functional error handling)
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 

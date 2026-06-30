@@ -32,7 +32,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * field-level, Hinglish messages on [CarForm]. The routing decision is emitted as
  * data ([StartDestination]); the ViewModel never touches navigation or Compose types.
  */
-class OnboardingViewModel(
+internal class OnboardingViewModel(
     private val addCar: AddCarUseCase,
     private val catalog: VehicleCatalog,
     private val owner: CurrentOwnerProvider,
