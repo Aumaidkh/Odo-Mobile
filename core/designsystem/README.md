@@ -44,6 +44,52 @@ val gauge = OdoTheme.colors.healthScoreColor(score)   // red < 50, amber < 80, g
 `OdoTheme.materialColors` exposes the underlying Material `ColorScheme` for the
 rare case a stock component needs a role directly.
 
+## Screen container
+
+Every screen — in every `:feature:*` module — wraps its content in `OdoScreen`,
+so brand background, system-bar insets, the top bar, snackbar, and default
+screen-edge padding are all configured in **one place**:
+
+```kotlin
+OdoScreen(title = "Apni gaadi", onBack = vm::back) { padding ->
+    Column(Modifier.fillMaxSize().padding(padding)) { /* … */ }
+}
+// edge-to-edge list: padding becomes the list's contentPadding
+OdoScreen(title = "Service log") { padding ->
+    LazyColumn(contentPadding = padding) { /* … */ }
+}
+```
+
+Insets/bars are applied for you; `content` receives the horizontal screen
+padding to apply where it fits the layout. `OdoTopBar` is the themed default
+header (pass a custom `topBar` to override). Change app-wide screen chrome here,
+not in N screens.
+
+## Previews
+
+Put **one** annotation on a preview and see it in light **and** dark `OdoTheme`,
+no separate light/dark functions — wrap the body in `OdoPreview` so it's themed:
+
+```kotlin
+@OdoThemePreviews
+@Composable
+private fun HealthDialPreview() = OdoPreview { HealthDial(score = 74) }
+```
+
+| Annotation | Renders |
+| --- | --- |
+| `@OdoThemePreviews` | light + dark (the default) |
+| `@OdoFontScalePreviews` | light + dark × font-scale sweep (a11y / truncation) |
+| `@OdoWidthPreviews` | compact (360dp) + expanded (840dp) widths (responsive) |
+
+Why the `OdoPreview` wrapper instead of a pure annotation? A multipreview
+annotation can only multiply `@Preview` configs — it can't inject `OdoTheme`
+around the target. (CMP has a `Preview(wrapper=…)` hook, but Android Studio's
+renderer ignores it.) So themeing lives in one shared composable; the dark/light
+split is driven by the annotation's `uiMode` via `isSystemInDarkTheme()`. For
+state variations (loading/error, score bands) add a `PreviewParameterProvider`
+and a `@PreviewParameter` arg.
+
 ## Token reference (`--odo-*` from the spec)
 
 | Group | Accessor | Tokens |
@@ -66,6 +112,10 @@ rare case a stock component needs a role directly.
 | `theme/Shape.kt` | `OdoShapes` radii + Material `Shapes` mapping |
 | `theme/Dimens.kt` | `OdoSpacing`, `OdoElevation`, `OdoIconSizes`, `OdoMotion` |
 | `theme/Theme.kt` | `OdoTheme {}` composable + `OdoTheme` accessor object |
+| `component/OdoScreen.kt` | `OdoScreen` — the common screen container (every screen wraps it) |
+| `component/OdoTopBar.kt` | `OdoTopBar` — themed default header + back chevron |
+| `preview/OdoPreview.kt` | `OdoPreview {}` — theme wrapper for previews |
+| `preview/OdoPreviews.kt` | `@OdoThemePreviews` / `@OdoFontScalePreviews` / `@OdoWidthPreviews` |
 
 ## Decisions / notes
 

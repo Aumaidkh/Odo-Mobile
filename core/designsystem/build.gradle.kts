@@ -19,9 +19,19 @@ kotlin {
             // is supplied by the odo.compose.multiplatform convention plugin and
             // re-exported transitively, so a module depending on :core:designsystem
             // gets Material3 + the tokens through this one dependency.
+            //
+            // Preview annotations (@Preview, @PreviewLightDark…) are `api` so
+            // every feature module can write Odo multipreviews (@OdoThemePreviews)
+            // without re-declaring this dependency.
+            api(libs.compose.uiToolingPreview)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
     }
+}
+
+dependencies {
+    // The Android preview renderer (ui-tooling) for this module's own previews.
+    androidRuntimeClasspath(libs.compose.uiTooling)
 }

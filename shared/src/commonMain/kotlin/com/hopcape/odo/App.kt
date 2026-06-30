@@ -1,8 +1,8 @@
 package com.hopcape.odo
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -44,15 +45,17 @@ fun App() {
 private val PlaceholderEntryProvider = object : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Home> {
-            Box(
-                Modifier.fillMaxSize().background(OdoTheme.colors.bg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "Odo",
-                    style = OdoTheme.typography.title,
-                    color = OdoTheme.colors.accent,
-                )
+            OdoScreen(title = "Odo") { padding ->
+                Box(
+                    Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "your car's AI best friend",
+                        style = OdoTheme.typography.body,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
             }
         }
     }
