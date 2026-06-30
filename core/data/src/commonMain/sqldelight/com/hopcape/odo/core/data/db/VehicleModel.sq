@@ -1,0 +1,21 @@
+-- Seeded reference table backing the model dropdown, keyed to vehicle_make.
+CREATE TABLE vehicle_model (
+    id            TEXT NOT NULL PRIMARY KEY,
+    make_id       TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    display_order INTEGER NOT NULL
+);
+
+CREATE INDEX idx_vehicle_model_make ON vehicle_model (make_id);
+
+insertModel:
+INSERT OR IGNORE INTO vehicle_model (id, make_id, name, display_order)
+VALUES (?, ?, ?, ?);
+
+-- Models for a make selected by its display name (the catalog API takes a name).
+selectModelsByMakeName:
+SELECT vehicle_model.name
+FROM vehicle_model
+JOIN vehicle_make ON vehicle_make.id = vehicle_model.make_id
+WHERE vehicle_make.name = ?
+ORDER BY vehicle_model.display_order, vehicle_model.name;
