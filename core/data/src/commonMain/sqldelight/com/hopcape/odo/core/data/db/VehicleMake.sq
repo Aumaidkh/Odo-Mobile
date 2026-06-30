@@ -1,0 +1,20 @@
+-- Seeded reference table backing the make dropdown. Populated idempotently from
+-- the data layer (INSERT OR IGNORE) so the brand list lives in the DB, not in
+-- Presentation.
+CREATE TABLE vehicle_make (
+    id            TEXT NOT NULL PRIMARY KEY,
+    name          TEXT NOT NULL UNIQUE,
+    display_order INTEGER NOT NULL
+);
+
+insertMake:
+INSERT OR IGNORE INTO vehicle_make (id, name, display_order)
+VALUES (?, ?, ?);
+
+selectAllMakes:
+SELECT name
+FROM vehicle_make
+ORDER BY display_order, name;
+
+countMakes:
+SELECT count(*) FROM vehicle_make;

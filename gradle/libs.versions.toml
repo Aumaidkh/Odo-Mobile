@@ -28,6 +28,11 @@ nav3 = "1.1.1"
 # Coroutines — SharedFlow command bus in :core:navigation
 kotlinxCoroutines = "1.10.2"
 
+# Local-first persistence (:core:data) — SQLDelight is the source of truth.
+sqldelight = "2.0.2"
+# Client-stamped offline timestamps (created_at/updated_at) in :core:data.
+kotlinxDatetime = "0.6.2"
+
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -51,6 +56,18 @@ navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui",
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 # Coroutines test — runTest for suspend use-case tests (commonTest).
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+
+# SQLDelight — local DB for :core:data (offline-first source of truth). The
+# runtime + coroutines extensions are multiplatform (commonMain); each platform
+# adds its own driver (android/native), and the JVM sqlite-driver backs the
+# host tests with an in-memory database.
+sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
+sqldelight-coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
+sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
+sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
+# kotlinx-datetime — Clock.System for client-stamped offline timestamps.
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
@@ -79,6 +96,8 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 # Used only to compile build-logic with a Kotlin version that matches the
 # Kotlin Gradle plugin (newer than the one embedded in Gradle's kotlin-dsl).
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# SQLDelight Gradle plugin — generates the typed DB API for :core:data.
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 
 # Odo convention plugins (defined in build-logic, applied by feature/app modules)
 odo-kmpLibrary = { id = "odo.kmp.library" }
