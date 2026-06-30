@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.domain.car.model
 
 import arrow.core.EitherNel
+import arrow.core.getOrElse
 import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import arrow.core.raise.zipOrAccumulate
@@ -78,5 +79,45 @@ class Car private constructor(
                 )
             }
         }
+
+        /**
+         * Rehydrate a [Car] from already-persisted, trusted data (the local DB,
+         * which mirrors these invariants via CHECK constraints).
+         *
+         * Unlike [create], this does **not** accumulate validation errors: the
+         * row was written by a previously-valid [Car], so a value that fails to
+         * reconstruct signals local data corruption — a programming/storage
+         * error, not user input — and fails fast. Construction stays inside the
+         * domain, so the value objects' private constructors remain private.
+         */
+        fun reconstitute(
+            id: CarId,
+            ownerId: OwnerId,
+            make: String,
+            model: String,
+            variant: String?,
+            year: Int,
+            fuelType: FuelType,
+            registrationNumber: String?,
+            odometerKm: Int,
+            purchaseYear: Int?,
+            nickname: String?,
+            isPrimary: Boolean,
+        ): Car = Car(
+            id = id,
+            ownerId = ownerId,
+            make = make,
+            model = model,
+            variant = variant,
+            year = ModelYear.of(year).getOrElse { error("corrupt car.year=$year for ${id.value}") },
+            fuelType = fuelType,
+            registrationNumber = RegistrationNumber.of(registrationNumber),
+            odometer = OdometerReading.of(odometerKm)
+                .getOrElse { error("corrupt car.odometer=$odometerKm for ${id.value}") },
+            purchaseYear = PurchaseYear.of(purchaseYear)
+                .getOrElse { error("corrupt car.purchaseYear=$purchaseYear for ${id.value}") },
+            nickname = nickname,
+            isPrimary = isPrimary,
+        )
     }
 }
