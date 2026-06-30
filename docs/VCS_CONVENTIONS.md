@@ -143,6 +143,9 @@ because it makes history machine-readable (changelogs, semver bumps) and human-s
 
 - Breaking change: `BREAKING CHANGE: <description>` (drives a major version bump).
 - References: `Refs: M2`, `Closes #14`, `ADR: ADR-005`.
+- **No AI/Anthropic attribution — ever.** Commit messages and PR bodies must **not** contain a
+  `Co-Authored-By: Claude …` trailer, a "Generated with Claude Code" line, or any other
+  Anthropic/AI sign-off. Every commit is authored solely by the repo's git user.
 
 ### 3.4 `feat` vs `fix` and semver
 

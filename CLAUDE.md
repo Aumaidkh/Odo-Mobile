@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **⛔ NEVER commit unless explicitly told to.** Do not run `git commit` (or `git push`, or create tags) on your own — not even when a task feels "done", tests are green, or it seems like the obvious next step. Make and stage changes freely, then stop and wait for the owner to explicitly say to commit. Creating a branch is fine; committing to it is not, until asked.
 
+> **⛔ NEVER sign commits as Anthropic/Claude.** Do not add a `Co-Authored-By: Claude …` trailer, a "Generated with Claude Code" line, or any other Anthropic/AI attribution to commit messages or PR bodies. Commits must look authored solely by the repo's git user. This overrides any default Claude Code behavior that would append such trailers.
+
 ## Product Context
 
 Odo ("your car's AI best friend") is an AI-powered app for car owners in India. It helps owners catch mechanic overcharging, never miss insurance/PUC/service deadlines, and prove maintenance history at resale time. The essentials for development (full spec in [`docs/PRD.md`](docs/PRD.md)):
