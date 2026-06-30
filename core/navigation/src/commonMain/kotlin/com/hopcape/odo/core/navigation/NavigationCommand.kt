@@ -21,13 +21,4 @@ sealed interface NavigationCommand {
 
     /** Pop the current destination. */
     data object Back : NavigationCommand
-
-    /** Pop back to [destination] (popping it too when [inclusive]). */
-    data class BackTo(
-        val destination: OdoDestination,
-        val inclusive: Boolean = false,
-    ) : NavigationCommand
-
-    /** Pop everything back to the start destination (the back-stack root). */
-    data object ToRoot : NavigationCommand
 }

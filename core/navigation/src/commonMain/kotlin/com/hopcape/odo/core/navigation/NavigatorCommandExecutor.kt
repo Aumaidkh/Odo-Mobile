@@ -17,10 +17,5 @@ internal fun Navigator.execute(command: NavigationCommand) {
         }
 
         NavigationCommand.Back -> goBack()
-
-        is NavigationCommand.BackTo -> popUpTo(command.destination, command.inclusive)
-
-        // Pop to the start destination without hard-coding what it is.
-        NavigationCommand.ToRoot -> while (canGoBack) goBack()
     }
 }

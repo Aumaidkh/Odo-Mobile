@@ -5,7 +5,6 @@ import androidx.navigation3.runtime.NavKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * Verifies the command → back-stack translation in isolation (no Compose). The
@@ -24,7 +23,7 @@ class NavigatorCommandExecutorTest {
 
         assertEquals(
             listOf(OdoDestination.Home, OdoDestination.CarDetail("c1")),
-            nav.backStack,
+            nav.backStack.toList(),
         )
     }
 
@@ -34,7 +33,7 @@ class NavigatorCommandExecutorTest {
 
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.Home, singleTop = true))
 
-        assertEquals(listOf(OdoDestination.Home), nav.backStack)
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
     }
 
     @Test
@@ -43,7 +42,7 @@ class NavigatorCommandExecutorTest {
 
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.Home, singleTop = false))
 
-        assertEquals(listOf(OdoDestination.Home, OdoDestination.Home), nav.backStack)
+        assertEquals(listOf(OdoDestination.Home, OdoDestination.Home), nav.backStack.toList())
     }
 
     @Test
@@ -61,7 +60,7 @@ class NavigatorCommandExecutorTest {
             ),
         )
 
-        assertEquals(listOf(OdoDestination.Home, OdoDestination.Profile), nav.backStack)
+        assertEquals(listOf(OdoDestination.Home, OdoDestination.Profile), nav.backStack.toList())
     }
 
     @Test
@@ -70,37 +69,11 @@ class NavigatorCommandExecutorTest {
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))
 
         nav.execute(NavigationCommand.Back)
-        assertEquals(listOf(OdoDestination.Home), nav.backStack)
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
         assertFalse(nav.canGoBack)
 
         // Popping the root is a no-op.
         nav.execute(NavigationCommand.Back)
-        assertEquals(listOf(OdoDestination.Home), nav.backStack)
-    }
-
-    @Test
-    fun backTo_popsToTarget_inclusiveControlsTheTargetItself() {
-        val nav = navigator(OdoDestination.Home)
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Garage))
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.AddServiceLog("c1")))
-
-        nav.execute(NavigationCommand.BackTo(OdoDestination.Garage))
-        assertEquals(listOf(OdoDestination.Home, OdoDestination.Garage), nav.backStack)
-
-        nav.execute(NavigationCommand.BackTo(OdoDestination.Garage, inclusive = true))
-        assertEquals(listOf(OdoDestination.Home), nav.backStack)
-    }
-
-    @Test
-    fun toRoot_popsEverythingToStartDestination() {
-        val nav = navigator(OdoDestination.Home)
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Garage))
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))
-
-        nav.execute(NavigationCommand.ToRoot)
-
-        assertEquals(listOf(OdoDestination.Home), nav.backStack)
-        assertTrue(nav.backStack.size == 1)
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
     }
 }

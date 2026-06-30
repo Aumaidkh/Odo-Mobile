@@ -1,6 +1,5 @@
 package com.hopcape.odo.core.navigation
 
-import androidx.compose.runtime.staticCompositionLocalOf
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -54,12 +53,3 @@ fun NavigationManager.navigateTo(
 ) = navigate(NavigationCommand.NavigateTo(destination, popUpTo, inclusive, singleTop))
 
 fun NavigationManager.back() = navigate(NavigationCommand.Back)
-
-/**
- * Ambient [NavigationManager] for Compose call sites (e.g. a screen reading it
- * directly in a demo). In production a ViewModel injects [NavigationManager] via
- * Koin instead of reaching for this local.
- */
-val LocalNavigationManager = staticCompositionLocalOf<NavigationManager> {
-    error("No NavigationManager provided. Provide one via CompositionLocalProvider.")
-}
