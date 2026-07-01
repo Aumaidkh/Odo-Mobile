@@ -4,9 +4,6 @@ import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 /**
  * [VehicleCatalog] backed by the seeded `vehicle_make`/`vehicle_model` tables.
@@ -29,8 +26,7 @@ internal class VehicleCatalogImpl(
      * [ModelYear.RANGE] stays lenient up to 2100; the UX must not offer future dates).
      */
     override fun years(): List<Int> {
-        val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
-        val newest = minOf(currentYear, ModelYear.RANGE.last)
+        val newest = minOf(currentYear(), ModelYear.RANGE.last)
         return (newest downTo ModelYear.RANGE.first).toList()
     }
 

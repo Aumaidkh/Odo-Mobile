@@ -4,9 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.domain.car.model.FuelType
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import java.time.Year
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -52,7 +50,7 @@ class VehicleCatalogImplTest {
 
     @Test
     fun years_areNewestFirstAndNeverInTheFuture() = runTest {
-        val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+        val currentYear = Year.now().value
         val catalog = VehicleCatalogImpl(seededDb())
         val years = catalog.years()
 
