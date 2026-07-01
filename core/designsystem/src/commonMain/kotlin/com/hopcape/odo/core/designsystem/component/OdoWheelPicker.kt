@@ -110,7 +110,7 @@ fun <T> OdoWheelPicker(
                 // The centred value grows; rows fall away in scale as they leave it.
                 val scale by animateFloatAsState(
                     targetValue = when (distance) {
-                        0 -> 1.18f
+                        0 -> 1.5f
                         1 -> 1f
                         else -> 0.82f
                     },
