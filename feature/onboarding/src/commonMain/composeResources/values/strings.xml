@@ -1,0 +1,56 @@
+<resources>
+    <!-- Shared chrome -->
+    <string name="onb_back">Back</string>
+    <string name="onb_continue">Continue</string>
+    <string name="onb_scan_bill">Scan my bill</string>
+    <string name="onb_skip">Skip for now</string>
+    <string name="onb_finish">Take me to my car</string>
+    <string name="onb_done">Done</string>
+
+    <!-- Step 1: Car details -->
+    <string name="onb_car_title">Add your car</string>
+    <string name="onb_car_subtitle">Takes 30 seconds.</string>
+    <string name="onb_label_make">Make</string>
+    <string name="onb_label_model">Model</string>
+    <string name="onb_label_year">Year</string>
+    <string name="onb_label_fuel">Fuel type</string>
+    <string name="onb_label_odometer">Current odometer (km)</string>
+    <string name="onb_label_purchase_year">Purchase year</string>
+    <string name="onb_required">★ REQUIRED</string>
+    <string name="onb_placeholder_choose">Choose</string>
+    <string name="onb_placeholder_unset">—</string>
+    <string name="onb_placeholder_odometer">e.g. 54,000</string>
+    <string name="onb_fuel_petrol">Petrol</string>
+    <string name="onb_fuel_diesel">Diesel</string>
+    <string name="onb_fuel_cng">CNG</string>
+    <string name="onb_fuel_electric">EV</string>
+
+    <!-- Step 2: History import -->
+    <string name="onb_history_title">Upload your last service bill</string>
+    <string name="onb_history_subtitle">We\'ll fill in the rest — just one photo.</string>
+    <string name="onb_scan_cta">Tap to scan a bill</string>
+    <string name="onb_scan_hint">First WOW moment</string>
+    <string name="onb_note_printed">Printed bills: best results (85%+)</string>
+    <string name="onb_note_handwritten">Handwritten: we\'ll ask you to double-check</string>
+    <string name="onb_scan_unavailable">Scan coming soon — Skip for now</string>
+
+    <!-- Step 3: Goal selection -->
+    <string name="onb_goal_title">What do you want from Odo?</string>
+    <string name="onb_goal_subtitle">Choose one — change anytime.</string>
+    <string name="onb_goal_sell_title">Sell my car in 12 months</string>
+    <string name="onb_goal_sell_subtitle">Build a Resale Passport</string>
+    <string name="onb_goal_track_title">Track my service costs</string>
+    <string name="onb_goal_track_subtitle">Catch overcharging</string>
+    <string name="onb_goal_remind_title">Never miss insurance / PUC</string>
+    <string name="onb_goal_remind_subtitle">Smart reminders</string>
+
+    <!-- Validation errors -->
+    <string name="onb_error_make_required">Please select a make</string>
+    <string name="onb_error_model_required">Please select a model</string>
+    <string name="onb_error_year_required">Please select a year</string>
+    <string name="onb_error_year_range">Year must be between %1$d and %2$d</string>
+    <string name="onb_error_fuel_required">Please select a fuel type</string>
+    <string name="onb_error_odometer_required">Odometer reading is required</string>
+    <string name="onb_error_odometer_negative">Odometer must be 0 or more</string>
+    <string name="onb_error_save_failed">Couldn\'t save. Please try again.</string>
+</resources>

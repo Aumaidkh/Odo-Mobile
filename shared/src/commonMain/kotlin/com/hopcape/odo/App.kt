@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -18,17 +17,31 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.OdoNavHost
 import com.hopcape.odo.core.navigation.rememberNavigator
+import org.koin.compose.getKoin
+import org.koin.compose.koinInject
 
+/**
+ * The app's composition root. Koin is already started by the platform bootstrap
+ * (Android `OdoApplication` / iOS `MainViewController`), and Koin 4.x exposes that
+ * global graph to the composition automatically — so feature routes can
+ * `koinViewModel()` / `koinInject()` without any wrapper here.
+ *
+ * The nav host is driven entirely from DI: the shared [NavigationManager] and every
+ * feature's [FeatureEntryProvider] (`getAll` — the multibinding analog). First run
+ * lands on [OdoDestination.Onboarding]; completing it routes to [OdoDestination.Home].
+ */
 @Composable
-@Preview
 fun App() {
     OdoTheme {
-        // In production these come from Koin: `koinInject<NavigationManager>()` and
-        // `getKoin().getAll<FeatureEntryProvider>()`. Held in `remember` here until
-        // the first `:feature:*` modules register their own entry providers.
-        val navigationManager = remember { NavigationManager() }
-        val navigator = rememberNavigator(OdoDestination.Home)
-        val entryProviders = remember { listOf(PlaceholderEntryProvider) }
+        val navigationManager = koinInject<NavigationManager>()
+        val navigator = rememberNavigator(OdoDestination.Onboarding)
+
+        // Every wired feature contributes its screens; the placeholder still
+        // serves Home (where onboarding lands) until that feature ships.
+        val featureProviders = getKoin().getAll<FeatureEntryProvider>()
+        val entryProviders = remember(featureProviders) {
+            featureProviders + PlaceholderHomeEntryProvider
+        }
 
         OdoNavHost(
             navigator = navigator,
@@ -39,10 +52,10 @@ fun App() {
 }
 
 /**
- * Stand-in graph until the real features land. Renders the Home route so the host
- * has something to display; the first `:feature:*` module replaces this.
+ * Stand-in for the Home route until its feature lands. Onboarding routes here on
+ * completion (see `StartDestinationMapping`), so the graph must always resolve it.
  */
-private val PlaceholderEntryProvider = object : FeatureEntryProvider {
+private val PlaceholderHomeEntryProvider = object : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Home> {
             OdoScreen(title = "Odo") { padding ->

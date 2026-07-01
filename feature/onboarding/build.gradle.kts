@@ -21,6 +21,9 @@ kotlin {
             // Nav3 command bus + entry-provider registration. Features navigate
             // only through :core:navigation, never by importing another feature.
             implementation(projects.core.navigation)
+            // Branded UI atoms (OdoScreen, OdoButton, OdoInputField, OdoDropdownField…)
+            // + the Odo theme tokens; re-exports Compose Material 3 transitively.
+            implementation(projects.core.designsystem)
             // Domain use cases / entities / ports the presentation layer drives.
             // Brings Arrow + coroutines-core transitively via domain's api deps.
             implementation(projects.core.domain)
@@ -32,4 +35,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
     }
+}
+
+// Compose Multiplatform string resources for this feature. Explicit package so the
+// generated `Res` is imported predictably from the presentation + UI code.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.feature.onboarding.resources"
+    generateResClass = always
 }

@@ -28,6 +28,13 @@ kotlin {
             implementation(projects.core.designsystem)
             // App navigation (command bus + Nav3 host). Exposes Nav3 transitively.
             implementation(projects.core.navigation)
+            // Composition root: :shared aggregates the DI graph (initKoin) and the
+            // FeatureEntryProviders App() collects, so it depends on the data layer
+            // and each wired feature. (The app root may depend on features.)
+            implementation(projects.core.data)
+            implementation(projects.feature.onboarding)
+            // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
+            implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

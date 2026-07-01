@@ -1,7 +1,7 @@
 package com.hopcape.odo.feature.onboarding.navigation
 
 import com.hopcape.odo.core.navigation.OdoDestination
-import com.hopcape.odo.feature.onboarding.presentation.StartDestination
+import com.hopcape.odo.feature.onboarding.presentation.contract.StartDestination
 
 /**
  * Translate onboarding's routing decision ([StartDestination], emitted as data by

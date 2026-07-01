@@ -1,22 +1,26 @@
-package com.hopcape.odo.feature.onboarding.presentation
+package com.hopcape.odo.feature.onboarding.presentation.state
 
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.usecase.AddCarCommand
+import com.hopcape.odo.core.designsystem.text.UiText
 
 /**
  * A single form field: the user's input value and its validation error kept
  * together, so the two can never drift (editing the value always clears the
  * stale error; an error always belongs to a specific field).
+ *
+ * The error is a [UiText] (a resource reference), not a literal — the UI resolves
+ * it to localized text, so no copy is hardcoded in the presentation logic.
  */
 internal data class FormField<T>(
     val value: T? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     /** Set a new value; editing clears any stale validation error. */
     fun update(value: T?): FormField<T> = copy(value = value, error = null)
 
     /** Attach a validation error without touching the value. */
-    fun fail(message: String): FormField<T> = copy(error = message)
+    fun fail(message: UiText): FormField<T> = copy(error = message)
 }
 
 /**

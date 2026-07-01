@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.odo.androidApplication)
     alias(libs.plugins.odo.composeMultiplatform)
+    // Application-level startKoin + androidContext (adds koin-android).
+    alias(libs.plugins.odo.koin)
 }
 
 android {
@@ -16,6 +18,8 @@ android {
 
 dependencies {
     implementation(projects.shared)
+    // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
+    implementation(projects.core.data)
 
     implementation(libs.androidx.activity.compose)
 

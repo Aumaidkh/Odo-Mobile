@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.onboarding.presentation
+package com.hopcape.odo.feature.onboarding.presentation.contract
 
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 

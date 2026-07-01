@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.onboarding.presentation
+package com.hopcape.odo.feature.onboarding.presentation.contract
 
 /**
  * One-shot side effects the ViewModel emits exactly once (vs. the durable render
