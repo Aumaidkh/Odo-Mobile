@@ -15,8 +15,8 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingEffect
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
+import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEffect
 import org.koin.compose.viewmodel.koinViewModel
 
 /**

@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.onboarding.presentation
+package com.hopcape.odo.feature.onboarding.presentation.scan
 
 /**
  * Port for the optional "scan your last service bill to auto-fill" step. The real

@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.onboarding.presentation
+package com.hopcape.odo.feature.onboarding.presentation.state
 
 /**
  * The three sequential screens of the onboarding flow (PRD §5.1). Held as data in

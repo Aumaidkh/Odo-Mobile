@@ -12,6 +12,16 @@ import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEffect
+import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.presentation.contract.StartDestination
+import com.hopcape.odo.feature.onboarding.presentation.contract.toStartDestination
+import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
+import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanOutcome
+import com.hopcape.odo.feature.onboarding.presentation.state.CarForm
+import com.hopcape.odo.feature.onboarding.presentation.state.FormField
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingUiState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow

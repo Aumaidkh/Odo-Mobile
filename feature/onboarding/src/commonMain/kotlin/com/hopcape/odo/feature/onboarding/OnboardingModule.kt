@@ -6,9 +6,9 @@ import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
-import com.hopcape.odo.feature.onboarding.presentation.HistoryScanLauncher
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
-import com.hopcape.odo.feature.onboarding.presentation.StubHistoryScanLauncher
+import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
+import com.hopcape.odo.feature.onboarding.presentation.scan.StubHistoryScanLauncher
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
