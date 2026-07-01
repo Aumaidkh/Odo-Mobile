@@ -2,14 +2,16 @@ package com.hopcape.odo.feature.onboarding.presentation.state
 
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.designsystem.text.UiText
 
 /**
  * Immutable render state for the whole onboarding flow. The UI is a pure function
  * of this; it never computes validation, persistence, or routing.
  *
  * Car-detail inputs and their per-field errors live together in [form] (see
- * [CarForm] / [FormField]). Error strings are Hinglish, user-facing messages
- * derived from [com.hopcape.odo.core.domain.shared.DomainError] — the UI just shows them.
+ * [CarForm] / [FormField]). Errors are [UiText] resource references derived from
+ * [com.hopcape.odo.core.domain.shared.DomainError] — the UI resolves them to
+ * localized copy, so no user-facing string is hardcoded here.
  */
 internal data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.CAR_DETAILS,
@@ -27,8 +29,8 @@ internal data class OnboardingUiState(
     // --- Goal + submission ---
     val selectedGoal: OnboardingGoal? = null,
     val isSubmitting: Boolean = false,
-    val submitError: String? = null,
+    val submitError: UiText? = null,
 
     // --- History import ---
-    val scanUnavailableMessage: String? = null,
+    val scanUnavailableMessage: UiText? = null,
 )

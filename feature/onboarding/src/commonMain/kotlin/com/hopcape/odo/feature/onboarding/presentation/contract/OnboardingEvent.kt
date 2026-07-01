@@ -33,6 +33,10 @@ internal sealed interface OnboardingEvent {
     /** Skip history import — always available. */
     data object SkipHistory : OnboardingEvent
 
-    // --- Step 3: Goal Selection (selecting a goal submits the flow) ---
+    // --- Step 3: Goal Selection (select-then-confirm) ---
+    /** Highlight a goal card. Does not submit — the user confirms with [Finish]. */
     data class GoalSelected(val goal: OnboardingGoal) : OnboardingEvent
+
+    /** Confirm the chosen goal and finish onboarding ("Take me to my car"). */
+    data object Finish : OnboardingEvent
 }

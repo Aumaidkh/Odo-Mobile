@@ -163,6 +163,7 @@ class OnboardingViewModelTest {
         runCurrent()
 
         vm.onEvent(OnboardingEvent.GoalSelected(OnboardingGoal.TRACK_COSTS))
+        vm.onEvent(OnboardingEvent.Finish)
         advanceUntilIdle()
 
         assertEquals(1, repo.addCount)
@@ -286,6 +287,24 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun goalSelected_highlightsWithoutSubmitting() = runTest(testDispatcher) {
+        val repo = FakeCarRepository()
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+
+        vm.fillValidCarDetails()
+        vm.onEvent(OnboardingEvent.CarDetailsNext)
+        vm.onEvent(OnboardingEvent.SkipHistory)
+        vm.onEvent(OnboardingEvent.GoalSelected(OnboardingGoal.TRACK_COSTS))
+        advanceUntilIdle()
+
+        // Selecting a goal only highlights it; nothing is persisted until Finish.
+        assertEquals(OnboardingGoal.TRACK_COSTS, vm.state.value.selectedGoal)
+        assertEquals(0, repo.addCount)
+        assertEquals(OnboardingStep.GOAL_SELECTION, vm.state.value.step)
+    }
+
+    @Test
     fun goalSelection_mapsEachGoalToCorrectStartDestination() {
         assertEquals(StartDestination.RESALE_PASSPORT, OnboardingGoal.SELL_SOON.toStartDestination())
         assertEquals(StartDestination.DASHBOARD, OnboardingGoal.TRACK_COSTS.toStartDestination())
@@ -305,6 +324,7 @@ class OnboardingViewModelTest {
         vm.onEvent(OnboardingEvent.CarDetailsNext)
         vm.onEvent(OnboardingEvent.SkipHistory)
         vm.onEvent(OnboardingEvent.GoalSelected(OnboardingGoal.SELL_SOON))
+        vm.onEvent(OnboardingEvent.Finish)
         advanceUntilIdle()
 
         assertNotNull(vm.state.value.submitError)

@@ -11,9 +11,20 @@ import com.hopcape.odo.core.domain.car.model.ModelYear
 import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEffect
 import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.resources.Res
+import com.hopcape.odo.feature.onboarding.resources.onb_error_fuel_required
+import com.hopcape.odo.feature.onboarding.resources.onb_error_make_required
+import com.hopcape.odo.feature.onboarding.resources.onb_error_model_required
+import com.hopcape.odo.feature.onboarding.resources.onb_error_odometer_negative
+import com.hopcape.odo.feature.onboarding.resources.onb_error_odometer_required
+import com.hopcape.odo.feature.onboarding.resources.onb_error_save_failed
+import com.hopcape.odo.feature.onboarding.resources.onb_error_year_range
+import com.hopcape.odo.feature.onboarding.resources.onb_error_year_required
+import com.hopcape.odo.feature.onboarding.resources.onb_scan_unavailable
 import com.hopcape.odo.feature.onboarding.presentation.contract.StartDestination
 import com.hopcape.odo.feature.onboarding.presentation.contract.toStartDestination
 import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
@@ -103,7 +114,9 @@ internal class OnboardingViewModel(
                     it.copy(step = OnboardingStep.GOAL_SELECTION, scanUnavailableMessage = null)
                 }
 
-            is OnboardingEvent.GoalSelected -> submit(event.goal)
+            is OnboardingEvent.GoalSelected ->
+                _state.update { it.copy(selectedGoal = event.goal, submitError = null) }
+            OnboardingEvent.Finish -> _state.value.selectedGoal?.let(::submit)
         }
     }
 
@@ -154,7 +167,7 @@ internal class OnboardingViewModel(
             when (scanLauncher.scan()) {
                 HistoryScanOutcome.NotAvailable ->
                     _state.update {
-                        it.copy(scanUnavailableMessage = "Scan jald aa raha hai — abhi Skip karein")
+                        it.copy(scanUnavailableMessage = UiText(Res.string.onb_scan_unavailable))
                     }
             }
         }
@@ -211,17 +224,20 @@ private fun OnboardingStep.previous(): OnboardingStep = when (this) {
  */
 private fun OnboardingUiState.withErrors(errors: NonEmptyList<DomainError>): OnboardingUiState {
     var form = form.clearErrors()
-    var submitError: String? = null
+    var submitError: UiText? = null
     errors.forEach { error ->
         when (error) {
             DomainError.MissingOdometer ->
-                form = form.copy(odometer = form.odometer.fail("Odometer reading zaroori hai"))
+                form = form.copy(odometer = form.odometer.fail(UiText(Res.string.onb_error_odometer_required)))
             DomainError.NegativeOdometer ->
-                form = form.copy(odometer = form.odometer.fail("Odometer 0 ya usse zyada hona chahiye"))
+                form = form.copy(odometer = form.odometer.fail(UiText(Res.string.onb_error_odometer_negative)))
             DomainError.MissingYear ->
-                form = form.copy(year = form.year.fail("Saal chunna zaroori hai"))
+                form = form.copy(year = form.year.fail(UiText(Res.string.onb_error_year_required)))
             is DomainError.YearOutOfRange -> {
-                val message = "Saal ${ModelYear.RANGE.first}–${ModelYear.RANGE.last} ke beech hona chahiye"
+                val message = UiText(
+                    id = Res.string.onb_error_year_range,
+                    args = listOf(ModelYear.RANGE.first, ModelYear.RANGE.last),
+                )
                 form = if (error.field == "purchaseYear") {
                     form.copy(purchaseYear = form.purchaseYear.fail(message))
                 } else {
@@ -229,13 +245,13 @@ private fun OnboardingUiState.withErrors(errors: NonEmptyList<DomainError>): Onb
                 }
             }
             DomainError.MissingFuelType ->
-                form = form.copy(fuelType = form.fuelType.fail("Fuel type chunna zaroori hai"))
+                form = form.copy(fuelType = form.fuelType.fail(UiText(Res.string.onb_error_fuel_required)))
             DomainError.BlankMake ->
-                form = form.copy(make = form.make.fail("Make chunna zaroori hai"))
+                form = form.copy(make = form.make.fail(UiText(Res.string.onb_error_make_required)))
             DomainError.BlankModel ->
-                form = form.copy(model = form.model.fail("Model chunna zaroori hai"))
+                form = form.copy(model = form.model.fail(UiText(Res.string.onb_error_model_required)))
             is DomainError.PersistenceFailure ->
-                submitError = "Save nahi ho paya. Dobara try karein."
+                submitError = UiText(Res.string.onb_error_save_failed)
         }
     }
     return copy(form = form, submitError = submitError)
