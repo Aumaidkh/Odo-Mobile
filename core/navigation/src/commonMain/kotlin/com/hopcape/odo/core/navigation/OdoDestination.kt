@@ -34,6 +34,8 @@ sealed interface OdoDestination : NavKey {
     data object BillScanner : OdoDestination
 
     // --- Onboarding flow (first-run car setup) ---
+    /** Intro carousel shown on first launch, before car setup. */
+    data object Welcome : OdoDestination
     data object Onboarding : OdoDestination
 
     // --- Auth flow ---

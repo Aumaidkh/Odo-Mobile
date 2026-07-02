@@ -7,6 +7,28 @@
     <string name="onb_finish">Take me to my car</string>
     <string name="onb_done">Done</string>
 
+    <!-- Intro carousel (shown before car setup) -->
+    <string name="onb_welcome_skip">Skip</string>
+    <string name="onb_welcome_get_started">Get Started</string>
+
+    <!-- Intro slide 1: overpaying -->
+    <string name="onb_welcome_overpay_title">You never know if you\'re overpaying.</string>
+    <string name="onb_welcome_overpay_body">Odo is your car\'s AI best friend — check any bill or price before you pay the mechanic.</string>
+
+    <!-- Intro slide 2: hidden charges -->
+    <string name="onb_welcome_hidden_title">Hidden charges. Every single time.</string>
+    <string name="onb_welcome_hidden_tag">OVERCHARGE CAUGHT</string>
+    <string name="onb_welcome_hidden_quote">"I was charged Rs. 1,100 extra on my last service — and never even knew."</string>
+    <string name="onb_welcome_hidden_author">Rahul · Pune · Swift owner</string>
+    <string name="onb_welcome_hidden_body">Odo checks every bill against real city rates — so you only ever pay what\'s fair.</string>
+
+    <!-- Intro slide 3: fairness / how it works -->
+    <string name="onb_welcome_fair_title">How do you know the price is fair?</string>
+    <string name="onb_welcome_fair_body">Odo gives you the answer in three simple steps.</string>
+    <string name="onb_welcome_step_scan">Scan bill</string>
+    <string name="onb_welcome_step_fairness">Fairness check</string>
+    <string name="onb_welcome_step_resale">Resale proof</string>
+
     <!-- Step 1: Car details -->
     <string name="onb_car_title">Add your car</string>
     <string name="onb_car_subtitle">Takes 30 seconds.</string>

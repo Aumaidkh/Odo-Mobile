@@ -36,6 +36,9 @@ class ComposeMultiplatformConventionPlugin : Plugin<Project> {
                     implementation(libs.findLibrary("compose-runtime").get())
                     implementation(libs.findLibrary("compose-foundation").get())
                     implementation(libs.findLibrary("compose-ui").get())
+                    // Multiplatform system-back handling (BackHandler) so any screen
+                    // can intercept back without a per-module dependency.
+                    implementation(libs.findLibrary("compose-uiBackhandler").get())
                     implementation(libs.findLibrary("compose-material3").get())
                     implementation(libs.findLibrary("compose-components-resources").get())
                     implementation(libs.findLibrary("androidx-lifecycle-viewmodelCompose").get())
