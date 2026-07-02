@@ -40,3 +40,5 @@ include(":core:designsystem")
 include(":core:navigation")
 
 include(":feature:onboarding")
+
+include(":observability:logging")
