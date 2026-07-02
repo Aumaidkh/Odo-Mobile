@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.composeMultiplatform)
     alias(libs.plugins.odo.koin)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -13,14 +15,11 @@ kotlin {
     }
 
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-        }
         commonMain.dependencies {
-            // Core Compose UI + lifecycle ViewModel artifacts come from the
-            // odo.compose.multiplatform convention plugin. Only module-specific
-            // extras are listed here.
-            implementation(libs.compose.uiToolingPreview)
+            // Core Compose UI + lifecycle ViewModel artifacts and the tooling
+            // preview come from the odo.compose.multiplatform convention plugin.
+            // Only module-specific extras are listed here.
+            //
             // Functional error handling — Either<DomainError, T> at boundaries.
             // (Koin is supplied by the odo.koin convention plugin.)
             implementation(libs.arrow.core)
@@ -38,12 +37,5 @@ kotlin {
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
         }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
     }
-}
-
-dependencies {
-    androidRuntimeClasspath(libs.compose.uiTooling)
 }

@@ -57,5 +57,10 @@ gradlePlugin {
             implementationClass =
                 "com.hopcape.odo.buildlogic.KoinConventionPlugin"
         }
+        register("kmpTest") {
+            id = "odo.kmp.test"
+            implementationClass =
+                "com.hopcape.odo.buildlogic.KmpTestConventionPlugin"
+        }
     }
 }

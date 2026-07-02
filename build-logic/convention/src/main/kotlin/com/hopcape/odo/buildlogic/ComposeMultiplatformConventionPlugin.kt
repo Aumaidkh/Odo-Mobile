@@ -12,10 +12,14 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
  * For KMP modules it also ships the Compose UI surface every screen needs
  * (runtime/foundation/ui/material3/resources) plus the lifecycle ViewModel +
  * `collectAsStateWithLifecycle` artifacts, into `commonMain`. This is registered
- * via `withPlugin` so it only fires for multiplatform modules — the Android
- * application module has no `commonMain` and is intentionally left untouched.
- * Module-specific extras (tooling preview, navigation, etc.) still live in the
- * owning module's build file.
+ * via `withPlugin` so it only fires for multiplatform modules.
+ *
+ * Compose **tooling preview** is bundled here as well, so any module that opts
+ * into Compose can write `@Preview`s without re-declaring the dependency:
+ *  - `compose.ui:ui-tooling-preview` (the `@Preview` annotations) is compiled
+ *    into `commonMain` (KMP) / `implementation` (Android app);
+ *  - `compose.ui:ui-tooling` (the Android preview *renderer*) is placed on the
+ *    Android runtime classpath only — never compiled against.
  */
 class ComposeMultiplatformConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
@@ -24,6 +28,8 @@ class ComposeMultiplatformConventionPlugin : Plugin<Project> {
             apply("org.jetbrains.kotlin.plugin.compose")
         }
 
+        // KMP modules: the Compose UI surface + `@Preview` annotations go into
+        // commonMain so every screen and every preview compiles everywhere.
         pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
             extensions.configure(KotlinMultiplatformExtension::class.java) { kmp ->
                 kmp.sourceSets.getByName("commonMain").dependencies {
@@ -34,8 +40,34 @@ class ComposeMultiplatformConventionPlugin : Plugin<Project> {
                     implementation(libs.findLibrary("compose-components-resources").get())
                     implementation(libs.findLibrary("androidx-lifecycle-viewmodelCompose").get())
                     implementation(libs.findLibrary("androidx-lifecycle-runtimeCompose").get())
+                    // @Preview / @PreviewLightDark and friends — every Compose
+                    // module gets these, so multipreviews (@OdoThemePreviews) work
+                    // without any per-module dependency declaration.
+                    implementation(libs.findLibrary("compose-uiToolingPreview").get())
                 }
             }
+        }
+
+        // KMP Android library: the preview *renderer* only needs to be present on
+        // the Android runtime classpath (Studio uses it to render @Previews).
+        pluginManager.withPlugin("com.android.kotlin.multiplatform.library") {
+            dependencies.addProvider(
+                "androidRuntimeClasspath",
+                libs.findLibrary("compose-uiTooling").get(),
+            )
+        }
+
+        // Android application module (no commonMain): the preview annotations for
+        // compilation, and the renderer on the debug runtime classpath.
+        pluginManager.withPlugin("com.android.application") {
+            dependencies.addProvider(
+                "implementation",
+                libs.findLibrary("compose-uiToolingPreview").get(),
+            )
+            dependencies.addProvider(
+                "debugImplementation",
+                libs.findLibrary("compose-uiTooling").get(),
+            )
         }
     }
 }

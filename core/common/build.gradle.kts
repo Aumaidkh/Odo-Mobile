@@ -4,6 +4,8 @@ plugins {
     // any module may depend on it. All KMP/Android/iOS boilerplate comes from the
     // odo.kmp.library convention plugin; only identity + deps live here.
     alias(libs.plugins.odo.kmpLibrary)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -17,9 +19,6 @@ kotlin {
             // Either / EitherNel through this single dependency — boundary error
             // handling is a shared concern, not re-declared per module.
             api(libs.arrow.core)
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
         }
     }
 }

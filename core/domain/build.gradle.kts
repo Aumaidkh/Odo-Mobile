@@ -3,6 +3,8 @@ plugins {
     // sealed DomainError. NO framework types ever (no Compose, DI, SQLDelight,
     // Supabase). Depends inward only — on :core:common.
     alias(libs.plugins.odo.kmpLibrary)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -21,7 +23,6 @@ kotlin {
             api(projects.core.common)
         }
         commonTest.dependencies {
-            implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
     }

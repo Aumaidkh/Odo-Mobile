@@ -4,6 +4,8 @@ plugins {
     // composables); no DI, no navigation, no domain. It sits at the bottom of
     // the UI stack so any feature / app module can depend on it.
     alias(libs.plugins.odo.composeMultiplatform)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -13,25 +15,10 @@ kotlin {
         namespace = "com.hopcape.odo.core.designsystem"
     }
 
-    sourceSets {
-        commonMain.dependencies {
-            // The Compose UI surface (runtime/foundation/ui/material3/resources)
-            // is supplied by the odo.compose.multiplatform convention plugin and
-            // re-exported transitively, so a module depending on :core:designsystem
-            // gets Material3 + the tokens through this one dependency.
-            //
-            // Preview annotations (@Preview, @PreviewLightDark…) are `api` so
-            // every feature module can write Odo multipreviews (@OdoThemePreviews)
-            // without re-declaring this dependency.
-            api(libs.compose.uiToolingPreview)
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
-    }
-}
-
-dependencies {
-    // The Android preview renderer (ui-tooling) for this module's own previews.
-    androidRuntimeClasspath(libs.compose.uiTooling)
+    // No source-set dependencies: the Compose UI surface
+    // (runtime/foundation/ui/material3/resources) and the tooling preview
+    // (@Preview annotations + the Android renderer) both come from the
+    // odo.compose.multiplatform convention plugin. Consumers get this module's
+    // tokens/composables, and — because they apply the same Compose convention —
+    // can write Odo multipreviews (@OdoThemePreviews) without any extra deps.
 }

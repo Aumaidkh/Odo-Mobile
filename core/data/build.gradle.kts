@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.koin)
     alias(libs.plugins.sqldelight)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -39,7 +41,6 @@ kotlin {
             implementation(libs.sqldelight.native.driver)
         }
         commonTest.dependencies {
-            implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
         // Driver-backed repository/DB tests run on the JVM host with an
