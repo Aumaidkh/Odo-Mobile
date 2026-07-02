@@ -29,6 +29,13 @@ kotlin {
             // Domain use cases / entities / ports the presentation layer drives.
             // Brings Arrow + coroutines-core transitively via domain's api deps.
             implementation(projects.core.domain)
+            // Observability: structured logging, product analytics, and APM spans —
+            // instrumented at this feature/presentation layer (domain stays pure).
+            // Consumers inject the Logger / AnalyticsTracker / PerformanceTracer
+            // interfaces; the facades' single config is owned by the app bootstrap.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            implementation(projects.observability.performance)
             // koinViewModel() for the navigation route host (effect -> nav bridge).
             implementation(libs.koin.composeViewmodel)
         }
