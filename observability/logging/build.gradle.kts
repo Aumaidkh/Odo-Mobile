@@ -7,4 +7,10 @@ kotlin {
     androidLibrary {
         namespace = "com.hopcape.logging"
     }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.datetime)
+        }
+    }
 }

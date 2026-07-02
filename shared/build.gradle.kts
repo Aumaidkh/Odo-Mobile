@@ -33,6 +33,8 @@ kotlin {
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
             implementation(projects.feature.onboarding)
+            // Structured logging — build-type-aware Logger wired via loggingModule.
+            implementation(projects.observability.logging)
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
         }
