@@ -14,4 +14,11 @@ internal sealed interface OnboardingEffect {
         val destination: StartDestination,
         val carId: String,
     ) : OnboardingEffect
+
+    /**
+     * Back was pressed on the first step: onboarding should be popped, returning to
+     * whatever preceded it (the intro carousel). The nav host performs the pop;
+     * presentation only decides that leaving is warranted.
+     */
+    data object NavigateBack : OnboardingEffect
 }

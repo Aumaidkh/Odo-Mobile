@@ -105,8 +105,7 @@ internal class OnboardingViewModel(
                 updateForm { it.copy(nickname = it.nickname.update(event.value)) }
 
             OnboardingEvent.CarDetailsNext -> validateAndAdvance()
-            OnboardingEvent.Back ->
-                _state.update { it.copy(step = it.step.previous(), scanUnavailableMessage = null) }
+            OnboardingEvent.Back -> onBack()
 
             OnboardingEvent.ScanHistoryClicked -> onScanClicked()
             OnboardingEvent.SkipHistory ->
@@ -122,6 +121,20 @@ internal class OnboardingViewModel(
 
     private fun updateForm(transform: (CarForm) -> CarForm) {
         _state.update { it.copy(form = transform(it.form)) }
+    }
+
+    /**
+     * Back from the first step ([OnboardingStep.CAR_DETAILS]) exits onboarding —
+     * emitted as [OnboardingEffect.NavigateBack] so the nav host pops back to the
+     * intro carousel. From any later step it just rewinds one step.
+     */
+    private fun onBack() {
+        val step = _state.value.step
+        if (step == OnboardingStep.CAR_DETAILS) {
+            viewModelScope.launch { _effects.send(OnboardingEffect.NavigateBack) }
+        } else {
+            _state.update { it.copy(step = step.previous(), scanUnavailableMessage = null) }
+        }
     }
 
     private fun onMakeChanged(make: String) {

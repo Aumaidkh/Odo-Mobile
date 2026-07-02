@@ -28,13 +28,14 @@ import org.koin.compose.koinInject
  *
  * The nav host is driven entirely from DI: the shared [NavigationManager] and every
  * feature's [FeatureEntryProvider] (`getAll` — the multibinding analog). First run
- * lands on [OdoDestination.Onboarding]; completing it routes to [OdoDestination.Home].
+ * lands on the [OdoDestination.Welcome] intro carousel, which routes into
+ * [OdoDestination.Onboarding] (car setup); completing that routes to [OdoDestination.Home].
  */
 @Composable
 fun App() {
     OdoTheme {
         val navigationManager = koinInject<NavigationManager>()
-        val navigator = rememberNavigator(OdoDestination.Onboarding)
+        val navigator = rememberNavigator(OdoDestination.Welcome)
 
         // Every wired feature contributes its screens; the placeholder still
         // serves Home (where onboarding lands) until that feature ships.

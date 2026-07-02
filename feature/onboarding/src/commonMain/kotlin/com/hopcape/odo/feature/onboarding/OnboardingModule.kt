@@ -9,6 +9,7 @@ import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvi
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
 import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
 import com.hopcape.odo.feature.onboarding.presentation.scan.StubHistoryScanLauncher
+import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -28,5 +29,6 @@ val onboardingModule = module {
     single<HistoryScanLauncher> { StubHistoryScanLauncher() }
     factory { AddCarUseCase(cars = get(), idGenerator = get()) }
     viewModelOf(::OnboardingViewModel)
+    viewModelOf(::WelcomeViewModel)
     single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
 }

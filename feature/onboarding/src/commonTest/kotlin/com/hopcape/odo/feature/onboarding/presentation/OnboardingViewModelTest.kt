@@ -259,6 +259,41 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun back_onFirstStep_emitsNavigateBack() = runTest(testDispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        val effectDeferred = async { vm.effects.first() }
+        runCurrent()
+
+        vm.onEvent(OnboardingEvent.Back)
+        advanceUntilIdle()
+
+        // First step has nowhere to rewind to — back exits onboarding.
+        assertEquals(OnboardingEffect.NavigateBack, effectDeferred.await())
+        assertEquals(OnboardingStep.CAR_DETAILS, vm.state.value.step)
+    }
+
+    @Test
+    fun back_onLaterStep_rewindsStepWithoutEffect() = runTest(testDispatcher) {
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        val effects = mutableListOf<OnboardingEffect>()
+        backgroundScope.launch { vm.effects.collect { effects += it } }
+
+        vm.fillValidCarDetails()
+        vm.onEvent(OnboardingEvent.CarDetailsNext)
+        assertEquals(OnboardingStep.HISTORY_IMPORT, vm.state.value.step)
+
+        vm.onEvent(OnboardingEvent.Back)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.CAR_DETAILS, vm.state.value.step)
+        assertTrue(effects.none { it is OnboardingEffect.NavigateBack })
+    }
+
+    @Test
     fun skipHistory_advancesWithoutScanning() = runTest(testDispatcher) {
         val scan = CountingScanLauncher()
         val vm = viewModel(scan = scan)
