@@ -1,6 +1,7 @@
 package com.hopcape.odo.di
 
 import com.hopcape.logging.api.loggingModule
+import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
@@ -21,9 +22,10 @@ import org.koin.dsl.KoinAppDeclaration
  *    Context-bearing SQLDelight `DriverFactory`.
  *  - iOS — `MainViewController` passes the native `DriverFactory` module.
  *
- * Logging is configured out-of-band by the platform's single `HLogger.init(...)`
- * call (which picks debug vs production by build type); [loggingModule] only
- * republishes that one logger into the graph, so no build-type flag is needed here.
+ * Logging and performance monitoring are configured out-of-band by the platform's
+ * single `HLogger.init(...)` / `APM.init(...)` calls (which pick debug vs production
+ * by build type); [loggingModule] and [performanceModule] only republish that one
+ * logger / tracer into the graph, so no build-type flag is needed here.
  *
  * Adding a feature to the running app is then two lines: `implementation` its
  * module here and list its Koin module below — `App()` discovers its screens via
@@ -36,6 +38,7 @@ fun initKoin(
     declaration()
     modules(
         loggingModule,
+        performanceModule,
         coreNavigationModule,
         coreDataModule,
         onboardingModule,

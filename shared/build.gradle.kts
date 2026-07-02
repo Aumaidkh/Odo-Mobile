@@ -34,6 +34,8 @@ kotlin {
             implementation(projects.feature.onboarding)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
+            // APM tracer (spans/traces) wired via performanceModule.
+            implementation(projects.observability.performance)
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
         }
