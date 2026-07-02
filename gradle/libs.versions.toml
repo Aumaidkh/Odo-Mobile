@@ -107,3 +107,4 @@ odo-kmpLibrary = { id = "odo.kmp.library" }
 odo-androidApplication = { id = "odo.android.application" }
 odo-composeMultiplatform = { id = "odo.compose.multiplatform" }
 odo-koin = { id = "odo.koin" }
+odo-kmpTest = { id = "odo.kmp.test" }

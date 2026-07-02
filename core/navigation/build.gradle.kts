@@ -4,6 +4,8 @@ plugins {
     // NavigationManager is published as a Koin `single` (the Hilt @Binds analog),
     // so features inject the interface without knowing the implementation.
     alias(libs.plugins.odo.koin)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -26,9 +28,6 @@ kotlin {
             // SharedFlow command bus. `api` so a feature that exposes the
             // NavigationManager flow keeps the coroutines types visible.
             api(libs.kotlinx.coroutines.core)
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
         }
     }
 }

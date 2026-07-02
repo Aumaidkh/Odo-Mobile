@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.koin)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -12,9 +14,6 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlinx.datetime)
         }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-            // koin-test is added to commonTest by the odo.koin convention plugin.
-        }
+        // commonTest: kotlin-test comes from odo.kmp.test; koin-test from odo.koin.
     }
 }

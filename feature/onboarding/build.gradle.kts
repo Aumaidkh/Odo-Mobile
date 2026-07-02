@@ -4,6 +4,8 @@ plugins {
     // ViewModels and the FeatureEntryProvider are published as Koin definitions
     // so the :app host wires them without depending on onboarding's internals.
     alias(libs.plugins.odo.koin)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
 }
 
 kotlin {
@@ -31,7 +33,6 @@ kotlin {
             implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {
-            implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
     }

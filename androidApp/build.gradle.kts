@@ -23,7 +23,6 @@ dependencies {
     implementation(projects.observability.logging)
 
     implementation(libs.androidx.activity.compose)
-
-    implementation(libs.compose.uiToolingPreview)
-    debugImplementation(libs.compose.uiTooling)
+    // Compose tooling preview (annotations + debug renderer) is supplied by the
+    // odo.compose.multiplatform convention plugin.
 }
