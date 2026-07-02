@@ -42,3 +42,4 @@ include(":core:navigation")
 include(":feature:onboarding")
 
 include(":observability:logging")
+include(":observability:analytics")
