@@ -16,24 +16,24 @@ class SafeMapTest {
     @Test
     fun set_thenGet_roundTrips() {
         val map = SafeMap<String, LogLevel>()
-        map["BLE"] = LogLevel.VERBOSE
-        assertEquals(LogLevel.VERBOSE, map["BLE"])
+        map["Sync"] = LogLevel.VERBOSE
+        assertEquals(LogLevel.VERBOSE, map["Sync"])
     }
 
     @Test
     fun set_overwritesExistingValue() {
         val map = SafeMap<String, LogLevel>()
-        map["BLE"] = LogLevel.VERBOSE
-        map["BLE"] = LogLevel.ERROR
-        assertEquals(LogLevel.ERROR, map["BLE"])
+        map["Sync"] = LogLevel.VERBOSE
+        map["Sync"] = LogLevel.ERROR
+        assertEquals(LogLevel.ERROR, map["Sync"])
     }
 
     @Test
     fun remove_deletesKey() {
         val map = SafeMap<String, LogLevel>()
-        map["BLE"] = LogLevel.VERBOSE
-        map.remove("BLE")
-        assertNull(map["BLE"])
+        map["Sync"] = LogLevel.VERBOSE
+        map.remove("Sync")
+        assertNull(map["Sync"])
     }
 
     @Test

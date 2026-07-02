@@ -44,11 +44,11 @@ class LoggingOutputIntegrationTest {
     @Test
     fun logcatSink_emitsFormattedLine_atOrAboveMinLevel() {
         val out = capture {
-            LogcatSink(minLevel = LogLevel.INFO).write(event(LogLevel.WARN, tag = "BLE", ev = "connected"))
+            LogcatSink(minLevel = LogLevel.INFO).write(event(LogLevel.WARN, tag = "Sync", ev = "pushed batch"))
         }
         assertTrue(out.contains("[WARN]"), out)
-        assertTrue(out.contains("BLE"), out)
-        assertTrue(out.contains("connected"), out)
+        assertTrue(out.contains("Sync"), out)
+        assertTrue(out.contains("pushed batch"), out)
     }
 
     @Test

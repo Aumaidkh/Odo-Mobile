@@ -41,7 +41,7 @@
 
 ## 1. Why this module
 
-Application code (ViewModels, repositories, BLE/IO adapters) needs to emit diagnostics without:
+Application code (ViewModels, repositories, data/IO adapters) needs to emit diagnostics without:
 
 - knowing **where** logs go (Logcat, file, remote…),
 - caring **how** sensitive data is scrubbed,
@@ -116,7 +116,7 @@ com.hopcape.logging
         │   Logger     │                          └───────────────┬──────────────┘    │
         │              │   ┌─────────────┐                         │ builds via        │
         │   HLogger.   │   │ ScopedLogger │◀── tag() returns        │                   │
-        └─ tag("BLE") ─│──▶│ (d/i/w/e)   │                         ▼                   │
+        └─ tag("Car") ─│──▶│ (d/i/w/e)   │                         ▼                   │
                        │   └─────────────┘        ┌──────────────────────────────┐    │
                        └──────────────────────────│   internal composition root  │────┘
                                                   │        LoggerFactory          │
@@ -148,11 +148,11 @@ Each sink is wrapped:  SafeSink( RedactingSink( <real sink> ) )
 
 ### 3.3 Log-call sequence
 
-What happens on `HLogger.tag("BLE_GATT").d("connected", mapOf("mac" to addr))`:
+What happens on `HLogger.tag("Sync").d("pushed batch", mapOf("rows" to 12))`:
 
 ```
-caller ─▶ ScopedLogger.d("connected", {mac})
-            └─▶ log(DEBUG, "BLE_GATT", "connected", trace, {mac})
+caller ─▶ ScopedLogger.d("pushed batch", {rows})
+            └─▶ log(DEBUG, "Sync", "pushed batch", trace, {rows})
                   └─▶ HLogger.EffectiveLogger.log(...)          ① runtime tag-level override check
                         └─▶ delegate = LoggerImpl.log(...)      ② (delegate set by init())
                               └─▶ LogEvent.Builder … build()    ③ stamp timestamp (kotlinx-datetime)
@@ -162,7 +162,7 @@ caller ─▶ ScopedLogger.d("connected", {mac})
                                                 └─▶ LogcatSink/FileSink.write(event)       ⑥ minLevel filter, emit
 ```
 
-- **①** If `setTagLevelOverride("BLE_GATT", …)` raised the bar above `DEBUG`, the call short-circuits here.
+- **①** If `setTagLevelOverride("Sync", …)` raised the bar above `DEBUG`, the call short-circuits here.
 - **②** Before `init()`, `delegate` is a no-op — nothing is emitted, nothing crashes.
 - **⑥** Each sink applies its own `minLevel` threshold, then formats & emits.
 
@@ -349,11 +349,11 @@ HLogger.tag("Startup").i("app booted", mapOf("coldStart" to true))
 ### 7.3 Scoped logger — bind a tag once
 
 ```kotlin
-class BleGattClient {
-    private val log = HLogger.tag("BLE_GATT")
+class SyncEngine {
+    private val log = HLogger.tag("Sync")
 
-    fun onConnected(mac: String) = log.d("connected", mapOf("mac" to mac))
-    fun onError(t: Throwable)    = log.e("gatt failure", mapOf("error" to t.message))
+    fun onPushed(rows: Int) = log.d("pushed batch", mapOf("rows" to rows))
+    fun onError(t: Throwable) = log.e("sync failed", mapOf("error" to t.message))
 }
 ```
 
@@ -387,9 +387,9 @@ logger.warn(
 ```kotlin
 // Turn on VERBOSE for ONE noisy subsystem for a single user session,
 // e.g. driven by a remote-config flag — no app update, no global spam:
-HLogger.setTagLevelOverride("BLE_GATT", LogLevel.VERBOSE)
+HLogger.setTagLevelOverride("Sync", LogLevel.VERBOSE)
 // …reproduce the field issue…
-HLogger.clearTagLevelOverride("BLE_GATT")
+HLogger.clearTagLevelOverride("Sync")
 ```
 
 ### 7.7 Force a flush (before a crash handler / process exit)

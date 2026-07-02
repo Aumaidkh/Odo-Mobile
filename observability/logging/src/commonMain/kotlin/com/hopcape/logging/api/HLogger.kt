@@ -23,7 +23,7 @@ import kotlin.jvm.JvmStatic
 //   instead of throwing NPE in production.
 // - `runtimeMinLevel` map allows remote-config-driven verbosity
 //   changes per tag without an app update (e.g. turn on VERBOSE
-//   for "BLE_GATT" for one user session while debugging a field issue).
+//   for "Sync" for one user session while debugging a field issue).
 // ─────────────────────────────────────────────────────────────
 @StableLoggerApi
 object HLogger {
@@ -60,7 +60,7 @@ object HLogger {
 
     /**
      * Runtime override for a specific tag's minimum level — e.g. driven by
-     * a remote-config flag to enable VERBOSE logging for "BLE_GATT" only
+     * a remote-config flag to enable VERBOSE logging for "Sync" only
      * for a specific debugging session, without shipping a new build.
      */
     @JvmStatic

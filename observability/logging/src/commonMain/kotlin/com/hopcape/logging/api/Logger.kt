@@ -2,7 +2,7 @@ package com.hopcape.logging.api
 
 // ─────────────────────────────────────────────────────────────
 // Logger — minimal public contract (ISP).
-// Callers (BLE code, ViewModels, repositories) only ever see this.
+// Callers (ViewModels, repositories, data/IO adapters) only ever see this.
 // They don't know or care how many sinks exist, or how redaction
 // works — that's an implementation detail hidden behind DIP.
 // ─────────────────────────────────────────────────────────────
