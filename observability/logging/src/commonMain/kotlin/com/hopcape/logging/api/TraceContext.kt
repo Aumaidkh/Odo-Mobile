@@ -1,5 +1,7 @@
 package com.hopcape.logging.api
 
+import kotlin.coroutines.CoroutineContext
+
 /**
  * Correlation identifiers carried alongside a log event so related lines can be
  * stitched together: a [sessionId] (per app session), a [flowId] (a user journey),
@@ -9,7 +11,9 @@ data class TraceContext(
     val sessionId: String? = null,
     val flowId: String? = null,
     val traceId: String? = null
-) {
+): CoroutineContext.Element {
+    companion object Key : CoroutineContext.Key<TraceContext>
+    override val key: CoroutineContext.Key<*> = Key
     // Derive a child context with a new traceId but same session/flow.
     fun withNewTrace(traceId: String) = copy(traceId = traceId)
     fun withNewFlow(flowId: String, traceId: String? = null) = copy(flowId = flowId, traceId = traceId)
