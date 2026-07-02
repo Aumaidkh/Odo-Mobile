@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.nonEmptyListOf
 import arrow.core.right
+import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.model.Car
@@ -111,14 +112,20 @@ class OnboardingViewModelTest {
         repo: FakeCarRepository = FakeCarRepository(),
         scan: HistoryScanLauncher = CountingScanLauncher(),
         catalog: VehicleCatalog = FakeVehicleCatalog(),
+        analytics: RecordingAnalytics = RecordingAnalytics(),
+        logger: Logger = NoopLogger,
     ): OnboardingViewModel {
         val ids = FixedIdGenerator()
+        // The VM delegates to a real telemetry wired to the recording fakes, so the
+        // funnel/trace assertions verify the end-to-end VM → telemetry → port path.
+        val telemetry = OnboardingTelemetry(logger = logger, analytics = analytics, tracer = NoopTracer, ids = ids)
         return OnboardingViewModel(
             addCar = AddCarUseCase(repo, ids),
             catalog = catalog,
             owner = owner,
             ids = ids,
             scanLauncher = scan,
+            telemetry = telemetry,
         )
     }
 
@@ -172,6 +179,78 @@ class OnboardingViewModelTest {
         assertEquals(StartDestination.DASHBOARD, effect.destination)
         assertEquals("car-1", effect.carId)
         assertEquals(false, vm.state.value.isSubmitting)
+    }
+
+    @Test
+    fun logging_childCoroutineGetsPropagatedChildTraceUnderTheFlow() = runTest(testDispatcher) {
+        val log = RecordingLogger()
+        val vm = viewModel(logger = log)
+        advanceUntilIdle() // lets the init child coroutine run and log catalog_loaded
+
+        // Emitted synchronously at the ViewModel (parent, flow trace); and from
+        // inside the launched catalog-load coroutine (its own child trace, installed
+        // on the coroutine context and read back via currentTraceContext()).
+        val started = log.entry("onboarding_started")
+        val catalog = log.entry("catalog_loaded")
+        assertNotNull(started?.trace)
+        assertNotNull(catalog?.trace)
+        // Both correlate under the one onboarding flow…
+        assertEquals(OnboardingTelemetry.FLOW, started.trace.flowId)
+        assertEquals(OnboardingTelemetry.FLOW, catalog.trace.flowId)
+        // …but the child coroutine carries its own per-op trace, not the parent's.
+        assertTrue(started.trace.traceId?.startsWith("onboarding_flow_") == true)
+        assertTrue(catalog.trace.traceId?.startsWith("load_catalog_") == true)
+        assertTrue(started.trace.traceId != catalog.trace.traceId)
+    }
+
+    @Test
+    fun instrumentation_tracksFunnelFromStartToCompleted() = runTest(testDispatcher) {
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        vm.fillValidCarDetails()
+        vm.onEvent(OnboardingEvent.CarDetailsNext)
+        vm.onEvent(OnboardingEvent.SkipHistory)
+        vm.onEvent(OnboardingEvent.GoalSelected(OnboardingGoal.TRACK_COSTS))
+        vm.onEvent(OnboardingEvent.Finish)
+        advanceUntilIdle()
+
+        // The key funnel milestones are recorded, in order.
+        val funnel = analytics.names.filter { it.startsWith("onboarding_") }
+        assertEquals(
+            listOf(
+                OnboardingTelemetry.Event.STARTED,
+                OnboardingTelemetry.Event.CAR_DETAILS_SUBMITTED,
+                OnboardingTelemetry.Event.HISTORY_SKIPPED,
+                OnboardingTelemetry.Event.GOAL_SELECTED,
+                OnboardingTelemetry.Event.COMPLETED,
+            ),
+            funnel,
+        )
+        // Completion carries the routing decision as properties.
+        val completed = analytics.propsOf(OnboardingTelemetry.Event.COMPLETED)
+        assertEquals(StartDestination.DASHBOARD.name, completed?.get("destination"))
+        assertEquals("car-1", completed?.get("car_id"))
+    }
+
+    @Test
+    fun instrumentation_tracksFailureOnPersistenceError() = runTest(testDispatcher) {
+        val repo = FakeCarRepository(onAdd = { DomainError.PersistenceFailure("disk full").left() })
+        val analytics = RecordingAnalytics()
+        val vm = viewModel(repo, analytics = analytics)
+        advanceUntilIdle()
+
+        vm.fillValidCarDetails()
+        vm.onEvent(OnboardingEvent.CarDetailsNext)
+        vm.onEvent(OnboardingEvent.SkipHistory)
+        vm.onEvent(OnboardingEvent.GoalSelected(OnboardingGoal.SELL_SOON))
+        vm.onEvent(OnboardingEvent.Finish)
+        advanceUntilIdle()
+
+        assertTrue(analytics.names.contains(OnboardingTelemetry.Event.FAILED))
+        assertEquals("persistence", analytics.propsOf(OnboardingTelemetry.Event.FAILED)?.get("reason"))
+        assertTrue(!analytics.names.contains(OnboardingTelemetry.Event.COMPLETED))
     }
 
     @Test

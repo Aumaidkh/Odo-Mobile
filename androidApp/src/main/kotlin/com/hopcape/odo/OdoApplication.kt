@@ -3,6 +3,9 @@ package com.hopcape.odo
 import android.app.Application
 import android.os.Build
 import android.util.Log
+import com.hopcape.analytics.api.AnalyticsConfig
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
@@ -57,6 +60,10 @@ class OdoApplication : Application() {
         coldStartSpan = APM.startSpan("app_cold_start", traceId = appSessionId)
             .setAttribute("launch_type", "cold")
 
+        // Analytics pipeline — republished into the graph by analyticsModule so
+        // features inject a ready AnalyticsTracker.
+        configureAnalytics(BuildConfig.DEBUG)
+
         initKoin(
             platformModule = module {
                 single { DriverFactory(androidContext()) }
@@ -92,5 +99,22 @@ class OdoApplication : Application() {
                 onDiagnostic = { Log.w("APM", it) },
             )
         )
+    }
+
+    private fun configureAnalytics(isDebugBuild: Boolean) {
+        HAnalytics.init(
+            AnalyticsConfig(
+                appVersion = BuildConfig.VERSION_NAME,
+                deviceModel = Build.MODEL,
+                osVersion = "Android ${Build.VERSION.RELEASE}",
+                locale = Locale.getDefault().toLanguageTag(),
+                isDebug = isDebugBuild,
+                onDiagnostic = { Log.w("Analytics", it) },
+            )
+        )
+        // TODO(consent): the real DPDP consent flow must own this gate. Granting
+        //  here so the acquisition funnel is observable during development; before
+        //  launch, drive setConsent() from the user's recorded consent decision.
+        HAnalytics.setConsent(ConsentStatus.GRANTED)
     }
 }

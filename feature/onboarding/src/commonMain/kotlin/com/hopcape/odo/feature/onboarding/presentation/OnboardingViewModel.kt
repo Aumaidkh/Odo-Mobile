@@ -52,6 +52,11 @@ import kotlin.coroutines.cancellation.CancellationException
  * ViewModel only invokes them at the right moments and maps [DomainError] to
  * field-level, Hinglish messages on [CarForm]. The routing decision is emitted as
  * data ([StartDestination]); the ViewModel never touches navigation or Compose types.
+ *
+ * All observability is delegated to [OnboardingTelemetry] behind intent-named calls
+ * (`telemetry.started()`, `telemetry.completed(...)`), and each async op runs under
+ * `telemetry.op(...)` so its span and logs correlate — so this file reads as the
+ * flow's logic, not a wall of logging/analytics/tracing.
  */
 internal class OnboardingViewModel(
     private val addCar: AddCarUseCase,
@@ -59,6 +64,7 @@ internal class OnboardingViewModel(
     private val owner: CurrentOwnerProvider,
     private val ids: IdGenerator,
     private val scanLauncher: HistoryScanLauncher,
+    private val telemetry: OnboardingTelemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingUiState())
@@ -71,8 +77,14 @@ internal class OnboardingViewModel(
     private var modelsJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            val makes = safeCatalog({ catalog.makes() })
+        telemetry.started()
+        loadCatalog()
+    }
+
+    /** Load the make/year/fuel reference data that the Step-1 dropdowns render. */
+    private fun loadCatalog() {
+        viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.CATALOG_LOAD)) {
+            val makes = telemetry.catalogLoaded { safeCatalog { catalog.makes() } }
             _state.update {
                 it.copy(
                     isCatalogLoading = false,
@@ -108,13 +120,9 @@ internal class OnboardingViewModel(
             OnboardingEvent.Back -> onBack()
 
             OnboardingEvent.ScanHistoryClicked -> onScanClicked()
-            OnboardingEvent.SkipHistory ->
-                _state.update {
-                    it.copy(step = OnboardingStep.GOAL_SELECTION, scanUnavailableMessage = null)
-                }
+            OnboardingEvent.SkipHistory -> onSkipHistory()
 
-            is OnboardingEvent.GoalSelected ->
-                _state.update { it.copy(selectedGoal = event.goal, submitError = null) }
+            is OnboardingEvent.GoalSelected -> onGoalSelected(event.goal)
             OnboardingEvent.Finish -> _state.value.selectedGoal?.let(::submit)
         }
     }
@@ -131,8 +139,10 @@ internal class OnboardingViewModel(
     private fun onBack() {
         val step = _state.value.step
         if (step == OnboardingStep.CAR_DETAILS) {
+            telemetry.abandoned(step)
             viewModelScope.launch { _effects.send(OnboardingEffect.NavigateBack) }
         } else {
+            telemetry.stepBack(step)
             _state.update { it.copy(step = step.previous(), scanUnavailableMessage = null) }
         }
     }
@@ -143,8 +153,8 @@ internal class OnboardingViewModel(
         _state.update {
             it.copy(form = it.form.copy(make = it.form.make.update(make), model = FormField()), models = emptyList())
         }
-        modelsJob = viewModelScope.launch {
-            val models = safeCatalog({ catalog.models(make) })
+        modelsJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.MODELS_LOAD)) {
+            val models = telemetry.modelsLoaded(make) { safeCatalog { catalog.models(make) } }
             _state.update { it.copy(models = models) }
         }
     }
@@ -166,46 +176,69 @@ internal class OnboardingViewModel(
             nickname = form.nickname.value?.ifBlank { null },
             isPrimary = true,
         ).fold(
-            ifLeft = { errors -> _state.update { it.withErrors(errors) } },
+            ifLeft = { errors ->
+                _state.update { it.withErrors(errors) }
+                telemetry.carDetailsInvalid(errors.errorTypes(), errors.size)
+            },
             ifRight = {
                 _state.update {
                     it.copy(form = it.form.clearErrors(), submitError = null, step = OnboardingStep.HISTORY_IMPORT)
                 }
+                telemetry.carDetailsSubmitted(form.make.value, form.fuelType.value?.name)
             },
         )
     }
 
+    private fun onSkipHistory() {
+        telemetry.historySkipped()
+        _state.update { it.copy(step = OnboardingStep.GOAL_SELECTION, scanUnavailableMessage = null) }
+    }
+
+    private fun onGoalSelected(goal: OnboardingGoal) {
+        telemetry.goalSelected(goal)
+        _state.update { it.copy(selectedGoal = goal, submitError = null) }
+    }
+
     private fun onScanClicked() {
-        viewModelScope.launch {
+        telemetry.scanClicked()
+        viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.SCAN)) {
             when (scanLauncher.scan()) {
-                HistoryScanOutcome.NotAvailable ->
-                    _state.update {
-                        it.copy(scanUnavailableMessage = UiText(Res.string.onb_scan_unavailable))
-                    }
+                HistoryScanOutcome.NotAvailable -> {
+                    _state.update { it.copy(scanUnavailableMessage = UiText(Res.string.onb_scan_unavailable)) }
+                    telemetry.scanUnavailable()
+                }
             }
         }
     }
 
     private fun submit(goal: OnboardingGoal) {
         _state.update { it.copy(selectedGoal = goal, isSubmitting = true, submitError = null) }
-        viewModelScope.launch {
+        viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.ADD_CAR)) {
             val form = _state.value.form
-            addCar(form.toCommand(), owner.currentOwnerId()).fold(
-                ifLeft = { errors ->
-                    val onlyPersistence = errors.all { it is DomainError.PersistenceFailure }
-                    _state.update {
-                        val applied = it.withErrors(errors).copy(isSubmitting = false)
-                        // Validation failures send the user back to fix the form; a pure
-                        // persistence failure keeps them on Goal Selection to retry.
-                        if (onlyPersistence) applied else applied.copy(step = OnboardingStep.CAR_DETAILS)
-                    }
-                },
-                ifRight = { car ->
-                    _state.update { it.copy(isSubmitting = false) }
-                    _effects.send(OnboardingEffect.NavigateToStart(goal.toStartDestination(), car.id.value))
-                },
-            )
+            telemetry.addCarWrite(goal) { addCar(form.toCommand(), owner.currentOwnerId()) }
+                .fold(
+                    ifLeft = { errors -> onSaveFailed(errors, goal) },
+                    ifRight = { car -> onCarSaved(car, goal) },
+                )
         }
+    }
+
+    private suspend fun onCarSaved(car: Car, goal: OnboardingGoal) {
+        _state.update { it.copy(isSubmitting = false) }
+        val destination = goal.toStartDestination()
+        telemetry.completed(goal, destination, car.id.value)
+        _effects.send(OnboardingEffect.NavigateToStart(destination, car.id.value))
+    }
+
+    private suspend fun onSaveFailed(errors: NonEmptyList<DomainError>, goal: OnboardingGoal) {
+        val onlyPersistence = errors.all { it is DomainError.PersistenceFailure }
+        _state.update {
+            val applied = it.withErrors(errors).copy(isSubmitting = false)
+            // Validation failures send the user back to fix the form; a pure
+            // persistence failure keeps them on Goal Selection to retry.
+            if (onlyPersistence) applied else applied.copy(step = OnboardingStep.CAR_DETAILS)
+        }
+        telemetry.failed(goal, if (onlyPersistence) "persistence" else "validation", errors.errorTypes())
     }
 
     /**
@@ -219,9 +252,17 @@ internal class OnboardingViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            telemetry.catalogReadFailed(e.message ?: e::class.simpleName)
             emptyList()
         }
 }
+
+/**
+ * A comma-joined list of the accumulated errors' *type* names — safe to emit as
+ * telemetry (no user input, no PII), enough for a dashboard to see which rules failed.
+ */
+private fun NonEmptyList<DomainError>.errorTypes(): String =
+    joinToString(",") { it::class.simpleName ?: "Unknown" }
 
 /** Previous step, clamped at the first. */
 private fun OnboardingStep.previous(): OnboardingStep = when (this) {

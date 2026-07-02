@@ -20,8 +20,13 @@ import kotlinx.coroutines.launch
  * (finished on the last slide or skipped). Routing itself lives in the route host,
  * so this ViewModel never touches navigation or Compose types — mirroring
  * [com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel].
+ *
+ * Observability is delegated to [WelcomeTelemetry] behind intent-named calls, so this
+ * file reads as pure carousel logic.
  */
-internal class WelcomeViewModel : ViewModel() {
+internal class WelcomeViewModel(
+    private val telemetry: WelcomeTelemetry,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(WelcomeUiState())
     val state: StateFlow<WelcomeUiState> = _state.asStateFlow()
@@ -29,24 +34,44 @@ internal class WelcomeViewModel : ViewModel() {
     private val _effects = Channel<WelcomeEffect>(Channel.BUFFERED)
     val effects: Flow<WelcomeEffect> = _effects.receiveAsFlow()
 
+    init {
+        telemetry.welcomeShown()
+    }
+
     fun onEvent(event: WelcomeEvent) {
         when (event) {
             is WelcomeEvent.PageChanged -> goToPage(event.index)
             WelcomeEvent.NextClicked -> onNext()
             WelcomeEvent.BackClicked -> goToPage(_state.value.currentIndex - 1)
-            WelcomeEvent.SkipClicked -> finish()
+            WelcomeEvent.SkipClicked -> onSkip()
         }
     }
 
     /** Advance to the next slide, or finish the carousel if already on the last. */
     private fun onNext() {
         val current = _state.value
-        if (current.isLastPage) finish() else goToPage(current.currentIndex + 1)
+        if (current.isLastPage) {
+            telemetry.completed()
+            finish()
+        } else {
+            goToPage(current.currentIndex + 1)
+        }
     }
 
-    /** Move to [index], clamped to a valid slide so the pager can never overshoot. */
+    private fun onSkip() {
+        telemetry.skipped(_state.value.currentPage)
+        finish()
+    }
+
+    /**
+     * Move to [index], clamped to a valid slide so the pager can never overshoot.
+     * A genuine change is a slide view — reported once (a no-op move is not).
+     */
     private fun goToPage(index: Int) {
-        _state.update { it.copy(currentIndex = index.coerceIn(0, it.pages.lastIndex)) }
+        val target = index.coerceIn(0, _state.value.pages.lastIndex)
+        if (target == _state.value.currentIndex) return
+        _state.update { it.copy(currentIndex = target) }
+        telemetry.slideViewed(_state.value.currentPage, target)
     }
 
     private fun finish() {

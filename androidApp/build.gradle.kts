@@ -21,6 +21,8 @@ dependencies {
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.core.data)
     implementation(projects.observability.logging)
+    // Analytics — HAnalytics.init + consent gate configured here.
+    implementation(projects.observability.analytics)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
 

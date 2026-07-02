@@ -6,9 +6,11 @@ import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
 import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
 import com.hopcape.odo.feature.onboarding.presentation.scan.StubHistoryScanLauncher
+import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
@@ -28,6 +30,10 @@ val onboardingModule = module {
     single<CurrentOwnerProvider> { LocalOwnerProvider() }
     single<HistoryScanLauncher> { StubHistoryScanLauncher() }
     factory { AddCarUseCase(cars = get(), idGenerator = get()) }
+    // Per-VM telemetry (factory, not single): each mints one flow trace-id, so a
+    // fresh onboarding attempt gets its own correlation — see OnboardingTelemetry.
+    factory { OnboardingTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
+    factory { WelcomeTelemetry(logger = get(), analytics = get(), ids = get()) }
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::WelcomeViewModel)
     single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
