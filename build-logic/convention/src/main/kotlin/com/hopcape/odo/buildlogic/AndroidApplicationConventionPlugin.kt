@@ -37,6 +37,12 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
             }
 
+            // Needed for `BuildConfig.DEBUG` (AGP 8+ no longer generates it by
+            // default). The app reads it to pick the debug vs production Logger.
+            buildFeatures {
+                buildConfig = true
+            }
+
             buildTypes {
                 getByName("release") { it.isMinifyEnabled = false }
             }

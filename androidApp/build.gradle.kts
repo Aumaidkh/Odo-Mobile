@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.core.data)
+    implementation(projects.observability.logging)
 
     implementation(libs.androidx.activity.compose)
 
