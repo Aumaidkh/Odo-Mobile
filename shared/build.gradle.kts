@@ -32,6 +32,7 @@ kotlin {
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
             implementation(projects.feature.onboarding)
+            implementation(projects.feature.servicelog)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.

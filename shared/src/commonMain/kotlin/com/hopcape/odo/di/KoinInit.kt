@@ -6,6 +6,7 @@ import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
+import com.hopcape.odo.feature.servicelog.serviceLogModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -45,6 +46,7 @@ fun initKoin(
         coreNavigationModule,
         coreDataModule,
         onboardingModule,
+        serviceLogModule,
         platformModule,
     )
 }

@@ -40,6 +40,7 @@ include(":core:designsystem")
 include(":core:navigation")
 
 include(":feature:onboarding")
+include(":feature:servicelog")
 
 include(":observability:logging")
 include(":observability:analytics")
