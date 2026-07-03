@@ -13,7 +13,7 @@ import kotlinx.datetime.LocalDate
  * form values, re-validated by
  * [com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry.create].
  */
-data class UpdateServiceLogCommand(
+internal data class UpdateServiceLogCommand(
     val id: ServiceLogId,
     val carId: CarId,
     val ownerId: OwnerId,

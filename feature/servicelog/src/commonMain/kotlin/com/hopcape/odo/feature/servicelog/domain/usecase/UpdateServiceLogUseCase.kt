@@ -21,7 +21,7 @@ import kotlinx.datetime.toLocalDateTime
  * odometer passes (equal is allowed); an edit that pushes it below a known reading
  * is rejected with [DomainError.OdometerRegression].
  */
-class UpdateServiceLogUseCase(
+internal class UpdateServiceLogUseCase(
     private val logs: ServiceLogRepository,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),

@@ -10,7 +10,7 @@ import com.hopcape.odo.core.domain.shared.Amount
  * when no benchmark exists yet (UI shows nothing), a [FairnessVerdict.LowConfidence]
  * when the sample is too small (guardrail: no false precision), otherwise Fair/Over/Under.
  */
-class CheckFairnessUseCase(
+internal class CheckFairnessUseCase(
     private val fairness: FairnessRepository,
 ) {
     suspend operator fun invoke(category: ServiceCategory, amount: Amount, city: String): FairnessVerdict? {
