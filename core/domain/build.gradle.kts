@@ -20,6 +20,10 @@ kotlin {
             // repository port → api.
             api(libs.arrow.core)
             api(libs.kotlinx.coroutines.core)
+            // LocalDate appears in the ServiceLog entity/command signatures and Clock
+            // in the use-case constructors → api. Multiplatform, not a platform
+            // framework, so it's allowed in the pure domain (already used in :core:data).
+            api(libs.kotlinx.datetime)
             api(projects.core.common)
         }
         commonTest.dependencies {

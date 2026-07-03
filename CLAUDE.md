@@ -72,11 +72,11 @@ Note: there are no test sources yet — `commonTest` is wired up with `kotlin.te
 The MVP refactors into a multi-module clean-architecture layout (full map + boundary contract in [`docs/ROADMAP.md`](docs/ROADMAP.md) Part A). Layers and the rules that matter when placing code:
 
 - **`:core:common`** — pure utilities (Either/Result, Clock, Logger, money/units). Knows nothing about cars or features.
-- **`:core:domain`** — entities, value objects, use cases, repository **interfaces**, `sealed DomainError`. Depends only on `:core:common`. **No framework types** (no Android / SQLDelight / Supabase imports) ever reach here.
+- **`:core:domain`** — the **shared kernel**: entities, value objects, repository **interfaces**, `sealed DomainError`. Depends only on `:core:common`. **No framework types** (no Android / SQLDelight / Supabase imports) ever reach here. **Feature-specific use cases do _not_ live here** — they live in their `:feature:*` module (see golden rules). `:core:domain` holds only types shared across features.
 - **`:core:data`** — repository **implementations**, local SQLDelight DB (the source of truth), DTO↔domain mappers, `SyncEngine`.
 - **`:core:platform`** — `expect`/`actual` for camera, secure storage, notifications, connectivity, file IO.
 - **`:core:network`** — Supabase client + Edge Function callers, retry/backoff, DTOs.
-- **`:feature:*`** — one vertical capability each (onboarding, servicelog, billscanner, fairness, reminders, documents, healthscore, costtracker, paywall; doctor & passport in Phase 2).
+- **`:feature:*`** — one vertical capability each (onboarding, servicelog, billscanner, fairness, reminders, documents, healthscore, costtracker, paywall; doctor & passport in Phase 2). A feature owns its **use cases** (application/orchestration logic, under `…feature.<name>.domain.usecase`) plus its presentation + UI. Use cases orchestrate the shared `:core:domain` kernel (entities, value objects, repository ports).
 - **`:app`** — Android entrypoint: DI wiring, nav host, theme. No business logic.
 - **`functions/`** — Supabase Edge Functions (Deno/TypeScript), a separate deploy unit (`ai-bill-scan`, `ai-doctor`, `fairness-aggregate`, `fuel-prices`).
 
@@ -84,6 +84,7 @@ The MVP refactors into a multi-module clean-architecture layout (full map + boun
 
 - Dependencies point **inward only**: `domain` depends on nothing but `common`; `data`/`platform`/`network` depend on `domain`; UI depends on `domain` + presentation.
 - A `:feature:*` module **never imports another `:feature:*`** — features share only through `:core:domain`. Shared UI gets promoted to a `:core:designsystem` module, not cross-imported.
+- **Use cases live in the feature that owns them**, not in `:core:domain` — a use case is feature-specific application logic (`…feature.<name>.domain.usecase`). Only the entities, value objects, repository **interfaces**, and `DomainError` they operate on are shared in `:core:domain`. When two features need the "same" use case, each writes its own against the shared `:core:domain` port (e.g. the M2 Bill Scanner persists a `ServiceLogEntry` via its own use case + the shared `ServiceLogRepository`; it does **not** import `:feature:servicelog`). Promote a use case to a shared module only if it is genuinely feature-agnostic.
 - Anything crossing into `domain` from outside is mapped from a DTO first — **domain never sees a DTO**.
 - **Offline-first:** the local DB is the source of truth for the user's data; the server is a sync target.
 - **AI behind a proxy:** the Anthropic API key lives **only** in the Edge Functions' environment — never in the app/APK. All AI calls and all quota/entitlement enforcement happen server-side; the client mirrors entitlements read-only.

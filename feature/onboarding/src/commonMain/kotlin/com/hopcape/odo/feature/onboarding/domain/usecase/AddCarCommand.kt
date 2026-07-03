@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.domain.car.usecase
+package com.hopcape.odo.feature.onboarding.domain.usecase
 
 import com.hopcape.odo.core.domain.car.model.FuelType
 
