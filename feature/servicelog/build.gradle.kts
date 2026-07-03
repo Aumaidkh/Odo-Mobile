@@ -20,16 +20,34 @@ kotlin {
             // Nav3 command bus + entry-provider registration. Features navigate
             // only through :core:navigation, never by importing another feature.
             implementation(projects.core.navigation)
+            // Branded UI atoms (OdoScreen, OdoCard, OdoInputField, OdoChip, OdoBadge…)
+            // + the Odo theme tokens; re-exports Compose Material 3 transitively.
+            implementation(projects.core.designsystem)
             // Shared kernel the feature's use cases orchestrate: the ServiceLog
             // entity + value objects, the ServiceLogRepository port, and DomainError.
             // Feature-specific use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
-            // LocalDate/Clock in the add/update commands + use cases.
+            // Observability: structured logging + product analytics, instrumented at
+            // the presentation layer (domain stays pure). Interfaces injected; the
+            // single config is owned by the app bootstrap.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            // LocalDate/Clock in the add/update commands + use cases + form VM.
             implementation(libs.kotlinx.datetime)
+            // koinViewModel() for the navigation route hosts (effect -> nav bridge).
+            implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
         }
     }
+}
+
+// Compose Multiplatform string resources for this feature. Explicit package so the
+// generated `Res` is imported predictably from the presentation + UI code.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.feature.servicelog.resources"
+    generateResClass = always
 }
