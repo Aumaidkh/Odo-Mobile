@@ -9,7 +9,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
  * Application service for removing a service log. A **soft** delete: the row is
  * retained (`deleted_at` stamped) so history/audit and resale checks stay intact.
  */
-class DeleteServiceLogUseCase(
+internal class DeleteServiceLogUseCase(
     private val logs: ServiceLogRepository,
 ) {
     suspend operator fun invoke(id: ServiceLogId): Either<DomainError, Unit> =

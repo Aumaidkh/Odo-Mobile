@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * Streams a single entry for the detail / edit-prefill screens; emits `null` if the
  * entry is missing or was deleted.
  */
-class GetServiceLogUseCase(
+internal class GetServiceLogUseCase(
     private val logs: ServiceLogRepository,
 ) {
     operator fun invoke(id: ServiceLogId): Flow<ServiceLogEntry?> = logs.observe(id)

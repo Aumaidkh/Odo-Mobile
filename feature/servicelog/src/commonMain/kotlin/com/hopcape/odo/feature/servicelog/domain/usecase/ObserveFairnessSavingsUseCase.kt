@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.map
  * fairness compares). Entries without a priced breakdown don't contribute (a single
  * category can't be attributed to a multi-item total).
  */
-class ObserveFairnessSavingsUseCase(
+internal class ObserveFairnessSavingsUseCase(
     private val logs: ServiceLogRepository,
     private val fairness: FairnessRepository,
 ) {

@@ -6,7 +6,7 @@ import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepositor
 import com.hopcape.odo.core.domain.shared.DomainError
 
 /** Submits a user's "Report this overcharge" for a flagged entry. */
-class ReportOverchargeUseCase(
+internal class ReportOverchargeUseCase(
     private val reports: OverchargeReportRepository,
 ) {
     suspend operator fun invoke(report: OverchargeReport): Either<DomainError, Unit> = reports.submit(report)

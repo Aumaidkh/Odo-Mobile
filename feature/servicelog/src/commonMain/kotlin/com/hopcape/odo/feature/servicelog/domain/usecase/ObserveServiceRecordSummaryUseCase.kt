@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.map
  * verified ratio, strength) — the one honest source behind both the Ledger stat card
  * and the Timeline record ring.
  */
-class ObserveServiceRecordSummaryUseCase(
+internal class ObserveServiceRecordSummaryUseCase(
     private val logs: ServiceLogRepository,
 ) {
     operator fun invoke(carId: CarId): Flow<ServiceRecordSummary> =

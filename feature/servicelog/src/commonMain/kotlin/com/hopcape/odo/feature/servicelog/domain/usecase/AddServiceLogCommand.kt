@@ -15,7 +15,7 @@ import kotlinx.datetime.LocalDate
  * tags, [lineItems] an optional priced breakdown, [billPhotoRef] a manually-attached
  * bill photo (makes the entry Verified).
  */
-data class AddServiceLogCommand(
+internal data class AddServiceLogCommand(
     val serviceDate: LocalDate?,
     val odometerKm: Int?,
     val totalAmountPaise: Long? = null,

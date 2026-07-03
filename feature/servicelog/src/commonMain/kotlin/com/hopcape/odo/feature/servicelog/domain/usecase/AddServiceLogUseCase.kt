@@ -28,7 +28,7 @@ import kotlinx.datetime.toLocalDateTime
  * clock is injected so "today" (for the future-date guard) is deterministic;
  * [timeZone] resolves the instant to a calendar date.
  */
-class AddServiceLogUseCase(
+internal class AddServiceLogUseCase(
     private val logs: ServiceLogRepository,
     private val idGenerator: IdGenerator,
     private val clock: Clock,
