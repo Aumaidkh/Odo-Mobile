@@ -30,6 +30,30 @@ sealed interface DomainError {
     /** Model is mandatory and must be non-blank. */
     data object BlankModel : DomainError
 
+    /** Service date is mandatory on every log but was absent. */
+    data object MissingServiceDate : DomainError
+
+    /** Service date was provided but lies in the future. */
+    data object ServiceDateInFuture : DomainError
+
+    /** A money amount was provided but negative (money is unsigned paise). */
+    data object NegativeAmount : DomainError
+
+    /** Workshop name exceeded [max] characters after trimming. */
+    data class WorkshopNameTooLong(val max: Int) : DomainError
+
+    /** Notes exceeded [max] characters after trimming. */
+    data class NotesTooLong(val max: Int) : DomainError
+
+    /**
+     * A new/edited odometer reading moved backwards past the car's last known
+     * reading — Odo enforces the odometer as an ever-increasing number.
+     */
+    data class OdometerRegression(val previousKm: Int, val attemptedKm: Int) : DomainError
+
+    /** The referenced car has no baseline reading — it does not exist for the owner. */
+    data object CarNotFound : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }

@@ -2,7 +2,7 @@ package com.hopcape.odo.feature.onboarding
 
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.common.id.UuidIdGenerator
-import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider

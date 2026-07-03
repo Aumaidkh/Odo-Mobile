@@ -8,7 +8,7 @@ import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.ModelYear
-import com.hopcape.odo.core.domain.car.usecase.AddCarUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.designsystem.text.UiText
@@ -305,6 +305,18 @@ private fun OnboardingUiState.withErrors(errors: NonEmptyList<DomainError>): Onb
             DomainError.BlankModel ->
                 form = form.copy(model = form.model.fail(UiText(Res.string.onb_error_model_required)))
             is DomainError.PersistenceFailure ->
+                submitError = UiText(Res.string.onb_error_save_failed)
+            // Service-log / cross-feature errors can't originate from AddCarUseCase.
+            // Listed explicitly (not via `else`) so this `when` stays exhaustive —
+            // a new *car* error still forces a compile error here — while any of
+            // these reaching onboarding is treated as an unexpected save failure.
+            DomainError.MissingServiceDate,
+            DomainError.ServiceDateInFuture,
+            DomainError.NegativeAmount,
+            is DomainError.WorkshopNameTooLong,
+            is DomainError.NotesTooLong,
+            is DomainError.OdometerRegression,
+            DomainError.CarNotFound ->
                 submitError = UiText(Res.string.onb_error_save_failed)
         }
     }

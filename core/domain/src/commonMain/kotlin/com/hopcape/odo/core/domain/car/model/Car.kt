@@ -6,8 +6,8 @@ import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import arrow.core.raise.zipOrAccumulate
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.domain.shared.OdometerReading
 
 /**
  * The Car aggregate root — the consistency boundary for a single car.
@@ -28,7 +28,7 @@ class Car private constructor(
     val year: ModelYear,
     val fuelType: FuelType,
     val registrationNumber: RegistrationNumber?,
-    val odometer: OdometerReading,
+    val odometer: Distance,
     val purchaseYear: PurchaseYear?,
     val nickname: String?,
     val isPrimary: Boolean,
@@ -59,7 +59,7 @@ class Car private constructor(
                 { ensureNotNull(model?.trim()?.ifBlank { null }) { DomainError.BlankModel } },
                 { ModelYear.of(year).bind() },
                 { ensureNotNull(fuelType) { DomainError.MissingFuelType } },
-                { OdometerReading.of(odometerKm).bind() },
+                { Distance.of(odometerKm).bind() },
                 { PurchaseYear.of(purchaseYear).bind() },
                 { RegistrationNumber.of(registrationNumber) },
             ) { validMake, validModel, validYear, validFuel, validOdometer, validPurchaseYear, validRegistration ->
@@ -112,7 +112,7 @@ class Car private constructor(
             year = ModelYear.of(year).getOrElse { error("corrupt car.year=$year for ${id.value}") },
             fuelType = fuelType,
             registrationNumber = RegistrationNumber.of(registrationNumber),
-            odometer = OdometerReading.of(odometerKm)
+            odometer = Distance.of(odometerKm)
                 .getOrElse { error("corrupt car.odometer=$odometerKm for ${id.value}") },
             purchaseYear = PurchaseYear.of(purchaseYear)
                 .getOrElse { error("corrupt car.purchaseYear=$purchaseYear for ${id.value}") },

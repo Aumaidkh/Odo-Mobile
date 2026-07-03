@@ -1,7 +1,7 @@
 package com.hopcape.odo.feature.onboarding.presentation.state
 
 import com.hopcape.odo.core.domain.car.model.FuelType
-import com.hopcape.odo.core.domain.car.usecase.AddCarCommand
+import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarCommand
 import com.hopcape.odo.core.designsystem.text.UiText
 
 /**

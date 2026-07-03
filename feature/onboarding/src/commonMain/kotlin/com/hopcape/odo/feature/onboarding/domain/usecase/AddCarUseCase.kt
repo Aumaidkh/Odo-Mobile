@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.domain.car.usecase
+package com.hopcape.odo.feature.onboarding.domain.usecase
 
 import arrow.core.EitherNel
 import arrow.core.flatMap
@@ -14,6 +14,10 @@ import com.hopcape.odo.core.domain.shared.DomainError
  * Application service for adding a car. Thin orchestrator: it mints an id,
  * delegates all validation to [Car.create], and on success hands the car to the
  * repository. Returns every validation failure at once via [EitherNel].
+ *
+ * This use case is **feature-specific** (car onboarding), so it lives in
+ * `:feature:onboarding`, not `:core:domain` — which keeps only the shared kernel
+ * (the [Car] aggregate, value objects, the [CarRepository] port, [DomainError]).
  */
 class AddCarUseCase(
     private val cars: CarRepository,
