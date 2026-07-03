@@ -19,7 +19,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
  * `:feature:onboarding`, not `:core:domain` — which keeps only the shared kernel
  * (the [Car] aggregate, value objects, the [CarRepository] port, [DomainError]).
  */
-class AddCarUseCase(
+internal class AddCarUseCase(
     private val cars: CarRepository,
     private val idGenerator: IdGenerator,
 ) {

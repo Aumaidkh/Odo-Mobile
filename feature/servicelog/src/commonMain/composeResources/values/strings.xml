@@ -1,0 +1,75 @@
+<resources>
+    <!-- Screen titles -->
+    <string name="sl_list_title">Service Log</string>
+    <string name="sl_detail_title">Service details</string>
+    <string name="sl_form_title_add">Log a service</string>
+    <string name="sl_form_title_edit">Edit service</string>
+
+    <!-- List: stats + filters -->
+    <string name="sl_stat_total_spent">Total spent</string>
+    <string name="sl_stat_services_count">%1$d services logged</string>
+    <string name="sl_filter_all">All</string>
+    <string name="sl_filter_verified">Verified</string>
+    <string name="sl_filter_self_reported">Self-reported</string>
+
+    <!-- Trust badges -->
+    <string name="sl_badge_verified">Verified</string>
+    <string name="sl_badge_self_reported">Self-reported</string>
+
+    <!-- Empty state -->
+    <string name="sl_empty_title">No services logged yet</string>
+    <string name="sl_empty_body">Add your first service and Odo starts building a verified record — proof that pays off at resale.</string>
+
+    <!-- Actions -->
+    <string name="sl_action_scan">Scan a bill</string>
+    <string name="sl_action_enter_manually">Enter manually</string>
+    <string name="sl_action_edit">Edit</string>
+    <string name="sl_action_delete">Delete</string>
+    <string name="sl_save">Save to log</string>
+    <string name="sl_coming_soon">Coming soon</string>
+
+    <!-- Form: scan CTA + fields -->
+    <string name="sl_scan_cta_title">Scan the bill</string>
+    <string name="sl_scan_cta_subtitle">Odo reads workshop, date &amp; amounts for you.</string>
+    <string name="sl_divider_or_manual">or enter manually</string>
+    <string name="sl_field_workshop">Workshop</string>
+    <string name="sl_field_workshop_hint">e.g. Sharma Motors</string>
+    <string name="sl_field_date">Date</string>
+    <string name="sl_field_date_hint">Select date</string>
+    <string name="sl_field_odometer">Odometer</string>
+    <string name="sl_field_odometer_hint">km</string>
+    <string name="sl_field_notes">What was done</string>
+    <string name="sl_field_notes_hint">e.g. Oil change + oil filter</string>
+    <string name="sl_field_amount">Amount paid</string>
+    <string name="sl_field_amount_hint">Rs.</string>
+
+    <!-- Detail -->
+    <string name="sl_detail_total_paid">Total paid</string>
+    <string name="sl_detail_bill_attached">Bill attached</string>
+    <string name="sl_detail_add_bill_hint">Self-reported — add a bill to verify</string>
+
+    <!-- Delete confirmation -->
+    <string name="sl_delete_confirm_title">Delete this service?</string>
+    <string name="sl_delete_confirm_body">This removes it from your record and can\'t be undone.</string>
+    <string name="sl_cancel">Cancel</string>
+    <string name="sl_ok">OK</string>
+    <string name="sl_not_found">This service is no longer available.</string>
+
+    <!-- Field / submit errors -->
+    <string name="sl_error_odometer_required">Odometer reading is required</string>
+    <string name="sl_error_odometer_negative">Odometer can\'t be negative</string>
+    <string name="sl_error_odometer_regression">Odometer can\'t be below the last reading (%1$d km)</string>
+    <string name="sl_error_amount_negative">Amount can\'t be negative</string>
+    <string name="sl_error_date_required">Service date is required</string>
+    <string name="sl_error_date_future">Service date can\'t be in the future</string>
+    <string name="sl_error_workshop_too_long">Workshop name is too long</string>
+    <string name="sl_error_notes_too_long">Notes are too long</string>
+    <string name="sl_error_save_failed">Couldn\'t save — please try again</string>
+
+    <!-- Content descriptions -->
+    <string name="sl_cd_back">Back</string>
+    <string name="sl_cd_close">Close</string>
+    <string name="sl_cd_add">Add service</string>
+    <string name="sl_cd_edit">Edit service</string>
+    <string name="sl_cd_delete">Delete service</string>
+</resources>
