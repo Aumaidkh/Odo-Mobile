@@ -1,9 +1,9 @@
 package com.hopcape.odo.core.domain.servicelog.model
 
-import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.core.domain.shared.sum
 import kotlin.math.roundToInt
 
 /**
@@ -62,8 +62,7 @@ data class ServiceRecordSummary(
 
             val serviceCount = entries.size
             val verifiedCount = entries.count { it.verification == VerificationStatus.VERIFIED }
-            // Sum of non-negative paise is non-negative, so Amount.of always succeeds.
-            val totalSpent = Amount.of(entries.sumOf { it.totalAmount.paise }).getOrElse { Amount.ZERO }
+            val totalSpent = entries.map { it.totalAmount }.sum()
             // Odometer is ever-increasing, so the highest reading is the latest.
             val latestOdometer = entries.maxByOrNull { it.odometer.km }?.odometer
             val verifiedRatio = verifiedCount.toFloat() / serviceCount

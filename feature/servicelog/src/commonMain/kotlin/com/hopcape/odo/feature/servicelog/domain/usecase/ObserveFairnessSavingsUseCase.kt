@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.servicelog.domain.usecase
 
-import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
@@ -25,19 +24,18 @@ class ObserveFairnessSavingsUseCase(
         logs.observe(carId).map { entries -> savings(entries, city) }
 
     private suspend fun savings(entries: List<ServiceLogEntry>, city: String): FairnessSavings {
-        var totalPaise = 0L
+        var overchargeTotal = Amount.ZERO
         var count = 0
         for (entry in entries) {
             for (line in entry.lineItems) {
                 val estimate = fairness.estimate(line.category, city) ?: continue
                 val verdict = FairnessVerdict.of(line.amount, estimate)
                 if (verdict is FairnessVerdict.Over) {
-                    totalPaise += verdict.by.paise
+                    overchargeTotal += verdict.by // Amount arithmetic, never raw paise
                     count++
                 }
             }
         }
-        if (count == 0) return FairnessSavings.NONE
-        return FairnessSavings(Amount.of(totalPaise).getOrElse { Amount.ZERO }, count)
+        return if (count == 0) FairnessSavings.NONE else FairnessSavings(overchargeTotal, count)
     }
 }

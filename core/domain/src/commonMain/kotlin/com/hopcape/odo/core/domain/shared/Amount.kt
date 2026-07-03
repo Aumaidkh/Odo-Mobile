@@ -18,6 +18,10 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 value class Amount private constructor(val paise: Long) {
+
+    /** Sum of two amounts — both are non-negative, so the result always is too. */
+    operator fun plus(other: Amount): Amount = Amount(paise + other.paise)
+
     companion object {
         /** No recorded cost — the default for a manually-logged service. */
         val ZERO = Amount(0)
@@ -29,3 +33,6 @@ value class Amount private constructor(val paise: Long) {
         }
     }
 }
+
+/** Total of a sequence of amounts (empty → [Amount.ZERO]) — keeps money math in [Amount]. */
+fun Iterable<Amount>.sum(): Amount = fold(Amount.ZERO) { acc, amount -> acc + amount }
