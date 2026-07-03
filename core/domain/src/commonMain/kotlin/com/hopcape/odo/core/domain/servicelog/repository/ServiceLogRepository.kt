@@ -16,6 +16,9 @@ interface ServiceLogRepository {
     /** A car's non-deleted logs, newest first. */
     fun observe(carId: CarId): Flow<List<ServiceLogEntry>>
 
+    /** A single non-deleted entry (detail / edit-prefill); emits `null` if absent. */
+    fun observe(id: ServiceLogId): Flow<ServiceLogEntry?>
+
     suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry>
 
     suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry>

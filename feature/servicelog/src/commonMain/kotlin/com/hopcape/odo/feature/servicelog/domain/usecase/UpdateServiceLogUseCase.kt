@@ -41,6 +41,9 @@ class UpdateServiceLogUseCase(
             today = today,
             workshopName = command.workshopName,
             notes = command.notes,
+            categories = command.categories,
+            lineItems = command.lineItems,
+            billPhotoRef = command.billPhotoRef,
         ).bind()
 
         val previousKm = logs.mostRecentOdometerKm(command.carId)

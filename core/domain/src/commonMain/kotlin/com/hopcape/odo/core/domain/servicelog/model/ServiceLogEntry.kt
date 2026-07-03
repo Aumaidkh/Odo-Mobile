@@ -27,6 +27,10 @@ import kotlinx.datetime.LocalDate
  * it compares against the car's other readings and lives in the use case
  * (`AddServiceLogUseCase` / `UpdateServiceLogUseCase`), the ServiceLog analog of
  * Car's "one primary per owner" living in the repository.
+ *
+ * [categories] are the "what was done" tags; [lineItems] an optional priced breakdown;
+ * [billPhotoRef] the manually-attached bill photo that makes the entry `Verified`
+ * (see [verification]). [totalAmount] stays authoritative regardless of line items.
  */
 class ServiceLogEntry private constructor(
     val id: ServiceLogId,
@@ -37,8 +41,11 @@ class ServiceLogEntry private constructor(
     val totalAmount: Amount,
     val workshopName: WorkshopName?,
     val notes: Notes?,
+    val categories: Set<ServiceCategory>,
+    val lineItems: List<ServiceLogLineItem>,
     val source: LogSource,
     val billId: BillId?,
+    val billPhotoRef: String?,
 ) {
     companion object {
         /**
@@ -57,8 +64,11 @@ class ServiceLogEntry private constructor(
             today: LocalDate,
             workshopName: String? = null,
             notes: String? = null,
+            categories: Set<ServiceCategory> = emptySet(),
+            lineItems: List<ServiceLogLineItemDraft> = emptyList(),
             source: LogSource = LogSource.MANUAL,
             billId: BillId? = null,
+            billPhotoRef: String? = null,
         ): EitherNel<DomainError, ServiceLogEntry> = either {
             zipOrAccumulate(
                 { validateServiceDate(serviceDate, today).bind() },
@@ -66,7 +76,8 @@ class ServiceLogEntry private constructor(
                 { Amount.of(totalAmountPaise).bind() },
                 { WorkshopName.of(workshopName).bind() },
                 { Notes.of(notes).bind() },
-            ) { validDate, validOdometer, validAmount, validWorkshop, validNotes ->
+                { lineItems.map { ServiceLogLineItem.of(it.label, it.category, it.amountPaise).bind() } },
+            ) { validDate, validOdometer, validAmount, validWorkshop, validNotes, validLineItems ->
                 ServiceLogEntry(
                     id = id,
                     carId = carId,
@@ -76,8 +87,11 @@ class ServiceLogEntry private constructor(
                     totalAmount = validAmount,
                     workshopName = validWorkshop,
                     notes = validNotes,
+                    categories = categories,
+                    lineItems = validLineItems,
                     source = source,
                     billId = billId,
+                    billPhotoRef = billPhotoRef,
                 )
             }
         }
@@ -89,7 +103,8 @@ class ServiceLogEntry private constructor(
          * Unlike [create], this does not accumulate errors: a value that fails to
          * reconstruct signals local data corruption — a programming/storage error,
          * not user input — and fails fast. Construction stays inside the domain, so
-         * the value objects' private constructors remain private.
+         * the value objects' private constructors remain private. [lineItems] arrive
+         * already built (the data layer maps its own rows).
          */
         fun reconstitute(
             id: ServiceLogId,
@@ -102,6 +117,9 @@ class ServiceLogEntry private constructor(
             notes: String?,
             source: LogSource,
             billId: BillId?,
+            categories: Set<ServiceCategory> = emptySet(),
+            lineItems: List<ServiceLogLineItem> = emptyList(),
+            billPhotoRef: String? = null,
         ): ServiceLogEntry = ServiceLogEntry(
             id = id,
             carId = carId,
@@ -115,8 +133,11 @@ class ServiceLogEntry private constructor(
                 .getOrElse { error("corrupt service_log.workshopName for ${id.value}") },
             notes = Notes.of(notes)
                 .getOrElse { error("corrupt service_log.notes for ${id.value}") },
+            categories = categories,
+            lineItems = lineItems,
             source = source,
             billId = billId,
+            billPhotoRef = billPhotoRef,
         )
 
         private fun validateServiceDate(

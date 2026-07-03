@@ -2,7 +2,9 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
 import kotlinx.datetime.LocalDate
 
 /**
@@ -20,4 +22,7 @@ data class UpdateServiceLogCommand(
     val totalAmountPaise: Long? = null,
     val workshopName: String? = null,
     val notes: String? = null,
+    val categories: Set<ServiceCategory> = emptySet(),
+    val lineItems: List<ServiceLogLineItemDraft> = emptyList(),
+    val billPhotoRef: String? = null,
 )
