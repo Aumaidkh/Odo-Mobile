@@ -51,6 +51,9 @@ class AddServiceLogUseCase(
             today = today,
             workshopName = command.workshopName,
             notes = command.notes,
+            categories = command.categories,
+            lineItems = command.lineItems,
+            billPhotoRef = command.billPhotoRef,
         ).bind()
 
         // Cross-entity rule — the odometer may never move backwards. The reference

@@ -30,7 +30,15 @@ sealed interface OdoDestination : NavKey {
 
     // --- Nested / argument-carrying destinations ---
     data class CarDetail(val carId: String) : OdoDestination
-    data class AddServiceLog(val carId: String) : OdoDestination
+
+    // --- Service log (per car) ---
+    /** The service-log list for a car. */
+    data class ServiceLog(val carId: String) : OdoDestination
+    /** A single service entry's detail screen. */
+    data class ServiceLogDetail(val logId: String, val carId: String) : OdoDestination
+    /** The add/edit form; [editLogId] non-null puts it in edit mode (same screen). */
+    data class AddServiceLog(val carId: String, val editLogId: String? = null) : OdoDestination
+
     data object BillScanner : OdoDestination
 
     // --- Onboarding flow (first-run car setup) ---

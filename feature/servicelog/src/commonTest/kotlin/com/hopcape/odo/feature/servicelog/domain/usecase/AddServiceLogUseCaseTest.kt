@@ -29,6 +29,7 @@ class AddServiceLogUseCaseTest {
         var addCount = 0
         var lastAdded: ServiceLogEntry? = null
         override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> = flowOf(listOfNotNull(lastAdded))
+        override fun observe(id: ServiceLogId): Flow<ServiceLogEntry?> = flowOf(lastAdded)
         override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> {
             addCount++
             lastAdded = entry
