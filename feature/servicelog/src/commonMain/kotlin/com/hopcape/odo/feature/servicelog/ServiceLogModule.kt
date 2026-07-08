@@ -14,5 +14,7 @@ import org.koin.dsl.module
  * graph. ViewModels / telemetry / use cases join here as the feature is built.
  */
 val serviceLogModule = module {
-    single { ServiceLogFeatureEntryProvider() } bind FeatureEntryProvider::class
+    single {
+        ServiceLogFeatureEntryProvider(navigationManager = get())
+    } bind FeatureEntryProvider::class
 }
