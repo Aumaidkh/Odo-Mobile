@@ -93,8 +93,6 @@ internal class FixedClock(private val instant: Instant) : Clock {
     override fun now(): Instant = instant
 }
 
-internal fun testTelemetry() = ServiceLogTelemetry(NoopLogger, NoopAnalytics, FixedIdGenerator())
-
 /** 2026-07-03 in UTC — the fixed "today" for date-guard tests. */
 internal val TEST_CLOCK = FixedClock(Instant.parse("2026-07-03T10:00:00Z"))
 internal val TEST_CAR = CarId("car-1")
