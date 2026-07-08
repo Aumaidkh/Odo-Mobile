@@ -35,7 +35,7 @@ import org.koin.compose.koinInject
 fun App() {
     OdoTheme {
         val navigationManager = koinInject<NavigationManager>()
-        val navigator = rememberNavigator(OdoDestination.Welcome)
+        val navigator = rememberNavigator(OdoDestination.ServiceLog.List("aaa"))
 
         // Every wired feature contributes its screens; the placeholder still
         // serves Home (where onboarding lands) until that feature ships.
