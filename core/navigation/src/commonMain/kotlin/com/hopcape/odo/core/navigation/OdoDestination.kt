@@ -31,14 +31,29 @@ sealed interface OdoDestination : NavKey {
     // --- Nested / argument-carrying destinations ---
     data class CarDetail(val carId: String) : OdoDestination
 
-    // --- Service log (per car) ---
-    /** The service-log list for a car. */
-    data class ServiceLog(val carId: String) : OdoDestination
-    /** A single service entry's detail screen. */
-    data class ServiceLogDetail(val logId: String, val carId: String) : OdoDestination
-    /** The add/edit form; [editLogId] non-null puts it in edit mode (same screen). */
-    data class AddServiceLog(val carId: String, val editLogId: String? = null) : OdoDestination
+    // --- Service log (per car) — one feature, one sealed group ---
+    /**
+     * The service-log feature's screens, grouped under a single sealed parent.
+     *
+     * The keys still live in this shared registry (features never import each
+     * other), but nesting them keeps the feature's slice of the graph cohesive and
+     * lets a `when` over a [ServiceLog] key be exhaustive. Every screen is per-car,
+     * so [carId] is hoisted onto the parent. The list's empty view is a UI state of
+     * [List], not a separate destination.
+     */
+    sealed interface ServiceLog : OdoDestination {
+        /** The car whose service record these screens belong to. */
+        val carId: String
 
+        /** The service-log list — the feature's home (Ledger 1a / Timeline 1b). */
+        data class List(override val carId: String) : ServiceLog
+        /** A single service entry's detail screen. */
+        data class Detail(val logId: String, override val carId: String) : ServiceLog
+        /** The add/edit form; [editLogId] non-null puts it in edit mode (same screen). */
+        data class AddEdit(override val carId: String, val editLogId: String? = null) : ServiceLog
+    }
+
+    /** Bill-scanner capture — its own feature; the log form deep-links into it. */
     data object BillScanner : OdoDestination
 
     // --- Onboarding flow (first-run car setup) ---
