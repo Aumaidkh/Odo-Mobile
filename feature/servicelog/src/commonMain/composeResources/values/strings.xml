@@ -7,7 +7,6 @@
 
     <!-- List: stats + filters -->
     <string name="sl_stat_total_spent">Total spent</string>
-    <string name="sl_stat_services_count">%1$d services logged</string>
     <string name="sl_filter_all">All</string>
     <string name="sl_filter_verified">Verified</string>
     <string name="sl_filter_self_reported">Self-reported</string>
@@ -66,10 +65,38 @@
     <string name="sl_error_notes_too_long">Notes are too long</string>
     <string name="sl_error_save_failed">Couldn\'t save — please try again</string>
 
+    <!-- List: ledger (1a) stats + fairness verdicts -->
+    <string name="sl_stat_saved">Saved</string>
+    <string name="sl_filter_flagged">Flagged</string>
+    <string name="sl_verdict_fair">Fair price</string>
+    <string name="sl_verdict_over">%1$s over</string>
+    <string name="sl_verdict_add_bill">Add bill to verify</string>
+    <string name="sl_verdict_checking">Checking price…</string>
+
+    <!-- List: record header (shown in both views) -->
+    <string name="sl_record_line">Record: %1$s</string>
+    <string name="sl_record_verified_ratio">%1$d of %2$d verified</string>
+    <string name="sl_record_resale_hint">Adds up to %1$s at resale.</string>
+    <string name="sl_strength_strong">Strong</string>
+    <string name="sl_strength_fair">Fair</string>
+    <string name="sl_strength_weak">Weak</string>
+    <string name="sl_strength_empty">Getting started</string>
+
+    <!-- Empty state (timeline 1b) -->
+    <string name="sl_empty_title_record">Start your car\'s record</string>
+    <string name="sl_empty_body_record">Every logged service builds a verified timeline — the proof that gets you a better resale price.</string>
+    <string name="sl_empty_action_log_first">Log your first service</string>
+
+    <!-- Direction toggle — segmented control switching the list below the shared header. -->
+    <string name="sl_direction_ledger">Ledger</string>
+    <string name="sl_direction_timeline">Timeline</string>
+
     <!-- Content descriptions -->
     <string name="sl_cd_back">Back</string>
     <string name="sl_cd_close">Close</string>
     <string name="sl_cd_add">Add service</string>
     <string name="sl_cd_edit">Edit service</string>
     <string name="sl_cd_delete">Delete service</string>
+    <string name="sl_cd_share">Share record</string>
+    <string name="sl_cd_filter">Filter</string>
 </resources>

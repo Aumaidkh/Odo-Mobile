@@ -1,6 +1,10 @@
 package com.hopcape.odo.feature.servicelog.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
@@ -8,12 +12,14 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailUiState
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormUiState
+import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
-import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListUiState
+import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
 
 /**
  * ServiceLog's contribution to the navigation graph: registers the whole
@@ -46,14 +52,23 @@ internal fun ServiceLogListRoute(
     key: OdoDestination.ServiceLog.List,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3): source `state` from a koinViewModel + collectAsStateWithLifecycle.
+    // TODO(step 3+): replace the sample state + local direction/filter with a
+    //  koinViewModel once the list ViewModel lands. The direction toggle is a
+    //  temporary affordance to compare the two mockups live.
+    var direction by remember { mutableStateOf(ServiceLogDirection.LEDGER) }
+    var filter by remember { mutableStateOf(ServiceLogFilter.ALL) }
     ServiceLogListScreen(
-        state = ServiceLogListUiState(),
-        carId = key.carId,
+        state = sampleServiceLogListState(filter),
+        direction = direction,
+        onDirectionChange = { direction = it },
         onOpenDetail = { logId ->
             navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = key.carId))
         },
         onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
+        onScanBill = { /* TODO(M2): navigate to BillScanner once that feature ships. */ },
+        onShareRecord = { /* TODO(passport): share the resale record (Phase 2). */ },
+        onOpenFilters = { /* TODO: advanced filters sheet. */ },
+        onFilterChange = { filter = it },
         onBack = { navigationManager.back() },
     )
 }
