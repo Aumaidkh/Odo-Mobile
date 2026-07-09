@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -96,9 +97,12 @@ fun OdoHealthDial(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
         ) {
+            // Scale the number to the dial so it never overflows the ring at compact
+            // sizes. The ratio keeps the 176dp default identical to `display` (52sp).
+            val numberSize = (dialSize.value * (52f / 176f)).sp
             OdoText(
                 clamped.toString(),
-                style = OdoTheme.typography.display,
+                style = OdoTheme.typography.display.copy(fontSize = numberSize, lineHeight = numberSize),
                 color = arcColor,
             )
             if (label != null) {
