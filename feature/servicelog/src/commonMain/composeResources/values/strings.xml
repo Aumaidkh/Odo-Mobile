@@ -76,6 +76,17 @@
     <string name="sl_detail_report">Report this overcharge</string>
     <string name="sl_detail_reported">Overcharge reported</string>
 
+    <!-- Report overcharge flow -->
+    <string name="sl_report_title">Report overcharge</string>
+    <string name="sl_report_intro">Help other owners — tell us what happened. Odo keeps your report anonymous to the workshop.</string>
+    <string name="sl_report_question">What went wrong?</string>
+    <string name="sl_report_reason_above_market">Charged above market rate</string>
+    <string name="sl_report_reason_work_not_done">Billed for work not done</string>
+    <string name="sl_report_reason_unnecessary_parts">Unnecessary parts replaced</string>
+    <string name="sl_report_note_label">Add a note</string>
+    <string name="sl_report_note_hint">They quoted higher than three other garages nearby…</string>
+    <string name="sl_report_submit">Submit report</string>
+
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
     <string name="sl_delete_confirm_body">This removes it from your record and can\'t be undone.</string>
