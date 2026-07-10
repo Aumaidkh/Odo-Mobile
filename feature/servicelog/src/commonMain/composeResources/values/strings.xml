@@ -28,19 +28,38 @@
     <string name="sl_coming_soon">Coming soon</string>
 
     <!-- Form: scan CTA + fields -->
-    <string name="sl_scan_cta_title">Scan the bill</string>
-    <string name="sl_scan_cta_subtitle">Odo reads workshop, date &amp; amounts for you.</string>
-    <string name="sl_divider_or_manual">or enter manually</string>
+    <string name="sl_scan_cta_title">Scan the bill instead</string>
+    <string name="sl_scan_cta_fastest">FASTEST</string>
+    <string name="sl_scan_cta_subtitle">Odo fills every field &amp; auto-verifies.</string>
+    <string name="sl_divider_or_details">or enter details</string>
     <string name="sl_field_workshop">Workshop</string>
     <string name="sl_field_workshop_hint">e.g. Sharma Motors</string>
     <string name="sl_field_date">Date</string>
     <string name="sl_field_date_hint">Select date</string>
     <string name="sl_field_odometer">Odometer</string>
-    <string name="sl_field_odometer_hint">km</string>
+    <string name="sl_field_odometer_hint">54,000</string>
     <string name="sl_field_notes">What was done</string>
     <string name="sl_field_notes_hint">e.g. Oil change + oil filter</string>
+    <string name="sl_field_other_hint">Describe exactly what was done</string>
     <string name="sl_field_amount">Amount paid</string>
-    <string name="sl_field_amount_hint">Rs.</string>
+    <string name="sl_field_amount_hint">0</string>
+    <string name="sl_amount_currency">₹</string>
+    <string name="sl_unit_km">Km</string>
+    <string name="sl_unit_miles">Miles</string>
+
+    <!-- Form: "what was done" category chips + attach-bill slot -->
+    <string name="sl_cat_oil_change">Oil change</string>
+    <string name="sl_cat_brakes">Brakes</string>
+    <string name="sl_cat_tyres">Tyres</string>
+    <string name="sl_cat_ac">AC</string>
+    <string name="sl_cat_battery">Battery</string>
+    <string name="sl_cat_suspension">Suspension</string>
+    <string name="sl_cat_electrical">Electrical</string>
+    <string name="sl_cat_general_service">General service</string>
+    <string name="sl_cat_other">Other</string>
+    <string name="sl_cat_add">+ Add</string>
+    <string name="sl_attach_bill">Attach bill to verify this entry</string>
+    <string name="sl_optional">(optional)</string>
 
     <!-- Detail -->
     <string name="sl_detail_total_paid">Total paid</string>
