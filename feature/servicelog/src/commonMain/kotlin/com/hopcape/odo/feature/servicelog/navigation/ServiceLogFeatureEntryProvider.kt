@@ -14,7 +14,7 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
-import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailUiState
+import com.hopcape.odo.feature.servicelog.presentation.detail.sampleDetailState
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormUiState
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
@@ -74,24 +74,18 @@ internal fun ServiceLogListRoute(
 }
 
 /**
- * The detail route host. Editing opens the same [OdoDestination.ServiceLog.AddEdit]
- * form in edit mode ([OdoDestination.ServiceLog.AddEdit.editLogId] = this entry).
+ * The detail route host — the combined fairness + resale-proof view for one entry.
  */
 @Composable
 internal fun ServiceLogDetailRoute(
     key: OdoDestination.ServiceLog.Detail,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3): source `state` from a koinViewModel + collectAsStateWithLifecycle.
+    // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId.
     ServiceLogDetailScreen(
-        state = ServiceLogDetailUiState(),
-        logId = key.logId,
-        carId = key.carId,
-        onEdit = {
-            navigationManager.navigateTo(
-                OdoDestination.ServiceLog.AddEdit(carId = key.carId, editLogId = key.logId),
-            )
-        },
+        state = sampleDetailState(),
+        onShare = { /* TODO(passport): share the verified record (Phase 2). */ },
+        onReportOvercharge = { /* TODO: ReportOverchargeUseCase. */ },
         onBack = { navigationManager.back() },
     )
 }

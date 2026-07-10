@@ -46,6 +46,16 @@
     <string name="sl_detail_total_paid">Total paid</string>
     <string name="sl_detail_bill_attached">Bill attached</string>
     <string name="sl_detail_add_bill_hint">Self-reported — add a bill to verify</string>
+    <string name="sl_detail_resale_title">Counts as resale proof</string>
+    <string name="sl_detail_resale_subtitle">Verified from bill · +%1$d to record</string>
+    <string name="sl_detail_fairness_label">Fairness check</string>
+    <string name="sl_detail_over_headline">%1$s over the city average</string>
+    <string name="sl_detail_fair_headline">Fair price vs the city average</string>
+    <string name="sl_detail_fairness_basis">%1$s average is %2$s — based on %3$d verified bills.</string>
+    <string name="sl_detail_city_avg">city avg %1$s</string>
+    <string name="sl_detail_share">Share verified record</string>
+    <string name="sl_detail_report">Report this overcharge</string>
+    <string name="sl_detail_reported">Overcharge reported</string>
 
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
