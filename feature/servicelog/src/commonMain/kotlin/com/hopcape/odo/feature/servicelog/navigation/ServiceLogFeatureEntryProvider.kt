@@ -15,8 +15,9 @@ import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
 import com.hopcape.odo.feature.servicelog.presentation.detail.sampleDetailState
+import com.hopcape.odo.feature.servicelog.presentation.form.DistanceUnit
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
-import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormUiState
+import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
@@ -99,12 +100,26 @@ internal fun ServiceLogFormRoute(
     key: OdoDestination.ServiceLog.AddEdit,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3): source `state` from a koinViewModel + collectAsStateWithLifecycle.
+    // TODO(step 3+): source `state` from a koinViewModel keyed by key.editLogId; this
+    //  local reducer is a stand-in so the form is interactive until then.
+    var form by remember { mutableStateOf(sampleFormState(isEditing = key.editLogId != null)) }
     ServiceLogFormScreen(
-        state = ServiceLogFormUiState(isEditing = key.editLogId != null),
-        carId = key.carId,
-        editLogId = key.editLogId,
-        onSaved = { navigationManager.back() },
-        onBack = { navigationManager.back() },
+        state = form,
+        onWorkshopChange = { form = form.copy(workshop = form.workshop.update(it)) },
+        onDateChange = { form = form.copy(date = form.date.update(it)) },
+        onOdometerChange = { form = form.copy(odometer = form.odometer.update(it)) },
+        onOdometerUnitToggle = {
+            form = form.copy(odometerUnit = if (form.odometerUnit == DistanceUnit.KM) DistanceUnit.MILES else DistanceUnit.KM)
+        },
+        onAmountChange = { form = form.copy(amount = form.amount.update(it)) },
+        onCategoryToggle = { category ->
+            val next = if (category in form.categories) form.categories - category else form.categories + category
+            form = form.copy(categories = next)
+        },
+        onNotesChange = { form = form.copy(notes = form.notes.update(it)) },
+        onScanBill = { /* TODO(M2): navigate to BillScanner once that feature ships. */ },
+        onAttachBill = { /* TODO(M2): attach a bill photo. */ },
+        onSave = { navigationManager.back() },
+        onClose = { navigationManager.back() },
     )
 }
