@@ -51,6 +51,8 @@ sealed interface OdoDestination : NavKey {
         data class Detail(val logId: String, override val carId: String) : ServiceLog
         /** The add/edit form; [editLogId] non-null puts it in edit mode (same screen). */
         data class AddEdit(override val carId: String, val editLogId: String? = null) : ServiceLog
+        /** Report an overcharge on a specific (flagged) entry — reached from its detail. */
+        data class ReportOvercharge(val logId: String, override val carId: String) : ServiceLog
     }
 
     /** Bill-scanner capture — its own feature; the log form deep-links into it. */

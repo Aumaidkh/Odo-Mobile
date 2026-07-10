@@ -18,6 +18,8 @@ import com.hopcape.odo.feature.servicelog.presentation.detail.sampleDetailState
 import com.hopcape.odo.feature.servicelog.presentation.form.DistanceUnit
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
+import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
+import com.hopcape.odo.feature.servicelog.presentation.report.sampleReportState
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
@@ -40,6 +42,7 @@ internal class ServiceLogFeatureEntryProvider(
         entry<OdoDestination.ServiceLog.List> { key -> ServiceLogListRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.Detail> { key -> ServiceLogDetailRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.AddEdit> { key -> ServiceLogFormRoute(key, navigationManager) }
+        entry<OdoDestination.ServiceLog.ReportOvercharge> { key -> ServiceLogReportOverchargeRoute(key, navigationManager) }
     }
 }
 
@@ -86,7 +89,27 @@ internal fun ServiceLogDetailRoute(
     ServiceLogDetailScreen(
         state = sampleDetailState(),
         onShare = { /* TODO(passport): share the verified record (Phase 2). */ },
-        onReportOvercharge = { /* TODO: ReportOverchargeUseCase. */ },
+        onReportOvercharge = {
+            navigationManager.navigateTo(OdoDestination.ServiceLog.ReportOvercharge(logId = key.logId, carId = key.carId))
+        },
+        onBack = { navigationManager.back() },
+    )
+}
+
+/** The report-overcharge route host. Submit + back both pop back to the detail. */
+@Composable
+internal fun ServiceLogReportOverchargeRoute(
+    key: OdoDestination.ServiceLog.ReportOvercharge,
+    navigationManager: NavigationManager,
+) {
+    // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId; this local
+    //  reducer is a stand-in so the flow is interactive until then.
+    var state by remember { mutableStateOf(sampleReportState()) }
+    ReportOverchargeScreen(
+        state = state,
+        onReasonSelect = { state = state.copy(reason = it) },
+        onNoteChange = { state = state.copy(note = it) },
+        onSubmit = { navigationManager.back() },
         onBack = { navigationManager.back() },
     )
 }
