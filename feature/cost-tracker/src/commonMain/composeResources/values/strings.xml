@@ -1,0 +1,30 @@
+<resources>
+    <!-- Running cost screen -->
+    <string name="ct_title">Running cost</string>
+    <string name="ct_cost_per_km_label">COST PER KILOMETRE</string>
+    <string name="ct_per_km_suffix"> / km</string>
+    <string name="ct_across">Across %1$s · %2$s</string>
+
+    <!-- Period selector -->
+    <string name="ct_period_3m">3M</string>
+    <string name="ct_period_6m">6M</string>
+    <string name="ct_period_1y">1Y</string>
+
+    <!-- Spend by month -->
+    <string name="ct_spend_by_month">Spend by month</string>
+    <string name="ct_avg_per_month">avg %1$s / mo</string>
+
+    <!-- Where it goes -->
+    <string name="ct_where_it_goes">WHERE IT GOES</string>
+    <string name="ct_per_km_rate">%1$s / km</string>
+    <string name="ct_cat_fuel">Fuel</string>
+    <string name="ct_cat_service">Service</string>
+    <string name="ct_cat_insurance">Insurance &amp; docs</string>
+    <string name="ct_cat_repairs">Repairs</string>
+
+    <!-- Summary -->
+    <string name="ct_summary">SUMMARY</string>
+    <string name="ct_total_spent">Total spent</string>
+    <string name="ct_distance_driven">Distance driven</string>
+    <string name="ct_avg_month">Average / month</string>
+</resources>
