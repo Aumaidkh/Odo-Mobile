@@ -28,6 +28,7 @@ private fun ReportOverchargePreview() = OdoPreview(padded = false) {
         onReasonSelect = {},
         onNoteChange = {},
         onSubmit = {},
+        onDone = {},
         onBack = {},
     )
 }
