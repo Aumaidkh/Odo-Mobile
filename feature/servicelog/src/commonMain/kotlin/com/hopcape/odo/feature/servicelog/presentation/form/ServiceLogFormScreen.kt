@@ -43,6 +43,7 @@ import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
+import com.hopcape.odo.core.designsystem.component.OdoOdometerField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCamera
@@ -144,14 +145,16 @@ internal fun ServiceLogFormScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 DateField(state.date.value, onDateChange, state.date.error?.asString(), Modifier.weight(1f))
-                OdoInputField(
+                OdoOdometerField(
                     value = state.odometer.value.orEmpty(),
                     onValueChange = onOdometerChange,
+                    unit = state.odometerUnit,
+                    onUnitToggle = onOdometerUnitToggle,
+                    kmLabel = stringResource(Res.string.sl_unit_km),
+                    milesLabel = stringResource(Res.string.sl_unit_miles),
                     label = stringResource(Res.string.sl_field_odometer),
                     placeholder = stringResource(Res.string.sl_field_odometer_hint),
                     errorText = state.odometer.error?.asString(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    trailingIcon = { UnitToggle(state.odometerUnit, onOdometerUnitToggle) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -308,19 +311,6 @@ private fun CategorySection(
     }
 }
 
-/** Trailing Km/Miles toggle for the odometer field (Km default). */
-@Composable
-private fun UnitToggle(unit: DistanceUnit, onToggle: () -> Unit) {
-    OdoText(
-        text = stringResource(if (unit == DistanceUnit.KM) Res.string.sl_unit_km else Res.string.sl_unit_miles),
-        style = OdoTheme.typography.label,
-        color = OdoTheme.colors.accent,
-        modifier = Modifier
-            .clip(OdoTheme.shapes.pill)
-            .clickable(onClick = onToggle)
-            .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
-    )
-}
 
 /** The dashed, optional "attach a bill photo" slot (verifies the entry once a bill lands). */
 @Composable
