@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.servicelog.presentation.report
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
@@ -27,6 +29,7 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoRadioButton
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.servicelog.presentation.formatDate
@@ -41,7 +44,10 @@ import com.hopcape.odo.feature.servicelog.resources.sl_report_question
 import com.hopcape.odo.feature.servicelog.resources.sl_report_reason_above_market
 import com.hopcape.odo.feature.servicelog.resources.sl_report_reason_unnecessary_parts
 import com.hopcape.odo.feature.servicelog.resources.sl_report_reason_work_not_done
+import com.hopcape.odo.feature.servicelog.resources.sl_report_done
 import com.hopcape.odo.feature.servicelog.resources.sl_report_submit
+import com.hopcape.odo.feature.servicelog.resources.sl_report_success_body
+import com.hopcape.odo.feature.servicelog.resources.sl_report_success_title
 import com.hopcape.odo.feature.servicelog.resources.sl_report_title
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_over
 import org.jetbrains.compose.resources.stringResource
@@ -56,6 +62,7 @@ internal fun ReportOverchargeScreen(
     onReasonSelect: (OverchargeReason) -> Unit,
     onNoteChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onDone: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -65,20 +72,58 @@ internal fun ReportOverchargeScreen(
         onBack = onBack,
         modifier = modifier,
         bottomBar = {
-            if (content is ReportOverchargeUiState.Content.Loaded) SubmitBar(state, onSubmit)
+            when {
+                state.submitted -> DoneBar(onDone)
+                content is ReportOverchargeUiState.Content.Loaded -> SubmitBar(state, onSubmit)
+            }
         },
     ) { padding ->
-        when (content) {
-            ReportOverchargeUiState.Content.Loading ->
+        when {
+            state.submitted -> ReportSuccess(padding)
+
+            content == ReportOverchargeUiState.Content.Loading ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { OdoLoadingIndicator() }
 
-            ReportOverchargeUiState.Content.NotFound ->
+            content == ReportOverchargeUiState.Content.NotFound ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                     OdoText(stringResource(Res.string.sl_not_found), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
                 }
 
-            is ReportOverchargeUiState.Content.Loaded -> ReportContent(content.header, state, onReasonSelect, onNoteChange, padding)
+            content is ReportOverchargeUiState.Content.Loaded -> ReportContent(content.header, state, onReasonSelect, onNoteChange, padding)
         }
+    }
+}
+
+/** Shown once the report is filed — a centered confirmation with a Done action. */
+@Composable
+private fun ReportSuccess(padding: androidx.compose.foundation.layout.PaddingValues) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(padding).padding(OdoTheme.spacing.xl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md, Alignment.CenterVertically),
+    ) {
+        Box(
+            Modifier.size(72.dp).clip(CircleShape).background(OdoTheme.colors.success.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            OdoIcon(IcCheck, contentDescription = null, tint = OdoTheme.colors.success, size = OdoTheme.iconSizes.large)
+        }
+        OdoText(stringResource(Res.string.sl_report_success_title), style = OdoTheme.typography.title)
+        OdoText(
+            stringResource(Res.string.sl_report_success_body),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun DoneBar(onDone: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
+    ) {
+        OdoButton(text = stringResource(Res.string.sl_report_done), onClick = onDone, modifier = Modifier.fillMaxWidth())
     }
 }
 

@@ -26,6 +26,8 @@ internal data class ReportOverchargeUiState(
     val note: String = "",
     val isSubmitting: Boolean = false,
     val submitError: UiText? = null,
+    /** Flipped once the report is filed — the screen shows a success confirmation. */
+    val submitted: Boolean = false,
 ) {
     val canSubmit: Boolean get() = reason != null && !isSubmitting
 

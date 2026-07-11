@@ -20,6 +20,7 @@ import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
 import com.hopcape.odo.feature.servicelog.presentation.report.sampleReportState
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetHost
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
@@ -61,6 +62,7 @@ internal fun ServiceLogListRoute(
     //  temporary affordance to compare the two mockups live.
     var direction by remember { mutableStateOf(ServiceLogDirection.LEDGER) }
     var filter by remember { mutableStateOf(ServiceLogFilter.ALL) }
+    var showShare by remember { mutableStateOf(false) }
     ServiceLogListScreen(
         state = sampleServiceLogListState(filter),
         direction = direction,
@@ -70,11 +72,12 @@ internal fun ServiceLogListRoute(
         },
         onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
         onScanBill = { /* TODO(M2): navigate to BillScanner once that feature ships. */ },
-        onShareRecord = { /* TODO(passport): share the resale record (Phase 2). */ },
+        onShareRecord = { showShare = true },
         onOpenFilters = { /* TODO: advanced filters sheet. */ },
         onFilterChange = { filter = it },
         onBack = { navigationManager.back() },
     )
+    ShareRecordSheetHost(visible = showShare, onDismiss = { showShare = false })
 }
 
 /**
@@ -86,14 +89,16 @@ internal fun ServiceLogDetailRoute(
     navigationManager: NavigationManager,
 ) {
     // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId.
+    var showShare by remember { mutableStateOf(false) }
     ServiceLogDetailScreen(
         state = sampleDetailState(),
-        onShare = { /* TODO(passport): share the verified record (Phase 2). */ },
+        onShare = { showShare = true },
         onReportOvercharge = {
             navigationManager.navigateTo(OdoDestination.ServiceLog.ReportOvercharge(logId = key.logId, carId = key.carId))
         },
         onBack = { navigationManager.back() },
     )
+    ShareRecordSheetHost(visible = showShare, onDismiss = { showShare = false })
 }
 
 /** The report-overcharge route host. Submit + back both pop back to the detail. */
@@ -109,7 +114,8 @@ internal fun ServiceLogReportOverchargeRoute(
         state = state,
         onReasonSelect = { state = state.copy(reason = it) },
         onNoteChange = { state = state.copy(note = it) },
-        onSubmit = { navigationManager.back() },
+        onSubmit = { state = state.copy(submitted = true) },
+        onDone = { navigationManager.back() },
         onBack = { navigationManager.back() },
     )
 }

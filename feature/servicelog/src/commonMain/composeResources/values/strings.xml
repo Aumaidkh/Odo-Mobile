@@ -86,6 +86,18 @@
     <string name="sl_report_note_label">Add a note</string>
     <string name="sl_report_note_hint">They quoted higher than three other garages nearby…</string>
     <string name="sl_report_submit">Submit report</string>
+    <string name="sl_report_success_title">Report submitted</string>
+    <string name="sl_report_success_body">Thanks — your anonymous report helps other owners avoid overcharging at this workshop.</string>
+    <string name="sl_report_done">Done</string>
+
+    <!-- Share verified record sheet -->
+    <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
+    <string name="sl_share_copy">Copy</string>
+    <string name="sl_share_copied">Copied</string>
+    <string name="sl_share_whatsapp">WhatsApp</string>
+    <string name="sl_share_email">Email</string>
+    <string name="sl_share_more">More</string>
+    <string name="sl_share_download_pdf">Download as PDF</string>
 
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
