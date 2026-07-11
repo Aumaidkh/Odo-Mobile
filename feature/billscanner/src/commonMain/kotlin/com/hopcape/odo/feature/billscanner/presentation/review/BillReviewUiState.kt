@@ -5,10 +5,15 @@ import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.domain.shared.Amount
 import kotlinx.datetime.LocalDate
 
-/** A single line item read off the bill — its label and cost (integer paise). */
+/**
+ * A single line item read off the bill — its label and cost (integer paise).
+ * [needsCheck] flags a low-confidence read the user should verify before saving
+ * (Odo never auto-fills what it can't read cleanly).
+ */
 internal data class BillLineItem(
     val label: String,
     val amount: Amount,
+    val needsCheck: Boolean = false,
 )
 
 /**
@@ -50,6 +55,19 @@ internal fun sampleBillReviewState(): BillReviewUiState = BillReviewUiState(
         BillLineItem("Labour", amountOf(30_000)),
     ),
     total = amountOf(355_000),
+)
+
+/**
+ * Low-confidence sample (handwritten / blurry bill): the banner warns, a caution note
+ * shows, and the unsure line item ("Labour") is flagged for the user to check.
+ */
+internal fun sampleBillReviewLowConfidence(): BillReviewUiState = sampleBillReviewState().copy(
+    confidence = 62,
+    lineItems = listOf(
+        BillLineItem("Oil change", amountOf(280_000)),
+        BillLineItem("Air filter", amountOf(45_000)),
+        BillLineItem("Labour", amountOf(30_000), needsCheck = true),
+    ),
 )
 
 private fun amountOf(paise: Long): Amount = Amount.of(paise).getOrElse { Amount.ZERO }

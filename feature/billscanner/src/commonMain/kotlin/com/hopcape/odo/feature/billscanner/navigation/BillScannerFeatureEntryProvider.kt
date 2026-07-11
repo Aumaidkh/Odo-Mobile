@@ -13,6 +13,8 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.billscanner.presentation.fairness.FairnessScreen
+import com.hopcape.odo.feature.billscanner.presentation.fairness.sampleFairnessOver
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.sampleBillReviewState
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanScreen
@@ -34,6 +36,7 @@ internal class BillScannerFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.BillScanner.Capture> { BillScanRoute(navigationManager) }
         entry<OdoDestination.BillScanner.Review> { BillReviewRoute(navigationManager) }
+        entry<OdoDestination.BillScanner.Fairness> { FairnessRoute(navigationManager) }
     }
 }
 
@@ -78,8 +81,24 @@ internal fun BillReviewRoute(navigationManager: NavigationManager) {
         onOdometerUnitToggle = {
             odometerUnit = if (odometerUnit == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM
         },
-        onSave = { /* TODO(M2): persist the entry -> run CheckFairness -> open fairness. */ navigationManager.back() },
+        onSave = { navigationManager.navigateTo(OdoDestination.BillScanner.Fairness) },
         onRetake = { navigationManager.back() },
+        onBack = { navigationManager.back() },
+    )
+}
+
+/**
+ * The fairness route host — shows how the reviewed bill compares to the city average.
+ * Defaults to the overcharge sample (the continuation of the review flow). Saving
+ * (persist + log) and reporting are M2 stubs; "Go Pro" opens the paywall later.
+ */
+@Composable
+internal fun FairnessRoute(navigationManager: NavigationManager) {
+    FairnessScreen(
+        state = sampleFairnessOver(),
+        onSave = { /* TODO(M2): persist the logged entry, then land on its detail. */ navigationManager.back() },
+        onReport = { /* TODO(M2): report the overcharge on the saved entry. */ },
+        onGoPro = { /* TODO: open the paywall. */ },
         onBack = { navigationManager.back() },
     )
 }

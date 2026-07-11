@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -38,6 +39,7 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcPencil
+import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -48,9 +50,12 @@ import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_cancel
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_edit
 import com.hopcape.odo.feature.billscanner.resources.bs_ok
+import com.hopcape.odo.feature.billscanner.resources.bs_review_check
 import com.hopcape.odo.feature.billscanner.resources.bs_review_date
 import com.hopcape.odo.feature.billscanner.resources.bs_review_extracted
 import com.hopcape.odo.feature.billscanner.resources.bs_review_line_items
+import com.hopcape.odo.feature.billscanner.resources.bs_review_low_confidence
+import com.hopcape.odo.feature.billscanner.resources.bs_review_low_note
 import com.hopcape.odo.feature.billscanner.resources.bs_review_odometer
 import com.hopcape.odo.feature.billscanner.resources.bs_review_retake
 import com.hopcape.odo.feature.billscanner.resources.bs_review_save
@@ -102,6 +107,10 @@ internal fun BillReviewScreen(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
             ExtractedBanner(confidence = state.confidence, high = state.highConfidence)
+
+            if (!state.highConfidence) {
+                LowConfidenceNote()
+            }
 
             LabeledField(stringResource(Res.string.bs_review_workshop)) {
                 OdoInputField(
@@ -218,10 +227,32 @@ private fun ExtractedBanner(confidence: Int, high: Boolean) {
     ) {
         OdoIcon(IcCheck, contentDescription = null, tint = tone, size = OdoTheme.iconSizes.small)
         OdoText(
-            stringResource(Res.string.bs_review_extracted, "$confidence%"),
+            text = if (high) {
+                stringResource(Res.string.bs_review_extracted, "$confidence%")
+            } else {
+                stringResource(Res.string.bs_review_low_confidence)
+            },
             style = OdoTheme.typography.caption,
             color = tone,
         )
+    }
+}
+
+/**
+ * Caution note shown only for a low-confidence read — reassures the user that Odo
+ * flags rather than guesses, and points them at the [BillLineItem.needsCheck] lines.
+ */
+@Composable
+private fun LowConfidenceNote() {
+    OdoCard(color = OdoTheme.colors.surface) {
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.warning, size = OdoTheme.iconSizes.medium)
+            OdoText(
+                stringResource(Res.string.bs_review_low_note),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+        }
     }
 }
 
@@ -233,7 +264,7 @@ private fun LineItemsCard(items: List<BillLineItem>, total: Amount) {
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         items.forEach { item ->
-            LineRow(label = item.label, value = formatRupees(item.amount.paise), emphasized = false)
+            LineRow(label = item.label, value = formatRupees(item.amount.paise), emphasized = false, needsCheck = item.needsCheck)
             HorizontalDivider(color = OdoTheme.colors.border)
         }
         LineRow(label = stringResource(Res.string.bs_review_total), value = formatRupees(total.paise), emphasized = true)
@@ -241,21 +272,39 @@ private fun LineItemsCard(items: List<BillLineItem>, total: Amount) {
 }
 
 @Composable
-private fun LineRow(label: String, value: String, emphasized: Boolean) {
+private fun LineRow(label: String, value: String, emphasized: Boolean, needsCheck: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OdoText(
-            label,
-            style = if (emphasized) OdoTheme.typography.heading else OdoTheme.typography.body,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            OdoText(
+                label,
+                style = if (emphasized) OdoTheme.typography.heading else OdoTheme.typography.body,
+            )
+            if (needsCheck) CheckPill()
+        }
         OdoText(
             value,
             style = if (emphasized) OdoTheme.typography.title else OdoTheme.typography.heading,
+            color = if (needsCheck) OdoTheme.colors.warning else Color.Unspecified,
         )
     }
+}
+
+/** The amber "CHECK" pill marking a low-confidence line item to verify. */
+@Composable
+private fun CheckPill() {
+    OdoText(
+        stringResource(Res.string.bs_review_check),
+        style = OdoTheme.typography.caption,
+        color = OdoTheme.colors.warning,
+        modifier = Modifier
+            .clip(OdoTheme.shapes.pill)
+            .background(OdoTheme.colors.warning.copy(alpha = 0.15f))
+            .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
+    )
 }
 
 @Composable
@@ -292,6 +341,21 @@ private fun ReviewBottomBar(onSave: () -> Unit, onRetake: () -> Unit) {
 private fun BillReviewScreenPreview() = OdoPreview(padded = false) {
     BillReviewScreen(
         state = sampleBillReviewState(),
+        onWorkshopChange = {},
+        onDateChange = {},
+        onOdometerChange = {},
+        onOdometerUnitToggle = {},
+        onSave = {},
+        onRetake = {},
+        onBack = {},
+    )
+}
+
+@OdoThemePreviews
+@Composable
+private fun BillReviewLowConfidencePreview() = OdoPreview(padded = false) {
+    BillReviewScreen(
+        state = sampleBillReviewLowConfidence(),
         onWorkshopChange = {},
         onDateChange = {},
         onOdometerChange = {},

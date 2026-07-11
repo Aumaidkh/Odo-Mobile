@@ -66,6 +66,8 @@ sealed interface OdoDestination : NavKey {
         data object Capture : BillScanner
         /** Review + confirm the AI-extracted bill details before saving. */
         data object Review : BillScanner
+        /** The fairness verdict — how the reviewed bill compares to the city average. */
+        data object Fairness : BillScanner
     }
 
     // --- Onboarding flow (first-run car setup) ---
