@@ -45,6 +45,31 @@
     <string name="bs_fairness_free_scans">%1$d free scan left this month</string>
     <string name="bs_fairness_go_pro">Go Pro</string>
 
+    <!-- Save-to-log success screen -->
+    <string name="bs_save_title">Saved to your log</string>
+    <string name="bs_save_body">%1$s · %2$s is now part of your verified service history.</string>
+    <string name="bs_save_card_title">Health Score +3</string>
+    <string name="bs_save_card_body">A verified bill boosts your record</string>
+    <string name="bs_save_view">View in Service Log</string>
+    <string name="bs_save_done">Done</string>
+
+    <!-- Report success screen -->
+    <string name="bs_report_title">Report submitted</string>
+    <string name="bs_report_body">Thanks — your anonymous report helps keep %1$s’s fair-price data honest for every owner.</string>
+    <string name="bs_report_card_title">%1$d owners reported this year</string>
+    <string name="bs_report_card_body">You’re helping build the fair-price index</string>
+    <string name="bs_report_back">Back to Service Log</string>
+
+    <!-- Scan error screen -->
+    <string name="bs_error_title">Couldn’t read this bill</string>
+    <string name="bs_error_body">The photo was too blurry to extract the amounts. Try again in better light, or enter the details yourself.</string>
+    <string name="bs_error_tips_label">TIPS FOR A GOOD SCAN</string>
+    <string name="bs_error_tip_flat">Lay the bill flat on a surface</string>
+    <string name="bs_error_tip_glare">Avoid glare and shadows</string>
+    <string name="bs_error_tip_corners">Fit all four corners in frame</string>
+    <string name="bs_error_retake">Retake photo</string>
+    <string name="bs_error_manual">Enter manually</string>
+
     <!-- Content descriptions -->
     <string name="bs_cd_close">Close</string>
     <string name="bs_cd_gallery">Choose from gallery</string>

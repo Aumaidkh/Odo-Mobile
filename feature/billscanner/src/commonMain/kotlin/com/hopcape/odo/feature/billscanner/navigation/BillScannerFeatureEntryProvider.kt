@@ -13,8 +13,12 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
 import com.hopcape.odo.feature.billscanner.presentation.fairness.FairnessScreen
 import com.hopcape.odo.feature.billscanner.presentation.fairness.sampleFairnessOver
+import com.hopcape.odo.feature.billscanner.presentation.formatDate
+import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
+import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.sampleBillReviewState
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanScreen
@@ -37,6 +41,9 @@ internal class BillScannerFeatureEntryProvider(
         entry<OdoDestination.BillScanner.Capture> { BillScanRoute(navigationManager) }
         entry<OdoDestination.BillScanner.Review> { BillReviewRoute(navigationManager) }
         entry<OdoDestination.BillScanner.Fairness> { FairnessRoute(navigationManager) }
+        entry<OdoDestination.BillScanner.SaveSuccess> { SaveSuccessRoute(navigationManager) }
+        entry<OdoDestination.BillScanner.ReportSuccess> { ReportSuccessRoute(navigationManager) }
+        entry<OdoDestination.BillScanner.ScanError> { ScanErrorRoute(navigationManager) }
     }
 }
 
@@ -96,9 +103,59 @@ internal fun BillReviewRoute(navigationManager: NavigationManager) {
 internal fun FairnessRoute(navigationManager: NavigationManager) {
     FairnessScreen(
         state = sampleFairnessOver(),
-        onSave = { /* TODO(M2): persist the logged entry, then land on its detail. */ navigationManager.back() },
-        onReport = { /* TODO(M2): report the overcharge on the saved entry. */ },
+        onSave = { navigationManager.navigateTo(OdoDestination.BillScanner.SaveSuccess) },
+        onReport = { navigationManager.navigateTo(OdoDestination.BillScanner.ReportSuccess) },
         onGoPro = { /* TODO: open the paywall. */ },
         onBack = { navigationManager.back() },
     )
+}
+
+/**
+ * Terminal save-success host. "View in Service Log" / "Done" both exit the whole scan
+ * flow and land back on the service log with a clean back stack.
+ *
+ * TODO(M2): thread the real car + saved-entry ids so we return to that car's log (the
+ * demo uses the placeholder car the rest of the flow runs on).
+ */
+@Composable
+internal fun SaveSuccessRoute(navigationManager: NavigationManager) {
+    val sample = remember { sampleBillReviewState() }
+    SaveSuccessScreen(
+        workshop = sample.workshop,
+        dateLabel = formatDate(sample.serviceDate),
+        onViewLog = { navigationManager.backToServiceLog() },
+        onDone = { navigationManager.backToServiceLog() },
+    )
+}
+
+/** Terminal report-success host — "Back to Service Log" resets to the log. */
+@Composable
+internal fun ReportSuccessRoute(navigationManager: NavigationManager) {
+    ReportSuccessScreen(
+        city = sampleFairnessOver().city,
+        reportCount = 37,
+        onBackToLog = { navigationManager.backToServiceLog() },
+    )
+}
+
+/**
+ * Scan-error host — the AI couldn't read the bill. Retake returns to the camera;
+ * "Enter manually" opens the manual form; back pops the flow.
+ */
+@Composable
+internal fun ScanErrorRoute(navigationManager: NavigationManager) {
+    ScanErrorScreen(
+        onRetake = { navigationManager.back() },
+        onEnterManually = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(DEMO_CAR_ID)) },
+        onBack = { navigationManager.back() },
+    )
+}
+
+/** The placeholder car the demo scan flow runs on until the real car id threads through. */
+private const val DEMO_CAR_ID = "aaa"
+
+/** Exit the scan flow and reset to the car's service log with a clean back stack. */
+private fun NavigationManager.backToServiceLog() {
+    val log = OdoDestination.ServiceLog.List(DEMO_CAR_ID)
+    navigateTo(log, popUpTo = log, inclusive = true)
 }

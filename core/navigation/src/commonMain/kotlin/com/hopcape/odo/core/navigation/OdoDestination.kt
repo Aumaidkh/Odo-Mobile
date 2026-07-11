@@ -68,6 +68,12 @@ sealed interface OdoDestination : NavKey {
         data object Review : BillScanner
         /** The fairness verdict — how the reviewed bill compares to the city average. */
         data object Fairness : BillScanner
+        /** Terminal success after the reviewed bill is saved to the log. */
+        data object SaveSuccess : BillScanner
+        /** Terminal success after an overcharge is anonymously reported. */
+        data object ReportSuccess : BillScanner
+        /** Error state — the AI couldn't read the bill (retry or enter manually). */
+        data object ScanError : BillScanner
     }
 
     // --- Onboarding flow (first-run car setup) ---
