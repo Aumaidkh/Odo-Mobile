@@ -55,8 +55,18 @@ sealed interface OdoDestination : NavKey {
         data class ReportOvercharge(val logId: String, override val carId: String) : ServiceLog
     }
 
-    /** Bill-scanner capture — its own feature; the log form deep-links into it. */
-    data object BillScanner : OdoDestination
+    /**
+     * Bill-scanner flow — its own feature; the log form + list empty state
+     * deep-link into [BillScanner.Capture]. Capture routes to [BillScanner.Review],
+     * where the AI-extracted fields are confirmed before saving. Features never
+     * import billscanner — they navigate through this shared registry.
+     */
+    sealed interface BillScanner : OdoDestination {
+        /** Camera viewfinder — capture a photo or pick one from the gallery. */
+        data object Capture : BillScanner
+        /** Review + confirm the AI-extracted bill details before saving. */
+        data object Review : BillScanner
+    }
 
     // --- Onboarding flow (first-run car setup) ---
     /** Intro carousel shown on first launch, before car setup. */

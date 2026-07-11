@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.servicelog.presentation.form
 
+import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import kotlinx.datetime.LocalDate
@@ -22,9 +23,6 @@ internal data class FormField<T>(
     fun fail(message: UiText): FormField<T> = copy(error = message)
 }
 
-/** The unit the odometer is entered in; the field stores the number, this the unit. */
-internal enum class DistanceUnit { KM, MILES }
-
 /**
  * Add / edit form render state — one screen for both modes ([isEditing]). Shared by
  * both directions (1a & 1b enter the same form).
@@ -41,7 +39,7 @@ internal data class ServiceLogFormUiState(
     val workshop: FormField<String> = FormField(value = ""),
     val date: FormField<LocalDate> = FormField(),
     val odometer: FormField<String> = FormField(value = ""),
-    val odometerUnit: DistanceUnit = DistanceUnit.KM,
+    val odometerUnit: OdoDistanceUnit = OdoDistanceUnit.KM,
     val amount: FormField<String> = FormField(value = ""),
     val notes: FormField<String> = FormField(value = ""),
     val categories: Set<ServiceCategory> = emptySet(),

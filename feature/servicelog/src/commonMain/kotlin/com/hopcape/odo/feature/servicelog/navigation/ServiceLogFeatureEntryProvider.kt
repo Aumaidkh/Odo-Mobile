@@ -15,7 +15,7 @@ import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
 import com.hopcape.odo.feature.servicelog.presentation.detail.sampleDetailState
-import com.hopcape.odo.feature.servicelog.presentation.form.DistanceUnit
+import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
@@ -71,7 +71,7 @@ internal fun ServiceLogListRoute(
             navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = key.carId))
         },
         onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
-        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner) },
+        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
         onShareRecord = { showShare = true },
         onOpenFilters = { /* TODO: advanced filters sheet. */ },
         onFilterChange = { filter = it },
@@ -138,7 +138,7 @@ internal fun ServiceLogFormRoute(
         onDateChange = { form = form.copy(date = form.date.update(it)) },
         onOdometerChange = { form = form.copy(odometer = form.odometer.update(it)) },
         onOdometerUnitToggle = {
-            form = form.copy(odometerUnit = if (form.odometerUnit == DistanceUnit.KM) DistanceUnit.MILES else DistanceUnit.KM)
+            form = form.copy(odometerUnit = if (form.odometerUnit == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM)
         },
         onAmountChange = { form = form.copy(amount = form.amount.update(it)) },
         onCategoryToggle = { category ->
@@ -146,7 +146,7 @@ internal fun ServiceLogFormRoute(
             form = form.copy(categories = next)
         },
         onNotesChange = { form = form.copy(notes = form.notes.update(it)) },
-        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner) },
+        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
         onAttachBill = { /* TODO(M2): attach a bill photo. */ },
         onSave = { navigationManager.back() },
         onClose = { navigationManager.back() },

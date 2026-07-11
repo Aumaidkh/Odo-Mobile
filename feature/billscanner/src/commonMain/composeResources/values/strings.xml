@@ -6,8 +6,24 @@
     <string name="bs_scan_detecting">AUTO-DETECTING EDGES</string>
     <string name="bs_scan_manual">Manual</string>
 
+    <!-- Review details screen -->
+    <string name="bs_review_title">Review details</string>
+    <string name="bs_review_extracted">≈ EXTRACTED · %1$s CONFIDENCE</string>
+    <string name="bs_review_workshop">Workshop</string>
+    <string name="bs_review_date">Date</string>
+    <string name="bs_review_odometer">Odometer</string>
+    <string name="bs_review_line_items">Line items read from the bill</string>
+    <string name="bs_review_total">Total</string>
+    <string name="bs_review_save">Save &amp; check fairness</string>
+    <string name="bs_review_retake">Retake photo</string>
+    <string name="bs_unit_km">Km</string>
+    <string name="bs_unit_miles">Miles</string>
+    <string name="bs_ok">OK</string>
+    <string name="bs_cancel">Cancel</string>
+
     <!-- Content descriptions -->
     <string name="bs_cd_close">Close</string>
     <string name="bs_cd_gallery">Choose from gallery</string>
     <string name="bs_cd_capture">Capture bill</string>
+    <string name="bs_cd_edit">Edit</string>
 </resources>
