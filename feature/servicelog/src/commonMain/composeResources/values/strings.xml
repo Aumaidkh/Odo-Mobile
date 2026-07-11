@@ -101,21 +101,21 @@
 
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
-    <string name="sl_delete_confirm_body">This removes it from your record and can\'t be undone.</string>
+    <string name="sl_delete_confirm_body">This removes it from your record and can’t be undone.</string>
     <string name="sl_cancel">Cancel</string>
     <string name="sl_ok">OK</string>
     <string name="sl_not_found">This service is no longer available.</string>
 
     <!-- Field / submit errors -->
     <string name="sl_error_odometer_required">Odometer reading is required</string>
-    <string name="sl_error_odometer_negative">Odometer can\'t be negative</string>
-    <string name="sl_error_odometer_regression">Odometer can\'t be below the last reading (%1$d km)</string>
-    <string name="sl_error_amount_negative">Amount can\'t be negative</string>
+    <string name="sl_error_odometer_negative">Odometer can’t be negative</string>
+    <string name="sl_error_odometer_regression">Odometer can’t be below the last reading (%1$d km)</string>
+    <string name="sl_error_amount_negative">Amount can’t be negative</string>
     <string name="sl_error_date_required">Service date is required</string>
-    <string name="sl_error_date_future">Service date can\'t be in the future</string>
+    <string name="sl_error_date_future">Service date can’t be in the future</string>
     <string name="sl_error_workshop_too_long">Workshop name is too long</string>
     <string name="sl_error_notes_too_long">Notes are too long</string>
-    <string name="sl_error_save_failed">Couldn\'t save — please try again</string>
+    <string name="sl_error_save_failed">Couldn’t save — please try again</string>
 
     <!-- List: ledger (1a) stats + fairness verdicts -->
     <string name="sl_stat_saved">Saved</string>
@@ -135,7 +135,7 @@
     <string name="sl_strength_empty">Getting started</string>
 
     <!-- Empty state (timeline 1b) -->
-    <string name="sl_empty_title_record">Start your car\'s record</string>
+    <string name="sl_empty_title_record">Start your car’s record</string>
     <string name="sl_empty_body_record">Every logged service builds a verified timeline — the proof that gets you a better resale price.</string>
     <string name="sl_empty_action_log_first">Log your first service</string>
 
