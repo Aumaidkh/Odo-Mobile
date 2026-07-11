@@ -17,8 +17,8 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.servicelog.model.RecordStrength
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
-import com.hopcape.odo.feature.servicelog.presentation.formatRupeesCompact
+import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupeesCompact
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListUiState
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleLoadedContent
 import com.hopcape.odo.feature.servicelog.resources.Res
@@ -46,12 +46,12 @@ internal fun CombinedHeader(content: ServiceLogListUiState.Content.Loaded) {
             StatColumn(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.sl_stat_total_spent),
-                value = formatRupees(s.totalSpent.paise),
+                value = s.totalSpent.formatRupees(),
             )
             StatColumn(
                 modifier = Modifier.weight(1f),
                 label = stringResource(Res.string.sl_stat_saved),
-                value = formatRupees(content.savings.overchargeTotal.paise),
+                value = content.savings.overchargeTotal.formatRupees(),
                 valueColor = OdoTheme.colors.success,
             )
         }
@@ -82,7 +82,7 @@ internal fun CombinedHeader(content: ServiceLogListUiState.Content.Loaded) {
                 OdoProgressBar(progress = s.verifiedRatio, color = OdoTheme.colors.success)
                 s.resaleUplift?.let { uplift ->
                     OdoText(
-                        text = stringResource(Res.string.sl_record_resale_hint, formatRupeesCompact(uplift.high.paise)),
+                        text = stringResource(Res.string.sl_record_resale_hint, uplift.high.formatRupeesCompact()),
                         style = OdoTheme.typography.caption,
                         color = OdoTheme.colors.textDim,
                     )

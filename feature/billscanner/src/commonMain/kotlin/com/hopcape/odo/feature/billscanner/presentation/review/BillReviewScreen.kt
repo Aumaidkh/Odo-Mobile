@@ -45,7 +45,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.feature.billscanner.presentation.formatDate
-import com.hopcape.odo.feature.billscanner.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_cancel
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_edit
@@ -264,10 +264,10 @@ private fun LineItemsCard(items: List<BillLineItem>, total: Amount) {
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         items.forEach { item ->
-            LineRow(label = item.label, value = formatRupees(item.amount.paise), emphasized = false, needsCheck = item.needsCheck)
+            LineRow(label = item.label, value = item.amount.formatRupees(), emphasized = false, needsCheck = item.needsCheck)
             HorizontalDivider(color = OdoTheme.colors.border)
         }
-        LineRow(label = stringResource(Res.string.bs_review_total), value = formatRupees(total.paise), emphasized = true)
+        LineRow(label = stringResource(Res.string.bs_review_total), value = total.formatRupees(), emphasized = true)
     }
 }
 

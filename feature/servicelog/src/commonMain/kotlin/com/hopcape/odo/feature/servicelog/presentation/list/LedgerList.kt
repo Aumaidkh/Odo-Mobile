@@ -22,8 +22,8 @@ import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
 import com.hopcape.odo.feature.servicelog.presentation.formatDate
-import com.hopcape.odo.feature.servicelog.presentation.formatKm
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatKm
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_filter_all
 import com.hopcape.odo.feature.servicelog.resources.sl_filter_flagged
@@ -97,10 +97,10 @@ private fun LedgerCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
                 OdoText(text = card.workshopName ?: "—", style = OdoTheme.typography.heading)
                 VerificationBadge(card.verification)
             }
-            OdoText(text = formatRupees(card.amount.paise), style = OdoTheme.typography.title)
+            OdoText(text = card.amount.formatRupees(), style = OdoTheme.typography.title)
         }
         OdoText(
-            text = "${formatDate(card.serviceDate)} · ${formatKm(card.odometer.km)}",
+            text = "${formatDate(card.serviceDate)} · ${card.odometer.formatKm()}",
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
         )
