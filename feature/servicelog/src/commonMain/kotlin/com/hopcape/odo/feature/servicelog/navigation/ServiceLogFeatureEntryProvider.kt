@@ -71,7 +71,7 @@ internal fun ServiceLogListRoute(
             navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = key.carId))
         },
         onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
-        onScanBill = { /* TODO(M2): navigate to BillScanner once that feature ships. */ },
+        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner) },
         onShareRecord = { showShare = true },
         onOpenFilters = { /* TODO: advanced filters sheet. */ },
         onFilterChange = { filter = it },
@@ -146,7 +146,7 @@ internal fun ServiceLogFormRoute(
             form = form.copy(categories = next)
         },
         onNotesChange = { form = form.copy(notes = form.notes.update(it)) },
-        onScanBill = { /* TODO(M2): navigate to BillScanner once that feature ships. */ },
+        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner) },
         onAttachBill = { /* TODO(M2): attach a bill photo. */ },
         onSave = { navigationManager.back() },
         onClose = { navigationManager.back() },

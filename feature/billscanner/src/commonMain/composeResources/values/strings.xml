@@ -1,0 +1,13 @@
+<resources>
+    <!-- Scan bill (camera) screen -->
+    <string name="bs_scan_title">Scan bill</string>
+    <string name="bs_scan_quota">%1$d of %2$d free</string>
+    <string name="bs_scan_align">Align the bill inside the frame</string>
+    <string name="bs_scan_detecting">AUTO-DETECTING EDGES</string>
+    <string name="bs_scan_manual">Manual</string>
+
+    <!-- Content descriptions -->
+    <string name="bs_cd_close">Close</string>
+    <string name="bs_cd_gallery">Choose from gallery</string>
+    <string name="bs_cd_capture">Capture bill</string>
+</resources>

@@ -33,6 +33,7 @@ kotlin {
             implementation(projects.core.data)
             implementation(projects.feature.onboarding)
             implementation(projects.feature.servicelog)
+            implementation(projects.feature.billscanner)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.
