@@ -104,7 +104,11 @@ internal fun FairnessRoute(navigationManager: NavigationManager) {
     FairnessScreen(
         state = sampleFairnessOver(),
         onSave = { navigationManager.navigateTo(OdoDestination.BillScanner.SaveSuccess) },
-        onReport = { navigationManager.navigateTo(OdoDestination.BillScanner.ReportSuccess) },
+        onReport = {
+            navigationManager.navigateTo(
+                OdoDestination.ServiceLog.ReportOvercharge(logId = DEMO_LOG_ID, carId = DEMO_CAR_ID),
+            )
+        },
         onGoPro = { /* TODO: open the paywall. */ },
         onBack = { navigationManager.back() },
     )
@@ -151,8 +155,9 @@ internal fun ScanErrorRoute(navigationManager: NavigationManager) {
     )
 }
 
-/** The placeholder car the demo scan flow runs on until the real car id threads through. */
+/** The placeholder car + saved-entry the demo scan flow runs on until real ids thread through. */
 private const val DEMO_CAR_ID = "aaa"
+private const val DEMO_LOG_ID = "aaa"
 
 /** Exit the scan flow and reset to the car's service log with a clean back stack. */
 private fun NavigationManager.backToServiceLog() {
