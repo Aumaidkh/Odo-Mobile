@@ -76,6 +76,9 @@ sealed interface OdoDestination : NavKey {
         data object ScanError : BillScanner
     }
 
+    /** Cost tracker — the per-km "running cost" breakdown for the car. Its own feature. */
+    data object CostTracker : OdoDestination
+
     // --- Onboarding flow (first-run car setup) ---
     /** Intro carousel shown on first launch, before car setup. */
     data object Welcome : OdoDestination

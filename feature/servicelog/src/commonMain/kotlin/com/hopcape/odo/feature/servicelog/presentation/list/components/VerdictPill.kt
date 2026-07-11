@@ -12,7 +12,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFairnessBadge
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleFairnessBadges
 import com.hopcape.odo.feature.servicelog.resources.Res
@@ -32,7 +32,7 @@ internal fun VerdictPill(badge: ServiceLogFairnessBadge) {
             leadingIcon = { OdoIcon(IcCheck, contentDescription = null, size = OdoTheme.iconSizes.small) },
         )
         is ServiceLogFairnessBadge.Overcharged -> OdoBadge(
-            text = stringResource(Res.string.sl_verdict_over, formatRupees(badge.by.paise)),
+            text = stringResource(Res.string.sl_verdict_over, badge.by.formatRupees()),
             tone = OdoBadgeTone.Warning,
             leadingIcon = { OdoIcon(IcWarning, contentDescription = null, size = OdoTheme.iconSizes.small) },
         )

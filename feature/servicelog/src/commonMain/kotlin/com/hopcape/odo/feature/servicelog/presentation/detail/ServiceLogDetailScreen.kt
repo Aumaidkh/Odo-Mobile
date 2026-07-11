@@ -43,8 +43,8 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.feature.servicelog.presentation.formatDate
-import com.hopcape.odo.feature.servicelog.presentation.formatKm
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatKm
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
@@ -162,7 +162,7 @@ private fun DetailHeader(entry: ServiceEntryDetailUiState) {
         OdoText(
             text = buildString {
                 append(formatDate(entry.serviceDate))
-                append(" · ").append(formatKm(entry.odometer.km))
+                append(" · ").append(entry.odometer.formatKm())
                 entry.workDone?.let { append(" · ").append(it) }
             },
             style = OdoTheme.typography.bodySmall,
@@ -212,7 +212,7 @@ private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
         IconLabel(IcWarning, stringResource(Res.string.sl_detail_fairness_label).uppercase(), accent)
         OdoText(
             text = if (over != null) {
-                stringResource(Res.string.sl_detail_over_headline, formatRupees(over.by.paise))
+                stringResource(Res.string.sl_detail_over_headline, over.by.formatRupees())
             } else {
                 stringResource(Res.string.sl_detail_fair_headline)
             },
@@ -223,7 +223,7 @@ private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
             text = stringResource(
                 Res.string.sl_detail_fairness_basis,
                 estimate.city,
-                formatRupees(estimate.cityAverage.paise),
+                estimate.cityAverage.formatRupees(),
                 estimate.sampleSize,
             ),
             style = OdoTheme.typography.bodySmall,
@@ -239,7 +239,7 @@ private fun BreakdownCard(rows: List<FairnessBreakdownRow>, total: com.hopcape.o
         rows.forEach { row -> BreakdownRow(row) }
         CardFooter(
             leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
-            trailing = { OdoText(formatRupees(total.paise), style = OdoTheme.typography.title) },
+            trailing = { OdoText(total.formatRupees(), style = OdoTheme.typography.title) },
         )
     }
 }
@@ -254,7 +254,7 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
             OdoText(row.label, style = OdoTheme.typography.body)
             row.cityAverage?.let {
                 OdoText(
-                    stringResource(Res.string.sl_detail_city_avg, formatRupees(it.paise)),
+                    stringResource(Res.string.sl_detail_city_avg, it.formatRupees()),
                     style = OdoTheme.typography.caption,
                     color = OdoTheme.colors.textDim,
                 )
@@ -262,7 +262,7 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
             row.note?.let { OdoText(it, style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim) }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            OdoText(formatRupees(row.paid.paise), style = OdoTheme.typography.body)
+            OdoText(row.paid.formatRupees(), style = OdoTheme.typography.body)
             VerdictLabel(row.verdict)
         }
     }
@@ -272,9 +272,9 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
 private fun VerdictLabel(verdict: FairnessVerdict) {
     when (verdict) {
         is FairnessVerdict.Over ->
-            IconLabel(IcWarning, stringResource(Res.string.sl_verdict_over, formatRupees(verdict.by.paise)), OdoTheme.colors.warning)
+            IconLabel(IcWarning, stringResource(Res.string.sl_verdict_over, verdict.by.formatRupees()), OdoTheme.colors.warning)
         is FairnessVerdict.Under ->
-            IconLabel(IcCheck, stringResource(Res.string.sl_verdict_over, formatRupees(verdict.by.paise)), OdoTheme.colors.success)
+            IconLabel(IcCheck, stringResource(Res.string.sl_verdict_over, verdict.by.formatRupees()), OdoTheme.colors.success)
         FairnessVerdict.Fair ->
             IconLabel(IcCheck, stringResource(Res.string.sl_verdict_fair), OdoTheme.colors.success)
         is FairnessVerdict.LowConfidence ->
@@ -289,12 +289,12 @@ private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
         entry.lineItems.forEach { item ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 OdoText(item.label, style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
-                OdoText(formatRupees(item.amount.paise), style = OdoTheme.typography.body)
+                OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
             }
         }
         CardFooter(
             leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
-            trailing = { OdoText(formatRupees(entry.totalPaid.paise), style = OdoTheme.typography.title) },
+            trailing = { OdoText(entry.totalPaid.formatRupees(), style = OdoTheme.typography.title) },
         )
     }
 }

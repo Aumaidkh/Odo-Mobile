@@ -42,6 +42,7 @@ include(":core:navigation")
 include(":feature:onboarding")
 include(":feature:servicelog")
 include(":feature:billscanner")
+include(":feature:cost-tracker")
 
 include(":observability:logging")
 include(":observability:analytics")

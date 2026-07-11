@@ -38,7 +38,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.billscanner.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_fairness_basis
 import com.hopcape.odo.feature.billscanner.resources.bs_fairness_city_avg
@@ -107,7 +107,7 @@ internal fun FairnessScreen(
 private fun HeroCard(state: FairnessUiState, tone: Color, flagged: Boolean) {
     val prefix = stringResource(if (flagged) Res.string.bs_fairness_over_headline else Res.string.bs_fairness_fair_headline)
     val highlight = if (flagged) {
-        stringResource(Res.string.bs_fairness_over_amount, formatRupees(state.difference.paise))
+        stringResource(Res.string.bs_fairness_over_amount, state.difference.formatRupees())
     } else {
         stringResource(Res.string.bs_fairness_fair_highlight)
     }
@@ -115,11 +115,11 @@ private fun HeroCard(state: FairnessUiState, tone: Color, flagged: Boolean) {
         stringResource(
             Res.string.bs_fairness_over_body,
             state.city,
-            formatRupees(state.cityAverage.paise),
-            formatRupees(state.yourBill.paise),
+            state.cityAverage.formatRupees(),
+            state.yourBill.formatRupees(),
         )
     } else {
-        stringResource(Res.string.bs_fairness_fair_body, formatRupees(state.difference.paise), state.city)
+        stringResource(Res.string.bs_fairness_fair_body, state.difference.formatRupees(), state.city)
     }
     OdoCard(
         color = tone.copy(alpha = 0.10f),
@@ -161,14 +161,14 @@ private fun ComparisonCard(state: FairnessUiState, tone: Color) {
         val max = maxOf(state.yourBill.paise, state.cityAverage.paise, 1L)
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
             Bar(
-                amount = formatRupees(state.yourBill.paise),
+                amount = state.yourBill.formatRupees(),
                 label = stringResource(Res.string.bs_fairness_your_bill),
                 fraction = state.yourBill.paise.toFloat() / max,
                 color = tone,
                 modifier = Modifier.weight(1f),
             )
             Bar(
-                amount = formatRupees(state.cityAverage.paise),
+                amount = state.cityAverage.formatRupees(),
                 label = stringResource(Res.string.bs_fairness_city_avg),
                 fraction = state.cityAverage.paise.toFloat() / max,
                 color = OdoTheme.colors.surfaceRaised,
@@ -218,18 +218,18 @@ private fun BreakdownRow(item: FairnessLineItem) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(item.label, style = OdoTheme.typography.heading)
             OdoText(
-                stringResource(Res.string.bs_fairness_item_avg, formatRupees(item.cityAverage.paise)),
+                stringResource(Res.string.bs_fairness_item_avg, item.cityAverage.formatRupees()),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textDim,
             )
         }
         if (item.over != null) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(formatRupees(item.amount.paise), style = OdoTheme.typography.heading)
+                OdoText(item.amount.formatRupees(), style = OdoTheme.typography.heading)
                 Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                     OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.warning, size = OdoTheme.iconSizes.small)
                     OdoText(
-                        stringResource(Res.string.bs_fairness_item_over, formatRupees(item.over.paise)),
+                        stringResource(Res.string.bs_fairness_item_over, item.over.formatRupees()),
                         style = OdoTheme.typography.label,
                         color = OdoTheme.colors.warning,
                     )

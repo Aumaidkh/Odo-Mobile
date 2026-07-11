@@ -9,7 +9,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFairnessBadge
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleFairnessBadges
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.DotLabel
@@ -29,7 +29,7 @@ internal fun TimelineStatus(badge: ServiceLogFairnessBadge) {
         ServiceLogFairnessBadge.FairPrice ->
             IconLabel(IcCheck, "$verified · ${stringResource(Res.string.sl_verdict_fair)}", OdoTheme.colors.success)
         is ServiceLogFairnessBadge.Overcharged ->
-            IconLabel(IcWarning, "$verified · ${stringResource(Res.string.sl_verdict_over, formatRupees(badge.by.paise))}", OdoTheme.colors.warning)
+            IconLabel(IcWarning, "$verified · ${stringResource(Res.string.sl_verdict_over, badge.by.formatRupees())}", OdoTheme.colors.warning)
         ServiceLogFairnessBadge.NotYetChecked ->
             IconLabel(IcClock, verified, OdoTheme.colors.success)
         ServiceLogFairnessBadge.AddBillToVerify ->

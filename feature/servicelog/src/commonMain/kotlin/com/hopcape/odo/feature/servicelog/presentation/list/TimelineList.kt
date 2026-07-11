@@ -39,9 +39,9 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
 import com.hopcape.odo.feature.servicelog.presentation.list.components.tone
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
-import com.hopcape.odo.feature.servicelog.presentation.formatKm
+import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.feature.servicelog.presentation.formatMonthYear
-import com.hopcape.odo.feature.servicelog.presentation.formatRupees
+import com.hopcape.odo.core.domain.shared.formatRupees
 
 // Timeline rail geometry.
 private val RailWidth = 28.dp
@@ -123,7 +123,7 @@ private fun RecordCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OdoText(text = formatKm(card.odometer.km), style = OdoTheme.typography.title, modifier = Modifier.weight(1f))
+            OdoText(text = card.odometer.formatKm(), style = OdoTheme.typography.title, modifier = Modifier.weight(1f))
             MonthPill(formatMonthYear(card.serviceDate))
         }
         OdoText(
@@ -133,7 +133,7 @@ private fun RecordCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
         )
         CardFooter(
             leading = { TimelineStatus(card.fairness) },
-            trailing = { OdoText(text = formatRupees(card.amount.paise), style = OdoTheme.typography.title) },
+            trailing = { OdoText(text = card.amount.formatRupees(), style = OdoTheme.typography.title) },
         )
     }
 }
