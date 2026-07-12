@@ -16,8 +16,11 @@ import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentUiState
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
 import com.hopcape.odo.feature.documentvault.presentation.detail.sampleDocumentDetail
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetHost
+import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.sampleVaultAttention
+import kotlinx.datetime.LocalDate
 
 /**
  * Document vault's contribution to the navigation graph: the [OdoDestination.Documents]
@@ -33,7 +36,14 @@ internal class DocumentVaultFeatureEntryProvider(
         entry<OdoDestination.Documents.Vault> { DocumentVaultRoute(navigationManager) }
         entry<OdoDestination.Documents.Add> { AddDocumentRoute(navigationManager) }
         entry<OdoDestination.Documents.Detail> { DocumentDetailRoute(navigationManager) }
+        entry<OdoDestination.Documents.AddSuccess> { AddSuccessRoute(navigationManager) }
     }
+}
+
+/** Exit an add/detail sub-flow and reset to the vault overview with a clean back stack. */
+private fun NavigationManager.backToDocuments() {
+    val vault = OdoDestination.Documents.Vault
+    navigateTo(vault, popUpTo = vault, inclusive = true)
 }
 
 /**
@@ -63,9 +73,11 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager) {
     AddDocumentScreen(
         state = state,
         onKindSelect = { state = state.copy(selectedKind = it) },
-        onScan = { /* TODO(M2): scan with camera -> review & confirm. */ },
-        onFilePicked = { /* uri -> TODO(M2): if non-null, proceed to review & confirm with the file. */ },
-        onImportDigiLocker = { /* TODO(M2): DigiLocker import -> review & confirm. */ },
+        // TODO(M2): each method runs its capture + a review & confirm step first; the
+        //  demo jumps straight to the success screen.
+        onScan = { navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
+        onFilePicked = { uri -> if (uri != null) navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
+        onImportDigiLocker = { navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
         onClose = { navigationManager.back() },
     )
 }
@@ -77,14 +89,31 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager) {
  */
 @Composable
 internal fun DocumentDetailRoute(navigationManager: NavigationManager) {
+    var showShare by remember { mutableStateOf(false) }
     DocumentDetailScreen(
         state = sampleDocumentDetail(),
         onView = { /* TODO(M2): open the stored file. */ },
         onRenew = { /* TODO(M2): open the renew flow. */ },
         onReplace = { /* TODO(M2): replace the stored file. */ },
-        onShare = { /* TODO(M2): share the document. */ },
+        onShare = { showShare = true },
         onDownload = { /* TODO(M2): download the PDF. */ },
         onDelete = { /* TODO(M2): confirm + delete the document. */ },
         onBack = { navigationManager.back() },
+    )
+    ShareDocumentSheetHost(visible = showShare, onDismiss = { showShare = false })
+}
+
+/**
+ * The add-success route host. "Back to Documents" resets to the vault; "Add another"
+ * opens the add flow again. The sample reminder is 7 days before the (Insurance) expiry.
+ */
+@Composable
+internal fun AddSuccessRoute(navigationManager: NavigationManager) {
+    AddSuccessScreen(
+        docName = "Insurance",
+        reminderDate = LocalDate(2026, 6, 26),
+        remindDaysBefore = 7,
+        onBackToDocuments = { navigationManager.backToDocuments() },
+        onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
     )
 }

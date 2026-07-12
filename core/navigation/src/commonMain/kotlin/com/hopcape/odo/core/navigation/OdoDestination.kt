@@ -91,6 +91,8 @@ sealed interface OdoDestination : NavKey {
         data object Add : Documents
         /** A single document's detail — policy info, expiry, coverage, file actions. */
         data object Detail : Documents
+        /** Terminal success after a document is added to the vault. */
+        data object AddSuccess : Documents
     }
 
     // --- Onboarding flow (first-run car setup) ---

@@ -75,4 +75,24 @@
     <string name="dv_menu_share">Share</string>
     <string name="dv_menu_download">Download PDF</string>
     <string name="dv_menu_delete">Delete document</string>
+
+    <!-- Add success screen -->
+    <string name="dv_success_title">%1$s added</string>
+    <string name="dv_success_body_before">Safely stored in your vault. We’ll remind you on </string>
+    <string name="dv_success_body_after"> — %1$d days before it expires.</string>
+    <string name="dv_success_card_title">Health Score +4</string>
+    <string name="dv_success_card_body">Documentation is now complete</string>
+    <string name="dv_success_back">Back to Documents</string>
+    <string name="dv_success_add_another">Add another</string>
+
+    <!-- Share document sheet -->
+    <string name="dv_share_title">Share %1$s</string>
+    <string name="dv_share_subtitle">%1$s · valid till %2$s</string>
+    <string name="dv_share_hide_policy">Hide policy number</string>
+    <string name="dv_share_safer">safer to share</string>
+    <string name="dv_share_whatsapp">WhatsApp</string>
+    <string name="dv_share_email">Email</string>
+    <string name="dv_share_copy">Copy link</string>
+    <string name="dv_share_more">More</string>
+    <string name="dv_share_download">Download PDF</string>
 </resources>
