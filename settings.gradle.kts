@@ -40,6 +40,7 @@ include(":core:designsystem")
 include(":core:navigation")
 
 include(":feature:billscanner")
+include(":feature:healthscore")
 include(":feature:onboarding")
 include(":feature:reminders")
 include(":feature:servicelog")

@@ -1,0 +1,458 @@
+package com.hopcape.odo.feature.healthscore.presentation
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoHealthDial
+import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoProgressBar
+import com.hopcape.odo.core.designsystem.component.OdoScreen
+import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
+import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcGear
+import com.hopcape.odo.core.designsystem.icons.IcInfo
+import com.hopcape.odo.core.designsystem.icons.IcLightning
+import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
+import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
+import com.hopcape.odo.core.designsystem.preview.OdoPreview
+import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.feature.healthscore.resources.Res
+import com.hopcape.odo.feature.healthscore.resources.hs_band_excellent
+import com.hopcape.odo.feature.healthscore.resources.hs_band_good
+import com.hopcape.odo.feature.healthscore.resources.hs_band_needs_care
+import com.hopcape.odo.feature.healthscore.resources.hs_breakdown_label
+import com.hopcape.odo.feature.healthscore.resources.hs_cd_back
+import com.hopcape.odo.feature.healthscore.resources.hs_cd_info
+import com.hopcape.odo.feature.healthscore.resources.hs_delta_down
+import com.hopcape.odo.feature.healthscore.resources.hs_delta_up
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_cost_sub
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_cost_title
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_documentation_sub
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_documentation_title
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_maintenance_sub
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_maintenance_title
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_odometer_sub
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_odometer_title
+import com.hopcape.odo.feature.healthscore.resources.hs_factor_score
+import com.hopcape.odo.feature.healthscore.resources.hs_info_band_excellent
+import com.hopcape.odo.feature.healthscore.resources.hs_info_band_good
+import com.hopcape.odo.feature.healthscore.resources.hs_info_band_needs_care
+import com.hopcape.odo.feature.healthscore.resources.hs_info_body
+import com.hopcape.odo.feature.healthscore.resources.hs_info_cta
+import com.hopcape.odo.feature.healthscore.resources.hs_info_footer
+import com.hopcape.odo.feature.healthscore.resources.hs_info_points
+import com.hopcape.odo.feature.healthscore.resources.hs_info_range_excellent
+import com.hopcape.odo.feature.healthscore.resources.hs_info_range_good
+import com.hopcape.odo.feature.healthscore.resources.hs_info_range_needs_care
+import com.hopcape.odo.feature.healthscore.resources.hs_info_title
+import com.hopcape.odo.feature.healthscore.resources.hs_opportunity_cost
+import com.hopcape.odo.feature.healthscore.resources.hs_opportunity_documents
+import com.hopcape.odo.feature.healthscore.resources.hs_opportunity_label
+import com.hopcape.odo.feature.healthscore.resources.hs_opportunity_maintenance
+import com.hopcape.odo.feature.healthscore.resources.hs_opportunity_odometer
+import com.hopcape.odo.feature.healthscore.resources.hs_out_of
+import com.hopcape.odo.feature.healthscore.resources.hs_paywall_body
+import com.hopcape.odo.feature.healthscore.resources.hs_paywall_cta
+import com.hopcape.odo.feature.healthscore.resources.hs_paywall_title
+import com.hopcape.odo.feature.healthscore.resources.hs_title
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * The Health Score detail — a 0–100 dial with its band ("Good" / "Needs care" /
+ * "Excellent"), the month delta, and the four-factor breakdown. Pro shows every factor
+ * plus the biggest-opportunity nudge; Free sees the first factor peek behind a paywall.
+ *
+ * State-free: renders [state] and forwards intents. The rule-based scoring lands later.
+ */
+@Composable
+internal fun HealthScoreScreen(
+    state: HealthScoreUiState,
+    onBack: () -> Unit,
+    onInfo: () -> Unit,
+    onUnlock: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoScreen(modifier = modifier, topBar = { HealthTopBar(onBack, onInfo) }) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .padding(vertical = OdoTheme.spacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+        ) {
+            DialBlock(state.score, state.band)
+            DeltaLine(state.deltaPoints)
+
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                SectionLabel(stringResource(Res.string.hs_breakdown_label))
+                when (state.entitlement) {
+                    HealthEntitlement.PRO -> {
+                        state.factors.forEach { FactorCard(it) }
+                        OpportunityCard(state.opportunity)
+                    }
+                    HealthEntitlement.FREE -> LockedBreakdown(state.factors, onUnlock)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthTopBar(onBack: () -> Unit, onInfo: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircleIconButton(IcArrowLeft, stringResource(Res.string.hs_cd_back), onBack)
+        OdoText(stringResource(Res.string.hs_title), style = OdoTheme.typography.title)
+        Box(Modifier.weight(1f))
+        CircleIconButton(IcInfo, stringResource(Res.string.hs_cd_info), onInfo)
+    }
+}
+
+@Composable
+private fun CircleIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(OdoTheme.colors.surface)
+            .border(1.dp, OdoTheme.colors.border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        OdoIcon(icon, contentDescription = contentDescription, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
+    }
+}
+
+@Composable
+private fun DialBlock(score: Int, band: HealthBand) {
+    val color = bandColor(band)
+    OdoHealthDial(score = score, arcColor = color, dialSize = 200.dp) {
+        OdoText(score.toString(), style = OdoTheme.typography.display, color = OdoTheme.colors.text)
+        OdoText(stringResource(Res.string.hs_out_of), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+        OdoText(bandLabel(band), style = OdoTheme.typography.label, color = color)
+    }
+}
+
+@Composable
+private fun DeltaLine(deltaPoints: Int) {
+    val up = deltaPoints >= 0
+    val color = if (up) OdoTheme.colors.success else OdoTheme.colors.danger
+    val text = if (up) {
+        stringResource(Res.string.hs_delta_up, deltaPoints)
+    } else {
+        stringResource(Res.string.hs_delta_down, -deltaPoints)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+        OdoIcon(
+            IcCaretUp,
+            contentDescription = null,
+            tint = color,
+            size = OdoTheme.iconSizes.small,
+            modifier = if (up) Modifier else Modifier.rotate(180f),
+        )
+        OdoText(text, style = OdoTheme.typography.heading, color = color)
+    }
+}
+
+@Composable
+private fun FactorCard(factor: HealthFactor) {
+    val color = factorColor(factor.fraction)
+    OdoCard {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                IconChip(factorIcon(factor.kind), color)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                    OdoText(factorTitle(factor.kind), style = OdoTheme.typography.heading)
+                    OdoText(factorSubtitle(factor.kind), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+                }
+                OdoText(
+                    stringResource(Res.string.hs_factor_score, factor.earned, factor.max),
+                    style = OdoTheme.typography.heading,
+                )
+            }
+            OdoProgressBar(progress = factor.fraction, color = color)
+        }
+    }
+}
+
+@Composable
+private fun OpportunityCard(opportunity: HealthOpportunity) {
+    val accent = OdoTheme.colors.accent
+    OdoCard(color = accent.copy(alpha = 0.10f), border = BorderStroke(1.dp, accent.copy(alpha = 0.45f))) {
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            IconChip(IcLightning, accent)
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(stringResource(Res.string.hs_opportunity_label, opportunity.points), style = OdoTheme.typography.caption, color = accent)
+                OdoText(
+                    opportunityMessage(opportunity.kind),
+                    style = OdoTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
+        }
+    }
+}
+
+/** Free: the first factor peeks, then the rest fade behind a scrim with the Pro paywall. */
+@Composable
+private fun LockedBreakdown(factors: List<HealthFactor>, onUnlock: () -> Unit) {
+    factors.firstOrNull()?.let { FactorCard(it) }
+    Box(Modifier.fillMaxWidth().height(300.dp)) {
+        Column(
+            Modifier.fillMaxWidth().alpha(0.18f),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        ) {
+            factors.drop(1).forEach { FactorCard(it) }
+        }
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(listOf(OdoTheme.colors.bg.copy(alpha = 0.5f), OdoTheme.colors.bg)),
+            ),
+        )
+        Column(
+            modifier = Modifier.matchParentSize().padding(horizontal = OdoTheme.spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md, Alignment.CenterVertically),
+        ) {
+            Box(
+                Modifier.size(56.dp).clip(OdoTheme.shapes.card).background(OdoTheme.colors.accent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoIcon(IcLock, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
+            }
+            OdoText(stringResource(Res.string.hs_paywall_title), style = OdoTheme.typography.heading, color = OdoTheme.colors.text)
+            OdoText(
+                stringResource(Res.string.hs_paywall_body),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+                textAlign = TextAlign.Center,
+            )
+            OdoButton(stringResource(Res.string.hs_paywall_cta), onClick = onUnlock)
+        }
+    }
+}
+
+/**
+ * "How your score works" — the content of the info bottom sheet opened from the (i) button.
+ * Explains the 100-point split across the four factors and the band cut-offs. The
+ * [ModalBottomSheet] chrome is supplied by the navigation layer (the sheet is a real
+ * destination — see `ModalBottomSheetSceneStrategy`); this renders only the sheet body.
+ * [onDismiss] pops the sheet destination.
+ */
+@Composable
+internal fun HowScoreWorksContent(onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge)
+            .padding(bottom = OdoTheme.spacing.xl)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoText(stringResource(Res.string.hs_info_title), style = OdoTheme.typography.title)
+            OdoText(stringResource(Res.string.hs_info_body), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            HealthFactorKind.entries.forEach { kind ->
+                WeightRow(factorIcon(kind), factorTitle(kind), weightOf(kind))
+            }
+        }
+
+        OdoCard(
+            contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            BandRow(OdoTheme.colors.success, stringResource(Res.string.hs_info_band_excellent), stringResource(Res.string.hs_info_range_excellent))
+            HorizontalDivider(color = OdoTheme.colors.border)
+            BandRow(OdoTheme.colors.success, stringResource(Res.string.hs_info_band_good), stringResource(Res.string.hs_info_range_good))
+            HorizontalDivider(color = OdoTheme.colors.border)
+            BandRow(OdoTheme.colors.danger, stringResource(Res.string.hs_info_band_needs_care), stringResource(Res.string.hs_info_range_needs_care))
+        }
+
+        OdoText(
+            stringResource(Res.string.hs_info_footer),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.lg),
+        )
+        OdoButton(stringResource(Res.string.hs_info_cta), onClick = onDismiss, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun WeightRow(icon: ImageVector, title: String, points: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+        IconChip(icon, OdoTheme.colors.accent)
+        OdoText(title, style = OdoTheme.typography.heading, modifier = Modifier.weight(1f))
+        OdoText(stringResource(Res.string.hs_info_points, points), style = OdoTheme.typography.heading)
+    }
+}
+
+@Composable
+private fun BandRow(dotColor: Color, label: String, range: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(dotColor))
+        OdoText(
+            label,
+            style = OdoTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.weight(1f),
+        )
+        OdoText(range, style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
+    }
+}
+
+/** The PRD point weight for each factor (35 + 30 + 20 + 15 = 100). */
+private fun weightOf(kind: HealthFactorKind): Int = when (kind) {
+    HealthFactorKind.MAINTENANCE -> 35
+    HealthFactorKind.DOCUMENTATION -> 30
+    HealthFactorKind.COST_FAIRNESS -> 20
+    HealthFactorKind.ODOMETER -> 15
+}
+
+@Composable
+private fun IconChip(icon: ImageVector, tone: Color) {
+    Box(
+        Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(tone.copy(alpha = 0.15f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        OdoIcon(icon, contentDescription = null, tint = tone, size = OdoTheme.iconSizes.medium)
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    OdoText(text, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
+}
+
+@Composable
+private fun bandColor(band: HealthBand): Color =
+    if (band == HealthBand.NEEDS_CARE) OdoTheme.colors.danger else OdoTheme.colors.success
+
+@Composable
+private fun factorColor(fraction: Float): Color = when {
+    fraction >= 0.75f -> OdoTheme.colors.success
+    fraction >= 0.5f -> OdoTheme.colors.warning
+    else -> OdoTheme.colors.danger
+}
+
+@Composable
+private fun bandLabel(band: HealthBand): String = stringResource(
+    when (band) {
+        HealthBand.NEEDS_CARE -> Res.string.hs_band_needs_care
+        HealthBand.GOOD -> Res.string.hs_band_good
+        HealthBand.EXCELLENT -> Res.string.hs_band_excellent
+    },
+)
+
+private fun factorIcon(kind: HealthFactorKind): ImageVector = when (kind) {
+    HealthFactorKind.MAINTENANCE -> IcGear
+    HealthFactorKind.DOCUMENTATION -> IcShieldCheck
+    HealthFactorKind.COST_FAIRNESS -> IcCurrencyDollar
+    HealthFactorKind.ODOMETER -> IcSpeedometer
+}
+
+@Composable
+private fun factorTitle(kind: HealthFactorKind): String = stringResource(
+    when (kind) {
+        HealthFactorKind.MAINTENANCE -> Res.string.hs_factor_maintenance_title
+        HealthFactorKind.DOCUMENTATION -> Res.string.hs_factor_documentation_title
+        HealthFactorKind.COST_FAIRNESS -> Res.string.hs_factor_cost_title
+        HealthFactorKind.ODOMETER -> Res.string.hs_factor_odometer_title
+    },
+)
+
+@Composable
+private fun factorSubtitle(kind: HealthFactorKind): String = stringResource(
+    when (kind) {
+        HealthFactorKind.MAINTENANCE -> Res.string.hs_factor_maintenance_sub
+        HealthFactorKind.DOCUMENTATION -> Res.string.hs_factor_documentation_sub
+        HealthFactorKind.COST_FAIRNESS -> Res.string.hs_factor_cost_sub
+        HealthFactorKind.ODOMETER -> Res.string.hs_factor_odometer_sub
+    },
+)
+
+@Composable
+private fun opportunityMessage(kind: HealthOpportunityKind): String = stringResource(
+    when (kind) {
+        HealthOpportunityKind.MAINTENANCE -> Res.string.hs_opportunity_maintenance
+        HealthOpportunityKind.DOCUMENTATION -> Res.string.hs_opportunity_documents
+        HealthOpportunityKind.COST_FAIRNESS -> Res.string.hs_opportunity_cost
+        HealthOpportunityKind.ODOMETER -> Res.string.hs_opportunity_odometer
+    },
+)
+
+@OdoThemePreviews
+@Composable
+private fun HealthScoreGoodProPreview() = OdoPreview(padded = false) {
+    HealthScoreScreen(sampleHealthGood(), onBack = {}, onInfo = {}, onUnlock = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun HealthScoreNeedsCareProPreview() = OdoPreview(padded = false) {
+    HealthScoreScreen(sampleHealthNeedsCare(), onBack = {}, onInfo = {}, onUnlock = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun HealthScoreExcellentFreePreview() = OdoPreview(padded = false) {
+    HealthScoreScreen(sampleHealthExcellent(HealthEntitlement.FREE), onBack = {}, onInfo = {}, onUnlock = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun HowScoreWorksContentPreview() = OdoPreview {
+    HowScoreWorksContent(onDismiss = {})
+}

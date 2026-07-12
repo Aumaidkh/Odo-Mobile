@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +45,11 @@ import com.hopcape.odo.core.designsystem.theme.healthScoreColor
  * @param label optional band word shown under the number (caller-supplied copy).
  * @param dialSize the square size of the gauge.
  * @param trackColor the unfilled arc colour; defaults to the brand border.
+ * @param arcColor overrides the fill colour; defaults to the [healthScoreColor]
+ *   mapping. Pass this when the caller owns the band→colour rules (e.g. a Health
+ *   Score screen where "Good" and "Excellent" are both green).
+ * @param centerContent replaces the default number + [label] centre with custom
+ *   content (e.g. a white number, a "/ 100" line, and a coloured band word).
  */
 @Composable
 fun OdoHealthDial(
@@ -53,9 +59,11 @@ fun OdoHealthDial(
     dialSize: Dp = 176.dp,
     strokeWidth: Dp = 14.dp,
     trackColor: Color = OdoTheme.colors.border,
+    arcColor: Color? = null,
+    centerContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val clamped = score.coerceIn(0, 100)
-    val arcColor = OdoTheme.colors.healthScoreColor(clamped)
+    val arcColor = arcColor ?: OdoTheme.colors.healthScoreColor(clamped)
     // Animate the sweep so a recalculated score glides rather than jumps.
     val fraction by animateFloatAsState(
         targetValue = clamped / 100f,
@@ -97,21 +105,25 @@ fun OdoHealthDial(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
         ) {
-            // Scale the number to the dial so it never overflows the ring at compact
-            // sizes. The ratio keeps the 176dp default identical to `display` (52sp).
-            val numberSize = (dialSize.value * (52f / 176f)).sp
-            OdoText(
-                clamped.toString(),
-                style = OdoTheme.typography.display.copy(fontSize = numberSize, lineHeight = numberSize),
-                color = arcColor,
-            )
-            if (label != null) {
+            if (centerContent != null) {
+                centerContent()
+            } else {
+                // Scale the number to the dial so it never overflows the ring at compact
+                // sizes. The ratio keeps the 176dp default identical to `display` (52sp).
+                val numberSize = (dialSize.value * (52f / 176f)).sp
                 OdoText(
-                    label,
-                    style = OdoTheme.typography.label,
-                    color = OdoTheme.colors.textDim,
-                    textAlign = TextAlign.Center,
+                    clamped.toString(),
+                    style = OdoTheme.typography.display.copy(fontSize = numberSize, lineHeight = numberSize),
+                    color = arcColor,
                 )
+                if (label != null) {
+                    OdoText(
+                        label,
+                        style = OdoTheme.typography.label,
+                        color = OdoTheme.colors.textDim,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
     }
