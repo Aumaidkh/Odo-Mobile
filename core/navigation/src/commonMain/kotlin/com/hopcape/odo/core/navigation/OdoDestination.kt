@@ -87,6 +87,8 @@ sealed interface OdoDestination : NavKey {
     sealed interface Documents : OdoDestination {
         /** The vault overview — every tracked document + its status. */
         data object Vault : Documents
+        /** Add a document — pick a type + how to capture it (scan / upload / import). */
+        data object Add : Documents
     }
 
     // --- Onboarding flow (first-run car setup) ---

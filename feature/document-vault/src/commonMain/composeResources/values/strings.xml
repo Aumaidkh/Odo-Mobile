@@ -34,4 +34,23 @@
     <string name="dv_action_renew">Renew</string>
     <string name="dv_reminder">We’ll remind you %1$d days before it expires</string>
     <string name="dv_add_document">Add a document</string>
+
+    <!-- Add document screen -->
+    <string name="dv_add_title">Add document</string>
+    <string name="dv_add_type_label">Document type</string>
+    <string name="dv_add_kind_insurance">Insurance</string>
+    <string name="dv_add_kind_puc">PUC</string>
+    <string name="dv_add_kind_rc">RC</string>
+    <string name="dv_add_kind_licence">Licence</string>
+    <string name="dv_add_kind_other">Other</string>
+    <string name="dv_add_method_label">How would you like to add it?</string>
+    <string name="dv_add_camera_title">Scan with camera</string>
+    <string name="dv_add_camera_body">Odo reads the expiry date for you.</string>
+    <string name="dv_add_fastest">FASTEST</string>
+    <string name="dv_add_upload_title">Upload a file</string>
+    <string name="dv_add_upload_body">PDF or photo from your phone.</string>
+    <string name="dv_add_digilocker_title">Import from DigiLocker</string>
+    <string name="dv_add_digilocker_body">Pull the official copy in seconds.</string>
+    <string name="dv_add_privacy">Your documents are stored privately and only used to track renewals.</string>
+    <string name="dv_cd_close">Close</string>
 </resources>

@@ -38,6 +38,11 @@ kotlin {
             // koinViewModel() for the navigation route hosts (effect -> nav bridge).
             implementation(libs.koin.composeViewmodel)
         }
+        androidMain.dependencies {
+            // Android document picker (rememberLauncherForActivityResult) for the
+            // "Upload a file" action — the actual for the commonMain FilePicker expect.
+            implementation(libs.androidx.activity.compose)
+        }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
         }
