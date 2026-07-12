@@ -51,7 +51,7 @@ import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
-import com.hopcape.odo.feature.servicelog.presentation.formatDate
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_amount_currency
 import com.hopcape.odo.feature.servicelog.resources.sl_field_other_hint

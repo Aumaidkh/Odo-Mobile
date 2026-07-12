@@ -42,7 +42,7 @@ import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
-import com.hopcape.odo.feature.servicelog.presentation.formatDate
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter

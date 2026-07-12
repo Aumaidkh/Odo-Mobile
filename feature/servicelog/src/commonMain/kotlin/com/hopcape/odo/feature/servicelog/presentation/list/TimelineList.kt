@@ -40,7 +40,7 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.tone
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
 import com.hopcape.odo.core.domain.shared.formatKm
-import com.hopcape.odo.feature.servicelog.presentation.formatMonthYear
+import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.core.domain.shared.formatRupees
 
 // Timeline rail geometry.

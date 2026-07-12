@@ -44,7 +44,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.Amount
-import com.hopcape.odo.feature.billscanner.presentation.formatDate
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_cancel
