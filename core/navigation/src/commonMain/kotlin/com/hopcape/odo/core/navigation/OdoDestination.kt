@@ -91,6 +91,18 @@ sealed interface OdoDestination : NavKey {
     data object CostTracker : OdoDestination
 
     /**
+     * Health Score — the 0–100 rule-based score + its factor breakdown. Its own feature.
+     * A sealed group: the [Detail] screen plus the [Info] explainer, which is presented as a
+     * bottom sheet (its entry is tagged with [ModalBottomSheetSceneStrategy] metadata).
+     */
+    sealed interface HealthScore : OdoDestination {
+        /** The score detail — dial, delta, and the factor breakdown. */
+        data object Detail : HealthScore
+        /** "How your score works" — shown as a bottom-sheet destination from the (i) button. */
+        data object Info : HealthScore
+    }
+
+    /**
      * Fairness check — a **reusable benchmarking utility**. A caller passes the minimal
      * input (what was paid, per job, and the city); the fairness feature runs the
      * analysis and shows the report. Any feature invokes it through this one shared key

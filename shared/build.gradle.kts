@@ -38,6 +38,7 @@ kotlin {
             implementation(projects.feature.documentVault)
             implementation(projects.feature.fairnessCheck)
             implementation(projects.feature.reminders)
+            implementation(projects.feature.healthscore)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.
