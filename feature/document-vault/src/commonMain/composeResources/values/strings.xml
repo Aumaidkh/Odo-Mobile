@@ -1,0 +1,37 @@
+<resources>
+    <string name="dv_title">Documents</string>
+
+    <!-- Header summary card (tone depends on overall status) -->
+    <string name="dv_header_add_title">Add your documents</string>
+    <string name="dv_header_add_body">Store them once — Odo tracks every renewal for you.</string>
+    <string name="dv_header_covered_title">You’re fully covered</string>
+    <string name="dv_header_covered_body">All %1$d documents are valid and safely on file.</string>
+    <string name="dv_header_attention_title_one">%1$d document needs attention</string>
+    <string name="dv_header_attention_title_many">%1$d documents need attention</string>
+    <string name="dv_header_attention_body">Renew your %1$s before it lapses to avoid a fine.</string>
+
+    <!-- Document names -->
+    <string name="dv_doc_insurance">Insurance</string>
+    <string name="dv_doc_puc">Pollution (PUC)</string>
+    <string name="dv_doc_rc">Registration (RC)</string>
+    <string name="dv_doc_licence">Driving licence</string>
+
+    <!-- Row subtitles -->
+    <string name="dv_status_not_added">Not added yet</string>
+    <string name="dv_status_valid_till">Valid till %1$s</string>
+    <string name="dv_status_lifetime">Lifetime · on file</string>
+    <string name="dv_status_expires_in">Expires in %1$d days · %2$s</string>
+    <string name="dv_status_expired">Expired · %1$s</string>
+
+    <!-- Status pills -->
+    <string name="dv_pill_not_added">Not added</string>
+    <string name="dv_pill_valid">Valid</string>
+    <string name="dv_pill_expires_soon">Expires soon</string>
+    <string name="dv_pill_expired">Expired</string>
+
+    <!-- Actions -->
+    <string name="dv_action_add">Add</string>
+    <string name="dv_action_renew">Renew</string>
+    <string name="dv_reminder">We’ll remind you %1$d days before it expires</string>
+    <string name="dv_add_document">Add a document</string>
+</resources>
