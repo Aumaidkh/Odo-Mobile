@@ -66,8 +66,6 @@ sealed interface OdoDestination : NavKey {
         data object Capture : BillScanner
         /** Review + confirm the AI-extracted bill details before saving. */
         data object Review : BillScanner
-        /** The fairness verdict — how the reviewed bill compares to the city average. */
-        data object Fairness : BillScanner
         /** Terminal success after the reviewed bill is saved to the log. */
         data object SaveSuccess : BillScanner
         /** Terminal success after an overcharge is anonymously reported. */
@@ -78,6 +76,18 @@ sealed interface OdoDestination : NavKey {
 
     /** Cost tracker — the per-km "running cost" breakdown for the car. Its own feature. */
     data object CostTracker : OdoDestination
+
+    /**
+     * Fairness check — a **reusable benchmarking utility**. A caller passes the minimal
+     * input (what was paid, per job, and the city); the fairness feature runs the
+     * analysis and shows the report. Any feature invokes it through this one shared key
+     * (bill scanner, a logged entry, a standalone price check), so the benchmarking flow
+     * lives in exactly one place.
+     */
+    data class Fairness(
+        val city: String,
+        val items: List<FairnessLineInput>,
+    ) : OdoDestination
 
     /**
      * Document vault — the car's papers (insurance, PUC, RC, licence) and their renewal
@@ -109,3 +119,13 @@ sealed interface OdoDestination : NavKey {
         val topLevel: List<TopLevel> = listOf(Home, Garage, Reminders, Profile)
     }
 }
+
+/**
+ * One line for a [OdoDestination.Fairness] check — primitives only, so `:core:navigation`
+ * stays domain-free (the fairness feature maps [category]/[amountPaise] to domain types).
+ */
+data class FairnessLineInput(
+    val label: String,
+    val category: String?,
+    val amountPaise: Long,
+)

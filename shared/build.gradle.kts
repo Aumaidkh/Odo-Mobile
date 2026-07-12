@@ -36,6 +36,7 @@ kotlin {
             implementation(projects.feature.billscanner)
             implementation(projects.feature.costTracker)
             implementation(projects.feature.documentVault)
+            implementation(projects.feature.fairnessCheck)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.
