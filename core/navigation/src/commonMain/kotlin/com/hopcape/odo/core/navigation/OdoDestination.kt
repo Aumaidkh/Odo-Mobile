@@ -89,6 +89,8 @@ sealed interface OdoDestination : NavKey {
         data object Vault : Documents
         /** Add a document — pick a type + how to capture it (scan / upload / import). */
         data object Add : Documents
+        /** A single document's detail — policy info, expiry, coverage, file actions. */
+        data object Detail : Documents
     }
 
     // --- Onboarding flow (first-run car setup) ---

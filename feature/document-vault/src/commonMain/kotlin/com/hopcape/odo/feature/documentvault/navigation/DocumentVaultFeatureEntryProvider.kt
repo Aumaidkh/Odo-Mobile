@@ -14,6 +14,8 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentUiState
+import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
+import com.hopcape.odo.feature.documentvault.presentation.detail.sampleDocumentDetail
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.sampleVaultAttention
 
@@ -30,6 +32,7 @@ internal class DocumentVaultFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Documents.Vault> { DocumentVaultRoute(navigationManager) }
         entry<OdoDestination.Documents.Add> { AddDocumentRoute(navigationManager) }
+        entry<OdoDestination.Documents.Detail> { DocumentDetailRoute(navigationManager) }
     }
 }
 
@@ -43,8 +46,8 @@ internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
     DocumentVaultScreen(
         state = sampleVaultAttention(),
         onAdd = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
-        onRenew = { /* TODO(M2): open the renew flow. */ },
-        onOpen = { /* TODO(M2): open the document detail. */ },
+        onRenew = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
+        onOpen = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
         onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
         onBack = { navigationManager.back() },
     )
@@ -64,5 +67,24 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager) {
         onFilePicked = { /* uri -> TODO(M2): if non-null, proceed to review & confirm with the file. */ },
         onImportDigiLocker = { /* TODO(M2): DigiLocker import -> review & confirm. */ },
         onClose = { navigationManager.back() },
+    )
+}
+
+/**
+ * The document-detail route host — renders sample Insurance detail until the vault
+ * ViewModel lands. View / renew and the file actions (replace / share / download /
+ * delete) are M2 stubs.
+ */
+@Composable
+internal fun DocumentDetailRoute(navigationManager: NavigationManager) {
+    DocumentDetailScreen(
+        state = sampleDocumentDetail(),
+        onView = { /* TODO(M2): open the stored file. */ },
+        onRenew = { /* TODO(M2): open the renew flow. */ },
+        onReplace = { /* TODO(M2): replace the stored file. */ },
+        onShare = { /* TODO(M2): share the document. */ },
+        onDownload = { /* TODO(M2): download the PDF. */ },
+        onDelete = { /* TODO(M2): confirm + delete the document. */ },
+        onBack = { navigationManager.back() },
     )
 }

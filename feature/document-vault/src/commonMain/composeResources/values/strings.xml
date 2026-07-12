@@ -53,4 +53,26 @@
     <string name="dv_add_digilocker_body">Pull the official copy in seconds.</string>
     <string name="dv_add_privacy">Your documents are stored privately and only used to track renewals.</string>
     <string name="dv_cd_close">Close</string>
+
+    <!-- Document detail screen -->
+    <string name="dv_detail_verified">Verified</string>
+    <string name="dv_detail_idv_label">SUM INSURED (IDV)</string>
+    <string name="dv_detail_view">View</string>
+    <string name="dv_detail_expires_in">Expires in %1$d days</string>
+    <string name="dv_detail_days_suffix">d</string>
+    <string name="dv_detail_cover_type">COVER TYPE</string>
+    <string name="dv_detail_premium">PREMIUM / YR</string>
+    <string name="dv_detail_whats_covered">WHAT’S COVERED</string>
+    <string name="dv_detail_renew">Renew now</string>
+    <string name="dv_cover_own_damage">Own damage</string>
+    <string name="dv_cover_third_party">Third party</string>
+    <string name="dv_cover_zero_dep">Zero-dep</string>
+    <string name="dv_cover_engine">Engine cover</string>
+
+    <!-- Overflow menu -->
+    <string name="dv_cd_more">More</string>
+    <string name="dv_menu_replace">Replace file</string>
+    <string name="dv_menu_share">Share</string>
+    <string name="dv_menu_download">Download PDF</string>
+    <string name="dv_menu_delete">Delete document</string>
 </resources>
