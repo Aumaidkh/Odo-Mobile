@@ -39,11 +39,12 @@ include(":core:data")
 include(":core:designsystem")
 include(":core:navigation")
 
+include(":feature:billscanner")
 include(":feature:onboarding")
 include(":feature:servicelog")
-include(":feature:billscanner")
 include(":feature:cost-tracker")
 include(":feature:document-vault")
+include(":feature:fairness-check")
 
 include(":observability:logging")
 include(":observability:analytics")

@@ -13,9 +13,8 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.navigation.FairnessLineInput
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
-import com.hopcape.odo.feature.billscanner.presentation.fairness.FairnessScreen
-import com.hopcape.odo.feature.billscanner.presentation.fairness.sampleFairnessOver
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
@@ -40,7 +39,6 @@ internal class BillScannerFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.BillScanner.Capture> { BillScanRoute(navigationManager) }
         entry<OdoDestination.BillScanner.Review> { BillReviewRoute(navigationManager) }
-        entry<OdoDestination.BillScanner.Fairness> { FairnessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.SaveSuccess> { SaveSuccessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.ReportSuccess> { ReportSuccessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.ScanError> { ScanErrorRoute(navigationManager) }
@@ -88,28 +86,18 @@ internal fun BillReviewRoute(navigationManager: NavigationManager) {
         onOdometerUnitToggle = {
             odometerUnit = if (odometerUnit == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM
         },
-        onSave = { navigationManager.navigateTo(OdoDestination.BillScanner.Fairness) },
-        onRetake = { navigationManager.back() },
-        onBack = { navigationManager.back() },
-    )
-}
-
-/**
- * The fairness route host — shows how the reviewed bill compares to the city average.
- * Defaults to the overcharge sample (the continuation of the review flow). Saving
- * (persist + log) and reporting are M2 stubs; "Go Pro" opens the paywall later.
- */
-@Composable
-internal fun FairnessRoute(navigationManager: NavigationManager) {
-    FairnessScreen(
-        state = sampleFairnessOver(),
-        onSave = { navigationManager.navigateTo(OdoDestination.BillScanner.SaveSuccess) },
-        onReport = {
+        // "Save & check fairness" hands the reviewed line items to the reusable
+        // fairness-check utility via the shared registry — billscanner doesn't own the
+        // benchmarking flow, it just builds the input. (Persisting the entry is M2.)
+        onSave = {
             navigationManager.navigateTo(
-                OdoDestination.ServiceLog.ReportOvercharge(logId = DEMO_LOG_ID, carId = DEMO_CAR_ID),
+                OdoDestination.Fairness(
+                    city = REVIEW_CITY,
+                    items = extracted.lineItems.map { FairnessLineInput(it.label, category = null, amountPaise = it.amount.paise) },
+                ),
             )
         },
-        onGoPro = { /* TODO: open the paywall. */ },
+        onRetake = { navigationManager.back() },
         onBack = { navigationManager.back() },
     )
 }
@@ -136,7 +124,7 @@ internal fun SaveSuccessRoute(navigationManager: NavigationManager) {
 @Composable
 internal fun ReportSuccessRoute(navigationManager: NavigationManager) {
     ReportSuccessScreen(
-        city = sampleFairnessOver().city,
+        city = REVIEW_CITY,
         reportCount = 37,
         onBackToLog = { navigationManager.backToServiceLog() },
     )
@@ -158,6 +146,8 @@ internal fun ScanErrorRoute(navigationManager: NavigationManager) {
 /** The placeholder car + saved-entry the demo scan flow runs on until real ids thread through. */
 private const val DEMO_CAR_ID = "aaa"
 private const val DEMO_LOG_ID = "aaa"
+/** Sample city for the fairness benchmark until the car's city threads through. */
+private const val REVIEW_CITY = "Pune"
 
 /** Exit the scan flow and reset to the car's service log with a clean back stack. */
 private fun NavigationManager.backToServiceLog() {
