@@ -20,4 +20,22 @@
     <!-- Content descriptions -->
     <string name="rm_cd_open">Open</string>
     <string name="rm_cd_add">Add reminder</string>
+
+    <!-- Reminder settings screen -->
+    <string name="rm_settings_title">Reminder settings</string>
+    <string name="rm_settings_how">HOW TO NOTIFY ME</string>
+    <string name="rm_settings_push">Push notifications</string>
+    <string name="rm_settings_whatsapp">WhatsApp</string>
+    <string name="rm_settings_email">Email</string>
+    <string name="rm_settings_what">WHAT TO REMIND ME ABOUT</string>
+    <string name="rm_settings_insurance">Insurance &amp; documents</string>
+    <string name="rm_settings_service">Service due</string>
+    <string name="rm_settings_tyre">Tyre &amp; wear checks</string>
+    <string name="rm_settings_partner">Partner offers</string>
+    <string name="rm_settings_partner_sub">Deals near renewals</string>
+    <string name="rm_settings_before">REMIND ME BEFORE</string>
+    <string name="rm_settings_before_3">3 days</string>
+    <string name="rm_settings_before_7">7 days</string>
+    <string name="rm_settings_before_14">14 days</string>
+    <string name="rm_settings_before_30">30 days</string>
 </resources>
