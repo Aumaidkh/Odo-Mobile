@@ -1,0 +1,23 @@
+<resources>
+    <string name="rm_title">Reminders</string>
+    <string name="rm_manage">Manage</string>
+
+    <!-- Summary header -->
+    <string name="rm_attention_title_one">%1$d reminder needs attention</string>
+    <string name="rm_attention_title_many">%1$d reminders need attention</string>
+    <string name="rm_caught_up_title">You’re all caught up</string>
+    <string name="rm_caught_up_body">Nothing due this month — we’ll nudge you in time.</string>
+
+    <!-- Sections -->
+    <string name="rm_this_week">THIS WEEK</string>
+    <string name="rm_upcoming">UPCOMING</string>
+
+    <!-- Statuses -->
+    <string name="rm_status_due_soon">Due soon</string>
+    <string name="rm_status_on_track">On track</string>
+    <string name="rm_remind_me">Remind me</string>
+
+    <!-- Content descriptions -->
+    <string name="rm_cd_open">Open</string>
+    <string name="rm_cd_add">Add reminder</string>
+</resources>
