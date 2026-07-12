@@ -41,6 +41,7 @@ include(":core:navigation")
 
 include(":feature:billscanner")
 include(":feature:onboarding")
+include(":feature:reminders")
 include(":feature:servicelog")
 include(":feature:cost-tracker")
 include(":feature:document-vault")

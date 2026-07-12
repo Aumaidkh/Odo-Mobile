@@ -25,8 +25,21 @@ sealed interface OdoDestination : NavKey {
     // --- Bottom-nav roots ---
     data object Home : TopLevel { override val label = "Home" }
     data object Garage : TopLevel { override val label = "Garage" }
-    data object Reminders : TopLevel { override val label = "Reminders" }
     data object Profile : TopLevel { override val label = "Profile" }
+
+    /**
+     * Reminders flow — its own feature. Modelled as a group from the start (a Manage
+     * screen, an add-reminder flow, and per-reminder detail follow); [List] is the
+     * bottom-nav root, so this whole area lives under one shared key.
+     */
+    sealed interface Reminders : OdoDestination {
+        /** The reminders home — the summary + this-week + upcoming overview. */
+        data object List : Reminders, TopLevel { override val label = "Reminders" }
+        /** Notification + reminder preferences — reached from the home's "Manage". */
+        data object Settings : Reminders
+        /** Create a custom reminder — reached from the home's "+ Add". */
+        data object New : Reminders
+    }
 
     // --- Nested / argument-carrying destinations ---
     data class CarDetail(val carId: String) : OdoDestination
@@ -116,7 +129,7 @@ sealed interface OdoDestination : NavKey {
 
     companion object {
         /** Ordered bottom-navigation roots. */
-        val topLevel: List<TopLevel> = listOf(Home, Garage, Reminders, Profile)
+        val topLevel: List<TopLevel> = listOf(Home, Garage, Reminders.List, Profile)
     }
 }
 
