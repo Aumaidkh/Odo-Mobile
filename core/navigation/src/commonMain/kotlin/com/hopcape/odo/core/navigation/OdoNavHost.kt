@@ -10,8 +10,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 
 /**
@@ -41,10 +44,19 @@ fun OdoNavHost(
         navigationManager.commands.collect { command -> navigator.execute(command) }
     }
 
+    // Entries tagged with bottom-sheet metadata are rendered as an overlay sheet; everything
+    // else falls through to the single-pane scene (NavDisplay uses the first strategy that
+    // returns a scene). This is what lets a sheet be a real destination (see
+    // ModalBottomSheetSceneStrategy) rather than a boolean inside a screen.
+    val sceneStrategies = remember {
+        listOf(ModalBottomSheetSceneStrategy<NavKey>(), SinglePaneSceneStrategy<NavKey>())
+    }
+
     NavDisplay(
         backStack = navigator.backStack,
         onBack = { navigator.goBack() },
         modifier = modifier,
+        sceneStrategies = sceneStrategies,
         // A single, app-wide motion language: pushes slide in from the trailing
         // edge while the current screen eases back; pops (button + predictive
         // gesture) reverse it. Every feature — including bill-scanner — inherits
