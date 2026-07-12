@@ -38,4 +38,45 @@
     <string name="rm_settings_before_7">7 days</string>
     <string name="rm_settings_before_14">14 days</string>
     <string name="rm_settings_before_30">30 days</string>
+
+    <!-- New reminder screen (create custom) -->
+    <string name="rm_new_title">New reminder</string>
+    <string name="rm_new_cd_close">Close</string>
+    <string name="rm_new_about">WHAT TO REMIND ME ABOUT</string>
+    <string name="rm_new_preset_air">Air pressure</string>
+    <string name="rm_new_preset_coolant">Coolant</string>
+    <string name="rm_new_preset_wiper">Wiper fluid</string>
+    <string name="rm_new_preset_battery">Battery</string>
+    <string name="rm_new_preset_custom">+ Custom</string>
+    <string name="rm_new_custom_placeholder">Custom reminder</string>
+    <string name="rm_new_default_air">Air pressure check</string>
+    <string name="rm_new_default_coolant">Coolant top-up</string>
+    <string name="rm_new_default_wiper">Wiper fluid top-up</string>
+    <string name="rm_new_default_battery">Battery check</string>
+    <string name="rm_new_name_label">Reminder name</string>
+    <string name="rm_new_name_placeholder">Name this reminder</string>
+    <string name="rm_new_repeat_label">Repeat</string>
+    <string name="rm_new_repeat_15">Every 15 days</string>
+    <string name="rm_new_repeat_monthly">Monthly</string>
+    <string name="rm_new_repeat_distance">By distance</string>
+    <string name="rm_new_repeat_once">Once</string>
+    <string name="rm_new_starts_label">Starts</string>
+    <string name="rm_new_starts_today">Today</string>
+    <string name="rm_new_starts_tomorrow">Tomorrow</string>
+    <string name="rm_new_time_label">Time</string>
+    <string name="rm_new_picker_confirm">Done</string>
+    <string name="rm_new_picker_cancel">Cancel</string>
+    <string name="rm_new_notified_prefix">Notified via your</string>
+    <string name="rm_new_notified_channels">Push + WhatsApp</string>
+    <string name="rm_new_notified_suffix">settings</string>
+    <string name="rm_new_change">Change</string>
+    <string name="rm_new_save">Save reminder</string>
+
+    <!-- This-week reminder actions (bottom sheet) -->
+    <string name="rm_actions_reschedule">Reschedule reminder</string>
+    <string name="rm_actions_snooze">Snooze 1 week</string>
+    <string name="rm_actions_turn_off">Turn off this reminder</string>
+    <string name="rm_cd_reschedule">Reschedule</string>
+    <string name="rm_cd_snooze">Snooze</string>
+    <string name="rm_cd_turn_off">Turn off</string>
 </resources>

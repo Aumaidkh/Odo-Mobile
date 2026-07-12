@@ -37,6 +37,8 @@ sealed interface OdoDestination : NavKey {
         data object List : Reminders, TopLevel { override val label = "Reminders" }
         /** Notification + reminder preferences — reached from the home's "Manage". */
         data object Settings : Reminders
+        /** Create a custom reminder — reached from the home's "+ Add". */
+        data object New : Reminders
     }
 
     // --- Nested / argument-carrying destinations ---

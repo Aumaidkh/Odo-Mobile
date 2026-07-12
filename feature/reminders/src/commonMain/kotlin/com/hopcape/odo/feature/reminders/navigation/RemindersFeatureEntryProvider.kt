@@ -14,8 +14,11 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.reminders.presentation.RemindersScreen
 import com.hopcape.odo.feature.reminders.presentation.sampleRemindersAttention
+import com.hopcape.odo.feature.reminders.presentation.create.NewReminderScreen
+import com.hopcape.odo.feature.reminders.presentation.create.sampleNewReminder
 import com.hopcape.odo.feature.reminders.presentation.settings.ReminderSettingsScreen
 import com.hopcape.odo.feature.reminders.presentation.settings.sampleReminderSettings
+import kotlin.time.Clock
 
 /**
  * Reminders' contribution to the navigation graph: the [OdoDestination.Reminders] group —
@@ -28,6 +31,7 @@ internal class RemindersFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Reminders.List> { RemindersRoute(navigationManager) }
         entry<OdoDestination.Reminders.Settings> { ReminderSettingsRoute(navigationManager) }
+        entry<OdoDestination.Reminders.New> { NewReminderRoute(navigationManager) }
     }
 }
 
@@ -40,9 +44,32 @@ internal fun RemindersRoute(navigationManager: NavigationManager) {
     RemindersScreen(
         state = sampleRemindersAttention(),
         onManage = { navigationManager.navigateTo(OdoDestination.Reminders.Settings) },
-        onOpen = { /* TODO(M2): open the reminder's source (document / service entry). */ },
         onRemindMe = { /* TODO(M2): opt into a suggested reminder. */ },
-        onAdd = { /* TODO(M2): open the add-reminder flow. */ },
+        onAdd = { navigationManager.navigateTo(OdoDestination.Reminders.New) },
+    )
+}
+
+/**
+ * The new-reminder route host — holds the create-form state locally until the
+ * reminder-creation use case (persisting a schedule) lands. "Save" and the close
+ * button both pop back for now; "Change" jumps to the notification settings.
+ */
+@Composable
+internal fun NewReminderRoute(navigationManager: NavigationManager) {
+    // Seed the start date to today (UTC midnight, matching the date picker's millis).
+    val todayMillis = (Clock.System.now().toEpochMilliseconds() / 86_400_000L) * 86_400_000L
+    var state by remember { mutableStateOf(sampleNewReminder(startMillis = todayMillis)) }
+    NewReminderScreen(
+        state = state,
+        onPresetSelect = { preset, defaultName -> state = state.selectPreset(preset, defaultName) },
+        onCustomSave = { state = state.withCustomLabel(it) },
+        onNameChange = { state = state.copy(name = it) },
+        onRepeatChange = { state = state.copy(repeat = it) },
+        onStartChange = { state = state.copy(startMillis = it) },
+        onTimeChange = { hour, minute -> state = state.copy(hour = hour, minute = minute) },
+        onChangeChannels = { navigationManager.navigateTo(OdoDestination.Reminders.Settings) },
+        onSave = { navigationManager.back() },
+        onClose = { navigationManager.back() },
     )
 }
 

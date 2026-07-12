@@ -12,12 +12,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +40,10 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
+import com.hopcape.odo.core.designsystem.icons.IcCalendar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
+import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcDroplet
 import com.hopcape.odo.core.designsystem.icons.IcGear
 import com.hopcape.odo.core.designsystem.icons.IcLeaf
@@ -45,6 +54,12 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.reminders.resources.Res
+import com.hopcape.odo.feature.reminders.resources.rm_actions_reschedule
+import com.hopcape.odo.feature.reminders.resources.rm_actions_snooze
+import com.hopcape.odo.feature.reminders.resources.rm_actions_turn_off
+import com.hopcape.odo.feature.reminders.resources.rm_cd_reschedule
+import com.hopcape.odo.feature.reminders.resources.rm_cd_snooze
+import com.hopcape.odo.feature.reminders.resources.rm_cd_turn_off
 import com.hopcape.odo.feature.reminders.resources.rm_attention_title_many
 import com.hopcape.odo.feature.reminders.resources.rm_attention_title_one
 import com.hopcape.odo.feature.reminders.resources.rm_caught_up_body
@@ -71,11 +86,12 @@ import org.jetbrains.compose.resources.stringResource
 internal fun RemindersScreen(
     state: RemindersUiState,
     onManage: () -> Unit,
-    onOpen: (ThisWeekItem) -> Unit,
     onRemindMe: (UpcomingItem) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The tapped this-week reminder whose actions sheet is open (null = closed).
+    var actionsFor by remember { mutableStateOf<ThisWeekItem?>(null) }
     OdoScreen(
         modifier = modifier,
         topBar = { RemindersTopBar(onManage) },
@@ -93,13 +109,89 @@ internal fun RemindersScreen(
             if (state.thisWeek.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                     SectionLabel(stringResource(Res.string.rm_this_week))
-                    state.thisWeek.forEach { ThisWeekCard(it, onOpen) }
+                    state.thisWeek.forEach { item -> ThisWeekCard(item, onOpen = { actionsFor = item }) }
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 SectionLabel(stringResource(Res.string.rm_upcoming))
                 UpcomingCard(state.upcoming, onRemindMe)
             }
+        }
+    }
+
+    actionsFor?.let { item ->
+        ReminderActionsSheet(
+            item = item,
+            onReschedule = { actionsFor = null /* TODO(M2): open reschedule flow. */ },
+            onSnooze = { actionsFor = null /* TODO(M2): snooze 1 week. */ },
+            onTurnOff = { actionsFor = null /* TODO(M2): disable this reminder. */ },
+            onDismiss = { actionsFor = null },
+        )
+    }
+}
+
+/**
+ * The actions sheet for a "this week" reminder — reschedule, snooze, or turn it off.
+ * Opens from tapping the reminder's card. The header echoes the reminder; "turn off"
+ * is styled in the danger tone as the destructive choice.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderActionsSheet(
+    item: ThisWeekItem,
+    onReschedule: () -> Unit,
+    onSnooze: () -> Unit,
+    onTurnOff: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = OdoTheme.colors.surface) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = OdoTheme.spacing.screenEdge)
+                .padding(bottom = OdoTheme.spacing.xl)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                IconChip(iconFor(item.icon), toneFor(item.icon))
+                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                    OdoText(item.title, style = OdoTheme.typography.heading)
+                    OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+                }
+            }
+            OdoCard(
+                contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                ActionRow(IcCalendar, stringResource(Res.string.rm_actions_reschedule), stringResource(Res.string.rm_cd_reschedule), OdoTheme.colors.text, chevron = true, onClick = onReschedule)
+                HorizontalDivider(color = OdoTheme.colors.border)
+                ActionRow(IcClock, stringResource(Res.string.rm_actions_snooze), stringResource(Res.string.rm_cd_snooze), OdoTheme.colors.text, chevron = true, onClick = onSnooze)
+                HorizontalDivider(color = OdoTheme.colors.border)
+                ActionRow(IcClose, stringResource(Res.string.rm_actions_turn_off), stringResource(Res.string.rm_cd_turn_off), OdoTheme.colors.danger, chevron = false, onClick = onTurnOff)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionRow(
+    icon: ImageVector,
+    label: String,
+    contentDescription: String,
+    tint: Color,
+    chevron: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = OdoTheme.spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OdoIcon(icon, contentDescription = contentDescription, tint = tint, size = OdoTheme.iconSizes.medium)
+        OdoText(label, style = OdoTheme.typography.heading, color = tint, modifier = Modifier.weight(1f))
+        if (chevron) {
+            OdoIcon(IcArrowLeft, contentDescription = null, tint = OdoTheme.colors.textMuted, size = OdoTheme.iconSizes.small, modifier = Modifier.rotate(180f))
         }
     }
 }
@@ -261,11 +353,11 @@ private fun toneFor(icon: ReminderIcon): Color = when (icon) {
 @OdoThemePreviews
 @Composable
 private fun RemindersAttentionPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpen = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersAttention(), onManage = {}, onRemindMe = {}, onAdd = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun RemindersCaughtUpPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpen = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onRemindMe = {}, onAdd = {})
 }
