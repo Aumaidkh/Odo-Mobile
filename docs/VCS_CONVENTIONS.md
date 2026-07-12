@@ -234,6 +234,16 @@ Refs: M_  | ADR: ADR-___
 - [ ] Docs/ADR updated if a decision changed
 ```
 
+**Every PR's description is authored as a Markdown file at the repo root** — `PR_DESCRIPTION.md`
+— following the template above (What / Why / How / Testing / Checklist), not only pasted into
+the GitHub PR box. Keep it current as the branch evolves; it's the reviewer's entry point and
+the source for the PR body.
+
+**The file MUST end with a `## Squash commit message` section** containing the exact
+Conventional Commit to use when squash-merging (see §4.3) — fenced in a code block, subject
+≤ 50 chars, imperative, with a body explaining the *why*. This makes the merge message a
+deliberate artifact reviewed alongside the code, never the auto-generated list of WIP commits.
+
 ### 4.3 Merge strategy: **Squash and merge** (default)
 
 - One branch collapses to **one clean Conventional-Commit** on `main` → tidy, linear history that doubles as a changelog.

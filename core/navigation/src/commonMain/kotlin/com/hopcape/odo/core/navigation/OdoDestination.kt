@@ -99,6 +99,18 @@ sealed interface OdoDestination : NavKey {
     data object CostTracker : OdoDestination
 
     /**
+     * Pro paywall — one screen, context-framed by [trigger] (why it was shown). Reached from
+     * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
+     * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
+     * "0 scans left" variant.
+     */
+    data class Paywall(
+        val trigger: String = "GENERIC",
+        val amountPaise: Long = 0L,
+        val freeScans: Int = 0,
+    ) : OdoDestination
+
+    /**
      * Health Score — the 0–100 rule-based score + its factor breakdown. Its own feature.
      * A sealed group: the [Detail] screen plus the [Info] explainer, which is presented as a
      * bottom sheet (its entry is tagged with [ModalBottomSheetSceneStrategy] metadata).
