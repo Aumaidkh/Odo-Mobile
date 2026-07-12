@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.costtracker.costTrackerModule
 import com.hopcape.odo.feature.documentvault.documentVaultModule
 import com.hopcape.odo.feature.fairnesscheck.fairnessCheckModule
 import com.hopcape.odo.feature.healthscore.healthScoreModule
+import com.hopcape.odo.feature.paywall.paywallModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
@@ -59,6 +60,7 @@ fun initKoin(
         fairnessCheckModule,
         remindersModule,
         healthScoreModule,
+        paywallModule,
         platformModule,
     )
 }
