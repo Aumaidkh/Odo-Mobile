@@ -17,14 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,12 +80,11 @@ import org.jetbrains.compose.resources.stringResource
 internal fun RemindersScreen(
     state: RemindersUiState,
     onManage: () -> Unit,
+    onOpenActions: (ThisWeekItem) -> Unit,
     onRemindMe: (UpcomingItem) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The tapped this-week reminder whose actions sheet is open (null = closed).
-    var actionsFor by remember { mutableStateOf<ThisWeekItem?>(null) }
     OdoScreen(
         modifier = modifier,
         topBar = { RemindersTopBar(onManage) },
@@ -109,7 +102,7 @@ internal fun RemindersScreen(
             if (state.thisWeek.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                     SectionLabel(stringResource(Res.string.rm_this_week))
-                    state.thisWeek.forEach { item -> ThisWeekCard(item, onOpen = { actionsFor = item }) }
+                    state.thisWeek.forEach { item -> ThisWeekCard(item, onOpen = onOpenActions) }
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
@@ -118,58 +111,45 @@ internal fun RemindersScreen(
             }
         }
     }
-
-    actionsFor?.let { item ->
-        ReminderActionsSheet(
-            item = item,
-            onReschedule = { actionsFor = null /* TODO(M2): open reschedule flow. */ },
-            onSnooze = { actionsFor = null /* TODO(M2): snooze 1 week. */ },
-            onTurnOff = { actionsFor = null /* TODO(M2): disable this reminder. */ },
-            onDismiss = { actionsFor = null },
-        )
-    }
 }
 
 /**
- * The actions sheet for a "this week" reminder — reschedule, snooze, or turn it off.
- * Opens from tapping the reminder's card. The header echoes the reminder; "turn off"
- * is styled in the danger tone as the destructive choice.
+ * The actions sheet **body** for a "this week" reminder — reschedule, snooze, or turn it
+ * off. Shown as a bottom-sheet destination ([OdoDestination.Reminders.Actions]) from
+ * tapping the reminder's card; the ModalBottomSheet chrome comes from the navigation
+ * layer. The header echoes the reminder; "turn off" uses the danger tone.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReminderActionsSheet(
+internal fun ReminderActionsSheetContent(
     item: ThisWeekItem,
     onReschedule: () -> Unit,
     onSnooze: () -> Unit,
     onTurnOff: () -> Unit,
-    onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = OdoTheme.colors.surface) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = OdoTheme.spacing.screenEdge)
-                .padding(bottom = OdoTheme.spacing.xl)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge)
+            .padding(bottom = OdoTheme.spacing.xl)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            IconChip(iconFor(item.icon), toneFor(item.icon))
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(item.title, style = OdoTheme.typography.heading)
+                OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+            }
+        }
+        OdoCard(
+            contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                IconChip(iconFor(item.icon), toneFor(item.icon))
-                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                    OdoText(item.title, style = OdoTheme.typography.heading)
-                    OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
-                }
-            }
-            OdoCard(
-                contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
-            ) {
-                ActionRow(IcCalendar, stringResource(Res.string.rm_actions_reschedule), stringResource(Res.string.rm_cd_reschedule), OdoTheme.colors.text, chevron = true, onClick = onReschedule)
-                HorizontalDivider(color = OdoTheme.colors.border)
-                ActionRow(IcClock, stringResource(Res.string.rm_actions_snooze), stringResource(Res.string.rm_cd_snooze), OdoTheme.colors.text, chevron = true, onClick = onSnooze)
-                HorizontalDivider(color = OdoTheme.colors.border)
-                ActionRow(IcClose, stringResource(Res.string.rm_actions_turn_off), stringResource(Res.string.rm_cd_turn_off), OdoTheme.colors.danger, chevron = false, onClick = onTurnOff)
-            }
+            ActionRow(IcCalendar, stringResource(Res.string.rm_actions_reschedule), stringResource(Res.string.rm_cd_reschedule), OdoTheme.colors.text, chevron = true, onClick = onReschedule)
+            HorizontalDivider(color = OdoTheme.colors.border)
+            ActionRow(IcClock, stringResource(Res.string.rm_actions_snooze), stringResource(Res.string.rm_cd_snooze), OdoTheme.colors.text, chevron = true, onClick = onSnooze)
+            HorizontalDivider(color = OdoTheme.colors.border)
+            ActionRow(IcClose, stringResource(Res.string.rm_actions_turn_off), stringResource(Res.string.rm_cd_turn_off), OdoTheme.colors.danger, chevron = false, onClick = onTurnOff)
         }
     }
 }
@@ -353,11 +333,11 @@ private fun toneFor(icon: ReminderIcon): Color = when (icon) {
 @OdoThemePreviews
 @Composable
 private fun RemindersAttentionPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersAttention(), onManage = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpenActions = {}, onRemindMe = {}, onAdd = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun RemindersCaughtUpPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpenActions = {}, onRemindMe = {}, onAdd = {})
 }

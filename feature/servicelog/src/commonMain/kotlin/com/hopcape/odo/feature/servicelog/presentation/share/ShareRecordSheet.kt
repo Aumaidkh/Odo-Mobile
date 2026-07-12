@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,54 +60,33 @@ internal fun sampleShareRecord(copied: Boolean = false): ShareRecordUiState =
     ShareRecordUiState(carName = "Swift VXI", verifiedCount = 4, serviceCount = 6, link = "odo.app/p/swift-9F2K", copied = copied)
 
 /**
- * Renders the "share verified record" sheet while [visible], managing the transient
- * "Copied" state itself. Callers just flip a boolean and pass [onDismiss].
+ * The "share verified record" sheet **body** — the resale-passport summary, its public
+ * link, and the share targets. Shown as a bottom-sheet destination
+ * ([OdoDestination.ServiceLog.Share]); the [androidx.compose.material3.ModalBottomSheet]
+ * chrome comes from the navigation layer. Holds the transient "Copied" state itself.
  */
 @Composable
-internal fun ShareRecordSheetHost(visible: Boolean, onDismiss: () -> Unit) {
-    if (!visible) return
+internal fun ShareRecordSheetContent() {
     var copied by remember { mutableStateOf(false) }
-    ShareRecordSheet(
-        state = sampleShareRecord(copied),
-        onCopy = { copied = true /* TODO: copy to clipboard */ },
-        onShareVia = { /* TODO(passport): open the share target. */ },
-        onDownloadPdf = { /* TODO(passport): render + save the PDF. */ },
-        onDismiss = { copied = false; onDismiss() },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ShareRecordSheet(
-    state: ShareRecordUiState,
-    onCopy: () -> Unit,
-    onShareVia: (ShareTarget) -> Unit,
-    onDownloadPdf: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-        containerColor = OdoTheme.colors.surface,
+    val state = sampleShareRecord(copied)
+    val onShareVia: (ShareTarget) -> Unit = { /* TODO(passport): open the share target. */ }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.screenEdge).padding(bottom = OdoTheme.spacing.md).navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.screenEdge).padding(bottom = OdoTheme.spacing.md).navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            Header(state)
-            LinkRow(state, onCopy)
-            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-                ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
-                ShareTargetButton(stringResource(Res.string.sl_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
-                ShareTargetButton(stringResource(Res.string.sl_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcShare) { onShareVia(ShareTarget.MORE) }
-            }
-            OdoButton(
-                text = stringResource(Res.string.sl_share_download_pdf),
-                onClick = onDownloadPdf,
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { OdoIcon(IcPdf, contentDescription = null, size = OdoTheme.iconSizes.small) },
-            )
+        Header(state)
+        LinkRow(state, onCopy = { copied = true /* TODO: copy to clipboard */ })
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
+            ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
+            ShareTargetButton(stringResource(Res.string.sl_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
+            ShareTargetButton(stringResource(Res.string.sl_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcShare) { onShareVia(ShareTarget.MORE) }
         }
+        OdoButton(
+            text = stringResource(Res.string.sl_share_download_pdf),
+            onClick = { /* TODO(passport): render + save the PDF. */ },
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { OdoIcon(IcPdf, contentDescription = null, size = OdoTheme.iconSizes.small) },
+        )
     }
 }
 

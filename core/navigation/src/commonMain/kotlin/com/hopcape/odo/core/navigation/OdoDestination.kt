@@ -39,6 +39,12 @@ sealed interface OdoDestination : NavKey {
         data object Settings : Reminders
         /** Create a custom reminder — reached from the home's "+ Add". */
         data object New : Reminders
+        /**
+         * Actions for a "this week" reminder (reschedule / snooze / turn off) — shown as a
+         * bottom-sheet destination from tapping the reminder's card. Primitives only, so
+         * `:core:navigation` stays free of the feature's presentation types.
+         */
+        data class Actions(val title: String, val due: String, val icon: String) : Reminders
     }
 
     // --- Nested / argument-carrying destinations ---
@@ -66,6 +72,8 @@ sealed interface OdoDestination : NavKey {
         data class AddEdit(override val carId: String, val editLogId: String? = null) : ServiceLog
         /** Report an overcharge on a specific (flagged) entry — reached from its detail. */
         data class ReportOvercharge(val logId: String, override val carId: String) : ServiceLog
+        /** Share the car's verified record — shown as a bottom-sheet destination. */
+        data class Share(override val carId: String) : ServiceLog
     }
 
     /**
@@ -128,6 +136,8 @@ sealed interface OdoDestination : NavKey {
         data object Detail : Documents
         /** Terminal success after a document is added to the vault. */
         data object AddSuccess : Documents
+        /** Share a document (optionally redacted) — shown as a bottom-sheet destination. */
+        data object Share : Documents
     }
 
     // --- Onboarding flow (first-run car setup) ---

@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
@@ -16,7 +17,7 @@ import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentUiState
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
 import com.hopcape.odo.feature.documentvault.presentation.detail.sampleDocumentDetail
-import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetHost
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetContent
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.sampleVaultAttention
@@ -37,6 +38,9 @@ internal class DocumentVaultFeatureEntryProvider(
         entry<OdoDestination.Documents.Add> { AddDocumentRoute(navigationManager) }
         entry<OdoDestination.Documents.Detail> { DocumentDetailRoute(navigationManager) }
         entry<OdoDestination.Documents.AddSuccess> { AddSuccessRoute(navigationManager) }
+        entry<OdoDestination.Documents.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
+            ShareDocumentSheetContent()
+        }
     }
 }
 
@@ -89,18 +93,16 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager) {
  */
 @Composable
 internal fun DocumentDetailRoute(navigationManager: NavigationManager) {
-    var showShare by remember { mutableStateOf(false) }
     DocumentDetailScreen(
         state = sampleDocumentDetail(),
         onView = { /* TODO(M2): open the stored file. */ },
         onRenew = { /* TODO(M2): open the renew flow. */ },
         onReplace = { /* TODO(M2): replace the stored file. */ },
-        onShare = { showShare = true },
+        onShare = { navigationManager.navigateTo(OdoDestination.Documents.Share) },
         onDownload = { /* TODO(M2): download the PDF. */ },
         onDelete = { /* TODO(M2): confirm + delete the document. */ },
         onBack = { navigationManager.back() },
     )
-    ShareDocumentSheetHost(visible = showShare, onDismiss = { showShare = false })
 }
 
 /**

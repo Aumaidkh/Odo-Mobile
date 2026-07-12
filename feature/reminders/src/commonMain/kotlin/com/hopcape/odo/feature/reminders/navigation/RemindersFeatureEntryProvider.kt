@@ -8,11 +8,15 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.reminders.presentation.ReminderActionsSheetContent
+import com.hopcape.odo.feature.reminders.presentation.ReminderIcon
 import com.hopcape.odo.feature.reminders.presentation.RemindersScreen
+import com.hopcape.odo.feature.reminders.presentation.ThisWeekItem
 import com.hopcape.odo.feature.reminders.presentation.sampleRemindersAttention
 import com.hopcape.odo.feature.reminders.presentation.create.NewReminderScreen
 import com.hopcape.odo.feature.reminders.presentation.create.sampleNewReminder
@@ -32,20 +36,45 @@ internal class RemindersFeatureEntryProvider(
         entry<OdoDestination.Reminders.List> { RemindersRoute(navigationManager) }
         entry<OdoDestination.Reminders.Settings> { ReminderSettingsRoute(navigationManager) }
         entry<OdoDestination.Reminders.New> { NewReminderRoute(navigationManager) }
+        entry<OdoDestination.Reminders.Actions>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
+            ReminderActionsRoute(key, navigationManager)
+        }
     }
 }
 
 /**
  * The reminders route host — renders sample reminders until the reminder engine (renewal
- * triggers + schedules) lands. "Manage" opens the settings; open / remind-me / add are M2 stubs.
+ * triggers + schedules) lands. "Manage" opens the settings; tapping a this-week reminder
+ * opens its actions sheet; remind-me is an M2 stub.
  */
 @Composable
 internal fun RemindersRoute(navigationManager: NavigationManager) {
     RemindersScreen(
         state = sampleRemindersAttention(),
         onManage = { navigationManager.navigateTo(OdoDestination.Reminders.Settings) },
+        onOpenActions = { item ->
+            navigationManager.navigateTo(OdoDestination.Reminders.Actions(title = item.title, due = item.due, icon = item.icon.name))
+        },
         onRemindMe = { /* TODO(M2): opt into a suggested reminder. */ },
         onAdd = { navigationManager.navigateTo(OdoDestination.Reminders.New) },
+    )
+}
+
+/**
+ * The reminder-actions route host — the this-week actions sheet. Reconstructs the tapped
+ * reminder from the typed key; each action pops back for now (the reminder engine is M2).
+ */
+@Composable
+internal fun ReminderActionsRoute(
+    key: OdoDestination.Reminders.Actions,
+    navigationManager: NavigationManager,
+) {
+    val item = ThisWeekItem(icon = ReminderIcon.valueOf(key.icon), title = key.title, due = key.due)
+    ReminderActionsSheetContent(
+        item = item,
+        onReschedule = { navigationManager.back() /* TODO(M2): open reschedule flow. */ },
+        onSnooze = { navigationManager.back() /* TODO(M2): snooze 1 week. */ },
+        onTurnOff = { navigationManager.back() /* TODO(M2): disable this reminder. */ },
     )
 }
 

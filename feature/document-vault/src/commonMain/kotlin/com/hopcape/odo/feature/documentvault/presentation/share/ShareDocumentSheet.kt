@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,64 +61,43 @@ internal data class ShareDocumentUiState(
 )
 
 /**
- * Renders the "share document" sheet while [visible], managing the transient
- * hide-policy-number toggle itself. Callers just flip a boolean and pass [onDismiss].
+ * The "share document" sheet **body** — the document summary, the hide-policy-number
+ * privacy toggle, and the share targets. Shown as a bottom-sheet destination
+ * ([OdoDestination.Documents.Share]); the [androidx.compose.material3.ModalBottomSheet]
+ * chrome comes from the navigation layer. Holds the transient toggle state itself.
  */
 @Composable
-internal fun ShareDocumentSheetHost(visible: Boolean, onDismiss: () -> Unit) {
-    if (!visible) return
+internal fun ShareDocumentSheetContent() {
     var hidePolicy by remember { mutableStateOf(true) }
-    ShareDocumentSheet(
-        state = ShareDocumentUiState(
-            docName = "Insurance",
-            provider = "SafeDrive",
-            validTill = LocalDate(2026, 7, 3),
-            hidePolicyNumber = hidePolicy,
-        ),
-        onToggleHide = { hidePolicy = !hidePolicy },
-        onShareVia = { /* TODO(M2): open the share target with the (optionally redacted) doc. */ },
-        onDownload = { /* TODO(M2): render + save the PDF. */ },
-        onDismiss = onDismiss,
+    val state = ShareDocumentUiState(
+        docName = "Insurance",
+        provider = "SafeDrive",
+        validTill = LocalDate(2026, 7, 3),
+        hidePolicyNumber = hidePolicy,
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ShareDocumentSheet(
-    state: ShareDocumentUiState,
-    onToggleHide: () -> Unit,
-    onShareVia: (ShareTarget) -> Unit,
-    onDownload: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-        containerColor = OdoTheme.colors.surface,
+    val onShareVia: (ShareTarget) -> Unit = { /* TODO(M2): open the share target with the (optionally redacted) doc. */ }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge)
+            .padding(bottom = OdoTheme.spacing.md)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = OdoTheme.spacing.screenEdge)
-                .padding(bottom = OdoTheme.spacing.md)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            Header(state)
-            HidePolicyRow(hidden = state.hidePolicyNumber, onToggle = onToggleHide)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                ShareTargetButton(stringResource(Res.string.dv_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
-                ShareTargetButton(stringResource(Res.string.dv_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
-                ShareTargetButton(stringResource(Res.string.dv_share_copy), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcLink) { onShareVia(ShareTarget.COPY) }
-                ShareTargetButton(stringResource(Res.string.dv_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcDotsVertical, iconRotation = 90f) { onShareVia(ShareTarget.MORE) }
-            }
-            OdoButton(
-                text = stringResource(Res.string.dv_share_download),
-                onClick = onDownload,
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { OdoIcon(IcShare, contentDescription = null, size = OdoTheme.iconSizes.small) },
-            )
+        Header(state)
+        HidePolicyRow(hidden = state.hidePolicyNumber, onToggle = { hidePolicy = !hidePolicy })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            ShareTargetButton(stringResource(Res.string.dv_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
+            ShareTargetButton(stringResource(Res.string.dv_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
+            ShareTargetButton(stringResource(Res.string.dv_share_copy), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcLink) { onShareVia(ShareTarget.COPY) }
+            ShareTargetButton(stringResource(Res.string.dv_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcDotsVertical, iconRotation = 90f) { onShareVia(ShareTarget.MORE) }
         }
+        OdoButton(
+            text = stringResource(Res.string.dv_share_download),
+            onClick = { /* TODO(M2): render + save the PDF. */ },
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { OdoIcon(IcShare, contentDescription = null, size = OdoTheme.iconSizes.small) },
+        )
     }
 }
 

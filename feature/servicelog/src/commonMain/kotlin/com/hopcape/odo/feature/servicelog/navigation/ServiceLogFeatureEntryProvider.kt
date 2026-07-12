@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
@@ -20,7 +21,7 @@ import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
 import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
 import com.hopcape.odo.feature.servicelog.presentation.report.sampleReportState
-import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetHost
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetContent
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
 import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
@@ -44,6 +45,9 @@ internal class ServiceLogFeatureEntryProvider(
         entry<OdoDestination.ServiceLog.Detail> { key -> ServiceLogDetailRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.AddEdit> { key -> ServiceLogFormRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.ReportOvercharge> { key -> ServiceLogReportOverchargeRoute(key, navigationManager) }
+        entry<OdoDestination.ServiceLog.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
+            ShareRecordSheetContent()
+        }
     }
 }
 
@@ -62,7 +66,6 @@ internal fun ServiceLogListRoute(
     //  temporary affordance to compare the two mockups live.
     var direction by remember { mutableStateOf(ServiceLogDirection.LEDGER) }
     var filter by remember { mutableStateOf(ServiceLogFilter.ALL) }
-    var showShare by remember { mutableStateOf(false) }
     ServiceLogListScreen(
         state = sampleServiceLogListState(filter),
         direction = direction,
@@ -72,12 +75,11 @@ internal fun ServiceLogListRoute(
         },
         onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
         onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
-        onShareRecord = { showShare = true },
+        onShareRecord = { navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId)) },
         onOpenFilters = { /* TODO: advanced filters sheet. */ },
         onFilterChange = { filter = it },
         onBack = { navigationManager.back() },
     )
-    ShareRecordSheetHost(visible = showShare, onDismiss = { showShare = false })
 }
 
 /**
@@ -89,16 +91,14 @@ internal fun ServiceLogDetailRoute(
     navigationManager: NavigationManager,
 ) {
     // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId.
-    var showShare by remember { mutableStateOf(false) }
     ServiceLogDetailScreen(
         state = sampleDetailState(),
-        onShare = { showShare = true },
+        onShare = { navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId)) },
         onReportOvercharge = {
             navigationManager.navigateTo(OdoDestination.ServiceLog.ReportOvercharge(logId = key.logId, carId = key.carId))
         },
         onBack = { navigationManager.back() },
     )
-    ShareRecordSheetHost(visible = showShare, onDismiss = { showShare = false })
 }
 
 /** The report-overcharge route host. Submit + back both pop back to the detail. */
