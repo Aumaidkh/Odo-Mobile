@@ -43,6 +43,7 @@ include(":feature:onboarding")
 include(":feature:servicelog")
 include(":feature:billscanner")
 include(":feature:cost-tracker")
+include(":feature:document-vault")
 
 include(":observability:logging")
 include(":observability:analytics")

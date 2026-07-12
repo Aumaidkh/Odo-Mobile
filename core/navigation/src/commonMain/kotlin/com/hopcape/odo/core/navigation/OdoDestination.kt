@@ -79,6 +79,22 @@ sealed interface OdoDestination : NavKey {
     /** Cost tracker — the per-km "running cost" breakdown for the car. Its own feature. */
     data object CostTracker : OdoDestination
 
+    /**
+     * Document vault — the car's papers (insurance, PUC, RC, licence) and their renewal
+     * status. Modelled as a group from the start: the [Vault] overview ships now, with a
+     * per-document detail + an add/edit form to follow.
+     */
+    sealed interface Documents : OdoDestination {
+        /** The vault overview — every tracked document + its status. */
+        data object Vault : Documents
+        /** Add a document — pick a type + how to capture it (scan / upload / import). */
+        data object Add : Documents
+        /** A single document's detail — policy info, expiry, coverage, file actions. */
+        data object Detail : Documents
+        /** Terminal success after a document is added to the vault. */
+        data object AddSuccess : Documents
+    }
+
     // --- Onboarding flow (first-run car setup) ---
     /** Intro carousel shown on first launch, before car setup. */
     data object Welcome : OdoDestination

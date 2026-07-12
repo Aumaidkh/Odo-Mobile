@@ -16,7 +16,7 @@ import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
 import com.hopcape.odo.feature.billscanner.presentation.fairness.FairnessScreen
 import com.hopcape.odo.feature.billscanner.presentation.fairness.sampleFairnessOver
-import com.hopcape.odo.feature.billscanner.presentation.formatDate
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewScreen

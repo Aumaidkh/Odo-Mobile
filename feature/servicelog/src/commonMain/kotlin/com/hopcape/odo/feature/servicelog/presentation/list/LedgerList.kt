@@ -21,7 +21,7 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
-import com.hopcape.odo.feature.servicelog.presentation.formatDate
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.resources.Res
