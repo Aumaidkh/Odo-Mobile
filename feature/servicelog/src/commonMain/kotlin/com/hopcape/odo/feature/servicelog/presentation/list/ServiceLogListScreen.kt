@@ -36,7 +36,7 @@ import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoEmptyState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoIconButton
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -157,12 +157,12 @@ private fun TopBarAction(
         label = "servicelog-action",
     ) { dir ->
         when (dir) {
-            ServiceLogDirection.LEDGER -> OdoIconButton(
+            ServiceLogDirection.LEDGER -> OdoCircularIconButton(
                 imageVector = IcFilter,
                 contentDescription = stringResource(Res.string.sl_cd_filter),
                 onClick = onOpenFilters,
             )
-            ServiceLogDirection.TIMELINE -> OdoIconButton(
+            ServiceLogDirection.TIMELINE -> OdoCircularIconButton(
                 imageVector = IcShare,
                 contentDescription = stringResource(Res.string.sl_cd_share),
                 onClick = onShareRecord,

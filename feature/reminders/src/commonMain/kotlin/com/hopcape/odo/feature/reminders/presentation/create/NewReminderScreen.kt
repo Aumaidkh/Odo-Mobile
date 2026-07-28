@@ -1,7 +1,6 @@
 package com.hopcape.odo.feature.reminders.presentation.create
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -52,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -313,12 +313,12 @@ private fun NewReminderTopBar(onClose: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier.size(40.dp).clip(CircleShape).background(OdoTheme.colors.surfaceRaised).clickable(onClick = onClose),
-            contentAlignment = Alignment.Center,
-        ) {
-            OdoIcon(IcClose, contentDescription = stringResource(Res.string.rm_new_cd_close), tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
-        }
+        OdoCircularIconButton(
+            IcClose,
+            contentDescription = stringResource(Res.string.rm_new_cd_close),
+            onClick = onClose,
+            variant = OdoCircularIconButtonVariant.Raised,
+        )
         OdoText(stringResource(Res.string.rm_new_title), style = OdoTheme.typography.title)
     }
 }

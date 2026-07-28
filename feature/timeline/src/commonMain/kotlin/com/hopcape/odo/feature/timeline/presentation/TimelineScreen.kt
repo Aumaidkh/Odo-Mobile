@@ -31,7 +31,7 @@ import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoIconButton
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -105,8 +105,8 @@ internal fun TimelineScreen(
         modifier = modifier,
         title = stringResource(Res.string.tl_title),
         actions = {
-            OdoIconButton(IcFilter, contentDescription = stringResource(Res.string.tl_cd_filter), onClick = onFilter)
-            OdoIconButton(IcShare, contentDescription = stringResource(Res.string.tl_cd_share), onClick = onShare)
+            OdoCircularIconButton(IcFilter, contentDescription = stringResource(Res.string.tl_cd_filter), onClick = onFilter)
+            OdoCircularIconButton(IcShare, contentDescription = stringResource(Res.string.tl_cd_share), onClick = onShare)
         },
     ) { padding ->
         if (state.isLoading) {
