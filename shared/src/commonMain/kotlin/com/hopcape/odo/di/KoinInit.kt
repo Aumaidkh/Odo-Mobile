@@ -13,6 +13,7 @@ import com.hopcape.odo.feature.fairnesscheck.fairnessCheckModule
 import com.hopcape.odo.feature.garage.garageModule
 import com.hopcape.odo.feature.healthscore.healthScoreModule
 import com.hopcape.odo.feature.paywall.paywallModule
+import com.hopcape.odo.feature.profile.profileModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
@@ -65,6 +66,7 @@ fun initKoin(
         remindersModule,
         healthScoreModule,
         garageModule,
+        profileModule,
         timelineModule,
         paywallModule,
         platformModule,
