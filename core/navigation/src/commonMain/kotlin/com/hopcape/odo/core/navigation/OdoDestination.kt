@@ -24,7 +24,30 @@ sealed interface OdoDestination : NavKey {
 
     // --- Bottom-nav roots ---
     data object Home : TopLevel { override val label = "Home" }
-    data object Profile : TopLevel { override val label = "Profile" }
+
+    /**
+     * Profile / account — owned by `:feature:profile`. A sealed group: the [Root] account
+     * home (a bottom-nav root), its full-screen editors, and the preference sheets the
+     * rows open (the feature's entry provider tags each with [ModalBottomSheetSceneStrategy]
+     * metadata). "Go Pro" and "Manage plan" reuse the shared [Paywall] key rather than
+     * anything of their own.
+     */
+    sealed interface Profile : OdoDestination {
+        /** The profile / account home. */
+        data object Root : Profile, TopLevel { override val label = "Profile" }
+        /** Edit-profile full screen. */
+        data object Edit : Profile
+        /** Notification-settings full screen. */
+        data object Notifications : Profile
+        /** Units-&-currency sheet. */
+        data object Units : Profile
+        /** Appearance (theme + text size) sheet. */
+        data object Appearance : Profile
+        /** Export-my-data sheet. */
+        data object Export : Profile
+        /** Sign-out confirmation — shown as a sheet. */
+        data object SignOut : Profile
+    }
 
     /**
      * Garage — the car's "home base", owned by `:feature:garage`. A sealed group: the
@@ -236,7 +259,7 @@ sealed interface OdoDestination : NavKey {
 
     companion object {
         /** Ordered bottom-navigation roots. */
-        val topLevel: List<TopLevel> = listOf(Home, Garage.Home, Reminders.List, Profile)
+        val topLevel: List<TopLevel> = listOf(Home, Garage.Home, Reminders.List, Profile.Root)
     }
 }
 

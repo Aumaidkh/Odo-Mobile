@@ -48,19 +48,19 @@ class NavigatorCommandExecutorTest {
     @Test
     fun navigateTo_popUpTo_resetsThenPushes_likeBottomTabReselect() {
         val nav = navigator(OdoDestination.Home)
-        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Profile))
+        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Profile.Root))
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))
 
         // Reselect "Profile" tab: pop up to Home, then land on Profile.
         nav.execute(
             NavigationCommand.NavigateTo(
-                destination = OdoDestination.Profile,
+                destination = OdoDestination.Profile.Root,
                 popUpTo = OdoDestination.Home,
                 singleTop = true,
             ),
         )
 
-        assertEquals(listOf(OdoDestination.Home, OdoDestination.Profile), nav.backStack.toList())
+        assertEquals(listOf(OdoDestination.Home, OdoDestination.Profile.Root), nav.backStack.toList())
     }
 
     @Test
