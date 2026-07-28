@@ -31,7 +31,7 @@ kotlinxCoroutines = "1.10.2"
 # Local-first persistence (:core:data) — SQLDelight is the source of truth.
 sqldelight = "2.0.2"
 # Client-stamped offline timestamps (created_at/updated_at) in :core:data.
-kotlinxDatetime = "0.6.2"
+kotlinxDatetime = "0.7.1"
 
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins

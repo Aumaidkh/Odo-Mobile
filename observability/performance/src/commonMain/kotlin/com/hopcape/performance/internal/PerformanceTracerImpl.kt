@@ -9,7 +9,7 @@ import com.hopcape.performance.internal.model.CompletedSpan
 import com.hopcape.performance.internal.model.SpanContext
 import com.hopcape.performance.internal.sampling.Sampler
 import com.hopcape.performance.internal.store.SpanStore
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlin.time.TimeSource
 import kotlin.uuid.ExperimentalUuidApi
 
