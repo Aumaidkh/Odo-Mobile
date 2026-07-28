@@ -1,34 +1,51 @@
 package com.hopcape.odo.feature.onboarding.navigation
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.backhandler.BackHandler
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
-import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEffect
-import com.hopcape.odo.feature.onboarding.presentation.contract.OnboardingEvent
-import com.hopcape.odo.feature.onboarding.presentation.ui.OnboardingScreen
-import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeEffect
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingUiState
+import com.hopcape.odo.feature.onboarding.presentation.PlateLookup
+import com.hopcape.odo.feature.onboarding.presentation.PlateLookupError
+import com.hopcape.odo.feature.onboarding.presentation.car.CarDetailsStepScreen
+import com.hopcape.odo.feature.onboarding.presentation.car.CarStepScreen
+import com.hopcape.odo.feature.onboarding.presentation.profile.ProfileStepScreen
+import com.hopcape.odo.feature.onboarding.presentation.sampleMakes
+import com.hopcape.odo.feature.onboarding.presentation.sampleModels
+import com.hopcape.odo.feature.onboarding.presentation.samplePopularMakes
+import com.hopcape.odo.feature.onboarding.presentation.scan.FirstScanScreen
+import com.hopcape.odo.feature.onboarding.presentation.toDomain
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeScreen
-import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
-import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.delay
 
 /**
  * Onboarding's contribution to the navigation graph: registers the whole first-run
- * flow — the [OdoDestination.Welcome] intro carousel and [OdoDestination.Onboarding]
- * car setup. Both belong to this one feature, so they're registered by this one
- * provider (a `registerEntries` block can contribute any number of entries).
- * Collected by the `:app` host (`getAll<FeatureEntryProvider>()`), so no other
- * module references onboarding directly.
+ * flow — the [OdoDestination.Welcome] pitch and [OdoDestination.Onboarding] car setup.
+ * Both belong to this one feature, so they're registered by this one provider (a
+ * `registerEntries` block can contribute any number of entries). Collected by the `:app`
+ * host (`getAll<FeatureEntryProvider>()`), so no other module references onboarding.
+ *
+ * **No ViewModel yet, by design.** The redesigned screens are stateless and the routes
+ * below hold their state in `remember`, the same shape the paywall route uses. When the
+ * ViewModel lands it replaces those `remember` blocks and the stubs marked TODO — the
+ * screens don't change.
  */
 internal class OnboardingFeatureEntryProvider(
     private val navigationManager: NavigationManager,
@@ -40,63 +57,153 @@ internal class OnboardingFeatureEntryProvider(
 }
 
 /**
- * The intro-carousel route host — the hook between [WelcomeViewModel] and navigation.
- * Renders the stateless [WelcomeScreen] and bridges the one-shot
- * [WelcomeEffect.NavigateToOnboarding] into car setup. Welcome is deliberately left
- * on the back stack (no pop) so pressing back on the first setup step returns here;
- * onboarding clears it once setup completes.
+ * The Welcome route. "Continue with mobile" goes straight into car setup for now — the
+ * auth feature owns [OdoDestination.AuthLogin] but registers no screen yet, so routing
+ * there would dead-end first run.
  */
 @Composable
 internal fun WelcomeRoute(navigationManager: NavigationManager) {
-    val viewModel = koinViewModel<WelcomeViewModel>()
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
-    LaunchedEffect(viewModel, navigationManager) {
-        viewModel.effects.collect { effect ->
-            when (effect) {
-                WelcomeEffect.NavigateToOnboarding ->
-                    navigationManager.navigateTo(OdoDestination.Onboarding)
-            }
-        }
-    }
-
-    WelcomeScreen(state = state, onEvent = viewModel::onEvent)
+    WelcomeScreen(
+        // TODO(auth): route to OdoDestination.AuthLogin once :feature:auth registers it;
+        //  setup resumes here after the OTP is verified.
+        onContinue = { navigationManager.navigateTo(OdoDestination.Onboarding) },
+        onTerms = { /* TODO: open the Terms page. */ },
+        onPrivacy = { /* TODO: open the Privacy Policy page. */ },
+    )
 }
 
 /**
- * The onboarding route host — the hook between the ViewModel and navigation.
+ * The setup route — steps 2 to 4 behind one destination, because they are one form: back
+ * moves between steps instead of popping screens, and the header's progress stays
+ * continuous across them.
  *
- * It owns the [OnboardingViewModel] (lifecycle-scoped via Koin), renders the
- * stateless [OnboardingScreen] from its state, and bridges its one-shot effects:
- * [OnboardingEffect.NavigateToStart] clears the whole first-run flow (pops up to
- * [OdoDestination.Welcome] inclusive) so completion can't be navigated back to, and
- * [OnboardingEffect.NavigateBack] pops onboarding to return to the intro carousel.
- *
- * System back is routed through the same [OnboardingEvent.Back] as the in-screen
- * back button, so from a later step it rewinds a step and from the first step it
- * exits to Welcome — consistently, whichever affordance the user uses.
+ * State lives here until a ViewModel owns it, and nothing is persisted — leaving and
+ * returning starts over, which is fine while the car isn't actually saved yet.
  */
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun OnboardingRoute(navigationManager: NavigationManager) {
-    val viewModel = koinViewModel<OnboardingViewModel>()
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    var state by remember {
+        mutableStateOf(
+            // Placeholder reference data, standing in for the VehicleCatalog port.
+            OnboardingUiState(
+                makes = sampleMakes,
+                popularMakes = samplePopularMakes,
+                models = sampleModels,
+            ),
+        )
+    }
+    // Bumped by "Try again" so the effect below re-runs on an unchanged plate.
+    var lookupAttempt by remember { mutableIntStateOf(0) }
 
-    BackHandler(enabled = true) { viewModel.onEvent(OnboardingEvent.Back) }
-
-    LaunchedEffect(viewModel, navigationManager) {
-        viewModel.effects.collect { effect ->
-            when (effect) {
-                is OnboardingEffect.NavigateToStart ->
-                    navigationManager.navigateTo(
-                        destination = effect.destination.toOdoDestination(),
-                        popUpTo = OdoDestination.Welcome,
-                        inclusive = true,
-                    )
-                OnboardingEffect.NavigateBack -> navigationManager.back()
-            }
-        }
+    // The plate lookup: starts itself when the plate is complete, cancels itself when the
+    // owner keeps typing (LaunchedEffect is keyed on the plate, so an in-flight lookup for
+    // a stale plate can never land on screen).
+    LaunchedEffect(state.car.registrationNumber, lookupAttempt) {
+        if (!state.car.isPlateLookupReady) return@LaunchedEffect
+        state = state.copy(car = state.car.copy(lookup = PlateLookup.Loading))
+        delay(StubLookupDelayMillis)
+        // TODO(rto): call the real lookup here (Edge Function → registry) and map its
+        //  result to Found / Failed(NOT_FOUND | OFFLINE | SERVICE). Until that exists this
+        //  reports SERVICE — truthful, since no lookup service is reachable — and never
+        //  invents a car, because a wrong match would poison every price benchmark.
+        state = state.copy(car = state.car.copy(lookup = PlateLookup.Failed(PlateLookupError.SERVICE)))
     }
 
-    OnboardingScreen(state = state, onEvent = viewModel::onEvent)
+    /** Where the owner lands once setup is done — their goal picks the surface (PRD §5.1). */
+    fun finish() {
+        val destination = state.profile.goal
+            ?.toDomain()
+            ?.toStartDestination()
+            ?.toOdoDestination()
+            ?: OdoDestination.Home
+        // Welcome and the setup steps leave the back stack — first run doesn't repeat.
+        navigationManager.navigateTo(destination, popUpTo = OdoDestination.Welcome, inclusive = true)
+    }
+
+    fun advance() {
+        val next = state.step.next
+        if (next == null) finish() else state = state.copy(step = next)
+    }
+
+    fun goBack() {
+        if (state.step == OnboardingStep.CAR && state.car.manualEntry) {
+            // Manual entry is a mode of the car step, so back returns to the plate first.
+            state = state.copy(car = state.car.copy(manualEntry = false))
+            return
+        }
+        val previous = state.step.previous
+        if (previous == null) navigationManager.back() else state = state.copy(step = previous)
+    }
+
+    // Read outside the spec: transitionSpec isn't composable, and the theme's motion
+    // tokens are.
+    val motion = OdoTheme.motion
+    AnimatedContent(
+        targetState = state.step to state.car.manualEntry,
+        transitionSpec = {
+            fadeIn(tween(motion.baseMillis, easing = motion.easeStandard)) togetherWith
+                fadeOut(tween(motion.baseMillis / 2))
+        },
+        label = "onboardingStep",
+    ) { (step, manualEntry) ->
+        when (step) {
+            OnboardingStep.CAR -> if (manualEntry) {
+                CarDetailsStepScreen(
+                    state = state,
+                    onMakeChange = { make ->
+                        // A new brand invalidates the model chosen under the old one.
+                        state = state.copy(car = state.car.copy(make = make, model = null, variant = null))
+                    },
+                    onModelChange = { model ->
+                        state = state.copy(car = state.car.copy(model = model.name, variant = model.variant))
+                    },
+                    onYearChange = { year -> state = state.copy(car = state.car.copy(year = year)) },
+                    onFuelChange = { fuel -> state = state.copy(car = state.car.copy(fuelType = fuel)) },
+                    onTryAutoFill = { state = state.copy(car = state.car.copy(manualEntry = false)) },
+                    onBack = ::goBack,
+                    onContinue = ::advance,
+                )
+            } else {
+                CarStepScreen(
+                    state = state,
+                    onPlateChange = { plate ->
+                        // Editing the plate drops whatever the last one resolved to; the
+                        // effect above starts a fresh lookup once it's complete again.
+                        state = state.copy(
+                            car = state.car.copy(registrationNumber = plate, lookup = PlateLookup.Idle),
+                        )
+                    },
+                    onOdometerChange = { km -> state = state.copy(car = state.car.copy(odometerKm = km)) },
+                    onRetryLookup = { lookupAttempt++ },
+                    onEnterManually = {
+                        state = state.copy(
+                            car = state.car.copy(manualEntry = true, lookup = PlateLookup.Idle),
+                        )
+                    },
+                    onBack = ::goBack,
+                    onContinue = ::advance,
+                )
+            }
+
+            OnboardingStep.PROFILE -> ProfileStepScreen(
+                state = state,
+                onNameChange = { name -> state = state.copy(profile = state.profile.copy(name = name)) },
+                onGoalChange = { goal -> state = state.copy(profile = state.profile.copy(goal = goal)) },
+                onBack = ::goBack,
+                onContinue = ::advance,
+            )
+
+            OnboardingStep.FIRST_SCAN -> FirstScanScreen(
+                // TODO(billscanner): hand the saved car to BillScanner.Capture and come back.
+                onScan = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
+                onSkip = ::finish,
+            )
+        }
+    }
 }
+
+/**
+ * How long the stubbed lookup "takes". Roughly a real round trip, so the loading state is
+ * exercised honestly rather than flashing past.
+ */
+private const val StubLookupDelayMillis = 1_400L
