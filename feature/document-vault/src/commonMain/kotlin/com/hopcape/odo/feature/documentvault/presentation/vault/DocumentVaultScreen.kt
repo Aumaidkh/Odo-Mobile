@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -34,9 +33,9 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
-import com.hopcape.odo.core.designsystem.icons.IcBell
-import com.hopcape.odo.core.designsystem.icons.IcCard
+import com.hopcape.odo.core.designsystem.icons.IcBellFilled
+import com.hopcape.odo.core.designsystem.icons.IcCardFilled
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcIdCard
 import com.hopcape.odo.core.designsystem.icons.IcLeaf
 import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
@@ -185,11 +184,10 @@ private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: 
             is DocStatus.NotAdded -> DocActionButton(stringResource(Res.string.dv_action_add)) { onAdd(row.type) }
             is DocStatus.ExpiresSoon, is DocStatus.Expired -> DocActionButton(stringResource(Res.string.dv_action_renew)) { onRenew(row.type) }
             is DocStatus.Valid -> OdoIcon(
-                IcArrowLeft,
+                IcChevronRight,
                 contentDescription = null,
                 tint = OdoTheme.colors.textMuted,
                 size = OdoTheme.iconSizes.small,
-                modifier = Modifier.rotate(180f),
             )
         }
     }
@@ -224,7 +222,7 @@ private fun DocActionButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun ReminderRow(days: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-        OdoIcon(IcBell, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
+        OdoIcon(IcBellFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
         OdoText(stringResource(Res.string.dv_reminder, days), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
     }
 }
@@ -290,7 +288,7 @@ private fun statusTone(status: DocStatus): Color = when (status) {
 private fun typeIcon(type: DocumentType): ImageVector = when (type) {
     DocumentType.INSURANCE -> IcShieldCheck
     DocumentType.PUC -> IcLeaf
-    DocumentType.RC -> IcCard
+    DocumentType.RC -> IcCardFilled
     DocumentType.LICENCE -> IcIdCard
 }
 

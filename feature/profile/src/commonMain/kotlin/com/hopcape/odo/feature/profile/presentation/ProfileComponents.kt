@@ -17,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
@@ -28,7 +27,7 @@ import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 
@@ -104,7 +103,7 @@ internal fun RowDivider() = OdoDivider()
 /** A right-pointing chevron in dim ink. */
 @Composable
 internal fun Chevron(tint: Color = OdoTheme.colors.textDim) {
-    OdoIcon(IcCaretUp, contentDescription = null, tint = tint, size = OdoTheme.iconSizes.small, modifier = Modifier.rotate(90f))
+    OdoIcon(IcChevronRight, contentDescription = null, tint = tint, size = OdoTheme.iconSizes.small)
 }
 
 /** The standard bottom-sheet body container for the profile sheets. */

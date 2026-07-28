@@ -5,13 +5,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcBell: ImageVector
+val IcBellFilled: ImageVector
     get() {
-        if (_IcBell != null) {
-            return _IcBell!!
+        if (_IcBellFilled != null) {
+            return _IcBellFilled!!
         }
-        _IcBell = ImageVector.Builder(
-            name = "IcBell",
+        _IcBellFilled = ImageVector.Builder(
+            name = "IcBellFilled",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
@@ -29,12 +29,11 @@ val IcBell: ImageVector
                 horizontalLineToRelative(14f)
                 curveToRelative(-1.5f, -1f, -2f, -5.902f, -2f, -7f)
                 curveToRelative(0f, -2.42f, -1.72f, -4.44f, -4.005f, -4.901f)
-                close()
             }
         }.build()
 
-        return _IcBell!!
+        return _IcBellFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcBell: ImageVector? = null
+private var _IcBellFilled: ImageVector? = null

@@ -26,12 +26,12 @@ import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBarChart
-import com.hopcape.odo.core.designsystem.icons.IcBell
+import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEye
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcSignOut
 import com.hopcape.odo.core.designsystem.icons.IcStar
@@ -99,9 +99,9 @@ internal fun ProfileScreen(
 
             SectionLabel(stringResource(Res.string.pf_preferences))
             SettingsGroup {
-                SettingsRow(IcBell, stringResource(Res.string.pf_notifications), onNotifications, value = state.notificationsSummary)
+                SettingsRow(IcBellOutlined, stringResource(Res.string.pf_notifications), onNotifications, value = state.notificationsSummary)
                 RowDivider()
-                SettingsRow(IcBarChart, stringResource(Res.string.pf_units), onUnits, value = state.unitsSummary)
+                SettingsRow(IcRupee, stringResource(Res.string.pf_units), onUnits, value = state.unitsSummary)
                 RowDivider()
                 SettingsRow(IcEye, stringResource(Res.string.pf_appearance), onAppearance, value = state.appearanceSummary)
             }

@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
@@ -31,15 +30,14 @@ import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBell
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.dashboard.resources.Res
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_bell
-import com.hopcape.odo.feature.dashboard.resources.hm_cd_profile
 import com.hopcape.odo.feature.dashboard.resources.hm_get_set_up
 import com.hopcape.odo.feature.dashboard.resources.hm_greeting
 import com.hopcape.odo.feature.dashboard.resources.hm_health_score
@@ -133,7 +131,7 @@ private fun HomeHeader(
         if (showBell) {
             Box {
                 CircleButton(onClick = onBell) {
-                    OdoIcon(IcBell, contentDescription = stringResource(Res.string.hm_cd_bell), size = OdoTheme.iconSizes.medium)
+                    OdoIcon(IcBellFilled, contentDescription = stringResource(Res.string.hm_cd_bell), size = OdoTheme.iconSizes.medium)
                 }
                 if (hasBadge) {
                     Box(Modifier.size(10.dp).align(Alignment.TopEnd).clip(CircleShape).background(OdoTheme.colors.accent))
@@ -417,14 +415,13 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
     }
 }
 
-/** A right-pointing chevron — CaretUp turned a quarter-turn — in the accent tint. */
+/** The "open this" affordance in the accent tint. */
 @Composable
 private fun Chevron() {
     OdoIcon(
-        IcCaretUp,
+        IcChevronRight,
         contentDescription = null,
         tint = OdoTheme.colors.accent,
         size = OdoTheme.iconSizes.small,
-        modifier = Modifier.rotate(90f),
     )
 }

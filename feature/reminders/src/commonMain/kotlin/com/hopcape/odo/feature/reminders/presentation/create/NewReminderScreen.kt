@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -56,7 +55,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBell
+import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCalendar
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcClose
@@ -354,7 +353,7 @@ private fun PickerField(value: String, trailing: ImageVector, onClick: () -> Uni
 private fun NotifyCard(onChange: () -> Unit) {
     OdoCard {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            OdoIcon(IcBell, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.medium)
+            OdoIcon(IcBellFilled, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.medium)
             OdoText(notifiedText(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim, modifier = Modifier.weight(1f))
             OdoText(
                 stringResource(Res.string.rm_new_change),

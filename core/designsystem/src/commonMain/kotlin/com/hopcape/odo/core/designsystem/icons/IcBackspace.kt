@@ -1,23 +1,22 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-// A backspace key: a left-pointing key outline with an "×" — the delete affordance on keypads.
 val IcBackspace: ImageVector
     get() {
-        if (_IcBackspace != null) return _IcBackspace!!
+        if (_IcBackspace != null) {
+            return _IcBackspace!!
+        }
         _IcBackspace = ImageVector.Builder(
             name = "IcBackspace",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
-            viewportHeight = 16f,
+            viewportHeight = 16f
         ).apply {
-            // The "×".
             path(fill = SolidColor(Color.Black)) {
                 moveTo(5.83f, 5.146f)
                 arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0f, 0.708f)
@@ -35,32 +34,31 @@ val IcBackspace: ImageVector
                 arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, -0.707f, 0f)
                 close()
             }
-            // The key outline (filled ring via even-odd).
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(13.683f, 1f)
                 arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, 2f, 2f)
                 verticalLineToRelative(10f)
                 arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, -2f, 2f)
-                horizontalLineTo(6.66f)
-                arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, -1.43f, -0.602f)
-                lineToRelative(-5.239f, -5.44f)
-                arcToRelative(1.5f, 1.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, -2.088f)
-                lineToRelative(5.24f, -5.44f)
-                arcTo(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, 6.66f, 1f)
+                horizontalLineToRelative(-7.08f)
+                arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, -1.519f, -0.698f)
+                lineTo(0.241f, 8.65f)
+                arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, -1.302f)
+                lineTo(5.084f, 1.7f)
+                arcTo(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, 6.603f, 1f)
                 close()
-                moveTo(6.66f, 2f)
-                arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, -0.716f, 0.302f)
-                lineToRelative(-5.24f, 5.44f)
-                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0f, 0.696f)
-                lineToRelative(5.24f, 5.44f)
-                arcTo(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, 6.66f, 14f)
-                horizontalLineToRelative(7.023f)
+                moveTo(6.603f, 2f)
+                arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, -0.76f, 0.35f)
+                lineTo(1f, 8f)
+                lineToRelative(4.844f, 5.65f)
+                arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0.759f, 0.35f)
+                horizontalLineToRelative(7.08f)
                 arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, 1f, -1f)
-                verticalLineTo(3f)
+                lineTo(14.683f, 3f)
                 arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, -1f, -1f)
                 close()
             }
         }.build()
+
         return _IcBackspace!!
     }
 

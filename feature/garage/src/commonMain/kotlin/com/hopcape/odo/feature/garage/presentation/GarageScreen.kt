@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -35,9 +34,9 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.component.formatRegistrationNumber
-import com.hopcape.odo.core.designsystem.icons.IcCard
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcCardFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
 import com.hopcape.odo.core.designsystem.icons.IcFile
 import com.hopcape.odo.core.designsystem.icons.IcJournalPlus
@@ -441,15 +440,14 @@ private fun ManageLink(onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OdoText(stringResource(Res.string.gr_manage), style = OdoTheme.typography.label, color = OdoTheme.colors.accent)
-        // CaretUp rotated a quarter-turn → a right-pointing chevron ("Manage ›").
-        OdoIcon(IcCaretUp, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small, modifier = Modifier.rotate(90f))
+        OdoIcon(IcChevronRight, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
     }
 }
 
 private fun DocumentType.icon(): ImageVector = when (this) {
     DocumentType.INSURANCE -> IcShield
     DocumentType.PUC -> IcLeaf
-    DocumentType.RC -> IcCard
+    DocumentType.RC -> IcCardFilled
     DocumentType.LOAN, DocumentType.OTHER -> IcFile
 }
 

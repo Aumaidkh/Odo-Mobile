@@ -33,6 +33,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcGarage
 import com.hopcape.odo.core.designsystem.icons.IcHouse
 import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -172,6 +173,6 @@ private fun iconForTab(tab: OdoDestination.TopLevel): ImageVector = when (tab) {
     OdoDestination.Home -> IcHouse
     OdoDestination.Timeline.List -> IcClock
     OdoDestination.CostTracker -> IcCurrencyDollar
-    OdoDestination.Garage.Home -> IcCar
+    OdoDestination.Garage.Home -> IcGarage
     else -> IcWindow
 }

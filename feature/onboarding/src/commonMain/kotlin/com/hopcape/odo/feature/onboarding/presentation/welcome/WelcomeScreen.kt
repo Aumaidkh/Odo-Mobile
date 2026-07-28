@@ -46,6 +46,7 @@ import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBarChart
 import com.hopcape.odo.core.designsystem.icons.IcCamera
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcTag
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -206,7 +207,7 @@ private data class ValueProp(val icon: ImageVector, val text: StringResource)
 
 private val VALUE_PROPS = listOf(
     ValueProp(IcCamera, Res.string.onb_welcome_value_bill),
-    ValueProp(IcBarChart, Res.string.onb_welcome_value_cost),
+    ValueProp(IcRupee, Res.string.onb_welcome_value_cost),
     ValueProp(IcTag, Res.string.onb_welcome_value_resale),
 )
 
