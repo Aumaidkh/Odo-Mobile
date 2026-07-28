@@ -40,6 +40,7 @@ kotlin {
             implementation(projects.feature.fairnessCheck)
             implementation(projects.feature.reminders)
             implementation(projects.feature.healthscore)
+            implementation(projects.feature.dashboard)
             implementation(projects.feature.garage)
             implementation(projects.feature.profile)
             implementation(projects.feature.timeline)
