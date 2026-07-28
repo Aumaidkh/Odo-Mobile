@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
@@ -49,23 +50,22 @@ import kotlinx.coroutines.delay
  */
 internal class OnboardingFeatureEntryProvider(
     private val navigationManager: NavigationManager,
+    private val sessionStatus: SessionStatusProvider,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager) }
-        entry<OdoDestination.Onboarding> { OnboardingRoute(navigationManager) }
+        entry<OdoDestination.Onboarding> { OnboardingRoute(navigationManager, sessionStatus) }
     }
 }
 
 /**
- * The Welcome route. "Continue with mobile" goes straight into car setup for now — the
- * auth feature owns [OdoDestination.AuthLogin] but registers no screen yet, so routing
- * there would dead-end first run.
+ * The Welcome route. Continue goes straight into car setup — no sign-in first. Odo is
+ * offline-first, so first run has to reach a working car without an account; auth is
+ * offered *after* setup, and only if there's no session (see `finish` in [OnboardingRoute]).
  */
 @Composable
 internal fun WelcomeRoute(navigationManager: NavigationManager) {
     WelcomeScreen(
-        // TODO(auth): route to OdoDestination.AuthLogin once :feature:auth registers it;
-        //  setup resumes here after the OTP is verified.
         onContinue = { navigationManager.navigateTo(OdoDestination.Onboarding) },
         onTerms = { /* TODO: open the Terms page. */ },
         onPrivacy = { /* TODO: open the Privacy Policy page. */ },
@@ -81,7 +81,10 @@ internal fun WelcomeRoute(navigationManager: NavigationManager) {
  * returning starts over, which is fine while the car isn't actually saved yet.
  */
 @Composable
-internal fun OnboardingRoute(navigationManager: NavigationManager) {
+internal fun OnboardingRoute(
+    navigationManager: NavigationManager,
+    sessionStatus: SessionStatusProvider,
+) {
     var state by remember {
         mutableStateOf(
             // Placeholder reference data, standing in for the VehicleCatalog port.
@@ -109,15 +112,24 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
         state = state.copy(car = state.car.copy(lookup = PlateLookup.Failed(PlateLookupError.SERVICE)))
     }
 
-    /** Where the owner lands once setup is done — their goal picks the surface (PRD §5.1). */
+    /**
+     * Where the owner lands once setup is done — their goal picks the surface (PRD §5.1).
+     *
+     * This is also the one point where sign-in is offered: the car exists, so there is
+     * finally something worth protecting, and the ask can be concrete ("back up *these*
+     * records") instead of an account wall on a blank app. It is offered **only** when
+     * there's no session, and auth carries [destination] so it can hand the owner onward
+     * whether they verify or skip.
+     */
     fun finish() {
         val destination = state.profile.goal
             ?.toDomain()
             ?.toStartDestination()
             ?.toOdoDestination()
             ?: OdoDestination.Home
+        val next = if (sessionStatus.isSignedIn()) destination else OdoDestination.Auth.Phone(destination)
         // Welcome and the setup steps leave the back stack — first run doesn't repeat.
-        navigationManager.navigateTo(destination, popUpTo = OdoDestination.Welcome, inclusive = true)
+        navigationManager.navigateTo(next, popUpTo = OdoDestination.Welcome, inclusive = true)
     }
 
     fun advance() {

@@ -25,5 +25,12 @@ val onboardingModule = module {
     single<IdGenerator> { UuidIdGenerator() }
     single<CurrentOwnerProvider> { LocalOwnerProvider() }
     factory { AddCarUseCase(cars = get(), idGenerator = get()) }
-    single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
+    single {
+        OnboardingFeatureEntryProvider(
+            navigationManager = get(),
+            // Published by :feature:auth via the shared :core:domain port — onboarding
+            // asks whether to offer sign-in without knowing auth exists.
+            sessionStatus = get(),
+        )
+    } bind FeatureEntryProvider::class
 }
