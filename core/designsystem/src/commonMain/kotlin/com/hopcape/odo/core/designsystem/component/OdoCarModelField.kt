@@ -1,6 +1,5 @@
 package com.hopcape.odo.core.designsystem.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,9 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -38,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcChevronDown
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcMagnifier
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -222,14 +220,12 @@ private fun CollapsedModelField(
 /** Down-chevron drawn in-house (no Material-icons dep), matching [OdoCarMakeField]. */
 @Composable
 private fun DownChevron() {
-    val color = OdoTheme.colors.textDim
-    Canvas(Modifier.size(OdoTheme.iconSizes.medium)) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8.dp.toPx()
-        drawLine(color, Offset(w * 0.32f, h * 0.42f), Offset(w * 0.5f, h * 0.60f), stroke, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.5f, h * 0.60f), Offset(w * 0.68f, h * 0.42f), stroke, cap = StrokeCap.Round)
-    }
+    OdoIcon(
+        imageVector = IcChevronDown,
+        contentDescription = null,
+        tint = OdoTheme.colors.textDim,
+        size = OdoTheme.iconSizes.medium,
+    )
 }
 
 /* ------------------------------ Sheet ------------------------------ */

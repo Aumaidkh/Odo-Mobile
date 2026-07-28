@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.icons.IcBackspace
 import com.hopcape.odo.core.designsystem.icons.IcCamera
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -498,14 +499,12 @@ private fun androidx.compose.foundation.layout.RowScope.KeyCell(onClick: () -> U
 /** A small right-pointing chevron for the collapsed field. */
 @Composable
 private fun Chevron() {
-    val color = OdoTheme.colors.textDim
-    Canvas(Modifier.size(OdoTheme.iconSizes.medium)) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8.dp.toPx()
-        drawLine(color, Offset(w * 0.42f, h * 0.32f), Offset(w * 0.60f, h * 0.5f), stroke, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.60f, h * 0.5f), Offset(w * 0.42f, h * 0.68f), stroke, cap = StrokeCap.Round)
-    }
+    OdoIcon(
+        imageVector = IcChevronRight,
+        contentDescription = null,
+        tint = OdoTheme.colors.textDim,
+        size = OdoTheme.iconSizes.medium,
+    )
 }
 
 private fun maxReading(digits: Int): Long {

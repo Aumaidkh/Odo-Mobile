@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.designsystem.component
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,12 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcChevronDown
+import com.hopcape.odo.core.designsystem.icons.IcChevronUp
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -296,16 +295,12 @@ private fun HeaderAction(
 /** Small chevron drawn in-house (no Material-icons dep), matching the other fields. */
 @Composable
 private fun Chevron(pointsUp: Boolean) {
-    val color = OdoTheme.colors.textDim
-    Canvas(Modifier.size(OdoTheme.iconSizes.medium)) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8.dp.toPx()
-        val near = if (pointsUp) h * 0.58f else h * 0.42f
-        val far = if (pointsUp) h * 0.40f else h * 0.60f
-        drawLine(color, Offset(w * 0.32f, near), Offset(w * 0.5f, far), stroke, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.5f, far), Offset(w * 0.68f, near), stroke, cap = StrokeCap.Round)
-    }
+    OdoIcon(
+        imageVector = if (pointsUp) IcChevronUp else IcChevronDown,
+        contentDescription = null,
+        tint = OdoTheme.colors.textDim,
+        size = OdoTheme.iconSizes.medium,
+    )
 }
 
 /** Accent tints for the wheel's centre band — a wash + soft ring, not a hard fill. */
