@@ -15,6 +15,7 @@ import com.hopcape.odo.feature.paywall.paywallModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
+import com.hopcape.odo.feature.timeline.timelineModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -62,6 +63,7 @@ fun initKoin(
         fairnessCheckModule,
         remindersModule,
         healthScoreModule,
+        timelineModule,
         paywallModule,
         platformModule,
     )
