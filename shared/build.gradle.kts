@@ -40,6 +40,7 @@ kotlin {
             implementation(projects.feature.fairnessCheck)
             implementation(projects.feature.reminders)
             implementation(projects.feature.healthscore)
+            implementation(projects.feature.garage)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
             // Structured logging — build-type-aware Logger wired via loggingModule.

@@ -49,6 +49,7 @@ include(":feature:servicelog")
 include(":feature:cost-tracker")
 include(":feature:document-vault")
 include(":feature:fairness-check")
+include(":feature:garage")
 include(":feature:timeline")
 
 include(":observability:logging")
