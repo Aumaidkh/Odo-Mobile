@@ -99,6 +99,20 @@ sealed interface OdoDestination : NavKey {
     data object CostTracker : OdoDestination
 
     /**
+     * Timeline — the car's unified activity feed (services · documents · health-score
+     * changes · milestones), owned by `:feature:timeline`. A sealed group: the [List]
+     * root plus its "show in timeline" [Filter] sheet. An entry's detail reuses
+     * [ServiceLog.Detail] and sharing reuses [ServiceLog.Share] — Timeline never
+     * reimplements them.
+     */
+    sealed interface Timeline : OdoDestination {
+        /** The timeline root — the activity feed. */
+        data object List : Timeline
+        /** "Show in timeline" filter sheet. */
+        data object Filter : Timeline
+    }
+
+    /**
      * Pro paywall — one screen, context-framed by [trigger] (why it was shown). Reached from
      * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
      * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
