@@ -31,6 +31,7 @@ kotlin {
             // FeatureEntryProviders App() collects, so it depends on the data layer
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
+            implementation(projects.feature.auth)
             implementation(projects.feature.onboarding)
             implementation(projects.feature.servicelog)
             implementation(projects.feature.billscanner)

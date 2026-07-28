@@ -39,6 +39,7 @@ include(":core:data")
 include(":core:designsystem")
 include(":core:navigation")
 
+include(":feature:auth")
 include(":feature:billscanner")
 include(":feature:healthscore")
 include(":feature:onboarding")

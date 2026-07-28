@@ -157,9 +157,40 @@ sealed interface OdoDestination : NavKey {
     data object Welcome : OdoDestination
     data object Onboarding : OdoDestination
 
-    // --- Auth flow ---
-    data object AuthLogin : OdoDestination
-    data object AuthOtp : OdoDestination
+    /**
+     * Sign-in flow — phone → otp → verifying.
+     *
+     * Deliberately **after** car setup, never before it: Odo works fully offline, so first
+     * run must not stall behind an OTP. Onboarding routes here on completion only when
+     * there is no session yet (`SessionStatusProvider`), and the owner can skip — signing
+     * in is a prompt, not a gate.
+     *
+     * Grouped so the whole flow pops in one command (`popUpTo = Auth.Phone(next),
+     * inclusive = true`), which is why back can never land on sign-in afterwards.
+     */
+    sealed interface Auth : OdoDestination {
+        /**
+         * Where to land once the number is verified — or once the owner skips. Carried
+         * through every step so auth never needs to know *why* it was entered: onboarding
+         * hands over the goal-based surface it would otherwise have gone to itself.
+         */
+        val next: OdoDestination
+
+        /** Enter the mobile number the 6-digit code is sent to. */
+        data class Phone(override val next: OdoDestination = Home) : Auth
+
+        /**
+         * Enter (or auto-read) the 6-digit code.
+         *
+         * @param phone the normalized number the code went to (digits only, no dialling
+         *   code) — carried so the "Sent to …" line states the real number rather than a
+         *   placeholder.
+         */
+        data class Otp(val phone: String, override val next: OdoDestination = Home) : Auth
+
+        /** Terminal progress while the code is checked, then hands off to [next]. */
+        data class Verifying(override val next: OdoDestination = Home) : Auth
+    }
 
     companion object {
         /** Ordered bottom-navigation roots. */
