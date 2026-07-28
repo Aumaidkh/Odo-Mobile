@@ -10,7 +10,6 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
-import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostScreen
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.sampleRunningCost
 
