@@ -33,8 +33,8 @@ sealed interface OdoDestination : NavKey {
      * anything of their own.
      */
     sealed interface Profile : OdoDestination {
-        /** The profile / account home. */
-        data object Root : Profile, TopLevel { override val label = "Profile" }
+        /** The profile / account home — reached from Home's avatar, not a bar tab. */
+        data object Root : Profile
         /** Edit-profile full screen. */
         data object Edit : Profile
         /** Notification-settings full screen. */
@@ -84,8 +84,8 @@ sealed interface OdoDestination : NavKey {
      * bottom-nav root, so this whole area lives under one shared key.
      */
     sealed interface Reminders : OdoDestination {
-        /** The reminders home — the summary + this-week + upcoming overview. */
-        data object List : Reminders, TopLevel { override val label = "Reminders" }
+        /** The reminders home — reached from Home's bell, not a bar tab. */
+        data object List : Reminders
         /** Notification + reminder preferences — reached from the home's "Manage". */
         data object Settings : Reminders
         /** Create a custom reminder — reached from the home's "+ Add". */
@@ -146,8 +146,11 @@ sealed interface OdoDestination : NavKey {
         data object ScanError : BillScanner
     }
 
-    /** Cost tracker — the per-km "running cost" breakdown for the car. Its own feature. */
-    data object CostTracker : OdoDestination
+    /**
+     * Cost tracker — the per-km "running cost" breakdown for the car. Its own feature,
+     * and a bottom-nav root (labelled "Costs" in the bar).
+     */
+    data object CostTracker : TopLevel { override val label = "Costs" }
 
     /**
      * Timeline — the car's unified activity feed (services · documents · health-score
@@ -157,8 +160,8 @@ sealed interface OdoDestination : NavKey {
      * reimplements them.
      */
     sealed interface Timeline : OdoDestination {
-        /** The timeline root — the activity feed. */
-        data object List : Timeline
+        /** The timeline tab root — the activity feed. */
+        data object List : Timeline, TopLevel { override val label = "Timeline" }
         /** "Show in timeline" filter sheet. */
         data object Filter : Timeline
     }
@@ -258,8 +261,16 @@ sealed interface OdoDestination : NavKey {
     }
 
     companion object {
-        /** Ordered bottom-navigation roots. */
-        val topLevel: List<TopLevel> = listOf(Home, Garage.Home, Reminders.List, Profile.Root)
+        /**
+         * Ordered bottom-navigation roots — the four tabs the dashboard shell renders,
+         * split symmetrically around the central Scan action: Home · Timeline · [Scan] ·
+         * Costs · Garage. Scan is a raised FAB, not a selectable root, so it isn't here.
+         *
+         * Reminders and Profile are deliberately absent: both are reached from Home's
+         * header (the bell and the avatar), which keeps the bar to the four surfaces an
+         * owner moves between rather than every screen that exists.
+         */
+        val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker, Garage.Home)
     }
 }
 
