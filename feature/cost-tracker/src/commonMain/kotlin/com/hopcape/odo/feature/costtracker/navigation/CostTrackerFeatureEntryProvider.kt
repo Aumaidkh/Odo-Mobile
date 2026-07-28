@@ -37,7 +37,6 @@ internal fun RunningCostRoute(navigationManager: NavigationManager) {
     var state by remember { mutableStateOf(sampleRunningCost()) }
     RunningCostScreen(
         state = state,
-        onPeriodChange = { state = sampleRunningCost(period = it) },
-        onBack = { navigationManager.back() },
+        onPeriodChange = { state = sampleRunningCost(period = it) }
     )
 }
