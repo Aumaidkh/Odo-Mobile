@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoProgressBar
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -128,7 +129,14 @@ private fun StepHeader(
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         if (onBack != null) {
-            BackButton(onBack)
+            OdoCircularIconButton(
+                IcArrowLeft,
+                contentDescription = stringResource(Res.string.onb_cd_back),
+                onClick = onBack,
+                // Onboarding's chrome sits on a bare screen, so the disc is the full
+                // touch-target size rather than the 40dp default.
+                size = OdoTheme.spacing.minTouchTarget,
+            )
         }
         OdoProgressBar(
             progress = step.toFloat() / totalSteps,
@@ -152,26 +160,6 @@ private fun StepHeader(
                 color = OdoTheme.colors.textDim,
             )
         }
-    }
-}
-
-/** The circular back affordance — a soft surface disc, borderless, not a bare arrow. */
-@Composable
-private fun BackButton(onBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(OdoTheme.spacing.minTouchTarget)
-            .clip(CircleShape)
-            .background(OdoTheme.colors.surface)
-            .clickable(role = Role.Button, onClick = onBack),
-        contentAlignment = Alignment.Center,
-    ) {
-        OdoIcon(
-            IcArrowLeft,
-            contentDescription = stringResource(Res.string.onb_cd_back),
-            tint = OdoTheme.colors.text,
-            size = OdoTheme.iconSizes.medium,
-        )
     }
 }
 

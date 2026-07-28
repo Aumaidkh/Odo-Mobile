@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
+import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoProgressBar
@@ -147,25 +149,20 @@ private fun HealthTopBar(onBack: () -> Unit, onInfo: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircleIconButton(IcArrowLeft, stringResource(Res.string.hs_cd_back), onBack)
+        OdoCircularIconButton(
+            IcArrowLeft,
+            contentDescription = stringResource(Res.string.hs_cd_back),
+            onClick = onBack,
+            variant = OdoCircularIconButtonVariant.Outlined,
+        )
         OdoText(stringResource(Res.string.hs_title), style = OdoTheme.typography.title)
         Box(Modifier.weight(1f))
-        CircleIconButton(IcInfo, stringResource(Res.string.hs_cd_info), onInfo)
-    }
-}
-
-@Composable
-private fun CircleIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(OdoTheme.colors.surface)
-            .border(1.dp, OdoTheme.colors.border, CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        OdoIcon(icon, contentDescription = contentDescription, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
+        OdoCircularIconButton(
+            IcInfo,
+            contentDescription = stringResource(Res.string.hs_cd_info),
+            onClick = onInfo,
+            variant = OdoCircularIconButtonVariant.Outlined,
+        )
     }
 }
 
