@@ -33,6 +33,20 @@ class Car private constructor(
     val nickname: String?,
     val isPrimary: Boolean,
 ) {
+    /**
+     * What to call this car on screen: the owner's nickname if they gave one, otherwise
+     * the make, model and trim read together ("Maruti Suzuki Swift VXI").
+     *
+     * Derived here rather than in each feature, so the garage card, the timeline header,
+     * a reminder's notification and the resale passport all name the same car the same
+     * way — and renaming the rule is one edit.
+     */
+    val displayName: String
+        get() = nickname ?: listOfNotNull(make, model, variant).joinToString(" ")
+
+    /** Make, model and trim, ignoring any nickname — for the places that want the real car. */
+    val modelName: String get() = listOfNotNull(make, model, variant).joinToString(" ")
+
     companion object {
         /**
          * Validating factory — the single entry point for building a [Car].
