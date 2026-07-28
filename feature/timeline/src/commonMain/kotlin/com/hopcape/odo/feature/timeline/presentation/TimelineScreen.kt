@@ -45,13 +45,13 @@ import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShield
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatDayMonth
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.core.domain.shared.formatRupees
-import com.hopcape.odo.feature.timeline.domain.model.DocumentKind
 import com.hopcape.odo.feature.timeline.domain.model.ServiceTrust
 import com.hopcape.odo.feature.timeline.domain.model.TimelineEvent
 import com.hopcape.odo.feature.timeline.domain.model.trust
@@ -61,7 +61,8 @@ import com.hopcape.odo.feature.timeline.resources.tl_badge_verified
 import com.hopcape.odo.feature.timeline.resources.tl_cd_filter
 import com.hopcape.odo.feature.timeline.resources.tl_cd_share
 import com.hopcape.odo.feature.timeline.resources.tl_doc_insurance
-import com.hopcape.odo.feature.timeline.resources.tl_doc_licence
+import com.hopcape.odo.feature.timeline.resources.tl_doc_loan
+import com.hopcape.odo.feature.timeline.resources.tl_doc_other
 import com.hopcape.odo.feature.timeline.resources.tl_doc_puc
 import com.hopcape.odo.feature.timeline.resources.tl_doc_rc
 import com.hopcape.odo.feature.timeline.resources.tl_doc_renewed
@@ -348,10 +349,11 @@ private fun EmptyCta(onScanFirst: () -> Unit) {
 private fun documentText(event: TimelineEvent.DocumentRenewed): String {
     val name = stringResource(
         when (event.document) {
-            DocumentKind.INSURANCE -> Res.string.tl_doc_insurance
-            DocumentKind.PUC -> Res.string.tl_doc_puc
-            DocumentKind.RC -> Res.string.tl_doc_rc
-            DocumentKind.LICENCE -> Res.string.tl_doc_licence
+            DocumentType.INSURANCE -> Res.string.tl_doc_insurance
+            DocumentType.PUC -> Res.string.tl_doc_puc
+            DocumentType.RC -> Res.string.tl_doc_rc
+            DocumentType.LOAN -> Res.string.tl_doc_loan
+            DocumentType.OTHER -> Res.string.tl_doc_other
         },
     )
     return event.validTill

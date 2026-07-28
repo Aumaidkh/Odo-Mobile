@@ -20,7 +20,8 @@
     <string name="tl_doc_insurance">Insurance</string>
     <string name="tl_doc_puc">PUC</string>
     <string name="tl_doc_rc">RC</string>
-    <string name="tl_doc_licence">Licence</string>
+    <string name="tl_doc_loan">Loan papers</string>
+    <string name="tl_doc_other">Document</string>
     <string name="tl_doc_renewed">%1$s renewed</string>
     <string name="tl_doc_renewed_valid_till">%1$s renewed · valid till %2$s</string>
 

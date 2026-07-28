@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.timeline.domain.model
 
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.servicelog.model.RecordScore
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
@@ -50,7 +51,7 @@ internal sealed interface TimelineEvent {
 
     /** A renewed document — [validTill] is absent when the paper carries no expiry. */
     data class DocumentRenewed(
-        val document: DocumentKind,
+        val document: DocumentType,
         val validTill: LocalDate?,
         override val date: LocalDate,
     ) : TimelineEvent
@@ -68,9 +69,6 @@ internal sealed interface TimelineEvent {
         override val date: LocalDate,
     ) : TimelineEvent
 }
-
-/** The kind of paper a [TimelineEvent.DocumentRenewed] refers to. */
-internal enum class DocumentKind { INSURANCE, PUC, RC, LICENCE }
 
 /**
  * The trust state a service node renders — the Odo trust model as three mutually

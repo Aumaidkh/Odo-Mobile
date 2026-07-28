@@ -10,7 +10,7 @@ import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.WorkshopName
-import com.hopcape.odo.feature.timeline.domain.model.DocumentKind
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.timeline.domain.model.TimelineEvent
 import kotlinx.datetime.LocalDate
 
@@ -72,12 +72,12 @@ internal fun sampleTimeline(): TimelineUiState = TimelineUiState(
             date = LocalDate(2026, 6, 4),
         ),
         TimelineEvent.DocumentRenewed(
-            document = DocumentKind.PUC,
+            document = DocumentType.PUC,
             validTill = LocalDate(2026, 11, 30),
             date = LocalDate(2026, 6, 2),
         ),
         TimelineEvent.DocumentRenewed(
-            document = DocumentKind.INSURANCE,
+            document = DocumentType.INSURANCE,
             validTill = LocalDate(2027, 6, 1),
             date = LocalDate(2026, 6, 1),
         ),
