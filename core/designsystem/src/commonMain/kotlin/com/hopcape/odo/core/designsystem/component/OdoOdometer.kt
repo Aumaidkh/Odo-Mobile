@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -101,41 +102,100 @@ fun OdoOdometer(
     }
 
     if (open) {
-        var entry by remember { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
-        var sheetUnit by remember { mutableStateOf(unit) }
         ModalBottomSheet(
             onDismissRequest = { open = false },
             sheetState = sheetState,
             containerColor = OdoTheme.colors.surface,
         ) {
-            OdometerEditor(
-                entry = entry,
-                unit = sheetUnit,
+            OdoOdometerEditor(
+                value = value,
+                onSave = { reading ->
+                    onValueChange(reading)
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { open = false }
+                },
                 title = title,
                 subtitle = subtitle,
                 odometerLabel = odometerLabel,
                 saveLabel = saveLabel,
                 kmLabel = kmLabel,
                 milesLabel = milesLabel,
+                unit = unit,
+                onUnitChange = onUnitChange,
                 note = note,
                 quickAdds = quickAdds,
                 scanLabel = scanLabel,
                 scanBadge = scanBadge,
                 digits = digits,
-                onDigit = { c -> if (entry.length < digits) entry = (entry + c).trimStart('0').ifEmpty { "" } },
-                onBackspace = { entry = entry.dropLast(1) },
-                onQuickAdd = { amount ->
-                    val next = ((entry.toLongOrNull() ?: 0L) + amount).coerceAtMost(maxReading(digits))
-                    entry = next.toString()
-                },
-                onUnitChange = { u -> sheetUnit = u; onUnitChange(u) },
-                onSave = {
-                    onValueChange(entry.toLongOrNull() ?: 0L)
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { open = false }
-                },
             )
         }
     }
+}
+
+/**
+ * The odometer **editor on its own** — the drums, km/miles toggle, quick-add chips and
+ * keypad, without the collapsed surface or a sheet around it.
+ *
+ * [OdoOdometer] renders this inside its own [ModalBottomSheet]; this entry point exists
+ * for the callers that already own the sheet — a Nav3 bottom-sheet destination, say — so
+ * the reading is captured by the same control everywhere instead of a plain number field
+ * standing in for it.
+ *
+ * Stateful in one narrow sense: the in-progress keypad entry and the unit toggled inside
+ * the editor are held here (they are transient until saved), seeded from [value] and reset
+ * whenever [value] changes. [onSave] fires with the finished reading in whole units of the
+ * displayed unit; nothing is reported while the owner is still typing.
+ *
+ * @param footer rendered between the note and the save button — the slot for caller
+ *   context the design system can't know, e.g. the last recorded reading or the distance
+ *   driven since. Keep it short; the keypad sits below the fold already.
+ */
+@Composable
+fun OdoOdometerEditor(
+    value: Long?,
+    onSave: (Long) -> Unit,
+    title: String,
+    subtitle: String,
+    odometerLabel: String,
+    saveLabel: String,
+    kmLabel: String,
+    milesLabel: String,
+    modifier: Modifier = Modifier,
+    unit: OdoDistanceUnit = OdoDistanceUnit.KM,
+    onUnitChange: (OdoDistanceUnit) -> Unit = {},
+    note: String? = null,
+    quickAdds: List<Int> = listOf(100, 500, 1000),
+    scanLabel: String? = null,
+    scanBadge: String? = null,
+    digits: Int = 6,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+    var entry by remember(value) { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
+    var editorUnit by remember(unit) { mutableStateOf(unit) }
+    OdometerEditor(
+        entry = entry,
+        unit = editorUnit,
+        title = title,
+        subtitle = subtitle,
+        odometerLabel = odometerLabel,
+        saveLabel = saveLabel,
+        kmLabel = kmLabel,
+        milesLabel = milesLabel,
+        note = note,
+        quickAdds = quickAdds,
+        scanLabel = scanLabel,
+        scanBadge = scanBadge,
+        digits = digits,
+        modifier = modifier,
+        footer = footer,
+        onDigit = { c -> if (entry.length < digits) entry = (entry + c).trimStart('0').ifEmpty { "" } },
+        onBackspace = { entry = entry.dropLast(1) },
+        onQuickAdd = { amount ->
+            val next = ((entry.toLongOrNull() ?: 0L) + amount).coerceAtMost(maxReading(digits))
+            entry = next.toString()
+        },
+        onUnitChange = { u -> editorUnit = u; onUnitChange(u) },
+        onSave = { onSave(entry.toLongOrNull() ?: 0L) },
+    )
 }
 
 /* ------------------------------ Collapsed surface ------------------------------ */
@@ -199,10 +259,12 @@ private fun OdometerEditor(
     onQuickAdd: (Int) -> Unit,
     onUnitChange: (OdoDistanceUnit) -> Unit,
     onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val colors = OdoTheme.colors
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = OdoTheme.spacing.screenEdge)
             .padding(bottom = OdoTheme.spacing.xl),
@@ -237,6 +299,8 @@ private fun OdometerEditor(
                 OdoText(note, style = OdoTheme.typography.bodySmall, color = colors.textDim)
             }
         }
+
+        footer?.invoke(this)
 
         OdoButton(text = saveLabel, onClick = onSave, enabled = entry.isNotEmpty(), modifier = Modifier.fillMaxWidth())
 
