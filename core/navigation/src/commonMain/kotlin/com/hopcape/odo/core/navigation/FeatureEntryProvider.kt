@@ -11,7 +11,7 @@ import androidx.navigation3.runtime.NavKey
  * ```
  * class GarageEntryProvider : FeatureEntryProvider {
  *     override fun EntryProviderScope<NavKey>.registerEntries() {
- *         entry<OdoDestination.Garage> { GarageScreen() }
+ *         entry<OdoDestination.Garage.Home> { GarageScreen() }
  *         entry<OdoDestination.CarDetail> { key -> CarDetailScreen(key.carId) }
  *     }
  * }

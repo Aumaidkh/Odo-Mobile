@@ -24,8 +24,36 @@ sealed interface OdoDestination : NavKey {
 
     // --- Bottom-nav roots ---
     data object Home : TopLevel { override val label = "Home" }
-    data object Garage : TopLevel { override val label = "Garage" }
     data object Profile : TopLevel { override val label = "Profile" }
+
+    /**
+     * Garage — the car's "home base", owned by `:feature:garage`. A sealed group: the
+     * [Home] bottom-nav root, the bottom-sheet destinations the car menu opens (the
+     * feature's entry provider tags each with [ModalBottomSheetSceneStrategy] metadata),
+     * and two full-screen editors. Like Timeline it is an aggregator — logging a service,
+     * opening a document or scanning a bill reuse the ServiceLog / Documents / BillScanner
+     * keys rather than anything of its own.
+     */
+    sealed interface Garage : OdoDestination {
+        /** The garage tab root — the car home-base overview. */
+        data object Home : Garage, TopLevel { override val label = "Garage" }
+        /** Car actions sheet (⋮): edit · switch · add · export · remove. */
+        data object CarActions : Garage
+        /** Update-odometer sheet. */
+        data object UpdateOdometer : Garage
+        /** "Add to service history" sheet: scan · manual · document. */
+        data object AddToHistory : Garage
+        /** Switch-car sheet. */
+        data object SwitchCar : Garage
+        /** Export-car-record sheet. */
+        data object Export : Garage
+        /** Remove-car confirmation — shown as a sheet. */
+        data object RemoveCar : Garage
+        /** Edit-car full screen. */
+        data object EditCar : Garage
+        /** Add-a-car full screen. */
+        data object AddCar : Garage
+    }
 
     /**
      * Reminders flow — its own feature. Modelled as a group from the start (a Manage
@@ -208,7 +236,7 @@ sealed interface OdoDestination : NavKey {
 
     companion object {
         /** Ordered bottom-navigation roots. */
-        val topLevel: List<TopLevel> = listOf(Home, Garage, Reminders.List, Profile)
+        val topLevel: List<TopLevel> = listOf(Home, Garage.Home, Reminders.List, Profile)
     }
 }
 
