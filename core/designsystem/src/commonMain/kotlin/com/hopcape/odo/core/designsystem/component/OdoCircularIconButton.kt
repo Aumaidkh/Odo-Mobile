@@ -45,15 +45,15 @@ object OdoCircularIconButtonDefaults {
 
 /**
  * The circular icon affordance — a soft disc with an icon centred in it, used for back
- * arrows, close buttons, and the small round actions that sit over a screen rather than
- * in a top bar.
+ * arrows, close buttons, and the round actions in a screen's header.
  *
  * **Use this instead of hand-rolling a `Box` + `CircleShape` + `clickable`.** Every
  * screen that needs a round back button takes it from here, so size, fill, ripple, and
  * touch target stay identical across features.
  *
- * Distinct from [OdoIconButton], which is the *bare* icon control for Material top-bar
- * and inline row actions — that one has no disc behind it.
+ * This is what [OdoTopBar] renders for back, and what its `actions` slot should be given,
+ * so a header reads as one row of round controls. Distinct from [OdoIconButton], the
+ * *bare* icon control for inline row actions — that one has no disc behind it.
  *
  * ```
  * OdoCircularIconButton(IcArrowLeft, contentDescription = "Back", onClick = onBack)
