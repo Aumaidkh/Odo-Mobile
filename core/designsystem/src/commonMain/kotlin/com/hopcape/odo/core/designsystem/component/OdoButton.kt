@@ -31,8 +31,9 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
  * @property Primary   accent fill, white ink — the single main action per screen.
  * @property Secondary outlined, neutral ink — a co-equal alternative (e.g. "Cancel").
  * @property Tertiary  text-only, accent ink — low-emphasis / inline actions.
+ * @property Danger    danger fill — the confirm action of a destructive flow ("Remove car").
  */
-enum class OdoButtonVariant { Primary, Secondary, Tertiary }
+enum class OdoButtonVariant { Primary, Secondary, Tertiary, Danger }
 
 /**
  * Odo's themed button — pill-shaped, [OdoButtonVariant]-driven, with a built-in
@@ -110,6 +111,17 @@ fun OdoButton(
             contentPadding = contentPadding,
             content = { content() },
         )
+
+        OdoButtonVariant.Danger -> Button(
+            onClick = onClick,
+            modifier = sizing,
+            enabled = clickable,
+            shape = shape,
+            colors = dangerColors(),
+            elevation = null,
+            contentPadding = contentPadding,
+            content = { content() },
+        )
     }
 }
 
@@ -153,6 +165,14 @@ private fun secondaryColors(): ButtonColors = ButtonDefaults.outlinedButtonColor
 @Composable
 private fun tertiaryColors(): ButtonColors = ButtonDefaults.textButtonColors(
     contentColor = OdoTheme.colors.accent,
+    disabledContentColor = OdoTheme.colors.textMuted,
+)
+
+@Composable
+private fun dangerColors(): ButtonColors = ButtonDefaults.buttonColors(
+    containerColor = OdoTheme.colors.danger,
+    contentColor = OdoTheme.colors.onAccent,
+    disabledContainerColor = OdoTheme.colors.surfaceRaised,
     disabledContentColor = OdoTheme.colors.textMuted,
 )
 

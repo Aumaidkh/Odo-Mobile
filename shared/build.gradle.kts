@@ -31,6 +31,7 @@ kotlin {
             // FeatureEntryProviders App() collects, so it depends on the data layer
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
+            implementation(projects.feature.auth)
             implementation(projects.feature.onboarding)
             implementation(projects.feature.servicelog)
             implementation(projects.feature.billscanner)
@@ -39,6 +40,10 @@ kotlin {
             implementation(projects.feature.fairnessCheck)
             implementation(projects.feature.reminders)
             implementation(projects.feature.healthscore)
+            implementation(projects.feature.dashboard)
+            implementation(projects.feature.garage)
+            implementation(projects.feature.profile)
+            implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)

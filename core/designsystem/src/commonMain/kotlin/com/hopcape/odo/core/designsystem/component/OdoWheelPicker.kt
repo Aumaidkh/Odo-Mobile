@@ -1,8 +1,9 @@
 package com.hopcape.odo.core.designsystem.component
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -31,11 +32,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcChevronDown
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -49,6 +51,12 @@ import kotlin.math.abs
  * [onSelectedIndexChange]; the caller owns the value.
  *
  * @param visibleCount odd number of rows shown at once (the middle one is selected).
+ * @param selectionColor fill of the centre selection band (defaults to a raised
+ *   surface); pass an accent wash to make the band read as "live".
+ * @param selectionBorder optional stroke around the centre band — `null` leaves it
+ *   borderless (the default), an accent [BorderStroke] rings the current value.
+ * @param textStyle base style for every row; the centred row is scaled up from it,
+ *   so pass a larger role (e.g. `title`) when the wheel is the screen's focus.
  */
 @Composable
 fun <T> OdoWheelPicker(
@@ -58,6 +66,9 @@ fun <T> OdoWheelPicker(
     modifier: Modifier = Modifier,
     visibleCount: Int = 5,
     itemHeight: Dp = 44.dp,
+    selectionColor: Color = OdoTheme.colors.surfaceRaised,
+    selectionBorder: BorderStroke? = null,
+    textStyle: TextStyle = OdoTheme.typography.heading,
     label: (T) -> String = { it.toString() },
 ) {
     if (items.isEmpty()) return
@@ -95,7 +106,14 @@ fun <T> OdoWheelPicker(
                 .fillMaxWidth()
                 .height(itemHeight)
                 .clip(OdoTheme.shapes.small)
-                .background(OdoTheme.colors.surfaceRaised),
+                .background(selectionColor)
+                .then(
+                    if (selectionBorder != null) {
+                        Modifier.border(selectionBorder, OdoTheme.shapes.small)
+                    } else {
+                        Modifier
+                    },
+                ),
         )
         LazyColumn(
             state = listState,
@@ -122,7 +140,7 @@ fun <T> OdoWheelPicker(
                 ) {
                     OdoText(
                         text = label(item),
-                        style = OdoTheme.typography.heading,
+                        style = textStyle,
                         color = if (isCentre) OdoTheme.colors.text else OdoTheme.colors.textMuted,
                         modifier = Modifier.graphicsLayer {
                             scaleX = scale
@@ -220,14 +238,12 @@ fun <T> OdoWheelPickerField(
 /** Static down-chevron trailing affordance for the picker field. */
 @Composable
 private fun PickerChevron() {
-    val color = OdoTheme.colors.textDim
-    Canvas(Modifier.size(OdoTheme.iconSizes.medium)) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8.dp.toPx()
-        drawLine(color, Offset(w * 0.32f, h * 0.42f), Offset(w * 0.5f, h * 0.60f), stroke, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.5f, h * 0.60f), Offset(w * 0.68f, h * 0.42f), stroke, cap = StrokeCap.Round)
-    }
+    OdoIcon(
+        imageVector = IcChevronDown,
+        contentDescription = null,
+        tint = OdoTheme.colors.textDim,
+        size = OdoTheme.iconSizes.medium,
+    )
 }
 
 @OdoThemePreviews

@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.designsystem.component
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,9 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcChevronDown
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -108,14 +106,13 @@ fun <T> OdoDropdownField(
 @Composable
 private fun DropdownChevron(expanded: Boolean) {
     val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "dropdownChevron")
-    val color = OdoTheme.colors.textDim
-    Canvas(Modifier.size(OdoTheme.iconSizes.medium).rotate(rotation)) {
-        val w = size.width
-        val h = size.height
-        val stroke = 1.8.dp.toPx()
-        drawLine(color, Offset(w * 0.32f, h * 0.42f), Offset(w * 0.5f, h * 0.60f), stroke, cap = StrokeCap.Round)
-        drawLine(color, Offset(w * 0.5f, h * 0.60f), Offset(w * 0.68f, h * 0.42f), stroke, cap = StrokeCap.Round)
-    }
+    OdoIcon(
+        imageVector = IcChevronDown,
+        contentDescription = null,
+        tint = OdoTheme.colors.textDim,
+        size = OdoTheme.iconSizes.medium,
+        modifier = Modifier.rotate(rotation),
+    )
 }
 
 @OdoThemePreviews

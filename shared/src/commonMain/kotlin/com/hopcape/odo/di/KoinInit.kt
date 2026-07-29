@@ -5,15 +5,20 @@ import com.hopcape.logging.api.loggingModule
 import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
+import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
+import com.hopcape.odo.feature.dashboard.dashboardModule
 import com.hopcape.odo.feature.documentvault.documentVaultModule
 import com.hopcape.odo.feature.fairnesscheck.fairnessCheckModule
+import com.hopcape.odo.feature.garage.garageModule
 import com.hopcape.odo.feature.healthscore.healthScoreModule
 import com.hopcape.odo.feature.paywall.paywallModule
+import com.hopcape.odo.feature.profile.profileModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
+import com.hopcape.odo.feature.timeline.timelineModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -52,6 +57,7 @@ fun initKoin(
         performanceModule,
         coreNavigationModule,
         coreDataModule,
+        authModule,
         onboardingModule,
         serviceLogModule,
         billScannerModule,
@@ -60,6 +66,10 @@ fun initKoin(
         fairnessCheckModule,
         remindersModule,
         healthScoreModule,
+        dashboardModule,
+        garageModule,
+        profileModule,
+        timelineModule,
         paywallModule,
         platformModule,
     )

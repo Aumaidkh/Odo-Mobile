@@ -1,0 +1,44 @@
+plugins {
+    alias(libs.plugins.odo.kmpLibrary)
+    alias(libs.plugins.odo.composeMultiplatform)
+    // The Garage FeatureEntryProvider is published as a Koin definition so the :app
+    // host wires it without depending on internals.
+    alias(libs.plugins.odo.koin)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
+}
+
+kotlin {
+    // Targets, SDK levels, JVM target, the iOS framework and Android test wiring
+    // all come from the odo.kmp.library convention plugin — only identity here.
+    androidLibrary {
+        namespace = "com.hopcape.odo.feature.garage"
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // Nav3 command bus + entry-provider registration. Features navigate only
+            // through :core:navigation, never by importing another feature — Garage
+            // reaches ServiceLog / Documents / Onboarding via the shared OdoDestination keys.
+            implementation(projects.core.navigation)
+            // Branded UI atoms (OdoScreen, OdoCard, OdoListItem, OdoBadge, OdoChip, OdoButton…)
+            // + the Odo theme tokens; re-exports Compose Material 3 transitively.
+            implementation(projects.core.designsystem)
+            // The shared kernel this feature's own models are built from: the Car
+            // aggregate, Document + DocumentValidity, Amount (integer paise), Distance,
+            // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
+            // Brings Arrow transitively via domain (Amount.of returns Either).
+            implementation(projects.core.domain)
+            // LocalDate on the garage's own models (service dates, document expiry).
+            implementation(libs.kotlinx.datetime)
+        }
+    }
+}
+
+// Compose Multiplatform string resources for this feature. Explicit package so the
+// generated `Res` is imported predictably from the presentation code.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.feature.garage.resources"
+    generateResClass = always
+}

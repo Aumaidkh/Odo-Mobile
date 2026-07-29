@@ -1,0 +1,49 @@
+<resources>
+    <string name="tl_title">Timeline</string>
+    <string name="tl_cd_filter">Filter timeline</string>
+    <string name="tl_cd_share">Share timeline</string>
+    <!-- Header line: car · how much history there is. %3$d is the earliest year on the feed. -->
+    <string name="tl_subtitle">%1$s · %2$d events since %3$d</string>
+    <string name="tl_subtitle_new">%1$s · your car’s story starts here</string>
+
+    <!-- Service entry -->
+    <!-- Workshop · odometer, e.g. "Sharma Motors · 54,000 km". -->
+    <string name="tl_entry_meta">%1$s · %2$s</string>
+    <string name="tl_add_bill">Add bill</string>
+    <string name="tl_badge_verified">Verified</string>
+    <!-- Leading bullet separates it from the "Add bill" action beside it. -->
+    <string name="tl_self_reported">• Self-reported</string>
+    <!-- How far over the city average a flagged entry was, e.g. "Rs. 700 above average". -->
+    <string name="tl_flagged_over">%1$s above average</string>
+
+    <!-- Document renewals -->
+    <string name="tl_doc_insurance">Insurance</string>
+    <string name="tl_doc_puc">PUC</string>
+    <string name="tl_doc_rc">RC</string>
+    <string name="tl_doc_loan">Loan papers</string>
+    <string name="tl_doc_other">Document</string>
+    <string name="tl_doc_renewed">%1$s renewed</string>
+    <string name="tl_doc_renewed_valid_till">%1$s renewed · valid till %2$s</string>
+
+    <!-- Health Score changes -->
+    <string name="tl_health_rose">Health Score rose %1$d → %2$d</string>
+    <string name="tl_health_fell">Health Score fell %1$d → %2$d</string>
+
+    <!-- Milestone -->
+    <string name="tl_milestone_car_added">%1$s added to Odo</string>
+    <string name="tl_milestone_car_added_sub">Your car’s story starts here · %1$s</string>
+
+    <!-- Empty (new user) -->
+    <string name="tl_empty_title">Build your car’s story</string>
+    <string name="tl_empty_body">Scan a bill or log a service and it appears here — a verified history that pays off at resale.</string>
+    <string name="tl_empty_action">Scan first bill</string>
+
+    <!-- Filter sheet -->
+    <string name="tl_filter_title">Show in timeline</string>
+    <string name="tl_filter_services">Services &amp; repairs</string>
+    <string name="tl_filter_documents">Documents</string>
+    <string name="tl_filter_health">Health Score changes</string>
+    <string name="tl_filter_milestones">Milestones</string>
+    <string name="tl_filter_flagged">Only flagged overpayments</string>
+    <string name="tl_filter_show">Show %1$d events</string>
+</resources>

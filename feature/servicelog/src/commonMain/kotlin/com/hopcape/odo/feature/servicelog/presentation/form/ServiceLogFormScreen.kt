@@ -87,7 +87,7 @@ import com.hopcape.odo.feature.servicelog.resources.sl_save
 import com.hopcape.odo.feature.servicelog.resources.sl_scan_cta_fastest
 import com.hopcape.odo.feature.servicelog.resources.sl_scan_cta_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_scan_cta_title
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn

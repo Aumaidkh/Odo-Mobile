@@ -76,10 +76,9 @@ private val MONTH_BAR_HEIGHT = 88.dp
 internal fun RunningCostScreen(
     state: RunningCostUiState,
     onPeriodChange: (CostPeriod) -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OdoScreen(modifier = modifier, title = stringResource(Res.string.ct_title), onBack = onBack) { padding ->
+    OdoScreen(modifier = modifier, title = stringResource(Res.string.ct_title)) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -284,5 +283,5 @@ private fun periodLabel(period: CostPeriod): String = stringResource(
 @OdoThemePreviews
 @Composable
 private fun RunningCostScreenPreview() = OdoPreview(padded = false) {
-    RunningCostScreen(state = sampleRunningCost(), onPeriodChange = {}, onBack = {})
+    RunningCostScreen(state = sampleRunningCost(), onPeriodChange = {})
 }

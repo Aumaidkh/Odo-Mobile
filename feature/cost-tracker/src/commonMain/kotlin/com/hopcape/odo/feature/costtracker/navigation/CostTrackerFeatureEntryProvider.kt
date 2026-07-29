@@ -10,7 +10,6 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
-import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostScreen
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.sampleRunningCost
 
@@ -37,7 +36,6 @@ internal fun RunningCostRoute(navigationManager: NavigationManager) {
     var state by remember { mutableStateOf(sampleRunningCost()) }
     RunningCostScreen(
         state = state,
-        onPeriodChange = { state = sampleRunningCost(period = it) },
-        onBack = { navigationManager.back() },
+        onPeriodChange = { state = sampleRunningCost(period = it) }
     )
 }

@@ -64,7 +64,7 @@ import com.hopcape.odo.feature.billscanner.resources.bs_review_total
 import com.hopcape.odo.feature.billscanner.resources.bs_review_workshop
 import com.hopcape.odo.feature.billscanner.resources.bs_unit_km
 import com.hopcape.odo.feature.billscanner.resources.bs_unit_miles
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn

@@ -2,39 +2,35 @@ package com.hopcape.odo.feature.onboarding
 
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.common.id.UuidIdGenerator
-import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
-import com.hopcape.odo.feature.onboarding.presentation.scan.HistoryScanLauncher
-import com.hopcape.odo.feature.onboarding.presentation.scan.StubHistoryScanLauncher
-import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeTelemetry
-import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
-import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
  * DI graph for onboarding. `CarRepository`/`VehicleCatalog` come from
  * `coreDataModule` and `NavigationManager` from `coreNavigationModule`; the `:app`
- * host registers them all. The owner provider and scan launcher are M1 stubs — the
- * single swap point for real auth / the M2 scanner.
+ * host registers them all. The owner provider is an M1 stub — the single swap
+ * point for real auth.
  *
  * The [OnboardingFeatureEntryProvider] is bound to [FeatureEntryProvider] so the
  * host picks it up via `getAll<FeatureEntryProvider>()` and adds onboarding to the graph.
+ *
+ * ViewModel/telemetry definitions were removed with the old first-run screens —
+ * re-register the redesigned flow's ViewModels here as they land.
  */
 val onboardingModule = module {
     single<IdGenerator> { UuidIdGenerator() }
     single<CurrentOwnerProvider> { LocalOwnerProvider() }
-    single<HistoryScanLauncher> { StubHistoryScanLauncher() }
     factory { AddCarUseCase(cars = get(), idGenerator = get()) }
-    // Per-VM telemetry (factory, not single): each mints one flow trace-id, so a
-    // fresh onboarding attempt gets its own correlation — see OnboardingTelemetry.
-    factory { OnboardingTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
-    factory { WelcomeTelemetry(logger = get(), analytics = get(), ids = get()) }
-    viewModelOf(::OnboardingViewModel)
-    viewModelOf(::WelcomeViewModel)
-    single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
+    single {
+        OnboardingFeatureEntryProvider(
+            navigationManager = get(),
+            // Published by :feature:auth via the shared :core:domain port — onboarding
+            // asks whether to offer sign-in without knowing auth exists.
+            sessionStatus = get(),
+        )
+    } bind FeatureEntryProvider::class
 }

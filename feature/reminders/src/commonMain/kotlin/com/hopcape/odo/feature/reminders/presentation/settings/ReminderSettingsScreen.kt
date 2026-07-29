@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -16,14 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBell
+import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcChat
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -74,7 +74,7 @@ internal fun ReminderSettingsScreen(
         ) {
             Section(stringResource(Res.string.rm_settings_how)) {
                 GroupCard {
-                    ToggleRow(IcBell, OdoTheme.colors.text, stringResource(Res.string.rm_settings_push), null, state.push) { onToggle(ReminderToggle.PUSH) }
+                    ToggleRow(IcBellOutlined, OdoTheme.colors.text, stringResource(Res.string.rm_settings_push), null, state.push) { onToggle(ReminderToggle.PUSH) }
                     RowDivider()
                     ToggleRow(IcChat, OdoTheme.colors.success, stringResource(Res.string.rm_settings_whatsapp), null, state.whatsapp) { onToggle(ReminderToggle.WHATSAPP) }
                     RowDivider()

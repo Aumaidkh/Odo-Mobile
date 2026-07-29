@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -33,9 +32,9 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCalendar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcDroplet
@@ -171,7 +170,7 @@ private fun ActionRow(
         OdoIcon(icon, contentDescription = contentDescription, tint = tint, size = OdoTheme.iconSizes.medium)
         OdoText(label, style = OdoTheme.typography.heading, color = tint, modifier = Modifier.weight(1f))
         if (chevron) {
-            OdoIcon(IcArrowLeft, contentDescription = null, tint = OdoTheme.colors.textMuted, size = OdoTheme.iconSizes.small, modifier = Modifier.rotate(180f))
+            OdoIcon(IcChevronRight, contentDescription = null, tint = OdoTheme.colors.textMuted, size = OdoTheme.iconSizes.small)
         }
     }
 }
@@ -234,11 +233,10 @@ private fun ThisWeekCard(item: ThisWeekItem, onOpen: (ThisWeekItem) -> Unit) {
                 OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
             }
             OdoIcon(
-                IcArrowLeft,
+                IcChevronRight,
                 contentDescription = stringResource(Res.string.rm_cd_open),
                 tint = OdoTheme.colors.textMuted,
                 size = OdoTheme.iconSizes.small,
-                modifier = Modifier.rotate(180f),
             )
         }
     }

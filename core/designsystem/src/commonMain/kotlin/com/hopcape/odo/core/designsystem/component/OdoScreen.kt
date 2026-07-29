@@ -59,9 +59,17 @@ fun OdoScreen(
     modifier: Modifier = Modifier,
     title: String? = null,
     onBack: (() -> Unit)? = null,
+    backContentDescription: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
     topBar: @Composable () -> Unit = {
-        if (title != null) OdoTopBar(title = title, onBack = onBack, actions = actions)
+        if (title != null) {
+            OdoTopBar(
+                title = title,
+                onBack = onBack,
+                backContentDescription = backContentDescription,
+                actions = actions,
+            )
+        }
     },
     bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},

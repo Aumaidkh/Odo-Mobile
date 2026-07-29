@@ -3,7 +3,7 @@
 package com.hopcape.crashreporting.internal.breadcrumb
 
 import com.hopcape.crashreporting.internal.model.Breadcrumb
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 

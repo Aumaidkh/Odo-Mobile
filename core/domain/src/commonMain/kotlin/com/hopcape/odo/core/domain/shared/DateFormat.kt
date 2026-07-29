@@ -19,3 +19,10 @@ fun formatDate(date: LocalDate): String =
 /** "Jun 2026" — the coarser month stamp. */
 fun formatMonthYear(date: LocalDate): String =
     "${MONTHS[date.monthNumber - 1]} ${date.year}"
+
+/**
+ * "12 Jun" — the day stamp for a feed already grouped by month (the timeline's rows),
+ * where repeating the year on every line would be noise.
+ */
+fun formatDayMonth(date: LocalDate): String =
+    "${date.dayOfMonth} ${MONTHS[date.monthNumber - 1]}"

@@ -1,7 +1,7 @@
 package com.hopcape.logging.internal.model
 
 import com.hopcape.logging.api.LogLevel
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 internal data class LogEvent(
     val timestampMs: Long,

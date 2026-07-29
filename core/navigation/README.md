@@ -149,7 +149,7 @@ class GarageViewModel(
 ### 5.4 Bottom-nav tab switch (reselect-safe)
 ```kotlin
 navigationManager.navigateTo(
-    destination = OdoDestination.Garage,
+    destination = OdoDestination.Garage.Home,
     popUpTo = OdoDestination.Home,   // reset to the root first…
     singleTop = true,                // …and don't stack duplicates
 )
@@ -169,7 +169,7 @@ navigationManager.navigateTo(
 ### 5.6 Back variants
 ```kotlin
 navigationManager.navigate(NavigationCommand.Back)                       // pop one
-navigationManager.navigate(NavigationCommand.BackTo(OdoDestination.Garage))
+navigationManager.navigate(NavigationCommand.BackTo(OdoDestination.Garage.Home))
 navigationManager.navigate(NavigationCommand.ToRoot)                     // pop to start
 ```
 

@@ -1,0 +1,26 @@
+<resources>
+    <!-- Bottom bar: the central Scan action (tab labels come from OdoDestination.TopLevel.label). -->
+    <string name="db_scan">Scan</string>
+
+    <!-- Placeholder copy shown by tab stand-ins until the real content lands. -->
+
+    <!-- Home tab -->
+    <string name="hm_greeting">Hi, %1$s</string>
+    <string name="hm_health_score">HEALTH SCORE</string>
+    <string name="hm_see_breakdown">See breakdown</string>
+    <string name="hm_running_cost">RUNNING COST</string>
+    <string name="hm_per_km">/km</string>
+    <string name="hm_saved">SAVED SO FAR</string>
+    <string name="hm_recent">RECENT ACTIVITY</string>
+    <string name="hm_timeline">Timeline</string>
+    <string name="hm_cd_bell">Notifications</string>
+    <string name="hm_cd_profile">Profile</string>
+
+    <!-- Home: new user -->
+    <string name="hm_score_waiting">Your score is waiting</string>
+    <string name="hm_score_waiting_body">Add one bill or document and Odo can start scoring your car’s health.</string>
+    <string name="hm_get_set_up">GET SET UP · %1$d OF %2$d DONE</string>
+    <string name="hm_scan_first">Scan your first bill</string>
+    <!-- Stands in for the health score before there is enough history to compute one. -->
+    <string name="db_score_none">—</string>
+</resources>

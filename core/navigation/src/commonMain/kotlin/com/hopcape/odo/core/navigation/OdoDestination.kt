@@ -24,8 +24,59 @@ sealed interface OdoDestination : NavKey {
 
     // --- Bottom-nav roots ---
     data object Home : TopLevel { override val label = "Home" }
-    data object Garage : TopLevel { override val label = "Garage" }
-    data object Profile : TopLevel { override val label = "Profile" }
+
+    /**
+     * Profile / account — owned by `:feature:profile`. A sealed group: the [Root] account
+     * home (a bottom-nav root), its full-screen editors, and the preference sheets the
+     * rows open (the feature's entry provider tags each with [ModalBottomSheetSceneStrategy]
+     * metadata). "Go Pro" and "Manage plan" reuse the shared [Paywall] key rather than
+     * anything of their own.
+     */
+    sealed interface Profile : OdoDestination {
+        /** The profile / account home — reached from Home's avatar, not a bar tab. */
+        data object Root : Profile
+        /** Edit-profile full screen. */
+        data object Edit : Profile
+        /** Notification-settings full screen. */
+        data object Notifications : Profile
+        /** Units-&-currency sheet. */
+        data object Units : Profile
+        /** Appearance (theme + text size) sheet. */
+        data object Appearance : Profile
+        /** Export-my-data sheet. */
+        data object Export : Profile
+        /** Sign-out confirmation — shown as a sheet. */
+        data object SignOut : Profile
+    }
+
+    /**
+     * Garage — the car's "home base", owned by `:feature:garage`. A sealed group: the
+     * [Home] bottom-nav root, the bottom-sheet destinations the car menu opens (the
+     * feature's entry provider tags each with [ModalBottomSheetSceneStrategy] metadata),
+     * and two full-screen editors. Like Timeline it is an aggregator — logging a service,
+     * opening a document or scanning a bill reuse the ServiceLog / Documents / BillScanner
+     * keys rather than anything of its own.
+     */
+    sealed interface Garage : OdoDestination {
+        /** The garage tab root — the car home-base overview. */
+        data object Home : Garage, TopLevel { override val label = "Garage" }
+        /** Car actions sheet (⋮): edit · switch · add · export · remove. */
+        data object CarActions : Garage
+        /** Update-odometer sheet. */
+        data object UpdateOdometer : Garage
+        /** "Add to service history" sheet: scan · manual · document. */
+        data object AddToHistory : Garage
+        /** Switch-car sheet. */
+        data object SwitchCar : Garage
+        /** Export-car-record sheet. */
+        data object Export : Garage
+        /** Remove-car confirmation — shown as a sheet. */
+        data object RemoveCar : Garage
+        /** Edit-car full screen. */
+        data object EditCar : Garage
+        /** Add-a-car full screen. */
+        data object AddCar : Garage
+    }
 
     /**
      * Reminders flow — its own feature. Modelled as a group from the start (a Manage
@@ -33,8 +84,8 @@ sealed interface OdoDestination : NavKey {
      * bottom-nav root, so this whole area lives under one shared key.
      */
     sealed interface Reminders : OdoDestination {
-        /** The reminders home — the summary + this-week + upcoming overview. */
-        data object List : Reminders, TopLevel { override val label = "Reminders" }
+        /** The reminders home — reached from Home's bell, not a bar tab. */
+        data object List : Reminders
         /** Notification + reminder preferences — reached from the home's "Manage". */
         data object Settings : Reminders
         /** Create a custom reminder — reached from the home's "+ Add". */
@@ -95,8 +146,25 @@ sealed interface OdoDestination : NavKey {
         data object ScanError : BillScanner
     }
 
-    /** Cost tracker — the per-km "running cost" breakdown for the car. Its own feature. */
-    data object CostTracker : OdoDestination
+    /**
+     * Cost tracker — the per-km "running cost" breakdown for the car. Its own feature,
+     * and a bottom-nav root (labelled "Costs" in the bar).
+     */
+    data object CostTracker : TopLevel { override val label = "Costs" }
+
+    /**
+     * Timeline — the car's unified activity feed (services · documents · health-score
+     * changes · milestones), owned by `:feature:timeline`. A sealed group: the [List]
+     * root plus its "show in timeline" [Filter] sheet. An entry's detail reuses
+     * [ServiceLog.Detail] and sharing reuses [ServiceLog.Share] — Timeline never
+     * reimplements them.
+     */
+    sealed interface Timeline : OdoDestination {
+        /** The timeline tab root — the activity feed. */
+        data object List : Timeline, TopLevel { override val label = "Timeline" }
+        /** "Show in timeline" filter sheet. */
+        data object Filter : Timeline
+    }
 
     /**
      * Pro paywall — one screen, context-framed by [trigger] (why it was shown). Reached from
@@ -157,13 +225,52 @@ sealed interface OdoDestination : NavKey {
     data object Welcome : OdoDestination
     data object Onboarding : OdoDestination
 
-    // --- Auth flow ---
-    data object AuthLogin : OdoDestination
-    data object AuthOtp : OdoDestination
+    /**
+     * Sign-in flow — phone → otp → verifying.
+     *
+     * Deliberately **after** car setup, never before it: Odo works fully offline, so first
+     * run must not stall behind an OTP. Onboarding routes here on completion only when
+     * there is no session yet (`SessionStatusProvider`), and the owner can skip — signing
+     * in is a prompt, not a gate.
+     *
+     * Grouped so the whole flow pops in one command (`popUpTo = Auth.Phone(next),
+     * inclusive = true`), which is why back can never land on sign-in afterwards.
+     */
+    sealed interface Auth : OdoDestination {
+        /**
+         * Where to land once the number is verified — or once the owner skips. Carried
+         * through every step so auth never needs to know *why* it was entered: onboarding
+         * hands over the goal-based surface it would otherwise have gone to itself.
+         */
+        val next: OdoDestination
+
+        /** Enter the mobile number the 6-digit code is sent to. */
+        data class Phone(override val next: OdoDestination = Home) : Auth
+
+        /**
+         * Enter (or auto-read) the 6-digit code.
+         *
+         * @param phone the normalized number the code went to (digits only, no dialling
+         *   code) — carried so the "Sent to …" line states the real number rather than a
+         *   placeholder.
+         */
+        data class Otp(val phone: String, override val next: OdoDestination = Home) : Auth
+
+        /** Terminal progress while the code is checked, then hands off to [next]. */
+        data class Verifying(override val next: OdoDestination = Home) : Auth
+    }
 
     companion object {
-        /** Ordered bottom-navigation roots. */
-        val topLevel: List<TopLevel> = listOf(Home, Garage, Reminders.List, Profile)
+        /**
+         * Ordered bottom-navigation roots — the four tabs the dashboard shell renders,
+         * split symmetrically around the central Scan action: Home · Timeline · [Scan] ·
+         * Costs · Garage. Scan is a raised FAB, not a selectable root, so it isn't here.
+         *
+         * Reminders and Profile are deliberately absent: both are reached from Home's
+         * header (the bell and the avatar), which keeps the bar to the four surfaces an
+         * owner moves between rather than every screen that exists.
+         */
+        val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker, Garage.Home)
     }
 }
 

@@ -1,0 +1,36 @@
+<resources>
+    <!-- Phone -->
+    <string name="au_phone_title">What’s your number?</string>
+    <string name="au_phone_subtitle">We’ll text a 6-digit code. No passwords, ever.</string>
+    <string name="au_phone_label">Mobile number</string>
+    <string name="au_phone_hint">98765 43210</string>
+    <string name="au_phone_note">Your number is only used to sign you in and secure your car records.</string>
+    <string name="au_send_code">Send code</string>
+
+    <!-- OTP -->
+    <string name="au_otp_title">Enter the code</string>
+    <string name="au_otp_sent">Sent to %1$s · </string>
+    <string name="au_change">Change</string>
+    <string name="au_resend_in">Resend code in %1$s</string>
+    <string name="au_resend">Resend code</string>
+    <string name="au_otp_error">That code isn’t right. %1$d tries left.</string>
+    <string name="au_still_not">Still not arriving? </string>
+    <string name="au_get_help">Get help</string>
+
+    <!-- Auto Read SMS -->
+    <string name="au_auto_read_title">Auto Read SMS</string>
+    <string name="au_auto_read_listening">Watching for your code — no need to leave the app.</string>
+    <string name="au_auto_read_filled">Code filled automatically.</string>
+    <string name="au_auto_read_unavailable">Auto-read is off — enter the code below.</string>
+
+    <!-- Skip (signing in is a prompt, never a gate) -->
+    <string name="au_skip">Skip for now</string>
+    <string name="au_skip_hint">Your car and logs stay on this phone. Sign in later from Profile to back them up.</string>
+
+    <!-- Verifying -->
+    <string name="au_verifying_title">Verifying your number</string>
+    <string name="au_verifying_body">This takes a second — hang tight.</string>
+
+    <!-- Content descriptions -->
+    <string name="au_cd_back">Back</string>
+</resources>

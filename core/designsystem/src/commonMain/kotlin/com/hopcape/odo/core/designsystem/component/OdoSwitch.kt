@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchColors
@@ -70,6 +71,7 @@ fun OdoSwitchRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(top = OdoTheme.spacing.md)
             .heightIn(min = OdoTheme.spacing.minTouchTarget)
             .toggleable(
                 value = checked,
@@ -88,7 +90,8 @@ fun OdoSwitchRow(
             )
             if (supporting != null) {
                 OdoText(
-                    supporting,
+                    modifier = Modifier.padding(top = OdoTheme.spacing.xs, bottom = OdoTheme.spacing.sm),
+                    text = supporting,
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )
