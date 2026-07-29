@@ -1,34 +1,37 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-// A tyre / target — an outer ring around a centre dot.
 val IcTyre: ImageVector
     get() {
-        if (_IcTyre != null) return _IcTyre!!
+        if (_IcTyre != null) {
+            return _IcTyre!!
+        }
         _IcTyre = ImageVector.Builder(
-            name = "IcTyre", defaultWidth = 16.dp, defaultHeight = 16.dp,
-            viewportWidth = 16f, viewportHeight = 16f,
+            name = "IcTyre",
+            defaultWidth = 16.dp,
+            defaultHeight = 16.dp,
+            viewportWidth = 16f,
+            viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
-                moveTo(1f, 8f)
-                arcToRelative(7f, 7f, 0f, isMoreThanHalf = true, isPositiveArc = true, 14f, 0f)
-                arcToRelative(7f, 7f, 0f, isMoreThanHalf = true, isPositiveArc = true, -14f, 0f)
-                close()
-                moveTo(3.5f, 8f)
-                arcToRelative(4.5f, 4.5f, 0f, isMoreThanHalf = true, isPositiveArc = false, 9f, 0f)
-                arcToRelative(4.5f, 4.5f, 0f, isMoreThanHalf = true, isPositiveArc = false, -9f, 0f)
-                close()
-                moveTo(6.5f, 8f)
-                arcToRelative(1.5f, 1.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, 3f, 0f)
-                arcToRelative(1.5f, 1.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, -3f, 0f)
-                close()
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(8f, 15f)
+                arcTo(7f, 7f, 0f, isMoreThanHalf = true, isPositiveArc = true, 8f, 1f)
+                arcToRelative(7f, 7f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, 14f)
+                moveToRelative(0f, 1f)
+                arcTo(8f, 8f, 0f, isMoreThanHalf = true, isPositiveArc = false, 8f, 0f)
+                arcToRelative(8f, 8f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0f, 16f)
+            }
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(11f, 8f)
+                arcToRelative(3f, 3f, 0f, isMoreThanHalf = true, isPositiveArc = true, -6f, 0f)
+                arcToRelative(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = true, 6f, 0f)
             }
         }.build()
+
         return _IcTyre!!
     }
 

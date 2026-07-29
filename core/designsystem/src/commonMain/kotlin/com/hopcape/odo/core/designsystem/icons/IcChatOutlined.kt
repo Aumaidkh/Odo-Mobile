@@ -5,13 +5,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcChat: ImageVector
+val IcChatOutlined: ImageVector
     get() {
-        if (_IcChat != null) {
-            return _IcChat!!
+        if (_IcChatOutlined != null) {
+            return _IcChatOutlined!!
         }
-        _IcChat = ImageVector.Builder(
-            name = "IcChat",
+        _IcChatOutlined = ImageVector.Builder(
+            name = "IcChatOutlined",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
@@ -66,9 +66,10 @@ val IcChat: ImageVector
             }
         }.build()
 
-        return _IcChat!!
+        return _IcChatOutlined!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcChat: ImageVector? = null
+private var _IcChatOutlined: ImageVector? = null
+
 

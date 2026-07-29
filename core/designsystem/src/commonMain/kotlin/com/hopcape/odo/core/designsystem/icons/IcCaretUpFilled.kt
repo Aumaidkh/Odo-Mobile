@@ -5,20 +5,20 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcCaretUp: ImageVector
+val IcCaretUpFilled: ImageVector
     get() {
-        if (_IcCaretUp != null) {
-            return _IcCaretUp!!
+        if (_IcCaretUpFilled != null) {
+            return _IcCaretUpFilled!!
         }
-        _IcCaretUp = ImageVector.Builder(
-            name = "IcCaretUp",
+        _IcCaretUpFilled = ImageVector.Builder(
+            name = "IcCaretUpFilled",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
             path(fill = SolidColor(Color.Black)) {
-                moveTo(7.247f, 4.86f)
+                moveToRelative(7.247f, 4.86f)
                 lineToRelative(-4.796f, 5.481f)
                 curveToRelative(-0.566f, 0.647f, -0.106f, 1.659f, 0.753f, 1.659f)
                 horizontalLineToRelative(9.592f)
@@ -29,8 +29,10 @@ val IcCaretUp: ImageVector
             }
         }.build()
 
-        return _IcCaretUp!!
+        return _IcCaretUpFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcCaretUp: ImageVector? = null
+private var _IcCaretUpFilled: ImageVector? = null
+
+

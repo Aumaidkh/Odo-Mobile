@@ -5,12 +5,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcDroplet: ImageVector
+val IcDropletFilled: ImageVector
     get() {
-        if (_IcDroplet != null) return _IcDroplet!!
-        _IcDroplet = ImageVector.Builder(
-            name = "IcDroplet", defaultWidth = 16.dp, defaultHeight = 16.dp,
-            viewportWidth = 16f, viewportHeight = 16f,
+        if (_IcDropletFilled != null) {
+            return _IcDropletFilled!!
+        }
+        _IcDropletFilled = ImageVector.Builder(
+            name = "IcDropletFilled",
+            defaultWidth = 16.dp,
+            defaultHeight = 16.dp,
+            viewportWidth = 16f,
+            viewportHeight = 16f
         ).apply {
             path(fill = SolidColor(Color.Black)) {
                 moveTo(8f, 16f)
@@ -19,11 +24,17 @@ val IcDroplet: ImageVector
                 curveTo(10.254f, 4.176f, 8.75f, 2.503f, 8f, 0f)
                 curveToRelative(0f, 0f, -6f, 5.686f, -6f, 10f)
                 arcToRelative(6f, 6f, 0f, isMoreThanHalf = false, isPositiveArc = false, 6f, 6f)
-                close()
+                moveTo(6.646f, 4.646f)
+                lineToRelative(0.708f, 0.708f)
+                curveToRelative(-0.29f, 0.29f, -1.128f, 1.311f, -1.907f, 2.87f)
+                lineToRelative(-0.894f, -0.448f)
+                curveToRelative(0.82f, -1.641f, 1.717f, -2.753f, 2.093f, -3.13f)
             }
         }.build()
-        return _IcDroplet!!
+
+        return _IcDropletFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcDroplet: ImageVector? = null
+private var _IcDropletFilled: ImageVector? = null
+

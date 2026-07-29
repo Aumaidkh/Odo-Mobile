@@ -1,24 +1,23 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcFile: ImageVector
+val IcFileFilled: ImageVector
     get() {
-        if (_IcFile != null) {
-            return _IcFile!!
+        if (_IcFileFilled != null) {
+            return _IcFileFilled!!
         }
-        _IcFile = ImageVector.Builder(
-            name = "IcFile",
+        _IcFileFilled = ImageVector.Builder(
+            name = "IcFileFilled",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(4f, 0f)
                 horizontalLineToRelative(5.293f)
                 arcTo(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = true, 10f, 0.293f)
@@ -30,7 +29,6 @@ val IcFile: ImageVector
                 arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, -2f, -2f)
                 verticalLineTo(2f)
                 arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = true, 2f, -2f)
-                close()
                 moveToRelative(5.5f, 1.5f)
                 verticalLineToRelative(2f)
                 arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, 1f, 1f)
@@ -39,8 +37,8 @@ val IcFile: ImageVector
             }
         }.build()
 
-        return _IcFile!!
+        return _IcFileFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcFile: ImageVector? = null
+private var _IcFileFilled: ImageVector? = null

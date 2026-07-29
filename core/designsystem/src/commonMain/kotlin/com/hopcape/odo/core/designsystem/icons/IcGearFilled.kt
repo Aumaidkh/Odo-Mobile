@@ -1,24 +1,23 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcGear: ImageVector
+val IcGearFilled: ImageVector
     get() {
-        if (_IcGear != null) {
-            return _IcGear!!
+        if (_IcGearFilled != null) {
+            return _IcGearFilled!!
         }
-        _IcGear = ImageVector.Builder(
-            name = "IcGear",
+        _IcGearFilled = ImageVector.Builder(
+            name = "IcGearFilled",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(9.405f, 1.05f)
                 curveToRelative(-0.413f, -1.4f, -2.397f, -1.4f, -2.81f, 0f)
                 lineToRelative(-0.1f, 0.34f)
@@ -26,7 +25,7 @@ val IcGear: ImageVector
                 lineToRelative(-0.31f, -0.17f)
                 curveToRelative(-1.283f, -0.698f, -2.686f, 0.705f, -1.987f, 1.987f)
                 lineToRelative(0.169f, 0.311f)
-                arcToRelative(1.464f, 1.464f, 0f, isMoreThanHalf = false, isPositiveArc = true, -0.872f, 2.105f)
+                curveToRelative(0.446f, 0.82f, 0.023f, 1.841f, -0.872f, 2.105f)
                 lineToRelative(-0.34f, 0.1f)
                 curveToRelative(-1.4f, 0.413f, -1.4f, 2.397f, 0f, 2.81f)
                 lineToRelative(0.34f, 0.1f)
@@ -59,8 +58,8 @@ val IcGear: ImageVector
             }
         }.build()
 
-        return _IcGear!!
+        return _IcGearFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcGear: ImageVector? = null
+private var _IcGearFilled: ImageVector? = null

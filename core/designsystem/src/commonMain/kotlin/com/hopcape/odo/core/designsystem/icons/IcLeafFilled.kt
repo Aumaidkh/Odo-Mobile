@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcLeaf: ImageVector
+val IcLeafFilled: ImageVector
     get() {
         if (_IcLeaf != null) return _IcLeaf!!
         _IcLeaf = ImageVector.Builder(
