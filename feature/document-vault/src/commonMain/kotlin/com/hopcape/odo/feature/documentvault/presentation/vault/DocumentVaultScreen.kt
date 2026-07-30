@@ -37,9 +37,9 @@ import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCardFilled
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcIdCard
-import com.hopcape.odo.core.designsystem.icons.IcLeaf
+import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
 import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -142,7 +142,7 @@ private fun HeaderCard(tone: Color, title: String, body: String) {
         border = BorderStroke(1.dp, tone.copy(alpha = 0.45f)),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconChip(IcShield, tone)
+            IconChip(IcShieldFilled, tone)
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(title, style = OdoTheme.typography.heading)
                 OdoText(body, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
@@ -287,7 +287,7 @@ private fun statusTone(status: DocStatus): Color = when (status) {
 
 private fun typeIcon(type: DocumentType): ImageVector = when (type) {
     DocumentType.INSURANCE -> IcShieldCheck
-    DocumentType.PUC -> IcLeaf
+    DocumentType.PUC -> IcLeafFilled
     DocumentType.RC -> IcCardFilled
     DocumentType.LICENCE -> IcIdCard
 }

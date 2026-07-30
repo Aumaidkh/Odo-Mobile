@@ -53,11 +53,11 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBarChart
 import com.hopcape.odo.core.designsystem.icons.IcCamera
-import com.hopcape.odo.core.designsystem.icons.IcChat
+import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
-import com.hopcape.odo.core.designsystem.icons.IcStar
-import com.hopcape.odo.core.designsystem.icons.IcTag
+import com.hopcape.odo.core.designsystem.icons.IcStarFilled
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -199,7 +199,7 @@ private fun ContextBadge(state: PaywallUiState, tone: Color) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OdoIcon(IcStar, contentDescription = null, tint = tone, size = OdoTheme.iconSizes.small)
+        OdoIcon(IcStarFilled, contentDescription = null, tint = tone, size = OdoTheme.iconSizes.small)
         OdoText(badgeText(state), style = OdoTheme.typography.caption, color = tone)
     }
 }
@@ -222,7 +222,7 @@ private data class Feature(val icon: ImageVector, val title: String, val subtitl
 
 private val FEATURES = listOf(
     Feature(IcCamera, "scans", "scans_sub"),
-    Feature(IcChat, "doctor", "doctor_sub"),
+    Feature(IcChatOutlined, "doctor", "doctor_sub"),
     Feature(IcSpeedometer, "health", "health_sub"),
     Feature(IcBarChart, "analytics", "analytics_sub"),
 )
@@ -379,7 +379,7 @@ private fun PassportCard(onBuild: () -> Unit) {
                 Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.accent.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                OdoIcon(IcTag, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
+                OdoIcon(IcTagFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(stringResource(Res.string.pw_passport_title), style = OdoTheme.typography.heading)

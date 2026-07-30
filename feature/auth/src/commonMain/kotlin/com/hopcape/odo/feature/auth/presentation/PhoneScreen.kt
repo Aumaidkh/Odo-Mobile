@@ -29,7 +29,7 @@ import com.hopcape.odo.core.designsystem.component.OdoPhoneNumberField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
-import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_cd_back
@@ -106,7 +106,7 @@ internal fun PhoneScreen(
                 horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OdoIcon(IcLock, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
+                OdoIcon(IcLockFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
                 OdoText(
                     stringResource(Res.string.au_phone_note),
                     style = OdoTheme.typography.bodySmall,

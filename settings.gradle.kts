@@ -38,6 +38,7 @@ include(":core:domain")
 include(":core:data")
 include(":core:designsystem")
 include(":core:navigation")
+include(":core:sync")
 
 include(":feature:auth")
 include(":feature:billscanner")

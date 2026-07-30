@@ -28,14 +28,14 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
-import com.hopcape.odo.core.designsystem.icons.IcEye
+import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
-import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcSignOut
-import com.hopcape.odo.core.designsystem.icons.IcStar
-import com.hopcape.odo.core.designsystem.icons.IcTag
+import com.hopcape.odo.core.designsystem.icons.IcStarFilled
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_appearance
@@ -103,14 +103,14 @@ internal fun ProfileScreen(
                 RowDivider()
                 SettingsRow(IcRupee, stringResource(Res.string.pf_units), onUnits, value = state.unitsSummary)
                 RowDivider()
-                SettingsRow(IcEye, stringResource(Res.string.pf_appearance), onAppearance, value = state.appearanceSummary)
+                SettingsRow(IcEyeFilled, stringResource(Res.string.pf_appearance), onAppearance, value = state.appearanceSummary)
             }
 
             SectionLabel(stringResource(Res.string.pf_data_privacy))
             SettingsGroup {
                 SettingsRow(IcShare, stringResource(Res.string.pf_export), onExport)
                 RowDivider()
-                SettingsRow(IcLock, stringResource(Res.string.pf_privacy), onPrivacy)
+                SettingsRow(IcLockFilled, stringResource(Res.string.pf_privacy), onPrivacy)
             }
 
             Spacer(Modifier.height(OdoTheme.spacing.md))
@@ -149,7 +149,7 @@ private fun ProfileCard(state: ProfileUiState, onEdit: () -> Unit) {
 private fun ProPlanCard(state: ProfileUiState, onManage: () -> Unit, onRestore: () -> Unit) {
     OdoCard(border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.4f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconTile(IcStar)
+            IconTile(IcStarFilled)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.pf_pro_title), style = OdoTheme.typography.heading)
                 OdoText(state.proRenews, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
@@ -158,7 +158,7 @@ private fun ProPlanCard(state: ProfileUiState, onManage: () -> Unit, onRestore: 
         }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-            OdoIcon(IcTag, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
+            OdoIcon(IcTagFilled, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
             OdoText(stringResource(Res.string.pf_passport), style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
             OdoText(stringResource(Res.string.pf_passport_owned), style = OdoTheme.typography.label, color = OdoTheme.colors.accent)
         }
@@ -173,7 +173,7 @@ private fun ProPlanCard(state: ProfileUiState, onManage: () -> Unit, onRestore: 
 private fun GoProCard(onStartPro: () -> Unit, onRestore: () -> Unit) {
     OdoCard(border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.4f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconTile(IcStar)
+            IconTile(IcStarFilled)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.pf_go_pro), style = OdoTheme.typography.heading)
                 OdoText(stringResource(Res.string.pf_free_plan), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)

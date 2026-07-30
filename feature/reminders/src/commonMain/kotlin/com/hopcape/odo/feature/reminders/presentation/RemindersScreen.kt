@@ -37,11 +37,11 @@ import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcClose
-import com.hopcape.odo.core.designsystem.icons.IcDroplet
-import com.hopcape.odo.core.designsystem.icons.IcGear
-import com.hopcape.odo.core.designsystem.icons.IcLeaf
+import com.hopcape.odo.core.designsystem.icons.IcDropletFilled
+import com.hopcape.odo.core.designsystem.icons.IcGearFilled
+import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
 import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTyre
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -191,7 +191,7 @@ private fun RemindersTopBar(onManage: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OdoIcon(IcGear, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
+            OdoIcon(IcGearFilled, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
             OdoText(stringResource(Res.string.rm_manage), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
         }
     }
@@ -314,9 +314,9 @@ private fun SectionLabel(text: String) {
 }
 
 private fun iconFor(icon: ReminderIcon): ImageVector = when (icon) {
-    ReminderIcon.SHIELD -> IcShield
-    ReminderIcon.OIL -> IcDroplet
-    ReminderIcon.LEAF -> IcLeaf
+    ReminderIcon.SHIELD -> IcShieldFilled
+    ReminderIcon.OIL -> IcDropletFilled
+    ReminderIcon.LEAF -> IcLeafFilled
     ReminderIcon.TYRE -> IcTyre
 }
 

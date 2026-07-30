@@ -24,7 +24,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
-import com.hopcape.odo.core.designsystem.icons.IcChat
+import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -76,7 +76,7 @@ internal fun ReminderSettingsScreen(
                 GroupCard {
                     ToggleRow(IcBellOutlined, OdoTheme.colors.text, stringResource(Res.string.rm_settings_push), null, state.push) { onToggle(ReminderToggle.PUSH) }
                     RowDivider()
-                    ToggleRow(IcChat, OdoTheme.colors.success, stringResource(Res.string.rm_settings_whatsapp), null, state.whatsapp) { onToggle(ReminderToggle.WHATSAPP) }
+                    ToggleRow(IcChatOutlined, OdoTheme.colors.success, stringResource(Res.string.rm_settings_whatsapp), null, state.whatsapp) { onToggle(ReminderToggle.WHATSAPP) }
                     RowDivider()
                     ToggleRow(IcEnvelope, OdoTheme.colors.text, stringResource(Res.string.rm_settings_email), null, state.email) { onToggle(ReminderToggle.EMAIL) }
                 }

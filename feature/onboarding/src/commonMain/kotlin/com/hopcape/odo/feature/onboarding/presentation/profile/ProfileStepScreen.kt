@@ -25,7 +25,7 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
-import com.hopcape.odo.core.designsystem.icons.IcTag
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -127,7 +127,7 @@ private data class Goal(val option: OnboardingGoalOption, val icon: ImageVector,
 private val GOALS = listOf(
     Goal(OnboardingGoalOption.STOP_OVERPAYING, IcCurrencyDollar, Res.string.onb_goal_overpay),
     Goal(OnboardingGoalOption.STAY_HEALTHY, IcSpeedometer, Res.string.onb_goal_healthy),
-    Goal(OnboardingGoalOption.SELL_FOR_MORE, IcTag, Res.string.onb_goal_resale),
+    Goal(OnboardingGoalOption.SELL_FOR_MORE, IcTagFilled, Res.string.onb_goal_resale),
 )
 
 /** One goal, as a full-width tappable card — selection is an accent wash plus a check. */

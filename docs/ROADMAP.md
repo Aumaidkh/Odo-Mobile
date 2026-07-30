@@ -45,6 +45,7 @@ odo/
 │  ├─ :core:common              # Result/Either helpers, Clock, Logger, ID gen, Hinglish strings, money/units
 │  ├─ :core:domain              # Entities, value objects, sealed DomainError, repository INTERFACES, use cases
 │  ├─ :core:data                # Repository IMPLEMENTATIONS, local DB (SQLDelight), DTO<->domain mappers
+│  ├─ :core:sync                # Sync seam (Syncable/Synchronizer), engine, scheduler port — no DB/network deps
 │  ├─ :core:platform            # expect/actual: camera, secure storage, notifications, connectivity, file IO
 │  ├─ :core:network             # Supabase client wrapper, Edge Function callers, retry/backoff, DTOs
 │  │
@@ -74,7 +75,8 @@ odo/
 | `:app` | App startup, DI wiring, nav host, theme | All feature + core modules | Contain business logic or talk to network/DB directly |
 | `:core:common` | Pure utilities, no domain meaning | Nothing (stdlib only) | Know about cars, bills, or any feature |
 | `:core:domain` | Entities, value objects, use cases, repo **interfaces**, `DomainError` | `:core:common` only | Import Android, SQLDelight, Supabase, or any framework type |
-| `:core:data` | Repo **implementations**, local SQLDelight DB, mappers, sync engine | `:core:domain`, `:core:network`, `:core:platform`, `:core:common` | Expose DTOs upward; leak DB/network types into domain |
+| `:core:data` | Repo **implementations**, local SQLDelight DB, mappers | `:core:domain`, `:core:sync`, `:core:network`, `:core:platform`, `:core:common` | Expose DTOs upward; leak DB/network types into domain |
+| `:core:sync` | Sync contracts (`Syncable`/`Synchronizer`) + engine + scheduler port | Nothing (stdlib only) | Know about SQLDelight, Supabase, or any specific table's shape |
 | `:core:platform` | `expect/actual` for camera, storage, notifications, connectivity | `:core:common` | Hold business rules |
 | `:core:network` | Supabase + Edge Function calls, retry, DTOs | `:core:common` | Decide business logic; persist data |
 | `:feature:*` | One vertical capability: its UI state, use-case orchestration, screens | `:core:domain` (+ presentation libs); platform via interfaces | Depend on **another** `:feature:*` module directly |
@@ -93,7 +95,7 @@ odo/
 | --- | --- | --- |
 | Dependency injection | `:app` wires it; modules expose factories/Koin modules | Keep graph composition out of features |
 | Error model | `sealed DomainError` in `:core:domain`; `Either<DomainError, T>` returns | ADR-012 |
-| Sync | `SyncEngine` in `:core:data` | `sync_status` per row, idempotent, last-write-wins |
+| Sync | `SyncEngine` in `:core:sync`; repos implement `Syncable` in `:core:data` | `sync_status` per row, idempotent, last-write-wins — full design in [`SYNC_DESIGN.md`](SYNC_DESIGN.md) |
 | Entitlements/quotas | Enforced server-side in `functions/`; mirrored read-only in `:feature:paywall` | Client never the source of truth |
 | Analytics | Thin interface in `:core:domain`, PostHog impl in `:core:data`/`:app` | Track North Star: bills scanned/month |
 | Config/secrets | Edge Function env + Supabase RLS | No secrets in the APK |

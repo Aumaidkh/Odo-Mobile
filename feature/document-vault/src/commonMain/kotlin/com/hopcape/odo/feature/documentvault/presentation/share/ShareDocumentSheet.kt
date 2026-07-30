@@ -27,13 +27,14 @@ import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcChat
+import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
+import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
 import com.hopcape.odo.core.designsystem.icons.IcLink
 import com.hopcape.odo.core.designsystem.icons.IcShare
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.documentvault.resources.Res
@@ -87,7 +88,8 @@ internal fun ShareDocumentSheetContent() {
         Header(state)
         HidePolicyRow(hidden = state.hidePolicyNumber, onToggle = { hidePolicy = !hidePolicy })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            ShareTargetButton(stringResource(Res.string.dv_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
+            ShareTargetButton(stringResource(Res.string.dv_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChatOutlined
+            ) { onShareVia(ShareTarget.WHATSAPP) }
             ShareTargetButton(stringResource(Res.string.dv_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
             ShareTargetButton(stringResource(Res.string.dv_share_copy), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcLink) { onShareVia(ShareTarget.COPY) }
             ShareTargetButton(stringResource(Res.string.dv_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcDotsVertical, iconRotation = 90f) { onShareVia(ShareTarget.MORE) }
@@ -108,7 +110,7 @@ private fun Header(state: ShareDocumentUiState) {
             Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.accent.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
-            OdoIcon(IcShield, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
+            OdoIcon(IcShieldFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
         }
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(stringResource(Res.string.dv_share_title, state.docName.lowercase()), style = OdoTheme.typography.heading)

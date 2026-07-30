@@ -39,9 +39,12 @@ The sequenced build plan, milestones (M0→M6→LAUNCH), and exit criteria live 
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones, exit criteria, module map + boundary contract (when) |
 | [`docs/TDD.md`](docs/TDD.md) | Technical design: architecture, ports/use cases, AI subsystem, sync, payments, security (how) |
 | [`docs/DB_SCHEMA.md`](docs/DB_SCHEMA.md) | **Authoritative** persistence layer: tables, enums, RLS, triggers, storage, migrations |
+| [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) | **Authoritative** offline-first sync engine: local sync columns, outbox push, delta pull, conflicts, scheduling (supersedes TDD §8) |
 | [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) | Git workflow: branching model, Conventional Commits, PR/squash-merge, tags & semver, secrets-never-committed (how code lands) |
 
 > **On the Git workflow:** follow [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) — short-lived `<type>/<kebab-summary>` branches cut from `main`, Conventional Commit messages (`type(scope): subject`, imperative, ≤50 chars), squash-merge via PR, never commit secrets/keystores/`.env`.
+
+> **On sync — read [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) before touching any local table or repository.** The app is offline-first: the local SQLDelight DB is the source of truth and the server is a sync target. Two rules bind work happening *now*, long before the engine exists (M5): **(1)** every new local table mirroring a server table ships the full sync column set from its first migration — `created_at`, `updated_at`, `deleted_at`, `remote_version`, `sync_status` (`PENDING | SYNCED | CONFLICT`, default `PENDING`); **(2)** every local write stamps `updated_at` and leaves the row `PENDING`. Retrofitting either later is a migration nobody needs to write. `:core:domain` never imports a sync type — the UI learns about sync only through the `SyncStatusProvider` port.
 
 > **On schema divergence:** the TDD §6.2 shows an *abridged/illustrative* SQL sketch; `docs/DB_SCHEMA.md` is the normalized, authoritative version. Where they differ (e.g. integer-paise money columns, `owner_id` denormalization, enum/lookup types, soft deletes), **DB_SCHEMA.md wins.** Likewise, ROADMAP and TDD describe the same target module structure with slightly different names (`:app`/`shared/:core:*` vs `composeApp/core/*`) — treat them as the same intent, not two designs.
 
@@ -73,7 +76,8 @@ The MVP refactors into a multi-module clean-architecture layout (full map + boun
 
 - **`:core:common`** — pure utilities (Either/Result, Clock, Logger, money/units). Knows nothing about cars or features.
 - **`:core:domain`** — the **shared kernel**: entities, value objects, repository **interfaces**, `sealed DomainError`. Depends only on `:core:common`. **No framework types** (no Android / SQLDelight / Supabase imports) ever reach here. **Feature-specific use cases do _not_ live here** — they live in their `:feature:*` module (see golden rules). `:core:domain` holds only types shared across features.
-- **`:core:data`** — repository **implementations**, local SQLDelight DB (the source of truth), DTO↔domain mappers, `SyncEngine`.
+- **`:core:data`** — repository **implementations**, local SQLDelight DB (the source of truth), DTO↔domain mappers. Its repositories implement `:core:sync`'s `Syncable`.
+- **`:core:sync`** — the sync seam (`Syncable`, `Synchronizer`), the engine, and the `SyncScheduler` port. Zero dependencies: it receives its `Syncable`s rather than reaching into the data layer, which is what keeps `:core:data` → `:core:sync` from becoming a cycle. See [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) §5.1.
 - **`:core:platform`** — `expect`/`actual` for camera, secure storage, notifications, connectivity, file IO.
 - **`:core:network`** — Supabase client + Edge Function callers, retry/backoff, DTOs.
 - **`:feature:*`** — one vertical capability each (onboarding, servicelog, billscanner, fairness, reminders, documents, healthscore, costtracker, paywall; doctor & passport in Phase 2). A feature owns its **use cases** (application/orchestration logic, under `…feature.<name>.domain.usecase`) plus its presentation + UI. Use cases orchestrate the shared `:core:domain` kernel (entities, value objects, repository ports).
@@ -134,4 +138,5 @@ When working on any Claude/Anthropic AI integration, consult the `claude-api` sk
 - **`owner_id` is denormalized onto every user-owned table** and stamped by a `BEFORE INSERT` trigger from the parent car (clients can't spoof it). RLS policies check the flat `owner_id = (SELECT auth.uid())` — never a join subquery.
 - **RLS is deny-all by default**, enabled on every `public` table; grant the minimum. The `fairness_data_points` pool is **de-identified** (no `owner_id`/`car_id`) and not client-readable — reads go through the `get_fairness_estimate` `SECURITY DEFINER` RPC that returns aggregate + `sample_size`. Passports are read by unauthenticated buyers only via the `get_passport_by_token` RPC, never a broad SELECT grant.
 - **Soft deletes** (`deleted_at`) for user content; hard deletes reserved for account erasure. `payments` and the anonymized fairness pool are retained on account deletion (see DB_SCHEMA §13).
+- **Sync columns are mandatory on every syncable local table** — `created_at`, `updated_at`, `deleted_at`, `remote_version`, `sync_status`. Local writes stamp `updated_at` and leave `sync_status = 'PENDING'`. Full rules in [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) §4.
 - **Secrets** (`ANTHROPIC_API_KEY`, Razorpay `KEY_SECRET`, `service_role` key) live **only** in Edge Function env — never in the APK or repo. The app ships only the Supabase URL, anon key, and Razorpay public key id.

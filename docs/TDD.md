@@ -538,6 +538,11 @@ Guardrails (keyword + classifier) run in the Edge layer *before and after* the m
 
 ## 8. Data Synchronization & Offline Strategy
 
+> **Superseded by [`SYNC_DESIGN.md`](SYNC_DESIGN.md).** The sketch below is the original
+> outline and remains directionally correct; the concrete design — sync columns, the
+> `Syncable`/`Synchronizer` seam, outbox push, delta pull, the conflict matrix, sign-in
+> adoption, and scheduling — lives there. Where the two differ, **SYNC_DESIGN.md wins.**
+
 **Model:** local-first. Every write hits SQLDelight immediately; the UI reads only from local. A sync engine reconciles with Supabase.
 
 ```kotlin
