@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -41,6 +42,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
@@ -115,6 +117,7 @@ internal fun CarStepScreen(
         )
 
         OdoRegistrationNumberField(
+            modifier = Modifier.testTag(OnboardingTestTags.PLATE_FIELD),
             value = car.plate.text,
             onValueChange = { onEvent(OnboardingEvent.Car.PlateChanged(it)) },
             placeholder = stringResource(Res.string.onb_car_plate_placeholder),
@@ -162,6 +165,7 @@ internal fun CarStepScreen(
                 color = OdoTheme.colors.textDim,
             )
             OdoOdometer(
+                modifier = Modifier.testTag(OnboardingTestTags.ODOMETER_FIELD),
                 value = odometer.value,
                 onValueChange = { onEvent(OnboardingEvent.OdometerChanged(it)) },
                 title = stringResource(Res.string.onb_odometer_sheet_title),

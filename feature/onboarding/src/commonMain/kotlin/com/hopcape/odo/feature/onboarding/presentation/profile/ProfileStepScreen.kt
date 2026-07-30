@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -31,6 +32,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
@@ -85,6 +87,7 @@ internal fun ProfileStepScreen(
         )
 
         OdoInputField(
+            modifier = Modifier.testTag(OnboardingTestTags.NAME_FIELD),
             value = profile.name.text,
             onValueChange = { onEvent(OnboardingEvent.Profile.NameChanged(it)) },
             label = stringResource(Res.string.onb_profile_name_label),

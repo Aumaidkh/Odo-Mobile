@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -30,6 +31,7 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.FieldLabel
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.InlineLinkRow
@@ -172,6 +174,7 @@ private fun CarDetailsForm(
             FieldLabel(stringResource(Res.string.onb_details_make_label))
             OdoCarMakeField(
                 selected = details.make.value?.toOdoCarMake(),
+                modifier = Modifier.testTag(OnboardingTestTags.MAKE_FIELD),
                 makes = makes,
                 popular = options.popularMakes.map { it.toOdoCarMake() },
                 onSelect = { onEvent(OnboardingEvent.Details.MakeSelected(it.name)) },
@@ -190,6 +193,7 @@ private fun CarDetailsForm(
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.onb_details_model_label))
             OdoCarModelField(
+                modifier = Modifier.testTag(OnboardingTestTags.MODEL_FIELD),
                 selected = details.model.value?.toOdoCarModel(),
                 models = details.models.map { it.toOdoCarModel() },
                 onSelect = { onEvent(OnboardingEvent.Details.ModelSelected(it.toDomainModel())) },
@@ -214,6 +218,7 @@ private fun CarDetailsForm(
             ) {
                 FieldLabel(stringResource(Res.string.onb_details_year_label))
                 OdoModelYearField(
+                    modifier = Modifier.testTag(OnboardingTestTags.YEAR_FIELD),
                     selected = details.year.value,
                     years = options.years,
                     onSelect = { onEvent(OnboardingEvent.Details.YearSelected(it)) },
@@ -230,6 +235,7 @@ private fun CarDetailsForm(
             ) {
                 FieldLabel(stringResource(Res.string.onb_details_fuel_label))
                 OdoFuelTypeField(
+                    modifier = Modifier.testTag(OnboardingTestTags.FUEL_FIELD),
                     selected = details.fuel.value?.toFuelKind(),
                     options = fuelOptions(options.fuelTypes),
                     onSelect = { onEvent(OnboardingEvent.Details.FuelSelected(it.toDomain())) },
@@ -244,6 +250,7 @@ private fun CarDetailsForm(
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.onb_details_odometer_label))
             OdoOdometer(
+                modifier = Modifier.testTag(OnboardingTestTags.ODOMETER_FIELD),
                 value = odometer.value,
                 onValueChange = { onEvent(OnboardingEvent.OdometerChanged(it)) },
                 title = stringResource(Res.string.onb_odometer_sheet_title),
