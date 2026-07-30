@@ -75,13 +75,11 @@ import org.jetbrains.compose.resources.stringResource
  * It asks for nothing. The mock deliberately shows no phone field here — the number is
  * collected by the auth flow this hands off to, so the first screen stays a pitch.
  *
- * Stateless: renders nothing but constants and forwards intents.
+ * Stateless: renders nothing but constants and forwards [WelcomeEvent]s.
  */
 @Composable
 internal fun WelcomeScreen(
-    onContinue: () -> Unit,
-    onTerms: () -> Unit,
-    onPrivacy: () -> Unit,
+    onEvent: (WelcomeEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -140,10 +138,13 @@ internal fun WelcomeScreen(
                 ) {
                     OdoButton(
                         text = stringResource(Res.string.onb_welcome_cta),
-                        onClick = onContinue,
+                        onClick = { onEvent(WelcomeEvent.ContinueClicked) },
                         modifier = Modifier.fillMaxWidth().accentGlow(),
                     )
-                    LegalFooter(onTerms = onTerms, onPrivacy = onPrivacy)
+                    LegalFooter(
+                        onTerms = { onEvent(WelcomeEvent.TermsClicked) },
+                        onPrivacy = { onEvent(WelcomeEvent.PrivacyClicked) },
+                    )
                 }
             }
             Spacer(Modifier.height(OdoTheme.spacing.lg))
@@ -294,5 +295,5 @@ private val GlowHeight = 420.dp
 @OdoThemePreviews
 @Composable
 private fun WelcomeScreenPreview() = OdoPreview(padded = false) {
-    WelcomeScreen(onContinue = {}, onTerms = {}, onPrivacy = {})
+    WelcomeScreen(onEvent = {})
 }

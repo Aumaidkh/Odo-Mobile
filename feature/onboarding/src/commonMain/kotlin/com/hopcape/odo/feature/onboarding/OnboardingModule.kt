@@ -10,6 +10,9 @@ import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
+import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -22,8 +25,8 @@ import org.koin.dsl.module
  * The [OnboardingFeatureEntryProvider] is bound to [FeatureEntryProvider] so the
  * host picks it up via `getAll<FeatureEntryProvider>()` and adds onboarding to the graph.
  *
- * ViewModel/telemetry definitions were removed with the old first-run screens —
- * re-register the redesigned flow's ViewModels here as they land.
+ * One ViewModel per destination: [WelcomeViewModel] for the pitch, [OnboardingViewModel]
+ * for the setup flow behind `OdoDestination.Onboarding`.
  */
 val onboardingModule = module {
     single<IdGenerator> { UuidIdGenerator() }
@@ -33,12 +36,18 @@ val onboardingModule = module {
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
     factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
-    single {
-        OnboardingFeatureEntryProvider(
-            navigationManager = get(),
+
+    viewModel { WelcomeViewModel() }
+    viewModel {
+        OnboardingViewModel(
+            loadCatalog = get(),
+            loadModels = get(),
+            lookupPlate = get(),
             // Published by :feature:auth via the shared :core:domain port — onboarding
             // asks whether to offer sign-in without knowing auth exists.
             sessionStatus = get(),
         )
-    } bind FeatureEntryProvider::class
+    }
+
+    single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
 }

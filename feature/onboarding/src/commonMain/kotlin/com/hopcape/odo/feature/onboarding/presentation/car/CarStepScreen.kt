@@ -40,18 +40,20 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.onboarding.presentation.CarForm
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingStep
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingUiState
-import com.hopcape.odo.feature.onboarding.presentation.PlateLookup
-import com.hopcape.odo.feature.onboarding.presentation.PlateLookupError
-import com.hopcape.odo.feature.onboarding.presentation.RtoMatch
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
 import com.hopcape.odo.feature.onboarding.presentation.components.fuelLabel
-import com.hopcape.odo.feature.onboarding.presentation.sampleOnboardingState
+import com.hopcape.odo.feature.onboarding.presentation.state.CarStepState
+import com.hopcape.odo.feature.onboarding.presentation.state.FormField
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookup
+import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookupError
+import com.hopcape.odo.feature.onboarding.presentation.state.RtoMatch
+import com.hopcape.odo.feature.onboarding.presentation.state.sampleCarStep
+import com.hopcape.odo.feature.onboarding.presentation.state.text
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_car_enter_manually
 import com.hopcape.odo.feature.onboarding.resources.onb_car_lookup_loading
@@ -89,26 +91,23 @@ import org.jetbrains.compose.resources.stringResource
  * The odometer is asked for here rather than later because it is the one number the whole
  * product hangs off (₹/km, health score, km-anomaly checks), so it belongs to car setup.
  *
- * Stateless: renders [state] and forwards intents.
+ * Stateless: renders [car] + [odometer] and forwards [OnboardingEvent]s.
  */
 @Composable
 internal fun CarStepScreen(
-    state: OnboardingUiState,
-    onPlateChange: (String) -> Unit,
-    onOdometerChange: (Long) -> Unit,
-    onRetryLookup: () -> Unit,
-    onEnterManually: () -> Unit,
-    onBack: () -> Unit,
-    onContinue: () -> Unit,
+    car: CarStepState,
+    odometer: FormField<Long>,
+    canContinue: Boolean,
+    onEvent: (OnboardingEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OnboardingStepScaffold(
         step = OnboardingStep.CAR.position,
         primaryLabel = stringResource(Res.string.onb_continue),
-        onPrimary = onContinue,
+        onPrimary = { onEvent(OnboardingEvent.ContinueClicked) },
         modifier = modifier,
-        onBack = onBack,
-        primaryEnabled = state.car.canContinue,
+        onBack = { onEvent(OnboardingEvent.BackClicked) },
+        primaryEnabled = canContinue,
     ) {
         StepHeadline(
             title = stringResource(Res.string.onb_car_title),
@@ -116,8 +115,8 @@ internal fun CarStepScreen(
         )
 
         OdoRegistrationNumberField(
-            value = state.car.registrationNumber,
-            onValueChange = onPlateChange,
+            value = car.plate.text,
+            onValueChange = { onEvent(OnboardingEvent.Car.PlateChanged(it)) },
             placeholder = stringResource(Res.string.onb_car_plate_placeholder),
         )
 
@@ -126,12 +125,12 @@ internal fun CarStepScreen(
             // wait, the car, or the failure all occupy the same slot and the same card
             // silhouette, so the screen never jumps as the answer arrives.
             AnimatedVisibility(
-                visible = state.car.lookup != PlateLookup.Idle,
+                visible = car.lookup != PlateLookup.Idle,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically(),
             ) {
                 AnimatedContent(
-                    targetState = state.car.lookup,
+                    targetState = car.lookup,
                     transitionSpec = { fadeIn(tween(LookupFadeMillis)) togetherWith fadeOut(tween(LookupFadeMillis)) },
                     label = "plateLookup",
                 ) { lookup ->
@@ -141,8 +140,8 @@ internal fun CarStepScreen(
                         is PlateLookup.Found -> MatchedCarCard(lookup.match)
                         is PlateLookup.Failed -> LookupFailedCard(
                             reason = lookup.reason,
-                            plate = state.car.registrationNumber,
-                            onRetry = onRetryLookup,
+                            plate = car.plate.text,
+                            onRetry = { onEvent(OnboardingEvent.Car.LookupRetried) },
                         )
                     }
                 }
@@ -152,7 +151,7 @@ internal fun CarStepScreen(
             InlineLinkRow(
                 prompt = stringResource(Res.string.onb_car_not_yours),
                 action = stringResource(Res.string.onb_car_enter_manually),
-                onClick = onEnterManually,
+                onClick = { onEvent(OnboardingEvent.Car.MatchRejected) },
             )
         }
 
@@ -163,8 +162,8 @@ internal fun CarStepScreen(
                 color = OdoTheme.colors.textDim,
             )
             OdoOdometer(
-                value = state.car.odometerKm,
-                onValueChange = onOdometerChange,
+                value = odometer.value,
+                onValueChange = { onEvent(OnboardingEvent.OdometerChanged(it)) },
                 title = stringResource(Res.string.onb_odometer_sheet_title),
                 subtitle = stringResource(Res.string.onb_odometer_sheet_subtitle),
                 odometerLabel = stringResource(Res.string.onb_odometer_label),
@@ -344,53 +343,43 @@ private const val LookupFadeMillis = 200
 @OdoThemePreviews
 @Composable
 private fun CarStepMatchedPreview() = OdoPreview(padded = false) {
-    CarStepPreview(sampleOnboardingState().car)
+    CarStepScreen(
+        car = sampleCarStep(),
+        odometer = FormField(54_000L),
+        canContinue = true,
+        onEvent = {},
+    )
 }
 
 @OdoThemePreviews
 @Composable
 private fun CarStepEmptyPreview() = OdoPreview(padded = false) {
-    CarStepPreview(CarForm())
+    CarStepPreview(CarStepState())
 }
 
 @OdoThemePreviews
 @Composable
 private fun CarStepLoadingPreview() = OdoPreview(padded = false) {
-    CarStepPreview(CarForm(registrationNumber = "MH12AB1234", lookup = PlateLookup.Loading))
+    CarStepPreview(lookupPreviewState(PlateLookup.Loading))
 }
 
 @OdoThemePreviews
 @Composable
 private fun CarStepNotFoundPreview() = OdoPreview(padded = false) {
-    CarStepPreview(
-        CarForm(
-            registrationNumber = "MH12AB1234",
-            lookup = PlateLookup.Failed(PlateLookupError.NOT_FOUND),
-        ),
-    )
+    CarStepPreview(lookupPreviewState(PlateLookup.Failed(PlateLookupError.NOT_FOUND)))
 }
 
 @OdoThemePreviews
 @Composable
 private fun CarStepServiceErrorPreview() = OdoPreview(padded = false) {
-    CarStepPreview(
-        CarForm(
-            registrationNumber = "MH12AB1234",
-            lookup = PlateLookup.Failed(PlateLookupError.SERVICE),
-        ),
-    )
+    CarStepPreview(lookupPreviewState(PlateLookup.Failed(PlateLookupError.SERVICE)))
 }
 
-/** Every preview differs only in the car form, so the callbacks are stubbed in one place. */
+/** The unanswered previews differ only in how the lookup came back. */
 @Composable
-private fun CarStepPreview(car: CarForm) {
-    CarStepScreen(
-        state = sampleOnboardingState().copy(car = car),
-        onPlateChange = {},
-        onOdometerChange = {},
-        onRetryLookup = {},
-        onEnterManually = {},
-        onBack = {},
-        onContinue = {},
-    )
+private fun CarStepPreview(car: CarStepState) {
+    CarStepScreen(car = car, odometer = FormField(), canContinue = false, onEvent = {})
 }
+
+private fun lookupPreviewState(lookup: PlateLookup): CarStepState =
+    CarStepState(plate = FormField("MH12AB1234"), lookup = lookup)

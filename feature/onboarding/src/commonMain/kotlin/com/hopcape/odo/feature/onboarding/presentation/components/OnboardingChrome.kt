@@ -37,7 +37,7 @@ import com.hopcape.odo.core.designsystem.component.OdoProgressBar
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_cd_back
 import com.hopcape.odo.feature.onboarding.resources.onb_step_counter
