@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.onboarding.domain.usecase
 
+import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 
 /**
@@ -12,7 +13,7 @@ import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 internal class LoadCarModelsUseCase(
     private val catalog: VehicleCatalog,
 ) {
-    suspend operator fun invoke(make: String?): List<String> {
+    suspend operator fun invoke(make: String?): List<CarModel> {
         val brand = make?.trim()?.ifBlank { null } ?: return emptyList()
         return catalog.models(brand)
     }

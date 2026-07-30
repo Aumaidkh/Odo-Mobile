@@ -1,20 +1,32 @@
--- Seeded reference table backing the model dropdown, keyed to vehicle_make.
+-- Seeded reference table backing the model picker, keyed to vehicle_make.
+--
+-- One row per model *and trim*, plus a variant-less row per model: trim ladders
+-- change with every facelift, so an owner whose exact trim isn't seeded must
+-- still be able to name their car. A wrong trim is worse than none — it feeds
+-- per-km cost and the fairness benchmarks.
+--
+-- `display_order` is (model index * 100 + variant index), which keeps a model's
+-- trims grouped together and in ladder order without a second sort column.
 CREATE TABLE vehicle_model (
     id            TEXT NOT NULL PRIMARY KEY,
     make_id       TEXT NOT NULL,
     name          TEXT NOT NULL,
+    variant       TEXT,
     display_order INTEGER NOT NULL
 );
 
 CREATE INDEX idx_vehicle_model_make ON vehicle_model (make_id);
 
 insertModel:
-INSERT OR IGNORE INTO vehicle_model (id, make_id, name, display_order)
-VALUES (?, ?, ?, ?);
+INSERT OR IGNORE INTO vehicle_model (id, make_id, name, variant, display_order)
+VALUES (?, ?, ?, ?, ?);
+
+countModels:
+SELECT count(*) FROM vehicle_model;
 
 -- Models for a make selected by its display name (the catalog API takes a name).
 selectModelsByMakeName:
-SELECT vehicle_model.name
+SELECT vehicle_model.name, vehicle_model.variant
 FROM vehicle_model
 JOIN vehicle_make ON vehicle_make.id = vehicle_model.make_id
 WHERE vehicle_make.name = ?

@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.onboarding.domain.usecase
 
+import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.model.FuelType
 import kotlinx.coroutines.test.runTest
@@ -13,10 +14,15 @@ class VehicleCatalogUseCasesTest {
         var modelsCallCount = 0
         var lastMake: String? = null
         override suspend fun makes(): List<String> = listOf("Maruti Suzuki", "Honda")
-        override suspend fun models(make: String): List<String> {
+        override suspend fun popularMakes(): List<String> = listOf("Maruti Suzuki")
+        override suspend fun models(make: String): List<CarModel> {
             modelsCallCount++
             lastMake = make
-            return if (make == "Honda") listOf("City", "Amaze") else emptyList()
+            return if (make == "Honda") {
+                listOf(CarModel("City"), CarModel("City", "VX"), CarModel("Amaze"))
+            } else {
+                emptyList()
+            }
         }
 
         override fun years(): List<Int> = listOf(2026, 2025, 2024)
@@ -28,6 +34,7 @@ class VehicleCatalogUseCasesTest {
         val snapshot = LoadVehicleCatalogUseCase(FakeCatalog())()
 
         assertEquals(listOf("Maruti Suzuki", "Honda"), snapshot.makes)
+        assertEquals(listOf("Maruti Suzuki"), snapshot.popularMakes)
         assertEquals(listOf(2026, 2025, 2024), snapshot.years)
         assertTrue(FuelType.PETROL in snapshot.fuelTypes)
     }
@@ -49,7 +56,7 @@ class VehicleCatalogUseCasesTest {
 
         val models = LoadCarModelsUseCase(catalog)("  Honda ")
 
-        assertEquals(listOf("City", "Amaze"), models)
+        assertEquals(listOf(CarModel("City"), CarModel("City", "VX"), CarModel("Amaze")), models)
         assertEquals("Honda", catalog.lastMake)
     }
 

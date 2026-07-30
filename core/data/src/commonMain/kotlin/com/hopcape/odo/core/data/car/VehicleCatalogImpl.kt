@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.data.car
 
 import com.hopcape.odo.core.data.db.OdoDatabase
+import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
@@ -17,8 +18,18 @@ internal class VehicleCatalogImpl(
     override suspend fun makes(): List<String> =
         database.vehicleMakeQueries.selectAllMakes().executeAsList()
 
-    override suspend fun models(make: String): List<String> =
-        database.vehicleModelQueries.selectModelsByMakeName(make).executeAsList()
+    /**
+     * The chips shown above the full brand list — the first [POPULAR_MAKE_COUNT] makes in
+     * the same market-share ordering, so there is no second definition of "popular".
+     */
+    override suspend fun popularMakes(): List<String> =
+        database.vehicleMakeQueries.selectPopularMakes(POPULAR_MAKE_COUNT).executeAsList()
+
+    override suspend fun models(make: String): List<CarModel> =
+        database.vehicleModelQueries
+            .selectModelsByMakeName(make)
+            .executeAsList()
+            .map { row -> CarModel(name = row.name, variant = row.variant) }
 
     /**
      * Selectable years, newest first — capped at the **current** year so a car's
@@ -31,4 +42,9 @@ internal class VehicleCatalogImpl(
     }
 
     override fun fuelTypes(): List<FuelType> = FuelType.entries.toList()
+
+    private companion object {
+        /** How many brands get a one-tap chip. Four fits a row without wrapping. */
+        const val POPULAR_MAKE_COUNT = 4L
+    }
 }

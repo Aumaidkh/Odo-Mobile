@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.data.car
 
 import com.hopcape.odo.core.data.db.Cars
+import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.FuelType
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +31,8 @@ class CarMappersTest {
         created_at = "2026-06-30T00:00:00Z",
         updated_at = "2026-06-30T00:00:00Z",
         deleted_at = null,
-        sync_status = SyncStatus.PENDING,
+        remote_version = null,
+        sync_status = SyncStatus.PENDING.name,
     )
 
     @Test

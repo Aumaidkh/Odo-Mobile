@@ -5,8 +5,10 @@ import com.hopcape.odo.core.common.id.UuidIdGenerator
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -29,10 +31,8 @@ val onboardingModule = module {
     factory { AddCarUseCase(cars = get(), idGenerator = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
-    // LookupPlateUseCase and CompleteOnboardingUseCase are deliberately NOT registered
-    // yet: their ports (VehicleRegistryLookup, OwnerProfileRepository) have no adapter in
-    // the graph, so a definition here would resolve to a crash rather than a missing
-    // feature. They are registered in the slice that ships those adapters.
+    factory { LookupPlateUseCase(registry = get()) }
+    factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
     single {
         OnboardingFeatureEntryProvider(
             navigationManager = get(),

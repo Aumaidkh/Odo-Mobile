@@ -25,10 +25,3 @@ internal fun Cars.toDomain(): Car = Car.reconstitute(
     nickname = nickname,
     isPrimary = is_primary == 1L,
 )
-
-/** Local sync state — client-only groundwork, never sent to the domain. */
-internal object SyncStatus {
-    const val PENDING = "PENDING"
-    const val SYNCED = "SYNCED"
-    const val FAILED = "FAILED"
-}

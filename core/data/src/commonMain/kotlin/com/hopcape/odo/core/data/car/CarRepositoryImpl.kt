@@ -6,6 +6,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.db.OdoDatabase
+import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -55,10 +56,45 @@ internal class CarRepositoryImpl(
                 created_at = now,
                 updated_at = now,
                 deleted_at = null,
-                sync_status = SyncStatus.PENDING,
+                remote_version = null,
+                sync_status = SyncStatus.PENDING.name,
             )
         }
         car.right()
+    } catch (e: Exception) {
+        DomainError.PersistenceFailure(e.message).left()
+    }
+
+    override suspend fun update(car: Car): Either<DomainError, Car> = try {
+        val now = clock.now().toString()
+        // The existence check and the write share a transaction, so a car deleted
+        // between them can't turn a CarNotFound into a silent no-op update.
+        database.transactionWithResult {
+            if (queries.selectById(car.id.value).executeAsOneOrNull() == null) {
+                DomainError.CarNotFound.left()
+            } else {
+                if (car.isPrimary) {
+                    queries.clearPrimaryForOwner(updatedAt = now, ownerId = car.ownerId.value)
+                }
+                queries.updateCar(
+                    make = car.make,
+                    model = car.model,
+                    variant = car.variant,
+                    year = car.year.value.toLong(),
+                    fuelType = car.fuelType.name,
+                    registrationNumber = car.registrationNumber?.value,
+                    odometerKm = car.odometer.km.toLong(),
+                    purchaseYear = car.purchaseYear?.value?.toLong(),
+                    nickname = car.nickname,
+                    isPrimary = if (car.isPrimary) 1L else 0L,
+                    updatedAt = now,
+                    // An edited row has to reach the server again.
+                    syncStatus = SyncStatus.PENDING.name,
+                    id = car.id.value,
+                )
+                car.right()
+            }
+        }
     } catch (e: Exception) {
         DomainError.PersistenceFailure(e.message).left()
     }

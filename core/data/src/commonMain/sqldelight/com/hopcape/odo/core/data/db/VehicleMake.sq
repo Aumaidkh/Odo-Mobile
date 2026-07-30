@@ -16,5 +16,15 @@ SELECT name
 FROM vehicle_make
 ORDER BY display_order, name;
 
+-- The one-tap brand chips. Deliberately the same ordering as selectAllMakes with
+-- a limit, rather than a separate `is_popular` column: the seed is already in
+-- market-share order, so "popular" and "listed first" are the same fact and can
+-- never drift apart.
+selectPopularMakes:
+SELECT name
+FROM vehicle_make
+ORDER BY display_order, name
+LIMIT :limit;
+
 countMakes:
 SELECT count(*) FROM vehicle_make;

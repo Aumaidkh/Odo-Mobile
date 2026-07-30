@@ -19,12 +19,20 @@ class AddCarUseCaseTest {
 
     private class FakeCarRepository : CarRepository {
         var addCount = 0
+        var updateCount = 0
         var lastAdded: Car? = null
         override suspend fun add(car: Car): Either<DomainError, Car> {
             addCount++
             lastAdded = car
             return car.right()
         }
+
+        override suspend fun update(car: Car): Either<DomainError, Car> {
+            updateCount++
+            lastAdded = car
+            return car.right()
+        }
+
         override fun observePrimaryCar(): Flow<Car?> = flowOf(lastAdded)
     }
 

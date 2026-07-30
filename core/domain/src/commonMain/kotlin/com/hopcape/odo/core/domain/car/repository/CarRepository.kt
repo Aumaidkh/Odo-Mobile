@@ -16,5 +16,16 @@ import kotlinx.coroutines.flow.Flow
 interface CarRepository {
     suspend fun add(car: Car): Either<DomainError, Car>
 
+    /**
+     * Persist changes to a car that already exists.
+     *
+     * Onboarding saves the car when its step completes rather than at the end of the flow,
+     * so that the first-scan step has a real car to hand the Bill Scanner. Stepping back to
+     * correct a detail therefore edits a stored car — an update, not a second insert.
+     *
+     * Returns [DomainError.CarNotFound] if no live car has this id.
+     */
+    suspend fun update(car: Car): Either<DomainError, Car>
+
     fun observePrimaryCar(): Flow<Car?>
 }

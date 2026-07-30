@@ -2,9 +2,10 @@
 -- DB_SCHEMA §9.3 (Postgres types mapped to SQLite). Integers come back as Long
 -- and 0/1 booleans; the data-layer mappers convert to/from the domain Car.
 --
--- `sync_status` is client-only groundwork (PENDING|SYNCED|FAILED) for the
--- future sync engine; it is not part of the authoritative server schema and is
--- never surfaced to the domain.
+-- `remote_version` and `sync_status` (PENDING|SYNCED|CONFLICT) are the
+-- client-only sync columns from SYNC_DESIGN §4.1 — groundwork for the engine
+-- that lands in M5. They are not part of the authoritative server schema and
+-- are never surfaced to the domain.
 CREATE TABLE cars (
     id                  TEXT NOT NULL PRIMARY KEY,
     owner_id            TEXT NOT NULL,
@@ -21,6 +22,7 @@ CREATE TABLE cars (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     deleted_at          TEXT,
+    remote_version      TEXT,
     sync_status         TEXT NOT NULL DEFAULT 'PENDING'
 );
 
@@ -40,8 +42,31 @@ insertCar:
 INSERT INTO cars (
     id, owner_id, make, model, variant, year, fuel_type, registration_number,
     current_odometer_km, purchase_year, nickname, is_primary,
-    created_at, updated_at, deleted_at, sync_status
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Edit a stored car. Onboarding saves the car when its step completes (so the
+-- first-scan step has a real car to hand the scanner), which makes stepping back
+-- to fix a detail an update rather than a second insert.
+--
+-- `owner_id` and `created_at` are absent on purpose: ownership doesn't change by
+-- editing, and the creation time is the first write's to keep. `sync_status`
+-- returns to PENDING because an edited row has to reach the server again.
+updateCar:
+UPDATE cars
+SET make                = :make,
+    model               = :model,
+    variant             = :variant,
+    year                = :year,
+    fuel_type           = :fuelType,
+    registration_number = :registrationNumber,
+    current_odometer_km = :odometerKm,
+    purchase_year       = :purchaseYear,
+    nickname            = :nickname,
+    is_primary          = :isPrimary,
+    updated_at          = :updatedAt,
+    sync_status         = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
 
 -- Demote any current primary for the owner (used before inserting a new primary
 -- so the one-primary invariant holds locally even without the DB constraint).
