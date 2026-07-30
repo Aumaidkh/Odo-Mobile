@@ -31,6 +31,10 @@ kotlin {
             // FeatureEntryProviders App() collects, so it depends on the data layer
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
+            // The composition root's one decision — open on Welcome or Home — reads
+            // OwnerProfile.hasCompletedOnboarding through the existing repository port.
+            // Brings coroutines + Arrow along via :core:domain's api dependencies.
+            implementation(projects.core.domain)
             implementation(projects.feature.auth)
             implementation(projects.feature.onboarding)
             implementation(projects.feature.servicelog)
