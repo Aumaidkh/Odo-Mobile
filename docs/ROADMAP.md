@@ -93,7 +93,7 @@ odo/
 | --- | --- | --- |
 | Dependency injection | `:app` wires it; modules expose factories/Koin modules | Keep graph composition out of features |
 | Error model | `sealed DomainError` in `:core:domain`; `Either<DomainError, T>` returns | ADR-012 |
-| Sync | `SyncEngine` in `:core:data` | `sync_status` per row, idempotent, last-write-wins |
+| Sync | `SyncEngine` in `:core:data` | `sync_status` per row, idempotent, last-write-wins — full design in [`SYNC_DESIGN.md`](SYNC_DESIGN.md) |
 | Entitlements/quotas | Enforced server-side in `functions/`; mirrored read-only in `:feature:paywall` | Client never the source of truth |
 | Analytics | Thin interface in `:core:domain`, PostHog impl in `:core:data`/`:app` | Track North Star: bills scanned/month |
 | Config/secrets | Edge Function env + Supabase RLS | No secrets in the APK |
