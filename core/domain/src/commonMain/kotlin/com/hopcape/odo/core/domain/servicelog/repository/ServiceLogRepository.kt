@@ -2,6 +2,7 @@ package com.hopcape.odo.core.domain.servicelog.repository
 
 import arrow.core.Either
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -27,9 +28,17 @@ interface ServiceLogRepository {
     suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit>
 
     /**
-     * The reference reading for the backwards-progression check: the highest known
-     * odometer for the car — coalescing its prior logs with its onboarding reading.
-     * `null` means the car has no baseline at all (it does not exist for the owner).
+     * Every known odometer reading for the car — its non-deleted logs plus the onboarding
+     * baseline — for the ordering check in
+     * [OdometerTimeline][com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline].
+     *
+     * The whole timeline rather than just the highest reading, because the rule is
+     * date-relative: a backdated service is checked against its neighbours, which the
+     * maximum alone cannot answer. Order is not guaranteed — the timeline sorts what it
+     * needs.
+     *
+     * `null` means the car has no baseline at all (it does not exist for the owner); an
+     * empty list would mean a car with no readings, which onboarding cannot produce.
      */
-    suspend fun mostRecentOdometerKm(carId: CarId): Int?
+    suspend fun odometerReadings(carId: CarId): List<OdometerReading>?
 }

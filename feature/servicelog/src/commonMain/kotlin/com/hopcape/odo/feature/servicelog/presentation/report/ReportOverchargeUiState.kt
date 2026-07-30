@@ -1,11 +1,9 @@
 package com.hopcape.odo.feature.servicelog.presentation.report
 
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
 import com.hopcape.odo.core.domain.shared.Amount
 import kotlinx.datetime.LocalDate
-
-/** The "what went wrong?" options a report can cite (single-select). */
-internal enum class OverchargeReason { ABOVE_MARKET_RATE, WORK_NOT_DONE, UNNECESSARY_PARTS }
 
 /** The flagged entry the report is about — shown in the header strip. */
 internal data class ReportHeaderUiState(

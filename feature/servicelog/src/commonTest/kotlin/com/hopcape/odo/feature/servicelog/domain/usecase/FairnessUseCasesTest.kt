@@ -8,7 +8,9 @@ import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -31,10 +33,14 @@ class FairnessUseCasesTest {
 
     /** Benchmarks keyed by category → (averagePaise, sampleSize). */
     private class FakeFairness(private val table: Map<ServiceCategory, Pair<Long, Int>>) : FairnessRepository {
-        override suspend fun estimate(category: ServiceCategory, city: String): FairnessEstimate? =
+        override suspend fun estimates(
+            categories: Set<ServiceCategory>,
+            city: String,
+        ): Map<ServiceCategory, FairnessEstimate> = categories.mapNotNull { category ->
             table[category]?.let { (avg, sample) ->
-                FairnessEstimate(category, city, Amount.of(avg).getOrElse { Amount.ZERO }, sample)
+                category to FairnessEstimate(category, city, Amount.of(avg).getOrElse { Amount.ZERO }, sample)
             }
+        }.toMap()
     }
 
     private class FixedLogs(private val entries: List<ServiceLogEntry>) : ServiceLogRepository {
@@ -43,23 +49,35 @@ class FairnessUseCasesTest {
         override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun mostRecentOdometerKm(carId: CarId): Int? = entries.maxOfOrNull { it.odometer.km }
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> =
+            entries.map { OdometerReading(logId = it.id, date = it.serviceDate, odometer = it.odometer) }
     }
 
     private fun line(category: ServiceCategory, paise: Long) =
         ServiceLogLineItem.of(null, category, paise).getOrElse { error("bad line") }
 
-    private fun entry(id: String, lines: List<ServiceLogLineItem>) = ServiceLogEntry.reconstitute(
+    /**
+     * [verified] attaches a bill, which is what makes an entry eligible for a fairness
+     * verdict at all (self-reported entries are never judged).
+     */
+    private fun entry(
+        id: String,
+        lines: List<ServiceLogLineItem>,
+        verified: Boolean = true,
+        categories: Set<ServiceCategory> = emptySet(),
+        totalPaise: Long? = null,
+    ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = CarId("car-1"),
         ownerId = OwnerId("owner-1"),
         serviceDate = kotlinx.datetime.LocalDate(2026, 1, 1),
         odometerKm = 40_000,
-        totalAmountPaise = lines.sumOf { it.amount.paise },
+        totalAmountPaise = totalPaise ?: lines.sumOf { it.amount.paise },
         workshopName = null,
         notes = null,
         source = LogSource.MANUAL,
-        billId = null,
+        billId = if (verified) BillId("bill-$id") else null,
+        categories = categories,
         lineItems = lines,
     )
 
@@ -78,26 +96,71 @@ class FairnessUseCasesTest {
     }
 
     @Test
-    fun savings_sumsOnlyOverchargedLines() = runTest {
+    fun resolveEntryFairness_breaksDownEveryLine() = runTest {
         val fairness = FakeFairness(
             mapOf(
                 ServiceCategory.BRAKES to (240_000L to 30), // 330k paid → over by 90k
                 ServiceCategory.OIL_CHANGE to (190_000L to 30), // 190k paid → fair
             ),
         )
-        val logs = FixedLogs(
-            listOf(
-                entry(
-                    "1",
-                    listOf(
-                        line(ServiceCategory.BRAKES, 330_000),
-                        line(ServiceCategory.OIL_CHANGE, 190_000),
-                    ),
-                ),
-            ),
+        val entry = entry(
+            "1",
+            listOf(line(ServiceCategory.BRAKES, 330_000), line(ServiceCategory.OIL_CHANGE, 190_000)),
         )
-        val savings = ObserveFairnessSavingsUseCase(logs, fairness).invoke(CarId("car-1"), "Pune").first()
-        assertEquals(1, savings.overchargesCaught)
-        assertEquals(90_000L, savings.overchargeTotal.paise)
+
+        val report = ResolveEntryFairnessUseCase(fairness)(entry, "Pune")!!
+
+        assertEquals(2, report.items.size)
+        val over = assertIs<FairnessVerdict.Over>(report.overall)
+        assertEquals(90_000L, over.by.paise)
+        // The per-line city averages the detail screen's breakdown renders.
+        assertEquals(240_000L, report.items.first { it.category == ServiceCategory.BRAKES }.cityAverage?.paise)
+    }
+
+    @Test
+    fun resolveEntryFairness_fallsBackToTheEntrysSingleCategory() = runTest {
+        // No priced breakdown: the whole total is judged against its one category.
+        val fairness = FakeFairness(mapOf(ServiceCategory.BRAKES to (240_000L to 30)))
+        val entry = entry(
+            "1",
+            lines = emptyList(),
+            categories = setOf(ServiceCategory.BRAKES),
+            totalPaise = 330_000,
+        )
+
+        val report = ResolveEntryFairnessUseCase(fairness)(entry, "Pune")!!
+
+        assertEquals(1, report.items.size)
+        assertIs<FairnessVerdict.Over>(report.overall)
+    }
+
+    @Test
+    fun resolveEntryFairness_selfReportedEntry_isNotJudged() = runTest {
+        val fairness = FakeFairness(mapOf(ServiceCategory.BRAKES to (240_000L to 30)))
+        val entry = entry("1", listOf(line(ServiceCategory.BRAKES, 330_000)), verified = false)
+
+        assertNull(ResolveEntryFairnessUseCase(fairness)(entry, "Pune"))
+    }
+
+    @Test
+    fun resolveEntryFairness_withoutACity_isNotJudged() = runTest {
+        val fairness = FakeFairness(mapOf(ServiceCategory.BRAKES to (240_000L to 30)))
+        val entry = entry("1", listOf(line(ServiceCategory.BRAKES, 330_000)))
+
+        assertNull(ResolveEntryFairnessUseCase(fairness)(entry, city = null))
+    }
+
+    @Test
+    fun resolveEntryFairness_multipleCategoriesOnOneTotal_isNotGuessedAt() = runTest {
+        // Two tags, one amount — there is no honest way to split it.
+        val fairness = FakeFairness(mapOf(ServiceCategory.BRAKES to (240_000L to 30)))
+        val entry = entry(
+            "1",
+            lines = emptyList(),
+            categories = setOf(ServiceCategory.BRAKES, ServiceCategory.OIL_CHANGE),
+            totalPaise = 330_000,
+        )
+
+        assertNull(ResolveEntryFairnessUseCase(fairness)(entry, "Pune"))
     }
 }

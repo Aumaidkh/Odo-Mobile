@@ -18,6 +18,10 @@
     <string name="fc_item_avg">avg %1$s</string>
     <string name="fc_item_over">%1$s over</string>
     <string name="fc_fair_verdict">Fair</string>
+    <!-- A line the owner did not name (logged by category alone). -->
+    <string name="fc_item_unlabelled">This item</string>
+    <!-- No city average exists for this line yet, so it is shown but not judged. -->
+    <string name="fc_item_no_benchmark">no city average yet</string>
 
     <!-- Actions -->
     <string name="fc_report">Report overcharge</string>

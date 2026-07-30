@@ -14,7 +14,7 @@ internal class CheckFairnessUseCase(
     private val fairness: FairnessRepository,
 ) {
     suspend operator fun invoke(category: ServiceCategory, amount: Amount, city: String): FairnessVerdict? {
-        val estimate = fairness.estimate(category, city) ?: return null
+        val estimate = fairness.estimates(setOf(category), city)[category] ?: return null
         return FairnessVerdict.of(amount, estimate)
     }
 }

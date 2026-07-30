@@ -9,11 +9,17 @@ import kotlin.test.assertNull
 
 class ServiceRecordSummaryTest {
 
-    private fun entry(id: String, km: Int, paise: Long, verified: Boolean) = ServiceLogEntry.reconstitute(
+    private fun entry(
+        id: String,
+        km: Int,
+        paise: Long,
+        verified: Boolean,
+        date: LocalDate = LocalDate(2026, 1, 1),
+    ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = CarId("car-1"),
         ownerId = OwnerId("owner-1"),
-        serviceDate = LocalDate(2026, 1, 1),
+        serviceDate = date,
         odometerKm = km,
         totalAmountPaise = paise,
         workshopName = null,
@@ -44,8 +50,23 @@ class ServiceRecordSummaryTest {
         assertEquals(2, summary.serviceCount)
         assertEquals(1, summary.verifiedCount)
         assertEquals(520_000L, summary.totalSpent.paise)
-        assertEquals(54_000, summary.latestOdometer?.km) // highest km = latest
+        assertEquals(54_000, summary.latestOdometer?.km) // same date → the higher reading wins
         assertEquals(0.5f, summary.verifiedRatio)
+    }
+
+    @Test
+    fun latestOdometer_followsTheServiceDate_notTheHighestReading() {
+        // Backdated history: the 2024 service is logged after the 2026 one. The car's
+        // current reading is the one from the most recent service, not the largest number
+        // in the list — which is only the same thing when nothing is ever backdated.
+        val summary = ServiceRecordSummary.of(
+            listOf(
+                entry("recent", km = 41_000, paise = 0, verified = true, date = LocalDate(2026, 6, 1)),
+                entry("old", km = 30_000, paise = 0, verified = false, date = LocalDate(2024, 3, 12)),
+            ),
+        )
+
+        assertEquals(41_000, summary.latestOdometer?.km)
     }
 
     @Test
