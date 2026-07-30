@@ -1,5 +1,12 @@
 package com.hopcape.odo.feature.onboarding.presentation.welcome
 
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
+import com.hopcape.logging.api.HLogger
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
+import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -26,7 +33,7 @@ class WelcomeViewModelTest {
 
     @Test
     fun continuing_goesStraightIntoCarSetup() = runTest(dispatcher) {
-        val viewModel = WelcomeViewModel()
+        val viewModel = viewModel()
 
         viewModel.onEvent(WelcomeEvent.ContinueClicked)
 
@@ -36,12 +43,47 @@ class WelcomeViewModelTest {
 
     @Test
     fun theLegalLinks_areOffered() = runTest(dispatcher) {
-        val viewModel = WelcomeViewModel()
+        val viewModel = viewModel()
 
         viewModel.onEvent(WelcomeEvent.TermsClicked)
         assertEquals(WelcomeEffect.OpenTerms, viewModel.effects.first())
 
         viewModel.onEvent(WelcomeEvent.PrivacyClicked)
         assertEquals(WelcomeEffect.OpenPrivacy, viewModel.effects.first())
+    }
+
+    @Test
+    fun thePitch_marksTheTopOfTheFunnel() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+
+        val viewModel = viewModel(analytics)
+        viewModel.onEvent(WelcomeEvent.ContinueClicked)
+
+        // Shown-then-continued is what makes the first-run funnel measurable at all.
+        assertEquals(
+            listOf(OnboardingTelemetry.Event.WELCOME_SHOWN, OnboardingTelemetry.Event.WELCOME_COMPLETED),
+            analytics.names,
+        )
+    }
+
+    private fun viewModel(analytics: AnalyticsTracker = RecordingAnalytics()) = WelcomeViewModel(
+        telemetry = OnboardingTelemetry(
+            logger = HLogger.asLogger(),
+            analytics = analytics,
+            tracer = APM.asTracer(),
+            ids = IdGenerator { "trace-1" },
+        ),
+    )
+
+    private class RecordingAnalytics : AnalyticsTracker {
+        val names = mutableListOf<String>()
+
+        override fun track(eventName: String, properties: Map<String, Any?>) {
+            names += eventName
+        }
+
+        override fun identify(traits: UserTraits) = Unit
+        override fun setConsent(status: ConsentStatus) = Unit
+        override fun flush() = Unit
     }
 }

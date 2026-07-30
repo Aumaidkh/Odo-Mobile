@@ -23,6 +23,7 @@ import com.hopcape.odo.feature.onboarding.presentation.state.CarStepState
 import com.hopcape.odo.feature.onboarding.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.onboarding.presentation.state.FormField
 import com.hopcape.odo.feature.onboarding.presentation.state.Loadable
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingUiState
 import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookup
@@ -81,6 +82,7 @@ internal class OnboardingViewModel(
     private val completeOnboarding: CompleteOnboardingUseCase,
     private val currentOwner: CurrentOwnerProvider,
     private val sessionStatus: SessionStatusProvider,
+    private val telemetry: OnboardingTelemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingUiState())
@@ -106,6 +108,7 @@ internal class OnboardingViewModel(
     private var savedCarId: CarId? = null
 
     init {
+        telemetry.started()
         loadCatalogOptions()
     }
 
@@ -141,6 +144,7 @@ internal class OnboardingViewModel(
      * seeded is not: rejecting a car usually means one field was wrong, not all four.
      */
     private fun onMatchRejected() {
+        telemetry.manualEntryChosen(hadMatch = _state.value.car.match != null)
         _state.update { it.copy(manualEntry = true, car = it.car.copy(lookup = PlateLookup.Idle)) }
     }
 
@@ -155,7 +159,7 @@ internal class OnboardingViewModel(
     private fun restartLookup() {
         lookupJob?.cancel()
         val plate = _state.value.car.takeIf { it.isPlateLookupReady }?.plate?.text ?: return
-        lookupJob = viewModelScope.launch {
+        lookupJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.PLATE_LOOKUP)) {
             delay(LOOKUP_DEBOUNCE_MILLIS)
             resolvePlate(plate)
         }
@@ -171,7 +175,8 @@ internal class OnboardingViewModel(
      */
     private suspend fun resolvePlate(plate: String) {
         showLookup(PlateLookup.Loading)
-        lookupPlate(plate).fold(ifLeft = ::onLookupFailed, ifRight = ::onCarFound)
+        telemetry.plateLookup { lookupPlate(plate) }
+            .fold(ifLeft = ::onLookupFailed, ifRight = ::onCarFound)
     }
 
     private fun onLookupFailed(error: DomainError) =
@@ -245,8 +250,8 @@ internal class OnboardingViewModel(
     /** Load the brands, years and fuels the manual form can't render without. */
     private fun loadCatalogOptions() {
         showCatalog(Loadable.Loading)
-        viewModelScope.launch {
-            val options = readOrNull { loadCatalog().toOptions() }
+        viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.CATALOG_LOAD)) {
+            val options = telemetry.catalogLoad { readOrNull { loadCatalog().toOptions() } }
             showCatalog(if (options == null) catalogUnavailable() else Loadable.Ready(options))
         }
     }
@@ -267,8 +272,8 @@ internal class OnboardingViewModel(
      */
     private fun loadModelsFor(make: String, onLoaded: (List<CarModel>) -> Unit) {
         modelsJob?.cancel()
-        modelsJob = viewModelScope.launch {
-            onLoaded(readOrNull { loadModels(make) } ?: emptyList())
+        modelsJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.MODELS_LOAD)) {
+            onLoaded(telemetry.modelsLoad(make) { readOrNull { loadModels(make) } ?: emptyList() })
         }
     }
 
@@ -276,14 +281,33 @@ internal class OnboardingViewModel(
 
     private fun onProfileEvent(event: OnboardingEvent.Profile) = when (event) {
         is OnboardingEvent.Profile.NameChanged -> updateProfile { it.copy(name = it.name.update(event.name)) }
-        is OnboardingEvent.Profile.GoalSelected -> updateProfile { it.copy(goal = it.goal.update(event.goal)) }
+        is OnboardingEvent.Profile.GoalSelected -> onGoalSelected(event.goal)
+    }
+
+    /**
+     * The goal is worth an event of its own rather than only appearing on completion: it decides
+     * the surface the owner lands on, so which goals people pick is what says whether those
+     * surfaces are the right three.
+     */
+    private fun onGoalSelected(goal: OnboardingGoalOption) {
+        telemetry.goalSelected(goal.toDomain())
+        updateProfile { it.copy(goal = it.goal.update(goal)) }
     }
 
     /* ------------------------------ Step 4 ------------------------------ */
 
     private fun onScanEvent(event: OnboardingEvent.Scan) = when (event) {
-        OnboardingEvent.Scan.ScanClicked -> emit(OnboardingEffect.OpenBillScanner)
-        OnboardingEvent.Scan.SkipClicked -> finish()
+        OnboardingEvent.Scan.ScanClicked -> {
+            // Bills scanned per month is the product's North Star, so where a scan was launched
+            // from is worth knowing — this is the first one an owner is ever offered.
+            telemetry.firstScanClicked()
+            emit(OnboardingEffect.OpenBillScanner)
+        }
+
+        OnboardingEvent.Scan.SkipClicked -> {
+            telemetry.firstScanSkipped()
+            finish()
+        }
     }
 
     /* ------------------------------ Flow ------------------------------ */
@@ -296,8 +320,9 @@ internal class OnboardingViewModel(
     private fun advance() {
         val current = _state.value
         if (!current.canContinue || saveJob?.isActive == true) return
-        saveJob = viewModelScope.launch {
+        saveJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.STEP_SUBMIT)) {
             if (!persist(current)) return@launch
+            telemetry.stepAdvanced(from = current.step)
             val next = current.step.next
             if (next == null) finish() else showStep(next)
         }
@@ -319,22 +344,32 @@ internal class OnboardingViewModel(
      * Save the car, remembering its id so a later pass over this step edits that car rather
      * than adding another. Which of the two it is, is [SaveCarUseCase]'s business.
      */
-    private suspend fun saveCarStep(state: OnboardingUiState): Boolean = saveCar(
-        command = state.toSaveCarCommand(),
-        ownerId = currentOwner.currentOwnerId(),
-        existing = savedCarId,
-    ).fold(
-        ifLeft = { errors -> reportSaveFailure(errors); false },
-        ifRight = { car -> savedCarId = car.id; true },
-    )
+    private suspend fun saveCarStep(state: OnboardingUiState): Boolean {
+        val command = state.toSaveCarCommand()
+        // Make and fuel are read off the command rather than the state: it is the one place
+        // that resolves which route answered the step, and telemetry must report what was
+        // actually stored.
+        return telemetry.carSave(
+            edit = savedCarId != null,
+            make = command.make,
+            fuel = command.fuelType?.name,
+        ) {
+            saveCar(command = command, ownerId = currentOwner.currentOwnerId(), existing = savedCarId)
+        }.fold(
+            ifLeft = { errors -> reportSaveFailure(errors); false },
+            ifRight = { car -> savedCarId = car.id; true },
+        )
+    }
 
     /** Save the owner's answers and stamp setup as finished. */
-    private suspend fun saveProfile(state: OnboardingUiState): Boolean = completeOnboarding(
-        CompleteOnboardingCommand(
-            name = state.profile.name.text,
-            goal = state.profile.goal.value?.toDomain(),
-        ),
-    ).fold(
+    private suspend fun saveProfile(state: OnboardingUiState): Boolean = telemetry.profileSave {
+        completeOnboarding(
+            CompleteOnboardingCommand(
+                name = state.profile.name.text,
+                goal = state.profile.goal.value?.toDomain(),
+            ),
+        )
+    }.fold(
         ifLeft = { errors -> reportSaveFailure(errors); false },
         ifRight = { true },
     )
@@ -384,7 +419,13 @@ internal class OnboardingViewModel(
             return
         }
         val previous = current.step.previous
-        if (previous == null) emit(OnboardingEffect.NavigateBack) else showStep(previous)
+        if (previous == null) {
+            telemetry.abandoned(current.step)
+            emit(OnboardingEffect.NavigateBack)
+        } else {
+            telemetry.stepBack(current.step)
+            showStep(previous)
+        }
     }
 
     /**
@@ -392,12 +433,16 @@ internal class OnboardingViewModel(
      * only if there's no session — the ask can finally be concrete ("back up *these*
      * records") instead of an account wall on a blank app.
      */
-    private fun finish() = emit(
-        OnboardingEffect.Finish(
-            start = chosenStartDestination(),
-            signInFirst = !sessionStatus.isSignedIn(),
-        ),
-    )
+    private fun finish() {
+        val start = chosenStartDestination()
+        val signInFirst = !sessionStatus.isSignedIn()
+        telemetry.completed(
+            goal = _state.value.profile.goal.value?.toDomain(),
+            destination = start,
+            signInOffered = signInFirst,
+        )
+        emit(OnboardingEffect.Finish(start = start, signInFirst = signInFirst))
+    }
 
     /**
      * The surface the owner's goal earned them (PRD §5.1). A missing goal falls back to the

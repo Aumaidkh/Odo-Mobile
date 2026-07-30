@@ -3,6 +3,11 @@ package com.hopcape.odo.feature.onboarding.presentation
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
+import com.hopcape.logging.api.HLogger
+import com.hopcape.performance.api.APM
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
@@ -533,6 +538,62 @@ class OnboardingViewModelTest {
         assertTrue(viewModel.effects.first() is OnboardingEffect.SaveFailed)
     }
 
+    /* ------------------------------ Telemetry ------------------------------ */
+
+    @Test
+    fun theFunnel_isTrackedFromTheFirstStepToCompletion() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        completeTheWholeFlow(viewModel)
+
+        assertEquals(
+            listOf(
+                OnboardingTelemetry.Event.STARTED,
+                OnboardingTelemetry.Event.CAR_SAVED,
+                OnboardingTelemetry.Event.STEP_ADVANCED,
+                OnboardingTelemetry.Event.GOAL_SELECTED,
+                OnboardingTelemetry.Event.PROFILE_SAVED,
+                OnboardingTelemetry.Event.STEP_ADVANCED,
+                OnboardingTelemetry.Event.FIRST_SCAN_SKIPPED,
+                OnboardingTelemetry.Event.COMPLETED,
+            ),
+            analytics.names.filterNot { it == OnboardingTelemetry.Event.PLATE_LOOKUP },
+        )
+    }
+
+    @Test
+    fun aFailedSave_isTrackedByTheTypeOfWhatFailed() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(cars = FakeCarRepository(failing = true), analytics = analytics)
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        val failure = analytics.events.last { it.first == OnboardingTelemetry.Event.SAVE_FAILED }
+        assertEquals(OnboardingStep.CAR.name, failure.second[OnboardingTelemetry.Key.STEP])
+        // The *type* that failed, never the answer that failed it.
+        assertEquals("PersistenceFailure", failure.second[OnboardingTelemetry.Key.ERRORS])
+    }
+
+    @Test
+    fun noEvent_carriesThePlateOrTheOwnersName() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        completeTheWholeFlow(viewModel)
+
+        // A plate identifies a person's car and a name identifies the person; neither belongs
+        // in an analytics warehouse, however convenient it would be for debugging.
+        val emitted = analytics.propertyValues() + analytics.names
+        assertTrue(emitted.none { it.contains(FOUND_PLATE, ignoreCase = true) }, "a plate was tracked: $emitted")
+        assertTrue(emitted.none { it.contains(NAME, ignoreCase = true) }, "a name was tracked: $emitted")
+    }
+
     /* ------------------------------ Helpers ------------------------------ */
 
     private fun viewModel(
@@ -541,6 +602,7 @@ class OnboardingViewModelTest {
         cars: FakeCarRepository = FakeCarRepository(),
         profiles: FakeProfileRepository = FakeProfileRepository(),
         signedIn: Boolean = false,
+        analytics: AnalyticsTracker = RecordingAnalytics(),
     ) = OnboardingViewModel(
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
@@ -549,7 +611,51 @@ class OnboardingViewModelTest {
         completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
         currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
+        // The real telemetry, so its own code runs under test; only the tracker is a fake. The
+        // logger and tracer facades no-op until the app bootstrap configures them.
+        telemetry = OnboardingTelemetry(
+            logger = HLogger.asLogger(),
+            analytics = analytics,
+            tracer = APM.asTracer(),
+            ids = IdGenerator { "trace-1" },
+        ),
     )
+
+    /**
+     * Walk every step the way an owner would, ending on the skipped first scan.
+     *
+     * Each step's write has to finish before the next tap: a Continue while a save is in flight
+     * is deliberately ignored, so tapping straight through would leave the flow on step one.
+     */
+    private fun TestScope.completeTheWholeFlow(viewModel: OnboardingViewModel) {
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Profile.NameChanged(NAME))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        advanceUntilIdle()
+    }
+
+    /** Captures what was tracked, so the funnel and the PII guard can both be asserted. */
+    private class RecordingAnalytics : AnalyticsTracker {
+        val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+
+        val names: List<String> get() = events.map { it.first }
+
+        fun propertyValues(): List<String> = events.flatMap { (_, props) -> props.values.map { it.toString() } }
+
+        override fun track(eventName: String, properties: Map<String, Any?>) {
+            events += eventName to properties
+        }
+
+        override fun identify(traits: UserTraits) = Unit
+        override fun setConsent(status: ConsentStatus) = Unit
+        override fun flush() = Unit
+    }
 
     /** Records what the flow stored, and can be told to fail like a full disk would. */
     private class FakeCarRepository(var failing: Boolean = false) : CarRepository {
@@ -645,6 +751,9 @@ class OnboardingViewModelTest {
 
         /** A plate the registry resolves to a car whose make the **catalog does not** list. */
         const val FOUND_PLATE = "MH12AB1234"
+
+        /** The owner's name, so the PII guard can look for exactly what was entered. */
+        const val NAME = "Rahul"
 
         /** A plate resolving to a car the catalog knows, so the prefill has something to seed. */
         const val HONDA_PLATE = "MH12CD5678"
