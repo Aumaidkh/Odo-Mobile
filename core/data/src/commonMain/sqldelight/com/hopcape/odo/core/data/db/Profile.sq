@@ -6,6 +6,11 @@
 -- row is created by trigger at signup — before onboarding has asked anything.
 -- A pull can therefore legitimately bring back a nameless profile.
 --
+-- `city` is nullable and stays null until the owner sets it on their profile
+-- screen; onboarding deliberately does not ask. It is the key for fairness
+-- benchmarks, so until it is filled the app shows no verdicts at all — which is
+-- the honest outcome, not a degraded one.
+--
 -- Sync columns are the mandatory set from SYNC_DESIGN §4.1; the engine that
 -- reads them lands in M5, but the columns ship with the first migration so
 -- there is nothing to retrofit.
@@ -14,6 +19,7 @@ CREATE TABLE profiles (
     full_name               TEXT,
     onboarding_goal         TEXT,
     onboarding_completed_at TEXT,
+    city                    TEXT,
     created_at              TEXT NOT NULL,
     updated_at              TEXT NOT NULL,
     deleted_at              TEXT,
@@ -31,10 +37,10 @@ CREATE TABLE profiles (
 -- first write owns the creation time.
 insertProfile:
 INSERT OR IGNORE INTO profiles (
-    id, full_name, onboarding_goal, onboarding_completed_at,
+    id, full_name, onboarding_goal, onboarding_completed_at, city,
     created_at, updated_at, deleted_at, remote_version, sync_status
 ) VALUES (
-    :id, :fullName, :onboardingGoal, :onboardingCompletedAt,
+    :id, :fullName, :onboardingGoal, :onboardingCompletedAt, :city,
     :now, :now, NULL, NULL, :syncStatus
 );
 
@@ -46,6 +52,7 @@ UPDATE profiles
 SET full_name               = :fullName,
     onboarding_goal         = :onboardingGoal,
     onboarding_completed_at = :onboardingCompletedAt,
+    city                    = :city,
     updated_at              = :updatedAt,
     sync_status             = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;

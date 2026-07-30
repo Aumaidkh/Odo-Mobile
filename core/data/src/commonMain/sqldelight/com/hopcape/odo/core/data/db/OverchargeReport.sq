@@ -1,0 +1,43 @@
+-- A user's "report this overcharge" on a flagged service.
+--
+-- Unlike service_log_categories, this **is** a syncable table in its own right: a
+-- report is its own record with its own identity and lifecycle — submitted once,
+-- about an entry, feeding the fairness pool and support. So it ships the full sync
+-- column set and takes a `SyncEntity` slot after SERVICE_LOGS (it references one).
+--
+-- DB_SCHEMA has no `overcharge_reports` table yet; the server side is still to be
+-- written. Storing locally regardless is the point — a report the owner took the
+-- trouble to file must not evaporate because the endpoint does not exist yet. It
+-- sits PENDING until there is somewhere to push it.
+CREATE TABLE overcharge_reports (
+    id             TEXT NOT NULL PRIMARY KEY,
+    service_log_id TEXT NOT NULL,
+    owner_id       TEXT NOT NULL,
+    reason         TEXT NOT NULL,
+    category       TEXT,
+    note           TEXT,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX idx_overcharge_reports_log
+    ON overcharge_reports (service_log_id) WHERE deleted_at IS NULL;
+
+insertOverchargeReport:
+INSERT INTO overcharge_reports (
+    id, service_log_id, owner_id, reason, category, note,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :serviceLogId, :ownerId, :reason, :category, :note,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- Whether this entry has already been reported — the detail screen shows its
+-- "reported" state rather than offering the action twice.
+selectByServiceLog:
+SELECT *
+FROM overcharge_reports
+WHERE service_log_id = :serviceLogId AND deleted_at IS NULL;

@@ -23,7 +23,20 @@ class OwnerProfile private constructor(
     val name: OwnerName?,
     val goal: OnboardingGoal?,
     val onboardingCompletedAt: Instant?,
+    val city: String?,
 ) {
+    /**
+     * Set the owner's home city — the key every fairness benchmark is looked up by
+     * ("Pune average"). Null until they set it on their profile: onboarding deliberately
+     * does not ask, because a wrong city produces confident wrong verdicts and the flow
+     * is already long. Blank input clears it rather than storing an empty string.
+     *
+     * A plain `String`, not a value object, because that is what the fairness models and
+     * the benchmark RPC take end to end; wrapping it here would only unwrap it there.
+     */
+    fun withCity(city: String?): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null })
+
     /**
      * Whether first-run setup is finished. Stored as a timestamp rather than a boolean
      * because *when* someone onboarded is worth knowing (funnel analysis, "new user"
@@ -40,7 +53,7 @@ class OwnerProfile private constructor(
      * call can't rewrite history.
      */
     fun completeOnboarding(at: Instant): OwnerProfile =
-        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at)
+        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city)
 
     companion object {
         /**
@@ -49,7 +62,7 @@ class OwnerProfile private constructor(
          * feature's, so by the time this is reached there is nothing left to check.
          */
         fun new(id: OwnerId, name: OwnerName, goal: OnboardingGoal): OwnerProfile =
-            OwnerProfile(id = id, name = name, goal = goal, onboardingCompletedAt = null)
+            OwnerProfile(id = id, name = name, goal = goal, onboardingCompletedAt = null, city = null)
 
         /**
          * Rehydrate from already-persisted, trusted data (the local DB, or a row pulled
@@ -66,6 +79,7 @@ class OwnerProfile private constructor(
             name: String?,
             goal: OnboardingGoal?,
             onboardingCompletedAt: Instant?,
+            city: String? = null,
         ): OwnerProfile = OwnerProfile(
             id = id,
             name = name?.let {
@@ -73,6 +87,7 @@ class OwnerProfile private constructor(
             },
             goal = goal,
             onboardingCompletedAt = onboardingCompletedAt,
+            city = city,
         )
     }
 }

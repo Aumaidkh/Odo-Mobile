@@ -112,6 +112,7 @@ class OwnerProfileRepositoryImplTest {
             fullName = null,
             onboardingGoal = null,
             onboardingCompletedAt = null,
+            city = null,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
         )
@@ -132,6 +133,7 @@ class OwnerProfileRepositoryImplTest {
             fullName = "Rahul",
             onboardingGoal = "TIME_TRAVEL",
             onboardingCompletedAt = null,
+            city = null,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
         )

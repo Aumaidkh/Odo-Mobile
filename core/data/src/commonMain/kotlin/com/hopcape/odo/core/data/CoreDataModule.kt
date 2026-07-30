@@ -5,12 +5,29 @@ import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
 import com.hopcape.odo.core.data.db.DriverFactory
+import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
+import com.hopcape.odo.core.data.fairness.FairnessRepositoryImpl
+import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
+import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
+import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
+import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
+import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.owner.ProfileCityProvider
+import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
+import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
+import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
+import com.hopcape.odo.core.data.sync.NoopSyncScheduler
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.db.createOdoDatabase
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
+import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import app.cash.sqldelight.db.SqlDriver
 import org.koin.dsl.module
@@ -30,6 +47,38 @@ val coreDataModule = module {
     single<CarRepository> { CarRepositoryImpl(database = get()) }
     single<OwnerProfileRepository> { OwnerProfileRepositoryImpl(database = get()) }
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
+
+    // Observability for the whole data layer, behind one facade. A `single`: it holds no
+    // per-call state — the trace comes from the calling coroutine, not from this object.
+    single { DataTelemetry(logger = get(), tracer = get(), crash = get()) }
+
+    // The platform scheduler is a no-op until M5. THIS ONE LINE is the swap: the
+    // repositories already ask for a sync after every write, so a real WorkManager-backed
+    // scheduler starts draining the outbox without a single call site changing.
+    single<SyncScheduler> { NoopSyncScheduler() }
+
+    single<ServiceLogRepository> {
+        ServiceLogRepositoryImpl(database = get(), telemetry = get(), scheduler = get(), remote = get())
+    }
+    single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
+    single<OverchargeReportRepository> {
+        OverchargeReportRepositoryImpl(
+            database = get(),
+            telemetry = get(),
+            idGenerator = get(),
+            scheduler = get(),
+            remote = get(),
+        )
+    }
+    // The owner's city, read from their profile — null until they set it, which is what
+    // keeps fairness silent rather than guessing.
+    single<CurrentCityProvider> { ProfileCityProvider(database = get(), telemetry = get()) }
+
+    // Remote data sources. These three lines are the entire swap when :core:network lands:
+    // every repository above already talks to the port, not to a client.
+    single<ServiceLogRemoteDataSource> { FakeServiceLogRemoteDataSource() }
+    single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
+    single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     // Development stub: it knows a couple of hardcoded plates so the "is this your
     // car?" path can be walked, and answers RegistrationNotFound for everything else.
     // MUST be swapped for a real adapter before launch — this one line is the swap.
