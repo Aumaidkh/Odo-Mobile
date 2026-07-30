@@ -4,9 +4,11 @@ import androidx.compose.runtime.Composable
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.servicelog.model.RecordScore
 import com.hopcape.odo.core.domain.servicelog.model.RecordStrength
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceRecordSummary
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
@@ -14,14 +16,15 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
+import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
 private fun rupees(paise: Long): Amount = Amount.of(paise).getOrElse { Amount.ZERO }
 private fun km(value: Int): Distance = Distance.of(value).getOrElse { error("bad sample km=$value") }
 
 /**
- * Canned list state mirroring the mockup, for `@Preview`s and — until a ViewModel
- * lands — the running route. One data set drives both directions.
+ * Canned list state mirroring the mockup, for `@Preview`s and — until the ViewModel is
+ * wired into the route — the running screen. One data set drives both directions.
  */
 private val sampleCards: List<ServiceLogCardUiState> = listOf(
     ServiceLogCardUiState(
@@ -31,8 +34,7 @@ private val sampleCards: List<ServiceLogCardUiState> = listOf(
         odometer = km(54_000),
         amount = rupees(320_000),
         verification = VerificationStatus.VERIFIED,
-        categories = emptySet(),
-        workDone = "Oil change + oil filter",
+        workDone = WorkDone.Described(listOf("Oil change", "oil filter")),
         fairness = ServiceLogFairnessBadge.FairPrice,
     ),
     ServiceLogCardUiState(
@@ -42,8 +44,7 @@ private val sampleCards: List<ServiceLogCardUiState> = listOf(
         odometer = km(48_500),
         amount = rupees(480_000),
         verification = VerificationStatus.VERIFIED,
-        categories = emptySet(),
-        workDone = "Front brake pads",
+        workDone = WorkDone.Described(listOf("Front brake pads")),
         fairness = ServiceLogFairnessBadge.Overcharged(by = rupees(110_000)),
     ),
     ServiceLogCardUiState(
@@ -53,8 +54,7 @@ private val sampleCards: List<ServiceLogCardUiState> = listOf(
         odometer = km(43_200),
         amount = rupees(640_000),
         verification = VerificationStatus.SELF_REPORTED,
-        categories = emptySet(),
-        workDone = "Full periodic service",
+        workDone = WorkDone.Tagged(listOf(ServiceCategory.GENERAL_SERVICE)),
         fairness = ServiceLogFairnessBadge.AddBillToVerify,
     ),
     ServiceLogCardUiState(
@@ -64,8 +64,7 @@ private val sampleCards: List<ServiceLogCardUiState> = listOf(
         odometer = km(38_000),
         amount = rupees(240_000),
         verification = VerificationStatus.VERIFIED,
-        categories = emptySet(),
-        workDone = "AC re-gas",
+        workDone = WorkDone.Tagged(listOf(ServiceCategory.AC)),
         fairness = ServiceLogFairnessBadge.FairPrice,
     ),
 )
@@ -88,6 +87,9 @@ internal val sampleFairnessBadges: List<ServiceLogFairnessBadge> = listOf(
     ServiceLogFairnessBadge.FairPrice,
     ServiceLogFairnessBadge.Overcharged(by = rupees(110_000)),
     ServiceLogFairnessBadge.AddBillToVerify,
+    ServiceLogFairnessBadge.NotEnoughData(
+        FairnessEstimate(ServiceCategory.AC, city = "Pune", cityAverage = rupees(210_000), sampleSize = 3),
+    ),
     ServiceLogFairnessBadge.NotYetChecked,
 )
 
@@ -102,45 +104,31 @@ internal fun sampleLoadedContent(
     },
     summary = sampleSummary,
     savings = sampleSavings,
-    flaggedCount = 1,
+    counts = ServiceLogFilterCounts(all = sampleCards.size, verified = 3, flagged = 1),
 )
 
-/** Sample state (stands in for the ViewModel until it lands). */
+/** Sample state (stands in for the ViewModel until the route is wired to it). */
 internal fun sampleServiceLogListState(
     filter: ServiceLogFilter = ServiceLogFilter.ALL,
-): ServiceLogListUiState = ServiceLogListUiState(content = sampleLoadedContent(filter), filter = filter)
+    direction: ServiceLogDirection = ServiceLogDirection.LEDGER,
+): ServiceLogListUiState = ServiceLogListUiState(
+    content = sampleLoadedContent(filter),
+    filter = filter,
+    direction = direction,
+)
 
 @OdoThemePreviews
 @Composable
 private fun LedgerListPreview() = OdoPreview(padded = false) {
-    ServiceLogListScreen(
-        state = sampleServiceLogListState(),
-        direction = ServiceLogDirection.LEDGER,
-        onDirectionChange = {},
-        onOpenDetail = {},
-        onAddLog = {},
-        onScanBill = {},
-        onShareRecord = {},
-        onOpenFilters = {},
-        onFilterChange = {},
-        onBack = {},
-    )
+    ServiceLogListScreen(state = sampleServiceLogListState(), onEvent = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun TimelineListPreview() = OdoPreview(padded = false) {
     ServiceLogListScreen(
-        state = sampleServiceLogListState(),
-        direction = ServiceLogDirection.TIMELINE,
-        onDirectionChange = {},
-        onOpenDetail = {},
-        onAddLog = {},
-        onScanBill = {},
-        onShareRecord = {},
-        onOpenFilters = {},
-        onFilterChange = {},
-        onBack = {},
+        state = sampleServiceLogListState(direction = ServiceLogDirection.TIMELINE),
+        onEvent = {},
     )
 }
 
@@ -149,14 +137,6 @@ private fun TimelineListPreview() = OdoPreview(padded = false) {
 private fun EmptyLedgerPreview() = OdoPreview(padded = false) {
     ServiceLogListScreen(
         state = ServiceLogListUiState(content = ServiceLogListUiState.Content.Empty),
-        direction = ServiceLogDirection.LEDGER,
-        onDirectionChange = {},
-        onOpenDetail = {},
-        onAddLog = {},
-        onScanBill = {},
-        onShareRecord = {},
-        onOpenFilters = {},
-        onFilterChange = {},
-        onBack = {},
+        onEvent = {},
     )
 }

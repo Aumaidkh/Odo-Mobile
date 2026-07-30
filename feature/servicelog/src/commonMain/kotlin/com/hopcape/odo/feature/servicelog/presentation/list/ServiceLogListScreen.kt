@@ -47,6 +47,7 @@ import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.servicelog.presentation.list.components.CombinedHeader
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
@@ -67,31 +68,24 @@ import com.hopcape.odo.feature.servicelog.resources.sl_list_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The service-log list — the feature's home. Stateless: it renders [state]. A shared
- * header (spend/savings + record score) sits above a segmented [direction] toggle;
- * only the list below the toggle swaps between Ledger (1a) and Timeline (1b), sliding
- * toward the tapped segment. Navigation is hoisted via the `on…` callbacks.
+ * The service-log list — the feature's home. Stateless: it renders [state] and reports
+ * what the owner did through [onEvent]. A shared header (spend/savings + record score)
+ * sits above a segmented direction toggle; only the list below the toggle swaps between
+ * Ledger (1a) and Timeline (1b), sliding toward the tapped segment.
  */
 @Composable
 internal fun ServiceLogListScreen(
     state: ServiceLogListUiState,
-    direction: ServiceLogDirection,
-    onDirectionChange: (ServiceLogDirection) -> Unit,
-    onOpenDetail: (logId: String) -> Unit,
-    onAddLog: () -> Unit,
-    onScanBill: () -> Unit,
-    onShareRecord: () -> Unit,
-    onOpenFilters: () -> Unit,
-    onFilterChange: (ServiceLogFilter) -> Unit,
-    onBack: () -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val direction = state.direction
     OdoScreen(
         title = stringResource(Res.string.sl_list_title),
-        onBack = onBack,
+        onBack = { onEvent(ServiceLogListEvent.Open.Back) },
         modifier = modifier,
-        actions = { TopBarAction(direction, onOpenFilters, onShareRecord) },
-        floatingActionButton = { AddServiceFab(onClick = onAddLog) },
+        actions = { TopBarAction(direction, onEvent) },
+        floatingActionButton = { AddServiceFab(onClick = { onEvent(ServiceLogListEvent.Open.AddForm) }) },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -101,16 +95,25 @@ internal fun ServiceLogListScreen(
                 ServiceLogListUiState.Content.Loading ->
                     Box(Modifier.weight(1f).fillMaxSize()) { LoadingBox() }
 
+                is ServiceLogListUiState.Content.Failed ->
+                    Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
+                        OdoText(
+                            text = content.message.asString(),
+                            style = OdoTheme.typography.body,
+                            color = OdoTheme.colors.textDim,
+                        )
+                    }
+
                 ServiceLogListUiState.Content.Empty -> {
-                    DirectionSegmentedToggle(direction, onDirectionChange)
+                    DirectionSegmentedToggle(direction, onEvent)
                     Box(Modifier.weight(1f).fillMaxSize()) {
-                        ServiceLogEmpty(direction, onScanBill, onAddLog)
+                        ServiceLogEmpty(direction, onEvent)
                     }
                 }
 
                 is ServiceLogListUiState.Content.Loaded -> {
                     CombinedHeader(content)
-                    DirectionSegmentedToggle(direction, onDirectionChange)
+                    DirectionSegmentedToggle(direction, onEvent)
                     val motion = OdoTheme.motion
                     Box(Modifier.weight(1f).fillMaxSize()) {
                         AnimatedContent(
@@ -127,10 +130,8 @@ internal fun ServiceLogListScreen(
                             label = "servicelog-direction",
                         ) { dir ->
                             when (dir) {
-                                ServiceLogDirection.LEDGER ->
-                                    LedgerList(content, state.filter, onFilterChange, onOpenDetail)
-                                ServiceLogDirection.TIMELINE ->
-                                    TimelineList(content, onOpenDetail)
+                                ServiceLogDirection.LEDGER -> LedgerList(content, state.filter, onEvent)
+                                ServiceLogDirection.TIMELINE -> TimelineList(content, onEvent)
                             }
                         }
                     }
@@ -144,8 +145,7 @@ internal fun ServiceLogListScreen(
 @Composable
 private fun TopBarAction(
     direction: ServiceLogDirection,
-    onOpenFilters: () -> Unit,
-    onShareRecord: () -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
     val fast = OdoTheme.motion.fastMillis
     AnimatedContent(
@@ -160,12 +160,12 @@ private fun TopBarAction(
             ServiceLogDirection.LEDGER -> OdoCircularIconButton(
                 imageVector = IcFilter,
                 contentDescription = stringResource(Res.string.sl_cd_filter),
-                onClick = onOpenFilters,
+                onClick = { onEvent(ServiceLogListEvent.Open.Filters) },
             )
             ServiceLogDirection.TIMELINE -> OdoCircularIconButton(
                 imageVector = IcShare,
                 contentDescription = stringResource(Res.string.sl_cd_share),
-                onClick = onShareRecord,
+                onClick = { onEvent(ServiceLogListEvent.Open.ShareRecord) },
             )
         }
     }
@@ -175,8 +175,9 @@ private fun TopBarAction(
 @Composable
 private fun DirectionSegmentedToggle(
     direction: ServiceLogDirection,
-    onChange: (ServiceLogDirection) -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
+    val onChange: (ServiceLogDirection) -> Unit = { onEvent(ServiceLogListEvent.View.DirectionSelected(it)) }
     Surface(shape = OdoTheme.shapes.pill, color = OdoTheme.colors.surfaceRaised) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(OdoTheme.spacing.xs),
@@ -251,9 +252,10 @@ private fun LoadingBox() {
 @Composable
 private fun ServiceLogEmpty(
     direction: ServiceLogDirection,
-    onScanBill: () -> Unit,
-    onAddLog: () -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
+    val onScanBill = { onEvent(ServiceLogListEvent.Open.BillScanner) }
+    val onAddLog = { onEvent(ServiceLogListEvent.Open.AddForm) }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (direction) {
             ServiceLogDirection.LEDGER -> OdoEmptyState(
@@ -312,11 +314,11 @@ private fun ServiceLogEmpty(
 @OdoThemePreviews
 @Composable
 private fun ServiceLogEmptyLedgerPreview() = OdoPreview(padded = false) {
-    ServiceLogEmpty(ServiceLogDirection.LEDGER, onScanBill = {}, onAddLog = {})
+    ServiceLogEmpty(ServiceLogDirection.LEDGER, onEvent = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun ServiceLogEmptyTimelinePreview() = OdoPreview(padded = false) {
-    ServiceLogEmpty(ServiceLogDirection.TIMELINE, onScanBill = {}, onAddLog = {})
+    ServiceLogEmpty(ServiceLogDirection.TIMELINE, onEvent = {})
 }

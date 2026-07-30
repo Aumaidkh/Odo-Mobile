@@ -2,41 +2,51 @@ package com.hopcape.odo.feature.servicelog.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
+import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEffect
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
-import com.hopcape.odo.feature.servicelog.presentation.detail.sampleDetailState
-import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
+import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailViewModel
+import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormEffect
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormScreen
-import com.hopcape.odo.feature.servicelog.presentation.form.sampleFormState
-import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
-import com.hopcape.odo.feature.servicelog.presentation.report.sampleReportState
-import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetContent
-import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFilter
+import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormViewModel
+import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListEffect
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListScreen
-import com.hopcape.odo.feature.servicelog.presentation.list.sampleServiceLogListState
+import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListViewModel
+import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeEffect
+import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
+import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeViewModel
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordEffect
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetContent
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
  * ServiceLog's contribution to the navigation graph: registers the whole
- * [OdoDestination.ServiceLog] sealed group — the list, a single entry's detail, and
- * the add/edit form. All three belong to this one feature, so one provider
- * contributes them (a `registerEntries` block can contribute any number of entries).
- * Collected by the `:app` host (`getAll<FeatureEntryProvider>()`), so no other module
- * references servicelog directly.
+ * [OdoDestination.ServiceLog] sealed group — the list, a single entry's detail, the
+ * add/edit form, the overcharge report and the share sheet. All five belong to this one
+ * feature, so one provider contributes them (a `registerEntries` block can contribute any
+ * number of entries). Collected by the `:app` host (`getAll<FeatureEntryProvider>()`), so
+ * no other module references servicelog directly.
  *
- * The keys are typed, so each entry receives its args directly — `key.carId`,
- * `key.logId`, `key.editLogId` — no stringly-typed route parsing.
+ * The keys are typed, so each entry receives its args directly — `key.carId`, `key.logId`,
+ * `key.editLogId` — no stringly-typed route parsing.
+ *
+ * The routes below are **only** a state-and-effects bridge: they render a ViewModel's
+ * state, forward its events, and translate its effects into navigation commands. Every
+ * decision about *what* should happen is made in presentation, which is why the `when`
+ * blocks here contain no logic beyond building the key.
  */
 internal class ServiceLogFeatureEntryProvider(
     private val navigationManager: NavigationManager,
@@ -46,110 +56,154 @@ internal class ServiceLogFeatureEntryProvider(
         entry<OdoDestination.ServiceLog.Detail> { key -> ServiceLogDetailRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.AddEdit> { key -> ServiceLogFormRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.ReportOvercharge> { key -> ServiceLogReportOverchargeRoute(key, navigationManager) }
-        entry<OdoDestination.ServiceLog.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
-            ShareRecordSheetContent()
+        entry<OdoDestination.ServiceLog.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
+            ShareRecordRoute(key)
         }
     }
 }
 
 /**
- * The list route host — the hook between the (Step 3) list ViewModel and navigation.
- * Opening a card jumps to its [OdoDestination.ServiceLog.Detail]; the add affordance
- * opens the [OdoDestination.ServiceLog.AddEdit] form for the same car.
+ * The list route host. Opening a card jumps to its [OdoDestination.ServiceLog.Detail]; the
+ * add affordance opens the [OdoDestination.ServiceLog.AddEdit] form for the same car.
  */
 @Composable
 internal fun ServiceLogListRoute(
     key: OdoDestination.ServiceLog.List,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3+): replace the sample state + local direction/filter with a
-    //  koinViewModel once the list ViewModel lands. The direction toggle is a
-    //  temporary affordance to compare the two mockups live.
-    var direction by remember { mutableStateOf(ServiceLogDirection.LEDGER) }
-    var filter by remember { mutableStateOf(ServiceLogFilter.ALL) }
-    ServiceLogListScreen(
-        state = sampleServiceLogListState(filter),
-        direction = direction,
-        onDirectionChange = { direction = it },
-        onOpenDetail = { logId ->
-            navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = key.carId))
-        },
-        onAddLog = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId)) },
-        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
-        onShareRecord = { navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId)) },
-        onOpenFilters = { /* TODO: advanced filters sheet. */ },
-        onFilterChange = { filter = it },
-        onBack = { navigationManager.back() },
-    )
+    val viewModel = koinViewModel<ServiceLogListViewModel> { parametersOf(CarId(key.carId)) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is ServiceLogListEffect.OpenEntry ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = effect.id.value, carId = key.carId))
+
+            ServiceLogListEffect.OpenAddForm ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId))
+
+            ServiceLogListEffect.OpenBillScanner ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+
+            ServiceLogListEffect.OpenShareRecord ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
+
+            // TODO(filters): an advanced-filters sheet. The three chips cover the MVP, so
+            //  the tap is collected rather than opening a screen that filters nothing.
+            ServiceLogListEffect.OpenFilters -> Unit
+
+            ServiceLogListEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    ServiceLogListScreen(state = state, onEvent = viewModel::onEvent)
 }
 
-/**
- * The detail route host — the combined fairness + resale-proof view for one entry.
- */
+/** The detail route host — the combined fairness + resale-proof view for one entry. */
 @Composable
 internal fun ServiceLogDetailRoute(
     key: OdoDestination.ServiceLog.Detail,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId.
-    ServiceLogDetailScreen(
-        state = sampleDetailState(),
-        onShare = { navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId)) },
-        onReportOvercharge = {
-            navigationManager.navigateTo(OdoDestination.ServiceLog.ReportOvercharge(logId = key.logId, carId = key.carId))
-        },
-        onBack = { navigationManager.back() },
-    )
+    val viewModel = koinViewModel<ServiceLogDetailViewModel> {
+        parametersOf(CarId(key.carId), ServiceLogId(key.logId))
+    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            ServiceLogDetailEffect.OpenShareRecord ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
+
+            is ServiceLogDetailEffect.OpenReportOvercharge ->
+                navigationManager.navigateTo(
+                    OdoDestination.ServiceLog.ReportOvercharge(logId = effect.id.value, carId = key.carId),
+                )
+
+            is ServiceLogDetailEffect.OpenEditForm ->
+                navigationManager.navigateTo(
+                    OdoDestination.ServiceLog.AddEdit(carId = key.carId, editLogId = effect.id.value),
+                )
+
+            // A deleted entry has nothing left to show, so both leave the screen.
+            ServiceLogDetailEffect.Deleted, ServiceLogDetailEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    ServiceLogDetailScreen(state = state, onEvent = viewModel::onEvent)
 }
 
-/** The report-overcharge route host. Submit + back both pop back to the detail. */
+/** The report-overcharge route host. Done, back and a filed report all pop the screen. */
 @Composable
 internal fun ServiceLogReportOverchargeRoute(
     key: OdoDestination.ServiceLog.ReportOvercharge,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3+): source `state` from a koinViewModel keyed by key.logId; this local
-    //  reducer is a stand-in so the flow is interactive until then.
-    var state by remember { mutableStateOf(sampleReportState()) }
-    ReportOverchargeScreen(
-        state = state,
-        onReasonSelect = { state = state.copy(reason = it) },
-        onNoteChange = { state = state.copy(note = it) },
-        onSubmit = { state = state.copy(submitted = true) },
-        onDone = { navigationManager.back() },
-        onBack = { navigationManager.back() },
-    )
+    val viewModel = koinViewModel<ReportOverchargeViewModel> { parametersOf(ServiceLogId(key.logId)) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            ReportOverchargeEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    ReportOverchargeScreen(state = state, onEvent = viewModel::onEvent)
 }
 
 /**
- * The add/edit form route host. Both a successful save and back simply pop the form;
- * the underlying list observes the repository, so it reflects the change on return.
+ * The add/edit form route host. Both a successful save and back simply pop the form; the
+ * underlying list observes the repository, so it reflects the change on return.
  */
 @Composable
 internal fun ServiceLogFormRoute(
     key: OdoDestination.ServiceLog.AddEdit,
     navigationManager: NavigationManager,
 ) {
-    // TODO(step 3+): source `state` from a koinViewModel keyed by key.editLogId; this
-    //  local reducer is a stand-in so the form is interactive until then.
-    var form by remember { mutableStateOf(sampleFormState(isEditing = key.editLogId != null)) }
-    ServiceLogFormScreen(
-        state = form,
-        onWorkshopChange = { form = form.copy(workshop = form.workshop.update(it)) },
-        onDateChange = { form = form.copy(date = form.date.update(it)) },
-        onOdometerChange = { form = form.copy(odometer = form.odometer.update(it)) },
-        onOdometerUnitToggle = {
-            form = form.copy(odometerUnit = if (form.odometerUnit == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM)
-        },
-        onAmountChange = { form = form.copy(amount = form.amount.update(it)) },
-        onCategoryToggle = { category ->
-            val next = if (category in form.categories) form.categories - category else form.categories + category
-            form = form.copy(categories = next)
-        },
-        onNotesChange = { form = form.copy(notes = form.notes.update(it)) },
-        onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
-        onAttachBill = { /* TODO(M2): attach a bill photo. */ },
-        onSave = { navigationManager.back() },
-        onClose = { navigationManager.back() },
-    )
+    val viewModel = koinViewModel<ServiceLogFormViewModel> {
+        parametersOf(CarId(key.carId), key.editLogId?.let(::ServiceLogId))
+    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is ServiceLogFormEffect.Saved -> navigationManager.back()
+
+            ServiceLogFormEffect.OpenBillScanner ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+
+            // TODO(M2): pick/capture a bill photo and attach it via AttachBillPhotoUseCase.
+            //  There is no camera/file capability behind a port yet, so the tap is collected
+            //  rather than opening a picker that can't return anything.
+            ServiceLogFormEffect.AttachBill -> Unit
+
+            ServiceLogFormEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    ServiceLogFormScreen(state = state, onEvent = viewModel::onEvent)
+}
+
+/**
+ * The share-sheet route host. Every target is a platform capability the app doesn't have
+ * yet (clipboard, share intent, PDF rendering), so those effects are collected and
+ * deliberately go nowhere rather than half-working.
+ */
+@Composable
+internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share) {
+    val viewModel = koinViewModel<ShareRecordViewModel> { parametersOf(CarId(key.carId)) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            // TODO(platform): clipboard, share intent and PDF rendering are `:core:platform`
+            //  expect/actuals that don't exist yet. The ViewModel already decides *what*
+            //  would be shared, so landing them is a change here and nowhere else.
+            is ShareRecordEffect.CopyLink -> Unit
+            is ShareRecordEffect.ShareLink -> Unit
+            ShareRecordEffect.DownloadPdf -> Unit
+        }
+    }
+
+    ShareRecordSheetContent(state = state, onEvent = viewModel::onEvent)
 }

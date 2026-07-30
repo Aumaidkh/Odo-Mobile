@@ -6,15 +6,16 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
-/** Sample state (mirrors the mockup) — stands in for the ViewModel until it lands. */
+/** Sample state (mirrors the mockup) — stands in for the ViewModel until it is wired in. */
 internal fun sampleReportState(): ReportOverchargeUiState = ReportOverchargeUiState(
     content = ReportOverchargeUiState.Content.Loaded(
         ReportHeaderUiState(
             workshopName = "AutoCare Pune",
             amountOver = Amount.of(110_000).getOrElse { Amount.ZERO },
-            workDone = "Front brake pads",
+            workDone = WorkDone.Described(listOf("Front brake pads")),
             serviceDate = LocalDate(2026, 3, 2),
         ),
     ),
@@ -24,12 +25,5 @@ internal fun sampleReportState(): ReportOverchargeUiState = ReportOverchargeUiSt
 @OdoThemePreviews
 @Composable
 private fun ReportOverchargePreview() = OdoPreview(padded = false) {
-    ReportOverchargeScreen(
-        state = sampleReportState(),
-        onReasonSelect = {},
-        onNoteChange = {},
-        onSubmit = {},
-        onDone = {},
-        onBack = {},
-    )
+    ReportOverchargeScreen(state = sampleReportState(), onEvent = {})
 }

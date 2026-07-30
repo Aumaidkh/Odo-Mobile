@@ -21,6 +21,7 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
@@ -41,16 +42,19 @@ internal val ServiceLogListBottomPadding: Dp = 96.dp
 internal fun LedgerList(
     content: ServiceLogListUiState.Content.Loaded,
     filter: ServiceLogFilter,
-    onFilterChange: (ServiceLogFilter) -> Unit,
-    onOpenDetail: (logId: String) -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.cardGap),
         contentPadding = PaddingValues(bottom = ServiceLogListBottomPadding),
     ) {
-        item { LedgerFilterChips(filter, content, onFilterChange) }
+        item { LedgerFilterChips(filter, content.counts, onEvent) }
         items(content.cards, key = { it.id.value }) { card ->
-            LedgerCard(card, onClick = { onOpenDetail(card.id.value) }, modifier = Modifier.animateItem())
+            LedgerCard(
+                card = card,
+                onClick = { onEvent(ServiceLogListEvent.Open.Entry(card.id)) },
+                modifier = Modifier.animateItem(),
+            )
         }
     }
 }
@@ -58,24 +62,24 @@ internal fun LedgerList(
 @Composable
 private fun LedgerFilterChips(
     filter: ServiceLogFilter,
-    content: ServiceLogListUiState.Content.Loaded,
-    onFilterChange: (ServiceLogFilter) -> Unit,
+    counts: ServiceLogFilterCounts,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         OdoChip(
             label = stringResource(Res.string.sl_filter_all),
             selected = filter == ServiceLogFilter.ALL,
-            onClick = { onFilterChange(ServiceLogFilter.ALL) },
+            onClick = { onEvent(ServiceLogListEvent.View.FilterSelected(ServiceLogFilter.ALL)) },
         )
         OdoChip(
-            label = "${stringResource(Res.string.sl_filter_verified)} · ${content.verifiedCount}",
+            label = "${stringResource(Res.string.sl_filter_verified)} · ${counts.verified}",
             selected = filter == ServiceLogFilter.VERIFIED,
-            onClick = { onFilterChange(ServiceLogFilter.VERIFIED) },
+            onClick = { onEvent(ServiceLogListEvent.View.FilterSelected(ServiceLogFilter.VERIFIED)) },
         )
         OdoChip(
-            label = "${stringResource(Res.string.sl_filter_flagged)} · ${content.flaggedCount}",
+            label = "${stringResource(Res.string.sl_filter_flagged)} · ${counts.flagged}",
             selected = filter == ServiceLogFilter.FLAGGED,
-            onClick = { onFilterChange(ServiceLogFilter.FLAGGED) },
+            onClick = { onEvent(ServiceLogListEvent.View.FilterSelected(ServiceLogFilter.FLAGGED)) },
         )
     }
 }
@@ -105,7 +109,7 @@ private fun LedgerCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
             color = OdoTheme.colors.textDim,
         )
         CardFooter(
-            leading = { card.workDone?.let { OdoText(text = it, style = OdoTheme.typography.body) } },
+            leading = { card.workDone.asString()?.let { OdoText(text = it, style = OdoTheme.typography.body) } },
             trailing = { VerdictPill(card.fairness) },
         )
     }
@@ -117,7 +121,6 @@ private fun LedgerListPreview() = OdoPreview {
     LedgerList(
         content = sampleLoadedContent(),
         filter = ServiceLogFilter.ALL,
-        onFilterChange = {},
-        onOpenDetail = {},
+        onEvent = {},
     )
 }

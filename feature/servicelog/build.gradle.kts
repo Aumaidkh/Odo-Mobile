@@ -33,6 +33,9 @@ kotlin {
             // single config is owned by the app bootstrap.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
+            // APM spans around the DB reads and writes every ViewModel here drives —
+            // the feature's telemetry facade owns the plumbing.
+            implementation(projects.observability.performance)
             // LocalDate/Clock in the add/update commands + use cases + form VM.
             implementation(libs.kotlinx.datetime)
             // koinViewModel() for the navigation route hosts (effect -> nav bridge).

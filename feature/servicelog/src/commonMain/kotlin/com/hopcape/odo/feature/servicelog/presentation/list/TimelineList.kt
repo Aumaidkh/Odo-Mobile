@@ -39,9 +39,13 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
 import com.hopcape.odo.feature.servicelog.presentation.list.components.tone
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.core.domain.shared.formatRupees
+
+/** Shown where a card has neither a workshop nor a described job. */
+private const val EMPTY_FIELD = "—"
 
 // Timeline rail geometry.
 private val RailWidth = 28.dp
@@ -58,7 +62,7 @@ private val DotIconSize = 12.dp
 @Composable
 internal fun TimelineList(
     content: ServiceLogListUiState.Content.Loaded,
-    onOpenDetail: (logId: String) -> Unit,
+    onEvent: (ServiceLogListEvent) -> Unit,
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = ServiceLogListBottomPadding)) {
         itemsIndexed(content.cards, key = { _, card -> card.id.value }) { index, card ->
@@ -66,7 +70,7 @@ internal fun TimelineList(
                 card = card,
                 isFirst = index == 0,
                 isLast = index == content.cards.lastIndex,
-                onClick = { onOpenDetail(card.id.value) },
+                onClick = { onEvent(ServiceLogListEvent.Open.Entry(card.id)) },
                 modifier = Modifier.animateItem(),
             )
         }
@@ -127,7 +131,9 @@ private fun RecordCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
             MonthPill(formatMonthYear(card.serviceDate))
         }
         OdoText(
-            text = card.workshopName?.let { ws -> card.workDone?.let { "$ws · $it" } ?: ws } ?: (card.workDone ?: "—"),
+            text = listOfNotNull(card.workshopName, card.workDone.asString())
+                .ifEmpty { listOf(EMPTY_FIELD) }
+                .joinToString(" · "),
             style = OdoTheme.typography.body,
             color = OdoTheme.colors.textDim,
         )
@@ -153,5 +159,5 @@ private fun MonthPill(text: String) {
 @OdoThemePreviews
 @Composable
 private fun TimelineListPreview() = OdoPreview {
-    TimelineList(content = sampleLoadedContent(), onOpenDetail = {})
+    TimelineList(content = sampleLoadedContent(), onEvent = {})
 }

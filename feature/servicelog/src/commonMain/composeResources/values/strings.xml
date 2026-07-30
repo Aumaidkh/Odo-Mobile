@@ -89,6 +89,7 @@
     <string name="sl_report_success_title">Report submitted</string>
     <string name="sl_report_success_body">Thanks — your anonymous report helps other owners avoid overcharging at this workshop.</string>
     <string name="sl_report_done">Done</string>
+    <string name="sl_report_not_flagged">This service wasn’t flagged as an overcharge, so there’s nothing to report.</string>
 
     <!-- Share verified record sheet -->
     <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
@@ -110,12 +111,16 @@
     <string name="sl_error_odometer_required">Odometer reading is required</string>
     <string name="sl_error_odometer_negative">Odometer can’t be negative</string>
     <string name="sl_error_odometer_regression">Odometer can’t be below the last reading (%1$d km)</string>
+    <string name="sl_error_odometer_ahead">Odometer can’t be above a later reading (%1$d km)</string>
     <string name="sl_error_amount_negative">Amount can’t be negative</string>
     <string name="sl_error_date_required">Service date is required</string>
     <string name="sl_error_date_future">Service date can’t be in the future</string>
     <string name="sl_error_workshop_too_long">Workshop name is too long</string>
     <string name="sl_error_notes_too_long">Notes are too long</string>
     <string name="sl_error_save_failed">Couldn’t save — please try again</string>
+    <string name="sl_error_load_failed">Couldn’t load your service record — please try again</string>
+    <string name="sl_error_delete_failed">Couldn’t delete this service — please try again</string>
+    <string name="sl_error_report_failed">Couldn’t submit your report — please try again</string>
 
     <!-- List: ledger (1a) stats + fairness verdicts -->
     <string name="sl_stat_saved">Saved</string>
@@ -124,6 +129,8 @@
     <string name="sl_verdict_over">%1$s over</string>
     <string name="sl_verdict_add_bill">Add bill to verify</string>
     <string name="sl_verdict_checking">Checking price…</string>
+    <!-- PRD guardrail: under 5 data points we show no verdict, only how thin the sample is. -->
+    <string name="sl_verdict_low_confidence">Not enough data yet</string>
 
     <!-- List: record header (shown in both views) -->
     <string name="sl_record_line">Record: %1$s</string>

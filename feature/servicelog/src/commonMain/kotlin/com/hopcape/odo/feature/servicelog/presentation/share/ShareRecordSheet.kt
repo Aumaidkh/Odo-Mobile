@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,47 +39,45 @@ import com.hopcape.odo.feature.servicelog.resources.sl_share_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_share_whatsapp
 import org.jetbrains.compose.resources.stringResource
 
-/** Where a verified record can be shared to. */
-internal enum class ShareTarget { WHATSAPP, EMAIL, MORE }
-
-/** The record being shared — the resale passport summary + its public link. */
-internal data class ShareRecordUiState(
-    val carName: String,
-    val verifiedCount: Int,
-    val serviceCount: Int,
-    val link: String,
-    val copied: Boolean = false,
-)
-
-internal fun sampleShareRecord(copied: Boolean = false): ShareRecordUiState =
-    ShareRecordUiState(carName = "Swift VXI", verifiedCount = 4, serviceCount = 6, link = "odo.app/p/swift-9F2K", copied = copied)
+/** Shown where the car could not be named. */
+private const val EMPTY_FIELD = "—"
 
 /**
  * The "share verified record" sheet **body** — the resale-passport summary, its public
  * link, and the share targets. Shown as a bottom-sheet destination
  * ([OdoDestination.ServiceLog.Share]); the [androidx.compose.material3.ModalBottomSheet]
- * chrome comes from the navigation layer. Holds the transient "Copied" state itself.
+ * chrome comes from the navigation layer. Stateless: it renders [state] and reports taps
+ * through [onEvent].
  */
 @Composable
-internal fun ShareRecordSheetContent() {
-    var copied by remember { mutableStateOf(false) }
-    val state = sampleShareRecord(copied)
-    val onShareVia: (ShareTarget) -> Unit = { /* TODO(passport): open the share target. */ }
+internal fun ShareRecordSheetContent(
+    state: ShareRecordUiState,
+    onEvent: (ShareRecordEvent) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.screenEdge).padding(bottom = OdoTheme.spacing.md).navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
-        Header(state)
-        LinkRow(state, onCopy = { copied = true /* TODO: copy to clipboard */ })
+        Header(state.content)
+        // Absent until the Resale Passport issues a link — a row with no URL in it would
+        // offer the owner something to copy that goes nowhere.
+        (state.link as? PassportLinkUiState.Ready)?.let { link ->
+            LinkRow(link, onCopy = { onEvent(ShareRecordEvent.CopyLinkClicked) })
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-            ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChatOutlined
-            ) { onShareVia(ShareTarget.WHATSAPP) }
-            ShareTargetButton(stringResource(Res.string.sl_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
-            ShareTargetButton(stringResource(Res.string.sl_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcShare) { onShareVia(ShareTarget.MORE) }
+            ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChatOutlined) {
+                onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.WHATSAPP))
+            }
+            ShareTargetButton(stringResource(Res.string.sl_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) {
+                onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.EMAIL))
+            }
+            ShareTargetButton(stringResource(Res.string.sl_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcShare) {
+                onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.MORE))
+            }
         }
         OdoButton(
             text = stringResource(Res.string.sl_share_download_pdf),
-            onClick = { /* TODO(passport): render + save the PDF. */ },
+            onClick = { onEvent(ShareRecordEvent.DownloadPdfClicked) },
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { OdoIcon(IcPdf, contentDescription = null, size = OdoTheme.iconSizes.small) },
         )
@@ -91,7 +85,7 @@ internal fun ShareRecordSheetContent() {
 }
 
 @Composable
-private fun Header(state: ShareRecordUiState) {
+private fun Header(content: ShareRecordUiState.Content) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.success.copy(alpha = 0.18f)),
@@ -101,25 +95,32 @@ private fun Header(state: ShareRecordUiState) {
         }
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(stringResource(Res.string.sl_detail_share), style = OdoTheme.typography.heading)
-            OdoText(
-                stringResource(Res.string.sl_share_subtitle, state.carName, state.verifiedCount, state.serviceCount),
-                style = OdoTheme.typography.bodySmall,
-                color = OdoTheme.colors.textDim,
-            )
+            if (content is ShareRecordUiState.Content.Loaded) {
+                OdoText(
+                    stringResource(
+                        Res.string.sl_share_subtitle,
+                        content.carName ?: EMPTY_FIELD,
+                        content.verifiedCount,
+                        content.serviceCount,
+                    ),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun LinkRow(state: ShareRecordUiState, onCopy: () -> Unit) {
+private fun LinkRow(link: PassportLinkUiState.Ready, onCopy: () -> Unit) {
     OdoCard(color = OdoTheme.colors.surfaceRaised) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             OdoIcon(IcLink, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
-            OdoText(state.link, style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
+            OdoText(link.url, style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
             OdoText(
-                text = stringResource(if (state.copied) Res.string.sl_share_copied else Res.string.sl_share_copy),
+                text = stringResource(if (link.copied) Res.string.sl_share_copied else Res.string.sl_share_copy),
                 style = OdoTheme.typography.label,
-                color = if (state.copied) OdoTheme.colors.success else OdoTheme.colors.accent,
+                color = if (link.copied) OdoTheme.colors.success else OdoTheme.colors.accent,
                 modifier = Modifier.clip(OdoTheme.shapes.pill).clickable(onClick = onCopy).padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
             )
         }
