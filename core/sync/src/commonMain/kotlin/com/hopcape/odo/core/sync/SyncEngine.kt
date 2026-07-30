@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.data.sync
+package com.hopcape.odo.core.sync
 
 /**
  * Runs one reconciliation pass: walks the [Syncable]s in [SyncEntity] order and reports
@@ -15,7 +15,7 @@ package com.hopcape.odo.core.data.sync
  *
  * Design: [docs/SYNC_DESIGN.md] §5, §8.
  */
-internal interface SyncEngine {
+interface SyncEngine {
     suspend fun sync(): SyncResult
 }
 
@@ -24,7 +24,7 @@ internal interface SyncEngine {
  * failed" is the common real-world case and is genuinely different from total failure:
  * the work that landed is committed and keeps its cursor, only the rest is retried.
  */
-internal sealed interface SyncResult {
+sealed interface SyncResult {
 
     /** Every entity reconciled. */
     data object Success : SyncResult

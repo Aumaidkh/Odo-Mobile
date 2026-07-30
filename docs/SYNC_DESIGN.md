@@ -129,26 +129,26 @@ CREATE TABLE sync_state (
 Five contracts. Everything else is an implementation detail behind them.
 
 ```kotlin
-// :core:data — one syncable table/aggregate.
-internal interface Syncable {
+// :core:sync — one syncable table/aggregate.
+interface Syncable {
     val entity: SyncEntity
     suspend fun syncWith(synchronizer: Synchronizer): Boolean   // false = retry the whole run
 }
 
-// :core:data — what a Syncable is allowed to ask the engine for.
-internal interface Synchronizer {
+// :core:sync — what a Syncable is allowed to ask the engine for.
+interface Synchronizer {
     suspend fun cursor(entity: SyncEntity): SyncCursor
     suspend fun updateCursor(entity: SyncEntity, update: SyncCursor.() -> SyncCursor)
     suspend fun recordFailure(entity: SyncEntity, cause: Throwable)
 }
 
-// :core:data — orders the Syncables and runs them. The only thing the scheduler calls.
-internal interface SyncEngine {
+// :core:sync — orders the Syncables and runs them. The only thing the scheduler calls.
+interface SyncEngine {
     suspend fun sync(): SyncResult
 }
 
-// :core:data (actual impls per platform) — "run a sync soon, subject to constraints".
-internal interface SyncScheduler {
+// :core:sync (actual impls per platform) — "run a sync soon, subject to constraints".
+interface SyncScheduler {
     fun scheduleStartupSync()
     fun requestSync(reason: SyncReason)
 }
@@ -173,6 +173,37 @@ independent.
 `SyncStatusProvider` lives in `:core:domain` so a feature can render "Syncing…" or a
 "3 changes not backed up" chip without depending on `:core:data` — the same Ports &
 Adapters trick already used for `SessionStatusProvider` and `CurrentOwnerProvider`.
+
+### 5.1 Why the contracts live in their own module
+
+`:core:sync` holds the seam and the engine; `:core:data` **depends on it**, never the
+reverse. That direction is forced, not stylistic: a `Syncable` is implemented by the
+repository that owns the table (only it knows the row↔DTO mapping), and a repository wants
+to request a sync after a local write. An engine that instead reached *into* `:core:data`
+to sync its tables would need `:core:data` while `:core:data` needed the engine — a cycle
+Gradle rejects. Inverting it means the engine only ever receives the `Syncable`s Koin hands
+it (`getAll<Syncable>()`), and knows nothing about SQLDelight.
+
+```
+              :core:sync            contracts + engine. No DB, no network, no Android.
+               ▲        ▲
+               │        │
+         :core:data   <platform worker module>
+   (repos implement       (WorkManager worker + SyncScheduler actual, Android-only)
+    Syncable)
+```
+
+Two things stay out of `:core:sync` on purpose:
+
+- **`SyncStatus`** (`PENDING | SYNCED | CONFLICT`) lives in `:core:data` — it is the
+  vocabulary of a database column, not a concept the engine needs.
+- **`SyncStatusProvider`** lives in `:core:domain`, because features may depend on the
+  domain and must not depend on either `:core:data` or `:core:sync`.
+
+Now in Android keeps its equivalents in `core:data` and splits out only the worker
+(`sync:work`). Odo splits one step earlier, because `:core:data` here is a shared
+dependency of every feature and shouldn't grow a Supabase/WorkManager surface just to
+carry the engine.
 
 ---
 
@@ -379,6 +410,7 @@ The engine cannot be built until these exist. Each is its own slice:
 
 | # | Prerequisite | Status |
 | --- | --- | --- |
+| 0 | `:core:sync` module — contracts + engine | **created** (contracts only, no engine) |
 | 1 | `:core:network` module — supabase-kt client, DTOs, retry | **not created** (module isn't in `settings.gradle.kts`) |
 | 2 | `:core:platform` module — connectivity, `SyncScheduler` actuals | **not created** |
 | 3 | Real auth — `SessionStatusProvider` / `CurrentOwnerProvider` beyond the M1 stubs | stubbed (`LocalOwnerProvider`) |
@@ -399,8 +431,7 @@ Tracked here so they aren't lost; each is applied when the relevant code is next
   `PENDING|SYNCED|FAILED`. It is `PENDING|SYNCED|CONFLICT` (§4.1). Also missing
   `remote_version`.
 - `TDD.md` §8 — supersede the sketch with a pointer to this document.
-- `ROADMAP.md` A.4 — the "Sync" row names `SyncEngine` in `:core:data`; still accurate,
-  now detailed here.
+- `ROADMAP.md` A.3/A.4 — updated: the engine lives in `:core:sync`, not `:core:data`.
 
 ---
 

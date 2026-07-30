@@ -76,7 +76,8 @@ The MVP refactors into a multi-module clean-architecture layout (full map + boun
 
 - **`:core:common`** — pure utilities (Either/Result, Clock, Logger, money/units). Knows nothing about cars or features.
 - **`:core:domain`** — the **shared kernel**: entities, value objects, repository **interfaces**, `sealed DomainError`. Depends only on `:core:common`. **No framework types** (no Android / SQLDelight / Supabase imports) ever reach here. **Feature-specific use cases do _not_ live here** — they live in their `:feature:*` module (see golden rules). `:core:domain` holds only types shared across features.
-- **`:core:data`** — repository **implementations**, local SQLDelight DB (the source of truth), DTO↔domain mappers, `SyncEngine`.
+- **`:core:data`** — repository **implementations**, local SQLDelight DB (the source of truth), DTO↔domain mappers. Its repositories implement `:core:sync`'s `Syncable`.
+- **`:core:sync`** — the sync seam (`Syncable`, `Synchronizer`), the engine, and the `SyncScheduler` port. Zero dependencies: it receives its `Syncable`s rather than reaching into the data layer, which is what keeps `:core:data` → `:core:sync` from becoming a cycle. See [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) §5.1.
 - **`:core:platform`** — `expect`/`actual` for camera, secure storage, notifications, connectivity, file IO.
 - **`:core:network`** — Supabase client + Edge Function callers, retry/backoff, DTOs.
 - **`:feature:*`** — one vertical capability each (onboarding, servicelog, billscanner, fairness, reminders, documents, healthscore, costtracker, paywall; doctor & passport in Phase 2). A feature owns its **use cases** (application/orchestration logic, under `…feature.<name>.domain.usecase`) plus its presentation + UI. Use cases orchestrate the shared `:core:domain` kernel (entities, value objects, repository ports).

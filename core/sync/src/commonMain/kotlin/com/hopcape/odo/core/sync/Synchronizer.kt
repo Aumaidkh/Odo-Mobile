@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.data.sync
+package com.hopcape.odo.core.sync
 
 /**
  * What a [Syncable] is allowed to ask the engine for while it syncs — its cursor, and
@@ -15,7 +15,7 @@ package com.hopcape.odo.core.data.sync
  *
  * Design: [docs/SYNC_DESIGN.md] §5.
  */
-internal interface Synchronizer {
+interface Synchronizer {
 
     /** This entity's bookmark; a never-synced entity gets a cursor with null timestamps. */
     suspend fun cursor(entity: SyncEntity): SyncCursor

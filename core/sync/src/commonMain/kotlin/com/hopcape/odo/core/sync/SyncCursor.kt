@@ -1,5 +1,6 @@
-package com.hopcape.odo.core.data.sync
+package com.hopcape.odo.core.sync
 
+import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
@@ -16,7 +17,7 @@ import kotlin.time.Instant
  *
  * Design: [docs/SYNC_DESIGN.md] §4.2, §6.2.
  */
-internal data class SyncCursor(
+data class SyncCursor @OptIn(ExperimentalTime::class) constructor(
     val entity: SyncEntity,
     val lastPulledAt: Instant? = null,
     val lastPushedAt: Instant? = null,

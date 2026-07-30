@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.data.sync
+package com.hopcape.odo.core.sync
 
 /**
  * Asks the platform to run a sync "soon", subject to its own constraints and backoff.
@@ -9,8 +9,9 @@ package com.hopcape.odo.core.data.sync
  * (`ExistingWorkPolicy.KEEP`, `NetworkType.CONNECTED`, exponential backoff), iOS with
  * `BGTaskScheduler` in Phase 2.
  *
- * Public because the `:app` bootstrap calls [scheduleStartupSync] — everything else in
- * this package stays internal to `:core:data`.
+ * Declared here rather than in the module that implements it so that a repository can ask
+ * for a sync after a local write without depending on WorkManager, and the `:app`
+ * bootstrap can trigger the startup run without depending on either.
  *
  * Design: [docs/SYNC_DESIGN.md] §10.
  */

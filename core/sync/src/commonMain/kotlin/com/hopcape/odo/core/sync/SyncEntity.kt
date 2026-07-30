@@ -1,4 +1,4 @@
-package com.hopcape.odo.core.data.sync
+package com.hopcape.odo.core.sync
 
 /**
  * The syncable tables, **declared in the order they must be synced**.
@@ -12,7 +12,7 @@ package com.hopcape.odo.core.data.sync
  *
  * Design: [docs/SYNC_DESIGN.md] §8.
  */
-internal enum class SyncEntity {
+enum class SyncEntity {
     PROFILES,
     CARS,
     SERVICE_LOGS,
