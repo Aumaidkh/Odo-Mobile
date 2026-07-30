@@ -100,6 +100,7 @@ internal class DataTelemetry(
         const val UNTRACED = "untraced"
 
         /* Entity names used as the first half of every span/event name. */
+        const val CAR = "car"
         const val SERVICE_LOG = "servicelog"
         const val FAIRNESS = "fairness"
         const val OVERCHARGE = "overcharge"

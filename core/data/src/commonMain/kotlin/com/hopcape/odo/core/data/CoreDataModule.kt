@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.data
 
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
+import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
@@ -21,6 +22,7 @@ import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.db.createOdoDatabase
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.repository.CarRepository
@@ -45,6 +47,9 @@ val coreDataModule = module {
     single<SqlDriver> { get<DriverFactory>().create() }
     single<OdoDatabase> { createOdoDatabase(get()).also(::seedVehicleReferenceData) }
     single<CarRepository> { CarRepositoryImpl(database = get()) }
+    // Which car every per-car screen is about. A `single` holding a hot StateFlow, so a
+    // navigation handler can name the car synchronously the moment it is tapped.
+    single<ActiveCarProvider> { PrimaryCarProvider(cars = get(), telemetry = get()) }
     single<OwnerProfileRepository> { OwnerProfileRepositoryImpl(database = get()) }
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
 

@@ -29,6 +29,9 @@ kotlin {
             // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
             // Brings Arrow transitively via domain (Amount.of returns Either).
             implementation(projects.core.domain)
+            // koinInject() in the route hosts — they resolve the ActiveCarProvider port to
+            // name the car a per-car destination is about.
+            implementation(libs.koin.composeViewmodel)
             // LocalDate on the garage's own models (service dates, document expiry).
             implementation(libs.kotlinx.datetime)
         }
