@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
@@ -18,7 +17,7 @@ val IcPerson: ImageVector
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(8f, 8f)
                 arcToRelative(3f, 3f, 0f, isMoreThanHalf = true, isPositiveArc = false, 0f, -6f)
                 arcToRelative(3f, 3f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0f, 6f)

@@ -1,40 +1,53 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-// A house outline — roof, walls and a door — for the Home bottom-nav tab.
 val IcHouse: ImageVector
     get() {
-        if (_IcHouse != null) return _IcHouse!!
+        if (_IcHouse != null) {
+            return _IcHouse!!
+        }
         _IcHouse = ImageVector.Builder(
-            name = "IcHouse", defaultWidth = 16.dp, defaultHeight = 16.dp,
-            viewportWidth = 16f, viewportHeight = 16f,
+            name = "IcHouse",
+            defaultWidth = 16.dp,
+            defaultHeight = 16.dp,
+            viewportWidth = 16f,
+            viewportHeight = 16f
         ).apply {
-            path(
-                stroke = SolidColor(Color.Black), strokeLineWidth = 1.3f,
-                strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
-            ) {
-                // Roof: left eave → apex → right eave.
-                moveTo(2.2f, 7.4f)
-                lineTo(8f, 2.6f)
-                lineTo(13.8f, 7.4f)
-                // Walls: down the left, across the floor, up the right.
-                moveTo(3.6f, 6.4f)
-                lineTo(3.6f, 13.2f)
-                lineTo(12.4f, 13.2f)
-                lineTo(12.4f, 6.4f)
-                // Door.
-                moveTo(6.5f, 13.2f)
-                lineTo(6.5f, 9.3f)
-                lineTo(9.5f, 9.3f)
-                lineTo(9.5f, 13.2f)
+            path(fill = SolidColor(Color.Black)) {
+                moveTo(8.707f, 1.5f)
+                arcToRelative(1f, 1f, 0f, isMoreThanHalf = false, isPositiveArc = false, -1.414f, 0f)
+                lineTo(0.646f, 8.146f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0.708f, 0.708f)
+                lineTo(2f, 8.207f)
+                verticalLineTo(13.5f)
+                arcTo(1.5f, 1.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 3.5f, 15f)
+                horizontalLineToRelative(9f)
+                arcToRelative(1.5f, 1.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 1.5f, -1.5f)
+                verticalLineTo(8.207f)
+                lineToRelative(0.646f, 0.647f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, 0.708f, -0.708f)
+                lineTo(13f, 5.793f)
+                verticalLineTo(2.5f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, -0.5f, -0.5f)
+                horizontalLineToRelative(-1f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = false, -0.5f, 0.5f)
+                verticalLineToRelative(1.293f)
+                close()
+                moveTo(13f, 7.207f)
+                verticalLineTo(13.5f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, -0.5f, 0.5f)
+                horizontalLineToRelative(-9f)
+                arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, -0.5f, -0.5f)
+                verticalLineTo(7.207f)
+                lineToRelative(5f, -5f)
+                close()
             }
         }.build()
+
         return _IcHouse!!
     }
 

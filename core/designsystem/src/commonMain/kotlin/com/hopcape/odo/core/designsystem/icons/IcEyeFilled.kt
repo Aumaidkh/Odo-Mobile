@@ -1,27 +1,28 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-val IcEye: ImageVector
+val IcEyeFilled: ImageVector
     get() {
-        if (_IcEye != null) {
-            return _IcEye!!
+        if (_IcEyeFilled != null) {
+            return _IcEyeFilled!!
         }
-        _IcEye = ImageVector.Builder(
-            name = "IcEye",
+        _IcEyeFilled = ImageVector.Builder(
+            name = "IcEyeFilled",
             defaultWidth = 16.dp,
             defaultHeight = 16.dp,
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(10.5f, 8f)
                 arcToRelative(2.5f, 2.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, -5f, 0f)
                 arcToRelative(2.5f, 2.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, 5f, 0f)
+            }
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(0f, 8f)
                 reflectiveCurveToRelative(3f, -5.5f, 8f, -5.5f)
                 reflectiveCurveTo(16f, 8f, 16f, 8f)
@@ -33,8 +34,9 @@ val IcEye: ImageVector
             }
         }.build()
 
-        return _IcEye!!
+        return _IcEyeFilled!!
     }
 
 @Suppress("ObjectPropertyName")
-private var _IcEye: ImageVector? = null
+private var _IcEyeFilled: ImageVector? = null
+

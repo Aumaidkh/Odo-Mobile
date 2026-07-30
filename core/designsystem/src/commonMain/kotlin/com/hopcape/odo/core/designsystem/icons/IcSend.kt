@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.designsystem.icons
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
@@ -18,7 +17,7 @@ val IcSend: ImageVector
             viewportWidth = 16f,
             viewportHeight = 16f
         ).apply {
-            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            path(fill = SolidColor(Color.Black)) {
                 moveTo(15.854f, 0.146f)
                 arcToRelative(0.5f, 0.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0.11f, 0.54f)
                 lineToRelative(-5.819f, 14.547f)
@@ -33,7 +32,7 @@ val IcSend: ImageVector
                 lineToRelative(2.761f, 4.338f)
                 lineTo(14.13f, 2.576f)
                 close()
-                moveToRelative(6.787f, -8.201f)
+                moveTo(13.423f, 1.869f)
                 lineTo(1.591f, 6.602f)
                 lineToRelative(4.339f, 2.76f)
                 close()

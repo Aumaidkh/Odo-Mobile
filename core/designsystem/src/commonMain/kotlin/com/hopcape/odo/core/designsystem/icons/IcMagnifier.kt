@@ -29,7 +29,7 @@ val IcMagnifier: ImageVector
                 close()
                 moveTo(12f, 6.5f)
                 arcToRelative(5.5f, 5.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, -11f, 0f)
-                arcToRelative(5.5f, 5.5f, 0f, isMoreThanHalf = true, isPositiveArc = true, 11f, 0f)
+                arcToRelative(5.5f, 5.5f, 0f, isMoreThanHalf = false, isPositiveArc = true, 11f, 0f)
             }
         }.build()
 
