@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoChip
@@ -16,6 +17,7 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.feature.servicelog.presentation.list.components.VerdictPill
 import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
@@ -53,7 +55,7 @@ internal fun LedgerList(
             LedgerCard(
                 card = card,
                 onClick = { onEvent(ServiceLogListEvent.Open.Entry(card.id)) },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.animateItem().testTag(ServiceLogTestTags.card(card.id.value)),
             )
         }
     }

@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +34,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.feature.servicelog.presentation.list.components.FairnessTone
 import com.hopcape.odo.feature.servicelog.presentation.list.components.TimelineStatus
 import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
@@ -71,7 +73,7 @@ internal fun TimelineList(
                 isFirst = index == 0,
                 isLast = index == content.cards.lastIndex,
                 onClick = { onEvent(ServiceLogListEvent.Open.Entry(card.id)) },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.animateItem().testTag(ServiceLogTestTags.card(card.id.value)),
             )
         }
     }

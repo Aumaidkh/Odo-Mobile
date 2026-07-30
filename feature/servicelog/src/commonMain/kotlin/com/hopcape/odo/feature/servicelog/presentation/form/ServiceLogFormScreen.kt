@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -52,6 +53,7 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.feature.servicelog.presentation.state.text
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
@@ -124,14 +126,14 @@ internal fun ServiceLogFormScreen(
                 label = stringResource(Res.string.sl_field_workshop),
                 placeholder = stringResource(Res.string.sl_field_workshop_hint),
                 errorText = state.workshop.error?.asString(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.WORKSHOP_FIELD),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 DateField(
                     date = state.date.value,
                     onDateChange = { onEvent(ServiceLogFormEvent.Field.DateChanged(it)) },
                     error = state.date.error?.asString(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag(ServiceLogTestTags.DATE_FIELD),
                 )
                 OdoOdometerField(
                     value = state.odometer.text,
@@ -143,7 +145,7 @@ internal fun ServiceLogFormScreen(
                     label = stringResource(Res.string.sl_field_odometer),
                     placeholder = stringResource(Res.string.sl_field_odometer_hint),
                     errorText = state.odometer.error?.asString(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag(ServiceLogTestTags.ODOMETER_FIELD),
                 )
             }
             CategorySection(
@@ -162,7 +164,7 @@ internal fun ServiceLogFormScreen(
                 leadingIcon = {
                     OdoText(stringResource(Res.string.sl_amount_currency), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.AMOUNT_FIELD),
             )
             AttachBillCard(onClick = { onEvent(ServiceLogFormEvent.AttachBillClicked) })
         }
@@ -346,7 +348,7 @@ private fun SaveBar(state: ServiceLogFormUiState, onSave: () -> Unit) {
         OdoButton(
             text = stringResource(Res.string.sl_save),
             onClick = onSave,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.SAVE),
             enabled = state.canSave,
             loading = state.submission.isInFlight,
         )
