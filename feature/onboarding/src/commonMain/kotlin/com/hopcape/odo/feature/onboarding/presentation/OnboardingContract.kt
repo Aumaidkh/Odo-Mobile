@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.onboarding.presentation
 
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
@@ -84,10 +85,18 @@ internal sealed interface OnboardingEffect {
     /**
      * Hand off to the Bill Scanner from the first-scan step.
      *
-     * It carries no car id yet because nothing is persisted during setup so far; the id
-     * lands here with the slice that saves the car on the car step's Continue.
+     * The car is stored by now, but the id doesn't travel with this: `BillScanner.Capture`
+     * is a parameterless destination, so handing the scanner a specific car is a change to
+     * the navigation key rather than to this effect.
      */
     data object OpenBillScanner : OnboardingEffect
+
+    /**
+     * A step's answers could not be stored, for a reason no single field owns (the local
+     * write failed). The flow stays where it is; this is only how the owner is told why
+     * Continue did nothing.
+     */
+    data class SaveFailed(val message: UiText) : OnboardingEffect
 
     /**
      * Setup is over. [start] is the surface the owner's goal earned them, and

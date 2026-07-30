@@ -105,6 +105,9 @@
     <string name="onb_profile_name_label">Your name</string>
     <string name="onb_profile_name_placeholder">Rahul</string>
     <string name="onb_cd_name_valid">Name looks good</string>
+    <string name="onb_profile_name_error_blank">Add your name so we know what to call you.</string>
+    <string name="onb_profile_name_error_short">That looks a bit short — add a letter or two.</string>
+    <string name="onb_profile_name_error_long">That name is too long to fit.</string>
     <string name="onb_profile_goal_label">What brought you here?</string>
     <string name="onb_goal_overpay">Stop overpaying</string>
     <string name="onb_goal_healthy">Keep the car healthy</string>
@@ -116,5 +119,7 @@
     <string name="onb_scan_subtitle">Most bills have something worth checking — and it takes 10 seconds.</string>
     <string name="onb_scan_permission">Camera access is asked here, only for scanning bills.</string>
     <string name="onb_scan_cta">Check my last bill</string>
+    <string name="onb_save_error">Couldn\'t save that on your phone. Please try again.</string>
+
     <string name="onb_scan_later">I’ll do this later</string>
 </resources>

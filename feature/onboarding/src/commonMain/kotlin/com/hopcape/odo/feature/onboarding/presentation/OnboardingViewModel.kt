@@ -2,14 +2,21 @@ package com.hopcape.odo.feature.onboarding.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import arrow.core.NonEmptyList
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingCommand
+import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarCommand
+import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.VehicleCatalogSnapshot
 import com.hopcape.odo.feature.onboarding.presentation.state.CarDetailsState
 import com.hopcape.odo.feature.onboarding.presentation.state.CarStepState
@@ -28,6 +35,10 @@ import com.hopcape.odo.feature.onboarding.presentation.state.toDomain
 import com.hopcape.odo.feature.onboarding.presentation.state.toStartDestination
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_details_catalog_error_body
+import com.hopcape.odo.feature.onboarding.resources.onb_profile_name_error_blank
+import com.hopcape.odo.feature.onboarding.resources.onb_profile_name_error_long
+import com.hopcape.odo.feature.onboarding.resources.onb_profile_name_error_short
+import com.hopcape.odo.feature.onboarding.resources.onb_save_error
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -38,6 +49,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -55,15 +67,19 @@ import kotlin.coroutines.cancellation.CancellationException
  * exist so the sections read as decisions ("show this lookup", "select that make") rather than
  * as nested `copy` plumbing.
  *
- * **Nothing is persisted yet.** Saving the car on the car step's Continue and the profile on
- * step 3 belong to the slice that follows this one; the two places waiting for them are
- * marked TODO below. Until then the flow gathers answers, reads the catalog and the registry
- * for real, and routes honestly rather than pretending to store anything.
+ * **Each step persists its own answers on Continue** rather than the whole flow saving at the
+ * end: the car is stored when the car step is answered, so the first-scan step has a real car
+ * behind it and abandoning setup halfway still leaves the owner with their car. A save that
+ * fails keeps the owner on the step — [advance] is the only thing that moves the flow, and it
+ * moves nothing until the write succeeds.
  */
 internal class OnboardingViewModel(
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
     private val lookupPlate: LookupPlateUseCase,
+    private val saveCar: SaveCarUseCase,
+    private val completeOnboarding: CompleteOnboardingUseCase,
+    private val currentOwner: CurrentOwnerProvider,
     private val sessionStatus: SessionStatusProvider,
 ) : ViewModel() {
 
@@ -78,6 +94,16 @@ internal class OnboardingViewModel(
 
     /** The in-flight model read, held so a newer make cancels a stale list. */
     private var modelsJob: Job? = null
+
+    /** The in-flight save, held so a double tap on Continue can't write twice. */
+    private var saveJob: Job? = null
+
+    /**
+     * The car this flow has already stored, if any. Its presence is what makes a second pass
+     * over the car step an edit instead of a duplicate car — the owner stepping back to fix a
+     * trim must not end up with two cars in their garage.
+     */
+    private var savedCarId: CarId? = null
 
     init {
         loadCatalogOptions()
@@ -269,12 +295,81 @@ internal class OnboardingViewModel(
      */
     private fun advance() {
         val current = _state.value
-        if (!current.canContinue) return
-        // TODO(persistence): the car step's Continue is where the car is saved (AddCarUseCase
-        //  on first pass, CarRepository.update when the owner stepped back to edit), and step
-        //  3's is where CompleteOnboardingUseCase runs. Both wait on the data slice.
-        val next = current.step.next
-        if (next == null) finish() else showStep(next)
+        if (!current.canContinue || saveJob?.isActive == true) return
+        saveJob = viewModelScope.launch {
+            if (!persist(current)) return@launch
+            val next = current.step.next
+            if (next == null) finish() else showStep(next)
+        }
+    }
+
+    /**
+     * Store whatever this step is responsible for, answering `false` to keep the owner where
+     * they are. Each step owns its own write, so leaving halfway keeps what was already
+     * answered instead of discarding the lot.
+     */
+    private suspend fun persist(state: OnboardingUiState): Boolean = when (state.step) {
+        OnboardingStep.CAR -> saveCarStep(state)
+        OnboardingStep.PROFILE -> saveProfile(state)
+        // The scan step stores nothing itself — it hands off to the scanner or skips.
+        OnboardingStep.FIRST_SCAN -> true
+    }
+
+    /**
+     * Save the car, remembering its id so a later pass over this step edits that car rather
+     * than adding another. Which of the two it is, is [SaveCarUseCase]'s business.
+     */
+    private suspend fun saveCarStep(state: OnboardingUiState): Boolean = saveCar(
+        command = state.toSaveCarCommand(),
+        ownerId = currentOwner.currentOwnerId(),
+        existing = savedCarId,
+    ).fold(
+        ifLeft = { errors -> reportSaveFailure(errors); false },
+        ifRight = { car -> savedCarId = car.id; true },
+    )
+
+    /** Save the owner's answers and stamp setup as finished. */
+    private suspend fun saveProfile(state: OnboardingUiState): Boolean = completeOnboarding(
+        CompleteOnboardingCommand(
+            name = state.profile.name.text,
+            goal = state.profile.goal.value?.toDomain(),
+        ),
+    ).fold(
+        ifLeft = { errors -> reportSaveFailure(errors); false },
+        ifRight = { true },
+    )
+
+    /**
+     * Put each failure where the owner can act on it: on the field that owns it when one
+     * does, and as a one-shot message when none does.
+     *
+     * Both halves matter. A field error without the message would leave a storage failure
+     * invisible; the message without the field errors would make the owner hunt for which
+     * answer was wrong.
+     */
+    private fun reportSaveFailure(errors: NonEmptyList<DomainError>) {
+        val unowned = errors.filterNot(::showFieldError)
+        if (unowned.isNotEmpty()) emit(OnboardingEffect.SaveFailed(UiText(Res.string.onb_save_error)))
+    }
+
+    /**
+     * Attach [error] to the field it belongs to, answering `false` when no field owns it —
+     * a storage failure isn't any one answer's fault.
+     *
+     * Only the name has a rendered error slot today. The car step's own validation failures
+     * can't reach here anyway: [OnboardingUiState.canContinue] already refuses to submit an
+     * unanswered car, so anything arriving from that step is a storage problem.
+     */
+    private fun showFieldError(error: DomainError): Boolean = when (error) {
+        DomainError.BlankOwnerName -> failName(Res.string.onb_profile_name_error_blank)
+        is DomainError.OwnerNameTooShort -> failName(Res.string.onb_profile_name_error_short)
+        is DomainError.OwnerNameTooLong -> failName(Res.string.onb_profile_name_error_long)
+        else -> false
+    }
+
+    private fun failName(message: StringResource): Boolean {
+        updateProfile { it.copy(name = it.name.fail(UiText(message))) }
+        return true
     }
 
     /**
@@ -400,6 +495,29 @@ private fun List<CarModel>.matching(match: RtoMatch): CarModel? =
         ?: firstOrNull { it.isSameModelAs(match) && it.variant == null }
 
 private fun CarModel.isSameModelAs(match: RtoMatch): Boolean = name.equals(match.model, ignoreCase = true)
+
+/**
+ * The answered car step → the command that stores it.
+ *
+ * The two routes are two different authorities and this is the seam between them: manual
+ * entry is answered against the catalog, while the plate route saves what the registry
+ * claimed. The plate is kept either way — it is what a bill, a reminder or a resale report
+ * will identify this car by — and the car is primary because setup only ever names the
+ * first one.
+ */
+private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
+    val model = details.model.value
+    return SaveCarCommand(
+        make = if (manualEntry) details.make.value else car.match?.make,
+        model = if (manualEntry) model?.name else car.match?.model,
+        variant = if (manualEntry) model?.variant else car.match?.variant,
+        year = if (manualEntry) details.year.value else car.match?.year,
+        fuelType = if (manualEntry) details.fuel.value else car.match?.fuelType,
+        odometerKm = odometer.value?.toInt(),
+        registrationNumber = car.plate.text,
+        isPrimary = true,
+    )
+}
 
 /** The registry's claim → the confirmation card's content. */
 private fun RegisteredVehicle.toRtoMatch(): RtoMatch = RtoMatch(

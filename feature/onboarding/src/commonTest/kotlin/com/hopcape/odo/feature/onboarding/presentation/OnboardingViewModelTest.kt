@@ -10,11 +10,20 @@ import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
 import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
+import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.presentation.state.Loadable
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
@@ -23,8 +32,11 @@ import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookupError
 import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -355,12 +367,15 @@ class OnboardingViewModelTest {
         viewModel.answerCarStep()
         advanceUntilIdle()
 
+        // Continue awaits the step's write, so the step only moves once the save lands.
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
         assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
 
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
         viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
         assertEquals(OnboardingStep.FIRST_SCAN, viewModel.state.value.step)
 
         viewModel.onEvent(OnboardingEvent.BackClicked)
@@ -373,6 +388,7 @@ class OnboardingViewModelTest {
         viewModel.answerCarStep()
         advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
 
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged(" "))
         viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.SELL_FOR_MORE))
@@ -429,23 +445,156 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingEffect.OpenBillScanner, viewModel.effects.first())
     }
 
+    /* ------------------------------ Persistence ------------------------------ */
+
+    @Test
+    fun continuingTheCarStep_storesTheCar() = runTest(dispatcher) {
+        val cars = FakeCarRepository()
+        val viewModel = viewModel(cars = cars)
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // The car is stored when its step is answered, not at the end of the flow, so
+        // abandoning setup halfway still leaves the owner with their car.
+        val car = cars.added.single()
+        assertEquals("Maruti", car.make)
+        assertEquals("Swift", car.model)
+        assertEquals(54_000, car.odometer.km)
+        assertEquals(FOUND_PLATE, car.registrationNumber?.value)
+        assertTrue(car.isPrimary, "the car named during setup is the owner's primary")
+        assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
+    }
+
+    @Test
+    fun steppingBackAndForward_editsTheSameCar() = runTest(dispatcher) {
+        val cars = FakeCarRepository()
+        val viewModel = viewModel(cars = cars)
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(61_500))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // Correcting a detail must not leave a second car in the garage.
+        assertEquals(1, cars.added.size)
+        assertEquals(1, cars.updated.size)
+        assertEquals(cars.added.single().id, cars.updated.single().id)
+        assertEquals(61_500, cars.updated.single().odometer.km)
+    }
+
+    @Test
+    fun aFailedCarSave_keepsTheOwnerOnTheStep() = runTest(dispatcher) {
+        val viewModel = viewModel(cars = FakeCarRepository(failing = true))
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.CAR, viewModel.state.value.step)
+    }
+
+    @Test
+    fun continuingTheProfileStep_storesACompletedProfile() = runTest(dispatcher) {
+        val profiles = FakeProfileRepository()
+        val viewModel = viewModel(profiles = profiles)
+        reachProfileStep(viewModel)
+
+        viewModel.answerProfileStep()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // Completion is stamped here rather than at the end, so a drop-off on the scan
+        // step still counts as onboarded — which is what stops the flow reappearing.
+        val profile = profiles.saved.single()
+        assertEquals("Rahul", profile.name?.value)
+        assertTrue(profile.hasCompletedOnboarding)
+        assertEquals(OnboardingStep.FIRST_SCAN, viewModel.state.value.step)
+    }
+
+    @Test
+    fun aFailedProfileSave_keepsTheOwnerOnTheStepAndSaysWhy() = runTest(dispatcher) {
+        val viewModel = viewModel(profiles = FakeProfileRepository(failing = true))
+        reachProfileStep(viewModel)
+        viewModel.answerProfileStep()
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
+        // No field owns a storage failure, so it is reported as a one-shot message.
+        assertTrue(viewModel.effects.first() is OnboardingEffect.SaveFailed)
+    }
+
     /* ------------------------------ Helpers ------------------------------ */
 
     private fun viewModel(
         catalog: VehicleCatalog = FakeCatalog(),
         registry: VehicleRegistryLookup = FakeRegistry(),
+        cars: FakeCarRepository = FakeCarRepository(),
+        profiles: FakeProfileRepository = FakeProfileRepository(),
         signedIn: Boolean = false,
     ) = OnboardingViewModel(
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
         lookupPlate = LookupPlateUseCase(registry),
+        saveCar = SaveCarUseCase(cars, IdGenerator { "car-1" }),
+        completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
+        currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
     )
+
+    /** Records what the flow stored, and can be told to fail like a full disk would. */
+    private class FakeCarRepository(var failing: Boolean = false) : CarRepository {
+        val added = mutableListOf<Car>()
+        val updated = mutableListOf<Car>()
+
+        override suspend fun add(car: Car): Either<DomainError, Car> =
+            if (failing) DomainError.PersistenceFailure("disk full").left() else car.right().also { added += car }
+
+        override suspend fun update(car: Car): Either<DomainError, Car> =
+            if (failing) DomainError.PersistenceFailure("disk full").left() else car.right().also { updated += car }
+
+        override fun observePrimaryCar(): Flow<Car?> = flowOf(added.lastOrNull())
+    }
+
+    private class FakeProfileRepository(var failing: Boolean = false) : OwnerProfileRepository {
+        val saved = mutableListOf<OwnerProfile>()
+
+        override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> =
+            if (failing) {
+                DomainError.PersistenceFailure("disk full").left()
+            } else {
+                profile.right().also { saved += profile }
+            }
+
+        override fun observe(): Flow<OwnerProfile?> = flowOf(saved.lastOrNull())
+    }
 
     /** Get the car step to [OnboardingUiState.canContinue] the short way. */
     private fun OnboardingViewModel.answerCarStep() {
         onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))
         onEvent(OnboardingEvent.OdometerChanged(54_000))
+    }
+
+    /** Answer and leave the car step, so the flow is sitting on the profile step. */
+    private fun TestScope.reachProfileStep(viewModel: OnboardingViewModel) {
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+    }
+
+    private fun OnboardingViewModel.answerProfileStep() {
+        onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
+        onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
     }
 
     private fun <T> assertReady(loadable: Loadable<T>): T {
@@ -492,6 +641,8 @@ class OnboardingViewModelTest {
     }
 
     private companion object {
+        val OWNER = OwnerId("owner-1")
+
         /** A plate the registry resolves to a car whose make the **catalog does not** list. */
         const val FOUND_PLATE = "MH12AB1234"
 

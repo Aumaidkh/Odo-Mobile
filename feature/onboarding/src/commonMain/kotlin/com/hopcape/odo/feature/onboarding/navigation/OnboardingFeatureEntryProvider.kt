@@ -80,6 +80,12 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
             //  waiting on the car actually being persisted during setup.
             OnboardingEffect.OpenBillScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
 
+            // TODO(ui): show this in a snackbar. Every step screen scaffolds itself with its
+            //  own OdoScreen, so the host state has to be threaded through OnboardingFlow
+            //  before there is anywhere to post it. Until then a failed write is visible
+            //  only as Continue not advancing — which is honest, but not an explanation.
+            is OnboardingEffect.SaveFailed -> Unit
+
             is OnboardingEffect.Finish -> {
                 val destination = effect.start.toOdoDestination()
                 val next = if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination

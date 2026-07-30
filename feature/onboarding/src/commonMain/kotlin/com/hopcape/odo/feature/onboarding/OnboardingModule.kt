@@ -4,7 +4,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.common.id.UuidIdGenerator
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
-import com.hopcape.odo.feature.onboarding.domain.usecase.AddCarUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
@@ -31,7 +31,7 @@ import org.koin.dsl.module
 val onboardingModule = module {
     single<IdGenerator> { UuidIdGenerator() }
     single<CurrentOwnerProvider> { LocalOwnerProvider() }
-    factory { AddCarUseCase(cars = get(), idGenerator = get()) }
+    factory { SaveCarUseCase(cars = get(), idGenerator = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
@@ -43,6 +43,9 @@ val onboardingModule = module {
             loadCatalog = get(),
             loadModels = get(),
             lookupPlate = get(),
+            saveCar = get(),
+            completeOnboarding = get(),
+            currentOwner = get(),
             // Published by :feature:auth via the shared :core:domain port — onboarding
             // asks whether to offer sign-in without knowing auth exists.
             sessionStatus = get(),
