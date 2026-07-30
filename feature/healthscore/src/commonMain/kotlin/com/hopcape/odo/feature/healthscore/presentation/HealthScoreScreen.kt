@@ -42,12 +42,12 @@ import com.hopcape.odo.core.designsystem.component.OdoProgressBar
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
 import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
-import com.hopcape.odo.core.designsystem.icons.IcGear
+import com.hopcape.odo.core.designsystem.icons.IcGearFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
-import com.hopcape.odo.core.designsystem.icons.IcLightning
-import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -187,7 +187,7 @@ private fun DeltaLine(deltaPoints: Int) {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
         OdoIcon(
-            IcCaretUp,
+            IcCaretUpFilled,
             contentDescription = null,
             tint = color,
             size = OdoTheme.iconSizes.small,
@@ -223,7 +223,7 @@ private fun OpportunityCard(opportunity: HealthOpportunity) {
     val accent = OdoTheme.colors.accent
     OdoCard(color = accent.copy(alpha = 0.10f), border = BorderStroke(1.dp, accent.copy(alpha = 0.45f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconChip(IcLightning, accent)
+            IconChip(IcLightningFilled, accent)
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(stringResource(Res.string.hs_opportunity_label, opportunity.points), style = OdoTheme.typography.caption, color = accent)
                 OdoText(
@@ -260,7 +260,7 @@ private fun LockedBreakdown(factors: List<HealthFactor>, onUnlock: () -> Unit) {
                 Modifier.size(56.dp).clip(OdoTheme.shapes.card).background(OdoTheme.colors.accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                OdoIcon(IcLock, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
+                OdoIcon(IcLockFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
             }
             OdoText(stringResource(Res.string.hs_paywall_title), style = OdoTheme.typography.heading, color = OdoTheme.colors.text)
             OdoText(
@@ -394,7 +394,7 @@ private fun bandLabel(band: HealthBand): String = stringResource(
 )
 
 private fun factorIcon(kind: HealthFactorKind): ImageVector = when (kind) {
-    HealthFactorKind.MAINTENANCE -> IcGear
+    HealthFactorKind.MAINTENANCE -> IcGearFilled
     HealthFactorKind.DOCUMENTATION -> IcShieldCheck
     HealthFactorKind.COST_FAIRNESS -> IcCurrencyDollar
     HealthFactorKind.ODOMETER -> IcSpeedometer

@@ -40,9 +40,9 @@ import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcFilter
 import com.hopcape.odo.core.designsystem.icons.IcJournal
-import com.hopcape.odo.core.designsystem.icons.IcLightning
+import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
 import com.hopcape.odo.core.designsystem.icons.IcShare
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -379,8 +379,8 @@ private fun nodeInfo(event: TimelineEvent): Pair<ImageVector, Color> {
             is ServiceTrust.Flagged -> c.warning
             ServiceTrust.SelfReported -> c.textMuted
         }
-        is TimelineEvent.DocumentRenewed -> IcShield to c.success
-        is TimelineEvent.HealthScoreChanged -> IcLightning to c.accent
+        is TimelineEvent.DocumentRenewed -> IcShieldFilled to c.success
+        is TimelineEvent.HealthScoreChanged -> IcLightningFilled to c.accent
         is TimelineEvent.CarAdded -> IcCar to c.accent
     }
 }

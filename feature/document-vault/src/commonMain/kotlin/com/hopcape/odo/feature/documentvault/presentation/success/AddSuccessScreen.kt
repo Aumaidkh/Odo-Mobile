@@ -30,7 +30,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
-import com.hopcape.odo.core.designsystem.icons.IcLightbulb
+import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -97,7 +97,7 @@ internal fun AddSuccessScreen(
                         Modifier.size(40.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.accent.copy(alpha = 0.18f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        OdoIcon(IcLightbulb, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
+                        OdoIcon(IcLightbulbFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                         OdoText(stringResource(Res.string.dv_success_card_title), style = OdoTheme.typography.heading)

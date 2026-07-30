@@ -29,7 +29,7 @@ import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -124,7 +124,7 @@ private fun TrendBadge(percent: Int, up: Boolean) {
         tone = if (up) OdoBadgeTone.Danger else OdoBadgeTone.Success,
         leadingIcon = {
             OdoIcon(
-                IcCaretUp,
+                IcCaretUpFilled,
                 contentDescription = null,
                 modifier = if (up) Modifier else Modifier.rotate(180f),
                 size = OdoTheme.iconSizes.small,

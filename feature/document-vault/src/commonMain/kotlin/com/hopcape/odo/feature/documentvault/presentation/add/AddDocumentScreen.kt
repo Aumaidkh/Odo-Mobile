@@ -33,7 +33,7 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcClose
-import com.hopcape.odo.core.designsystem.icons.IcFile
+import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -115,7 +115,7 @@ internal fun AddDocumentScreen(
                         onClick = onScan,
                     )
                     MethodCard(
-                        icon = IcFile,
+                        icon = IcFileFilled,
                         iconTone = OdoTheme.colors.text,
                         title = stringResource(Res.string.dv_add_upload_title),
                         body = stringResource(Res.string.dv_add_upload_body),

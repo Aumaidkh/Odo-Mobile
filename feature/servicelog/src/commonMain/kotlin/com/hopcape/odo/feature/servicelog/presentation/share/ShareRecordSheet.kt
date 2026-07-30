@@ -25,9 +25,8 @@ import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcChat
+import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
-import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLink
 import com.hopcape.odo.core.designsystem.icons.IcPdf
 import com.hopcape.odo.core.designsystem.icons.IcShare
@@ -77,7 +76,8 @@ internal fun ShareRecordSheetContent() {
         Header(state)
         LinkRow(state, onCopy = { copied = true /* TODO: copy to clipboard */ })
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-            ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChat) { onShareVia(ShareTarget.WHATSAPP) }
+            ShareTargetButton(stringResource(Res.string.sl_share_whatsapp), OdoTheme.colors.success, OdoTheme.colors.onAccent, IcChatOutlined
+            ) { onShareVia(ShareTarget.WHATSAPP) }
             ShareTargetButton(stringResource(Res.string.sl_share_email), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcEnvelope) { onShareVia(ShareTarget.EMAIL) }
             ShareTargetButton(stringResource(Res.string.sl_share_more), OdoTheme.colors.surfaceRaised, OdoTheme.colors.text, IcShare) { onShareVia(ShareTarget.MORE) }
         }

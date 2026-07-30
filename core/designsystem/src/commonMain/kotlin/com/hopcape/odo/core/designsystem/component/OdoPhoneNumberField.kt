@@ -40,7 +40,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.hopcape.odo.core.designsystem.icons.IcCaretUp
+import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -235,7 +235,7 @@ private fun CountryCodeChip(code: String, enabled: Boolean, onClick: (() -> Unit
         )
         if (onClick != null) {
             OdoIcon(
-                IcCaretUp,
+                IcCaretUpFilled,
                 contentDescription = null,
                 tint = OdoTheme.colors.textDim,
                 size = OdoTheme.iconSizes.small,

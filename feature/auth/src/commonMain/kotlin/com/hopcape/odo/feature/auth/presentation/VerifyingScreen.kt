@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcLock
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_verifying_body
@@ -50,7 +50,7 @@ internal fun VerifyingScreen(onDone: () -> Unit) {
                     trackColor = OdoTheme.colors.border,
                     strokeWidth = 3.dp,
                 )
-                OdoIcon(IcLock, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
+                OdoIcon(IcLockFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
             }
             Spacer(Modifier.height(OdoTheme.spacing.lg))
             OdoText(stringResource(Res.string.au_verifying_title), style = OdoTheme.typography.title, textAlign = TextAlign.Center)

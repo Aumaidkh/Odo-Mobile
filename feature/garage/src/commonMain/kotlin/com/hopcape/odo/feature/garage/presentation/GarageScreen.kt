@@ -38,10 +38,10 @@ import com.hopcape.odo.core.designsystem.icons.IcCardFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
-import com.hopcape.odo.core.designsystem.icons.IcFile
+import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcJournalPlus
-import com.hopcape.odo.core.designsystem.icons.IcLeaf
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -381,7 +381,7 @@ private fun EmptyGarage(
                 icon = { CarAvatar(size = 88.dp) },
             )
         }
-        EmptyActionCard(IcShield, stringResource(Res.string.gr_empty_add_docs), onClick = onAddDocuments)
+        EmptyActionCard(IcShieldFilled, stringResource(Res.string.gr_empty_add_docs), onClick = onAddDocuments)
         EmptyActionCard(IcJournalPlus, stringResource(Res.string.gr_empty_log_service), onClick = onLogService)
         Spacer(Modifier.height(OdoTheme.spacing.md))
     }
@@ -445,10 +445,10 @@ private fun ManageLink(onClick: () -> Unit) {
 }
 
 private fun DocumentType.icon(): ImageVector = when (this) {
-    DocumentType.INSURANCE -> IcShield
-    DocumentType.PUC -> IcLeaf
+    DocumentType.INSURANCE -> IcShieldFilled
+    DocumentType.PUC -> IcLeafFilled
     DocumentType.RC -> IcCardFilled
-    DocumentType.LOAN, DocumentType.OTHER -> IcFile
+    DocumentType.LOAN, DocumentType.OTHER -> IcFileFilled
 }
 
 @Composable

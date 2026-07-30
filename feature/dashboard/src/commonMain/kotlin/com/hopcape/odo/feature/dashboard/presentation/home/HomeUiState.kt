@@ -4,9 +4,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcJournal
-import com.hopcape.odo.core.designsystem.icons.IcLightbulb
-import com.hopcape.odo.core.designsystem.icons.IcShield
-import com.hopcape.odo.core.designsystem.icons.IcTag
+import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.domain.shared.Amount
 
 /** Tint/border role for a Home info card. */
@@ -82,8 +82,8 @@ internal fun samplePopulated(): HomeState.Scored = HomeState.Scored(
     costAboveAvg = true,
     saved = rupees(1_400),
     savedSub = "2 overcharges caught",
-    attention = HomeInfoCard(IcShield, HomeCardTone.WARNING, null, "PUC expires in 7 days", "Valid till 03 Aug 2026", hasChevron = true),
-    insight = HomeInfoCard(IcLightbulb, HomeCardTone.NEUTRAL, "ODO INSIGHT", "Oil change is due in about 1,000 km — plan it with your next fill.", null, hasChevron = false),
+    attention = HomeInfoCard(IcShieldFilled, HomeCardTone.WARNING, null, "PUC expires in 7 days", "Valid till 03 Aug 2026", hasChevron = true),
+    insight = HomeInfoCard(IcLightbulbFilled, HomeCardTone.NEUTRAL, "ODO INSIGHT", "Oil change is due in about 1,000 km — plan it with your next fill.", null, hasChevron = false),
     recent = HomeRecent("l1", IcJournal, "Oil change + filter", "12 Jul · Verified", rupees(3_200)),
     hasNotification = true,
 )
@@ -101,8 +101,8 @@ internal fun sampleAllClear(): HomeState.Scored = HomeState.Scored(
     saved = rupees(2_100),
     savedSub = "3 overcharges caught",
     attention = HomeInfoCard(IcCheck, HomeCardTone.SUCCESS, null, "Nothing needs attention", "All documents valid · no service due", hasChevron = false),
-    insight = HomeInfoCard(IcTag, HomeCardTone.NEUTRAL, "RESALE READY", "6 of 6 services verified — your record beats most listings.", null, hasChevron = false),
-    recent = HomeRecent("l4", IcShield, "Insurance renewed", "01 Jul · SafeDrive", null),
+    insight = HomeInfoCard(IcTagFilled, HomeCardTone.NEUTRAL, "RESALE READY", "6 of 6 services verified — your record beats most listings.", null, hasChevron = false),
+    recent = HomeRecent("l4", IcShieldFilled, "Insurance renewed", "01 Jul · SafeDrive", null),
     hasNotification = false,
 )
 

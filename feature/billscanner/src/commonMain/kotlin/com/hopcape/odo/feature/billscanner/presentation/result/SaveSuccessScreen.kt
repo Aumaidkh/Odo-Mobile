@@ -9,7 +9,7 @@ import androidx.compose.ui.draw.clip
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
-import com.hopcape.odo.core.designsystem.icons.IcLightbulb
+import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -43,7 +43,7 @@ internal fun SaveSuccessScreen(
         body = stringResource(Res.string.bs_save_body, workshop, dateLabel),
         infoCard = {
             ResultInfoCard(
-                icon = IcLightbulb,
+                icon = IcLightbulbFilled,
                 iconTone = OdoTheme.colors.accent,
                 title = stringResource(Res.string.bs_save_card_title),
                 subtitle = stringResource(Res.string.bs_save_card_body),

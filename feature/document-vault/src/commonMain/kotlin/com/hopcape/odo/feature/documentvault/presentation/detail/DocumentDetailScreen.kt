@@ -45,11 +45,11 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
-import com.hopcape.odo.core.designsystem.icons.IcEye
+import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcPdf
 import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcShare
-import com.hopcape.odo.core.designsystem.icons.IcShield
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTrash
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -156,7 +156,7 @@ private fun HeroCard(state: DocumentDetailUiState, onView: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.Top) {
-            IconChip(IcShield, OdoTheme.colors.accent)
+            IconChip(IcShieldFilled, OdoTheme.colors.accent)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(state.provider, style = OdoTheme.typography.heading)
                 OdoText(state.subtitle, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
@@ -194,7 +194,7 @@ private fun ViewButton(onView: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            OdoIcon(IcEye, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
+            OdoIcon(IcEyeFilled, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
             OdoText(stringResource(Res.string.dv_detail_view), style = OdoTheme.typography.label)
         }
     }

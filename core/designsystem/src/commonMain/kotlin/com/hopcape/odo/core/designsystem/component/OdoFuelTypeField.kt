@@ -36,7 +36,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcFuelPumpDiesel
 import com.hopcape.odo.core.designsystem.icons.IcInfinity
 import com.hopcape.odo.core.designsystem.icons.IcInfo
-import com.hopcape.odo.core.designsystem.icons.IcLightning
+import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -360,7 +360,7 @@ private fun FuelGlyphTile(kind: OdoFuelKind, selected: Boolean) {
 private fun OdoFuelKind.glyph(): ImageVector = when (this) {
     OdoFuelKind.PETROL -> IcFuelPump
     OdoFuelKind.DIESEL -> IcFuelPumpDiesel
-    OdoFuelKind.ELECTRIC -> IcLightning
+    OdoFuelKind.ELECTRIC -> IcLightningFilled
     OdoFuelKind.CNG -> IcInfinity
 }
 
