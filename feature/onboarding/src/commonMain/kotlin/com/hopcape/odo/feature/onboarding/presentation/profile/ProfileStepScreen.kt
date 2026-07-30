@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -29,14 +30,17 @@ import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingGoalOption
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingStep
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingUiState
-import com.hopcape.odo.feature.onboarding.presentation.ProfileForm
+import com.hopcape.odo.core.designsystem.text.asString
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
-import com.hopcape.odo.feature.onboarding.presentation.sampleOnboardingState
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.state.ProfileState
+import com.hopcape.odo.feature.onboarding.presentation.state.sampleProfile
+import com.hopcape.odo.feature.onboarding.presentation.state.text
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_cd_goal_selected
 import com.hopcape.odo.feature.onboarding.resources.onb_cd_name_valid
@@ -60,24 +64,22 @@ import org.jetbrains.compose.resources.stringResource
  * The goal is not a preference — it decides where the app opens after setup
  * (`StartDestinationMapping`), so it is asked as three plain outcomes rather than features.
  *
- * Stateless: renders [state] and forwards intents.
+ * Stateless: renders [profile] and forwards [OnboardingEvent]s.
  */
 @Composable
 internal fun ProfileStepScreen(
-    state: OnboardingUiState,
-    onNameChange: (String) -> Unit,
-    onGoalChange: (OnboardingGoalOption) -> Unit,
-    onBack: () -> Unit,
-    onContinue: () -> Unit,
+    profile: ProfileState,
+    canContinue: Boolean,
+    onEvent: (OnboardingEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OnboardingStepScaffold(
         step = OnboardingStep.PROFILE.position,
         primaryLabel = stringResource(Res.string.onb_continue),
-        onPrimary = onContinue,
+        onPrimary = { onEvent(OnboardingEvent.ContinueClicked) },
         modifier = modifier,
-        onBack = onBack,
-        primaryEnabled = state.profile.canContinue,
+        onBack = { onEvent(OnboardingEvent.BackClicked) },
+        primaryEnabled = canContinue,
     ) {
         StepHeadline(
             title = stringResource(Res.string.onb_profile_title),
@@ -85,11 +87,15 @@ internal fun ProfileStepScreen(
         )
 
         OdoInputField(
-            value = state.profile.name,
-            onValueChange = onNameChange,
+            modifier = Modifier.testTag(OnboardingTestTags.NAME_FIELD),
+            value = profile.name.text,
+            onValueChange = { onEvent(OnboardingEvent.Profile.NameChanged(it)) },
             label = stringResource(Res.string.onb_profile_name_label),
             placeholder = stringResource(Res.string.onb_profile_name_placeholder),
-            trailingIcon = if (state.profile.isNameValid) {
+            // Nothing sets a name error until the profile is actually saved; the slot is
+            // wired now so that when it is, the message lands next to the field it describes.
+            errorText = profile.name.error?.asString(),
+            trailingIcon = if (profile.isNameValid) {
                 {
                     OdoIcon(
                         IcCheck,
@@ -112,8 +118,8 @@ internal fun ProfileStepScreen(
             GOALS.forEach { goal ->
                 GoalCard(
                     goal = goal,
-                    selected = state.profile.goal == goal.option,
-                    onClick = { onGoalChange(goal.option) },
+                    selected = profile.goal.value == goal.option,
+                    onClick = { onEvent(OnboardingEvent.Profile.GoalSelected(goal.option)) },
                 )
             }
         }
@@ -181,23 +187,11 @@ private fun GoalCard(goal: Goal, selected: Boolean, onClick: () -> Unit) {
 @OdoThemePreviews
 @Composable
 private fun ProfileStepPreview() = OdoPreview(padded = false) {
-    ProfileStepScreen(
-        state = sampleOnboardingState(step = OnboardingStep.PROFILE),
-        onNameChange = {},
-        onGoalChange = {},
-        onBack = {},
-        onContinue = {},
-    )
+    ProfileStepScreen(profile = sampleProfile(), canContinue = true, onEvent = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun ProfileStepEmptyPreview() = OdoPreview(padded = false) {
-    ProfileStepScreen(
-        state = sampleOnboardingState(step = OnboardingStep.PROFILE).copy(profile = ProfileForm()),
-        onNameChange = {},
-        onGoalChange = {},
-        onBack = {},
-        onContinue = {},
-    )
+    ProfileStepScreen(profile = ProfileState(), canContinue = false, onEvent = {})
 }

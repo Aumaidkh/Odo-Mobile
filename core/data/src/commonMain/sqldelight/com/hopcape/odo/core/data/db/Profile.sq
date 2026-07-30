@@ -1,0 +1,64 @@
+-- Local profiles table — the owner's own record, mirroring DB_SCHEMA §5.1
+-- (Postgres types mapped to SQLite). One row per signed-in owner; on a device
+-- with no account it holds the single local placeholder owner.
+--
+-- `full_name` and `onboarding_goal` are nullable to match the server, where the
+-- row is created by trigger at signup — before onboarding has asked anything.
+-- A pull can therefore legitimately bring back a nameless profile.
+--
+-- Sync columns are the mandatory set from SYNC_DESIGN §4.1; the engine that
+-- reads them lands in M5, but the columns ship with the first migration so
+-- there is nothing to retrofit.
+CREATE TABLE profiles (
+    id                      TEXT NOT NULL PRIMARY KEY,
+    full_name               TEXT,
+    onboarding_goal         TEXT,
+    onboarding_completed_at TEXT,
+    created_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL,
+    deleted_at              TEXT,
+    remote_version          TEXT,
+    sync_status             TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- Saving a profile is insert-or-update, but it is deliberately NOT written as an
+-- UPSERT (`ON CONFLICT ... DO UPDATE`): that syntax needs SQLite 3.24, and Odo's
+-- minSdk 26 ships SQLite 3.18, so it would fail on a real Android 8 device. The
+-- repository runs these two statements in one transaction instead — insert if
+-- absent, then update — which is equivalent and portable.
+
+-- No-op when the row already exists, which is what protects `created_at`: the
+-- first write owns the creation time.
+insertProfile:
+INSERT OR IGNORE INTO profiles (
+    id, full_name, onboarding_goal, onboarding_completed_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :fullName, :onboardingGoal, :onboardingCompletedAt,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- `created_at` and `remote_version` are absent on purpose: the first write owns
+-- the creation time, and the last sync owns the remote version — an edit must
+-- reset neither.
+updateProfile:
+UPDATE profiles
+SET full_name               = :fullName,
+    onboarding_goal         = :onboardingGoal,
+    onboarding_completed_at = :onboardingCompletedAt,
+    updated_at              = :updatedAt,
+    sync_status             = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- The device's profile. One signed-in owner per device, so no id is needed --
+-- the same assumption selectPrimaryCar makes.
+selectProfile:
+SELECT *
+FROM profiles
+WHERE deleted_at IS NULL
+LIMIT 1;
+
+selectProfileById:
+SELECT *
+FROM profiles
+WHERE id = ? AND deleted_at IS NULL;

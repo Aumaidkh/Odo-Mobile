@@ -30,6 +30,36 @@ sealed interface DomainError {
     /** Model is mandatory and must be non-blank. */
     data object BlankModel : DomainError
 
+    /** The owner's name is mandatory on a profile but was absent or blank. */
+    data object BlankOwnerName : DomainError
+
+    /** The owner's name was shorter than [min] characters after trimming. */
+    data class OwnerNameTooShort(val min: Int) : DomainError
+
+    /** The owner's name exceeded [max] characters after trimming. */
+    data class OwnerNameTooLong(val max: Int) : DomainError
+
+    /**
+     * An onboarding goal was required but not chosen. It decides the surface the owner
+     * lands on (PRD §5.1), so setup can't finish without one.
+     */
+    data object MissingOnboardingGoal : DomainError
+
+    /** A registration number was required (e.g. to look a car up) but was absent or blank. */
+    data object BlankRegistrationNumber : DomainError
+
+    /**
+     * The registry answered and has no vehicle for this plate. Permanent — retrying will
+     * not help, so the owner is sent to manual entry.
+     */
+    data object RegistrationNotFound : DomainError
+
+    /** A lookup couldn't be attempted because the device is offline. Worth retrying. */
+    data object LookupOffline : DomainError
+
+    /** The lookup service failed or timed out. Worth retrying. */
+    data object LookupUnavailable : DomainError
+
     /** Service date is mandatory on every log but was absent. */
     data object MissingServiceDate : DomainError
 

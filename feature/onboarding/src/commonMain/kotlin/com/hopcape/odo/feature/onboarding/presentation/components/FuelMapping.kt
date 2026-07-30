@@ -44,11 +44,15 @@ internal fun fuelLabel(fuel: FuelType): String = stringResource(
 )
 
 /**
- * Every fuel as a picker card. No rate subtitles yet: the design system will happily show
- * "≈ ₹106 / L in Pune", but the fuel-price feed isn't wired — and a made-up rate is worse
- * than none (PRD: never show false precision).
+ * The catalog's fuels as picker cards. Takes the list rather than reading [FuelType.entries]
+ * itself, so the pickers offer what the catalog actually supports instead of every fuel the
+ * enum can name.
+ *
+ * No rate subtitles yet: the design system will happily show "≈ ₹106 / L in Pune", but the
+ * fuel-price feed isn't wired — and a made-up rate is worse than none (PRD: never show false
+ * precision).
  */
 @Composable
-internal fun fuelOptions(): List<OdoFuelTypeOption> = FuelType.entries.map { fuel ->
+internal fun fuelOptions(fuels: List<FuelType>): List<OdoFuelTypeOption> = fuels.map { fuel ->
     OdoFuelTypeOption(kind = fuel.toFuelKind(), label = fuelLabel(fuel))
 }

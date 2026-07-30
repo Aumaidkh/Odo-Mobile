@@ -3,10 +3,11 @@ package com.hopcape.odo.feature.onboarding.domain.usecase
 import com.hopcape.odo.core.domain.car.model.FuelType
 
 /**
- * Raw, unvalidated onboarding input from the presentation layer. Fields are
- * nullable primitives; validation/normalization happens in [com.hopcape.odo.core.domain.car.model.Car.create].
+ * Raw, unvalidated car answers from the onboarding form — whichever route produced them.
+ * Fields are nullable primitives; validation and normalization happen in
+ * [com.hopcape.odo.core.domain.car.model.Car.create].
  */
-internal data class AddCarCommand(
+internal data class SaveCarCommand(
     val make: String?,
     val model: String?,
     val year: Int?,

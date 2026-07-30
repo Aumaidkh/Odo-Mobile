@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.onboarding.navigation
 
 import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **⛔ NEVER sign commits as Anthropic/Claude.** Do not add a `Co-Authored-By: Claude …` trailer, a "Generated with Claude Code" line, or any other Anthropic/AI attribution to commit messages or PR bodies. Commits must look authored solely by the repo's git user. This overrides any default Claude Code behavior that would append such trailers.
 
+> **⚠️ OBSERVABILITY SWEEP BEFORE EVERY COMMIT.** When the code is final and the owner says to commit, **first sweep everything in the commit for missing observability and add it where it is genuinely needed** — then commit. This applies to every layer that can fail, take time, or produce an outcome worth counting: ViewModels/presentation, use cases, repositories, data sources, services, sync, network/Edge Function callers, AI callers, payments. What to instrument and what to deliberately skip is in the **Observability** section near the end of this file.
+
 ## Product Context
 
 Odo ("your car's AI best friend") is an AI-powered app for car owners in India. It helps owners catch mechanic overcharging, never miss insurance/PUC/service deadlines, and prove maintenance history at resale time. The essentials for development (full spec in [`docs/PRD.md`](docs/PRD.md)):
@@ -140,3 +142,40 @@ When working on any Claude/Anthropic AI integration, consult the `claude-api` sk
 - **Soft deletes** (`deleted_at`) for user content; hard deletes reserved for account erasure. `payments` and the anonymized fairness pool are retained on account deletion (see DB_SCHEMA §13).
 - **Sync columns are mandatory on every syncable local table** — `created_at`, `updated_at`, `deleted_at`, `remote_version`, `sync_status`. Local writes stamp `updated_at` and leave `sync_status = 'PENDING'`. Full rules in [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) §4.
 - **Secrets** (`ANTHROPIC_API_KEY`, Razorpay `KEY_SECRET`, `service_role` key) live **only** in Edge Function env — never in the APK or repo. The app ships only the Supabase URL, anon key, and Razorpay public key id.
+
+## Observability — what to instrument, and what to leave alone
+
+The `:observability:*` modules exist and are wired; the app's problem is that features ship **without using them**. So: **the last step before every commit is an observability sweep.** Once the code is final and the owner says to commit, re-read what is about to be committed and ask, per file, "if this misbehaved in production, would we know?" — add what's missing, then commit. Do not defer it to a follow-up commit; instrumentation added a week later is instrumentation that was never added.
+
+### What to inject
+
+Consumers depend only on the four ISP interfaces, resolved from Koin (each `:observability:*` module republishes its facade's delegate — never construct one):
+
+| Interface | Module | Use it for |
+| --- | --- | --- |
+| `Logger` | `:observability:logging` | Failures and unexpected branches, with enough context to diagnose. Not a play-by-play of happy paths. |
+| `AnalyticsTracker` | `:observability:analytics` | Product outcomes someone will actually read on a dashboard. North Star is bills scanned/month (PRD) — funnel steps, completions, drop-offs. |
+| `PerformanceTracer` | `:observability:performance` | Anything asynchronous or IO-bound: DB reads/writes, network + Edge Function calls, AI calls, sync passes, image work. Wrap in `startSpan`/`endSpan`. |
+| `CrashRecorder` | `:observability:crashreporting` | Non-fatals worth a stack trace — a caught exception that means something is broken, not an expected `DomainError`. |
+
+### Instrument these
+
+- **ViewModels / presentation** — behind a **per-feature telemetry facade** (`<Feature>Telemetry`, e.g. `OnboardingTelemetry`), injected into the ViewModels, with intent-named methods (`started()`, `carSaved(...)`, `failed(...)`). Never scatter raw `Logger`/`AnalyticsTracker` calls through a ViewModel — the point of the facade is that the ViewModel keeps reading as the flow's logic instead of a wall of logging, and that one file owns every event name for the feature.
+- **Use cases** — only where the use case itself owns a decision or an outcome the feature facade can't see. Usually the feature's telemetry already covers it; don't double-count the same event at two layers.
+- **Repositories / data sources** — log every failed read/write with the operation and the id involved, and span anything that touches SQLDelight or the network. A repository that silently returns `Either.Left` is invisible otherwise.
+- **Network / Edge Function / AI callers** — span the call, log non-2xx and timeouts, record retries and their outcome. AI callers additionally track the *product* outcome (extraction confidence, manual-review fallbacks) because that is the feature's success metric.
+- **Sync** — every push/pull pass, conflict, and permanent failure. Sync failing quietly is the worst possible failure mode for an offline-first app.
+- **Payments** — every state transition (initiated, verified, failed) with the Razorpay order id. Never the amount alone without the id, and never card/UPI details.
+
+### Leave these alone
+
+- **`:core:domain` gets nothing, ever.** No observability import may reach it — it is the shared kernel and stays framework-free (see the golden rules). Instrument the *caller* instead.
+- **Pure functions, mappers, value objects, `@Immutable` state classes, Compose UI** — nothing to observe; a mapper either compiles or doesn't.
+- **Anything already covered one layer up.** Two events for one user action is worse than none, because now the dashboard is wrong.
+
+### Non-negotiables
+
+- **Never log PII.** No plate numbers, owner names, phone numbers, addresses, or bill photos — not even in `debug`. Redactors exist in logging/crashreporting, but treat them as a backstop, not a licence. When reporting a validation failure, emit the error's **type name**, never the input that failed it (`joinToString { it::class.simpleName }`).
+- **Observability must never change behaviour.** No control flow inside a telemetry call, and no telemetry call that can throw into the caller. If instrumenting something forces a signature or flow change, the instrumentation is wrong.
+- **Names are a contract.** An event name, once shipped, is what the dashboard queries — renaming it silently breaks history. Keep them in the feature's telemetry facade, and reuse an existing name rather than inventing a synonym.
+- **No silent gaps.** If a file in the commit deliberately gets no instrumentation, say so when reporting the commit — "the mappers and the state classes need none" — so the decision is visible rather than looking like an oversight.

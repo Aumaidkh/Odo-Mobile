@@ -30,9 +30,10 @@ import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingStep
+import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
+import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_scan_cta
 import com.hopcape.odo.feature.onboarding.resources.onb_scan_later
@@ -51,18 +52,17 @@ import org.jetbrains.compose.resources.stringResource
  * Camera permission is *named* before it is asked (the note under the frame), so the system
  * dialog arrives explained rather than out of nowhere.
  *
- * Stateless: forwards intents; the capture flow belongs to `:feature:billscanner`.
+ * Stateless: forwards [OnboardingEvent]s; the capture flow belongs to `:feature:billscanner`.
  */
 @Composable
 internal fun FirstScanScreen(
-    onScan: () -> Unit,
-    onSkip: () -> Unit,
+    onEvent: (OnboardingEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OnboardingStepScaffold(
         step = OnboardingStep.FIRST_SCAN.position,
         primaryLabel = stringResource(Res.string.onb_scan_cta),
-        onPrimary = onScan,
+        onPrimary = { onEvent(OnboardingEvent.Scan.ScanClicked) },
         modifier = modifier,
         primaryLeadingIcon = {
             OdoIcon(
@@ -72,7 +72,7 @@ internal fun FirstScanScreen(
             )
         },
         skipLabel = stringResource(Res.string.onb_skip),
-        onSkip = onSkip,
+        onSkip = { onEvent(OnboardingEvent.Scan.SkipClicked) },
         footer = {
             OdoText(
                 text = stringResource(Res.string.onb_scan_later),
@@ -80,7 +80,7 @@ internal fun FirstScanScreen(
                 color = OdoTheme.colors.textDim,
                 modifier = Modifier
                     .clip(OdoTheme.shapes.pill)
-                    .clickable(role = Role.Button, onClick = onSkip)
+                    .clickable(role = Role.Button) { onEvent(OnboardingEvent.Scan.SkipClicked) }
                     .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.sm),
             )
         },
@@ -259,5 +259,5 @@ private val ReceiptStroke = 2.dp
 @OdoThemePreviews
 @Composable
 private fun FirstScanScreenPreview() = OdoPreview(padded = false) {
-    FirstScanScreen(onScan = {}, onSkip = {})
+    FirstScanScreen(onEvent = {})
 }
