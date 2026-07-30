@@ -6,12 +6,15 @@ import android.util.Log
 import com.hopcape.analytics.api.AnalyticsConfig
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
+import com.hopcape.crashreporting.api.CrashConfig
+import com.hopcape.crashreporting.api.CrashReporter
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.di.initKoin
+import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
 import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.Span
@@ -19,6 +22,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.logger.Level
 import org.koin.dsl.module
+import java.io.File
 import java.util.Locale
 import java.util.UUID
 
@@ -64,6 +68,11 @@ class OdoApplication : Application() {
         // features inject a ready AnalyticsTracker.
         configureAnalytics(BuildConfig.DEBUG)
 
+        // Crash reporting — republished by crashReportingModule. Configured before the
+        // graph starts for the same reason as APM: the facade hands back an inert
+        // recorder until init() runs, and the data layer records non-fatals through it.
+        configureCrashReporting(BuildConfig.DEBUG)
+
         initKoin(
             platformModule = module {
                 single { DriverFactory(androidContext()) }
@@ -101,6 +110,24 @@ class OdoApplication : Application() {
         )
     }
 
+    /**
+     * Fatal reports are written synchronously to [crashDir] before the process dies, so
+     * the path has to be one the app owns — hence the Context-bearing bootstrap rather
+     * than a default inside the module.
+     */
+    private fun configureCrashReporting(isDebugBuild: Boolean) {
+        CrashReporter.init(
+            CrashConfig(
+                appVersion = BuildConfig.VERSION_NAME,
+                osVersion = "Android ${Build.VERSION.RELEASE}",
+                deviceModel = Build.MODEL,
+                crashDirPath = File(filesDir, "crash").absolutePath,
+                isDebug = isDebugBuild,
+                onDiagnostic = { Log.w("Crash", it) },
+            )
+        )
+    }
+
     private fun configureAnalytics(isDebugBuild: Boolean) {
         HAnalytics.init(
             AnalyticsConfig(
@@ -109,6 +136,9 @@ class OdoApplication : Application() {
                 osVersion = "Android ${Build.VERSION.RELEASE}",
                 locale = Locale.getDefault().toLanguageTag(),
                 isDebug = isDebugBuild,
+                // Declared up front: debug builds drop anything unregistered, so an event
+                // missing from here is one that never reaches a dashboard.
+                events = odoAnalyticsEvents,
                 onDiagnostic = { Log.w("Analytics", it) },
             )
         )

@@ -55,6 +55,9 @@ kotlin {
             implementation(projects.observability.analytics)
             // APM tracer (spans/traces) wired via performanceModule.
             implementation(projects.observability.performance)
+            // CrashRecorder wired via crashReportingModule — :core:data's telemetry
+            // records non-fatals through it, so the graph must publish one.
+            implementation(projects.observability.crashreporting)
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
         }

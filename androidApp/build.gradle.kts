@@ -29,6 +29,8 @@ dependencies {
     implementation(projects.observability.analytics)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
+    // Crash reporting — CrashReporter.init needs the app's own crash directory.
+    implementation(projects.observability.crashreporting)
 
     implementation(libs.androidx.activity.compose)
 
