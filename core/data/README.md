@@ -60,7 +60,7 @@ The rest of the app sees **only** the `:core:domain` ports (`CarRepository`,
 
 | File | Layer | Responsibility |
 | --- | --- | --- |
-| `sqldelight/.../Car.sq` | schema | `cars` table (DB_SCHEMA §9.3, mapped to SQLite) + indexes + `insertCar` / `clearPrimaryForOwner` / `selectPrimaryCar` / `selectById`. **`sync_status` groundwork.** |
+| `sqldelight/.../Car.sq` | schema | `cars` table (DB_SCHEMA §9.3, mapped to SQLite) + indexes + `insertCar` / `updateCar` / `clearPrimaryForOwner` / `selectPrimaryCar` / `selectById` / `softDeleteCar`. **`sync_status` groundwork**, plus the client-only `odometer_updated_at` (when the reading was written down — the odometer timeline dates the car's own reading from it). |
 | `sqldelight/.../VehicleMake.sq` | schema | Seeded make reference table + `insertMake` / `selectAllMakes` / `countMakes`. |
 | `sqldelight/.../VehicleModel.sq` | schema | Seeded model reference table (FK to make) + `insertModel` / `selectModelsByMakeName`. |
 | `db/DriverFactory.kt` | platform port | `expect class DriverFactory { create(): SqlDriver }` + `createOdoDatabase(driver)`. |

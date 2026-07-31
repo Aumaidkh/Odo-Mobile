@@ -195,6 +195,7 @@ class CarRepositoryImplTest {
             purchaseYear = 2021,
             nickname = null,
             isPrimary = 1L,
+            odometerUpdatedAt = "2026-07-30T10:00:00Z",
             updatedAt = "2026-07-30T10:00:00Z",
             syncStatus = SyncStatus.SYNCED.name,
             id = "car-1",
@@ -259,6 +260,79 @@ class CarRepositoryImplTest {
         // The first car is demoted, not deleted.
         val first = db.carQueries.selectById("car-1").executeAsOne()
         assertEquals(0L, first.is_primary)
+    }
+
+    /**
+     * The odometer timeline reads the car's own reading as a dated entry. Re-dating it on
+     * an unrelated edit would claim the odometer was checked when it wasn't, and every
+     * backdated service log after that would be measured against a date that never happened.
+     */
+    @Test
+    fun update_keepsTheOdometerDateWhenTheReadingIsUnchanged() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        val stampedOnInsert = db.carQueries.selectById("car-1").executeAsOne().odometer_updated_at
+
+        // Same reading, different nickname.
+        val renamed = Car.create(
+            id = CarId("car-1"),
+            ownerId = ownerId,
+            make = "Maruti Suzuki",
+            model = "Swift",
+            year = 2020,
+            fuelType = FuelType.PETROL,
+            odometerKm = 45_000,
+            registrationNumber = "mh 12 ab 1234",
+            purchaseYear = 2021,
+            nickname = "Chhoti",
+            isPrimary = true,
+        ).getOrNull()!!
+        assertTrue(repo.update(renamed).isRight())
+
+        assertEquals(stampedOnInsert, db.carQueries.selectById("car-1").executeAsOne().odometer_updated_at)
+    }
+
+    @Test
+    fun update_redatesTheOdometerWhenTheReadingMoves() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        // Backdate the stamp so a fresh one is unmistakable.
+        db.carQueries.updateCar(
+            make = "Maruti Suzuki",
+            model = "Swift",
+            variant = null,
+            year = 2020,
+            fuelType = FuelType.PETROL.name,
+            registrationNumber = "MH12AB1234",
+            odometerKm = 45_000,
+            purchaseYear = 2021,
+            nickname = null,
+            isPrimary = 1L,
+            odometerUpdatedAt = "2026-01-01T00:00:00Z",
+            updatedAt = "2026-01-01T00:00:00Z",
+            syncStatus = SyncStatus.SYNCED.name,
+            id = "car-1",
+        )
+
+        val moved = Car.create(
+            id = CarId("car-1"),
+            ownerId = ownerId,
+            make = "Maruti Suzuki",
+            model = "Swift",
+            year = 2020,
+            fuelType = FuelType.PETROL,
+            odometerKm = 61_500,
+            registrationNumber = "mh 12 ab 1234",
+            purchaseYear = 2021,
+            isPrimary = true,
+        ).getOrNull()!!
+        assertTrue(repo.update(moved).isRight())
+
+        val stamp = db.carQueries.selectById("car-1").executeAsOne().odometer_updated_at
+        assertNotNull(stamp)
+        assertTrue(stamp > "2026-01-01T00:00:00Z", "expected a fresh stamp but was $stamp")
     }
 
     @Test

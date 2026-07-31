@@ -77,6 +77,8 @@ internal class CarRepositoryImpl(
                         purchase_year = car.purchaseYear?.value?.toLong(),
                         nickname = car.nickname,
                         is_primary = if (car.isPrimary) 1L else 0L,
+                        // The reading arrived with the car, so it was written down now.
+                        odometer_updated_at = now,
                         created_at = now,
                         updated_at = now,
                         deleted_at = null,
@@ -99,12 +101,21 @@ internal class CarRepositoryImpl(
                 // The existence check and the write share a transaction, so a car deleted
                 // between them can't turn a CarNotFound into a silent no-op update.
                 val result = database.transactionWithResult {
-                    if (queries.selectById(car.id.value).executeAsOneOrNull() == null) {
+                    val stored = queries.selectById(car.id.value).executeAsOneOrNull()
+                    if (stored == null) {
                         DomainError.CarNotFound.left()
                     } else {
                         if (car.isPrimary) {
                             queries.clearPrimaryForOwner(updatedAt = now, ownerId = car.ownerId.value)
                         }
+                        // Only a changed reading was written down now. Re-dating it on a
+                        // nickname edit would claim the odometer was checked when it wasn't.
+                        val odometerUpdatedAt =
+                            if (stored.current_odometer_km == car.odometer.km.toLong()) {
+                                stored.odometer_updated_at
+                            } else {
+                                now
+                            }
                         queries.updateCar(
                             make = car.make,
                             model = car.model,
@@ -116,6 +127,7 @@ internal class CarRepositoryImpl(
                             purchaseYear = car.purchaseYear?.value?.toLong(),
                             nickname = car.nickname,
                             isPrimary = if (car.isPrimary) 1L else 0L,
+                            odometerUpdatedAt = odometerUpdatedAt,
                             updatedAt = now,
                             // An edited row has to reach the server again.
                             syncStatus = SyncStatus.PENDING.name,

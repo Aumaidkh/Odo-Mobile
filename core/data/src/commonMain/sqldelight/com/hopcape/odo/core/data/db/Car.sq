@@ -19,6 +19,12 @@ CREATE TABLE cars (
     purchase_year       INTEGER CHECK (purchase_year BETWEEN 1980 AND 2100),
     nickname            TEXT,
     is_primary          INTEGER NOT NULL DEFAULT 0,
+    -- When `current_odometer_km` was last written down. A reading means nothing
+    -- without the day it was taken: the odometer timeline reads the car's current
+    -- reading as a dated entry, and without this it would be dated from when the
+    -- car was added — which would reject every backdated service log after the
+    -- first odometer update. Client-only, like the sync columns.
+    odometer_updated_at TEXT,
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     deleted_at          TEXT,
@@ -42,8 +48,8 @@ insertCar:
 INSERT INTO cars (
     id, owner_id, make, model, variant, year, fuel_type, registration_number,
     current_odometer_km, purchase_year, nickname, is_primary,
-    created_at, updated_at, deleted_at, remote_version, sync_status
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    odometer_updated_at, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- Edit a stored car. Onboarding saves the car when its step completes (so the
 -- first-scan step has a real car to hand the scanner), which makes stepping back
@@ -52,6 +58,11 @@ INSERT INTO cars (
 -- `owner_id` and `created_at` are absent on purpose: ownership doesn't change by
 -- editing, and the creation time is the first write's to keep. `sync_status`
 -- returns to PENDING because an edited row has to reach the server again.
+--
+-- `odometer_updated_at` is passed in rather than always set to now, because most
+-- edits (a nickname, a corrected trim) don't touch the reading, and re-dating it
+-- would claim the odometer was checked when it wasn't. The caller passes the
+-- stored value back when the reading is unchanged.
 updateCar:
 UPDATE cars
 SET make                = :make,
@@ -64,6 +75,7 @@ SET make                = :make,
     purchase_year       = :purchaseYear,
     nickname            = :nickname,
     is_primary          = :isPrimary,
+    odometer_updated_at = :odometerUpdatedAt,
     updated_at          = :updatedAt,
     sync_status         = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
