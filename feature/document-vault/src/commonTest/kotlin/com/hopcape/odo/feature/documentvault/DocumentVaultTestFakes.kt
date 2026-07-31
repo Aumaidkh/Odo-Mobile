@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.documentvault
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -28,6 +29,11 @@ internal val TEST_CLOCK = FixedClock(Instant.parse("2026-07-28T09:00:00Z"))
 
 internal class FixedClock(private val instant: Instant) : Clock {
     override fun now(): Instant = instant
+}
+
+/** Hands out one known id, so a test can predict the storage key a new document gets. */
+internal class FixedIdGenerator(private val id: String = "doc-new") : IdGenerator {
+    override fun newId(): String = id
 }
 
 /** A stored document, built the way the data layer will rehydrate one. */
