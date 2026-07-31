@@ -135,6 +135,18 @@ When working on any Claude/Anthropic AI integration, consult the `claude-api` sk
 - Type-safe project accessors are enabled (`enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")`) — reference modules as `projects.shared`.
 - JVM target is 11; Android `minSdk` 26, `compileSdk`/`targetSdk` 36.
 
+### KDoc style — write it plainly
+
+Documentation is read by whoever is debugging at 2am, not by a reviewer grading prose. Keep it boring and obvious.
+
+- **First line says what the thing is or does**, in one plain sentence. Then, if a decision needs defending, one or two short sentences of *why*. Nothing else.
+- **Short sentences. Common words.** "The file is copied into app storage" beats "the bytes are copied into the app's own storage the moment they are picked". No sentence should need a second read.
+- **No metaphors, no rhetorical flourishes.** Not "a borrowed handle", "the policy that speaks for the type", "history, not a warning". Say the literal thing: "the URI stops working after the app restarts", "the document with the latest expiry".
+- **No dramatic framing** — skip "worse than silence", "the whole point", "what gets an app muted". State the consequence flatly: "a reminder sent after expiry is useless".
+- **Prefer clauses over em-dashes.** One em-dash in a paragraph is plenty; if a sentence needs two, split it.
+- **Explain the non-obvious, skip the obvious.** A getter named `isFullyCovered` does not need a paragraph; a rule that rejects past expiry dates does.
+- **Same rule for comments and commit messages.** If a reader has to slow down to parse it, rewrite it.
+
 ### Data-layer conventions (from DB_SCHEMA.md — apply everywhere money/data is touched)
 
 - **Money is always integer paise.** Store as `BIGINT` columns named `*_paise`; ₹2,800 → `280000`. **Never** use `FLOAT`/`NUMERIC`/`Double` for money in code paths — convert to rupees only in the UI layer. Keeps fairness math exact.
