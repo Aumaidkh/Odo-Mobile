@@ -87,6 +87,7 @@
     <string name="gr_odo_last">Last recorded %1$s on %2$s</string>
     <string name="gr_odo_delta">+%1$s km since last update · about %2$s km/month</string>
     <string name="gr_odo_save">Save reading</string>
+    <string name="gr_odo_backspace">Delete last digit</string>
 
     <!-- Add to service history sheet -->
     <string name="gr_ah_title">Add to service history</string>

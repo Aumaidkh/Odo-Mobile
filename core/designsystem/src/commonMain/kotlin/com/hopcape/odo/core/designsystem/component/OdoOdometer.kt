@@ -80,6 +80,7 @@ fun OdoOdometer(
     scanLabel: String? = null,
     scanBadge: String? = null,
     digits: Int = 6,
+    backspaceLabel: String? = null,
     enabled: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -127,6 +128,7 @@ fun OdoOdometer(
                 scanLabel = scanLabel,
                 scanBadge = scanBadge,
                 digits = digits,
+                backspaceLabel = backspaceLabel,
             )
         }
     }
@@ -146,6 +148,8 @@ fun OdoOdometer(
  * whenever [value] changes. [onSave] fires with the finished reading in whole units of the
  * displayed unit; nothing is reported while the owner is still typing.
  *
+ * @param backspaceLabel what a screen reader announces for the keypad's backspace key. The
+ *   key is icon-only, so without it the control has nothing to announce.
  * @param footer rendered between the note and the save button — the slot for caller
  *   context the design system can't know, e.g. the last recorded reading or the distance
  *   driven since. It is handed the reading currently dialled in (null while the drums are
@@ -170,6 +174,7 @@ fun OdoOdometerEditor(
     scanLabel: String? = null,
     scanBadge: String? = null,
     digits: Int = 6,
+    backspaceLabel: String? = null,
     footer: (@Composable ColumnScope.(dialled: Long?) -> Unit)? = null,
 ) {
     var entry by remember(value) { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
@@ -188,6 +193,7 @@ fun OdoOdometerEditor(
         scanLabel = scanLabel,
         scanBadge = scanBadge,
         digits = digits,
+        backspaceLabel = backspaceLabel,
         modifier = modifier,
         footer = footer?.let { slot -> { slot(entry.toLongOrNull()) } },
         onDigit = { c -> if (entry.length < digits) entry = (entry + c).trimStart('0').ifEmpty { "" } },
@@ -257,6 +263,7 @@ private fun OdometerEditor(
     scanLabel: String?,
     scanBadge: String?,
     digits: Int,
+    backspaceLabel: String?,
     onDigit: (Char) -> Unit,
     onBackspace: () -> Unit,
     onQuickAdd: (Int) -> Unit,
@@ -308,7 +315,7 @@ private fun OdometerEditor(
         OdoButton(text = saveLabel, onClick = onSave, enabled = entry.isNotEmpty(), modifier = Modifier.fillMaxWidth())
 
         OdoDivider()
-        Keypad(onDigit = onDigit, onBackspace = onBackspace)
+        Keypad(onDigit = onDigit, onBackspace = onBackspace, backspaceLabel = backspaceLabel)
     }
 }
 
@@ -472,7 +479,7 @@ private fun ScanChip(label: String, badge: String?) {
 /* ------------------------------ Keypad ------------------------------ */
 
 @Composable
-private fun Keypad(onDigit: (Char) -> Unit, onBackspace: () -> Unit) {
+private fun Keypad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, backspaceLabel: String?) {
     Column(Modifier.fillMaxWidth()) {
         listOf("123", "456", "789").forEach { row ->
             Row(Modifier.fillMaxWidth()) {
@@ -483,7 +490,12 @@ private fun Keypad(onDigit: (Char) -> Unit, onBackspace: () -> Unit) {
             Spacer(Modifier.weight(1f))
             KeyCell(onClick = { onDigit('0') }) { OdoText("0", style = OdoTheme.typography.title) }
             KeyCell(onClick = onBackspace) {
-                OdoIcon(IcBackspace, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.large)
+                OdoIcon(
+                    IcBackspace,
+                    contentDescription = backspaceLabel,
+                    tint = OdoTheme.colors.textDim,
+                    size = OdoTheme.iconSizes.large,
+                )
             }
         }
     }

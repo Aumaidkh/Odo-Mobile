@@ -20,6 +20,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.OdometerContext
 import com.hopcape.odo.feature.garage.presentation.GarageSheet
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
+import com.hopcape.odo.feature.garage.resources.gr_odo_backspace
 import com.hopcape.odo.feature.garage.resources.gr_odo_delta
 import com.hopcape.odo.feature.garage.resources.gr_odo_last
 import com.hopcape.odo.feature.garage.resources.gr_odo_save
@@ -82,6 +83,7 @@ private fun Editor(
         saveLabel = stringResource(Res.string.gr_odo_save),
         kmLabel = stringResource(Res.string.gr_odo_unit_km),
         milesLabel = stringResource(Res.string.gr_odo_unit_miles),
+        backspaceLabel = stringResource(Res.string.gr_odo_backspace),
         footer = { dialled ->
             OdoText(
                 stringResource(
