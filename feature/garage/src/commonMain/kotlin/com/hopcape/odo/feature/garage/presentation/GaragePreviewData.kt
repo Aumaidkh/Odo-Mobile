@@ -1,14 +1,15 @@
 package com.hopcape.odo.feature.garage.presentation
 
 import arrow.core.getOrElse
+import com.hopcape.odo.core.domain.car.catalog.CarModel as CatalogModel
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
-import com.hopcape.odo.core.domain.car.model.Vin
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -19,6 +20,10 @@ import com.hopcape.odo.core.domain.shared.WorkshopName
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
+import com.hopcape.odo.feature.garage.presentation.state.FormField
+import com.hopcape.odo.feature.garage.presentation.state.Loadable
+import com.hopcape.odo.feature.garage.resources.Res
+import com.hopcape.odo.feature.garage.resources.gr_error_load_failed
 import kotlinx.datetime.LocalDate
 
 private fun rupees(paise: Long): Amount = Amount.of(paise).getOrElse { Amount.ZERO }
@@ -106,18 +111,56 @@ private val sampleHistory: List<ServiceHistoryEntry> = listOf(
 )
 
 /**
- * Canned home-base state mirroring the mockup — for `@Preview`s and, until the aggregation
- * use case lands, the running route. The document rows are built the way the ViewModel
- * will build them: domain documents resolved against a day.
+ * Canned home-base state mirroring the mockup — for `@Preview`s. The document rows are
+ * built the way the ViewModel builds them: domain documents resolved against a day.
  */
 internal fun sampleGarage(filter: ServiceFacet = ServiceFacet.ALL): GarageUiState = GarageUiState(
-    car = sampleCar,
-    vin = Vin.of("MA3ERLF1S00123456"),
-    documents = GarageDocument.rowsFor(sampleDocuments, SampleToday),
-    serviceHistory = sampleHistory,
+    content = Loadable.Ready(
+        GarageContent(
+            car = sampleCar,
+            documents = GarageDocument.rowsFor(sampleDocuments, SampleToday),
+            history = sampleHistory,
+        ),
+    ),
     filter = filter,
-    isLoading = false,
 )
 
-/** Sample empty state — no car yet. */
-internal fun sampleEmptyGarage(): GarageUiState = GarageUiState(isLoading = false)
+/** Sample empty state — read, but no car set up yet. */
+internal fun sampleEmptyGarage(): GarageUiState = GarageUiState(
+    content = Loadable.Ready(GarageContent(car = null, documents = emptyList(), history = emptyList())),
+)
+
+/** Sample failed read — the local DB could not be opened. */
+internal fun sampleFailedGarage(): GarageUiState =
+    GarageUiState(content = Loadable.Failed(UiText(Res.string.gr_error_load_failed)))
+
+// --- Car forms ------------------------------------------------------------------
+
+private val sampleOptions = CarFormOptions(
+    makes = listOf("Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Honda"),
+    popularMakes = listOf("Maruti Suzuki", "Hyundai", "Tata"),
+    years = (2005..2026).toList().reversed(),
+    fuelTypes = FuelType.entries,
+    models = listOf(CatalogModel("Swift"), CatalogModel("Swift", "VXI"), CatalogModel("Baleno", "Zeta")),
+)
+
+private val sampleFields = CarFormFields(
+    make = FormField("Maruti Suzuki"),
+    model = FormField(CatalogModel("Swift", "VXI")),
+    year = FormField(2020),
+    fuel = FormField(FuelType.PETROL),
+    registration = FormField("MH12AB1234"),
+)
+
+/** A part-filled add form, the shape it takes before a plate has been looked up. */
+internal fun sampleAddCar(): AddCarUiState = AddCarUiState(
+    fields = sampleFields,
+    options = sampleOptions,
+    odometer = FormField(22_300L),
+)
+
+/** The edit form, filled from a stored car. */
+internal fun sampleEditCar(): EditCarUiState = EditCarUiState(
+    form = Loadable.Ready(sampleFields.copy(nickname = FormField("Chhoti"))),
+    options = sampleOptions,
+)

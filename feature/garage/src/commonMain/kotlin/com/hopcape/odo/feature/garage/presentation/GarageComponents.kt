@@ -100,6 +100,7 @@ internal fun GarageBottomButton(
     label: String,
     onClick: () -> Unit,
     variant: OdoButtonVariant = OdoButtonVariant.Primary,
+    enabled: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -108,6 +109,12 @@ internal fun GarageBottomButton(
             .padding(vertical = OdoTheme.spacing.md)
             .navigationBarsPadding(),
     ) {
-        OdoButton(label, onClick = onClick, modifier = Modifier.fillMaxWidth(), variant = variant)
+        OdoButton(
+            label,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            variant = variant,
+            enabled = enabled,
+        )
     }
 }

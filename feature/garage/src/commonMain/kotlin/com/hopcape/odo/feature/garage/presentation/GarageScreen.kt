@@ -34,6 +34,7 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.component.formatRegistrationNumber
+import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCardFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
@@ -45,9 +46,9 @@ import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.car.model.Car
-import com.hopcape.odo.core.domain.car.model.Vin
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
@@ -59,6 +60,7 @@ import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
+import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_add
 import com.hopcape.odo.feature.garage.resources.gr_add_car_subtitle
@@ -93,6 +95,7 @@ import com.hopcape.odo.feature.garage.resources.gr_empty_add_docs
 import com.hopcape.odo.feature.garage.resources.gr_empty_body
 import com.hopcape.odo.feature.garage.resources.gr_empty_log_service
 import com.hopcape.odo.feature.garage.resources.gr_empty_title
+import com.hopcape.odo.feature.garage.resources.gr_error_title
 import com.hopcape.odo.feature.garage.resources.gr_entries_summary
 import com.hopcape.odo.feature.garage.resources.gr_entry_meta
 import com.hopcape.odo.feature.garage.resources.gr_entry_untagged
@@ -107,7 +110,6 @@ import com.hopcape.odo.feature.garage.resources.gr_odometer
 import com.hopcape.odo.feature.garage.resources.gr_service_history
 import com.hopcape.odo.feature.garage.resources.gr_title
 import com.hopcape.odo.feature.garage.resources.gr_update
-import com.hopcape.odo.feature.garage.resources.gr_vin
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -119,45 +121,41 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun GarageScreen(
     state: GarageUiState,
-    onAddCar: () -> Unit,
-    onUpdateOdometer: () -> Unit,
-    onCarMenu: () -> Unit,
-    onManageDocuments: () -> Unit,
-    onOpenDocument: (DocumentId) -> Unit,
-    onAddDocument: () -> Unit,
-    onAddService: () -> Unit,
-    onOpenService: (ServiceLogId) -> Unit,
-    onFilterChange: (ServiceFacet) -> Unit,
+    onEvent: (GarageEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(modifier = modifier, title = stringResource(Res.string.gr_title)) { padding ->
-        val car = state.car
-        when {
-            state.isLoading -> Box(
+        when (val content = state.content) {
+            Loadable.Loading -> Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { OdoLoadingIndicator() }
 
-            car == null -> EmptyGarage(
-                contentPadding = padding,
-                onAddCar = onAddCar,
-                onAddDocuments = onAddDocument,
-                onLogService = onAddService,
-            )
+            is Loadable.Failed -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoEmptyState(
+                    title = stringResource(Res.string.gr_error_title),
+                    message = content.message.asString(),
+                    icon = { IconTile(IcCar, tint = OdoTheme.colors.danger, size = 88.dp) },
+                )
+            }
 
-            else -> PopulatedGarage(
-                contentPadding = padding,
-                state = state,
-                car = car,
-                onUpdateOdometer = onUpdateOdometer,
-                onCarMenu = onCarMenu,
-                onManageDocuments = onManageDocuments,
-                onOpenDocument = onOpenDocument,
-                onAddDocument = onAddDocument,
-                onAddService = onAddService,
-                onOpenService = onOpenService,
-                onFilterChange = onFilterChange,
-            )
+            is Loadable.Ready -> {
+                val car = content.value.car
+                if (car == null) {
+                    EmptyGarage(contentPadding = padding, onEvent = onEvent)
+                } else {
+                    PopulatedGarage(
+                        contentPadding = padding,
+                        state = state,
+                        content = content.value,
+                        car = car,
+                        onEvent = onEvent,
+                    )
+                }
+            }
         }
     }
 }
@@ -168,15 +166,9 @@ internal fun GarageScreen(
 private fun PopulatedGarage(
     contentPadding: PaddingValues,
     state: GarageUiState,
+    content: GarageContent,
     car: Car,
-    onUpdateOdometer: () -> Unit,
-    onCarMenu: () -> Unit,
-    onManageDocuments: () -> Unit,
-    onOpenDocument: (DocumentId) -> Unit,
-    onAddDocument: () -> Unit,
-    onAddService: () -> Unit,
-    onOpenService: (ServiceLogId) -> Unit,
-    onFilterChange: (ServiceFacet) -> Unit,
+    onEvent: (GarageEvent) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -186,26 +178,30 @@ private fun PopulatedGarage(
             .padding(vertical = OdoTheme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xl),
     ) {
-        CarCard(car = car, vin = state.vin, onUpdate = onUpdateOdometer, onMenu = onCarMenu)
+        CarCard(
+            car = car,
+            onUpdate = { onEvent(GarageEvent.UpdateOdometerTapped) },
+            onMenu = { onEvent(GarageEvent.CarMenuTapped) },
+        )
         DocumentsSection(
-            documents = state.documents,
-            onManage = onManageDocuments,
-            onOpen = onOpenDocument,
-            onAdd = onAddDocument,
+            documents = content.documents,
+            onManage = { onEvent(GarageEvent.ManageDocumentsTapped) },
+            onOpen = { onEvent(GarageEvent.DocumentTapped(it)) },
+            onAdd = { onEvent(GarageEvent.AddDocumentTapped) },
         )
         ServiceHistorySection(
             entries = state.filteredHistory,
             total = state.filteredTotal.formatRupees(),
             filter = state.filter,
-            onAdd = onAddService,
-            onOpen = onOpenService,
-            onFilterChange = onFilterChange,
+            onAdd = { onEvent(GarageEvent.AddServiceTapped) },
+            onOpen = { onEvent(GarageEvent.ServiceTapped(it)) },
+            onFilterChange = { onEvent(GarageEvent.FilterSelected(it)) },
         )
     }
 }
 
 @Composable
-private fun CarCard(car: Car, vin: Vin?, onUpdate: () -> Unit, onMenu: () -> Unit) {
+private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
     OdoCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -223,13 +219,6 @@ private fun CarCard(car: Car, vin: Vin?, onUpdate: () -> Unit, onMenu: () -> Uni
                 )
             }
             OdoIconButton(IcDotsVertical, contentDescription = stringResource(Res.string.gr_cd_more), onClick = onMenu)
-        }
-        if (vin != null) {
-            OdoText(
-                stringResource(Res.string.gr_vin, vin.formatted),
-                style = OdoTheme.typography.caption,
-                color = OdoTheme.colors.textMuted,
-            )
         }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
         Row(
@@ -375,12 +364,7 @@ private fun TrustBadge(verified: Boolean) = if (verified) {
 // --- Empty ----------------------------------------------------------------------
 
 @Composable
-private fun EmptyGarage(
-    contentPadding: PaddingValues,
-    onAddCar: () -> Unit,
-    onAddDocuments: () -> Unit,
-    onLogService: () -> Unit,
-) {
+private fun EmptyGarage(contentPadding: PaddingValues, onEvent: (GarageEvent) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -388,7 +372,7 @@ private fun EmptyGarage(
             .padding(vertical = OdoTheme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
-        AddYourCarCard(onAdd = onAddCar)
+        AddYourCarCard(onAdd = { onEvent(GarageEvent.AddCarTapped) })
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             OdoEmptyState(
                 title = stringResource(Res.string.gr_empty_title),
@@ -396,8 +380,16 @@ private fun EmptyGarage(
                 icon = { CarAvatar(size = 88.dp) },
             )
         }
-        EmptyActionCard(IcShieldFilled, stringResource(Res.string.gr_empty_add_docs), onClick = onAddDocuments)
-        EmptyActionCard(IcJournalPlus, stringResource(Res.string.gr_empty_log_service), onClick = onLogService)
+        EmptyActionCard(
+            icon = IcShieldFilled,
+            label = stringResource(Res.string.gr_empty_add_docs),
+            onClick = { onEvent(GarageEvent.AddDocumentTapped) },
+        )
+        EmptyActionCard(
+            icon = IcJournalPlus,
+            label = stringResource(Res.string.gr_empty_log_service),
+            onClick = { onEvent(GarageEvent.AddServiceTapped) },
+        )
         Spacer(Modifier.height(OdoTheme.spacing.md))
     }
 }
@@ -543,30 +535,24 @@ private fun ServiceFacet.label(): String = stringResource(
 @OdoThemePreviews
 @Composable
 private fun GaragePopulatedPreview() = OdoPreview(padded = false) {
-    GarageScreen(
-        state = sampleGarage(),
-        onAddCar = {}, onUpdateOdometer = {}, onCarMenu = {}, onManageDocuments = {},
-        onOpenDocument = {}, onAddDocument = {}, onAddService = {}, onOpenService = {}, onFilterChange = {},
-    )
+    GarageScreen(state = sampleGarage(), onEvent = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun GarageEmptyPreview() = OdoPreview(padded = false) {
-    GarageScreen(
-        state = sampleEmptyGarage(),
-        onAddCar = {}, onUpdateOdometer = {}, onCarMenu = {}, onManageDocuments = {},
-        onOpenDocument = {}, onAddDocument = {}, onAddService = {}, onOpenService = {}, onFilterChange = {},
-    )
+    GarageScreen(state = sampleEmptyGarage(), onEvent = {})
 }
 
-/** The default state a ViewModel emits first — no car, still loading. */
+/** The default state a ViewModel emits first — nothing read yet. */
 @OdoThemePreviews
 @Composable
 private fun GarageLoadingPreview() = OdoPreview(padded = false) {
-    GarageScreen(
-        state = GarageUiState(),
-        onAddCar = {}, onUpdateOdometer = {}, onCarMenu = {}, onManageDocuments = {},
-        onOpenDocument = {}, onAddDocument = {}, onAddService = {}, onOpenService = {}, onFilterChange = {},
-    )
+    GarageScreen(state = GarageUiState(), onEvent = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun GarageFailedPreview() = OdoPreview(padded = false) {
+    GarageScreen(state = sampleFailedGarage(), onEvent = {})
 }

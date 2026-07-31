@@ -2,31 +2,41 @@ package com.hopcape.odo.feature.garage.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
-import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
-import org.koin.compose.koinInject
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.garage.presentation.AddCarEffect
 import com.hopcape.odo.feature.garage.presentation.AddCarScreen
+import com.hopcape.odo.feature.garage.presentation.AddCarViewModel
+import com.hopcape.odo.feature.garage.presentation.EditCarEffect
 import com.hopcape.odo.feature.garage.presentation.EditCarScreen
+import com.hopcape.odo.feature.garage.presentation.EditCarViewModel
+import com.hopcape.odo.feature.garage.presentation.GarageEffect
 import com.hopcape.odo.feature.garage.presentation.GarageScreen
-import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
-import com.hopcape.odo.feature.garage.presentation.sampleGarage
+import com.hopcape.odo.feature.garage.presentation.GarageViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.AddToHistorySheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsSheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.ExportEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportSheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarSheetContent
-import com.hopcape.odo.feature.garage.presentation.sheets.SwitchCarSheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Garage's contribution to the navigation graph — the [OdoDestination.Garage] group:
@@ -40,20 +50,9 @@ import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetCon
  */
 internal class GarageFeatureEntryProvider(
     private val navigationManager: NavigationManager,
-    private val activeCar: ActiveCarProvider,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
-
-    /**
-     * The car every jump into a per-car destination is about, read at tap time. `null` until
-     * setup has stored a car, which is why each use below refuses to navigate rather than
-     * inventing an id — opening someone else's car is worse than not opening one.
-     */
-    private val carId: CarId? get() = activeCar.activeCarId.value
-
-    /** Run [action] with the active car's id, or do nothing when there isn't one yet. */
-    private inline fun withCar(action: (String) -> Unit) = carId?.let { action(it.value) }
 
     /** Replace the sheet [from] with [to] — one command, no lingering sheet on back. */
     private fun replace(from: OdoDestination, to: OdoDestination) =
@@ -65,84 +64,157 @@ internal class GarageFeatureEntryProvider(
         // --- Sheets ---
         val sheet = ModalBottomSheetSceneStrategy.bottomSheet()
 
-        entry<OdoDestination.Garage.CarActions>(metadata = sheet) {
-            CarActionsSheetContent(
-                onEditCar = { replace(OdoDestination.Garage.CarActions, OdoDestination.Garage.EditCar) },
-                onSwitchCar = { replace(OdoDestination.Garage.CarActions, OdoDestination.Garage.SwitchCar) },
-                onAddCar = { replace(OdoDestination.Garage.CarActions, OdoDestination.Garage.AddCar) },
-                onExport = { replace(OdoDestination.Garage.CarActions, OdoDestination.Garage.Export) },
-                onRemoveCar = { replace(OdoDestination.Garage.CarActions, OdoDestination.Garage.RemoveCar) },
-            )
-        }
+        entry<OdoDestination.Garage.CarActions>(metadata = sheet) { CarActionsRoute(::replace) }
+        entry<OdoDestination.Garage.UpdateOdometer>(metadata = sheet) { UpdateOdometerRoute(nm) }
+        entry<OdoDestination.Garage.Export>(metadata = sheet) { ExportRoute(::replace) }
+        entry<OdoDestination.Garage.RemoveCar>(metadata = sheet) { RemoveCarRoute(nm, ::replace) }
 
-        entry<OdoDestination.Garage.UpdateOdometer>(metadata = sheet) {
-            UpdateOdometerSheetContent(onSave = { nm.back() })
-        }
-
-        entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) {
-            AddToHistorySheetContent(
-                onScan = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.BillScanner.Capture) },
-                onManual = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.AddEdit(carId = it)) } },
-                onAddDocument = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.Documents.Add()) },
-                onViewAll = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.List(carId = it)) } },
-            )
-        }
-
-        entry<OdoDestination.Garage.SwitchCar>(metadata = sheet) {
-            SwitchCarSheetContent(
-                onSelect = { nm.back() }, // sample: selecting the active car just closes the sheet
-                onAddCar = { replace(OdoDestination.Garage.SwitchCar, OdoDestination.Garage.AddCar) },
-            )
-        }
-
-        entry<OdoDestination.Garage.Export>(metadata = sheet) {
-            ExportSheetContent(
-                onPdf = { nm.back() }, // TODO: render + save the PDF
-                onShare = { nm.back() }, // TODO: open the share sheet
-            )
-        }
-
-        entry<OdoDestination.Garage.RemoveCar>(metadata = sheet) {
-            RemoveCarSheetContent(
-                onExportFirst = { replace(OdoDestination.Garage.RemoveCar, OdoDestination.Garage.Export) },
-                onRemove = { nm.back() }, // TODO: delete the car + fall back to the empty garage
-                onCancel = { nm.back() },
-            )
-        }
+        entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) { AddToHistoryRoute(::replace) }
 
         // --- Full screens ---
-        entry<OdoDestination.Garage.EditCar> {
-            EditCarScreen(onClose = { nm.back() }, onSave = { nm.back() })
-        }
-        entry<OdoDestination.Garage.AddCar> {
-            AddCarScreen(onClose = { nm.back() }, onAdd = { nm.back() })
-        }
+        entry<OdoDestination.Garage.EditCar> { EditCarRoute(nm) }
+        entry<OdoDestination.Garage.AddCar> { AddCarRoute(nm) }
     }
 }
 
 /**
- * The Garage tab route host. Renders sample state until the aggregation use case
- * (reading the `:core:domain` car / document / service-log ports) lands; swap
- * `sampleGarage()` ↔ `sampleEmptyGarage()` to preview the empty vs populated state.
+ * The "add to service history" sheet — a menu, so it has no ViewModel of its own.
+ *
+ * Two of its rows open a per-car service-log screen, so it resolves the active car itself.
+ * A `null` car means those rows do nothing: refusing to navigate beats inventing an id,
+ * because opening someone else's car is worse than opening none.
  */
 @Composable
-internal fun GarageRoute(navigationManager: NavigationManager) {
+private fun AddToHistoryRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
+    val here = OdoDestination.Garage.AddToHistory
     val activeCar = koinInject<ActiveCarProvider>()
-    var filter by remember { mutableStateOf(ServiceFacet.ALL) }
-    GarageScreen(
-        state = sampleGarage(filter),
-        onAddCar = { navigationManager.navigateTo(OdoDestination.Garage.AddCar) },
-        onUpdateOdometer = { navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer) },
-        onCarMenu = { navigationManager.navigateTo(OdoDestination.Garage.CarActions) },
-        onManageDocuments = { navigationManager.navigateTo(OdoDestination.Documents.Vault) },
-        onOpenDocument = { navigationManager.navigateTo(OdoDestination.Documents.Detail(documentId = it.value)) },
-        onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
-        onAddService = { navigationManager.navigateTo(OdoDestination.Garage.AddToHistory) },
-        onOpenService = { logId ->
-            activeCar.activeCarId.value?.let { carId ->
-                navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId.value, carId = carId.value))
-            }
-        },
-        onFilterChange = { filter = it },
+    val carId by activeCar.activeCarId.collectAsStateWithLifecycle()
+
+    AddToHistorySheetContent(
+        onScan = { replace(here, OdoDestination.BillScanner.Capture) },
+        onManual = { carId?.let { replace(here, OdoDestination.ServiceLog.AddEdit(carId = it.value)) } },
+        onAddDocument = { replace(here, OdoDestination.Documents.Add()) },
+        onViewAll = { carId?.let { replace(here, OdoDestination.ServiceLog.List(carId = it.value)) } },
     )
+}
+
+@Composable
+internal fun GarageRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<GarageViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            GarageEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
+            GarageEffect.OpenUpdateOdometer -> navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
+            GarageEffect.OpenCarActions -> navigationManager.navigateTo(OdoDestination.Garage.CarActions)
+            GarageEffect.OpenDocumentVault -> navigationManager.navigateTo(OdoDestination.Documents.Vault)
+            GarageEffect.OpenAddDocument -> navigationManager.navigateTo(OdoDestination.Documents.Add())
+            GarageEffect.OpenAddToHistory -> navigationManager.navigateTo(OdoDestination.Garage.AddToHistory)
+            is GarageEffect.OpenDocument ->
+                navigationManager.navigateTo(OdoDestination.Documents.Detail(documentId = effect.id.value))
+
+            is GarageEffect.OpenService -> navigationManager.navigateTo(
+                OdoDestination.ServiceLog.Detail(logId = effect.logId.value, carId = effect.carId),
+            )
+        }
+    }
+
+    GarageScreen(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun UpdateOdometerRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<UpdateOdometerViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            UpdateOdometerEffect.Saved -> navigationManager.back()
+        }
+    }
+
+    UpdateOdometerSheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
+    val viewModel = koinViewModel<CarActionsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val here = OdoDestination.Garage.CarActions
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            CarActionsEffect.OpenEdit -> replace(here, OdoDestination.Garage.EditCar)
+            CarActionsEffect.OpenExport -> replace(here, OdoDestination.Garage.Export)
+            CarActionsEffect.OpenRemove -> replace(here, OdoDestination.Garage.RemoveCar)
+        }
+    }
+
+    CarActionsSheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun ExportRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
+    val viewModel = koinViewModel<ExportViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is ExportEffect.OpenPaywall ->
+                replace(OdoDestination.Garage.Export, OdoDestination.Paywall(trigger = effect.trigger))
+        }
+    }
+
+    ExportSheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun RemoveCarRoute(
+    navigationManager: NavigationManager,
+    replace: (OdoDestination, OdoDestination) -> Unit,
+) {
+    val viewModel = koinViewModel<RemoveCarViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            RemoveCarEffect.OpenExport ->
+                replace(OdoDestination.Garage.RemoveCar, OdoDestination.Garage.Export)
+
+            // The garage falls back to its "add your car" state on its own once the car is
+            // gone, so closing the sheet is all that is left to do.
+            RemoveCarEffect.Removed, RemoveCarEffect.Dismiss -> navigationManager.back()
+        }
+    }
+
+    RemoveCarSheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun EditCarRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<EditCarViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            EditCarEffect.Saved, EditCarEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    EditCarScreen(state = state, onEvent = viewModel::onEvent)
+}
+
+@Composable
+private fun AddCarRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<AddCarViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            AddCarEffect.Added, AddCarEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    AddCarScreen(state = state, onEvent = viewModel::onEvent)
 }
