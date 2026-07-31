@@ -53,6 +53,15 @@ internal class DocumentDetailViewModel(
     private var storagePath: String? = null
     private var reportedOpen = false
 
+    /**
+     * Set once the screen has asked to leave.
+     *
+     * Deleting gives it two reasons to leave at almost the same moment: the delete itself
+     * succeeds, and the document then stops arriving. Both are right, and both used to pop —
+     * which took the vault behind this screen with it and left the owner in the garage.
+     */
+    private var leaving = false
+
     val state: StateFlow<DocumentDetailUiState> =
         combine(
             observeDetail(documentId).map(::toContent).onEach(::remember),
@@ -85,7 +94,7 @@ internal class DocumentDetailViewModel(
     private fun onOpenEvent(event: DocumentDetailEvent.Open) = when (event) {
         DocumentDetailEvent.Open.Share -> emit(DocumentDetailEffect.OpenShare(documentId))
         DocumentDetailEvent.Open.Renew -> renew()
-        DocumentDetailEvent.Open.Back -> emit(DocumentDetailEffect.NavigateBack)
+        DocumentDetailEvent.Open.Back -> leave()
     }
 
     /**
@@ -113,7 +122,7 @@ internal class DocumentDetailViewModel(
                 ifLeft = { submission.update { Submission.Failed(UiText(Res.string.dv_error_write_failed)) } },
                 ifRight = {
                     submission.update { Submission.Succeeded }
-                    emit(DocumentDetailEffect.NavigateBack)
+                    leave()
                 },
             )
         }
@@ -122,6 +131,13 @@ internal class DocumentDetailViewModel(
     private fun renew() {
         val type = (state.value.content as? Loadable.Ready)?.value?.type ?: return
         emit(DocumentDetailEffect.OpenAdd(type))
+    }
+
+    /** Leave the screen, at most once — see [leaving]. */
+    private fun leave() {
+        if (leaving) return
+        leaving = true
+        emit(DocumentDetailEffect.NavigateBack)
     }
 
     private fun emit(effect: DocumentDetailEffect) {
@@ -141,7 +157,7 @@ internal class DocumentDetailViewModel(
     private fun toContent(detail: DocumentDetail?): Loadable<DocumentDetailContent> {
         if (detail == null) {
             telemetry.documentMissing(documentId)
-            emit(DocumentDetailEffect.NavigateBack)
+            leave()
             return Loadable.Loading
         }
         storagePath = detail.document.storagePath

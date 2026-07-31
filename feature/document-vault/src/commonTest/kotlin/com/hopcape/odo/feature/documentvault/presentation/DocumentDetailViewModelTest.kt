@@ -20,9 +20,11 @@ import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.testTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
@@ -122,6 +124,24 @@ class DocumentDetailViewModelTest {
         assertTrue(repository.observe(TEST_CAR).first().isEmpty())
         assertEquals(listOf(insurance.storagePath), files.deleted)
         assertEquals(DocumentDetailEffect.NavigateBack, viewModel.effects.first())
+    }
+
+    @Test
+    fun deletingAsksToLeaveOnlyOnce() = runTest(dispatcher) {
+        val repository = FakeDocumentRepository(listOf(insurance))
+        val viewModel = viewModel(repository = repository, files = FakeDocumentFileStore(stored = setOf(insurance.storagePath)))
+        viewModel.content()
+
+        // Deleting gives the screen two reasons to leave: the delete succeeds, and the
+        // document then stops arriving. Two pops would take the vault behind it as well.
+        val leaves = mutableListOf<DocumentDetailEffect>()
+        val collector = launch { viewModel.effects.toList(leaves) }
+
+        viewModel.onEvent(DocumentDetailEvent.File.Delete)
+        advanceUntilIdle()
+
+        assertEquals(listOf<DocumentDetailEffect>(DocumentDetailEffect.NavigateBack), leaves.toList())
+        collector.cancel()
     }
 
     @Test
