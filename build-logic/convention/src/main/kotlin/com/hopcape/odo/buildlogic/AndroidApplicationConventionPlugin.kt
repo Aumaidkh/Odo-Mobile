@@ -46,6 +46,20 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             buildTypes {
                 getByName("release") { it.isMinifyEnabled = false }
             }
+
+            // Lint runs from this module on CI. The app module is a thin shell,
+            // so `checkDependencies` is what makes the run mean anything — it
+            // pulls in every :core/:feature module the app depends on. Today's
+            // findings are frozen in the baseline; only new ones fail a build,
+            // so the gate is useful from day one without a cleanup sprint.
+            lint {
+                checkDependencies = true
+                baseline = target.file("lint-baseline.xml")
+                abortOnError = true
+                warningsAsErrors = false
+                htmlReport = true
+                xmlReport = true
+            }
         }
 
         // AGP 9 ships built-in Kotlin support; align the Kotlin JVM target with

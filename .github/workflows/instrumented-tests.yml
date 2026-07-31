@@ -1,0 +1,90 @@
+name: Instrumented tests
+
+# The on-device end-to-end tests (androidApp/src/androidTest) drive the real
+# app — real Koin graph, real SQLite, real navigation — on an emulator. That
+# costs 15-20 minutes, so they are kept off the per-PR path and run:
+#   * on a PR that carries the `run-e2e` label (add it when a change is risky),
+#   * nightly on the default branch,
+#   * on demand from the Actions tab.
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+    branches: [master, develop]
+  schedule:
+    # 18:30 UTC = 00:00 IST. Scheduled runs always use the repo's DEFAULT
+    # branch — use workflow_dispatch to point them at another one.
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvmargs=-Xmx1536m
+
+jobs:
+  connected-tests:
+    name: Emulator (API 34)
+    # On a PR this only runs once the `run-e2e` label is present; scheduled and
+    # manual runs are unconditional.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'run-e2e')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # Without this the emulator falls back to software rendering and takes
+      # long enough to hit the job timeout.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4.0.1
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v6.2.0
+
+      # Build the APK and the test APK before the emulator boots, so a compile
+      # failure is reported in three minutes instead of twenty.
+      - name: Assemble app and test APKs
+        run: ./gradlew :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          # Animations off — Espresso/Compose idling hangs on running animations.
+          disable-animations: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+            -camera-back none -camera-front none
+          script: ./gradlew :androidApp:connectedDebugAndroidTest
+
+      - name: Upload instrumented test reports
+        uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: instrumented-test-reports
+          path: |
+            androidApp/build/reports/androidTests/**
+            androidApp/build/outputs/androidTest-results/**
+          retention-days: 7
+          if-no-files-found: warn
