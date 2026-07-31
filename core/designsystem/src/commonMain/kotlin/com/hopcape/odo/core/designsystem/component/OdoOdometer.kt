@@ -148,7 +148,9 @@ fun OdoOdometer(
  *
  * @param footer rendered between the note and the save button — the slot for caller
  *   context the design system can't know, e.g. the last recorded reading or the distance
- *   driven since. Keep it short; the keypad sits below the fold already.
+ *   driven since. It is handed the reading currently dialled in (null while the drums are
+ *   empty), so a caller can show how far that is from where the car was last read. Keep it
+ *   short; the keypad sits below the fold already.
  */
 @Composable
 fun OdoOdometerEditor(
@@ -168,7 +170,7 @@ fun OdoOdometerEditor(
     scanLabel: String? = null,
     scanBadge: String? = null,
     digits: Int = 6,
-    footer: (@Composable ColumnScope.() -> Unit)? = null,
+    footer: (@Composable ColumnScope.(dialled: Long?) -> Unit)? = null,
 ) {
     var entry by remember(value) { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
     var editorUnit by remember(unit) { mutableStateOf(unit) }
@@ -187,7 +189,7 @@ fun OdoOdometerEditor(
         scanBadge = scanBadge,
         digits = digits,
         modifier = modifier,
-        footer = footer,
+        footer = footer?.let { slot -> { slot(entry.toLongOrNull()) } },
         onDigit = { c -> if (entry.length < digits) entry = (entry + c).trimStart('0').ifEmpty { "" } },
         onBackspace = { entry = entry.dropLast(1) },
         onQuickAdd = { amount ->
