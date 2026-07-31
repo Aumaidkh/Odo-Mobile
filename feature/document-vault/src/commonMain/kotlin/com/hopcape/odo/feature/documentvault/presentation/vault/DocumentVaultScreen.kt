@@ -26,31 +26,43 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCardFilled
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
+import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcIdCard
 import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
 import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
-import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
+import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
+import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_action_add
 import com.hopcape.odo.feature.documentvault.resources.dv_action_renew
 import com.hopcape.odo.feature.documentvault.resources.dv_add_document
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_insurance
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_licence
+import com.hopcape.odo.feature.documentvault.resources.dv_doc_loan
+import com.hopcape.odo.feature.documentvault.resources.dv_doc_other
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_puc
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_rc
 import com.hopcape.odo.feature.documentvault.resources.dv_header_add_body
@@ -70,23 +82,23 @@ import com.hopcape.odo.feature.documentvault.resources.dv_status_expires_in
 import com.hopcape.odo.feature.documentvault.resources.dv_status_lifetime
 import com.hopcape.odo.feature.documentvault.resources.dv_status_not_added
 import com.hopcape.odo.feature.documentvault.resources.dv_status_valid_till
+import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The document vault overview — every paper Odo tracks (insurance, PUC, RC, licence)
- * with its renewal status. Leads with a status-toned summary, then one card per
- * document (add / open / renew depending on status), plus an "add a document" affordance.
+ * The document vault overview — every paper Odo tracks, with its renewal status. Leads with
+ * a status-toned summary, then one card per document (add, open or renew depending on
+ * status), plus an "add a document" affordance.
  *
- * State-free: renders [state] and forwards intents. Real documents + the reminder
- * engine land in M2.
+ * State-free: renders [state] and forwards intents.
  */
 @Composable
 internal fun DocumentVaultScreen(
     state: DocumentVaultUiState,
     onAdd: (DocumentType) -> Unit,
-    onRenew: (DocumentType) -> Unit,
-    onOpen: (DocumentType) -> Unit,
+    onRenew: (DocumentId) -> Unit,
+    onOpen: (DocumentId) -> Unit,
     onAddDocument: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,44 +107,63 @@ internal fun DocumentVaultScreen(
         modifier = modifier,
         title = stringResource(Res.string.dv_title),
         onBack = onBack,
+        backContentDescription = stringResource(Res.string.dv_cd_back),
         bottomBar = { AddDocumentBar(onAddDocument) },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(padding)
-                .padding(vertical = OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            VaultHeader(state)
-            state.documents.forEach { row ->
-                DocumentCard(row = row, onAdd = onAdd, onRenew = onRenew, onOpen = onOpen)
+        when (val content = state.content) {
+            Loadable.Loading -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { OdoLoadingIndicator() }
+
+            is Loadable.Failed -> Box(
+                Modifier.fillMaxSize().padding(padding).padding(OdoTheme.spacing.screenEdge),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoText(
+                    content.message.asString(),
+                    style = OdoTheme.typography.body,
+                    color = OdoTheme.colors.textDim,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            is Loadable.Ready -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(padding)
+                    .padding(vertical = OdoTheme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                VaultHeader(content.value.header)
+                content.value.rows.forEach { row ->
+                    DocumentCard(row = row, onAdd = onAdd, onRenew = onRenew, onOpen = onOpen)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun VaultHeader(state: DocumentVaultUiState) {
-    val attention = state.attention
-    when {
-        attention.isNotEmpty() -> HeaderCard(
-            tone = OdoTheme.colors.warning,
-            title = attentionTitle(attention.size),
-            body = stringResource(Res.string.dv_header_attention_body, docName(attention.first().type).lowercase()),
-        )
-        state.allValid -> HeaderCard(
-            tone = OdoTheme.colors.success,
-            title = stringResource(Res.string.dv_header_covered_title),
-            body = stringResource(Res.string.dv_header_covered_body, state.documents.size),
-        )
-        else -> HeaderCard(
-            tone = OdoTheme.colors.accent,
-            title = stringResource(Res.string.dv_header_add_title),
-            body = stringResource(Res.string.dv_header_add_body),
-        )
-    }
+private fun VaultHeader(header: VaultHeader) = when (header) {
+    is VaultHeader.NeedsAttention -> HeaderCard(
+        tone = OdoTheme.colors.warning,
+        title = attentionTitle(header.count),
+        body = stringResource(Res.string.dv_header_attention_body, docName(header.first).lowercase()),
+    )
+
+    is VaultHeader.Covered -> HeaderCard(
+        tone = OdoTheme.colors.success,
+        title = stringResource(Res.string.dv_header_covered_title),
+        body = stringResource(Res.string.dv_header_covered_body, header.count),
+    )
+
+    VaultHeader.AddPrompt -> HeaderCard(
+        tone = OdoTheme.colors.accent,
+        title = stringResource(Res.string.dv_header_add_title),
+        body = stringResource(Res.string.dv_header_add_body),
+    )
 }
 
 @Composable
@@ -155,35 +186,44 @@ private fun HeaderCard(tone: Color, title: String, body: String) {
 private fun DocumentCard(
     row: DocumentRow,
     onAdd: (DocumentType) -> Unit,
-    onRenew: (DocumentType) -> Unit,
-    onOpen: (DocumentType) -> Unit,
+    onRenew: (DocumentId) -> Unit,
+    onOpen: (DocumentId) -> Unit,
 ) {
-    val tone = statusTone(row.status)
-    val openable = row.status is DocStatus.Valid
-    OdoCard(onClick = if (openable) ({ onOpen(row.type) }) else null) {
+    val tone = rowTone(row)
+    val openable = row as? DocumentRow.OnFile
+    OdoCard(
+        modifier = Modifier.testTag(DocumentVaultTestTags.row(row.type)),
+        onClick = openable?.let { { onOpen(it.id) } },
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconChip(typeIcon(row.type), tone)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(docName(row.type), style = OdoTheme.typography.heading)
-                OdoText(statusSubtitle(row.status), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+                OdoText(openable?.title ?: docName(row.type), style = OdoTheme.typography.heading)
+                OdoText(rowSubtitle(row), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
             }
             StatusEnd(row = row, onAdd = onAdd, onRenew = onRenew)
         }
-        if (row.status is DocStatus.ExpiresSoon) {
+        val reminderDays = openable?.takeIf { it.needsAttention }?.reminderDaysBefore
+        if (reminderDays != null) {
             HorizontalDivider(color = OdoTheme.colors.border)
-            ReminderRow(days = row.status.days)
+            ReminderRow(days = reminderDays)
         }
     }
 }
 
 @Composable
-private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: (DocumentType) -> Unit) {
+private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: (DocumentId) -> Unit) {
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-        StatusPill(row.status)
-        when (row.status) {
-            is DocStatus.NotAdded -> DocActionButton(stringResource(Res.string.dv_action_add)) { onAdd(row.type) }
-            is DocStatus.ExpiresSoon, is DocStatus.Expired -> DocActionButton(stringResource(Res.string.dv_action_renew)) { onRenew(row.type) }
-            is DocStatus.Valid -> OdoIcon(
+        StatusPill(row)
+        val actionTag = Modifier.testTag(DocumentVaultTestTags.rowAction(row.type))
+        when {
+            row is DocumentRow.Missing ->
+                DocActionButton(stringResource(Res.string.dv_action_add), actionTag) { onAdd(row.type) }
+
+            row is DocumentRow.OnFile && row.needsAttention ->
+                DocActionButton(stringResource(Res.string.dv_action_renew), actionTag) { onRenew(row.id) }
+
+            else -> OdoIcon(
                 IcChevronRight,
                 contentDescription = null,
                 tint = OdoTheme.colors.textMuted,
@@ -194,21 +234,23 @@ private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: 
 }
 
 @Composable
-private fun StatusPill(status: DocStatus) {
-    val (labelRes, tone) = when (status) {
-        is DocStatus.NotAdded -> Res.string.dv_pill_not_added to OdoBadgeTone.Neutral
-        is DocStatus.Valid -> Res.string.dv_pill_valid to OdoBadgeTone.Success
-        is DocStatus.ExpiresSoon -> Res.string.dv_pill_expires_soon to OdoBadgeTone.Warning
-        is DocStatus.Expired -> Res.string.dv_pill_expired to OdoBadgeTone.Danger
+private fun StatusPill(row: DocumentRow) {
+    val (labelRes, tone) = when (row) {
+        is DocumentRow.Missing -> Res.string.dv_pill_not_added to OdoBadgeTone.Neutral
+        is DocumentRow.OnFile -> when (row.validity) {
+            is DocumentValidity.ExpiringSoon -> Res.string.dv_pill_expires_soon to OdoBadgeTone.Warning
+            is DocumentValidity.Expired -> Res.string.dv_pill_expired to OdoBadgeTone.Danger
+            else -> Res.string.dv_pill_valid to OdoBadgeTone.Success
+        }
     }
     OdoBadge(text = stringResource(labelRes), tone = tone)
 }
 
 /** Small accent-outlined pill action ("Add" / "Renew"). */
 @Composable
-private fun DocActionButton(label: String, onClick: () -> Unit) {
+private fun DocActionButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        Modifier
+        modifier
             .clip(OdoTheme.shapes.pill)
             .border(1.dp, OdoTheme.colors.accent, OdoTheme.shapes.pill)
             .clickable(onClick = onClick)
@@ -278,11 +320,13 @@ private fun attentionTitle(count: Int): String = stringResource(
 )
 
 @Composable
-private fun statusTone(status: DocStatus): Color = when (status) {
-    is DocStatus.NotAdded -> OdoTheme.colors.textMuted
-    is DocStatus.Valid -> OdoTheme.colors.success
-    is DocStatus.ExpiresSoon -> OdoTheme.colors.warning
-    is DocStatus.Expired -> OdoTheme.colors.danger
+private fun rowTone(row: DocumentRow): Color = when (row) {
+    is DocumentRow.Missing -> OdoTheme.colors.textMuted
+    is DocumentRow.OnFile -> when (row.validity) {
+        is DocumentValidity.ExpiringSoon -> OdoTheme.colors.warning
+        is DocumentValidity.Expired -> OdoTheme.colors.danger
+        else -> OdoTheme.colors.success
+    }
 }
 
 private fun typeIcon(type: DocumentType): ImageVector = when (type) {
@@ -290,26 +334,31 @@ private fun typeIcon(type: DocumentType): ImageVector = when (type) {
     DocumentType.PUC -> IcLeafFilled
     DocumentType.RC -> IcCardFilled
     DocumentType.LICENCE -> IcIdCard
+    DocumentType.LOAN, DocumentType.OTHER -> IcFileFilled
 }
 
 @Composable
-private fun docName(type: DocumentType): String = stringResource(
+internal fun docName(type: DocumentType): String = stringResource(
     when (type) {
         DocumentType.INSURANCE -> Res.string.dv_doc_insurance
         DocumentType.PUC -> Res.string.dv_doc_puc
         DocumentType.RC -> Res.string.dv_doc_rc
         DocumentType.LICENCE -> Res.string.dv_doc_licence
+        DocumentType.LOAN -> Res.string.dv_doc_loan
+        DocumentType.OTHER -> Res.string.dv_doc_other
     },
 )
 
 @Composable
-private fun statusSubtitle(status: DocStatus): String = when (status) {
-    is DocStatus.NotAdded -> stringResource(Res.string.dv_status_not_added)
-    is DocStatus.Valid -> status.validTill
-        ?.let { stringResource(Res.string.dv_status_valid_till, formatDate(it)) }
-        ?: stringResource(Res.string.dv_status_lifetime)
-    is DocStatus.ExpiresSoon -> stringResource(Res.string.dv_status_expires_in, status.days, formatDate(status.on))
-    is DocStatus.Expired -> stringResource(Res.string.dv_status_expired, formatDate(status.on))
+private fun rowSubtitle(row: DocumentRow): String = when (row) {
+    is DocumentRow.Missing -> stringResource(Res.string.dv_status_not_added)
+    is DocumentRow.OnFile -> when (val validity = row.validity) {
+        DocumentValidity.NoExpiry -> stringResource(Res.string.dv_status_lifetime)
+        is DocumentValidity.Valid -> stringResource(Res.string.dv_status_valid_till, formatDate(validity.until))
+        is DocumentValidity.ExpiringSoon ->
+            stringResource(Res.string.dv_status_expires_in, validity.daysLeft, formatDate(validity.until))
+        is DocumentValidity.Expired -> stringResource(Res.string.dv_status_expired, formatDate(validity.since))
+    }
 }
 
 @OdoThemePreviews

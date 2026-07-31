@@ -21,7 +21,6 @@ import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewMode
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
-import kotlin.time.Clock
 
 /**
  * DI graph for the service-log feature. `ServiceLogRepository`, `FairnessRepository`,
@@ -39,13 +38,6 @@ import kotlin.time.Clock
  * that is a `String` is indistinguishable from any other `String` in the parameter list.
  */
 val serviceLogModule = module {
-
-    /**
-     * "Now" for the date guards in the add/edit use cases. Registered here because
-     * servicelog is its first consumer; it belongs in a shared module once a second
-     * feature needs it (as does `IdGenerator`, which onboarding currently owns).
-     */
-    single<Clock> { Clock.System }
 
     factory { ObserveServiceLogFeedUseCase(logs = get()) }
     factory { ObserveEntryDetailUseCase(observeFeed = get()) }

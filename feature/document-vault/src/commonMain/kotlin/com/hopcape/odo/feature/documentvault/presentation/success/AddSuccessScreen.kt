@@ -39,11 +39,12 @@ import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_success_add_another
 import com.hopcape.odo.feature.documentvault.resources.dv_success_back
 import com.hopcape.odo.feature.documentvault.resources.dv_success_body_after
+import com.hopcape.odo.feature.documentvault.presentation.vault.docName
 import com.hopcape.odo.feature.documentvault.resources.dv_success_body_before
+import com.hopcape.odo.feature.documentvault.resources.dv_success_body_no_reminder
 import com.hopcape.odo.feature.documentvault.resources.dv_success_card_body
 import com.hopcape.odo.feature.documentvault.resources.dv_success_card_title
 import com.hopcape.odo.feature.documentvault.resources.dv_success_title
-import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -53,9 +54,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun AddSuccessScreen(
-    docName: String,
-    reminderDate: LocalDate,
-    remindDaysBefore: Int,
+    state: AddSuccessUiState,
     onBackToDocuments: () -> Unit,
     onAddAnother: () -> Unit,
     modifier: Modifier = Modifier,
@@ -76,20 +75,13 @@ internal fun AddSuccessScreen(
         ) {
             GlowBadge()
             Spacer(Modifier.height(OdoTheme.spacing.xl))
-            OdoText(stringResource(Res.string.dv_success_title, docName), style = OdoTheme.typography.title, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(OdoTheme.spacing.sm))
             OdoText(
-                text = buildAnnotatedString {
-                    append(stringResource(Res.string.dv_success_body_before))
-                    withStyle(SpanStyle(color = OdoTheme.colors.text, fontWeight = FontWeight.SemiBold)) {
-                        append(formatDate(reminderDate))
-                    }
-                    append(stringResource(Res.string.dv_success_body_after, remindDaysBefore))
-                },
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
+                stringResource(Res.string.dv_success_title, state.title ?: docName(state.type)),
+                style = OdoTheme.typography.title,
                 textAlign = TextAlign.Center,
             )
+            Spacer(Modifier.height(OdoTheme.spacing.sm))
+            SuccessBody(state.reminder)
             Spacer(Modifier.height(OdoTheme.spacing.xl))
             OdoCard(color = OdoTheme.colors.surface) {
                 Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -107,6 +99,35 @@ internal fun AddSuccessScreen(
             }
         }
     }
+}
+
+/**
+ * The line under the title. A document with no reminder — one that never expires, or one
+ * added after it lapsed — is confirmed as stored without promising a nudge.
+ */
+@Composable
+private fun SuccessBody(reminder: ReminderPromise?) {
+    if (reminder == null) {
+        OdoText(
+            stringResource(Res.string.dv_success_body_no_reminder),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
+            textAlign = TextAlign.Center,
+        )
+        return
+    }
+    OdoText(
+        text = buildAnnotatedString {
+            append(stringResource(Res.string.dv_success_body_before))
+            withStyle(SpanStyle(color = OdoTheme.colors.text, fontWeight = FontWeight.SemiBold)) {
+                append(formatDate(reminder.on))
+            }
+            append(stringResource(Res.string.dv_success_body_after, reminder.daysBefore))
+        },
+        style = OdoTheme.typography.body,
+        color = OdoTheme.colors.textDim,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable
@@ -152,11 +173,11 @@ private fun SuccessActions(onBackToDocuments: () -> Unit, onAddAnother: () -> Un
 @OdoThemePreviews
 @Composable
 private fun AddSuccessScreenPreview() = OdoPreview(padded = false) {
-    AddSuccessScreen(
-        docName = "Insurance",
-        reminderDate = LocalDate(2026, 6, 26),
-        remindDaysBefore = 7,
-        onBackToDocuments = {},
-        onAddAnother = {},
-    )
+    AddSuccessScreen(state = sampleAddSuccess(), onBackToDocuments = {}, onAddAnother = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun AddSuccessNoReminderPreview() = OdoPreview(padded = false) {
+    AddSuccessScreen(state = sampleAddSuccessNoReminder(), onBackToDocuments = {}, onAddAnother = {})
 }

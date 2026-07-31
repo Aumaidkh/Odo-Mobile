@@ -4,6 +4,7 @@ import com.hopcape.analytics.api.analyticsModule
 import com.hopcape.crashreporting.api.crashReportingModule
 import com.hopcape.logging.api.loggingModule
 import com.hopcape.performance.api.performanceModule
+import com.hopcape.odo.core.common.coreCommonModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.feature.auth.authModule
@@ -55,6 +56,7 @@ fun initKoin(
 ): KoinApplication = startKoin {
     declaration()
     modules(
+        coreCommonModule,
         loggingModule,
         analyticsModule,
         performanceModule,

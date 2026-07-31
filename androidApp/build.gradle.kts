@@ -24,6 +24,9 @@ dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.core.data)
+    // Same reason: the vault's Android document store needs a Context to copy picked
+    // files into private storage, so it is constructed in the Koin bootstrap here.
+    implementation(projects.feature.documentVault)
     implementation(projects.observability.logging)
     // Analytics — HAnalytics.init + consent gate configured here.
     implementation(projects.observability.analytics)
@@ -40,6 +43,8 @@ dependencies {
     // The flow's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.onboarding)
     androidTestImplementation(projects.feature.servicelog)
+    // The vault's semantics tags, shared with the UI so a typo can't split them.
+    androidTestImplementation(projects.feature.documentVault)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.
@@ -53,6 +58,10 @@ dependencies {
     // InputManager.getInstance() — removed in current Android, so every test dies in
     // Espresso.onIdle before it reaches an assertion. Declared explicitly to win.
     androidTestImplementation(libs.androidx.espresso.core)
+    // Stubs the system document picker for the vault's upload flow: the picker is another
+    // app's activity, so the only way to test "the owner picked a file" is to answer the
+    // intent with a result.
+    androidTestImplementation(libs.androidx.espresso.intents)
     debugImplementation(libs.androidx.compose.uiTestManifest)
     // Compose tooling preview (annotations + debug renderer) is supplied by the
     // odo.compose.multiplatform convention plugin.

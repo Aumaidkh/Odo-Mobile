@@ -105,5 +105,6 @@ internal class DataTelemetry(
         const val FAIRNESS = "fairness"
         const val OVERCHARGE = "overcharge"
         const val PROFILE = "profile"
+        const val DOCUMENT = "document"
     }
 }

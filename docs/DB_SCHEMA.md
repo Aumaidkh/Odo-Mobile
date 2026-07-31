@@ -166,7 +166,13 @@ Normalized rows from the bill (e.g. "Oil change → ₹2,800"). Each carries `se
 
 ### 5.6 `documents`
 
-The vault. `doc_type` enum (`insurance` / `puc` / `rc` / `loan` / `other`), `expiry_date` (drives reminders), `storage_path`. MVP caps free users at 3 documents — enforced in the application layer / via a count check, not a hard DB constraint (limits change with pricing experiments).
+The vault. `doc_type` enum (`insurance` / `puc` / `rc` / `licence` / `loan` / `other`), `expiry_date` (drives reminders), `storage_path` into the private `documents` bucket, and `doc_source` (`scanned` / `uploaded` / `digilocker`) recording where the file came from.
+
+`doc_source` is what the "Verified" badge reads: only a DigiLocker copy is proof, a photo is just a claim. Having a file cannot be the badge's basis the way a bill photo is for a service log, because `storage_path` is `NOT NULL` — a vault row without a file is a reminder, not a document.
+
+`licence` is car-scoped like every other row here, since `documents` hangs off `cars`. A driving licence really belongs to the owner, so multi-car (Phase 2) will show it once per car; that is accepted for the MVP rather than paying for a second owner-scoped table.
+
+MVP caps free users at 3 documents **per owner** — enforced in the application layer via a count check, not a hard DB constraint, so pricing experiments don't need a migration. `idx_documents_owner` is that check's index.
 
 ### 5.7 `reminders`
 
@@ -192,7 +198,8 @@ A generated, immutable report. Stores a `snapshot` jsonb (full car + score + ver
 CREATE TYPE fuel_type        AS ENUM ('petrol', 'diesel', 'cng', 'electric');
 CREATE TYPE log_source       AS ENUM ('manual', 'scanned');
 CREATE TYPE scan_status      AS ENUM ('pending', 'processing', 'completed', 'failed', 'needs_review');
-CREATE TYPE document_type    AS ENUM ('insurance', 'puc', 'rc', 'loan', 'other');
+CREATE TYPE document_type    AS ENUM ('insurance', 'puc', 'rc', 'licence', 'loan', 'other');
+CREATE TYPE document_source  AS ENUM ('scanned', 'uploaded', 'digilocker');
 CREATE TYPE reminder_type    AS ENUM ('insurance_expiry', 'puc_expiry', 'service_due_km',
                                       'service_due_time', 'health_drop', 'inactivity');
 CREATE TYPE reminder_status  AS ENUM ('scheduled', 'sent', 'dismissed', 'actioned', 'cancelled');
@@ -424,7 +431,8 @@ CREATE TABLE documents (
     car_id        uuid NOT NULL REFERENCES cars (id) ON DELETE CASCADE,
     doc_type      document_type NOT NULL,
     title         text,
-    storage_path  text NOT NULL,
+    storage_path  text NOT NULL,                        -- no file, no document
+    doc_source    document_source NOT NULL DEFAULT 'uploaded',  -- drives the Verified badge
     issued_date   date,
     expiry_date   date,                                 -- drives reminders
     created_at    timestamptz NOT NULL DEFAULT now(),
@@ -433,6 +441,8 @@ CREATE TABLE documents (
 );
 
 CREATE INDEX idx_documents_car ON documents (car_id) WHERE deleted_at IS NULL;
+-- the free tier's cap check: how many live documents does this owner hold?
+CREATE INDEX idx_documents_owner ON documents (owner_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_documents_expiry
     ON documents (expiry_date) WHERE deleted_at IS NULL AND expiry_date IS NOT NULL;
 ```
@@ -1042,8 +1052,9 @@ Split into ordered files; each is idempotent-friendly and forward-only.
 | 1 | Minimum `sample_size` before `get_fairness_estimate` returns a point estimate vs a range? (ties to PRD Open Q#1) | Fairness UX |
 | 2 | Do we store the AI Doctor's full car-history context blob per message, or re-derive it each turn from live tables? (storage vs reproducibility) | `ai_doctor_messages` shape |
 | 3 | Passport `expires_at` default — 90 days? Indefinite until revoked? (ties to PRD Open Q#2/#6) | Passport lifecycle |
-| 4 | Should `documents` free-tier cap (3) be a DB constraint, or purely app-enforced so pricing experiments don't need migrations? | Limits enforcement |
-| 5 | Fleet model: does a car belong to at most one fleet, or many? Current schema allows one membership row per (fleet, car) but a car could join multiple fleets. | Phase 3 |
+| 4 | Fleet model: does a car belong to at most one fleet, or many? Current schema allows one membership row per (fleet, car) but a car could join multiple fleets. | Phase 3 |
+
+**Closed:** the `documents` free-tier cap (3) is **app-enforced**, not a DB constraint — the client asks a `DocumentAllowance` port before every add, so a pricing change is a new adapter rather than a migration. Section 5.6 describes the enforcement.
 
 ---
 

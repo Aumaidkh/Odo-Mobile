@@ -1,53 +1,80 @@
 package com.hopcape.odo.feature.documentvault.presentation.detail
 
-import arrow.core.getOrElse
-import com.hopcape.odo.core.domain.shared.Amount
+import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.document.model.DocumentValidity
+import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
+import com.hopcape.odo.feature.documentvault.presentation.state.Submission
 import kotlinx.datetime.LocalDate
 
-/** A coverage line under "what's covered" — present (green check) or excluded (dash). */
-internal enum class CoverKind { OWN_DAMAGE, THIRD_PARTY, ZERO_DEP, ENGINE }
-
-internal data class CoverItem(val kind: CoverKind, val covered: Boolean)
-
 /**
- * Display state for a single document's detail. Provider / policy / cover figures are
- * per-document data; money is [Amount] (paise). [validityProgress] (0..1) drives the
- * expiry bar. Modelled for Insurance (the richest doc); other types fill the same shape.
+ * Display state for one document's detail.
+ *
+ * [submission] belongs to the deletes and replaces started from this screen. The document
+ * keeps loading independently of them.
  */
+@Immutable
 internal data class DocumentDetailUiState(
-    val docName: String,
-    val provider: String,
-    val subtitle: String,
-    val verified: Boolean,
-    val policyNumber: String,
-    val sumInsured: Amount,
-    val expiresInDays: Int,
-    val validTill: LocalDate,
-    val validityProgress: Float,
-    val coverType: String,
-    val premiumPerYear: Amount,
-    val covers: List<CoverItem>,
+    val content: Loadable<DocumentDetailContent> = Loadable.Loading,
+    val submission: Submission = Submission.Idle,
 )
 
-/** Sample detail (mirrors the mockup) for previews + the pre-ViewModel route host. */
-internal fun sampleDocumentDetail(): DocumentDetailUiState = DocumentDetailUiState(
-    docName = "Insurance",
-    provider = "SafeDrive General",
-    subtitle = "MOTOR · COMPREHENSIVE",
-    verified = true,
-    policyNumber = "SD · 8842 · 2291",
-    sumInsured = rupees(480_000),
-    expiresInDays = 7,
-    validTill = LocalDate(2026, 7, 3),
-    validityProgress = 0.9f,
-    coverType = "Comprehensive",
-    premiumPerYear = rupees(11_400),
-    covers = listOf(
-        CoverItem(CoverKind.OWN_DAMAGE, covered = true),
-        CoverItem(CoverKind.THIRD_PARTY, covered = true),
-        CoverItem(CoverKind.ZERO_DEP, covered = true),
-        CoverItem(CoverKind.ENGINE, covered = false),
+/**
+ * The document as the screen shows it.
+ *
+ * Insurance specifics — provider, policy number, sum insured, cover type, premium, what is
+ * covered — are deliberately absent. Nothing in the app can read them from a document yet,
+ * and showing invented figures about someone's insurance is worse than showing none. They
+ * arrive with the scanner that can extract them.
+ */
+@Immutable
+internal data class DocumentDetailContent(
+    val id: DocumentId,
+    val type: DocumentType,
+    /** The owner's own label, or `null` to fall back to the type's name. */
+    val title: String?,
+    val validity: DocumentValidity,
+    val issuedOn: LocalDate?,
+    /** How much of the document's life has run (0..1), or `null` when its span is unknown. */
+    val validityProgress: Float?,
+    val reminderDaysBefore: Int?,
+    /** True only for a copy that came from the issuer. */
+    val isVerified: Boolean,
+    /** False when the stored file has gone missing; the screen then hides "View". */
+    val isFileAvailable: Boolean,
+)
+
+// --- Samples for previews ---------------------------------------------------------
+
+internal fun sampleDocumentDetail() = DocumentDetailUiState(
+    Loadable.Ready(
+        DocumentDetailContent(
+            id = DocumentId("d1"),
+            type = DocumentType.INSURANCE,
+            title = "SafeDrive comprehensive",
+            validity = DocumentValidity.ExpiringSoon(LocalDate(2026, 8, 4), daysLeft = 7),
+            issuedOn = LocalDate(2025, 8, 4),
+            validityProgress = 0.98f,
+            reminderDaysBefore = 7,
+            isVerified = true,
+            isFileAvailable = true,
+        ),
     ),
 )
 
-private fun rupees(amount: Long): Amount = Amount.of(amount * 100).getOrElse { Amount.ZERO }
+internal fun sampleLifetimeDocumentDetail() = DocumentDetailUiState(
+    Loadable.Ready(
+        DocumentDetailContent(
+            id = DocumentId("d2"),
+            type = DocumentType.RC,
+            title = null,
+            validity = DocumentValidity.NoExpiry,
+            issuedOn = null,
+            validityProgress = null,
+            reminderDaysBefore = null,
+            isVerified = false,
+            isFileAvailable = true,
+        ),
+    ),
+)

@@ -9,6 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -58,7 +60,9 @@ fun OdoChip(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 36.dp),
+        // Selected is a colour change and nothing else without this, so a screen reader
+        // announces every chip identically and a test cannot tell which one is on.
+        modifier = modifier.heightIn(min = 36.dp).semantics { this.selected = selected },
         enabled = enabled,
         shape = OdoTheme.shapes.pill,
         color = containerColor,

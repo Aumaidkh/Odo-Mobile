@@ -83,7 +83,7 @@ internal class GarageFeatureEntryProvider(
             AddToHistorySheetContent(
                 onScan = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.BillScanner.Capture) },
                 onManual = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.AddEdit(carId = it)) } },
-                onAddDocument = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.Documents.Add) },
+                onAddDocument = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.Documents.Add()) },
                 onViewAll = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.List(carId = it)) } },
             )
         }
@@ -135,8 +135,8 @@ internal fun GarageRoute(navigationManager: NavigationManager) {
         onUpdateOdometer = { navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer) },
         onCarMenu = { navigationManager.navigateTo(OdoDestination.Garage.CarActions) },
         onManageDocuments = { navigationManager.navigateTo(OdoDestination.Documents.Vault) },
-        onOpenDocument = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
-        onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
+        onOpenDocument = { navigationManager.navigateTo(OdoDestination.Documents.Detail(documentId = it.value)) },
+        onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
         onAddService = { navigationManager.navigateTo(OdoDestination.Garage.AddToHistory) },
         onOpenService = { logId ->
             activeCar.activeCarId.value?.let { carId ->

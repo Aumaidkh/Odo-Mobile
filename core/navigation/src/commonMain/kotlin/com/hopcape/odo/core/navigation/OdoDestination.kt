@@ -210,14 +210,22 @@ sealed interface OdoDestination : NavKey {
     sealed interface Documents : OdoDestination {
         /** The vault overview — every tracked document + its status. */
         data object Vault : Documents
-        /** Add a document — pick a type + how to capture it (scan / upload / import). */
-        data object Add : Documents
-        /** A single document's detail — policy info, expiry, coverage, file actions. */
-        data object Detail : Documents
-        /** Terminal success after a document is added to the vault. */
-        data object AddSuccess : Documents
-        /** Share a document (optionally redacted) — shown as a bottom-sheet destination. */
-        data object Share : Documents
+
+        /**
+         * Add a document — pick a type, then how to capture it (scan / upload / import).
+         * [prefillType] names the type when the flow was opened from a vault row's "Add",
+         * as the `DocumentType` enum name; `null` opens on the default.
+         */
+        data class Add(val prefillType: String? = null) : Documents
+
+        /** A single document's detail: expiry, reminder, and the file actions. */
+        data class Detail(val documentId: String) : Documents
+
+        /** Terminal success after [documentId] was added to the vault. */
+        data class AddSuccess(val documentId: String) : Documents
+
+        /** Share a document — shown as a bottom-sheet destination. */
+        data class Share(val documentId: String) : Documents
     }
 
     /**

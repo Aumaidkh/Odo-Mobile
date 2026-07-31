@@ -2,14 +2,12 @@ package com.hopcape.odo.feature.documentvault.presentation.detail
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,16 +30,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
+import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
@@ -53,38 +53,40 @@ import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTrash
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.shared.formatDate
-import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
+import com.hopcape.odo.feature.documentvault.presentation.vault.docName
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_more
-import com.hopcape.odo.feature.documentvault.resources.dv_cover_engine
-import com.hopcape.odo.feature.documentvault.resources.dv_cover_own_damage
-import com.hopcape.odo.feature.documentvault.resources.dv_cover_third_party
-import com.hopcape.odo.feature.documentvault.resources.dv_cover_zero_dep
-import com.hopcape.odo.feature.documentvault.resources.dv_detail_cover_type
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_days_suffix
+import com.hopcape.odo.feature.documentvault.resources.dv_detail_expired_for
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expires_in
-import com.hopcape.odo.feature.documentvault.resources.dv_detail_idv_label
-import com.hopcape.odo.feature.documentvault.resources.dv_detail_premium
+import com.hopcape.odo.feature.documentvault.resources.dv_detail_file_missing
+import com.hopcape.odo.feature.documentvault.resources.dv_detail_issued_on
+import com.hopcape.odo.feature.documentvault.resources.dv_detail_lifetime
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_renew
+import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_verified
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_view
-import com.hopcape.odo.feature.documentvault.resources.dv_detail_whats_covered
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_delete
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_download
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_replace
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_share
+import com.hopcape.odo.feature.documentvault.resources.dv_reminder
+import com.hopcape.odo.feature.documentvault.resources.dv_status_expired
+import com.hopcape.odo.feature.documentvault.resources.dv_status_lifetime
 import com.hopcape.odo.feature.documentvault.resources.dv_status_valid_till
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * A single document's detail — provider + policy header, expiry countdown, cover type /
- * premium, the "what's covered" breakdown, and file actions (replace / share / download /
- * delete) behind the overflow menu, with "Renew now" pinned to the bottom.
+ * A single document's detail — its name and Verified badge, the expiry countdown with the
+ * bar, the next reminder, and the file actions (replace, share, download, delete) behind
+ * the overflow menu, with "Renew now" pinned to the bottom for a document that needs it.
  *
- * State-free: renders [state] and forwards intents. The nav back button is the plain
- * top-bar chevron (no circular chrome); real documents + file actions land in M2.
+ * State-free: renders [state] and forwards intents.
  */
 @Composable
 internal fun DocumentDetailScreen(
@@ -98,28 +100,48 @@ internal fun DocumentDetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val content = (state.content as? Loadable.Ready)?.value
     OdoScreen(
         modifier = modifier,
-        title = state.docName,
+        title = content?.let { it.title ?: docName(it.type) }.orEmpty(),
         onBack = onBack,
-        actions = { DocumentMenu(onReplace = onReplace, onShare = onShare, onDownload = onDownload, onDelete = onDelete) },
-        bottomBar = { RenewBar(onRenew) },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(padding)
-                .padding(vertical = OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
-        ) {
-            HeroCard(state = state, onView = onView)
-            ExpiryCard(state = state)
-            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-                StatCard(stringResource(Res.string.dv_detail_cover_type), state.coverType, Modifier.weight(1f))
-                StatCard(stringResource(Res.string.dv_detail_premium), state.premiumPerYear.formatRupees(), Modifier.weight(1f))
+        backContentDescription = stringResource(Res.string.dv_cd_back),
+        actions = {
+            if (content != null) {
+                DocumentMenu(onReplace = onReplace, onShare = onShare, onDownload = onDownload, onDelete = onDelete)
             }
-            CoveredSection(state.covers)
+        },
+        bottomBar = { if (content?.validity?.needsAttention == true) RenewBar(onRenew) },
+    ) { padding ->
+        when (val loadable = state.content) {
+            Loadable.Loading -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { OdoLoadingIndicator() }
+
+            is Loadable.Failed -> Box(
+                Modifier.fillMaxSize().padding(padding).padding(OdoTheme.spacing.screenEdge),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoText(
+                    loadable.message.asString(),
+                    style = OdoTheme.typography.body,
+                    color = OdoTheme.colors.textDim,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            is Loadable.Ready -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(padding)
+                    .padding(vertical = OdoTheme.spacing.md),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+            ) {
+                HeroCard(content = loadable.value, onView = onView)
+                ValidityCard(content = loadable.value)
+            }
         }
     }
 }
@@ -148,8 +170,9 @@ private fun MenuItem(label: String, icon: ImageVector, tint: Color = OdoTheme.co
     )
 }
 
+/** The document itself: what it is, whether it is an official copy, and how to open it. */
 @Composable
-private fun HeroCard(state: DocumentDetailUiState, onView: () -> Unit) {
+private fun HeroCard(content: DocumentDetailContent, onView: () -> Unit) {
     OdoCard(
         color = OdoTheme.colors.accent.copy(alpha = 0.10f),
         border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.35f)),
@@ -158,10 +181,16 @@ private fun HeroCard(state: DocumentDetailUiState, onView: () -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.Top) {
             IconChip(IcShieldFilled, OdoTheme.colors.accent)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(state.provider, style = OdoTheme.typography.heading)
-                OdoText(state.subtitle, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
+                OdoText(content.title ?: docName(content.type), style = OdoTheme.typography.heading)
+                content.issuedOn?.let {
+                    OdoText(
+                        stringResource(Res.string.dv_detail_issued_on, formatDate(it)),
+                        style = OdoTheme.typography.caption,
+                        color = OdoTheme.colors.textMuted,
+                    )
+                }
             }
-            if (state.verified) {
+            if (content.isVerified) {
                 OdoBadge(
                     text = stringResource(Res.string.dv_detail_verified),
                     tone = OdoBadgeTone.Success,
@@ -169,16 +198,14 @@ private fun HeroCard(state: DocumentDetailUiState, onView: () -> Unit) {
                 )
             }
         }
-        OdoText(
-            state.policyNumber,
-            style = OdoTheme.typography.numeric.copy(letterSpacing = 3.sp),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(stringResource(Res.string.dv_detail_idv_label), style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-                OdoText(state.sumInsured.formatRupees(), style = OdoTheme.typography.title)
-            }
-            ViewButton(onView)
+        if (content.isFileAvailable) {
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) { ViewButton(onView) }
+        } else {
+            OdoText(
+                stringResource(Res.string.dv_detail_file_missing),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
         }
     }
 }
@@ -200,9 +227,13 @@ private fun ViewButton(onView: () -> Unit) {
     }
 }
 
+/**
+ * How much cover is left. The bar is drawn only when the document knows both of its dates;
+ * without an issue date there is nothing to measure the fraction against.
+ */
 @Composable
-private fun ExpiryCard(state: DocumentDetailUiState) {
-    val tone = OdoTheme.colors.warning
+private fun ValidityCard(content: DocumentDetailContent) {
+    val tone = validityTone(content.validity)
     OdoCard(
         color = tone.copy(alpha = 0.10f),
         border = BorderStroke(1.dp, tone.copy(alpha = 0.35f)),
@@ -211,62 +242,43 @@ private fun ExpiryCard(state: DocumentDetailUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconChip(IcClock, tone)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(stringResource(Res.string.dv_detail_expires_in, state.expiresInDays), style = OdoTheme.typography.heading)
-                OdoText(stringResource(Res.string.dv_status_valid_till, formatDate(state.validTill)), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+                OdoText(validityHeadline(content.validity), style = OdoTheme.typography.heading)
+                validitySubtitle(content.validity)?.let {
+                    OdoText(it, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+                }
             }
-            Row(verticalAlignment = Alignment.Bottom) {
-                OdoText("${state.expiresInDays}", style = OdoTheme.typography.title, color = tone, modifier = Modifier.alignByBaseline())
-                OdoText(stringResource(Res.string.dv_detail_days_suffix), style = OdoTheme.typography.body, color = tone, modifier = Modifier.alignByBaseline())
+            daysCounter(content.validity)?.let { days ->
+                Row(verticalAlignment = Alignment.Bottom) {
+                    OdoText("$days", style = OdoTheme.typography.title, color = tone, modifier = Modifier.alignByBaseline())
+                    OdoText(
+                        stringResource(Res.string.dv_detail_days_suffix),
+                        style = OdoTheme.typography.body,
+                        color = tone,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
             }
         }
-        Box(Modifier.fillMaxWidth().height(8.dp).clip(OdoTheme.shapes.pill).background(OdoTheme.colors.surfaceRaised)) {
-            Box(
-                Modifier
-                    .fillMaxWidth(state.validityProgress.coerceIn(0f, 1f))
-                    .height(8.dp)
-                    .clip(OdoTheme.shapes.pill)
-                    .background(Brush.horizontalGradient(listOf(OdoTheme.colors.success, tone))),
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    OdoCard(modifier = modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-        OdoText(label, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-        OdoText(value, style = OdoTheme.typography.heading)
-    }
-}
-
-@Composable
-private fun CoveredSection(covers: List<CoverItem>) {
-    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-        OdoText(stringResource(Res.string.dv_detail_whats_covered), style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-        ) {
-            covers.forEach { CoverChip(coverLabel(it.kind), it.covered) }
-        }
-    }
-}
-
-@Composable
-private fun CoverChip(label: String, covered: Boolean) {
-    Box(
-        Modifier
-            .clip(OdoTheme.shapes.pill)
-            .border(1.dp, OdoTheme.colors.border, OdoTheme.shapes.pill)
-            .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.sm),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            if (covered) {
-                OdoIcon(IcCheck, contentDescription = null, tint = OdoTheme.colors.success, size = OdoTheme.iconSizes.small)
-            } else {
-                OdoText("—", style = OdoTheme.typography.label, color = OdoTheme.colors.textMuted)
+        content.validityProgress?.let { progress ->
+            Box(Modifier.fillMaxWidth().height(8.dp).clip(OdoTheme.shapes.pill).background(OdoTheme.colors.surfaceRaised)) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                        .height(8.dp)
+                        .clip(OdoTheme.shapes.pill)
+                        .background(Brush.horizontalGradient(listOf(OdoTheme.colors.success, tone))),
+                )
             }
-            OdoText(label, style = OdoTheme.typography.label, color = if (covered) OdoTheme.colors.text else OdoTheme.colors.textMuted)
+        }
+        content.reminderDaysBefore?.let { days ->
+            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                OdoIcon(IcBellFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
+                OdoText(
+                    stringResource(Res.string.dv_reminder, days),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
         }
     }
 }
@@ -296,20 +308,44 @@ private fun RenewBar(onRenew: () -> Unit) {
 }
 
 @Composable
-private fun coverLabel(kind: CoverKind): String = stringResource(
-    when (kind) {
-        CoverKind.OWN_DAMAGE -> Res.string.dv_cover_own_damage
-        CoverKind.THIRD_PARTY -> Res.string.dv_cover_third_party
-        CoverKind.ZERO_DEP -> Res.string.dv_cover_zero_dep
-        CoverKind.ENGINE -> Res.string.dv_cover_engine
-    },
-)
+private fun validityTone(validity: DocumentValidity): Color = when (validity) {
+    is DocumentValidity.ExpiringSoon -> OdoTheme.colors.warning
+    is DocumentValidity.Expired -> OdoTheme.colors.danger
+    else -> OdoTheme.colors.success
+}
+
+@Composable
+private fun validityHeadline(validity: DocumentValidity): String = when (validity) {
+    DocumentValidity.NoExpiry -> stringResource(Res.string.dv_detail_lifetime)
+    is DocumentValidity.Valid -> stringResource(Res.string.dv_detail_expires_in, validity.daysLeft)
+    is DocumentValidity.ExpiringSoon -> stringResource(Res.string.dv_detail_expires_in, validity.daysLeft)
+    is DocumentValidity.Expired -> stringResource(Res.string.dv_detail_expired_for, validity.daysAgo)
+}
+
+@Composable
+private fun validitySubtitle(validity: DocumentValidity): String? = when (validity) {
+    DocumentValidity.NoExpiry -> stringResource(Res.string.dv_status_lifetime)
+    is DocumentValidity.Valid -> stringResource(Res.string.dv_status_valid_till, formatDate(validity.until))
+    is DocumentValidity.ExpiringSoon -> stringResource(Res.string.dv_status_valid_till, formatDate(validity.until))
+    is DocumentValidity.Expired -> stringResource(Res.string.dv_status_expired, formatDate(validity.since))
+}
+
+/** The big number beside the headline. A lifetime document has no countdown. */
+private fun daysCounter(validity: DocumentValidity): Int? = when (validity) {
+    DocumentValidity.NoExpiry -> null
+    is DocumentValidity.Valid -> validity.daysLeft
+    is DocumentValidity.ExpiringSoon -> validity.daysLeft
+    is DocumentValidity.Expired -> validity.daysAgo
+}
 
 @OdoThemePreviews
 @Composable
-private fun DocumentDetailScreenPreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(
-        state = sampleDocumentDetail(),
-        onView = {}, onRenew = {}, onReplace = {}, onShare = {}, onDownload = {}, onDelete = {}, onBack = {},
-    )
+private fun DocumentDetailPreview() = OdoPreview(padded = false) {
+    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun DocumentDetailLifetimePreview() = OdoPreview(padded = false) {
+    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {})
 }

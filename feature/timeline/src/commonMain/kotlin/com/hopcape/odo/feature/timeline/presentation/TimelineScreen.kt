@@ -61,6 +61,7 @@ import com.hopcape.odo.feature.timeline.resources.tl_badge_verified
 import com.hopcape.odo.feature.timeline.resources.tl_cd_filter
 import com.hopcape.odo.feature.timeline.resources.tl_cd_share
 import com.hopcape.odo.feature.timeline.resources.tl_doc_insurance
+import com.hopcape.odo.feature.timeline.resources.tl_doc_licence
 import com.hopcape.odo.feature.timeline.resources.tl_doc_loan
 import com.hopcape.odo.feature.timeline.resources.tl_doc_other
 import com.hopcape.odo.feature.timeline.resources.tl_doc_puc
@@ -352,6 +353,7 @@ private fun documentText(event: TimelineEvent.DocumentRenewed): String {
             DocumentType.INSURANCE -> Res.string.tl_doc_insurance
             DocumentType.PUC -> Res.string.tl_doc_puc
             DocumentType.RC -> Res.string.tl_doc_rc
+            DocumentType.LICENCE -> Res.string.tl_doc_licence
             DocumentType.LOAN -> Res.string.tl_doc_loan
             DocumentType.OTHER -> Res.string.tl_doc_other
         },

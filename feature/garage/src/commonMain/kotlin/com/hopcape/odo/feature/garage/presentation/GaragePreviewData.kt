@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.Vin
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
@@ -44,10 +45,13 @@ private fun document(
     id: String,
     type: DocumentType,
     expiresOn: LocalDate?,
-) = Document(
+) = Document.reconstitute(
     id = DocumentId(id),
+    ownerId = sampleCar.ownerId,
     carId = sampleCar.id,
     type = type,
+    storagePath = "sample/$id.pdf",
+    source = DocumentSource.UPLOADED,
     title = null,
     issuedOn = null,
     expiresOn = expiresOn,
