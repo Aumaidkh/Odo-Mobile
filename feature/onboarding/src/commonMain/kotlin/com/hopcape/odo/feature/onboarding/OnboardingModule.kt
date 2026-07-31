@@ -1,7 +1,5 @@
 package com.hopcape.odo.feature.onboarding
 
-import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.odo.core.common.id.UuidIdGenerator
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
@@ -30,7 +28,6 @@ import org.koin.dsl.module
  * for the setup flow behind `OdoDestination.Onboarding`.
  */
 val onboardingModule = module {
-    single<IdGenerator> { UuidIdGenerator() }
     single<CurrentOwnerProvider> { LocalOwnerProvider() }
     factory { SaveCarUseCase(cars = get(), idGenerator = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
