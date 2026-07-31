@@ -25,6 +25,7 @@
     <string name="gr_doc_insurance">Insurance</string>
     <string name="gr_doc_puc">Pollution (PUC)</string>
     <string name="gr_doc_rc">Registration (RC)</string>
+    <string name="gr_doc_licence">Driving licence</string>
     <string name="gr_doc_loan">Loan papers</string>
     <string name="gr_doc_other">Other</string>
     <string name="gr_doc_add">+ Add</string>

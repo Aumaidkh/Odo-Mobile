@@ -95,6 +95,25 @@ sealed interface DomainError {
     /** No live service log has this id — it was never written, or has been deleted. */
     data object ServiceLogNotFound : DomainError
 
+    /**
+     * A document was submitted without a stored file. Every vault entry keeps the paper
+     * itself (DB `documents.storage_path` is `NOT NULL`) — an entry with only dates is a
+     * reminder, not a document.
+     */
+    data object MissingDocumentFile : DomainError
+
+    /** A document title exceeded [max] characters after trimming. */
+    data class DocumentTitleTooLong(val max: Int) : DomainError
+
+    /** A document claimed an issue date in the future — nothing has been issued yet. */
+    data object IssueDateInFuture : DomainError
+
+    /** A document's expiry fell before its issue date; a paper cannot lapse before it exists. */
+    data object ExpiryBeforeIssueDate : DomainError
+
+    /** No live document has this id — it was never written, or has been deleted. */
+    data object DocumentNotFound : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }

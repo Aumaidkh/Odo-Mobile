@@ -39,6 +39,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
+import com.hopcape.odo.core.designsystem.icons.IcIdCard
 import com.hopcape.odo.core.designsystem.icons.IcJournalPlus
 import com.hopcape.odo.core.designsystem.icons.IcLeafFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
@@ -69,6 +70,7 @@ import com.hopcape.odo.feature.garage.resources.gr_doc_add
 import com.hopcape.odo.feature.garage.resources.gr_doc_expired
 import com.hopcape.odo.feature.garage.resources.gr_doc_expires_in
 import com.hopcape.odo.feature.garage.resources.gr_doc_insurance
+import com.hopcape.odo.feature.garage.resources.gr_doc_licence
 import com.hopcape.odo.feature.garage.resources.gr_doc_loan
 import com.hopcape.odo.feature.garage.resources.gr_doc_on_file
 import com.hopcape.odo.feature.garage.resources.gr_doc_other
@@ -448,6 +450,7 @@ private fun DocumentType.icon(): ImageVector = when (this) {
     DocumentType.INSURANCE -> IcShieldFilled
     DocumentType.PUC -> IcLeafFilled
     DocumentType.RC -> IcCardFilled
+    DocumentType.LICENCE -> IcIdCard
     DocumentType.LOAN, DocumentType.OTHER -> IcFileFilled
 }
 
@@ -457,6 +460,7 @@ private fun DocumentType.label(): String = stringResource(
         DocumentType.INSURANCE -> Res.string.gr_doc_insurance
         DocumentType.PUC -> Res.string.gr_doc_puc
         DocumentType.RC -> Res.string.gr_doc_rc
+        DocumentType.LICENCE -> Res.string.gr_doc_licence
         DocumentType.LOAN -> Res.string.gr_doc_loan
         DocumentType.OTHER -> Res.string.gr_doc_other
     },
