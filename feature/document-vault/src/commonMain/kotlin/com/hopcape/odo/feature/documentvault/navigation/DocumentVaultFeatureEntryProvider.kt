@@ -2,45 +2,56 @@ package com.hopcape.odo.feature.documentvault.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.DEFAULT_ARGS_KEY
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import androidx.savedstate.savedState
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
+import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
-import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentUiState
+import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentViewModel
+import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailEffect
+import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailEvent
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
-import com.hopcape.odo.feature.documentvault.presentation.detail.sampleDocumentDetail
+import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailViewModel
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEffect
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetContent
-import com.hopcape.odo.feature.documentvault.presentation.share.sampleShareDocument
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentViewModel
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessScreen
-import com.hopcape.odo.feature.documentvault.presentation.success.sampleAddSuccess
+import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessViewModel
+import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEffect
+import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEvent
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
-import com.hopcape.odo.feature.documentvault.presentation.vault.sampleVaultAttention
+import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Document vault's contribution to the navigation graph: the [OdoDestination.Documents]
- * group — the [OdoDestination.Documents.Vault] overview and the
- * [OdoDestination.Documents.Add] flow. Modelled as a group so the per-document detail +
- * review-and-confirm screens slot in here later without touching the shared registry.
- * Collected by the `:app` host via `getAll<FeatureEntryProvider>()`.
+ * group — the vault overview, the add flow, a document's detail, the add confirmation and
+ * the share sheet. Collected by the `:app` host via `getAll<FeatureEntryProvider>()`.
  */
 internal class DocumentVaultFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Documents.Vault> { DocumentVaultRoute(navigationManager) }
-        entry<OdoDestination.Documents.Add> { AddDocumentRoute(navigationManager) }
-        entry<OdoDestination.Documents.Detail> { DocumentDetailRoute(navigationManager) }
-        entry<OdoDestination.Documents.AddSuccess> { AddSuccessRoute(navigationManager) }
-        entry<OdoDestination.Documents.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
-            ShareDocumentRoute()
+        entry<OdoDestination.Documents.Add> { key -> AddDocumentRoute(navigationManager, key) }
+        entry<OdoDestination.Documents.Detail> { key -> DocumentDetailRoute(navigationManager, key) }
+        entry<OdoDestination.Documents.AddSuccess> { key -> AddSuccessRoute(navigationManager, key) }
+        entry<OdoDestination.Documents.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
+            ShareDocumentRoute(key)
         }
     }
 }
@@ -52,80 +63,145 @@ private fun NavigationManager.backToDocuments() {
 }
 
 /**
- * The vault route host — renders sample documents until the vault ViewModel (backed by
- * the local document store + reminder engine) lands. Adding routes into the add flow;
- * renew / open are M2 stubs.
+ * Creation extras carrying [args] as a ViewModel's default arguments, which is what puts
+ * them in its `SavedStateHandle`.
+ *
+ * Ids travel this way rather than as constructor parameters so a ViewModel rebuilt after
+ * process death still knows which document it is about, without the route re-supplying
+ * anything.
  */
+@Composable
+private fun argExtras(key: String, value: String): CreationExtras = remember(key, value) {
+    MutableCreationExtras().apply {
+        set(DEFAULT_ARGS_KEY, savedState { putString(key, value) })
+    }
+}
+
 @Composable
 internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<DocumentVaultViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is DocumentVaultEffect.OpenDocument ->
+                navigationManager.navigateTo(OdoDestination.Documents.Detail(documentId = effect.id.value))
+
+            is DocumentVaultEffect.OpenAdd ->
+                navigationManager.navigateTo(OdoDestination.Documents.Add(prefillType = effect.prefillType?.name))
+
+            DocumentVaultEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
     DocumentVaultScreen(
-        state = sampleVaultAttention(),
-        onAdd = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
-        // TODO(S6): the Detail key gains the document id, so a tap opens *that* document.
-        onRenew = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
-        onOpen = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
-        onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
-        onBack = { navigationManager.back() },
+        state = state,
+        onAdd = { viewModel.onEvent(DocumentVaultEvent.AddTapped(it)) },
+        onRenew = { viewModel.onEvent(DocumentVaultEvent.DocumentTapped(it)) },
+        onOpen = { viewModel.onEvent(DocumentVaultEvent.DocumentTapped(it)) },
+        onAddDocument = { viewModel.onEvent(DocumentVaultEvent.AddAnyTapped) },
+        onBack = { viewModel.onEvent(DocumentVaultEvent.BackTapped) },
     )
 }
 
-/**
- * The add-document route host — holds the local type selection until the vault ViewModel
- * lands. Each capture method routes into its review-and-confirm step (M2).
- */
 @Composable
-internal fun AddDocumentRoute(navigationManager: NavigationManager) {
-    var state by remember { mutableStateOf(AddDocumentUiState()) }
+internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.Add) {
+    val viewModel = koinViewModel<AddDocumentViewModel>(
+        extras = argExtras(AddDocumentViewModel.KEY_PREFILL_TYPE, key.prefillType.orEmpty()),
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is AddDocumentEffect.OpenSuccess ->
+                navigationManager.navigateTo(OdoDestination.Documents.AddSuccess(documentId = effect.id.value))
+
+            AddDocumentEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
     AddDocumentScreen(
         state = state,
-        onTypeSelect = { state = state.copy(selectedType = it) },
-        // TODO(M2): each method runs its capture + a review & confirm step first; the
-        //  demo jumps straight to the success screen.
-        onScan = { navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
-        onFilePicked = { uri -> if (uri != null) navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
-        onImportDigiLocker = { navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
-        onClose = { navigationManager.back() },
+        onTypeSelect = { viewModel.onEvent(AddDocumentEvent.TypeSelected(it)) },
+        onScan = { viewModel.onEvent(AddDocumentEvent.Capture.Scan) },
+        onFilePicked = { viewModel.onEvent(AddDocumentEvent.Capture.FilePicked(it)) },
+        onImportDigiLocker = { viewModel.onEvent(AddDocumentEvent.Capture.DigiLocker) },
+        onClose = { viewModel.onEvent(AddDocumentEvent.CloseTapped) },
     )
 }
 
-/**
- * The document-detail route host — renders sample Insurance detail until the vault
- * ViewModel lands. View / renew and the file actions (replace / share / download /
- * delete) are M2 stubs.
- */
 @Composable
-internal fun DocumentDetailRoute(navigationManager: NavigationManager) {
+internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.Detail) {
+    val viewModel = koinViewModel<DocumentDetailViewModel>(
+        extras = argExtras(DocumentDetailViewModel.KEY_DOCUMENT_ID, key.documentId),
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is DocumentDetailEffect.OpenShare ->
+                navigationManager.navigateTo(OdoDestination.Documents.Share(documentId = effect.id.value))
+
+            is DocumentDetailEffect.OpenAdd ->
+                navigationManager.navigateTo(OdoDestination.Documents.Add(prefillType = effect.prefillType.name))
+
+            // TODO(files): hand the stored file to a platform viewer / the downloads folder.
+            is DocumentDetailEffect.OpenFile -> Unit
+            is DocumentDetailEffect.DownloadFile -> Unit
+
+            DocumentDetailEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
     DocumentDetailScreen(
-        state = sampleDocumentDetail(),
-        onView = { /* TODO(M2): open the stored file. */ },
-        onRenew = { /* TODO(M2): open the renew flow. */ },
-        onReplace = { /* TODO(M2): replace the stored file. */ },
-        onShare = { navigationManager.navigateTo(OdoDestination.Documents.Share) },
-        onDownload = { /* TODO(M2): download the PDF. */ },
-        onDelete = { /* TODO(M2): confirm + delete the document. */ },
-        onBack = { navigationManager.back() },
+        state = state,
+        onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
+        onRenew = { viewModel.onEvent(DocumentDetailEvent.Open.Renew) },
+        // TODO(files): open the picker, then send File.Replace with what it returns.
+        onReplace = { },
+        onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
+        onDownload = { viewModel.onEvent(DocumentDetailEvent.File.Download) },
+        onDelete = { viewModel.onEvent(DocumentDetailEvent.File.Delete) },
+        onBack = { viewModel.onEvent(DocumentDetailEvent.Open.Back) },
     )
 }
 
-/**
- * The add-success route host. "Back to Documents" resets to the vault; "Add another"
- * opens the add flow again.
- */
 @Composable
-internal fun AddSuccessRoute(navigationManager: NavigationManager) {
-    AddSuccessScreen(
-        state = sampleAddSuccess(),
-        onBackToDocuments = { navigationManager.backToDocuments() },
-        onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
+internal fun AddSuccessRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.AddSuccess) {
+    val viewModel = koinViewModel<AddSuccessViewModel>(
+        extras = argExtras(AddSuccessViewModel.KEY_DOCUMENT_ID, key.documentId),
     )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    state?.let { success ->
+        AddSuccessScreen(
+            state = success,
+            onBackToDocuments = { navigationManager.backToDocuments() },
+            onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
+        )
+    }
 }
 
-/** The share-sheet route host — sample state until the vault ViewModels land. */
 @Composable
-internal fun ShareDocumentRoute() {
-    ShareDocumentSheetContent(
-        state = sampleShareDocument(),
-        onShareVia = { /* TODO(S6): hand the file to the platform share sheet. */ },
-        onDownload = { /* TODO(S6): save a copy of the file. */ },
+internal fun ShareDocumentRoute(key: OdoDestination.Documents.Share) {
+    val viewModel = koinViewModel<ShareDocumentViewModel>(
+        extras = argExtras(ShareDocumentViewModel.KEY_DOCUMENT_ID, key.documentId),
     )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            // TODO(files): hand the stored file to the platform share sheet / downloads.
+            is ShareDocumentEffect.ShareFile -> Unit
+            is ShareDocumentEffect.DownloadFile -> Unit
+        }
+    }
+
+    state?.let { share ->
+        ShareDocumentSheetContent(
+            state = share,
+            onShareVia = { viewModel.onEvent(ShareDocumentEvent.ShareVia(it)) },
+            onDownload = { viewModel.onEvent(ShareDocumentEvent.DownloadTapped) },
+        )
+    }
 }

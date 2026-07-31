@@ -53,6 +53,6 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
         onBell = { navigationManager.navigateTo(OdoDestination.Reminders.List) },
         onProfile = { navigationManager.navigateTo(OdoDestination.Profile.Root) },
         onScanBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
-        onAddDocuments = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
+        onAddDocuments = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
     )
 }

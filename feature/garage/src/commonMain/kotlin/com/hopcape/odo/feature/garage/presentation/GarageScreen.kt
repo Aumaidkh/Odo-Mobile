@@ -48,6 +48,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.Vin
+import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -110,7 +111,7 @@ internal fun GarageScreen(
     onUpdateOdometer: () -> Unit,
     onCarMenu: () -> Unit,
     onManageDocuments: () -> Unit,
-    onOpenDocument: (DocumentType) -> Unit,
+    onOpenDocument: (DocumentId) -> Unit,
     onAddDocument: () -> Unit,
     onAddService: () -> Unit,
     onOpenService: (ServiceLogId) -> Unit,
@@ -159,7 +160,7 @@ private fun PopulatedGarage(
     onUpdateOdometer: () -> Unit,
     onCarMenu: () -> Unit,
     onManageDocuments: () -> Unit,
-    onOpenDocument: (DocumentType) -> Unit,
+    onOpenDocument: (DocumentId) -> Unit,
     onAddDocument: () -> Unit,
     onAddService: () -> Unit,
     onOpenService: (ServiceLogId) -> Unit,
@@ -242,7 +243,7 @@ private fun Car.plateOrPlaceholder(): String =
 private fun DocumentsSection(
     documents: List<GarageDocument>,
     onManage: () -> Unit,
-    onOpen: (DocumentType) -> Unit,
+    onOpen: (DocumentId) -> Unit,
     onAdd: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
@@ -251,7 +252,7 @@ private fun DocumentsSection(
             documents.forEachIndexed { index, doc ->
                 DocumentRow(
                     doc = doc,
-                    onClick = { if (doc is GarageDocument.Missing) onAdd() else onOpen(doc.type) },
+                    onClick = { if (doc is GarageDocument.OnFile) onOpen(doc.document.id) else onAdd() },
                 )
                 if (index < documents.lastIndex) OdoDivider()
             }

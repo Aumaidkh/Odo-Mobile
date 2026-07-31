@@ -8,6 +8,14 @@ import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentVault
 import com.hopcape.odo.feature.documentvault.domain.usecase.ReplaceDocumentFileUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.UpdateDocumentUseCase
 import com.hopcape.odo.feature.documentvault.navigation.DocumentVaultFeatureEntryProvider
+import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTelemetry
+import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentViewModel
+import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailViewModel
+import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentViewModel
+import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessViewModel
+import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultViewModel
+import androidx.lifecycle.SavedStateHandle
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -48,4 +56,42 @@ val documentVaultModule = module {
     factory { UpdateDocumentUseCase(documents = get(), clock = get()) }
     factory { ReplaceDocumentFileUseCase(documents = get(), files = get()) }
     factory { DeleteDocumentUseCase(documents = get(), files = get()) }
+
+    // A `factory`, not a `single`: one instance covers one visit to the vault, and every
+    // screen of that visit shares its flow id.
+    factory { DocumentVaultTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
+
+    viewModel { DocumentVaultViewModel(activeCar = get(), observeVault = get(), telemetry = get()) }
+    viewModel {
+        DocumentDetailViewModel(
+            savedStateHandle = get<SavedStateHandle>(),
+            observeDetail = get(),
+            deleteDocument = get(),
+            replaceFile = get(),
+            telemetry = get(),
+        )
+    }
+    viewModel {
+        AddDocumentViewModel(
+            savedStateHandle = get<SavedStateHandle>(),
+            addDocument = get(),
+            activeCar = get(),
+            currentOwner = get(),
+            telemetry = get(),
+        )
+    }
+    viewModel {
+        ShareDocumentViewModel(
+            savedStateHandle = get<SavedStateHandle>(),
+            observeDetail = get(),
+            telemetry = get(),
+        )
+    }
+    viewModel {
+        AddSuccessViewModel(
+            savedStateHandle = get<SavedStateHandle>(),
+            observeDetail = get(),
+            telemetry = get(),
+        )
+    }
 }

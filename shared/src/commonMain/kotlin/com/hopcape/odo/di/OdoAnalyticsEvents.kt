@@ -2,6 +2,7 @@ package com.hopcape.odo.di
 
 import com.hopcape.analytics.api.EventSchema
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
+import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
 import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
 
 /**
@@ -16,4 +17,5 @@ import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
  * events, so anything missing from this list is invisible in exactly the builds where the
  * funnel is being checked. A feature that ships telemetry ships its schema in the same change.
  */
-val odoAnalyticsEvents: List<EventSchema> = onboardingAnalyticsEvents + serviceLogAnalyticsEvents
+val odoAnalyticsEvents: List<EventSchema> =
+    onboardingAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents

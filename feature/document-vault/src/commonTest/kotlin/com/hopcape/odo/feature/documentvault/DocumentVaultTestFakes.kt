@@ -3,6 +3,11 @@ package com.hopcape.odo.feature.documentvault
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
+import com.hopcape.logging.api.HLogger
+import com.hopcape.performance.api.APM
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
@@ -10,11 +15,16 @@ import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.car.model.CarId as CarIdAlias
+import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.domain.file.DocumentFileStore
 import kotlinx.coroutines.flow.Flow
+import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTelemetry
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
@@ -125,3 +135,41 @@ internal class FakeDocumentFileStore(
 
     override suspend fun exists(storagePath: String): Boolean = storagePath in saved
 }
+
+/** Records what the feature tracked, so a test can assert on the event names it ships. */
+internal class RecordingAnalytics : AnalyticsTracker {
+    val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+
+    override fun identify(traits: UserTraits) = Unit
+    override fun track(eventName: String, properties: Map<String, Any?>) {
+        events += eventName to properties
+    }
+
+    override fun setConsent(status: ConsentStatus) = Unit
+    override fun flush() = Unit
+
+    fun names(): List<String> = events.map { it.first }
+}
+
+/**
+ * The real telemetry facade over a recording tracker.
+ *
+ * The logger and tracer are the app's own facades, which stay inert until the bootstrap
+ * configures them — so a test exercises the same code the app runs, without a fake in the
+ * middle that could drift from it.
+ */
+internal fun testTelemetry(analytics: RecordingAnalytics = RecordingAnalytics()) =
+    DocumentVaultTelemetry(
+        logger = HLogger.asLogger(),
+        analytics = analytics,
+        tracer = APM.asTracer(),
+        ids = FixedIdGenerator("trace"),
+    )
+
+/** The active car, or none before setup has stored one. */
+internal class FakeActiveCarProvider(carId: CarIdAlias? = TEST_CAR) : ActiveCarProvider {
+    private val state = MutableStateFlow(carId)
+    override val activeCarId: StateFlow<CarIdAlias?> = state
+}
+
+internal val TEST_OWNER_PROVIDER = CurrentOwnerProvider { TEST_OWNER }

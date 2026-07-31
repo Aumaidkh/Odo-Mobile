@@ -37,6 +37,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.platform.rememberFilePicker
@@ -135,6 +136,16 @@ internal fun AddDocumentScreen(
                         onClick = onImportDigiLocker,
                     )
                 }
+            }
+
+            state.submission.error?.let { message ->
+                OdoText(
+                    message.asString(),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.danger,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.lg),
+                )
             }
 
             OdoText(
