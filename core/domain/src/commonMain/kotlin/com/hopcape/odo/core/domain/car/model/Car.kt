@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.domain.car.model
 
+import arrow.core.Either
 import arrow.core.EitherNel
 import arrow.core.getOrElse
 import arrow.core.raise.either
@@ -13,8 +14,10 @@ import com.hopcape.odo.core.domain.shared.DomainError
  * The Car aggregate root — the consistency boundary for a single car.
  *
  * Construct only via [create], which enforces every invariant and accumulates
- * *all* validation failures (so an onboarding form can show them at once). The
- * private constructor guarantees an invalid [Car] can never exist.
+ * *all* validation failures (so an onboarding form can show them at once), or via
+ * [reconstitute] for a car already in the database. Changing a stored car goes through
+ * [withOdometer] or back through [create] with the same id. The private constructor
+ * guarantees an invalid [Car] can never exist.
  *
  * The cross-aggregate "one primary car per owner" rule is NOT enforced here —
  * it spans multiple Car instances and lives in the repository/DB.
@@ -46,6 +49,37 @@ class Car private constructor(
 
     /** Make, model and trim, ignoring any nickname — for the places that want the real car. */
     val modelName: String get() = listOfNotNull(make, model, variant).joinToString(" ")
+
+    /**
+     * The same car with a new odometer reading, or the reason [km] is not a reading.
+     *
+     * Only the value itself is checked (present, not negative). Whether the reading fits
+     * the car's history is a rule about the car's *other* readings, which this aggregate
+     * cannot see, so the caller runs
+     * [OdometerTimeline][com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline]
+     * first and calls this once the reading is accepted.
+     *
+     * A named method rather than passing every field back through [create], so the intent
+     * ("the odometer moved") is what the call site reads, and there is one less place to
+     * drop a field while copying one.
+     */
+    fun withOdometer(km: Int?): Either<DomainError, Car> =
+        Distance.of(km).map { reading ->
+            Car(
+                id = id,
+                ownerId = ownerId,
+                make = make,
+                model = model,
+                variant = variant,
+                year = year,
+                fuelType = fuelType,
+                registrationNumber = registrationNumber,
+                odometer = reading,
+                purchaseYear = purchaseYear,
+                nickname = nickname,
+                isPrimary = isPrimary,
+            )
+        }
 
     companion object {
         /**
