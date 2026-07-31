@@ -63,8 +63,12 @@ data class ServiceRecordSummary(
             val serviceCount = entries.size
             val verifiedCount = entries.count { it.verification == VerificationStatus.VERIFIED }
             val totalSpent = entries.map { it.totalAmount }.sum()
-            // Odometer is ever-increasing, so the highest reading is the latest.
-            val latestOdometer = entries.maxByOrNull { it.odometer.km }?.odometer
+            // The most recently *serviced* entry's reading — not the highest. Entries can be
+            // logged backwards (history added after onboarding), so the largest odometer is
+            // not necessarily the current one. Ties on a date fall back to the higher reading.
+            val latestOdometer = entries
+                .maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
+                ?.odometer
             val verifiedRatio = verifiedCount.toFloat() / serviceCount
 
             return ServiceRecordSummary(

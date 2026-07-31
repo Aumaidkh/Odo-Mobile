@@ -3,12 +3,14 @@ package com.hopcape.odo.feature.timeline.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import org.koin.compose.koinInject
 import com.hopcape.odo.feature.timeline.presentation.TimelineScreen
 import com.hopcape.odo.feature.timeline.presentation.sampleTimeline
 import com.hopcape.odo.feature.timeline.presentation.sheets.TimelineFilterSheetContent
@@ -38,13 +40,20 @@ internal class TimelineFeatureEntryProvider(
  */
 @Composable
 internal fun TimelineRoute(navigationManager: NavigationManager) {
-    val carId = "sample-car" // TODO(active-car)
+    // The car this timeline is of, read at tap time; null until setup has stored one.
+    val activeCar = koinInject<ActiveCarProvider>()
     TimelineScreen(
         state = sampleTimeline(),
         onFilter = { navigationManager.navigateTo(OdoDestination.Timeline.Filter) },
-        onShare = { navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = carId)) },
+        onShare = {
+            activeCar.activeCarId.value?.let { carId ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = carId.value))
+            }
+        },
         onOpenService = { logId ->
-            navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId.value, carId = carId))
+            activeCar.activeCarId.value?.let { carId ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId.value, carId = carId.value))
+            }
         },
         onAddBill = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
         onScanFirst = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },

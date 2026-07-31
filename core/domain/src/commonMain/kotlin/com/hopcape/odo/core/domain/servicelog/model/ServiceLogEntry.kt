@@ -8,6 +8,7 @@ import arrow.core.raise.either
 import arrow.core.raise.zipOrAccumulate
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.fairness.model.FairnessSnapshot
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
@@ -31,6 +32,9 @@ import kotlinx.datetime.LocalDate
  * [categories] are the "what was done" tags; [lineItems] an optional priced breakdown;
  * [billPhotoRef] the manually-attached bill photo that makes the entry `Verified`
  * (see [verification]). [totalAmount] stays authoritative regardless of line items.
+ *
+ * [fairness] is the verdict taken when the entry became verifiable — stored, not
+ * recomputed, so the figure the owner was shown stays the figure they see.
  */
 class ServiceLogEntry private constructor(
     val id: ServiceLogId,
@@ -46,7 +50,44 @@ class ServiceLogEntry private constructor(
     val source: LogSource,
     val billId: BillId?,
     val billPhotoRef: String?,
+    val fairness: FairnessSnapshot?,
 ) {
+    /**
+     * Attach a bill photo — the manual route to a **Verified** entry (see [verification]).
+     *
+     * Any existing [fairness] verdict is dropped: it was taken against a different set of
+     * evidence, and a verdict that no longer matches what it judged is worse than none.
+     * The caller re-checks and stamps a fresh one.
+     */
+    fun withBillPhoto(ref: String): ServiceLogEntry = copy(billPhotoRef = ref, fairness = null)
+
+    /** Record the fairness verdict taken for this entry. */
+    fun withFairness(snapshot: FairnessSnapshot): ServiceLogEntry = copy(fairness = snapshot)
+
+    /**
+     * Copy with overrides. Private: an entry changes only through the named transitions
+     * above, so no caller can assemble a state the invariants never approved.
+     */
+    private fun copy(
+        billPhotoRef: String? = this.billPhotoRef,
+        fairness: FairnessSnapshot? = this.fairness,
+    ): ServiceLogEntry = ServiceLogEntry(
+        id = id,
+        carId = carId,
+        ownerId = ownerId,
+        serviceDate = serviceDate,
+        odometer = odometer,
+        totalAmount = totalAmount,
+        workshopName = workshopName,
+        notes = notes,
+        categories = categories,
+        lineItems = lineItems,
+        source = source,
+        billId = billId,
+        billPhotoRef = billPhotoRef,
+        fairness = fairness,
+    )
+
     companion object {
         /**
          * Validating factory — the single entry point for building an entry. Takes
@@ -92,6 +133,9 @@ class ServiceLogEntry private constructor(
                     source = source,
                     billId = billId,
                     billPhotoRef = billPhotoRef,
+                    // A brand-new entry has not been fairness-checked; the check happens
+                    // once there is a bill to justify trusting the amount.
+                    fairness = null,
                 )
             }
         }
@@ -120,6 +164,7 @@ class ServiceLogEntry private constructor(
             categories: Set<ServiceCategory> = emptySet(),
             lineItems: List<ServiceLogLineItem> = emptyList(),
             billPhotoRef: String? = null,
+            fairness: FairnessSnapshot? = null,
         ): ServiceLogEntry = ServiceLogEntry(
             id = id,
             carId = carId,
@@ -138,6 +183,7 @@ class ServiceLogEntry private constructor(
             source = source,
             billId = billId,
             billPhotoRef = billPhotoRef,
+            fairness = fairness,
         )
 
         private fun validateServiceDate(

@@ -16,6 +16,6 @@ import org.koin.dsl.module
  */
 val garageModule = module {
     single {
-        GarageFeatureEntryProvider(navigationManager = get())
+        GarageFeatureEntryProvider(navigationManager = get(), activeCar = get())
     } bind FeatureEntryProvider::class
 }

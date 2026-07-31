@@ -76,13 +76,24 @@ sealed interface DomainError {
     data class NotesTooLong(val max: Int) : DomainError
 
     /**
-     * A new/edited odometer reading moved backwards past the car's last known
-     * reading — Odo enforces the odometer as an ever-increasing number.
+     * A new/edited odometer reading fell below the nearest reading *before* its service
+     * date — Odo enforces the odometer as an ever-increasing number.
      */
     data class OdometerRegression(val previousKm: Int, val attemptedKm: Int) : DomainError
 
+    /**
+     * A new/edited odometer reading rose above the nearest reading *after* its service
+     * date. The mirror of [OdometerRegression]: backdating a service at 60,000 km when the
+     * car already read 55,000 km a month later is the same impossibility seen from the
+     * other side.
+     */
+    data class OdometerAheadOfLaterEntry(val nextKm: Int, val attemptedKm: Int) : DomainError
+
     /** The referenced car has no baseline reading — it does not exist for the owner. */
     data object CarNotFound : DomainError
+
+    /** No live service log has this id — it was never written, or has been deleted. */
+    data object ServiceLogNotFound : DomainError
 
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError

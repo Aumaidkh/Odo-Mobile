@@ -3,10 +3,12 @@ package com.hopcape.odo.feature.dashboard.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.navigateTo
+import org.koin.compose.koinInject
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeScreen
 import com.hopcape.odo.feature.dashboard.presentation.home.samplePopulated
 
@@ -36,14 +38,17 @@ internal class DashboardFeatureEntryProvider(
  */
 @Composable
 internal fun HomeRoute(navigationManager: NavigationManager) {
-    val carId = "sample-car" // TODO(active-car)
+    // The car a shortcut is about, read at tap time; null until setup has stored one.
+    val activeCar = koinInject<ActiveCarProvider>()
     HomeScreen(
         state = samplePopulated(),
         onSeeBreakdown = { navigationManager.navigateTo(OdoDestination.HealthScore.Detail) },
         onOpenAttention = { navigationManager.navigateTo(OdoDestination.Documents.Vault) },
         onTimeline = { navigationManager.navigateTo(OdoDestination.Timeline.List) },
         onOpenRecent = { logId ->
-            navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = carId))
+            activeCar.activeCarId.value?.let { carId ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId, carId = carId.value))
+            }
         },
         onBell = { navigationManager.navigateTo(OdoDestination.Reminders.List) },
         onProfile = { navigationManager.navigateTo(OdoDestination.Profile.Root) },

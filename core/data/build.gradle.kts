@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.koin)
     alias(libs.plugins.sqldelight)
+    // DTOs for the sync payload and for columns holding a structured value.
+    alias(libs.plugins.kotlinSerialization)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
 }
@@ -27,10 +29,23 @@ kotlin {
             // :core:common and Arrow transitively. `implementation`: nothing
             // here is re-exported — features depend on :core:domain directly.
             implementation(projects.core.domain)
+            // The sync seam. `:core:data` depends on `:core:sync`, never the reverse —
+            // the engine receives its Syncables rather than reaching in for them, which
+            // is what keeps the two modules from forming a cycle.
+            implementation(projects.core.sync)
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines.extensions)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
+            // Observability: repositories are the layer where a silent `Either.Left`
+            // would otherwise be invisible. Spans for every DB/remote call, logs for
+            // every failed write, non-fatals for the exceptions this layer swallows
+            // into DomainError.PersistenceFailure. Interfaces only — the single
+            // configuration is owned by the app bootstrap.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.performance)
+            implementation(projects.observability.crashreporting)
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)

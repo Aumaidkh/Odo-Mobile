@@ -29,6 +29,8 @@ dependencies {
     implementation(projects.observability.analytics)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
+    // Crash reporting — CrashReporter.init needs the app's own crash directory.
+    implementation(projects.observability.crashreporting)
 
     implementation(libs.androidx.activity.compose)
 
@@ -37,8 +39,11 @@ dependencies {
     // androidx's would pull a second, differently-versioned compose ui-test.
     // The flow's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.onboarding)
+    androidTestImplementation(projects.feature.servicelog)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
+    // The ServiceLogRepository port, to drive a delete the way the app writes one.
+    androidTestImplementation(projects.core.domain)
     androidTestImplementation(libs.sqldelight.runtime)
     androidTestImplementation(libs.koin.core)
     androidTestImplementation(libs.compose.uiTestJunit4)

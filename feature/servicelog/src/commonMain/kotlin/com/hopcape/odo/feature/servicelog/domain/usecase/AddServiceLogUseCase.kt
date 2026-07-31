@@ -3,11 +3,12 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 import arrow.core.EitherNel
 import arrow.core.nonEmptyListOf
 import arrow.core.raise.either
-import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -56,17 +57,16 @@ internal class AddServiceLogUseCase(
             billPhotoRef = command.billPhotoRef,
         ).bind()
 
-        // Cross-entity rule — the odometer may never move backwards. The reference
-        // coalesces the car's prior logs with its onboarding reading; null means the
-        // car has no baseline at all → it does not exist for this owner. Equal
-        // readings are allowed (two services can share an odometer, e.g. same day).
-        val previousKm = logs.mostRecentOdometerKm(carId)
-        ensureNotNull(previousKm) { nonEmptyListOf(DomainError.CarNotFound) }
-        ensure(entry.odometer.km >= previousKm) {
-            nonEmptyListOf(
-                DomainError.OdometerRegression(previousKm = previousKm, attemptedKm = entry.odometer.km),
-            )
-        }
+        // Cross-entity rule — the odometer only counts up, checked against the readings
+        // around this one *in date order* so logging history backwards stays possible.
+        // The readings coalesce the car's prior logs with its onboarding baseline; null
+        // means the car has no baseline at all → it does not exist for this owner.
+        val readings = logs.odometerReadings(carId)
+        ensureNotNull(readings) { nonEmptyListOf(DomainError.CarNotFound) }
+        OdometerTimeline.validate(
+            candidate = OdometerReading(logId = entry.id, date = entry.serviceDate, odometer = entry.odometer),
+            known = readings,
+        ).mapLeft { nonEmptyListOf(it) }.bind()
 
         logs.add(entry).mapLeft { nonEmptyListOf(it) }.bind()
     }

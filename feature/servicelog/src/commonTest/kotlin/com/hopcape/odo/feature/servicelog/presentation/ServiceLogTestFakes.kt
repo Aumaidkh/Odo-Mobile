@@ -19,11 +19,13 @@ import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.servicelog.domain.usecase.ResolveEntryFairnessUseCase
 import kotlinx.coroutines.flow.Flow
@@ -34,10 +36,14 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 
-/** In-memory [ServiceLogRepository]. [carBaselineKm] emulates the car's onboarding reading. */
+/**
+ * In-memory [ServiceLogRepository]. [carBaselineKm] emulates the car's onboarding reading
+ * (`null` = no such car), dated [carBaselineDate] so it takes its place on the timeline.
+ */
 internal class FakeServiceLogRepository(
     initial: List<ServiceLogEntry> = emptyList(),
     private val carBaselineKm: Int? = 0,
+    private val carBaselineDate: LocalDate = LocalDate(2020, 1, 1),
 ) : ServiceLogRepository {
 
     val entries = MutableStateFlow(initial)
@@ -67,9 +73,17 @@ internal class FakeServiceLogRepository(
         return Unit.right()
     }
 
-    override suspend fun mostRecentOdometerKm(carId: CarId): Int? {
-        val maxLog = entries.value.filter { it.carId == carId }.maxOfOrNull { it.odometer.km }
-        return listOfNotNull(maxLog, carBaselineKm).maxOrNull()
+    override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? {
+        val baselineKm = carBaselineKm ?: return null
+        val baseline = OdometerReading(
+            logId = null,
+            date = carBaselineDate,
+            odometer = Distance.of(baselineKm).getOrElse { error("test baseline km=$baselineKm") },
+        )
+        val logs = entries.value
+            .filter { it.carId == carId }
+            .map { OdometerReading(logId = it.id, date = it.serviceDate, odometer = it.odometer) }
+        return listOf(baseline) + logs
     }
 }
 
@@ -128,10 +142,14 @@ internal val TEST_CITY = CurrentCityProvider { "Pune" }
 internal class FakeFairnessRepository(
     private val table: Map<ServiceCategory, Pair<Long, Int>> = emptyMap(),
 ) : FairnessRepository {
-    override suspend fun estimate(category: ServiceCategory, city: String): FairnessEstimate? =
+    override suspend fun estimates(
+        categories: Set<ServiceCategory>,
+        city: String,
+    ): Map<ServiceCategory, FairnessEstimate> = categories.mapNotNull { category ->
         table[category]?.let { (avg, sample) ->
-            FairnessEstimate(category, city, Amount.of(avg).getOrElse { Amount.ZERO }, sample)
+            category to FairnessEstimate(category, city, Amount.of(avg).getOrElse { Amount.ZERO }, sample)
         }
+    }.toMap()
 }
 
 internal class FakeOverchargeReportRepository : OverchargeReportRepository {

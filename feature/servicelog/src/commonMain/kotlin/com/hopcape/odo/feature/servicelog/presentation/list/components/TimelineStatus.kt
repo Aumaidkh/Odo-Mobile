@@ -18,6 +18,7 @@ import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_badge_verified
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_add_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_fair
+import com.hopcape.odo.feature.servicelog.resources.sl_verdict_low_confidence
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_over
 import org.jetbrains.compose.resources.stringResource
 
@@ -32,6 +33,10 @@ internal fun TimelineStatus(badge: ServiceLogFairnessBadge) {
             IconLabel(IcWarning, "$verified · ${stringResource(Res.string.sl_verdict_over, badge.by.formatRupees())}", OdoTheme.colors.warning)
         ServiceLogFairnessBadge.NotYetChecked ->
             IconLabel(IcClock, verified, OdoTheme.colors.success)
+        // Verified, but the city pool is too thin to say anything about the price — so the
+        // line says only what is proven (PRD: never false precision).
+        is ServiceLogFairnessBadge.NotEnoughData ->
+            IconLabel(IcCheck, "$verified · ${stringResource(Res.string.sl_verdict_low_confidence)}", OdoTheme.colors.success)
         ServiceLogFairnessBadge.AddBillToVerify ->
             DotLabel(stringResource(Res.string.sl_verdict_add_bill), OdoTheme.colors.textMuted, OdoTheme.typography.label)
     }

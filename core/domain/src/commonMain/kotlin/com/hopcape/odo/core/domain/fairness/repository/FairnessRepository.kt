@@ -10,6 +10,15 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
  * never client-readable.
  */
 interface FairnessRepository {
-    /** The benchmark for [category] in [city], or `null` if none exists yet. */
-    suspend fun estimate(category: ServiceCategory, city: String): FairnessEstimate?
+    /**
+     * The benchmarks for [categories] in [city], keyed by category. A category with no
+     * benchmark yet is simply **absent** from the map rather than mapping to null, so
+     * "have data" and "no data" are one lookup for the caller.
+     *
+     * Asked for in bulk because that is how the app reads it: a bill or a service entry
+     * benchmarks several categories at once, and one call per line turns a list screen
+     * into an N+1. The server RPC takes a single category — batching or caching that is
+     * the adapter's business, not the caller's.
+     */
+    suspend fun estimates(categories: Set<ServiceCategory>, city: String): Map<ServiceCategory, FairnessEstimate>
 }

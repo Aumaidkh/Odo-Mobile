@@ -31,14 +31,18 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_not_found
 import com.hopcape.odo.feature.servicelog.resources.sl_optional
 import com.hopcape.odo.feature.servicelog.resources.sl_report_intro
 import com.hopcape.odo.feature.servicelog.resources.sl_report_note_hint
+import com.hopcape.odo.feature.servicelog.resources.sl_report_not_flagged
 import com.hopcape.odo.feature.servicelog.resources.sl_report_note_label
 import com.hopcape.odo.feature.servicelog.resources.sl_report_question
 import com.hopcape.odo.feature.servicelog.resources.sl_report_reason_above_market
@@ -59,38 +63,47 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun ReportOverchargeScreen(
     state: ReportOverchargeUiState,
-    onReasonSelect: (OverchargeReason) -> Unit,
-    onNoteChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onDone: () -> Unit,
-    onBack: () -> Unit,
+    onEvent: (ReportOverchargeEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val content = state.content
     OdoScreen(
         title = stringResource(Res.string.sl_report_title),
-        onBack = onBack,
+        onBack = { onEvent(ReportOverchargeEvent.BackClicked) },
         modifier = modifier,
         bottomBar = {
             when {
-                state.submitted -> DoneBar(onDone)
-                content is ReportOverchargeUiState.Content.Loaded -> SubmitBar(state, onSubmit)
+                state.isSubmitted -> DoneBar(onDone = { onEvent(ReportOverchargeEvent.DoneClicked) })
+                content is ReportOverchargeUiState.Content.Loaded ->
+                    SubmitBar(state, onSubmit = { onEvent(ReportOverchargeEvent.SubmitClicked) })
             }
         },
     ) { padding ->
         when {
-            state.submitted -> ReportSuccess(padding)
+            state.isSubmitted -> ReportSuccess(padding)
 
             content == ReportOverchargeUiState.Content.Loading ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { OdoLoadingIndicator() }
 
             content == ReportOverchargeUiState.Content.NotFound ->
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    OdoText(stringResource(Res.string.sl_not_found), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
-                }
+                Message(stringResource(Res.string.sl_not_found), padding)
 
-            content is ReportOverchargeUiState.Content.Loaded -> ReportContent(content.header, state, onReasonSelect, onNoteChange, padding)
+            content == ReportOverchargeUiState.Content.NotFlagged ->
+                Message(stringResource(Res.string.sl_report_not_flagged), padding)
+
+            content is ReportOverchargeUiState.Content.Loaded -> ReportContent(content.header, state, onEvent, padding)
         }
+    }
+}
+
+/** A centered explanation where there is nothing to report on. */
+@Composable
+private fun Message(text: String, padding: androidx.compose.foundation.layout.PaddingValues) {
+    Box(
+        Modifier.fillMaxSize().padding(padding).padding(OdoTheme.spacing.xl),
+        contentAlignment = Alignment.Center,
+    ) {
+        OdoText(text, style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
     }
 }
 
@@ -131,8 +144,7 @@ private fun DoneBar(onDone: () -> Unit) {
 private fun ReportContent(
     header: ReportHeaderUiState,
     state: ReportOverchargeUiState,
-    onReasonSelect: (OverchargeReason) -> Unit,
-    onNoteChange: (String) -> Unit,
+    onEvent: (ReportOverchargeEvent) -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     Column(
@@ -145,7 +157,11 @@ private fun ReportContent(
         OdoText(stringResource(Res.string.sl_report_question), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             OverchargeReason.entries.forEach { reason ->
-                ReasonOption(reason, selected = reason == state.reason, onSelect = { onReasonSelect(reason) })
+                ReasonOption(
+                    reason = reason,
+                    selected = reason == state.reason,
+                    onSelect = { onEvent(ReportOverchargeEvent.ReasonSelected(reason)) },
+                )
             }
         }
 
@@ -156,7 +172,7 @@ private fun ReportContent(
             }
             OdoInputField(
                 value = state.note,
-                onValueChange = onNoteChange,
+                onValueChange = { onEvent(ReportOverchargeEvent.NoteChanged(it)) },
                 placeholder = stringResource(Res.string.sl_report_note_hint),
                 singleLine = false,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
@@ -186,7 +202,7 @@ private fun HeaderCard(header: ReportHeaderUiState) {
                 )
                 OdoText(
                     text = buildString {
-                        header.workDone?.let { append(it).append(" · ") }
+                        header.workDone.asString()?.let { append(it).append(" · ") }
                         append(formatDate(header.serviceDate))
                     },
                     style = OdoTheme.typography.bodySmall,
@@ -216,12 +232,15 @@ private fun SubmitBar(state: ReportOverchargeUiState, onSubmit: () -> Unit) {
         modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
+        state.submission.error?.let {
+            OdoText(it.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.danger)
+        }
         OdoButton(
             text = stringResource(Res.string.sl_report_submit),
             onClick = onSubmit,
             modifier = Modifier.fillMaxWidth(),
             enabled = state.canSubmit,
-            loading = state.isSubmitting,
+            loading = state.submission.isInFlight,
         )
     }
 }

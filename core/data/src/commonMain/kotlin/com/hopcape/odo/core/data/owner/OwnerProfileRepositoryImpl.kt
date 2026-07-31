@@ -46,6 +46,7 @@ internal class OwnerProfileRepositoryImpl(
                 fullName = fullName,
                 onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
+                city = profile.city,
                 now = now,
                 syncStatus = SyncStatus.PENDING.name,
             )
@@ -53,6 +54,7 @@ internal class OwnerProfileRepositoryImpl(
                 fullName = fullName,
                 onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
+                city = profile.city,
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING.name,
                 id = profile.id.value,

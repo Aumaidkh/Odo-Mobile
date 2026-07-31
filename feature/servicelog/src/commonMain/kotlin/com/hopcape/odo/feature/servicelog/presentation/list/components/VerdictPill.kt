@@ -19,6 +19,7 @@ import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_add_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_checking
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_fair
+import com.hopcape.odo.feature.servicelog.resources.sl_verdict_low_confidence
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_over
 import org.jetbrains.compose.resources.stringResource
 
@@ -38,6 +39,10 @@ internal fun VerdictPill(badge: ServiceLogFairnessBadge) {
         )
         ServiceLogFairnessBadge.AddBillToVerify ->
             OdoText(stringResource(Res.string.sl_verdict_add_bill), style = OdoTheme.typography.label, color = OdoTheme.colors.textMuted)
+        // Judged, but on too small a sample to state a verdict — the PRD's guardrail is
+        // that this says how thin the data is, never "fair" or "over".
+        is ServiceLogFairnessBadge.NotEnoughData ->
+            OdoText(stringResource(Res.string.sl_verdict_low_confidence), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
         ServiceLogFairnessBadge.NotYetChecked ->
             OdoText(stringResource(Res.string.sl_verdict_checking), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
     }

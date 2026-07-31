@@ -51,7 +51,9 @@ import com.hopcape.odo.feature.fairnesscheck.resources.fc_fair_highlight
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_fair_label
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_fair_verdict
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_item_avg
+import com.hopcape.odo.feature.fairnesscheck.resources.fc_item_no_benchmark
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_item_over
+import com.hopcape.odo.feature.fairnesscheck.resources.fc_item_unlabelled
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_over_amount
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_over_body
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_over_headline
@@ -203,19 +205,32 @@ private fun BreakdownRow(item: FairnessReportItem) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-            OdoText(item.label, style = OdoTheme.typography.heading)
-            OdoText(stringResource(Res.string.fc_item_avg, item.cityAverage.formatRupees()), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+            OdoText(item.label ?: stringResource(Res.string.fc_item_unlabelled), style = OdoTheme.typography.heading)
+            val average = item.cityAverage
+            OdoText(
+                text = if (average != null) {
+                    stringResource(Res.string.fc_item_avg, average.formatRupees())
+                } else {
+                    stringResource(Res.string.fc_item_no_benchmark)
+                },
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
         }
-        if (over != null) {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(item.amount.formatRupees(), style = OdoTheme.typography.heading)
-                Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                    OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.warning, size = OdoTheme.iconSizes.small)
-                    OdoText(stringResource(Res.string.fc_item_over, over.formatRupees()), style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+        when {
+            over != null ->
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                    OdoText(item.amount.formatRupees(), style = OdoTheme.typography.heading)
+                    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                        OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.warning, size = OdoTheme.iconSizes.small)
+                        OdoText(stringResource(Res.string.fc_item_over, over.formatRupees()), style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+                    }
                 }
-            }
-        } else {
-            OdoText(stringResource(Res.string.fc_fair_verdict), style = OdoTheme.typography.label, color = OdoTheme.colors.success)
+            // Judged and not over — the only case that may claim "Fair".
+            item.verdict != null ->
+                OdoText(stringResource(Res.string.fc_fair_verdict), style = OdoTheme.typography.label, color = OdoTheme.colors.success)
+            // Nothing to compare against: show what was paid, claim nothing.
+            else -> OdoText(item.amount.formatRupees(), style = OdoTheme.typography.heading)
         }
     }
 }

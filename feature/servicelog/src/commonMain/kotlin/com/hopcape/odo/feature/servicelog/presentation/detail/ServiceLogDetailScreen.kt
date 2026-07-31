@@ -48,6 +48,8 @@ import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_city_avg
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fair_headline
@@ -65,8 +67,12 @@ import com.hopcape.odo.feature.servicelog.resources.sl_cd_back
 import com.hopcape.odo.feature.servicelog.resources.sl_cd_share
 import com.hopcape.odo.feature.servicelog.resources.sl_not_found
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_fair
+import com.hopcape.odo.feature.servicelog.resources.sl_verdict_low_confidence
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_over
 import org.jetbrains.compose.resources.stringResource
+
+/** Shown where a line has neither a label nor a category to name it. */
+private const val EMPTY_FIELD = "—"
 
 /**
  * A single service entry's detail — a combined "fairness + resale proof" view. Shows
@@ -78,9 +84,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun ServiceLogDetailScreen(
     state: ServiceLogDetailUiState,
-    onShare: () -> Unit,
-    onReportOvercharge: () -> Unit,
-    onBack: () -> Unit,
+    onEvent: (ServiceLogDetailEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val content = state.content
@@ -97,7 +101,11 @@ internal fun ServiceLogDetailScreen(
             LargeTopAppBar(
                 title = { Text(text = title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    OdoIconButton(IcArrowLeft, contentDescription = stringResource(Res.string.sl_cd_back), onClick = onBack)
+                    OdoIconButton(
+                        IcArrowLeft,
+                        contentDescription = stringResource(Res.string.sl_cd_back),
+                        onClick = { onEvent(ServiceLogDetailEvent.BackClicked) },
+                    )
                 },
                 // Tighten the expanded height (default 152dp) so the large title sits
                 // just under the icon row instead of floating far below it.
@@ -113,7 +121,7 @@ internal fun ServiceLogDetailScreen(
             )
         },
         bottomBar = {
-            loaded?.let { DetailActions(it.entry, state.reported, onShare, onReportOvercharge) }
+            loaded?.let { DetailActions(it.entry, state.reported, onEvent) }
         },
     ) { padding ->
         when (content) {
@@ -163,7 +171,7 @@ private fun DetailHeader(entry: ServiceEntryDetailUiState) {
             text = buildString {
                 append(formatDate(entry.serviceDate))
                 append(" · ").append(entry.odometer.formatKm())
-                entry.workDone?.let { append(" · ").append(it) }
+                entry.workDone.asString()?.let { append(" · ").append(it) }
             },
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
@@ -218,13 +226,14 @@ private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
             },
             style = OdoTheme.typography.title,
         )
-        val estimate = fairness.estimate
         OdoText(
+            // The sample is the weakest line's, so the claim stays no stronger than its
+            // thinnest comparison (PRD: never false precision).
             text = stringResource(
                 Res.string.sl_detail_fairness_basis,
-                estimate.city,
-                estimate.cityAverage.formatRupees(),
-                estimate.sampleSize,
+                fairness.city,
+                fairness.cityAverageTotal.formatRupees(),
+                fairness.sampleSize,
             ),
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
@@ -251,7 +260,7 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            OdoText(row.label, style = OdoTheme.typography.body)
+            OdoText(row.label ?: row.category?.let { categoryLabel(it) } ?: EMPTY_FIELD, style = OdoTheme.typography.body)
             row.cityAverage?.let {
                 OdoText(
                     stringResource(Res.string.sl_detail_city_avg, it.formatRupees()),
@@ -259,11 +268,12 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
                     color = OdoTheme.colors.textDim,
                 )
             }
-            row.note?.let { OdoText(it, style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim) }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             OdoText(row.paid.formatRupees(), style = OdoTheme.typography.body)
-            VerdictLabel(row.verdict)
+            // A line with no city benchmark gets no verdict at all — showing one would
+            // invent a comparison that was never made.
+            row.verdict?.let { VerdictLabel(it) }
         }
     }
 }
@@ -277,8 +287,9 @@ private fun VerdictLabel(verdict: FairnessVerdict) {
             IconLabel(IcCheck, stringResource(Res.string.sl_verdict_over, verdict.by.formatRupees()), OdoTheme.colors.success)
         FairnessVerdict.Fair ->
             IconLabel(IcCheck, stringResource(Res.string.sl_verdict_fair), OdoTheme.colors.success)
+        // Too thin a sample to call: the line says so instead of borrowing "fair".
         is FairnessVerdict.LowConfidence ->
-            OdoText(stringResource(Res.string.sl_verdict_fair), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
+            OdoText(stringResource(Res.string.sl_verdict_low_confidence), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
     }
 }
 
@@ -288,7 +299,7 @@ private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
     OdoCard {
         entry.lineItems.forEach { item ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                OdoText(item.label, style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
+                OdoText(item.label ?: categoryLabel(item.category), style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
                 OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
             }
         }
@@ -304,10 +315,8 @@ private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
 private fun DetailActions(
     entry: ServiceEntryDetailUiState,
     reported: Boolean,
-    onShare: () -> Unit,
-    onReportOvercharge: () -> Unit,
+    onEvent: (ServiceLogDetailEvent) -> Unit,
 ) {
-    val isOver = (entry.fairness as? EntryFairnessUiState.Assessed)?.overall is FairnessVerdict.Over
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -318,15 +327,15 @@ private fun DetailActions(
         if (entry.resale is ResaleProofUiState.Verified) {
             OdoButton(
                 text = stringResource(Res.string.sl_detail_share),
-                onClick = onShare,
+                onClick = { onEvent(ServiceLogDetailEvent.ShareClicked) },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { OdoIcon(IcShare, contentDescription = null, size = OdoTheme.iconSizes.small) },
             )
         }
-        if (isOver) {
+        if (entry.isOvercharged) {
             OdoButton(
                 text = stringResource(if (reported) Res.string.sl_detail_reported else Res.string.sl_detail_report),
-                onClick = onReportOvercharge,
+                onClick = { onEvent(ServiceLogDetailEvent.ReportOverchargeClicked) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = OdoButtonVariant.Secondary,
                 enabled = !reported,

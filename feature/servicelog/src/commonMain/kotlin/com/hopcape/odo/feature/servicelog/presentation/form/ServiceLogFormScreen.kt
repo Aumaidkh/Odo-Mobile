@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -52,6 +53,9 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
+import com.hopcape.odo.feature.servicelog.presentation.state.text
+import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_amount_currency
 import com.hopcape.odo.feature.servicelog.resources.sl_field_other_hint
@@ -59,16 +63,7 @@ import com.hopcape.odo.feature.servicelog.resources.sl_unit_km
 import com.hopcape.odo.feature.servicelog.resources.sl_unit_miles
 import com.hopcape.odo.feature.servicelog.resources.sl_attach_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_cancel
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_ac
 import com.hopcape.odo.feature.servicelog.resources.sl_cat_add
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_battery
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_brakes
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_electrical
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_general_service
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_oil_change
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_other
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_suspension
-import com.hopcape.odo.feature.servicelog.resources.sl_cat_tyres
 import com.hopcape.odo.feature.servicelog.resources.sl_divider_or_details
 import com.hopcape.odo.feature.servicelog.resources.sl_field_amount
 import com.hopcape.odo.feature.servicelog.resources.sl_field_amount_hint
@@ -106,24 +101,14 @@ private val CommonCategories = listOf(ServiceCategory.OIL_CHANGE, ServiceCategor
 @Composable
 internal fun ServiceLogFormScreen(
     state: ServiceLogFormUiState,
-    onWorkshopChange: (String) -> Unit,
-    onDateChange: (LocalDate) -> Unit,
-    onOdometerChange: (String) -> Unit,
-    onOdometerUnitToggle: () -> Unit,
-    onAmountChange: (String) -> Unit,
-    onCategoryToggle: (ServiceCategory) -> Unit,
-    onNotesChange: (String) -> Unit,
-    onScanBill: () -> Unit,
-    onAttachBill: () -> Unit,
-    onSave: () -> Unit,
-    onClose: () -> Unit,
+    onEvent: (ServiceLogFormEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
         title = stringResource(if (state.isEditing) Res.string.sl_form_title_edit else Res.string.sl_form_title_add),
-        onBack = onClose,
+        onBack = { onEvent(ServiceLogFormEvent.CloseClicked) },
         modifier = modifier,
-        bottomBar = { SaveBar(state, onSave) },
+        bottomBar = { SaveBar(state, onSave = { onEvent(ServiceLogFormEvent.SaveClicked) }) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -133,35 +118,45 @@ internal fun ServiceLogFormScreen(
                 .padding(vertical = OdoTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         ) {
-            ScanCtaCard(onScanBill)
+            ScanCtaCard(onScanBill = { onEvent(ServiceLogFormEvent.ScanBillClicked) })
             OrDivider()
             OdoInputField(
-                value = state.workshop.value.orEmpty(),
-                onValueChange = onWorkshopChange,
+                value = state.workshop.text,
+                onValueChange = { onEvent(ServiceLogFormEvent.Field.WorkshopChanged(it)) },
                 label = stringResource(Res.string.sl_field_workshop),
                 placeholder = stringResource(Res.string.sl_field_workshop_hint),
                 errorText = state.workshop.error?.asString(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.WORKSHOP_FIELD),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                DateField(state.date.value, onDateChange, state.date.error?.asString(), Modifier.weight(1f))
+                DateField(
+                    date = state.date.value,
+                    onDateChange = { onEvent(ServiceLogFormEvent.Field.DateChanged(it)) },
+                    error = state.date.error?.asString(),
+                    modifier = Modifier.weight(1f).testTag(ServiceLogTestTags.DATE_FIELD),
+                )
                 OdoOdometerField(
-                    value = state.odometer.value.orEmpty(),
-                    onValueChange = onOdometerChange,
+                    value = state.odometer.text,
+                    onValueChange = { onEvent(ServiceLogFormEvent.Field.OdometerChanged(it)) },
                     unit = state.odometerUnit,
-                    onUnitToggle = onOdometerUnitToggle,
+                    onUnitToggle = { onEvent(ServiceLogFormEvent.Field.OdometerUnitToggled) },
                     kmLabel = stringResource(Res.string.sl_unit_km),
                     milesLabel = stringResource(Res.string.sl_unit_miles),
                     label = stringResource(Res.string.sl_field_odometer),
                     placeholder = stringResource(Res.string.sl_field_odometer_hint),
                     errorText = state.odometer.error?.asString(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag(ServiceLogTestTags.ODOMETER_FIELD),
                 )
             }
-            CategorySection(state.categories, onCategoryToggle, state.notes.value.orEmpty(), onNotesChange)
+            CategorySection(
+                selected = state.categories,
+                onToggle = { onEvent(ServiceLogFormEvent.Field.CategoryToggled(it)) },
+                notes = state.notes.text,
+                onNotesChange = { onEvent(ServiceLogFormEvent.Field.NotesChanged(it)) },
+            )
             OdoInputField(
-                value = state.amount.value.orEmpty(),
-                onValueChange = onAmountChange,
+                value = state.amount.text,
+                onValueChange = { onEvent(ServiceLogFormEvent.Field.AmountChanged(it)) },
                 label = stringResource(Res.string.sl_field_amount),
                 placeholder = stringResource(Res.string.sl_field_amount_hint),
                 errorText = state.amount.error?.asString(),
@@ -169,9 +164,9 @@ internal fun ServiceLogFormScreen(
                 leadingIcon = {
                     OdoText(stringResource(Res.string.sl_amount_currency), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.AMOUNT_FIELD),
             )
-            AttachBillCard(onAttachBill)
+            AttachBillCard(onClick = { onEvent(ServiceLogFormEvent.AttachBillClicked) })
         }
     }
 }
@@ -347,30 +342,16 @@ private fun SaveBar(state: ServiceLogFormUiState, onSave: () -> Unit) {
             .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
-        state.submitError?.let {
+        state.submission.error?.let {
             OdoText(it.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.danger)
         }
         OdoButton(
             text = stringResource(Res.string.sl_save),
             onClick = onSave,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.SAVE),
             enabled = state.canSave,
-            loading = state.isSubmitting,
+            loading = state.submission.isInFlight,
         )
     }
 }
 
-@Composable
-private fun categoryLabel(category: ServiceCategory): String = stringResource(
-    when (category) {
-        ServiceCategory.OIL_CHANGE -> Res.string.sl_cat_oil_change
-        ServiceCategory.BRAKES -> Res.string.sl_cat_brakes
-        ServiceCategory.TYRES -> Res.string.sl_cat_tyres
-        ServiceCategory.AC -> Res.string.sl_cat_ac
-        ServiceCategory.BATTERY -> Res.string.sl_cat_battery
-        ServiceCategory.SUSPENSION -> Res.string.sl_cat_suspension
-        ServiceCategory.ELECTRICAL -> Res.string.sl_cat_electrical
-        ServiceCategory.GENERAL_SERVICE -> Res.string.sl_cat_general_service
-        ServiceCategory.OTHER -> Res.string.sl_cat_other
-    },
-)

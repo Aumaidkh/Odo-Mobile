@@ -28,6 +28,9 @@ kotlin {
             // Amount (integer paise), Distance, WorkshopName, ServiceLogId,
             // VerificationStatus, RecordScore + the ₹/km/date formatters the UI uses.
             implementation(projects.core.domain)
+            // koinInject() in the route hosts — they resolve the ActiveCarProvider port to
+            // name the car a per-car destination is about.
+            implementation(libs.koin.composeViewmodel)
             // LocalDate on TimelineEvent (event dates + month grouping).
             implementation(libs.kotlinx.datetime)
         }

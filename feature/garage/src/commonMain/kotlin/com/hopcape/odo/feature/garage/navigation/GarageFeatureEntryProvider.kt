@@ -7,10 +7,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
+import org.koin.compose.koinInject
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.garage.presentation.AddCarScreen
@@ -37,12 +40,20 @@ import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetCon
  */
 internal class GarageFeatureEntryProvider(
     private val navigationManager: NavigationManager,
+    private val activeCar: ActiveCarProvider,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
 
-    // TODO(active-car): source the current carId from a :core:domain active-car port.
-    private val carId = "sample-car"
+    /**
+     * The car every jump into a per-car destination is about, read at tap time. `null` until
+     * setup has stored a car, which is why each use below refuses to navigate rather than
+     * inventing an id — opening someone else's car is worse than not opening one.
+     */
+    private val carId: CarId? get() = activeCar.activeCarId.value
+
+    /** Run [action] with the active car's id, or do nothing when there isn't one yet. */
+    private inline fun withCar(action: (String) -> Unit) = carId?.let { action(it.value) }
 
     /** Replace the sheet [from] with [to] — one command, no lingering sheet on back. */
     private fun replace(from: OdoDestination, to: OdoDestination) =
@@ -71,9 +82,9 @@ internal class GarageFeatureEntryProvider(
         entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) {
             AddToHistorySheetContent(
                 onScan = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.BillScanner.Capture) },
-                onManual = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.AddEdit(carId = carId)) },
+                onManual = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.AddEdit(carId = it)) } },
                 onAddDocument = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.Documents.Add) },
-                onViewAll = { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.List(carId = carId)) },
+                onViewAll = { withCar { replace(OdoDestination.Garage.AddToHistory, OdoDestination.ServiceLog.List(carId = it)) } },
             )
         }
 
@@ -116,7 +127,7 @@ internal class GarageFeatureEntryProvider(
  */
 @Composable
 internal fun GarageRoute(navigationManager: NavigationManager) {
-    val carId = "sample-car" // TODO(active-car)
+    val activeCar = koinInject<ActiveCarProvider>()
     var filter by remember { mutableStateOf(ServiceFacet.ALL) }
     GarageScreen(
         state = sampleGarage(filter),
@@ -128,7 +139,9 @@ internal fun GarageRoute(navigationManager: NavigationManager) {
         onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
         onAddService = { navigationManager.navigateTo(OdoDestination.Garage.AddToHistory) },
         onOpenService = { logId ->
-            navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId.value, carId = carId))
+            activeCar.activeCarId.value?.let { carId ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Detail(logId = logId.value, carId = carId.value))
+            }
         },
         onFilterChange = { filter = it },
     )

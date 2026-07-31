@@ -7,7 +7,12 @@ import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogFairnessBa
 internal enum class FairnessTone { GOOD, WARN, MUTED }
 
 internal fun ServiceLogFairnessBadge.tone(): FairnessTone = when (this) {
-    ServiceLogFairnessBadge.FairPrice, ServiceLogFairnessBadge.NotYetChecked -> FairnessTone.GOOD
+    // Verified is the good signal here, whether or not a verdict was reached: the tone
+    // tracks trust in the entry, and only an overcharge is worth warning about.
+    ServiceLogFairnessBadge.FairPrice,
+    ServiceLogFairnessBadge.NotYetChecked,
+    is ServiceLogFairnessBadge.NotEnoughData,
+    -> FairnessTone.GOOD
     is ServiceLogFairnessBadge.Overcharged -> FairnessTone.WARN
     ServiceLogFairnessBadge.AddBillToVerify -> FairnessTone.MUTED
 }

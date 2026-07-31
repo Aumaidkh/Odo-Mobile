@@ -3,8 +3,9 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 import arrow.core.EitherNel
 import arrow.core.nonEmptyListOf
 import arrow.core.raise.either
-import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
+import com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -17,9 +18,11 @@ import kotlinx.datetime.toLocalDateTime
  * validation (reusing [ServiceLogEntry.create] with the existing id) and re-checks
  * the odometer ordering, since an edit can move either the date or the reading.
  *
- * The ordering reference includes all of the car's readings, so an unchanged
- * odometer passes (equal is allowed); an edit that pushes it below a known reading
- * is rejected with [DomainError.OdometerRegression].
+ * The ordering check runs over the car's timeline with **this entry excluded**, so an
+ * unchanged reading always passes and correcting the entry's own value is a typo fix, not
+ * a regression against itself. Only a value that crosses a *neighbouring* entry is
+ * rejected — below the one before it ([DomainError.OdometerRegression]) or above the one
+ * after it ([DomainError.OdometerAheadOfLaterEntry]).
  */
 internal class UpdateServiceLogUseCase(
     private val logs: ServiceLogRepository,
@@ -46,13 +49,14 @@ internal class UpdateServiceLogUseCase(
             billPhotoRef = command.billPhotoRef,
         ).bind()
 
-        val previousKm = logs.mostRecentOdometerKm(command.carId)
-        ensureNotNull(previousKm) { nonEmptyListOf(DomainError.CarNotFound) }
-        ensure(entry.odometer.km >= previousKm) {
-            nonEmptyListOf(
-                DomainError.OdometerRegression(previousKm = previousKm, attemptedKm = entry.odometer.km),
-            )
-        }
+        // Re-checked against the car's timeline with **this entry excluded**, so correcting
+        // its own reading is a typo fix rather than a regression against its stored value.
+        val readings = logs.odometerReadings(command.carId)
+        ensureNotNull(readings) { nonEmptyListOf(DomainError.CarNotFound) }
+        OdometerTimeline.validate(
+            candidate = OdometerReading(logId = entry.id, date = entry.serviceDate, odometer = entry.odometer),
+            known = readings,
+        ).mapLeft { nonEmptyListOf(it) }.bind()
 
         logs.update(entry).mapLeft { nonEmptyListOf(it) }.bind()
     }

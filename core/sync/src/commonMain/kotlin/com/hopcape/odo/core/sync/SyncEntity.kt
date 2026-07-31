@@ -16,6 +16,16 @@ enum class SyncEntity {
     PROFILES,
     CARS,
     SERVICE_LOGS,
+
+    /**
+     * A filed "report this overcharge". After [SERVICE_LOGS] because it references one.
+     *
+     * An entry's *categories* deliberately have no constant here: they are a projection of
+     * their parent with no identity or lifecycle of their own, so they travel inside its
+     * payload. A report is the opposite — its own record, filed once — which is what earns
+     * it a cursor.
+     */
+    OVERCHARGE_REPORTS,
     BILLS,
     BILL_LINE_ITEMS,
     DOCUMENTS,

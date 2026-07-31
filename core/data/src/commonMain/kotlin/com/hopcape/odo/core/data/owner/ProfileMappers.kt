@@ -19,4 +19,5 @@ internal fun Profiles.toDomain(): OwnerProfile = OwnerProfile.reconstitute(
     // chooses a landing surface and the profile is perfectly usable without it.
     goal = onboarding_goal?.let { stored -> OnboardingGoal.entries.firstOrNull { it.name == stored } },
     onboardingCompletedAt = onboarding_completed_at?.let(Instant::parse),
+    city = city,
 )
