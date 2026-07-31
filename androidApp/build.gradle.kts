@@ -45,6 +45,8 @@ dependencies {
     androidTestImplementation(projects.feature.servicelog)
     // The vault's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.documentVault)
+    // The garage's semantics tags, for the same reason.
+    androidTestImplementation(projects.feature.garage)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.

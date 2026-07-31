@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
@@ -43,6 +44,7 @@ import com.hopcape.odo.feature.garage.resources.gr_ac_odo_subtitle
 import com.hopcape.odo.feature.garage.resources.gr_ac_reg
 import com.hopcape.odo.feature.garage.resources.gr_ac_title
 import com.hopcape.odo.feature.garage.resources.gr_cd_close
+import com.hopcape.odo.feature.garage.resources.gr_odo_backspace
 import com.hopcape.odo.feature.garage.resources.gr_odo_save
 import com.hopcape.odo.feature.garage.resources.gr_odo_unit_km
 import com.hopcape.odo.feature.garage.resources.gr_odo_unit_miles
@@ -94,6 +96,7 @@ internal fun AddCarScreen(state: AddCarUiState, onEvent: (AddCarEvent) -> Unit) 
             )
 
             OdoRegistrationNumberField(
+                modifier = Modifier.testTag(GarageTestTags.REGISTRATION_FIELD),
                 value = state.fields.registration.text,
                 onValueChange = { onEvent(AddCarEvent.PlateChanged(it)) },
                 label = stringResource(Res.string.gr_ac_reg),
@@ -116,6 +119,7 @@ internal fun AddCarScreen(state: AddCarUiState, onEvent: (AddCarEvent) -> Unit) 
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.gr_ac_current_odo))
                 OdoOdometer(
+                    modifier = Modifier.testTag(GarageTestTags.ODOMETER_FIELD),
                     value = state.odometer.value,
                     onValueChange = { onEvent(AddCarEvent.OdometerChanged(it)) },
                     title = stringResource(Res.string.gr_ac_current_odo),
@@ -125,6 +129,7 @@ internal fun AddCarScreen(state: AddCarUiState, onEvent: (AddCarEvent) -> Unit) 
                     kmLabel = stringResource(Res.string.gr_odo_unit_km),
                     milesLabel = stringResource(Res.string.gr_odo_unit_miles),
                     hint = stringResource(Res.string.gr_ac_odo_hint),
+                    backspaceLabel = stringResource(Res.string.gr_odo_backspace),
                 )
                 // The odometer control has no error slot of its own — it is a drum, not a
                 // text field — so a rejected reading is said underneath it.

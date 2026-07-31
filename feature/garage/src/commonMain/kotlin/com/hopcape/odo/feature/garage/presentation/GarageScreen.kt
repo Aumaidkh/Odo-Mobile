@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -202,7 +203,7 @@ private fun PopulatedGarage(
 
 @Composable
 private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
-    OdoCard {
+    OdoCard(modifier = Modifier.testTag(GarageTestTags.CAR_CARD)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -228,7 +229,11 @@ private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.gr_odometer), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
-                OdoText(car.odometer.formatKm(), style = OdoTheme.typography.title)
+                OdoText(
+                    car.odometer.formatKm(),
+                    style = OdoTheme.typography.title,
+                    modifier = Modifier.testTag(GarageTestTags.ODOMETER),
+                )
             }
             OdoButton(stringResource(Res.string.gr_update), onClick = onUpdate, variant = OdoButtonVariant.Secondary)
         }
@@ -268,6 +273,7 @@ private fun DocumentRow(doc: GarageDocument, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag(GarageTestTags.documentRow(doc.type))
             .clickable(onClick = onClick)
             .heightIn(min = OdoTheme.spacing.minTouchTarget)
             .padding(vertical = OdoTheme.spacing.sm),
@@ -329,7 +335,7 @@ private fun ServiceHistorySection(
 
 @Composable
 private fun ServiceEntryCard(entry: ServiceHistoryEntry, onClick: () -> Unit) {
-    OdoCard(onClick = onClick) {
+    OdoCard(onClick = onClick, modifier = Modifier.testTag(GarageTestTags.serviceRow(entry.id.value))) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),

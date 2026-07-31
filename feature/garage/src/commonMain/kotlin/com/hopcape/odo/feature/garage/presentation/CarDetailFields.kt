@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.hopcape.odo.core.designsystem.component.OdoCarMake
 import com.hopcape.odo.core.designsystem.component.OdoCarMakeField
 import com.hopcape.odo.core.designsystem.component.OdoCarModel
@@ -76,6 +77,7 @@ internal fun CarDetailFields(
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.gr_field_make))
             OdoCarMakeField(
+                modifier = Modifier.testTag(GarageTestTags.MAKE_FIELD),
                 selected = fields.make.value?.toOdoCarMake(),
                 makes = options.makes.map { it.toOdoCarMake() },
                 popular = options.popularMakes.map { it.toOdoCarMake() },
@@ -96,6 +98,7 @@ internal fun CarDetailFields(
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.gr_field_model))
             OdoCarModelField(
+                modifier = Modifier.testTag(GarageTestTags.MODEL_FIELD),
                 selected = fields.model.value?.toOdoCarModel(),
                 models = options.models.map { it.toOdoCarModel() },
                 onSelect = { onModelSelected(it.toDomainModel()) },
@@ -119,6 +122,7 @@ internal fun CarDetailFields(
             ) {
                 FieldLabel(stringResource(Res.string.gr_field_year))
                 OdoModelYearField(
+                    modifier = Modifier.testTag(GarageTestTags.YEAR_FIELD),
                     selected = fields.year.value,
                     years = options.years.asRange(),
                     onSelect = onYearSelected,
@@ -136,6 +140,7 @@ internal fun CarDetailFields(
             ) {
                 FieldLabel(stringResource(Res.string.gr_field_fuel))
                 OdoFuelTypeField(
+                    modifier = Modifier.testTag(GarageTestTags.FUEL_FIELD),
                     selected = fields.fuel.value?.toFuelKind(),
                     options = fuelOptions(options.fuelTypes),
                     onSelect = { onFuelSelected(it.toDomain()) },

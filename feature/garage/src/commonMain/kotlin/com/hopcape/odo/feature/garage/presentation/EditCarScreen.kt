@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
@@ -98,11 +99,13 @@ internal fun EditCarScreen(state: EditCarUiState, onEvent: (EditCarEvent) -> Uni
                     onFuelSelected = { onEvent(EditCarEvent.FuelSelected(it)) },
                 )
                 OdoRegistrationNumberField(
+                    modifier = Modifier.testTag(GarageTestTags.REGISTRATION_FIELD),
                     value = form.value.registration.text,
                     onValueChange = { onEvent(EditCarEvent.PlateChanged(it)) },
                     label = stringResource(Res.string.gr_ec_reg),
                 )
                 OdoInputField(
+                    modifier = Modifier.testTag(GarageTestTags.NICKNAME_FIELD),
                     value = form.value.nickname.text,
                     onValueChange = { onEvent(EditCarEvent.NicknameChanged(it)) },
                     label = stringResource(Res.string.gr_ec_nickname),
