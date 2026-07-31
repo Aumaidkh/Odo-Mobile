@@ -24,6 +24,9 @@ dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.core.data)
+    // Same reason: the vault's Android document store needs a Context to copy picked
+    // files into private storage, so it is constructed in the Koin bootstrap here.
+    implementation(projects.feature.documentVault)
     implementation(projects.observability.logging)
     // Analytics — HAnalytics.init + consent gate configured here.
     implementation(projects.observability.analytics)

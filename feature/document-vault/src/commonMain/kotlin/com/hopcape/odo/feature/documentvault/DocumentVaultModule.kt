@@ -11,7 +11,12 @@ import org.koin.dsl.module
  *
  * The [DocumentVaultFeatureEntryProvider] is bound to [FeatureEntryProvider] so the
  * host picks it up via `getAll<FeatureEntryProvider>()`. The vault ViewModel + the
- * document store / reminder use cases join here as the feature is built.
+ * document use cases join here as the feature is built.
+ *
+ * The `DocumentFileStore` binding is deliberately *not* here: storing a file needs
+ * platform APIs (a Context on Android), so each platform contributes its own —
+ * `documentVaultAndroidModule` / `documentVaultIosModule` — through the bootstrap's
+ * platform module.
  */
 val documentVaultModule = module {
     single {

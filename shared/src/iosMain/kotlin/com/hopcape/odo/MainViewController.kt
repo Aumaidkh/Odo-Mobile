@@ -6,6 +6,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.di.initKoin
+import com.hopcape.odo.feature.documentvault.documentVaultIosModule
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.Platform
 import org.koin.dsl.module
@@ -13,9 +14,10 @@ import org.koin.dsl.module
 private var koinStarted = false
 
 /**
- * iOS Compose entry point. Ensures logging + the Koin graph are up before rendering
- * — the native SQLDelight [DriverFactory] needs no Context, so the platform module
- * is a one-liner. The [koinStarted] latch keeps a warm relaunch from starting twice.
+ * iOS Compose entry point. Ensures logging + the Koin graph are up before rendering.
+ * The platform module carries the bits common code cannot build itself: the native
+ * SQLDelight [DriverFactory] (no Context needed here) and the vault's file store. The
+ * [koinStarted] latch keeps a warm relaunch from starting twice.
  *
  * Logging is configured here (once) via [HLogger.init]; `loggingModule` then
  * republishes that same logger into the graph, mirroring the Android bootstrap.
@@ -31,7 +33,12 @@ fun MainViewController() = ComposeUIViewController {
                 minLevel = if (isDebug) LogLevel.VERBOSE else LogLevel.INFO,
             )
         )
-        initKoin(platformModule = module { single { DriverFactory() } })
+        initKoin(
+            platformModule = module {
+                single { DriverFactory() }
+                includes(documentVaultIosModule)
+            },
+        )
         koinStarted = true
     }
     App()
