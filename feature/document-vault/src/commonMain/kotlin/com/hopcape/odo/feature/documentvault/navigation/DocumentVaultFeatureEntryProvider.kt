@@ -18,10 +18,11 @@ import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentUiState
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
 import com.hopcape.odo.feature.documentvault.presentation.detail.sampleDocumentDetail
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetContent
+import com.hopcape.odo.feature.documentvault.presentation.share.sampleShareDocument
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessScreen
+import com.hopcape.odo.feature.documentvault.presentation.success.sampleAddSuccess
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.sampleVaultAttention
-import kotlinx.datetime.LocalDate
 
 /**
  * Document vault's contribution to the navigation graph: the [OdoDestination.Documents]
@@ -39,7 +40,7 @@ internal class DocumentVaultFeatureEntryProvider(
         entry<OdoDestination.Documents.Detail> { DocumentDetailRoute(navigationManager) }
         entry<OdoDestination.Documents.AddSuccess> { AddSuccessRoute(navigationManager) }
         entry<OdoDestination.Documents.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
-            ShareDocumentSheetContent()
+            ShareDocumentRoute()
         }
     }
 }
@@ -60,6 +61,7 @@ internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
     DocumentVaultScreen(
         state = sampleVaultAttention(),
         onAdd = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
+        // TODO(S6): the Detail key gains the document id, so a tap opens *that* document.
         onRenew = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
         onOpen = { navigationManager.navigateTo(OdoDestination.Documents.Detail) },
         onAddDocument = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
@@ -76,7 +78,7 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager) {
     var state by remember { mutableStateOf(AddDocumentUiState()) }
     AddDocumentScreen(
         state = state,
-        onKindSelect = { state = state.copy(selectedKind = it) },
+        onTypeSelect = { state = state.copy(selectedType = it) },
         // TODO(M2): each method runs its capture + a review & confirm step first; the
         //  demo jumps straight to the success screen.
         onScan = { navigationManager.navigateTo(OdoDestination.Documents.AddSuccess) },
@@ -107,15 +109,23 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager) {
 
 /**
  * The add-success route host. "Back to Documents" resets to the vault; "Add another"
- * opens the add flow again. The sample reminder is 7 days before the (Insurance) expiry.
+ * opens the add flow again.
  */
 @Composable
 internal fun AddSuccessRoute(navigationManager: NavigationManager) {
     AddSuccessScreen(
-        docName = "Insurance",
-        reminderDate = LocalDate(2026, 6, 26),
-        remindDaysBefore = 7,
+        state = sampleAddSuccess(),
         onBackToDocuments = { navigationManager.backToDocuments() },
         onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add) },
+    )
+}
+
+/** The share-sheet route host — sample state until the vault ViewModels land. */
+@Composable
+internal fun ShareDocumentRoute() {
+    ShareDocumentSheetContent(
+        state = sampleShareDocument(),
+        onShareVia = { /* TODO(S6): hand the file to the platform share sheet. */ },
+        onDownload = { /* TODO(S6): save a copy of the file. */ },
     )
 }

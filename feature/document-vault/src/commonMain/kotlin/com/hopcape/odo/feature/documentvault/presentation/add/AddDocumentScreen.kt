@@ -38,6 +38,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.platform.rememberFilePicker
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_add_camera_body
@@ -47,6 +48,7 @@ import com.hopcape.odo.feature.documentvault.resources.dv_add_digilocker_title
 import com.hopcape.odo.feature.documentvault.resources.dv_add_fastest
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_insurance
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_licence
+import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_loan
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_other
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_puc
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_rc
@@ -73,7 +75,7 @@ private val DigiLockerBlue = Color(0xFF4E86E8)
 @Composable
 internal fun AddDocumentScreen(
     state: AddDocumentUiState,
-    onKindSelect: (AddDocKind) -> Unit,
+    onTypeSelect: (DocumentType) -> Unit,
     onScan: () -> Unit,
     onFilePicked: (String?) -> Unit,
     onImportDigiLocker: () -> Unit,
@@ -96,8 +98,12 @@ internal fun AddDocumentScreen(
                     horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                 ) {
-                    AddDocKind.entries.forEach { kind ->
-                        OdoChip(label = kindLabel(kind), selected = kind == state.selectedKind, onClick = { onKindSelect(kind) })
+                    AddDocumentUiState.OFFERED_TYPES.forEach { type ->
+                        OdoChip(
+                            label = typeLabel(type),
+                            selected = type == state.selectedType,
+                            onClick = { onTypeSelect(type) },
+                        )
                     }
                 }
             }
@@ -201,13 +207,14 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun kindLabel(kind: AddDocKind): String = stringResource(
-    when (kind) {
-        AddDocKind.INSURANCE -> Res.string.dv_add_kind_insurance
-        AddDocKind.PUC -> Res.string.dv_add_kind_puc
-        AddDocKind.RC -> Res.string.dv_add_kind_rc
-        AddDocKind.LICENCE -> Res.string.dv_add_kind_licence
-        AddDocKind.OTHER -> Res.string.dv_add_kind_other
+private fun typeLabel(type: DocumentType): String = stringResource(
+    when (type) {
+        DocumentType.INSURANCE -> Res.string.dv_add_kind_insurance
+        DocumentType.PUC -> Res.string.dv_add_kind_puc
+        DocumentType.RC -> Res.string.dv_add_kind_rc
+        DocumentType.LICENCE -> Res.string.dv_add_kind_licence
+        DocumentType.LOAN -> Res.string.dv_add_kind_loan
+        DocumentType.OTHER -> Res.string.dv_add_kind_other
     },
 )
 
@@ -216,7 +223,7 @@ private fun kindLabel(kind: AddDocKind): String = stringResource(
 private fun AddDocumentScreenPreview() = OdoPreview(padded = false) {
     AddDocumentScreen(
         state = AddDocumentUiState(),
-        onKindSelect = {},
+        onTypeSelect = {},
         onScan = {},
         onFilePicked = {},
         onImportDigiLocker = {},

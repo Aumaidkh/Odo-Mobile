@@ -15,6 +15,8 @@
     <string name="dv_doc_puc">Pollution (PUC)</string>
     <string name="dv_doc_rc">Registration (RC)</string>
     <string name="dv_doc_licence">Driving licence</string>
+    <string name="dv_doc_loan">Loan papers</string>
+    <string name="dv_doc_other">Document</string>
 
     <!-- Row subtitles -->
     <string name="dv_status_not_added">Not added yet</string>
@@ -34,6 +36,7 @@
     <string name="dv_action_renew">Renew</string>
     <string name="dv_reminder">We’ll remind you %1$d days before it expires</string>
     <string name="dv_add_document">Add a document</string>
+    <string name="dv_error_load_failed">Could not read your documents. Pull down to try again.</string>
 
     <!-- Add document screen -->
     <string name="dv_add_title">Add document</string>
@@ -42,6 +45,7 @@
     <string name="dv_add_kind_puc">PUC</string>
     <string name="dv_add_kind_rc">RC</string>
     <string name="dv_add_kind_licence">Licence</string>
+    <string name="dv_add_kind_loan">Loan</string>
     <string name="dv_add_kind_other">Other</string>
     <string name="dv_add_method_label">How would you like to add it?</string>
     <string name="dv_add_camera_title">Scan with camera</string>
@@ -56,18 +60,14 @@
 
     <!-- Document detail screen -->
     <string name="dv_detail_verified">Verified</string>
-    <string name="dv_detail_idv_label">SUM INSURED (IDV)</string>
     <string name="dv_detail_view">View</string>
     <string name="dv_detail_expires_in">Expires in %1$d days</string>
     <string name="dv_detail_days_suffix">d</string>
-    <string name="dv_detail_cover_type">COVER TYPE</string>
-    <string name="dv_detail_premium">PREMIUM / YR</string>
-    <string name="dv_detail_whats_covered">WHAT’S COVERED</string>
+    <string name="dv_detail_expired_for">Expired %1$d days ago</string>
+    <string name="dv_detail_lifetime">Never expires</string>
+    <string name="dv_detail_issued_on">Issued %1$s</string>
+    <string name="dv_detail_file_missing">The stored file is missing. Replace it to view or share this document.</string>
     <string name="dv_detail_renew">Renew now</string>
-    <string name="dv_cover_own_damage">Own damage</string>
-    <string name="dv_cover_third_party">Third party</string>
-    <string name="dv_cover_zero_dep">Zero-dep</string>
-    <string name="dv_cover_engine">Engine cover</string>
 
     <!-- Overflow menu -->
     <string name="dv_cd_more">More</string>
@@ -80,6 +80,7 @@
     <string name="dv_success_title">%1$s added</string>
     <string name="dv_success_body_before">Safely stored in your vault. We’ll remind you on </string>
     <string name="dv_success_body_after"> — %1$d days before it expires.</string>
+    <string name="dv_success_body_no_reminder">Safely stored in your vault.</string>
     <string name="dv_success_card_title">Health Score +4</string>
     <string name="dv_success_card_body">Documentation is now complete</string>
     <string name="dv_success_back">Back to Documents</string>
@@ -87,9 +88,7 @@
 
     <!-- Share document sheet -->
     <string name="dv_share_title">Share %1$s</string>
-    <string name="dv_share_subtitle">%1$s · valid till %2$s</string>
-    <string name="dv_share_hide_policy">Hide policy number</string>
-    <string name="dv_share_safer">safer to share</string>
+    <string name="dv_share_subtitle">Valid till %1$s</string>
     <string name="dv_share_whatsapp">WhatsApp</string>
     <string name="dv_share_email">Email</string>
     <string name="dv_share_copy">Copy link</string>
