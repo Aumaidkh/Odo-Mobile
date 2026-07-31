@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
@@ -33,23 +32,17 @@ import kotlinx.coroutines.launch
 /**
  * State holder for one document's detail.
  *
- * The document id arrives through [SavedStateHandle] rather than as a constructor argument,
- * so it survives process death with the screen: the route puts it there once when the entry
- * is created, and a ViewModel restored later still knows which document it is about.
+ * The document id is a constructor argument, passed by the route from its navigation key.
+ * The key is what the back stack stores and restores, so the id survives process death with
+ * the entry that carries it.
  */
 internal class DocumentDetailViewModel(
-    savedStateHandle: SavedStateHandle,
+    private val documentId: DocumentId,
     observeDetail: ObserveDocumentDetailUseCase,
     private val deleteDocument: DeleteDocumentUseCase,
     private val replaceFile: ReplaceDocumentFileUseCase,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
-
-    private val documentId = DocumentId(
-        requireNotNull(savedStateHandle.get<String>(KEY_DOCUMENT_ID)) {
-            "DocumentDetail was opened without a document id"
-        },
-    )
 
     private val submission = MutableStateFlow<Submission>(Submission.Idle)
 
@@ -167,10 +160,7 @@ internal class DocumentDetailViewModel(
         )
     }
 
-    companion object {
-        /** The key the route writes the document id under. */
-        const val KEY_DOCUMENT_ID = "documentId"
-
-        private const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+    private companion object {
+        const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
     }
 }

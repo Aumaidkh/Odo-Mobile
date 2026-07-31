@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation.share
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -24,16 +23,10 @@ import kotlinx.coroutines.flow.stateIn
  * better than one that offers to share a document it has not read.
  */
 internal class ShareDocumentViewModel(
-    savedStateHandle: SavedStateHandle,
+    documentId: DocumentId,
     observeDetail: ObserveDocumentDetailUseCase,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
-
-    private val documentId = DocumentId(
-        requireNotNull(savedStateHandle.get<String>(KEY_DOCUMENT_ID)) {
-            "ShareDocument was opened without a document id"
-        },
-    )
 
     private var storagePath: String? = null
 
@@ -83,10 +76,7 @@ internal class ShareDocumentViewModel(
         )
     }
 
-    companion object {
-        /** The key the route writes the document id under. */
-        const val KEY_DOCUMENT_ID = "documentId"
-
-        private const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+    private companion object {
+        const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
     }
 }

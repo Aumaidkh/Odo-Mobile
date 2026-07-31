@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation.add
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
@@ -28,25 +27,21 @@ import kotlinx.coroutines.launch
 /**
  * State holder for the add-document flow.
  *
- * The type the flow opens on arrives through [SavedStateHandle], written by the route from
- * the navigation key. A vault row's "Add" and a document's "Renew now" both land here with
- * their type already chosen.
+ * The type the flow opens on is passed by the route from its navigation key. A vault row's
+ * "Add" and a document's "Renew now" both land here with their type already chosen; opening
+ * the flow with no type at all is also allowed, and starts on insurance.
  *
  * Only the upload path saves anything today. Scanning and DigiLocker have no capture behind
  * them, so they say so instead of walking the owner to a success screen for a document that
  * was never written.
  */
 internal class AddDocumentViewModel(
-    savedStateHandle: SavedStateHandle,
+    private val prefillType: DocumentType?,
     private val addDocument: AddDocumentUseCase,
     private val activeCar: ActiveCarProvider,
     private val currentOwner: CurrentOwnerProvider,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
-
-    private val prefillType: DocumentType? = savedStateHandle
-        .get<String>(KEY_PREFILL_TYPE)
-        ?.let { name -> DocumentType.entries.firstOrNull { it.name == name } }
 
     private val _state = MutableStateFlow(
         AddDocumentUiState(selectedType = prefillType ?: DocumentType.INSURANCE),
@@ -125,8 +120,4 @@ internal class AddDocumentViewModel(
         Unit
     }
 
-    companion object {
-        /** The key the route writes the pre-selected type's enum name under. */
-        const val KEY_PREFILL_TYPE = "prefillType"
-    }
 }

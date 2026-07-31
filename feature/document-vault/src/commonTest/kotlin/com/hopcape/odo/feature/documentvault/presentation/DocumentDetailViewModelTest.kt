@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.documentvault.presentation
 
-import androidx.lifecycle.SavedStateHandle
+import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.FakeDocumentFileStore
@@ -65,7 +65,7 @@ class DocumentDetailViewModelTest {
             timeZone = TimeZone.UTC,
         )
         return DocumentDetailViewModel(
-            savedStateHandle = SavedStateHandle(mapOf(DocumentDetailViewModel.KEY_DOCUMENT_ID to documentId)),
+            documentId = DocumentId(documentId),
             observeDetail = observeDetail,
             deleteDocument = DeleteDocumentUseCase(repository, files),
             replaceFile = ReplaceDocumentFileUseCase(repository, files),

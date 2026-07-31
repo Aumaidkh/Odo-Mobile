@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation
 
-import androidx.lifecycle.SavedStateHandle
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.entitlement.DocumentLimit
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -47,7 +46,7 @@ class AddDocumentViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun viewModel(
-        prefillType: String? = null,
+        prefillType: DocumentType? = null,
         held: List<DomainDocument> = emptyList(),
         limit: DocumentLimit = DocumentLimit.UpTo(3),
         hasCar: Boolean = true,
@@ -55,9 +54,7 @@ class AddDocumentViewModelTest {
         repository: FakeDocumentRepository = FakeDocumentRepository(held),
         files: FakeDocumentFileStore = FakeDocumentFileStore(),
     ) = AddDocumentViewModel(
-        savedStateHandle = SavedStateHandle(
-            mapOf(AddDocumentViewModel.KEY_PREFILL_TYPE to prefillType.orEmpty()),
-        ),
+        prefillType = prefillType,
         addDocument = AddDocumentUseCase(
             documents = repository,
             files = files,
@@ -73,7 +70,7 @@ class AddDocumentViewModelTest {
 
     @Test
     fun opensOnTheTypeTheRouteAskedFor() = runTest(dispatcher) {
-        assertEquals(DocumentType.PUC, viewModel(prefillType = "PUC").state.value.selectedType)
+        assertEquals(DocumentType.PUC, viewModel(prefillType = DocumentType.PUC).state.value.selectedType)
     }
 
     @Test
@@ -82,15 +79,10 @@ class AddDocumentViewModelTest {
     }
 
     @Test
-    fun anUnknownPrefill_fallsBackInsteadOfCrashing() = runTest(dispatcher) {
-        assertEquals(DocumentType.INSURANCE, viewModel(prefillType = "PASSPORT").state.value.selectedType)
-    }
-
-    @Test
     fun pickingAFile_savesTheDocumentAndMovesOn() = runTest(dispatcher) {
         val repository = FakeDocumentRepository()
         val files = FakeDocumentFileStore()
-        val viewModel = viewModel(prefillType = "RC", repository = repository, files = files)
+        val viewModel = viewModel(prefillType = DocumentType.RC, repository = repository, files = files)
 
         viewModel.onEvent(AddDocumentEvent.Capture.FilePicked("content://downloads/rc.pdf"))
         advanceUntilIdle()

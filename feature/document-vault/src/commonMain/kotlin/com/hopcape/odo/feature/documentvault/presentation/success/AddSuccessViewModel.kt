@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation.success
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -21,16 +20,10 @@ import kotlinx.coroutines.flow.stateIn
  * document. A screen that repeats what the form hoped for is a screen that can be wrong.
  */
 internal class AddSuccessViewModel(
-    savedStateHandle: SavedStateHandle,
+    documentId: DocumentId,
     observeDetail: ObserveDocumentDetailUseCase,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
-
-    private val documentId = DocumentId(
-        requireNotNull(savedStateHandle.get<String>(KEY_DOCUMENT_ID)) {
-            "AddSuccess was opened without a document id"
-        },
-    )
 
     val state: StateFlow<AddSuccessUiState?> = observeDetail(documentId)
         .map { detail -> detail?.let(::toUiState) }
@@ -50,10 +43,7 @@ internal class AddSuccessViewModel(
         reminder = detail.nextReminder?.let { ReminderPromise(daysBefore = it.daysBefore, on = it.on) },
     )
 
-    companion object {
-        /** The key the route writes the document id under. */
-        const val KEY_DOCUMENT_ID = "documentId"
-
-        private const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+    private companion object {
+        const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
     }
 }

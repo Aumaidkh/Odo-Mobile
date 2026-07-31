@@ -2,14 +2,11 @@ package com.hopcape.odo.feature.documentvault.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.lifecycle.DEFAULT_ARGS_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.CreationExtras
-import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import androidx.savedstate.savedState
+import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
@@ -36,6 +33,7 @@ import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEve
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
  * Document vault's contribution to the navigation graph: the [OdoDestination.Documents]
@@ -63,19 +61,13 @@ private fun NavigationManager.backToDocuments() {
 }
 
 /**
- * Creation extras carrying [args] as a ViewModel's default arguments, which is what puts
- * them in its `SavedStateHandle`.
+ * The type a navigation key names, or null if it names none or one this build does not know.
  *
- * Ids travel this way rather than as constructor parameters so a ViewModel rebuilt after
- * process death still knows which document it is about, without the route re-supplying
- * anything.
+ * Keys carry the enum's name as a string because a key is serialized into the back stack;
+ * an unrecognised name opens the add flow with nothing preselected rather than failing.
  */
-@Composable
-private fun argExtras(key: String, value: String): CreationExtras = remember(key, value) {
-    MutableCreationExtras().apply {
-        set(DEFAULT_ARGS_KEY, savedState { putString(key, value) })
-    }
-}
+internal fun String?.toDocumentType(): DocumentType? =
+    this?.let { name -> DocumentType.entries.firstOrNull { it.name == name } }
 
 @Composable
 internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
@@ -106,9 +98,9 @@ internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
 
 @Composable
 internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.Add) {
-    val viewModel = koinViewModel<AddDocumentViewModel>(
-        extras = argExtras(AddDocumentViewModel.KEY_PREFILL_TYPE, key.prefillType.orEmpty()),
-    )
+    val viewModel = koinViewModel<AddDocumentViewModel> {
+        parametersOf(key.prefillType.toDocumentType())
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CollectEffects(viewModel.effects) { effect ->
@@ -132,9 +124,9 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDest
 
 @Composable
 internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.Detail) {
-    val viewModel = koinViewModel<DocumentDetailViewModel>(
-        extras = argExtras(DocumentDetailViewModel.KEY_DOCUMENT_ID, key.documentId),
-    )
+    val viewModel = koinViewModel<DocumentDetailViewModel> {
+        parametersOf(DocumentId(key.documentId))
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CollectEffects(viewModel.effects) { effect ->
@@ -168,9 +160,9 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
 
 @Composable
 internal fun AddSuccessRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.AddSuccess) {
-    val viewModel = koinViewModel<AddSuccessViewModel>(
-        extras = argExtras(AddSuccessViewModel.KEY_DOCUMENT_ID, key.documentId),
-    )
+    val viewModel = koinViewModel<AddSuccessViewModel> {
+        parametersOf(DocumentId(key.documentId))
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     state?.let { success ->
@@ -184,9 +176,9 @@ internal fun AddSuccessRoute(navigationManager: NavigationManager, key: OdoDesti
 
 @Composable
 internal fun ShareDocumentRoute(key: OdoDestination.Documents.Share) {
-    val viewModel = koinViewModel<ShareDocumentViewModel>(
-        extras = argExtras(ShareDocumentViewModel.KEY_DOCUMENT_ID, key.documentId),
-    )
+    val viewModel = koinViewModel<ShareDocumentViewModel> {
+        parametersOf(DocumentId(key.documentId))
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CollectEffects(viewModel.effects) { effect ->

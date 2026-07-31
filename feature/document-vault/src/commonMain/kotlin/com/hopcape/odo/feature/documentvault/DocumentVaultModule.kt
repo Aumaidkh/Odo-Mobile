@@ -14,7 +14,8 @@ import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailV
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentViewModel
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessViewModel
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultViewModel
-import androidx.lifecycle.SavedStateHandle
+import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -27,10 +28,8 @@ import org.koin.dsl.module
  * host picks it up via `getAll<FeatureEntryProvider>()`. The ViewModels join the use cases
  * below as the screens are built.
  *
- * `DocumentAllowance` comes from `coreDataModule` and `IdGenerator` + `Clock` from
- * `coreCommonModule`. `DocumentRepository` has no binding yet — it arrives with the data
- * slice, so the use cases below cannot be resolved until then. Nothing asks for them until
- * the ViewModels land.
+ * `DocumentRepository` and `DocumentAllowance` come from `coreDataModule`, `IdGenerator` +
+ * `Clock` from `coreCommonModule`.
  *
  * The `DocumentFileStore` binding is deliberately *not* here: storing a file needs
  * platform APIs (a Context on Android), so each platform contributes its own —
@@ -62,34 +61,36 @@ val documentVaultModule = module {
     factory { DocumentVaultTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
     viewModel { DocumentVaultViewModel(activeCar = get(), observeVault = get(), telemetry = get()) }
-    viewModel {
+    viewModel { params ->
         DocumentDetailViewModel(
-            savedStateHandle = get<SavedStateHandle>(),
+            documentId = params.get<DocumentId>(),
             observeDetail = get(),
             deleteDocument = get(),
             replaceFile = get(),
             telemetry = get(),
         )
     }
-    viewModel {
+    viewModel { params ->
         AddDocumentViewModel(
-            savedStateHandle = get<SavedStateHandle>(),
+            // Absent when the flow is opened from "Add a document" rather than from a
+            // named row; `getOrNull` is what makes one definition serve both.
+            prefillType = params.getOrNull<DocumentType>(),
             addDocument = get(),
             activeCar = get(),
             currentOwner = get(),
             telemetry = get(),
         )
     }
-    viewModel {
+    viewModel { params ->
         ShareDocumentViewModel(
-            savedStateHandle = get<SavedStateHandle>(),
+            documentId = params.get<DocumentId>(),
             observeDetail = get(),
             telemetry = get(),
         )
     }
-    viewModel {
+    viewModel { params ->
         AddSuccessViewModel(
-            savedStateHandle = get<SavedStateHandle>(),
+            documentId = params.get<DocumentId>(),
             observeDetail = get(),
             telemetry = get(),
         )
