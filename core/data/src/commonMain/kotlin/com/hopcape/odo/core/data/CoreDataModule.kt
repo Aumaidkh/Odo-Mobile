@@ -6,6 +6,7 @@ import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
 import com.hopcape.odo.core.data.db.DriverFactory
+import com.hopcape.odo.core.data.document.FreeTierDocumentAllowance
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRepositoryImpl
 import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
@@ -26,6 +27,7 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
@@ -88,4 +90,9 @@ val coreDataModule = module {
     // car?" path can be walked, and answers RegistrationNotFound for everything else.
     // MUST be swapped for a real adapter before launch — this one line is the swap.
     single<VehicleRegistryLookup> { StubVehicleRegistryLookup() }
+
+    // Everyone is on the free tier until something sells a subscription, so this answers
+    // truthfully rather than standing in for a reader that does not exist. The vault asks
+    // before every add; a real entitlement adapter swaps in on this one line.
+    single<DocumentAllowance> { FreeTierDocumentAllowance() }
 }

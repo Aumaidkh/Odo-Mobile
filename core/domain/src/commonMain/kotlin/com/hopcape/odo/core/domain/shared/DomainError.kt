@@ -114,6 +114,13 @@ sealed interface DomainError {
     /** No live document has this id — it was never written, or has been deleted. */
     data object DocumentNotFound : DomainError
 
+    /**
+     * The owner's plan already holds as many documents as it permits ([limit]). Not a
+     * validation failure — the document was fine — so the surface that catches this offers
+     * an upgrade, never a corrected field.
+     */
+    data class DocumentLimitReached(val limit: Int) : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }
