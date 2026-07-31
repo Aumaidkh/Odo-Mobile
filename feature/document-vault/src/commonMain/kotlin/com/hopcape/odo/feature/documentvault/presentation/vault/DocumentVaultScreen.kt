@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -52,6 +53,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_action_add
@@ -80,6 +82,7 @@ import com.hopcape.odo.feature.documentvault.resources.dv_status_expires_in
 import com.hopcape.odo.feature.documentvault.resources.dv_status_lifetime
 import com.hopcape.odo.feature.documentvault.resources.dv_status_not_added
 import com.hopcape.odo.feature.documentvault.resources.dv_status_valid_till
+import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -104,6 +107,7 @@ internal fun DocumentVaultScreen(
         modifier = modifier,
         title = stringResource(Res.string.dv_title),
         onBack = onBack,
+        backContentDescription = stringResource(Res.string.dv_cd_back),
         bottomBar = { AddDocumentBar(onAddDocument) },
     ) { padding ->
         when (val content = state.content) {
@@ -187,7 +191,10 @@ private fun DocumentCard(
 ) {
     val tone = rowTone(row)
     val openable = row as? DocumentRow.OnFile
-    OdoCard(onClick = openable?.let { { onOpen(it.id) } }) {
+    OdoCard(
+        modifier = Modifier.testTag(DocumentVaultTestTags.row(row.type)),
+        onClick = openable?.let { { onOpen(it.id) } },
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconChip(typeIcon(row.type), tone)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -208,12 +215,13 @@ private fun DocumentCard(
 private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: (DocumentId) -> Unit) {
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         StatusPill(row)
+        val actionTag = Modifier.testTag(DocumentVaultTestTags.rowAction(row.type))
         when {
             row is DocumentRow.Missing ->
-                DocActionButton(stringResource(Res.string.dv_action_add)) { onAdd(row.type) }
+                DocActionButton(stringResource(Res.string.dv_action_add), actionTag) { onAdd(row.type) }
 
             row is DocumentRow.OnFile && row.needsAttention ->
-                DocActionButton(stringResource(Res.string.dv_action_renew)) { onRenew(row.id) }
+                DocActionButton(stringResource(Res.string.dv_action_renew), actionTag) { onRenew(row.id) }
 
             else -> OdoIcon(
                 IcChevronRight,
@@ -240,9 +248,9 @@ private fun StatusPill(row: DocumentRow) {
 
 /** Small accent-outlined pill action ("Add" / "Renew"). */
 @Composable
-private fun DocActionButton(label: String, onClick: () -> Unit) {
+private fun DocActionButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        Modifier
+        modifier
             .clip(OdoTheme.shapes.pill)
             .border(1.dp, OdoTheme.colors.accent, OdoTheme.shapes.pill)
             .clickable(onClick = onClick)

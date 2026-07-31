@@ -68,6 +68,7 @@ import com.hopcape.odo.feature.documentvault.resources.dv_detail_file_missing
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_issued_on
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_lifetime
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_renew
+import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_verified
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_view
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_delete
@@ -104,6 +105,7 @@ internal fun DocumentDetailScreen(
         modifier = modifier,
         title = content?.let { it.title ?: docName(it.type) }.orEmpty(),
         onBack = onBack,
+        backContentDescription = stringResource(Res.string.dv_cd_back),
         actions = {
             if (content != null) {
                 DocumentMenu(onReplace = onReplace, onShare = onShare, onDownload = onDownload, onDelete = onDelete)

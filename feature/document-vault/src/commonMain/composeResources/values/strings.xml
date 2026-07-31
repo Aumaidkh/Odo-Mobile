@@ -60,6 +60,7 @@
     <string name="dv_add_digilocker_body">Pull the official copy in seconds.</string>
     <string name="dv_add_privacy">Your documents are stored privately and only used to track renewals.</string>
     <string name="dv_cd_close">Close</string>
+    <string name="dv_cd_back">Back</string>
 
     <!-- Document detail screen -->
     <string name="dv_detail_verified">Verified</string>
