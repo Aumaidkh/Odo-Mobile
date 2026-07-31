@@ -36,6 +36,21 @@ internal enum class ServiceFacet(private val categories: Set<ServiceCategory>) {
     BATTERY(setOf(ServiceCategory.BATTERY)),
     ;
 
-    /** Whether an entry tagged [category] belongs under this chip. [ALL] takes everything. */
-    fun accepts(category: ServiceCategory): Boolean = this == ALL || category in categories
+    /**
+     * Whether an entry tagged with [entryCategories] belongs under this chip. [ALL] takes
+     * everything.
+     *
+     * An entry can carry several tags (a periodic service that also replaced the battery),
+     * so one tag matching is enough — it shows under both chips, which is what happened.
+     *
+     * An entry with no tags at all reads as [SERVICE]. That is where [ServiceCategory.OTHER]
+     * already sits, and an untagged entry means the same thing: workshop work nobody
+     * labelled. The alternative is a row that vanishes from every chip but [ALL], which
+     * looks like a bug.
+     */
+    fun accepts(entryCategories: Set<ServiceCategory>): Boolean = when {
+        this == ALL -> true
+        entryCategories.isEmpty() -> this == SERVICE
+        else -> entryCategories.any { it in categories }
+    }
 }

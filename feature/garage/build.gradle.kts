@@ -35,6 +35,10 @@ kotlin {
             // LocalDate on the garage's own models (service dates, document expiry).
             implementation(libs.kotlinx.datetime)
         }
+
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }
 

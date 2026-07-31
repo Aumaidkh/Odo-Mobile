@@ -15,6 +15,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.core.domain.shared.WorkshopName
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
@@ -63,42 +64,44 @@ private val sampleDocuments: List<Document> = listOf(
     document("d2", DocumentType.PUC, LocalDate(2026, 8, 4)),
 )
 
+private fun workshop(name: String): WorkshopName? = WorkshopName.of(name).getOrElse { null }
+
 private val sampleHistory: List<ServiceHistoryEntry> = listOf(
     ServiceHistoryEntry(
         id = ServiceLogId("s1"),
-        workDone = "Front brake pads",
         servicedOn = LocalDate(2026, 3, 2),
         odometer = km(48_500),
         amount = rupees(480_000),
         verification = VerificationStatus.VERIFIED,
-        category = ServiceCategory.BRAKES,
+        categories = setOf(ServiceCategory.BRAKES),
+        workshopName = workshop("Sharma Motors"),
     ),
     ServiceHistoryEntry(
         id = ServiceLogId("s2"),
-        workDone = "Full periodic service",
         servicedOn = LocalDate(2025, 12, 18),
         odometer = km(43_200),
         amount = rupees(640_000),
         verification = VerificationStatus.SELF_REPORTED,
-        category = ServiceCategory.GENERAL_SERVICE,
+        categories = setOf(ServiceCategory.GENERAL_SERVICE, ServiceCategory.OIL_CHANGE),
+        workshopName = workshop("Maruti Service Centre"),
     ),
     ServiceHistoryEntry(
         id = ServiceLogId("s3"),
-        workDone = "AC re-gas",
         servicedOn = LocalDate(2025, 8, 20),
         odometer = km(38_000),
         amount = rupees(240_000),
         verification = VerificationStatus.VERIFIED,
-        category = ServiceCategory.AC,
+        categories = setOf(ServiceCategory.AC),
+        workshopName = null,
     ),
     ServiceHistoryEntry(
         id = ServiceLogId("s4"),
-        workDone = "New tyres",
         servicedOn = LocalDate(2025, 5, 11),
         odometer = km(35_400),
         amount = rupees(280_000),
         verification = VerificationStatus.VERIFIED,
-        category = ServiceCategory.TYRES,
+        categories = setOf(ServiceCategory.TYRES),
+        workshopName = workshop("MRF Tyre Point"),
     ),
 )
 

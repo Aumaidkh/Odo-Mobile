@@ -51,6 +51,7 @@ import com.hopcape.odo.core.domain.car.model.Vin
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatKm
@@ -65,6 +66,15 @@ import com.hopcape.odo.feature.garage.resources.gr_add_car_title
 import com.hopcape.odo.feature.garage.resources.gr_badge_self_reported
 import com.hopcape.odo.feature.garage.resources.gr_badge_verified
 import com.hopcape.odo.feature.garage.resources.gr_car_meta
+import com.hopcape.odo.feature.garage.resources.gr_cat_ac
+import com.hopcape.odo.feature.garage.resources.gr_cat_battery
+import com.hopcape.odo.feature.garage.resources.gr_cat_brakes
+import com.hopcape.odo.feature.garage.resources.gr_cat_electrical
+import com.hopcape.odo.feature.garage.resources.gr_cat_general_service
+import com.hopcape.odo.feature.garage.resources.gr_cat_oil_change
+import com.hopcape.odo.feature.garage.resources.gr_cat_other
+import com.hopcape.odo.feature.garage.resources.gr_cat_suspension
+import com.hopcape.odo.feature.garage.resources.gr_cat_tyres
 import com.hopcape.odo.feature.garage.resources.gr_cd_add_service
 import com.hopcape.odo.feature.garage.resources.gr_cd_more
 import com.hopcape.odo.feature.garage.resources.gr_doc_add
@@ -84,6 +94,8 @@ import com.hopcape.odo.feature.garage.resources.gr_empty_body
 import com.hopcape.odo.feature.garage.resources.gr_empty_log_service
 import com.hopcape.odo.feature.garage.resources.gr_empty_title
 import com.hopcape.odo.feature.garage.resources.gr_entries_summary
+import com.hopcape.odo.feature.garage.resources.gr_entry_meta
+import com.hopcape.odo.feature.garage.resources.gr_entry_untagged
 import com.hopcape.odo.feature.garage.resources.gr_filter_all
 import com.hopcape.odo.feature.garage.resources.gr_filter_battery
 import com.hopcape.odo.feature.garage.resources.gr_filter_service
@@ -335,9 +347,9 @@ private fun ServiceEntryCard(entry: ServiceHistoryEntry, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                OdoText(entry.workDone, style = OdoTheme.typography.heading, maxLines = 2)
+                OdoText(entry.title(), style = OdoTheme.typography.heading, maxLines = 2)
                 OdoText(
-                    formatDate(entry.servicedOn),
+                    entry.meta(),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                     maxLines = 1,
@@ -481,6 +493,40 @@ private fun DocumentValidity.tone(): OdoBadgeTone = when (this) {
     is DocumentValidity.ExpiringSoon -> OdoBadgeTone.Warning
     is DocumentValidity.Valid, DocumentValidity.NoExpiry -> OdoBadgeTone.Success
 }
+
+/**
+ * What the row is headed with: the entry's tags, read together. An entry nobody tagged
+ * still gets a heading — the domain has no "work done" text to fall back on.
+ */
+@Composable
+private fun ServiceHistoryEntry.title(): String = if (categories.isEmpty()) {
+    stringResource(Res.string.gr_entry_untagged)
+} else {
+    categories.sortedBy { it.ordinal }.map { it.label() }.joinToString(" · ")
+}
+
+/** The date, plus where the work was done when that is on record. */
+@Composable
+private fun ServiceHistoryEntry.meta(): String {
+    val date = formatDate(servicedOn)
+    val workshop = workshopName ?: return date
+    return stringResource(Res.string.gr_entry_meta, date, workshop.value)
+}
+
+@Composable
+private fun ServiceCategory.label(): String = stringResource(
+    when (this) {
+        ServiceCategory.OIL_CHANGE -> Res.string.gr_cat_oil_change
+        ServiceCategory.BRAKES -> Res.string.gr_cat_brakes
+        ServiceCategory.TYRES -> Res.string.gr_cat_tyres
+        ServiceCategory.AC -> Res.string.gr_cat_ac
+        ServiceCategory.BATTERY -> Res.string.gr_cat_battery
+        ServiceCategory.SUSPENSION -> Res.string.gr_cat_suspension
+        ServiceCategory.ELECTRICAL -> Res.string.gr_cat_electrical
+        ServiceCategory.GENERAL_SERVICE -> Res.string.gr_cat_general_service
+        ServiceCategory.OTHER -> Res.string.gr_cat_other
+    },
+)
 
 @Composable
 private fun ServiceFacet.label(): String = stringResource(

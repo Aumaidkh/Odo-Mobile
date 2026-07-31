@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.garage
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.navigation.GarageFeatureEntryProvider
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -18,4 +19,8 @@ val garageModule = module {
     single {
         GarageFeatureEntryProvider(navigationManager = get(), activeCar = get())
     } bind FeatureEntryProvider::class
+
+    factory {
+        ObserveGarageUseCase(cars = get(), documents = get(), logs = get(), clock = get())
+    }
 }

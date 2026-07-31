@@ -45,6 +45,21 @@
     <string name="gr_filter_battery">Battery</string>
     <string name="gr_badge_verified">Verified</string>
     <string name="gr_badge_self_reported">Self-reported</string>
+    <!-- Heading for an entry with no category tags on it. -->
+    <string name="gr_entry_untagged">Service</string>
+    <!-- Service date · workshop, e.g. "02 Mar 2026 · Sharma Motors". -->
+    <string name="gr_entry_meta">%1$s · %2$s</string>
+
+    <!-- Service categories -->
+    <string name="gr_cat_oil_change">Oil change</string>
+    <string name="gr_cat_brakes">Brakes</string>
+    <string name="gr_cat_tyres">Tyres</string>
+    <string name="gr_cat_ac">AC</string>
+    <string name="gr_cat_battery">Battery</string>
+    <string name="gr_cat_suspension">Suspension</string>
+    <string name="gr_cat_electrical">Electrical</string>
+    <string name="gr_cat_general_service">General service</string>
+    <string name="gr_cat_other">Other work</string>
 
     <!-- Car actions sheet -->
     <string name="gr_ca_edit">Edit car details</string>
