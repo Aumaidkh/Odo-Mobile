@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,12 +75,19 @@ internal fun GarageSheet(
     )
 }
 
-/** A full-screen editor header: a circular close (X) affordance + the screen title. */
+/**
+ * A full-screen editor header: a circular close (X) affordance + the screen title.
+ *
+ * It sits in a Scaffold's top-bar slot, which is drawn edge to edge, so it insets itself
+ * for the status bar the way the design system's own top bar does. Without that the title
+ * and the close button end up under the clock.
+ */
 @Composable
 internal fun CloseTopBar(title: String, closeLabel: String, onClose: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
