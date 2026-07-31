@@ -19,6 +19,7 @@ import com.hopcape.odo.feature.profile.profileModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
+import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
@@ -72,6 +73,7 @@ fun initKoin(
         dashboardModule,
         garageModule,
         profileModule,
+        supportModule,
         timelineModule,
         paywallModule,
         platformModule,
