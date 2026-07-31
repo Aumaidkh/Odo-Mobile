@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Help & support hub (sheet) -->
+    <string name="sp_title">Help &amp; support</string>
+    <string name="sp_subtitle">Usually replies within 24 hours</string>
+    <string name="sp_close">Close</string>
+    <string name="sp_search">Search help articles</string>
+
+    <!-- Get in touch -->
+    <string name="sp_section_contact">GET IN TOUCH</string>
+    <string name="sp_chat">Chat with support</string>
+    <string name="sp_chat_hours">Mon–Sat, 9am–7pm IST</string>
+    <string name="sp_chat_online">Online</string>
+    <string name="sp_email">Email us</string>
+    <string name="sp_email_address">help@odo.app</string>
+    <string name="sp_tickets">My tickets</string>
+    <string name="sp_tickets_sub">1 open · updated 2h ago</string>
+
+    <!-- Share feedback -->
+    <string name="sp_section_feedback">SHARE FEEDBACK</string>
+    <string name="sp_report">Report a problem</string>
+    <string name="sp_report_sub">Something broken or wrong</string>
+    <string name="sp_idea">Suggest an idea</string>
+    <string name="sp_idea_sub">Request a feature</string>
+    <string name="sp_flag">Flag wrong price data</string>
+    <string name="sp_flag_sub">A benchmark looks off</string>
+    <string name="sp_rate">Rate Odo</string>
+    <string name="sp_rate_sub">Leave a Play Store review</string>
+
+    <!-- Resources -->
+    <string name="sp_section_resources">RESOURCES</string>
+    <string name="sp_faqs">FAQs</string>
+    <string name="sp_terms">Terms</string>
+    <string name="sp_privacy">Privacy</string>
+    <string name="sp_licences">Licences</string>
+
+    <!-- Footer: %1$s is the app version + build, e.g. "v1.4.0 (build 412)" -->
+    <string name="sp_version">Odo %1$s · tap to copy diagnostics</string>
+
+    <!-- Placeholder screens -->
+    <string name="sp_soon">Coming soon</string>
+    <string name="sp_soon_message">This screen is a placeholder while the support flow is built.</string>
+</resources>

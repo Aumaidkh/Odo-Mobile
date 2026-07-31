@@ -79,7 +79,7 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
         onPrivacy = { /* TODO: privacy & permissions screen. */ },
-        onHelp = { /* TODO: help & support. */ },
+        onHelp = { navigationManager.navigateTo(OdoDestination.Support.Help) },
         onSignOut = { navigationManager.navigateTo(OdoDestination.Profile.SignOut) },
     )
 }

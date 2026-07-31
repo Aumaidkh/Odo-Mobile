@@ -220,6 +220,50 @@ sealed interface OdoDestination : NavKey {
         data object Share : Documents
     }
 
+    /**
+     * Help & support — owned by `:feature:support`. [Help] is the hub, presented as a
+     * bottom-sheet destination from Profile's "Help & support" row; every other key here is
+     * one of that sheet's rows.
+     *
+     * Grouped rather than scattered because support is one vertical capability: getting in
+     * touch ([Chat] / [Email] / [Tickets]), sending feedback ([ReportProblem] /
+     * [SuggestIdea] / [FlagPriceData] / [Rate]) and reading the legal + FAQ pages
+     * ([Faqs] / [Terms] / [Privacy] / [Licences]). Profile reaches the hub through this
+     * shared registry, so it never imports the support feature.
+     *
+     * [Email] and [Rate] are destinations only until the platform layer lands: both end in
+     * a system hand-off (a mail composer, the Play Store listing) rather than a screen of
+     * ours, so they will become `:core:platform` calls and lose their keys.
+     */
+    sealed interface Support : OdoDestination {
+        /** The Help & support hub — shown as a bottom-sheet destination. */
+        data object Help : Support
+        /** Search the help articles — reached from the hub's search box. */
+        data object Search : Support
+        /** Live chat with a support agent. */
+        data object Chat : Support
+        /** Email support — a mail hand-off once the platform layer exists. */
+        data object Email : Support
+        /** The owner's raised tickets and their status. */
+        data object Tickets : Support
+        /** "Something broken or wrong" — a bug report form. */
+        data object ReportProblem : Support
+        /** "Request a feature" — an idea/suggestion form. */
+        data object SuggestIdea : Support
+        /** "A benchmark looks off" — dispute a fairness price data point. */
+        data object FlagPriceData : Support
+        /** Rate Odo — a Play Store hand-off once the platform layer exists. */
+        data object Rate : Support
+        /** Frequently asked questions. */
+        data object Faqs : Support
+        /** Terms of service. */
+        data object Terms : Support
+        /** Privacy policy. */
+        data object Privacy : Support
+        /** Open-source licences. */
+        data object Licences : Support
+    }
+
     // --- Onboarding flow (first-run car setup) ---
     /** Intro carousel shown on first launch, before car setup. */
     data object Welcome : OdoDestination
