@@ -48,11 +48,13 @@ import org.koin.dsl.module
 val coreDataModule = module {
     // The driver is its own definition rather than an anonymous argument to the database
     // so there is exactly one connection per process and something can reach it: an
-    // end-to-end test needs to reset the tables between runs, and the local DB has no
-    // delete API of its own (nothing in the product deletes a car yet).
+    // end-to-end test needs to reset the tables between runs, and removing a car is a
+    // soft delete, which leaves the tables populated.
     single<SqlDriver> { get<DriverFactory>().create() }
     single<OdoDatabase> { createOdoDatabase(get()).also(::seedVehicleReferenceData) }
-    single<CarRepository> { CarRepositoryImpl(database = get()) }
+    single<CarRepository> {
+        CarRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
+    }
     // Which car every per-car screen is about. A `single` holding a hot StateFlow, so a
     // navigation handler can name the car synchronously the moment it is tapped.
     single<ActiveCarProvider> { PrimaryCarProvider(cars = get(), telemetry = get()) }

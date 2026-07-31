@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
 import com.hopcape.odo.core.domain.car.model.RegistrationNumber
@@ -669,6 +670,13 @@ class OnboardingViewModelTest {
             if (failing) DomainError.PersistenceFailure("disk full").left() else car.right().also { updated += car }
 
         override fun observePrimaryCar(): Flow<Car?> = flowOf(added.lastOrNull())
+
+        override fun observe(id: CarId): Flow<Car?> = flowOf(added.lastOrNull { it.id == id })
+
+        override suspend fun softDelete(id: CarId): Either<DomainError, Unit> {
+            added.removeAll { it.id == id }
+            return Unit.right()
+        }
     }
 
     private class FakeProfileRepository(var failing: Boolean = false) : OwnerProfileRepository {

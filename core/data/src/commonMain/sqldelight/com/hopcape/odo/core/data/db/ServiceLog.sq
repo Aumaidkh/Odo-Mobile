@@ -139,6 +139,18 @@ SET deleted_at  = :deletedAt,
     sync_status = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
 
+-- Every live entry of one car, tombstoned together. Used when the car itself is
+-- removed: an entry is only reachable through its car, so it goes with it.
+--
+-- The category rows are left alone. They hang off the entry, not the car, and the
+-- entry is still there as a tombstone that has to sync with its categories intact.
+softDeleteServiceLogsForCar:
+UPDATE service_logs
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
+
 insertCategory:
 INSERT OR IGNORE INTO service_log_categories (service_log_id, category)
 VALUES (:serviceLogId, :category);

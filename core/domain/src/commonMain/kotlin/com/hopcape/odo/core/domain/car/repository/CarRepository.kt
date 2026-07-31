@@ -2,6 +2,7 @@ package com.hopcape.odo.core.domain.car.repository
 
 import arrow.core.Either
 import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
 
@@ -28,4 +29,28 @@ interface CarRepository {
     suspend fun update(car: Car): Either<DomainError, Car>
 
     fun observePrimaryCar(): Flow<Car?>
+
+    /**
+     * A single live car; emits `null` if there is no such car.
+     *
+     * Separate from [observePrimaryCar] because a screen that was told which car it is
+     * about must read that car, not whichever one is primary. The garage names its car
+     * through `ActiveCarProvider`, and re-resolving "primary" underneath would make the
+     * screen quietly follow a different car than the one it was opened for.
+     */
+    fun observe(id: CarId): Flow<Car?>
+
+    /**
+     * Soft delete a car and everything scoped to it — its service logs and its documents —
+     * as one write.
+     *
+     * The children go with the car because they are only reachable through it. A log or a
+     * document left behind is invisible to every screen but still counts: the free tier's
+     * document cap is per owner, so an orphaned document would keep using up an allowance
+     * for a car that is gone.
+     *
+     * Deleting a car that is already gone succeeds. The caller asked for it to not exist,
+     * and it does not.
+     */
+    suspend fun softDelete(id: CarId): Either<DomainError, Unit>
 }

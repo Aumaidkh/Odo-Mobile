@@ -1,13 +1,23 @@
 package com.hopcape.odo.core.data.car
 
+import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.hopcape.crashreporting.api.CrashRecorder
+import com.hopcape.logging.api.LogLevel
+import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
+import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.performance.api.PerformanceTracer
+import com.hopcape.performance.api.Span
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -22,14 +32,113 @@ class CarRepositoryImplTest {
 
     private val ownerId = OwnerId("owner-1")
 
+    private lateinit var driver: JdbcSqliteDriver
+
     private fun newDb(): OdoDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         OdoDatabase.Schema.create(driver)
         return OdoDatabase(driver)
     }
 
-    private fun repo(db: OdoDatabase) =
-        CarRepositoryImpl(database = db, dispatcher = Dispatchers.Unconfined)
+    /** What a soft delete left behind. Both fields are `deleted_at`-blind by design. */
+    private data class Tombstone(val deletedAt: String?, val syncStatus: String)
+
+    /**
+     * Reads a row straight from the driver, because every generated query hides deleted
+     * rows — and the tombstone is the thing under test.
+     */
+    private fun tombstoneOf(table: String, id: String): Tombstone? = driver.executeQuery(
+        identifier = null,
+        sql = "SELECT deleted_at, sync_status FROM $table WHERE id = ?",
+        mapper = { cursor ->
+            QueryResult.Value(
+                if (cursor.next().value) Tombstone(cursor.getString(0), cursor.getString(1)!!) else null,
+            )
+        },
+        parameters = 1,
+    ) { bindString(0, id) }.value
+
+    private object NoopLogger : Logger {
+        override fun log(
+            level: LogLevel,
+            tag: String,
+            event: String,
+            traceContext: TraceContext?,
+            fields: Map<String, Any?>,
+        ) = Unit
+        override fun flush() = Unit
+    }
+
+    private class FakeSpan(
+        override val spanId: String,
+        override val traceId: String,
+        override val parentSpanId: String?,
+        override val name: String,
+    ) : Span {
+        override fun setAttribute(key: String, value: Any?): Span = this
+    }
+
+    private object NoopTracer : PerformanceTracer {
+        override fun startSpan(name: String, traceId: String, parentSpanId: String?): Span =
+            FakeSpan("span", traceId, parentSpanId, name)
+        override fun endSpan(span: Span) = Unit
+        override fun flush() = Unit
+    }
+
+    private object NoopCrash : CrashRecorder {
+        override fun recordNonFatal(throwable: Throwable, customKeys: Map<String, Any?>) = Unit
+        override fun leaveBreadcrumb(tag: String, message: String) = Unit
+        override fun setCustomKey(key: String, value: Any?) = Unit
+        override fun setUserId(userId: String?) = Unit
+    }
+
+    /** Records what the repository asked the scheduler for. */
+    private class RecordingScheduler : SyncScheduler {
+        val requested = mutableListOf<SyncReason>()
+        override fun scheduleStartupSync() = Unit
+        override fun requestSync(reason: SyncReason) { requested += reason }
+    }
+
+    private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
+        CarRepositoryImpl(
+            database = db,
+            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
+            scheduler = scheduler,
+            dispatcher = Dispatchers.Unconfined,
+        )
+
+    /** A service log for [carId], written straight to the table — the domain path is not what is under test. */
+    private fun OdoDatabase.insertLog(id: String, carId: String) = serviceLogQueries.insertServiceLog(
+        id = id,
+        carId = carId,
+        ownerId = ownerId.value,
+        serviceDate = "2026-03-02",
+        odometerKm = 44_000,
+        totalAmountPaise = 280_000,
+        workshopName = null,
+        notes = null,
+        source = "MANUAL",
+        billId = null,
+        billPhotoPath = null,
+        fairnessSnapshot = null,
+        now = "2026-03-02T10:00:00Z",
+        syncStatus = SyncStatus.SYNCED.name,
+    )
+
+    /** A document for [carId], written straight to the table. */
+    private fun OdoDatabase.insertDoc(id: String, carId: String) = documentQueries.insertDocument(
+        id = id,
+        carId = carId,
+        ownerId = ownerId.value,
+        docType = "INSURANCE",
+        title = null,
+        storagePath = "documents/$carId/$id.pdf",
+        docSource = "UPLOADED",
+        issuedDate = null,
+        expiryDate = "2027-07-03",
+        now = "2026-03-02T10:00:00Z",
+        syncStatus = SyncStatus.SYNCED.name,
+    )
 
     private fun car(
         id: String,
@@ -150,5 +259,104 @@ class CarRepositoryImplTest {
         // The first car is demoted, not deleted.
         val first = db.carQueries.selectById("car-1").executeAsOne()
         assertEquals(0L, first.is_primary)
+    }
+
+    @Test
+    fun observeById_readsBackTheCarThatWasAskedFor() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        assertTrue(repo.add(car("car-2", registration = "dl 01 cd 5678")).isRight())
+
+        // car-2 is primary now, so this only passes if the id is what is read.
+        val car = repo.observe(CarId("car-1")).first()
+
+        assertEquals("car-1", car?.id?.value)
+    }
+
+    @Test
+    fun observeById_unknownCar_emitsNull() = runTest {
+        assertNull(repo(newDb()).observe(CarId("ghost")).first())
+    }
+
+    @Test
+    fun softDelete_tombstonesTheCarAndItsLogsAndDocuments() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        db.insertLog("log-1", "car-1")
+        db.insertDoc("doc-1", "car-1")
+
+        val result = repo.softDelete(CarId("car-1"))
+        assertTrue(result.isRight(), "expected Right but was $result")
+
+        // Gone from every read path, but still present as a row.
+        assertNull(repo.observe(CarId("car-1")).first())
+        assertNull(repo.observePrimaryCar().first())
+        assertNull(db.carQueries.selectById("car-1").executeAsOneOrNull())
+
+        assertNull(
+            db.serviceLogQueries.selectById("log-1").executeAsOneOrNull(),
+            "the car's service log should be tombstoned too",
+        )
+        assertNull(
+            db.documentQueries.selectById("doc-1").executeAsOneOrNull(),
+            "the car's document should be tombstoned too",
+        )
+    }
+
+    @Test
+    fun softDelete_sendsEveryTombstoneBackToPending() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        // Both children start SYNCED, so the reset back to PENDING is observable.
+        db.insertLog("log-1", "car-1")
+        db.insertDoc("doc-1", "car-1")
+
+        assertTrue(repo.softDelete(CarId("car-1")).isRight())
+
+        listOf("cars" to "car-1", "service_logs" to "log-1", "documents" to "doc-1")
+            .forEach { (table, id) ->
+                val row = assertNotNull(tombstoneOf(table, id), "$table row $id vanished")
+                assertNotNull(row.deletedAt, "$table row $id should carry a deleted_at")
+                assertEquals(SyncStatus.PENDING.name, row.syncStatus, "$table row $id")
+            }
+    }
+
+    @Test
+    fun softDelete_leavesAnotherCarsRowsAlone() = runTest {
+        val db = newDb()
+        val repo = repo(db)
+        assertTrue(repo.add(car("car-1")).isRight())
+        assertTrue(repo.add(car("car-2", registration = "dl 01 cd 5678")).isRight())
+        db.insertLog("log-1", "car-1")
+        db.insertLog("log-2", "car-2")
+        db.insertDoc("doc-2", "car-2")
+
+        assertTrue(repo.softDelete(CarId("car-1")).isRight())
+
+        assertNotNull(repo.observe(CarId("car-2")).first())
+        assertNotNull(db.serviceLogQueries.selectById("log-2").executeAsOneOrNull())
+        assertNotNull(db.documentQueries.selectById("doc-2").executeAsOneOrNull())
+    }
+
+    /** Asking for a car that is already gone is what the caller wanted, not a failure. */
+    @Test
+    fun softDelete_unknownCar_succeeds() = runTest {
+        assertTrue(repo(newDb()).softDelete(CarId("ghost")).isRight())
+    }
+
+    @Test
+    fun softDelete_asksForASync() = runTest {
+        val db = newDb()
+        val scheduler = RecordingScheduler()
+        val repo = repo(db, scheduler)
+        assertTrue(repo.add(car("car-1")).isRight())
+        scheduler.requested.clear()
+
+        assertTrue(repo.softDelete(CarId("car-1")).isRight())
+
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 }

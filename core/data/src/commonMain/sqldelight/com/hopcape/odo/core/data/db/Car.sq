@@ -85,3 +85,16 @@ selectById:
 SELECT *
 FROM cars
 WHERE id = ? AND deleted_at IS NULL;
+
+-- Soft delete: the row stays as a tombstone so the deletion itself can sync and
+-- history/audit survives. It goes back to PENDING for exactly that reason.
+--
+-- `is_primary` is left as it was. The one-primary index already ignores deleted
+-- rows, so the flag blocks nothing, and clearing it would be a local-only edit
+-- the server never asked for.
+softDeleteCar:
+UPDATE cars
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;

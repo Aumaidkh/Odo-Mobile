@@ -67,7 +67,7 @@ The rest of the app sees **only** the `:core:domain` ports (`CarRepository`,
 | `db/DriverFactory.android.kt` | platform | `AndroidSqliteDriver` (needs a `Context`, supplied by `:app`). |
 | `db/DriverFactory.ios.kt` | platform | `NativeSqliteDriver` (covers both iOS targets via `iosMain`). |
 | `car/CarMappers.kt` | mapping | `Cars` row → `Car` (the row→domain boundary) + `SyncStatus` constants. |
-| `car/CarRepositoryImpl.kt` | repo impl | `add` (offline insert, one-primary transaction) + `observePrimaryCar`. |
+| `car/CarRepositoryImpl.kt` | repo impl | `add` / `update` (one-primary transaction), `observePrimaryCar` / `observe(id)`, and `softDelete` (car + its logs + its documents, one transaction). |
 | `car/VehicleCatalogImpl.kt` | repo impl | `VehicleCatalog` over the seeded tables; years/fuel from domain types. |
 | `car/VehicleSeedData.kt` | seed | Top Indian brands + models; idempotent `seedVehicleReferenceData(db)`. |
 | `CoreDataModule.kt` | wiring | Koin `coreDataModule`: `OdoDatabase` (seeded) + the two ports. |
