@@ -49,6 +49,8 @@ dependencies {
     androidTestImplementation(projects.feature.garage)
     // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.
     androidTestImplementation(projects.feature.costTracker)
+    // The health score's semantics tags, and its HealthFactorKind-keyed row tags.
+    androidTestImplementation(projects.feature.healthscore)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.

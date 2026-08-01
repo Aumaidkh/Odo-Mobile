@@ -17,7 +17,9 @@ import com.hopcape.odo.core.data.fairness.FairnessRepositoryImpl
 import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
+import com.hopcape.odo.core.data.entitlement.AlwaysProEntitlement
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
+import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
@@ -36,8 +38,10 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.entitlement.ProEntitlement
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
@@ -84,6 +88,11 @@ val coreDataModule = module {
     single<DocumentRepository> {
         DocumentRepositoryImpl(database = get(), telemetry = get(), scheduler = get(), remote = get())
     }
+    // Score history, not today's score: the number on screen is computed on read, and
+    // this only keeps what the month delta is measured against.
+    single<HealthScoreRepository> {
+        HealthScoreRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
+    }
     single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
     single<OverchargeReportRepository> {
         OverchargeReportRepositoryImpl(
@@ -113,6 +122,11 @@ val coreDataModule = module {
     // truthfully rather than standing in for a reader that does not exist. The vault asks
     // before every add; a real entitlement adapter swaps in on this one line.
     single<DocumentAllowance> { FreeTierDocumentAllowance() }
+
+    // Everyone is Pro until Razorpay lands in M6. Answering false would hide Pro-gated
+    // content behind a paywall that cannot take money yet. MUST be swapped before launch —
+    // this one line is the swap.
+    single<ProEntitlement> { AlwaysProEntitlement() }
 
     // Fuel prices live in a local table so correcting one never needs a release: the seed
     // fills it on first launch, M4's fuel-prices feed writes fresher rows on top, and the

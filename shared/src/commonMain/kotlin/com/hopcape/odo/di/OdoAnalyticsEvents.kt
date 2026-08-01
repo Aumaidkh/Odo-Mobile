@@ -5,6 +5,7 @@ import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
 import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
 import com.hopcape.odo.feature.garage.garageAnalyticsEvents
+import com.hopcape.odo.feature.healthscore.healthScoreAnalyticsEvents
 import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
 
 /**
@@ -21,4 +22,4 @@ import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
  */
 val odoAnalyticsEvents: List<EventSchema> =
     onboardingAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
-        garageAnalyticsEvents + costTrackerAnalyticsEvents
+        garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents

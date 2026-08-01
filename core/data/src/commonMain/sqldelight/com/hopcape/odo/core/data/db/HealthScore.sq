@@ -1,0 +1,68 @@
+-- Local health-score snapshots — the offline-first mirror of DB_SCHEMA §9.9. Timestamps
+-- are ISO-8601 TEXT, which sorts chronologically as text, so `computed_at` can be both
+-- the ordering and the cut-off in a WHERE clause.
+--
+-- Append-only. A snapshot records what was true at a moment, so there is no update
+-- statement and no soft delete here; `deleted_at` exists only because the sync engine
+-- (SYNC_DESIGN §4.1) expects the full column set on every syncable table, and a column
+-- retrofitted later is a migration nobody needs to write.
+--
+-- The four component columns ARE the breakdown, so there is no `breakdown` jsonb like the
+-- server's: a factor is a kind and its earned points, and the kinds are fixed by the PRD.
+-- A fifth factor would be a schema change either way.
+--
+-- `algo_version` is what keeps the history honest. Scores are only comparable within one
+-- version of the rules — see HealthScoreCalculator.RULES_VERSION.
+--
+-- Nothing writes today's score here for display. The score is computed on read; this
+-- table exists so "up 6 points this month" has a number from a month ago to subtract.
+CREATE TABLE health_scores (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    car_id              TEXT NOT NULL,
+    owner_id            TEXT NOT NULL,
+    score               INTEGER NOT NULL,
+    maintenance_pts     INTEGER NOT NULL,
+    documentation_pts   INTEGER NOT NULL,
+    cost_efficiency_pts INTEGER NOT NULL,
+    history_pts         INTEGER NOT NULL,
+    algo_version        TEXT NOT NULL,
+    computed_at         TEXT NOT NULL,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL,
+    deleted_at          TEXT,
+    remote_version      TEXT,
+    sync_status         TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- Both reads are "this car's newest snapshot, optionally before a date", which is exactly
+-- what this index answers.
+CREATE INDEX idx_health_scores_car_time ON health_scores (car_id, computed_at DESC);
+
+insertSnapshot:
+INSERT INTO health_scores (
+    id, car_id, owner_id, score,
+    maintenance_pts, documentation_pts, cost_efficiency_pts, history_pts,
+    algo_version, computed_at, created_at, updated_at, sync_status
+)
+VALUES (
+    :id, :carId, :ownerId, :score,
+    :maintenancePts, :documentationPts, :costEfficiencyPts, :historyPts,
+    :algoVersion, :computedAt, :now, :now, :syncStatus
+);
+
+-- What the score is compared against before a new snapshot is written.
+selectLatest:
+SELECT *
+FROM health_scores
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY computed_at DESC
+LIMIT 1;
+
+-- The month delta's baseline: the newest score that is already at least as old as the
+-- window the screen is quoting.
+selectLatestOnOrBefore:
+SELECT *
+FROM health_scores
+WHERE car_id = :carId AND deleted_at IS NULL AND computed_at <= :instant
+ORDER BY computed_at DESC
+LIMIT 1;
