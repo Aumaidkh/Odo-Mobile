@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -20,6 +21,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTestTags
 import com.hopcape.odo.feature.costtracker.resources.Res
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_clear
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_label
@@ -71,7 +73,7 @@ internal fun FuelRateSheetContent(
             errorText = state.error?.asString(),
             enabled = !state.saving,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(CostTrackerTestTags.FUEL_RATE_FIELD),
         )
         OdoButton(
             text = stringResource(Res.string.ct_fuel_rate_save),

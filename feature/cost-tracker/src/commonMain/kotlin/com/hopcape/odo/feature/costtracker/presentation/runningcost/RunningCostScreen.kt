@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
@@ -43,6 +44,7 @@ import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
+import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTestTags
 import com.hopcape.odo.feature.costtracker.presentation.state.Loadable
 import com.hopcape.odo.feature.costtracker.resources.Res
 import com.hopcape.odo.feature.costtracker.resources.ct_across
@@ -157,7 +159,7 @@ private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?
                         OdoText(
                             headline.perKm.formatRupeesDecimal(),
                             style = OdoTheme.typography.display,
-                            modifier = Modifier.alignByBaseline(),
+                            modifier = Modifier.alignByBaseline().testTag(CostTrackerTestTags.COST_PER_KM),
                         )
                         OdoText(
                             stringResource(Res.string.ct_per_km_suffix),
@@ -186,6 +188,7 @@ private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?
 @Composable
 private fun TrendBadge(percent: Int, up: Boolean) {
     OdoBadge(
+        modifier = Modifier.testTag(CostTrackerTestTags.TREND_BADGE),
         text = "$percent%",
         tone = if (up) OdoBadgeTone.Danger else OdoBadgeTone.Success,
         leadingIcon = {
@@ -267,6 +270,7 @@ private fun CategoryCard(
                 fuelNoteText(fuelNote),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textDim,
+                modifier = Modifier.testTag(CostTrackerTestTags.FUEL_NOTE),
             )
             OdoButton(
                 text = stringResource(Res.string.ct_fuel_rate_action),
@@ -280,7 +284,10 @@ private fun CategoryCard(
 @Composable
 private fun CategoryRow(row: CostCategoryRow, max: Long) {
     val color = categoryColor(row.category)
-    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+    Column(
+        modifier = Modifier.testTag(CostTrackerTestTags.categoryRow(row.category)),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             CategoryChip(color)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
