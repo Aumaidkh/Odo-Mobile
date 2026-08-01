@@ -5,6 +5,9 @@ import com.hopcape.odo.feature.costtracker.domain.usecase.ClearFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.domain.usecase.ObserveRunningCostUseCase
 import com.hopcape.odo.feature.costtracker.domain.usecase.SetFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.navigation.CostTrackerFeatureEntryProvider
+import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTelemetry
+import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostViewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -33,4 +36,10 @@ val costTrackerModule = module {
     }
     factory { SetFuelRateUseCase(overrides = get(), clock = get()) }
     factory { ClearFuelRateUseCase(overrides = get()) }
+
+    // A `factory`, not a `single`: one instance covers one visit to the screen, and every
+    // event of that visit shares one flow id.
+    factory { CostTrackerTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
+
+    viewModelOf(::RunningCostViewModel)
 }

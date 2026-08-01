@@ -32,22 +32,30 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
+import com.hopcape.odo.feature.costtracker.presentation.state.Loadable
 import com.hopcape.odo.feature.costtracker.resources.Res
 import com.hopcape.odo.feature.costtracker.resources.ct_across
 import com.hopcape.odo.feature.costtracker.resources.ct_avg_month
 import com.hopcape.odo.feature.costtracker.resources.ct_avg_per_month
 import com.hopcape.odo.feature.costtracker.resources.ct_cat_fuel
-import com.hopcape.odo.feature.costtracker.resources.ct_cat_insurance
 import com.hopcape.odo.feature.costtracker.resources.ct_cat_repairs
 import com.hopcape.odo.feature.costtracker.resources.ct_cat_service
 import com.hopcape.odo.feature.costtracker.resources.ct_cost_per_km_label
 import com.hopcape.odo.feature.costtracker.resources.ct_distance_driven
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_city
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_generic
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_missing
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_owner
+import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_title
 import com.hopcape.odo.feature.costtracker.resources.ct_per_km_rate
 import com.hopcape.odo.feature.costtracker.resources.ct_per_km_suffix
 import com.hopcape.odo.feature.costtracker.resources.ct_period_1y
@@ -57,26 +65,28 @@ import com.hopcape.odo.feature.costtracker.resources.ct_spend_by_month
 import com.hopcape.odo.feature.costtracker.resources.ct_summary
 import com.hopcape.odo.feature.costtracker.resources.ct_title
 import com.hopcape.odo.feature.costtracker.resources.ct_total_spent
+import com.hopcape.odo.feature.costtracker.resources.ct_unit_kg
+import com.hopcape.odo.feature.costtracker.resources.ct_unit_kwh
+import com.hopcape.odo.feature.costtracker.resources.ct_unit_litre
 import com.hopcape.odo.feature.costtracker.resources.ct_where_it_goes
 import org.jetbrains.compose.resources.stringResource
 
-/** Insurance's chart colour — no semantic blue token exists, so it lives with the chart. */
-private val InsuranceBlue = Color(0xFF4E86E8)
 private val BarShape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
 private val MONTH_BAR_HEIGHT = 88.dp
 
 /**
- * The "Running cost" screen — the per-km cost tracker. Leads with the headline
- * cost/km + trend, a period selector, a spend-by-month bar chart, the "where it goes"
- * category breakdown (each with its per-km share + a proportional bar), and a summary.
+ * The "Running cost" screen — the per-km cost tracker. Leads with the headline cost/km +
+ * trend, a period selector, a spend-by-month bar chart, the "where it goes" category
+ * breakdown (each with its per-km share) and a summary.
  *
- * State-free: renders [state] and forwards the period change. The real figures (from
- * the local ledger aggregated per car) land in M2.
+ * State-free: renders [state] and forwards events. The period chips stay live while the
+ * figures under them are read, so switching windows never blanks the control the owner
+ * just touched.
  */
 @Composable
 internal fun RunningCostScreen(
     state: RunningCostUiState,
-    onPeriodChange: (CostPeriod) -> Unit,
+    onEvent: (RunningCostEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(modifier = modifier, title = stringResource(Res.string.ct_title)) { padding ->
@@ -88,33 +98,81 @@ internal fun RunningCostScreen(
                 .padding(vertical = OdoTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
-            CostHeroCard(state)
-            PeriodSelector(selected = state.period, onChange = onPeriodChange)
-            SpendByMonthCard(bars = state.spendBars, avgPerMonth = state.avgPerMonth)
-            SectionLabel(stringResource(Res.string.ct_where_it_goes))
-            CategoryCard(categories = state.categories)
-            SectionLabel(stringResource(Res.string.ct_summary))
-            SummaryCard(state)
+            val content = (state.content as? Loadable.Ready)?.value
+            CostHeroCard(content = content, failure = state.content as? Loadable.Failed)
+            PeriodSelector(
+                selected = state.period,
+                onChange = { onEvent(RunningCostEvent.PeriodSelected(it)) },
+            )
+            if (content != null) {
+                SpendByMonthCard(bars = content.spendBars, avgPerMonth = content.avgPerMonth)
+                SectionLabel(stringResource(Res.string.ct_where_it_goes))
+                CategoryCard(categories = content.categories, fuelNote = content.fuelNote)
+                SectionLabel(stringResource(Res.string.ct_summary))
+                SummaryCard(content)
+            }
         }
     }
 }
 
+/**
+ * The headline. A car that has not been driven far enough gets the reason instead of a
+ * number: a rate taken off forty kilometres is arithmetic, not information.
+ */
 @Composable
-private fun CostHeroCard(state: RunningCostUiState) {
+private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?) {
     OdoCard {
-        OdoText(stringResource(Res.string.ct_cost_per_km_label), style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
-                OdoText(state.costPerKm.formatRupeesDecimal(), style = OdoTheme.typography.display, modifier = Modifier.alignByBaseline())
-                OdoText(stringResource(Res.string.ct_per_km_suffix), style = OdoTheme.typography.heading, color = OdoTheme.colors.textDim, modifier = Modifier.alignByBaseline())
-            }
-            TrendBadge(percent = state.trendPercent, up = state.trendUp)
+        if (failure != null) {
+            OdoText(failure.message.asString(), style = OdoTheme.typography.heading)
+            return@OdoCard
         }
         OdoText(
-            stringResource(Res.string.ct_across, state.distance.formatKm(), state.periodRange),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
+            stringResource(Res.string.ct_cost_per_km_label),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textMuted,
         )
+        when (val headline = content?.headline) {
+            // Still reading: the card keeps its shape rather than flashing a zero.
+            null -> Unit
+
+            is CostHeadline.NotEnoughYet -> {
+                OdoText(stringResource(Res.string.ct_no_rate_title), style = OdoTheme.typography.heading)
+                OdoText(
+                    headline.message.asString(),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+
+            is CostHeadline.Rate -> {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
+                        OdoText(
+                            headline.perKm.formatRupeesDecimal(),
+                            style = OdoTheme.typography.display,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                        OdoText(
+                            stringResource(Res.string.ct_per_km_suffix),
+                            style = OdoTheme.typography.heading,
+                            color = OdoTheme.colors.textDim,
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                    }
+                    // No badge without a window before this one to compare against.
+                    headline.trendPercent?.let { TrendBadge(percent = it, up = headline.trendUp) }
+                }
+                OdoText(
+                    stringResource(
+                        Res.string.ct_across,
+                        content.distance.formatKm(),
+                        content.periodRange.asString(),
+                    ),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+        }
     }
 }
 
@@ -146,7 +204,11 @@ private fun PeriodSelector(selected: CostPeriod, onChange: (CostPeriod) -> Unit)
 @Composable
 private fun SpendByMonthCard(bars: List<SpendBar>, avgPerMonth: Amount) {
     OdoCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             OdoText(stringResource(Res.string.ct_spend_by_month), style = OdoTheme.typography.heading)
             OdoText(
                 stringResource(Res.string.ct_avg_per_month, avgPerMonth.formatRupees()),
@@ -155,7 +217,10 @@ private fun SpendByMonthCard(bars: List<SpendBar>, avgPerMonth: Amount) {
             )
         }
         val max = bars.maxOfOrNull { it.amount.paise }?.coerceAtLeast(1) ?: 1
-        Row(Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+        Row(
+            Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+        ) {
             bars.forEach { bar -> SpendBarColumn(bar = bar, max = max, modifier = Modifier.weight(1f)) }
         }
     }
@@ -174,15 +239,22 @@ private fun SpendBarColumn(bar: SpendBar, max: Long, modifier: Modifier = Modifi
                     .background(if (bar.highlighted) OdoTheme.colors.accent else OdoTheme.colors.surfaceRaised),
             )
         }
-        OdoText(bar.label, style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+        OdoText(bar.label.asString(), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
     }
 }
 
 @Composable
-private fun CategoryCard(categories: List<CostCategoryRow>) {
+private fun CategoryCard(categories: List<CostCategoryRow>, fuelNote: FuelNote) {
     OdoCard(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
         val max = categories.maxOfOrNull { it.amount.paise }?.coerceAtLeast(1) ?: 1
         categories.forEach { row -> CategoryRow(row = row, max = max) }
+        // Fuel is estimated, never logged, so the screen always says what it was estimated
+        // from — including when there was nothing to estimate with.
+        OdoText(
+            fuelNoteText(fuelNote),
+            style = OdoTheme.typography.bodySmall,
+            color = OdoTheme.colors.textDim,
+        )
     }
 }
 
@@ -194,11 +266,13 @@ private fun CategoryRow(row: CostCategoryRow, max: Long) {
             CategoryChip(color)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(categoryLabel(row.category), style = OdoTheme.typography.heading)
-                OdoText(
-                    stringResource(Res.string.ct_per_km_rate, row.perKm.formatRupeesDecimal()),
-                    style = OdoTheme.typography.bodySmall,
-                    color = OdoTheme.colors.textDim,
-                )
+                row.perKm?.let { perKm ->
+                    OdoText(
+                        stringResource(Res.string.ct_per_km_rate, perKm.formatRupeesDecimal()),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
             }
             OdoText(row.amount.formatRupees(), style = OdoTheme.typography.heading)
         }
@@ -224,16 +298,16 @@ private fun ProgressTrack(fraction: Float, color: Color) {
 }
 
 @Composable
-private fun SummaryCard(state: RunningCostUiState) {
+private fun SummaryCard(content: RunningCostContent) {
     OdoCard(
         contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        SummaryRow(stringResource(Res.string.ct_total_spent), state.totalSpent.formatRupees())
+        SummaryRow(stringResource(Res.string.ct_total_spent), content.totalSpent.formatRupees())
         HorizontalDivider(color = OdoTheme.colors.border)
-        SummaryRow(stringResource(Res.string.ct_distance_driven), state.distance.formatKm())
+        SummaryRow(stringResource(Res.string.ct_distance_driven), content.distance.formatKm())
         HorizontalDivider(color = OdoTheme.colors.border)
-        SummaryRow(stringResource(Res.string.ct_avg_month), state.avgPerMonth.formatRupees())
+        SummaryRow(stringResource(Res.string.ct_avg_month), content.avgPerMonth.formatRupees())
     }
 }
 
@@ -254,21 +328,43 @@ private fun SectionLabel(text: String) {
     OdoText(text, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
 }
 
+/** The unit name is a resource of its own, so the note is composed here, not in the state. */
 @Composable
-private fun categoryColor(category: CostCategory): Color = when (category) {
-    CostCategory.FUEL -> OdoTheme.colors.accent
-    CostCategory.SERVICE -> OdoTheme.colors.success
-    CostCategory.INSURANCE -> InsuranceBlue
-    CostCategory.REPAIRS -> OdoTheme.colors.warning
+private fun fuelNoteText(note: FuelNote): String = when (note) {
+    FuelNote.Missing -> stringResource(Res.string.ct_fuel_note_missing)
+    is FuelNote.Estimated -> {
+        val price = note.pricePerUnit.formatRupeesDecimal()
+        val unit = unitLabel(note.unit)
+        when {
+            note.ownersOwn -> stringResource(Res.string.ct_fuel_note_owner, price, unit)
+            note.city != null -> stringResource(Res.string.ct_fuel_note_city, price, unit, note.city)
+            else -> stringResource(Res.string.ct_fuel_note_generic, price, unit)
+        }
+    }
 }
 
 @Composable
-private fun categoryLabel(category: CostCategory): String = stringResource(
+private fun unitLabel(unit: FuelUnit): String = stringResource(
+    when (unit) {
+        FuelUnit.LITRE -> Res.string.ct_unit_litre
+        FuelUnit.KILOGRAM -> Res.string.ct_unit_kg
+        FuelUnit.KILOWATT_HOUR -> Res.string.ct_unit_kwh
+    },
+)
+
+@Composable
+private fun categoryColor(category: SpendCategory): Color = when (category) {
+    SpendCategory.FUEL -> OdoTheme.colors.accent
+    SpendCategory.SERVICE -> OdoTheme.colors.success
+    SpendCategory.REPAIRS -> OdoTheme.colors.warning
+}
+
+@Composable
+private fun categoryLabel(category: SpendCategory): String = stringResource(
     when (category) {
-        CostCategory.FUEL -> Res.string.ct_cat_fuel
-        CostCategory.SERVICE -> Res.string.ct_cat_service
-        CostCategory.INSURANCE -> Res.string.ct_cat_insurance
-        CostCategory.REPAIRS -> Res.string.ct_cat_repairs
+        SpendCategory.FUEL -> Res.string.ct_cat_fuel
+        SpendCategory.SERVICE -> Res.string.ct_cat_service
+        SpendCategory.REPAIRS -> Res.string.ct_cat_repairs
     },
 )
 
@@ -284,5 +380,11 @@ private fun periodLabel(period: CostPeriod): String = stringResource(
 @OdoThemePreviews
 @Composable
 private fun RunningCostScreenPreview() = OdoPreview(padded = false) {
-    RunningCostScreen(state = sampleRunningCost(), onPeriodChange = {})
+    RunningCostScreen(state = previewRunningCost(), onEvent = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun RunningCostNotEnoughPreview() = OdoPreview(padded = false) {
+    RunningCostScreen(state = previewRunningCostNoRate(), onEvent = {})
 }
