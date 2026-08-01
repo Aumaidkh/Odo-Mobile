@@ -63,5 +63,6 @@ class FuelEfficiencyPolicyTest {
         fuelType = fuelType,
         pricePerUnit = Amount.of(paise).getOrNull()!!,
         effectiveDate = on,
+        source = FuelPriceSource.SEED,
     )
 }

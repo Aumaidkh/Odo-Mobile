@@ -1,0 +1,54 @@
+-- Fuel prices, in paise per unit (litre / kilogram / kWh, by fuel type).
+--
+-- A table rather than a constant in the code, because pump prices change and shipping a
+-- new APK to correct one is not a release anybody should have to cut. Rows arrive from
+-- three places (`source`): the seed that ships with the app, the server's weekly feed
+-- once M4's fuel-prices function lands, and the owner's own rate.
+--
+-- Reference data, not the owner's content: no sync columns, no soft delete. The server
+-- table is public-read (DB_SCHEMA §12), so there is nothing here to push.
+--
+-- `city` is empty for an owner's own rate. They are stating what they pay, not correcting
+-- a city average, so it follows them anywhere — and it is the only price a car whose
+-- owner never set a city can get.
+CREATE TABLE fuel_price (
+    id             TEXT NOT NULL PRIMARY KEY,
+    city           TEXT NOT NULL,
+    fuel_type      TEXT NOT NULL,
+    paise_per_unit INTEGER NOT NULL,
+    effective_date TEXT NOT NULL,
+    source         TEXT NOT NULL
+);
+
+CREATE INDEX idx_fuel_price_lookup ON fuel_price (fuel_type, city, effective_date DESC);
+
+insertPrice:
+INSERT OR IGNORE INTO fuel_price (id, city, fuel_type, paise_per_unit, effective_date, source)
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- The price to quote for a fuel type: the owner's own rate if they set one, otherwise the
+-- newest price known for their city. Ordering by `source = 'OWNER'` first is what makes
+-- their rate win even when a fresher city price arrives afterwards — they typed it on
+-- purpose, and silently overruling it would make the edit look broken.
+--
+-- Passing an empty :city (the owner set none) matches only their own rate, which is the
+-- intended outcome: Odo has no idea which city's pump to quote.
+selectPrice:
+SELECT *
+FROM fuel_price
+WHERE fuel_type = :fuelType AND (city = :city OR source = 'OWNER')
+ORDER BY (source = 'OWNER') DESC, effective_date DESC
+LIMIT 1;
+
+-- Replaces rather than updates: an owner's rate is one row per fuel type, and deleting
+-- first keeps that true without an UPSERT, which SQLite 3.18 (minSdk 26) does not have.
+deleteOverride:
+DELETE FROM fuel_price
+WHERE fuel_type = :fuelType AND source = 'OWNER';
+
+-- Seed guard. Counts one batch by its date, so an app update carrying corrected prices
+-- inserts its newer batch instead of being skipped as "already seeded".
+countSeededOn:
+SELECT count(*)
+FROM fuel_price
+WHERE source = 'SEED' AND effective_date = :effectiveDate;

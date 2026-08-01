@@ -5,6 +5,8 @@ import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
+import com.hopcape.odo.core.data.cost.LocalFuelPriceProvider
+import com.hopcape.odo.core.data.cost.seedFuelPrices
 import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
@@ -30,6 +32,8 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
+import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
@@ -51,7 +55,11 @@ val coreDataModule = module {
     // end-to-end test needs to reset the tables between runs, and removing a car is a
     // soft delete, which leaves the tables populated.
     single<SqlDriver> { get<DriverFactory>().create() }
-    single<OdoDatabase> { createOdoDatabase(get()).also(::seedVehicleReferenceData) }
+    single<OdoDatabase> {
+        createOdoDatabase(get())
+            .also(::seedVehicleReferenceData)
+            .also(::seedFuelPrices)
+    }
     single<CarRepository> {
         CarRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
     }
@@ -105,4 +113,11 @@ val coreDataModule = module {
     // truthfully rather than standing in for a reader that does not exist. The vault asks
     // before every add; a real entitlement adapter swaps in on this one line.
     single<DocumentAllowance> { FreeTierDocumentAllowance() }
+
+    // Fuel prices live in a local table so correcting one never needs a release: the seed
+    // fills it on first launch, M4's fuel-prices feed writes fresher rows on top, and the
+    // owner's own rate outranks both. One object serves the read and the override ports.
+    single { LocalFuelPriceProvider(database = get(), telemetry = get()) }
+    single<FuelPriceProvider> { get<LocalFuelPriceProvider>() }
+    single<FuelPriceOverrides> { get<LocalFuelPriceProvider>() }
 }
