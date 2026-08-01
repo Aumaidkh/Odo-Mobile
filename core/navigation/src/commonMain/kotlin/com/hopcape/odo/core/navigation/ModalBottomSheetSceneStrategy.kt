@@ -4,6 +4,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavMetadataKey
@@ -49,6 +50,13 @@ class ModalBottomSheetSceneStrategy<T : Any> : SceneStrategy<T> {
                     onDismissRequest = sceneOnBack,
                     containerColor = MaterialTheme.colorScheme.surface,
                     properties = properties,
+                    // Never rest half-open. A sheet taller than half the screen is measured
+                    // against the space it was given, so at the half-expanded height its
+                    // lower half — the buttons included — lands below the screen with
+                    // nothing to scroll. Short sheets still wrap their content and look
+                    // exactly as before; tall ones now open against the full height and
+                    // scroll inside it.
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                 ) {
                     entry.Content()
                 }

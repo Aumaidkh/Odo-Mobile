@@ -363,12 +363,16 @@ private fun LockedBreakdown(factors: List<HealthFactor>, onUnlock: () -> Unit) {
  * [ModalBottomSheet] chrome is supplied by the navigation layer (the sheet is a real
  * destination — see `ModalBottomSheetSceneStrategy`); this renders only the sheet body.
  * [onDismiss] pops the sheet destination.
+ *
+ * It scrolls: four weights and four bands are taller than a short phone's sheet, and the
+ * bottom of this one is the button that closes it.
  */
 @Composable
 internal fun HowScoreWorksContent(onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = OdoTheme.spacing.screenEdge)
             .padding(bottom = OdoTheme.spacing.xl)
             .navigationBarsPadding(),
