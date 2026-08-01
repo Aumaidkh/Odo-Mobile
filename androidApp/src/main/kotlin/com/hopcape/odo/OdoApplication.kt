@@ -13,7 +13,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.data.db.DriverFactory
-import com.hopcape.odo.feature.documentvault.documentVaultAndroidModule
+import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
@@ -77,9 +77,9 @@ class OdoApplication : Application() {
         initKoin(
             platformModule = module {
                 single { DriverFactory(androidContext()) }
-                // The vault stores picked documents through Android APIs, so its store
-                // is bound by the feature's own Android module rather than in common code.
-                includes(documentVaultAndroidModule)
+                // Copying a picked file into app storage needs a Context, so the store is
+                // bound by the platform module rather than in common code.
+                includes(corePlatformAndroidModule)
             },
         ) {
             androidLogger(Level.INFO)

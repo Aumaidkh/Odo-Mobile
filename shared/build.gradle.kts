@@ -31,6 +31,8 @@ kotlin {
             // FeatureEntryProviders App() collects, so it depends on the data layer
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
+            // corePlatformIosModule — the iOS bootstrap lists it alongside the driver.
+            implementation(projects.core.platform)
             // The composition root's one decision — open on Welcome or Home — reads
             // OwnerProfile.hasCompletedOnboarding through the existing repository port.
             // Brings coroutines + Arrow along via :core:domain's api dependencies.

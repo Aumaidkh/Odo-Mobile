@@ -40,7 +40,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.document.model.DocumentType
-import com.hopcape.odo.feature.documentvault.platform.rememberFilePicker
+import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_add_camera_body
 import com.hopcape.odo.feature.documentvault.resources.dv_add_camera_title
