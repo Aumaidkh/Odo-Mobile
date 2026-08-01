@@ -1,12 +1,12 @@
 package com.hopcape.odo.feature.servicelog.domain.usecase
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.fairness.analysis.SavingsCalculator
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceRecordSummary
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
-import com.hopcape.odo.core.domain.shared.sum
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -28,18 +28,12 @@ internal class ObserveServiceLogFeedUseCase(
 ) {
     operator fun invoke(carId: CarId): Flow<ServiceLogFeed> = logs.observe(carId).map(::feedOf)
 
-    private fun feedOf(entries: List<ServiceLogEntry>): ServiceLogFeed {
-        val overcharges = entries.mapNotNull { it.fairness?.overchargedBy }
-        return ServiceLogFeed(
-            entries = entries,
-            summary = ServiceRecordSummary.of(entries),
-            savings = if (overcharges.isEmpty()) {
-                FairnessSavings.NONE
-            } else {
-                FairnessSavings(overchargeTotal = overcharges.sum(), overchargesCaught = overcharges.size)
-            },
-        )
-    }
+    private fun feedOf(entries: List<ServiceLogEntry>): ServiceLogFeed = ServiceLogFeed(
+        entries = entries,
+        summary = ServiceRecordSummary.of(entries),
+        // Shared with Home's stat card, so the two can never quote different totals.
+        savings = SavingsCalculator.of(entries),
+    )
 }
 
 /**

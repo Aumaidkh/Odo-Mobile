@@ -2,25 +2,119 @@
     <!-- Bottom bar: the central Scan action (tab labels come from OdoDestination.TopLevel.label). -->
     <string name="db_scan">Scan</string>
 
-    <!-- Placeholder copy shown by tab stand-ins until the real content lands. -->
-
-    <!-- Home tab -->
+    <!-- Home: header -->
     <string name="hm_greeting">Hi, %1$s</string>
-    <string name="hm_health_score">HEALTH SCORE</string>
-    <string name="hm_see_breakdown">See breakdown</string>
-    <string name="hm_running_cost">RUNNING COST</string>
-    <string name="hm_per_km">/km</string>
-    <string name="hm_saved">SAVED SO FAR</string>
-    <string name="hm_recent">RECENT ACTIVITY</string>
-    <string name="hm_timeline">Timeline</string>
+    <string name="hm_greeting_generic">Hi there</string>
+    <!-- "Swift VXI · 54,000 km" -->
+    <string name="hm_car_line">%1$s · %2$s</string>
     <string name="hm_cd_bell">Notifications</string>
     <string name="hm_cd_profile">Profile</string>
+    <!-- The avatar's letter before the owner has told Odo their name — Odo's own initial. -->
+    <string name="hm_avatar_fallback">O</string>
+
+    <!-- Home: health score -->
+    <string name="hm_health_score">HEALTH SCORE</string>
+    <string name="hm_see_breakdown">See breakdown</string>
+    <string name="hm_band_poor">POOR</string>
+    <string name="hm_band_fair">FAIR</string>
+    <string name="hm_band_good">GOOD</string>
+    <string name="hm_band_excellent">EXCELLENT</string>
+    <string name="hm_health_up">Up %1$d points this month.</string>
+    <string name="hm_health_down">Down %1$d points this month.</string>
+    <string name="hm_health_steady">No change this month.</string>
+    <string name="hm_health_first">Your first month of tracking.</string>
+    <!-- Stands in for the health score before there is enough history to compute one. -->
+    <string name="db_score_none">—</string>
+
+    <!-- Home: running cost -->
+    <string name="hm_running_cost">RUNNING COST</string>
+    <string name="hm_per_km">/km</string>
+    <string name="hm_cost_above">%1$d%% above last quarter</string>
+    <string name="hm_cost_below">%1$d%% below last quarter</string>
+    <string name="hm_cost_flat">Same as last quarter</string>
+    <string name="hm_cost_no_trend">No comparison yet</string>
+    <string name="hm_cost_not_enough">Not enough distance yet</string>
+
+    <!-- Home: overcharges caught. Not "saved" — the money was caught, not refunded. -->
+    <string name="hm_overcharge_caught">OVERCHARGE CAUGHT</string>
+    <string name="hm_overcharge_one">1 bill flagged</string>
+    <string name="hm_overcharge_many">%1$d bills flagged</string>
+    <string name="hm_overcharge_none">No overcharges caught yet</string>
+
+    <!-- Home: attention card -->
+    <string name="hm_attn_clear">Nothing needs attention</string>
+    <string name="hm_attn_clear_sub">All documents valid · no service due</string>
+    <string name="hm_attn_doc_lapsed">%1$s has expired</string>
+    <string name="hm_attn_doc_lapsed_sub">Lapsed on %1$s · renew now</string>
+    <string name="hm_attn_doc_expiring_today">%1$s expires today</string>
+    <string name="hm_attn_doc_expiring_tomorrow">%1$s expires tomorrow</string>
+    <string name="hm_attn_doc_expiring">%1$s expires in %2$d days</string>
+    <string name="hm_attn_doc_expiring_sub">Valid till %1$s</string>
+    <string name="hm_attn_service_overdue">Service overdue</string>
+    <string name="hm_attn_service_overdue_days">%1$d days past due</string>
+    <string name="hm_attn_service_overdue_km">%1$d km past due</string>
+    <string name="hm_attn_service_overdue_both">%1$d days and %2$d km past due</string>
+    <string name="hm_attn_service_due">Service due soon</string>
+    <string name="hm_attn_service_due_days">In about %1$d days</string>
+    <string name="hm_attn_service_due_km">In about %1$d km</string>
+    <string name="hm_attn_service_due_both">In about %1$d km or %2$d days</string>
+
+    <!-- Home: insight card -->
+    <string name="hm_insight_eyebrow">ODO INSIGHT</string>
+    <string name="hm_insight_resale_eyebrow">RESALE READY</string>
+    <string name="hm_insight_resale">All %1$d services verified — your record beats most listings.</string>
+    <string name="hm_insight_cost_up">Running costs are %1$d%% higher than last quarter.</string>
+    <string name="hm_insight_cost_down">Running costs are %1$d%% lower than last quarter.</string>
+    <string name="hm_insight_no_bills">%1$d services logged with no bill attached — scan one to unlock fairness checks.</string>
+    <string name="hm_insight_no_bills_one">Your one logged service has no bill attached — scan it to unlock fairness checks.</string>
+    <string name="hm_insight_missing_doc">%1$s is missing from your vault — adding it lifts your score.</string>
+
+    <!-- Home: recent activity -->
+    <string name="hm_recent">RECENT ACTIVITY</string>
+    <string name="hm_timeline">Timeline</string>
+    <string name="hm_recent_verified">Verified</string>
+    <string name="hm_recent_self_reported">Self-reported</string>
+    <!-- "12 Jul · Verified" -->
+    <string name="hm_recent_meta">%1$s · %2$s</string>
+    <string name="hm_recent_score">Health score %1$d → %2$d</string>
+    <string name="hm_recent_car_added">%1$s added to Odo</string>
+    <string name="hm_recent_doc_added">%1$s added</string>
+    <string name="hm_recent_doc_renewed">%1$s renewed</string>
 
     <!-- Home: new user -->
     <string name="hm_score_waiting">Your score is waiting</string>
     <string name="hm_score_waiting_body">Add one bill or document and Odo can start scoring your car’s health.</string>
     <string name="hm_get_set_up">GET SET UP · %1$d OF %2$d DONE</string>
     <string name="hm_scan_first">Scan your first bill</string>
-    <!-- Stands in for the health score before there is enough history to compute one. -->
-    <string name="db_score_none">—</string>
+    <string name="hm_setup_car">Car added</string>
+    <string name="hm_setup_bill">Scan your last bill</string>
+    <string name="hm_setup_bill_sub">Unlocks fairness checks</string>
+    <string name="hm_setup_docs">Add insurance &amp; PUC</string>
+    <string name="hm_setup_docs_sub">Never miss a renewal</string>
+
+    <!-- Home: no car yet, and read failures -->
+    <string name="hm_no_car">No car set up yet</string>
+    <string name="hm_no_car_body">Add your car and Odo can start tracking its health, costs and papers.</string>
+    <string name="hm_add_car">Add your car</string>
+    <string name="hm_error_load_failed">Couldn’t load your dashboard</string>
+
+    <!-- Document names, shown wherever a paper is named on Home. -->
+    <string name="hm_doc_insurance">Insurance</string>
+    <string name="hm_doc_puc">PUC</string>
+    <string name="hm_doc_rc">RC</string>
+    <string name="hm_doc_licence">Driving licence</string>
+    <string name="hm_doc_loan">Loan papers</string>
+    <string name="hm_doc_other">Document</string>
+
+    <!-- What was done on a service, when the owner tagged it rather than describing it. -->
+    <string name="hm_work_unspecified">Service logged</string>
+    <string name="hm_category_oil_change">Oil change</string>
+    <string name="hm_category_brakes">Brakes</string>
+    <string name="hm_category_tyres">Tyres</string>
+    <string name="hm_category_ac">AC</string>
+    <string name="hm_category_battery">Battery</string>
+    <string name="hm_category_suspension">Suspension</string>
+    <string name="hm_category_electrical">Electrical</string>
+    <string name="hm_category_general_service">General service</string>
+    <string name="hm_category_other">Other work</string>
 </resources>

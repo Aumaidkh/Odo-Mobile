@@ -3,6 +3,7 @@ package com.hopcape.odo.core.domain.health.analysis
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
+import com.hopcape.odo.core.domain.document.model.latestOfType
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
@@ -14,7 +15,6 @@ import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceDueStatus
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceIntervalPolicy
-import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -82,6 +82,17 @@ object HealthScoreCalculator {
     )
 
     /**
+     * The papers that earn points, heaviest first — what a "you are missing a document"
+     * nudge should ask for.
+     *
+     * Exposed so
+     * [InsightPicker][com.hopcape.odo.core.domain.insight.analysis.InsightPicker] asks for
+     * the papers that actually move the score, rather than keeping a second list that
+     * drifts from this one the first time a weight changes.
+     */
+    val SCORED_DOCUMENT_TYPES: List<DocumentType> get() = DOCUMENT_WEIGHTS.keys.toList()
+
+    /**
      * The score for a car as it stands on [today].
      *
      * @param entries every non-deleted service log for the car.
@@ -120,13 +131,8 @@ object HealthScoreCalculator {
         readings: List<OdometerReading>,
         today: LocalDate,
     ): Int {
-        val last = entries.maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km })) ?: return 0
-        val status = ServiceIntervalPolicy.statusFor(
-            lastServiceDate = last.serviceDate,
-            lastServiceOdometer = last.odometer,
-            currentOdometer = currentOdometer(readings),
-            today = today,
-        )
+        if (entries.isEmpty()) return 0
+        val status = ServiceIntervalPolicy.statusFor(entries, readings, today)
         return onTimePoints(status) + cadencePoints(entries, today)
     }
 
@@ -163,7 +169,7 @@ object HealthScoreCalculator {
      */
     private fun documentationPoints(documents: List<Document>, today: LocalDate): Int =
         DOCUMENT_WEIGHTS.entries.sumOf { (type, weight) ->
-            when (latestOfType(documents, type)?.validity(today)) {
+            when (documents.latestOfType(type)?.validity(today)) {
                 null -> 0
                 is DocumentValidity.NoExpiry -> weight
                 is DocumentValidity.Valid -> weight
@@ -171,15 +177,6 @@ object HealthScoreCalculator {
                 is DocumentValidity.Expired -> 0
             }
         }
-
-    /**
-     * The document of this type that runs longest — a renewal is filed as a new document,
-     * so last year's lapsed policy sits in the vault next to this year's live one and must
-     * not be the one that gets scored.
-     */
-    private fun latestOfType(documents: List<Document>, type: DocumentType): Document? =
-        documents.filter { it.type == type }
-            .maxWithOrNull(compareBy(nullsFirst()) { it.expiresOn })
 
     /**
      * Cost efficiency (20): the share of the car's spending that was checked against city
@@ -220,10 +217,6 @@ object HealthScoreCalculator {
         val consistent = readings.size >= 2 && OdometerTimeline.anomalies(readings).isEmpty()
         return verifiedPoints + if (consistent) CONSISTENCY_POINTS else 0
     }
-
-    /** The car's reading today: the most recently *dated* one, ties going to the higher km. */
-    private fun currentOdometer(readings: List<OdometerReading>): Distance? =
-        readings.maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))?.odometer
 
     private fun denominator(entryCount: Int): Int = maxOf(entryCount, MIN_ENTRIES_FOR_FULL_CREDIT)
 }
