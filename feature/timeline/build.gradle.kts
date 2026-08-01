@@ -24,15 +24,26 @@ kotlin {
             // Branded UI atoms (OdoScreen, OdoCard, OdoBadge, OdoCheckbox, OdoSwitch…)
             // + the Odo theme tokens; re-exports Compose Material 3 transitively.
             implementation(projects.core.designsystem)
-            // The shared kernel this feature's own timeline model is built from:
-            // Amount (integer paise), Distance, WorkshopName, ServiceLogId,
-            // VerificationStatus, RecordScore + the ₹/km/date formatters the UI uses.
+            // The shared kernel the feed is assembled from: ActivityEvent +
+            // ActivityFeedBuilder, the repository ports behind them, and the value objects
+            // (Amount in integer paise, Distance, WorkshopName, WorkDone) plus the
+            // ₹/km/date formatters the UI uses.
             implementation(projects.core.domain)
-            // koinInject() in the route hosts — they resolve the ActiveCarProvider port to
-            // name the car a per-car destination is about.
+            // Observability: the feature's telemetry facade logs and counts what the tab
+            // does. The domain stays pure — instrumentation sits at the presentation layer.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            // Spans for the feed's async work, and the flow trace the facade stamps on
+            // every event.
+            implementation(projects.observability.performance)
+            // koinViewModel()/koinInject() in the route hosts.
             implementation(libs.koin.composeViewmodel)
-            // LocalDate on TimelineEvent (event dates + month grouping).
+            // LocalDate on the events (dates + month grouping) and the TimeZone the feed
+            // is placed on.
             implementation(libs.kotlinx.datetime)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }
