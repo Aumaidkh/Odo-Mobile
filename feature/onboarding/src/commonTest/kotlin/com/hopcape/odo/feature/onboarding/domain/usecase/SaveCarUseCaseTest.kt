@@ -36,6 +36,13 @@ class SaveCarUseCaseTest {
         }
 
         override fun observePrimaryCar(): Flow<Car?> = flowOf(lastAdded)
+
+        override fun observe(id: CarId): Flow<Car?> = flowOf(lastAdded?.takeIf { it.id == id })
+
+        override suspend fun softDelete(id: CarId): Either<DomainError, Unit> {
+            lastAdded = lastAdded?.takeIf { it.id != id }
+            return Unit.right()
+        }
     }
 
     private class FixedIdGenerator(private val id: String) : IdGenerator {

@@ -29,11 +29,23 @@ kotlin {
             // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
             // Brings Arrow transitively via domain (Amount.of returns Either).
             implementation(projects.core.domain)
-            // koinInject() in the route hosts — they resolve the ActiveCarProvider port to
-            // name the car a per-car destination is about.
+            // Observability: structured logging + product analytics, instrumented at the
+            // presentation layer (domain stays pure). Interfaces injected; the single
+            // config is owned by the app bootstrap.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            // APM spans around the DB writes the ViewModels drive — the feature's
+            // telemetry facade owns the plumbing.
+            implementation(projects.observability.performance)
+            // koinViewModel() in the route hosts, plus koinInject() for the ActiveCarProvider
+            // the add-to-history sheet reads to name the car a per-car destination is about.
             implementation(libs.koin.composeViewmodel)
             // LocalDate on the garage's own models (service dates, document expiry).
             implementation(libs.kotlinx.datetime)
+        }
+
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

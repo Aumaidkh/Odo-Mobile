@@ -28,6 +28,7 @@ class CarMappersTest {
         purchase_year = purchaseYear,
         nickname = nickname,
         is_primary = isPrimary,
+        odometer_updated_at = "2026-06-30T00:00:00Z",
         created_at = "2026-06-30T00:00:00Z",
         updated_at = "2026-06-30T00:00:00Z",
         deleted_at = null,

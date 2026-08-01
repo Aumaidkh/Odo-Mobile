@@ -81,17 +81,19 @@ SELECT sl.*,
 FROM service_logs sl
 WHERE sl.id = :id AND sl.deleted_at IS NULL;
 
--- Every known odometer reading for a car: its live logs plus the onboarding
--- baseline, which is the car's own reading dated from when it was added. The
--- domain's OdometerTimeline needs the whole timeline, not just the highest value,
--- because the ordering rule is date-relative.
+-- Every known odometer reading for a car: its live logs plus the car's own current
+-- reading, dated from when that reading was last written down. The domain's
+-- OdometerTimeline needs the whole timeline, not just the highest value, because
+-- the ordering rule is date-relative.
 --
--- `created_at` is a full instant while `service_date` is a date, so the baseline is
--- truncated to its date half and both columns mean the same thing. An empty result
--- means the car does not exist (a live car always contributes its baseline row).
+-- The car's reading falls back to `created_at` — onboarding wrote it, and it has
+-- not been updated since. Both columns are full instants while `service_date` is a
+-- date, so the baseline is truncated to its date half and the two mean the same
+-- thing. An empty result means the car does not exist (a live car always
+-- contributes its own reading).
 selectOdometerReadings:
 SELECT NULL AS log_id,
-       substr(c.created_at, 1, 10) AS reading_date,
+       substr(COALESCE(c.odometer_updated_at, c.created_at), 1, 10) AS reading_date,
        c.current_odometer_km AS odometer_km
 FROM cars c
 WHERE c.id = :carId AND c.deleted_at IS NULL
@@ -138,6 +140,18 @@ SET deleted_at  = :deletedAt,
     updated_at  = :deletedAt,
     sync_status = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
+
+-- Every live entry of one car, tombstoned together. Used when the car itself is
+-- removed: an entry is only reachable through its car, so it goes with it.
+--
+-- The category rows are left alone. They hang off the entry, not the car, and the
+-- entry is still there as a tombstone that has to sync with its categories intact.
+softDeleteServiceLogsForCar:
+UPDATE service_logs
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
 
 insertCategory:
 INSERT OR IGNORE INTO service_log_categories (service_log_id, category)

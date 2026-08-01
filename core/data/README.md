@@ -60,14 +60,14 @@ The rest of the app sees **only** the `:core:domain` ports (`CarRepository`,
 
 | File | Layer | Responsibility |
 | --- | --- | --- |
-| `sqldelight/.../Car.sq` | schema | `cars` table (DB_SCHEMA §9.3, mapped to SQLite) + indexes + `insertCar` / `clearPrimaryForOwner` / `selectPrimaryCar` / `selectById`. **`sync_status` groundwork.** |
+| `sqldelight/.../Car.sq` | schema | `cars` table (DB_SCHEMA §9.3, mapped to SQLite) + indexes + `insertCar` / `updateCar` / `clearPrimaryForOwner` / `selectPrimaryCar` / `selectById` / `softDeleteCar`. **`sync_status` groundwork**, plus the client-only `odometer_updated_at` (when the reading was written down — the odometer timeline dates the car's own reading from it). |
 | `sqldelight/.../VehicleMake.sq` | schema | Seeded make reference table + `insertMake` / `selectAllMakes` / `countMakes`. |
 | `sqldelight/.../VehicleModel.sq` | schema | Seeded model reference table (FK to make) + `insertModel` / `selectModelsByMakeName`. |
 | `db/DriverFactory.kt` | platform port | `expect class DriverFactory { create(): SqlDriver }` + `createOdoDatabase(driver)`. |
 | `db/DriverFactory.android.kt` | platform | `AndroidSqliteDriver` (needs a `Context`, supplied by `:app`). |
 | `db/DriverFactory.ios.kt` | platform | `NativeSqliteDriver` (covers both iOS targets via `iosMain`). |
 | `car/CarMappers.kt` | mapping | `Cars` row → `Car` (the row→domain boundary) + `SyncStatus` constants. |
-| `car/CarRepositoryImpl.kt` | repo impl | `add` (offline insert, one-primary transaction) + `observePrimaryCar`. |
+| `car/CarRepositoryImpl.kt` | repo impl | `add` / `update` (one-primary transaction), `observePrimaryCar` / `observe(id)`, and `softDelete` (car + its logs + its documents, one transaction). |
 | `car/VehicleCatalogImpl.kt` | repo impl | `VehicleCatalog` over the seeded tables; years/fuel from domain types. |
 | `car/VehicleSeedData.kt` | seed | Top Indian brands + models; idempotent `seedVehicleReferenceData(db)`. |
 | `CoreDataModule.kt` | wiring | Koin `coreDataModule`: `OdoDatabase` (seeded) + the two ports. |

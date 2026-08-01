@@ -117,7 +117,11 @@ class ServiceLogRepositoryImplTest {
     )
 
     /** A car row is the odometer timeline's baseline, so most tests need one. */
-    private fun OdoDatabase.seedCar(odometerKm: Long = 45_000, createdAt: String = "2026-01-01T09:00:00Z") {
+    private fun OdoDatabase.seedCar(
+        odometerKm: Long = 45_000,
+        createdAt: String = "2026-01-01T09:00:00Z",
+        odometerUpdatedAt: String? = createdAt,
+    ) {
         carQueries.insertCar(
             id = carId.value,
             owner_id = ownerId.value,
@@ -131,6 +135,7 @@ class ServiceLogRepositoryImplTest {
             purchase_year = null,
             nickname = null,
             is_primary = 1,
+            odometer_updated_at = odometerUpdatedAt,
             created_at = createdAt,
             updated_at = createdAt,
             deleted_at = null,
@@ -328,6 +333,40 @@ class ServiceLogRepositoryImplTest {
         val log = readings.single { it.logId != null }
         assertEquals(50_000, log.odometer.km)
         assertEquals(LocalDate(2026, 6, 15), log.date)
+    }
+
+    /**
+     * The car's reading is dated from when it was last written down, not from when the car
+     * was added. Otherwise the first odometer update would leave the timeline claiming a
+     * reading was taken months before it was, and every backdated log after it would be
+     * measured against a day that never happened.
+     */
+    @Test
+    fun odometerReadings_dateTheCarFromItsLastOdometerUpdate() = runTest {
+        val db = newDb().apply {
+            seedCar(
+                odometerKm = 61_500,
+                createdAt = "2026-01-01T09:00:00Z",
+                odometerUpdatedAt = "2026-06-20T18:00:00Z",
+            )
+        }
+
+        val baseline = assertNotNull(repo(db).odometerReadings(carId)).single { it.logId == null }
+
+        assertEquals(LocalDate(2026, 6, 20), baseline.date)
+        assertEquals(61_500, baseline.odometer.km)
+    }
+
+    /** Cars written before the column existed have no stamp; the day they were added stands in. */
+    @Test
+    fun odometerReadings_fallBackToTheDayTheCarWasAdded() = runTest {
+        val db = newDb().apply {
+            seedCar(createdAt = "2026-01-01T09:00:00Z", odometerUpdatedAt = null)
+        }
+
+        val baseline = assertNotNull(repo(db).odometerReadings(carId)).single { it.logId == null }
+
+        assertEquals(LocalDate(2026, 1, 1), baseline.date)
     }
 
     @Test

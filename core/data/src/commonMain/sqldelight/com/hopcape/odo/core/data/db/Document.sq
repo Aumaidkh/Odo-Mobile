@@ -106,3 +106,13 @@ SET deleted_at  = :deletedAt,
     updated_at  = :deletedAt,
     sync_status = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
+
+-- Every live document of one car, tombstoned together. Used when the car itself is
+-- removed: a document is only reachable through its car, and one left behind would
+-- still count against the owner's free-tier allowance.
+softDeleteDocumentsForCar:
+UPDATE documents
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;

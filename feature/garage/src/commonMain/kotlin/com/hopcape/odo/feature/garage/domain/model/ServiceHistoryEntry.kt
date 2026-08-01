@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.core.domain.shared.WorkshopName
 import com.hopcape.odo.core.domain.shared.sum
 import kotlinx.datetime.LocalDate
 
@@ -17,24 +18,28 @@ import kotlinx.datetime.LocalDate
  * shared kernel — [ServiceLogId], [Amount], [Distance], [VerificationStatus],
  * [ServiceCategory], [LocalDate] — so a row can be opened in the service-log feature by
  * id, and rupees can never be confused with kilometres.
+ *
+ * There is no "what was done" line here, because there is none in the domain either. An
+ * entry is described by its [categories] and its [workshopName], and the row's heading is
+ * composed from those in the UI, where the words live.
  */
 internal data class ServiceHistoryEntry(
     val id: ServiceLogId,
-    /** One-line "what was done", e.g. "Front brake pads". */
-    val workDone: String,
     val servicedOn: LocalDate,
     val odometer: Distance,
     val amount: Amount,
     val verification: VerificationStatus,
-    val category: ServiceCategory,
+    /** The entry's "what was done" tags. Empty when nobody tagged it. */
+    val categories: Set<ServiceCategory>,
+    val workshopName: WorkshopName?,
 ) {
     /** Bill-backed, so it carries a Verified badge (PRD trust model). */
     val isVerified: Boolean get() = verification == VerificationStatus.VERIFIED
 }
 
-/** The entries under a chip, newest first — the list the history section renders. */
+/** The entries under a chip, in the order given — the list the history section renders. */
 internal fun List<ServiceHistoryEntry>.matching(facet: ServiceFacet): List<ServiceHistoryEntry> =
-    filter { facet.accepts(it.category) }
+    filter { facet.accepts(it.categories) }
 
 /** What these entries cost in total — money math stays in [Amount], never a Double. */
 internal fun List<ServiceHistoryEntry>.totalSpent(): Amount = map { it.amount }.sum()

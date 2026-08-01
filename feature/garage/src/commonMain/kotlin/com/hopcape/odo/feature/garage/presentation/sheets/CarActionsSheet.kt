@@ -16,54 +16,67 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcCar
+import com.hopcape.odo.core.designsystem.component.formatRegistrationNumber
 import com.hopcape.odo.core.designsystem.icons.IcPencil
-import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcTrash
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.garage.presentation.CarAvatar
 import com.hopcape.odo.feature.garage.presentation.GarageSheet
+import com.hopcape.odo.feature.garage.presentation.state.Loadable
+import com.hopcape.odo.feature.garage.presentation.state.valueOrNull
 import com.hopcape.odo.feature.garage.resources.Res
-import com.hopcape.odo.feature.garage.resources.gr_ca_add
 import com.hopcape.odo.feature.garage.resources.gr_ca_edit
 import com.hopcape.odo.feature.garage.resources.gr_ca_export
 import com.hopcape.odo.feature.garage.resources.gr_ca_remove
-import com.hopcape.odo.feature.garage.resources.gr_ca_switch
-import com.hopcape.odo.feature.garage.resources.gr_ca_switch_more
+import com.hopcape.odo.feature.garage.resources.gr_no_plate
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * Car actions sheet (⋮ on the car card) — shown as
- * [com.hopcape.odo.core.navigation.OdoDestination.Garage.CarActions]. Each row
- * navigates on to its flow; the sheet chrome comes from the navigation layer.
+ * [com.hopcape.odo.core.navigation.OdoDestination.Garage.CarActions]. Each row navigates on
+ * to its flow; the sheet chrome comes from the navigation layer.
+ *
+ * Switching cars and adding a second one are not here. The MVP garage holds one car, and a
+ * menu offering a choice the app cannot honour is worse than a shorter menu.
  */
 @Composable
 internal fun CarActionsSheetContent(
-    onEditCar: () -> Unit,
-    onSwitchCar: () -> Unit,
-    onAddCar: () -> Unit,
-    onExport: () -> Unit,
-    onRemoveCar: () -> Unit,
+    state: CarActionsUiState,
+    onEvent: (CarActionsEvent) -> Unit,
 ) {
     GarageSheet {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CarAvatar()
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                // Sample car header — real data arrives with the garage aggregation.
-                OdoText("Maruti Swift VXI", style = OdoTheme.typography.heading, maxLines = 1)
-                OdoText("MH 12 AB 1234", style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim, maxLines = 1)
-            }
-        }
-        ActionRow(IcPencil, stringResource(Res.string.gr_ca_edit), onClick = onEditCar)
-        ActionRow(IcCar, stringResource(Res.string.gr_ca_switch), onClick = onSwitchCar, trailing = stringResource(Res.string.gr_ca_switch_more, 1))
-        ActionRow(IcPlusLarge, stringResource(Res.string.gr_ca_add), onClick = onAddCar)
-        ActionRow(IcShare, stringResource(Res.string.gr_ca_export), onClick = onExport)
+        CarHeader(state.car)
+        ActionRow(IcPencil, stringResource(Res.string.gr_ca_edit)) { onEvent(CarActionsEvent.EditTapped) }
+        ActionRow(IcShare, stringResource(Res.string.gr_ca_export)) { onEvent(CarActionsEvent.ExportTapped) }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
-        ActionRow(IcTrash, stringResource(Res.string.gr_ca_remove), onClick = onRemoveCar, tint = OdoTheme.colors.danger)
+        ActionRow(
+            icon = IcTrash,
+            label = stringResource(Res.string.gr_ca_remove),
+            tint = OdoTheme.colors.danger,
+        ) { onEvent(CarActionsEvent.RemoveTapped) }
+    }
+}
+
+/** The car the actions are about. Absent until it has been read — never a stand-in name. */
+@Composable
+private fun CarHeader(car: Loadable<CarSummary>) {
+    val summary = car.valueOrNull ?: return
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CarAvatar()
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            OdoText(summary.displayName, style = OdoTheme.typography.heading, maxLines = 1)
+            OdoText(
+                summary.registration?.let(::formatRegistrationNumber)
+                    ?: stringResource(Res.string.gr_no_plate),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -71,9 +84,8 @@ internal fun CarActionsSheetContent(
 private fun ActionRow(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit,
-    trailing: String? = null,
     tint: Color = OdoTheme.colors.text,
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -85,9 +97,12 @@ private fun ActionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OdoIcon(icon, contentDescription = null, tint = tint, size = OdoTheme.iconSizes.medium)
-        OdoText(label, style = OdoTheme.typography.heading, color = tint, maxLines = 1, modifier = Modifier.weight(1f))
-        if (trailing != null) {
-            OdoText(trailing, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textMuted)
-        }
+        OdoText(
+            label,
+            style = OdoTheme.typography.heading,
+            color = tint,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
     }
 }

@@ -14,9 +14,11 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcTrash
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.garage.presentation.IconTile
 import com.hopcape.odo.feature.garage.presentation.GarageSheet
+import com.hopcape.odo.feature.garage.presentation.state.valueOrNull
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_rm_body
 import com.hopcape.odo.feature.garage.resources.gr_rm_cancel
@@ -27,15 +29,18 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Remove-car confirmation ([com.hopcape.odo.core.navigation.OdoDestination.Garage.RemoveCar]).
- * Destructive: leads with the impact + an "export first" escape hatch. Shown as a
- * sheet; [onCancel] / swipe-down dismiss it.
+ *
+ * Destructive, so it leads with what is actually about to go — the car's own name and its
+ * real counts, read before the tap — plus an "export first" escape hatch. The remove button
+ * stays disabled until those counts are known: a confirmation that cannot say what it
+ * deletes is not a confirmation.
  */
 @Composable
 internal fun RemoveCarSheetContent(
-    onExportFirst: () -> Unit,
-    onRemove: () -> Unit,
-    onCancel: () -> Unit,
+    state: RemoveCarUiState,
+    onEvent: (RemoveCarEvent) -> Unit,
 ) {
+    val car = state.car.valueOrNull
     GarageSheet {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -43,31 +48,45 @@ internal fun RemoveCarSheetContent(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         ) {
             IconTile(IcTrash, tint = OdoTheme.colors.danger, size = 56.dp)
-            // Sample car short name + counts — real values arrive with the ViewModel.
-            OdoText(stringResource(Res.string.gr_rm_title, "Swift VXI"), style = OdoTheme.typography.title, textAlign = TextAlign.Center)
-            OdoText(
-                stringResource(Res.string.gr_rm_body, 4, 3),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
-                textAlign = TextAlign.Center,
-            )
+            if (car != null) {
+                OdoText(
+                    stringResource(Res.string.gr_rm_title, car.displayName),
+                    style = OdoTheme.typography.title,
+                    textAlign = TextAlign.Center,
+                )
+                OdoText(
+                    stringResource(Res.string.gr_rm_body, car.serviceCount, car.documentCount),
+                    style = OdoTheme.typography.body,
+                    color = OdoTheme.colors.textDim,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            state.submission.error?.let { message ->
+                OdoText(
+                    message.asString(),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.danger,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         OdoButton(
             stringResource(Res.string.gr_rm_export_first),
-            onClick = onExportFirst,
+            onClick = { onEvent(RemoveCarEvent.ExportFirstTapped) },
             modifier = Modifier.fillMaxWidth(),
             variant = OdoButtonVariant.Secondary,
             leadingIcon = { OdoIcon(IcShare, contentDescription = null, size = OdoTheme.iconSizes.small) },
         )
         OdoButton(
             stringResource(Res.string.gr_rm_confirm),
-            onClick = onRemove,
+            onClick = { onEvent(RemoveCarEvent.RemoveTapped) },
             modifier = Modifier.fillMaxWidth(),
             variant = OdoButtonVariant.Danger,
+            enabled = car != null && !state.submission.isInFlight,
         )
         OdoButton(
             stringResource(Res.string.gr_rm_cancel),
-            onClick = onCancel,
+            onClick = { onEvent(RemoveCarEvent.CancelTapped) },
             modifier = Modifier.fillMaxWidth(),
             variant = OdoButtonVariant.Tertiary,
         )

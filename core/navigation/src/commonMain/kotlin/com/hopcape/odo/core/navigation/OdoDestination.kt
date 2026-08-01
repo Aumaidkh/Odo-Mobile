@@ -60,14 +60,12 @@ sealed interface OdoDestination : NavKey {
     sealed interface Garage : OdoDestination {
         /** The garage tab root — the car home-base overview. */
         data object Home : Garage, TopLevel { override val label = "Garage" }
-        /** Car actions sheet (⋮): edit · switch · add · export · remove. */
+        /** Car actions sheet (⋮): edit · export · remove. */
         data object CarActions : Garage
         /** Update-odometer sheet. */
         data object UpdateOdometer : Garage
         /** "Add to service history" sheet: scan · manual · document. */
         data object AddToHistory : Garage
-        /** Switch-car sheet. */
-        data object SwitchCar : Garage
         /** Export-car-record sheet. */
         data object Export : Garage
         /** Remove-car confirmation — shown as a sheet. */
