@@ -24,6 +24,8 @@ import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_distance
 import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_readings
 import com.hopcape.odo.feature.costtracker.resources.ct_period_range
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -50,6 +53,9 @@ internal class RunningCostViewModel(
 ) : ViewModel() {
 
     private val period = MutableStateFlow(CostPeriod.Y1)
+
+    private val _effects = Channel<RunningCostEffect>(Channel.BUFFERED)
+    val effects: Flow<RunningCostEffect> = _effects.receiveAsFlow()
 
     /** Guards the opened event so a re-read does not count a second visit. */
     private var reportedOpen = false
@@ -92,6 +98,11 @@ internal class RunningCostViewModel(
         is RunningCostEvent.PeriodSelected -> {
             period.value = event.period
             telemetry.periodChanged(event.period.name)
+        }
+
+        RunningCostEvent.FuelRateTapped -> {
+            _effects.trySend(RunningCostEffect.OpenFuelRate)
+            Unit
         }
     }
 

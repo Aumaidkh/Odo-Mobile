@@ -145,10 +145,21 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
-     * Cost tracker — the per-km "running cost" breakdown for the car. Its own feature,
-     * and a bottom-nav root (labelled "Costs" in the bar).
+     * Cost tracker — the per-km "running cost" breakdown for the car. A sealed group: the
+     * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
+     * owner corrects the fuel rate the estimate is built on.
      */
-    data object CostTracker : TopLevel { override val label = "Costs" }
+    sealed interface CostTracker : OdoDestination {
+
+        data object Home : CostTracker, TopLevel { override val label = "Costs" }
+
+        /**
+         * "What do you pay for fuel?" — a bottom sheet. Odo's own prices are approximate
+         * and refreshed at best weekly, so the owner can state their own and have every
+         * figure rebuilt on it.
+         */
+        data object FuelRate : CostTracker
+    }
 
     /**
      * Timeline — the car's unified activity feed (services · documents · health-score
@@ -320,7 +331,7 @@ sealed interface OdoDestination : NavKey {
          * header (the bell and the avatar), which keeps the bar to the four surfaces an
          * owner moves between rather than every screen that exists.
          */
-        val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker, Garage.Home)
+        val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker.Home, Garage.Home)
     }
 }
 

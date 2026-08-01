@@ -30,4 +30,16 @@ val costTrackerAnalyticsEvents: List<EventSchema> = listOf(
         CostTrackerTelemetry.Event.READ_FAILED,
         mapOf(CostTrackerTelemetry.Key.REASON to PropertyType.STRING),
     ),
+    EventSchema(
+        CostTrackerTelemetry.Event.FUEL_RATE_SAVED,
+        mapOf(CostTrackerTelemetry.Key.FUEL_TYPE to PropertyType.STRING),
+    ),
+    EventSchema(
+        CostTrackerTelemetry.Event.FUEL_RATE_CLEARED,
+        mapOf(CostTrackerTelemetry.Key.FUEL_TYPE to PropertyType.STRING),
+    ),
+    EventSchema(
+        CostTrackerTelemetry.Event.FUEL_RATE_REFUSED,
+        mapOf(CostTrackerTelemetry.Key.REASON to PropertyType.STRING),
+    ),
 )

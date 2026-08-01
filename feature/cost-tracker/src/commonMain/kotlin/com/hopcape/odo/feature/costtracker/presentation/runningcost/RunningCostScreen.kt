@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
+import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoIcon
@@ -55,6 +57,7 @@ import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_city
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_generic
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_missing
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_owner
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_action
 import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_title
 import com.hopcape.odo.feature.costtracker.resources.ct_per_km_rate
 import com.hopcape.odo.feature.costtracker.resources.ct_per_km_suffix
@@ -107,7 +110,11 @@ internal fun RunningCostScreen(
             if (content != null) {
                 SpendByMonthCard(bars = content.spendBars, avgPerMonth = content.avgPerMonth)
                 SectionLabel(stringResource(Res.string.ct_where_it_goes))
-                CategoryCard(categories = content.categories, fuelNote = content.fuelNote)
+                CategoryCard(
+                    categories = content.categories,
+                    fuelNote = content.fuelNote,
+                    onEditRate = { onEvent(RunningCostEvent.FuelRateTapped) },
+                )
                 SectionLabel(stringResource(Res.string.ct_summary))
                 SummaryCard(content)
             }
@@ -244,17 +251,29 @@ private fun SpendBarColumn(bar: SpendBar, max: Long, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun CategoryCard(categories: List<CostCategoryRow>, fuelNote: FuelNote) {
+private fun CategoryCard(
+    categories: List<CostCategoryRow>,
+    fuelNote: FuelNote,
+    onEditRate: () -> Unit,
+) {
     OdoCard(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
         val max = categories.maxOfOrNull { it.amount.paise }?.coerceAtLeast(1) ?: 1
         categories.forEach { row -> CategoryRow(row = row, max = max) }
         // Fuel is estimated, never logged, so the screen always says what it was estimated
-        // from — including when there was nothing to estimate with.
-        OdoText(
-            fuelNoteText(fuelNote),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
-        )
+        // from — including when there was nothing to estimate with — and always offers the
+        // owner the correction, since the estimate is only as good as its price.
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoText(
+                fuelNoteText(fuelNote),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+            OdoButton(
+                text = stringResource(Res.string.ct_fuel_rate_action),
+                onClick = onEditRate,
+                variant = OdoButtonVariant.Tertiary,
+            )
+        }
     }
 }
 

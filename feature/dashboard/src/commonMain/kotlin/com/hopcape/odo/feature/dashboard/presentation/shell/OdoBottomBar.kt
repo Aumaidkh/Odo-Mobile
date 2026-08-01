@@ -172,7 +172,7 @@ private fun ScanTile(
 private fun iconForTab(tab: OdoDestination.TopLevel): ImageVector = when (tab) {
     OdoDestination.Home -> IcHouse
     OdoDestination.Timeline.List -> IcClock
-    OdoDestination.CostTracker -> IcCurrencyDollar
+    OdoDestination.CostTracker.Home -> IcCurrencyDollar
     OdoDestination.Garage.Home -> IcGarage
     else -> IcWindow
 }

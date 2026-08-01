@@ -6,6 +6,8 @@ import com.hopcape.odo.feature.costtracker.domain.usecase.ObserveRunningCostUseC
 import com.hopcape.odo.feature.costtracker.domain.usecase.SetFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.navigation.CostTrackerFeatureEntryProvider
 import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTelemetry
+import com.hopcape.odo.feature.costtracker.domain.usecase.GetFuelRateUseCase
+import com.hopcape.odo.feature.costtracker.presentation.fuelrate.FuelRateViewModel
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
@@ -34,6 +36,7 @@ val costTrackerModule = module {
             clock = get(),
         )
     }
+    factory { GetFuelRateUseCase(cars = get(), city = get(), fuelPrices = get()) }
     factory { SetFuelRateUseCase(overrides = get(), clock = get()) }
     factory { ClearFuelRateUseCase(overrides = get()) }
 
@@ -42,4 +45,5 @@ val costTrackerModule = module {
     factory { CostTrackerTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
     viewModelOf(::RunningCostViewModel)
+    viewModelOf(::FuelRateViewModel)
 }
