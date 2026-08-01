@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.domain.servicelog.policy
 
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -9,18 +11,21 @@ import kotlinx.datetime.plus
 /**
  * When a car's next service is due.
  *
- * A pure domain service — no repository, no clock, no entry filtering. The caller decides
- * which logged entry counts as the last service and hands over its date and reading; this
- * answers "how much time and distance is left on it".
+ * A pure domain service — no repository, no clock. It comes in two forms: one that takes
+ * the last service's date and reading directly, and one that takes the car's whole record
+ * and works out which entry that is. The second exists because "which entry counts as the
+ * last service" is part of the same question, and three surfaces asking it separately is
+ * how a home card ends up saying a service is due above a score that says it isn't.
  *
  * The rule is **whichever comes first**, time or distance, which is how every Indian
  * service book is written. Neither number alone is enough: a car driven 25,000 km a year
  * needs a service long before six months are up, and a car that barely leaves the building
  * still needs its oil changed.
  *
- * Two surfaces read this. The health score turns it into maintenance points, and the
- * reminder engine (M4) turns it into the PRD's "service due in 800 km" push. Both must
- * agree on what "due" means, so the rule lives here once — the same reason
+ * Three surfaces read this. The health score turns it into maintenance points, Home's
+ * attention card turns it into a prompt, and the reminder engine (M4) turns it into the
+ * PRD's "service due in 800 km" push. All must agree on what "due" means, so the rule
+ * lives here once — the same reason
  * [DocumentReminderPolicy][com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy]
  * owns the renewal window.
  */
@@ -76,6 +81,37 @@ object ServiceIntervalPolicy {
             ServiceDueStatus.NotDue(daysLeft = daysLeft, kmLeft = kmLeft)
         }
     }
+
+    /**
+     * Where the car stands, worked out from its whole record.
+     *
+     * The last service is the newest entry by date, ties going to the higher reading, and
+     * the car's reading today is the newest of [readings] by the same rule — which is the
+     * logs' readings plus the baseline onboarding took. A car with no entries has never
+     * been serviced, whatever its odometer says.
+     *
+     * @param entries every non-deleted service log for the car.
+     * @param readings every known odometer reading for the car.
+     * @param today the day being read on.
+     */
+    fun statusFor(
+        entries: List<ServiceLogEntry>,
+        readings: List<OdometerReading>,
+        today: LocalDate,
+    ): ServiceDueStatus {
+        val last = entries.maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
+            ?: return ServiceDueStatus.NeverServiced
+        return statusFor(
+            lastServiceDate = last.serviceDate,
+            lastServiceOdometer = last.odometer,
+            currentOdometer = currentOdometer(readings),
+            today = today,
+        )
+    }
+
+    /** The car's reading today: the most recently *dated* one, ties going to the higher km. */
+    private fun currentOdometer(readings: List<OdometerReading>): Distance? =
+        readings.maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))?.odometer
 
     /**
      * Kilometres left on the interval, or `null` when either reading is missing.

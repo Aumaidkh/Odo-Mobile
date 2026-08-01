@@ -3,10 +3,12 @@ package com.hopcape.odo.di
 import com.hopcape.analytics.api.EventSchema
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
+import com.hopcape.odo.feature.dashboard.dashboardAnalyticsEvents
 import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
 import com.hopcape.odo.feature.garage.garageAnalyticsEvents
 import com.hopcape.odo.feature.healthscore.healthScoreAnalyticsEvents
 import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
+import com.hopcape.odo.feature.timeline.timelineAnalyticsEvents
 
 /**
  * The app's analytics taxonomy — every feature's declared events, assembled in one place
@@ -22,4 +24,5 @@ import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
  */
 val odoAnalyticsEvents: List<EventSchema> =
     onboardingAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
-        garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents
+        garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents +
+        timelineAnalyticsEvents + dashboardAnalyticsEvents

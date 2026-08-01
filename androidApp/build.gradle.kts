@@ -51,6 +51,12 @@ dependencies {
     androidTestImplementation(projects.feature.costTracker)
     // The health score's semantics tags, and its HealthFactorKind-keyed row tags.
     androidTestImplementation(projects.feature.healthscore)
+    // The timeline's semantics tags, its id-keyed row tags, and the ActivityCategory the
+    // filter sheet's rows are keyed by.
+    androidTestImplementation(projects.feature.timeline)
+    // Home's semantics tags — the dashboard is the one feature the app already depends on
+    // for the shell, but the tags live behind its own module boundary all the same.
+    androidTestImplementation(projects.feature.dashboard)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.
