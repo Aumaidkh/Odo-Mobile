@@ -121,6 +121,13 @@ sealed interface DomainError {
      */
     data class DocumentLimitReached(val limit: Int) : DomainError
 
+    /**
+     * A fuel price the owner typed fell outside what a pump can plausibly charge — below
+     * [minPaise] or above [maxPaise] per unit. Almost always a slipped decimal point, so
+     * the field is corrected rather than the number stored.
+     */
+    data class FuelPriceOutOfRange(val minPaise: Long, val maxPaise: Long) : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }

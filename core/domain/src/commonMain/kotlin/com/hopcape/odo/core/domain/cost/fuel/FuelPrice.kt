@@ -1,7 +1,10 @@
 package com.hopcape.odo.core.domain.cost.fuel
 
+import arrow.core.Either
+import arrow.core.left
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 
@@ -29,6 +32,27 @@ data class FuelPrice(
 
     /** How old this price is on [today]; negative if it is dated ahead. */
     fun ageInDays(today: LocalDate): Int = effectiveDate.daysUntil(today)
+
+    companion object {
+        /** ₹1 a unit. Below this the owner meant rupees and typed paise, or slipped a key. */
+        const val MIN_PAISE_PER_UNIT: Long = 100
+
+        /** ₹1,000 a unit — far above any Indian pump, so it can only be a decimal point. */
+        const val MAX_PAISE_PER_UNIT: Long = 100_000
+
+        /**
+         * Check a price the owner typed before it is stored.
+         *
+         * The bounds are wide on purpose: they catch a slipped decimal point, not a price
+         * Odo disagrees with. What someone pays at their pump is not ours to second-guess.
+         */
+        fun validRate(pricePaise: Long?): Either<DomainError, Amount> =
+            if (pricePaise == null || pricePaise !in MIN_PAISE_PER_UNIT..MAX_PAISE_PER_UNIT) {
+                DomainError.FuelPriceOutOfRange(MIN_PAISE_PER_UNIT, MAX_PAISE_PER_UNIT).left()
+            } else {
+                Amount.of(pricePaise)
+            }
+    }
 }
 
 /**

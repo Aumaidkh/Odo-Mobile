@@ -3,9 +3,7 @@ package com.hopcape.odo.feature.costtracker.presentation.runningcost
 import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
-
-/** The window the running-cost figures are computed over. */
-internal enum class CostPeriod { M3, M6, Y1 }
+import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
 
 /** The spend categories the running cost breaks down into (drives label + colour). */
 internal enum class CostCategory { FUEL, SERVICE, INSURANCE, REPAIRS }
