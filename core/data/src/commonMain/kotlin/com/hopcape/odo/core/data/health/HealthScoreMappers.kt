@@ -19,9 +19,8 @@ import kotlin.time.Instant
  * breakdown rather than to a headline nothing adds up to. The column stays because the
  * server's schema has it and the sync push needs a value to send.
  *
- * `algo_version` is read and ignored for now. It matters the first time
- * `HealthScoreCalculator.RULES_VERSION` moves, when a snapshot from the old rules must
- * stop being compared against one from the new — the caller will need it then.
+ * `algo_version` travels with the snapshot, because two scores are only comparable when it
+ * matches: the timeline drops a move whose two snapshots were produced by different rules.
  *
  * The sync columns are read and ignored: they exist for the engine, and letting them reach
  * the domain is what the layering forbids.
@@ -39,6 +38,7 @@ internal fun Health_scores.toDomain(): HealthSnapshot = HealthSnapshot(
         ),
     ),
     computedAt = Instant.parse(computed_at),
+    algoVersion = algo_version,
 )
 
 /** A factor's earned points for the write, or 0 for a kind the score somehow lacks. */

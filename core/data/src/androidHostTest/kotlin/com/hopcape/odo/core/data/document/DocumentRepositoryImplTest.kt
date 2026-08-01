@@ -126,6 +126,9 @@ class DocumentRepositoryImplTest {
         title = title,
         issuedOn = LocalDate(2026, 4, 1),
         expiresOn = expiresOn,
+        // The date the row carries, not one this fixture chooses: the repository writes
+        // `created_at` itself, and every read of this document comes back with that day.
+        addedOn = null,
     )
 
     /* ------------------------- reads & writes ------------------------- */

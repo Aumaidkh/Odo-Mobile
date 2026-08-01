@@ -55,6 +55,7 @@ internal fun document(
     source: DocumentSource = DocumentSource.UPLOADED,
     carId: CarId = TEST_CAR,
     storagePath: String = "documents/${carId.value}/$id.pdf",
+    addedOn: LocalDate? = null,
 ): Document = Document.reconstitute(
     id = DocumentId(id),
     ownerId = TEST_OWNER,
@@ -64,6 +65,7 @@ internal fun document(
     source = source,
     issuedOn = issuedOn,
     expiresOn = expiresOn,
+    addedOn = addedOn,
 )
 
 /**

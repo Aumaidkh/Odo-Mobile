@@ -10,6 +10,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthScore
@@ -77,6 +78,7 @@ internal fun testDocument(
     type = type,
     storagePath = "documents/${TEST_CAR.value}/$id.pdf",
     source = DocumentSource.UPLOADED,
+    addedOn = null,
     expiresOn = expiresOn,
 )
 
@@ -101,12 +103,14 @@ internal fun testSnapshot(
     id: String = "snap-old",
     score: HealthScore = testScore(),
     computedAt: String = "2026-07-01T10:00:00Z",
+    algoVersion: String = HealthScoreCalculator.RULES_VERSION,
 ) = HealthSnapshot(
     id = HealthSnapshotId(id),
     carId = TEST_CAR,
     ownerId = TEST_OWNER,
     score = score,
     computedAt = Instant.parse(computedAt),
+    algoVersion = algoVersion,
 )
 
 /** Emits whatever it was given, and lets a test push a change mid-collection. */
@@ -156,6 +160,9 @@ internal class FakeHealthScoreRepository(
 
     override suspend fun latest(carId: CarId): HealthSnapshot? =
         history.filter { it.carId == carId }.maxByOrNull { it.computedAt }
+
+    override fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>> =
+        flowOf(history.filter { it.carId == carId }.sortedBy { it.computedAt })
 
     override suspend fun latestOnOrBefore(carId: CarId, instant: Instant): HealthSnapshot? {
         baselineAsks += instant

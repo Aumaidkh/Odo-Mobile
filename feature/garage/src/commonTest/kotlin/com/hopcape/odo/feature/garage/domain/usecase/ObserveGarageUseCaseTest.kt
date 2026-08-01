@@ -93,6 +93,7 @@ class ObserveGarageUseCaseTest {
         purchaseYear = 2020,
         nickname = null,
         isPrimary = true,
+        addedOn = LocalDate(2026, 1, 5),
     )
 
     private fun document(id: String, type: DocumentType, expiresOn: LocalDate?): Document =
@@ -106,6 +107,7 @@ class ObserveGarageUseCaseTest {
             title = null,
             issuedOn = null,
             expiresOn = expiresOn,
+            addedOn = LocalDate(2026, 6, 1),
         )
 
     private fun entry(

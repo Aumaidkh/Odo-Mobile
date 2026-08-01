@@ -58,6 +58,15 @@ WHERE car_id = :carId AND deleted_at IS NULL
 ORDER BY computed_at DESC
 LIMIT 1;
 
+-- The timeline's source: every score this car has ever been given, oldest first, because a
+-- score event is the move between one snapshot and the next. The same index answers it —
+-- read backwards, which SQLite does without a sort.
+selectHistory:
+SELECT *
+FROM health_scores
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY computed_at ASC;
+
 -- The month delta's baseline: the newest score that is already at least as old as the
 -- window the screen is quoting.
 selectLatestOnOrBefore:

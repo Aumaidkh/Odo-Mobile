@@ -70,6 +70,7 @@ class HealthScoreCalculatorTest {
             type = type,
             storagePath = "documents/$id.jpg",
             source = DocumentSource.UPLOADED,
+            addedOn = null,
             expiresOn = expiresOn,
         )
 

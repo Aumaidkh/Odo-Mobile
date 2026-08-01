@@ -42,6 +42,14 @@ class Document private constructor(
     val issuedOn: LocalDate?,
     /** Null for papers that never lapse — see [DocumentValidity.NoExpiry]. */
     val expiresOn: LocalDate?,
+    /**
+     * The day this document was filed in the vault — what the timeline dates its event by.
+     *
+     * Not the same as [issuedOn], which many papers don't carry, and which can be years
+     * old on a document uploaded today. Null until the document has been stored: the date
+     * comes from the row, so one built by [create] and not yet inserted has no answer.
+     */
+    val addedOn: LocalDate?,
 ) {
     /**
      * This document's standing on [today] — valid, due for renewal, or lapsed. Derived,
@@ -81,6 +89,7 @@ class Document private constructor(
         source = source,
         issuedOn = issuedOn,
         expiresOn = expiresOn,
+        addedOn = addedOn,
     )
 
     companion object {
@@ -121,6 +130,9 @@ class Document private constructor(
                     source = source,
                     issuedOn = validIssuedOn,
                     expiresOn = validExpiresOn,
+                    // Nothing has been stored yet, so there is no date to claim; the row
+                    // written by the insert is what supplies it on the next read.
+                    addedOn = null,
                 )
             }
         }
@@ -141,6 +153,7 @@ class Document private constructor(
             type: DocumentType,
             storagePath: String,
             source: DocumentSource,
+            addedOn: LocalDate?,
             title: String? = null,
             issuedOn: LocalDate? = null,
             expiresOn: LocalDate? = null,
@@ -155,6 +168,7 @@ class Document private constructor(
             source = source,
             issuedOn = issuedOn,
             expiresOn = expiresOn,
+            addedOn = addedOn,
         )
 
         private fun validateStoragePath(path: String?): Either<DomainError, String> {

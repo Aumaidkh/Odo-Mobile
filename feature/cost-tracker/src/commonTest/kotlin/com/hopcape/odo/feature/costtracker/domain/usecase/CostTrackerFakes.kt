@@ -52,6 +52,7 @@ internal fun testCar(fuelType: FuelType = FuelType.PETROL): Car = Car.reconstitu
     purchaseYear = 2021,
     nickname = null,
     isPrimary = true,
+    addedOn = LocalDate(2026, 1, 5),
 )
 
 internal fun testEntry(
