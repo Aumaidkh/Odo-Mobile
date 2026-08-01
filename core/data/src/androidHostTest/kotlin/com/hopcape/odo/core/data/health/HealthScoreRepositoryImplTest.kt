@@ -9,6 +9,7 @@ import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthScore
@@ -19,6 +20,7 @@ import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -115,12 +117,14 @@ class HealthScoreRepositoryImplTest {
         car: CarId = carId,
         computedAt: String = "2026-08-01T10:00:00Z",
         score: HealthScore = score(),
+        algoVersion: String = HealthScoreCalculator.RULES_VERSION,
     ) = HealthSnapshot(
         id = HealthSnapshotId(id),
         carId = car,
         ownerId = ownerId,
         score = score,
         computedAt = Instant.parse(computedAt),
+        algoVersion = algoVersion,
     )
 
     /* ------------------------- tests ------------------------- */
@@ -236,6 +240,54 @@ class HealthScoreRepositoryImplTest {
         val crash = RecordingCrash()
 
         assertNull(repo(db, crash = crash).latest(carId))
+        assertEquals(1, crash.nonFatals.size)
+    }
+
+    @Test
+    fun observeHistory_isOldestFirst() = runTest {
+        val db = newDb()
+        val repository = repo(db)
+        repository.record(snapshot(id = "july", computedAt = "2026-07-01T10:00:00Z"))
+        repository.record(snapshot(id = "june", computedAt = "2026-06-01T10:00:00Z"))
+        repository.record(snapshot(id = "august", computedAt = "2026-08-01T10:00:00Z"))
+
+        // Written out of order, read in the order the moves are worked out in.
+        val history = repository.observeHistory(carId).first()
+
+        assertEquals(listOf("june", "july", "august"), history.map { it.id.value })
+    }
+
+    @Test
+    fun observeHistory_carriesTheRulesVersionEachScoreWasTakenUnder() = runTest {
+        val db = newDb()
+        val repository = repo(db)
+        repository.record(snapshot(id = "old-rules", algoVersion = "rule-v0"))
+        repository.record(snapshot(id = "new-rules", computedAt = "2026-08-02T10:00:00Z"))
+
+        val history = repository.observeHistory(carId).first()
+
+        // The stamp travels with the row rather than being rewritten by whatever this build
+        // computes — a comparison across the two is what the timeline has to refuse.
+        assertEquals(listOf("rule-v0", HealthScoreCalculator.RULES_VERSION), history.map { it.algoVersion })
+    }
+
+    @Test
+    fun observeHistory_ignoresAnotherCarsSnapshots() = runTest {
+        val db = newDb()
+        val repository = repo(db)
+        repository.record(snapshot(id = "mine"))
+        repository.record(snapshot(id = "theirs", car = CarId("car-2")))
+
+        assertEquals(listOf("mine"), repository.observeHistory(carId).first().map { it.id.value })
+    }
+
+    @Test
+    fun observeHistory_isEmptyOnABrokenDatabase() = runTest {
+        val db = OdoDatabase(JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY))
+        val crash = RecordingCrash()
+
+        // The timeline drops its score events and still renders everything else.
+        assertEquals(emptyList(), repo(db, crash = crash).observeHistory(carId).first())
         assertEquals(1, crash.nonFatals.size)
     }
 }

@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.right
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.model.HealthSnapshotId
@@ -48,6 +49,10 @@ internal class RecordHealthScoreUseCase(
                 ownerId = owners.currentOwnerId(),
                 score = score,
                 computedAt = clock.now(),
+                // Stamped here because this is where the score was produced. A row that
+                // claims a version other than the rules that made it cannot be compared
+                // honestly later.
+                algoVersion = HealthScoreCalculator.RULES_VERSION,
             ),
         )
     }

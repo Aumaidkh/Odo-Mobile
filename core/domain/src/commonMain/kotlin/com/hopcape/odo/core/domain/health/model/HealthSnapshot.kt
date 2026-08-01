@@ -38,4 +38,14 @@ data class HealthSnapshot(
     val ownerId: OwnerId,
     val score: HealthScore,
     val computedAt: Instant,
+    /**
+     * Which version of the scoring rules produced [score] —
+     * `HealthScoreCalculator.RULES_VERSION` as it stood when the snapshot was taken.
+     *
+     * Two snapshots are only comparable when this matches. A release that changes the point
+     * rules moves every car's score without anything about the car changing, and a timeline
+     * saying "rose 9 points" on the day of that release would be describing the release, not
+     * the car.
+     */
+    val algoVersion: String,
 )

@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.health
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -7,13 +9,17 @@ import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -34,6 +40,7 @@ internal class HealthScoreRepositoryImpl(
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
     private val clock: Clock = Clock.System,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : HealthScoreRepository {
 
     private val queries get() = database.healthScoreQueries
@@ -62,6 +69,18 @@ internal class HealthScoreRepositoryImpl(
             }
         }
 
+    override fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>> =
+        queries.selectHistory(carId.value)
+            .asFlow()
+            .mapToList(dispatcher)
+            .map { rows -> rows.map { it.toDomain() } }
+            .catch { cause ->
+                telemetry.crashed(DataTelemetry.HEALTH_SCORE, OP_OBSERVE_HISTORY, cause, carId.value)
+                // No readable history reads as none: the timeline drops its score events and
+                // still renders every service, document and milestone it has.
+                emit(emptyList())
+            }
+
     override suspend fun record(snapshot: HealthSnapshot): Either<DomainError, HealthSnapshot> =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_RECORD, snapshot.carId.value) {
             try {
@@ -75,7 +94,10 @@ internal class HealthScoreRepositoryImpl(
                     documentationPts = snapshot.score.pointsFor(HealthFactorKind.DOCUMENTATION),
                     costEfficiencyPts = snapshot.score.pointsFor(HealthFactorKind.COST_EFFICIENCY),
                     historyPts = snapshot.score.pointsFor(HealthFactorKind.HISTORY),
-                    algoVersion = HealthScoreCalculator.RULES_VERSION,
+                    // The snapshot's own version, not whatever this build computes today: the
+                    // caller stamped it when the score was taken, and a row that claims newer
+                    // rules than the ones that produced it is a false comparison later.
+                    algoVersion = snapshot.algoVersion,
                     computedAt = snapshot.computedAt.toString(),
                     now = now,
                     syncStatus = SyncStatus.PENDING.name,
@@ -106,6 +128,7 @@ internal class HealthScoreRepositoryImpl(
     private companion object {
         const val OP_LATEST = "latest"
         const val OP_LATEST_BEFORE = "latestOnOrBefore"
+        const val OP_OBSERVE_HISTORY = "observeHistory"
         const val OP_RECORD = "record"
     }
 }

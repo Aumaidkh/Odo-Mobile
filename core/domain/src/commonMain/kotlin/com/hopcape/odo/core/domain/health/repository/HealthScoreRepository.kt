@@ -4,6 +4,7 @@ import arrow.core.Either
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.coroutines.flow.Flow
 import kotlin.time.Instant
 
 /**
@@ -34,6 +35,20 @@ interface HealthScoreRepository {
      * delta rather than compare against a number from last week and call it a month.
      */
     suspend fun latestOnOrBefore(carId: CarId, instant: Instant): HealthSnapshot?
+
+    /**
+     * The car's whole score history, oldest first, as a stream.
+     *
+     * The timeline reads it: a score event is a move *between* two snapshots, so it needs
+     * the sequence rather than any single row. Oldest first because that is the order the
+     * moves are worked out in, and a stream because a score recorded while the timeline is
+     * open should show up on it.
+     *
+     * Whole history rather than a window, since a snapshot is only written when the score
+     * actually moves — a car that has been scored for two years holds tens of rows, not
+     * thousands.
+     */
+    fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>>
 
     /**
      * Append [snapshot] to the car's history. Append-only: a snapshot records what was
