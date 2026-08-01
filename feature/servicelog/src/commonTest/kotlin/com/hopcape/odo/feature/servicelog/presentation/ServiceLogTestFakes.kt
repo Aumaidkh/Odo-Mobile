@@ -85,6 +85,9 @@ internal class FakeServiceLogRepository(
             .map { OdometerReading(logId = it.id, date = it.serviceDate, odometer = it.odometer) }
         return listOf(baseline) + logs
     }
+
+    override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
+        entries.map { odometerReadings(carId).orEmpty() }
 }
 
 internal object NoopLogger : Logger {

@@ -22,6 +22,28 @@ value class Amount private constructor(val paise: Long) {
     /** Sum of two amounts — both are non-negative, so the result always is too. */
     operator fun plus(other: Amount): Amount = Amount(paise + other.paise)
 
+    /**
+     * This amount repeated [factor] times — a paise-per-km rate times the kilometres
+     * driven, for instance. [factor] must not be negative; a negative count is a
+     * programming error, not a value a caller can recover from.
+     */
+    operator fun times(factor: Int): Amount {
+        require(factor >= 0) { "cannot scale an amount by $factor" }
+        return Amount(paise * factor)
+    }
+
+    /**
+     * This amount spread over [distance], rounded to the nearest paise — the per-km rate
+     * the cost tracker is built on.
+     *
+     * `null` for zero distance: a cost with no kilometres behind it has no rate, and
+     * returning zero there would read as "this car is free to run".
+     */
+    fun perKm(distance: Distance): Amount? {
+        if (distance.km == 0) return null
+        return Amount((paise + distance.km / 2) / distance.km)
+    }
+
     companion object {
         /** No recorded cost — the default for a manually-logged service. */
         val ZERO = Amount(0)

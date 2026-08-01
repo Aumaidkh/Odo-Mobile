@@ -20,6 +20,9 @@ fun formatDate(date: LocalDate): String =
 fun formatMonthYear(date: LocalDate): String =
     "${MONTHS[date.monthNumber - 1]} ${date.year}"
 
+/** "Jun" — the month on its own, for a chart axis where the year is already stated. */
+fun formatMonth(date: LocalDate): String = MONTHS[date.monthNumber - 1]
+
 /**
  * "12 Jun" — the day stamp for a feed already grouped by month (the timeline's rows),
  * where repeating the year on every line would be noise.

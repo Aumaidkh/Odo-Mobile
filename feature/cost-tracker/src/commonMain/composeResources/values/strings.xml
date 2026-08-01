@@ -4,6 +4,7 @@
     <string name="ct_cost_per_km_label">COST PER KILOMETRE</string>
     <string name="ct_per_km_suffix"> / km</string>
     <string name="ct_across">Across %1$s · %2$s</string>
+    <string name="ct_period_range">%1$s – %2$s</string>
 
     <!-- Period selector -->
     <string name="ct_period_3m">3M</string>
@@ -13,18 +14,46 @@
     <!-- Spend by month -->
     <string name="ct_spend_by_month">Spend by month</string>
     <string name="ct_avg_per_month">avg %1$s / mo</string>
+    <string name="ct_bar_range">%1$s–%2$s</string>
+    <string name="ct_bar_month">%1$s</string>
 
     <!-- Where it goes -->
     <string name="ct_where_it_goes">WHERE IT GOES</string>
     <string name="ct_per_km_rate">%1$s / km</string>
     <string name="ct_cat_fuel">Fuel</string>
     <string name="ct_cat_service">Service</string>
-    <string name="ct_cat_insurance">Insurance &amp; docs</string>
     <string name="ct_cat_repairs">Repairs</string>
+
+    <!-- Fuel is never logged, so its share is always an estimate and always says so. -->
+    <string name="ct_fuel_note_owner">Fuel estimated from your rate, %1$s per %2$s</string>
+    <string name="ct_fuel_note_city">Fuel estimated at %1$s per %2$s in %3$s</string>
+    <string name="ct_fuel_note_generic">Fuel estimated at %1$s per %2$s</string>
+    <string name="ct_fuel_note_missing">Fuel is not included — set your city in Profile to add it</string>
+    <string name="ct_unit_litre">litre</string>
+    <string name="ct_unit_kg">kg</string>
+    <string name="ct_unit_kwh">unit</string>
+
+    <!-- Not enough driving behind the numbers to quote a rate. -->
+    <string name="ct_no_rate_title">Not enough to go on yet</string>
+    <string name="ct_no_rate_distance">Odo needs about %1$d km of driving before a cost per kilometre means anything. Log your next service with its odometer reading.</string>
+    <string name="ct_no_rate_readings">Add your car’s odometer reading and Odo will start tracking what it costs to run.</string>
 
     <!-- Summary -->
     <string name="ct_summary">SUMMARY</string>
     <string name="ct_total_spent">Total spent</string>
     <string name="ct_distance_driven">Distance driven</string>
     <string name="ct_avg_month">Average / month</string>
+
+    <string name="ct_error_load_failed">Couldn’t load your running cost</string>
+
+    <!-- The owner’s own fuel rate — the fix for a price Odo has wrong or does not carry -->
+    <string name="ct_fuel_rate_action">Set your rate</string>
+    <string name="ct_fuel_rate_title">What do you pay for fuel?</string>
+    <string name="ct_fuel_rate_subtitle">Odo’s prices are approximate. Enter what your pump charges and every figure here is rebuilt on it.</string>
+    <string name="ct_fuel_rate_label">Price per %1$s</string>
+    <string name="ct_fuel_rate_placeholder">e.g. 104.40</string>
+    <string name="ct_fuel_rate_save">Save rate</string>
+    <string name="ct_fuel_rate_clear">Use Odo’s estimate instead</string>
+    <string name="ct_fuel_rate_error_range">Enter a price between Rs. %1$s and Rs. %2$s</string>
+    <string name="ct_fuel_rate_error_save">Couldn’t save your rate. Try again.</string>
 </resources>

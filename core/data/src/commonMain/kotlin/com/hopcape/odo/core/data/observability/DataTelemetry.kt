@@ -68,6 +68,23 @@ internal class DataTelemetry(
     }
 
     /**
+     * A lookup that found nothing — reference data Odo does not carry yet, not a failure.
+     *
+     * Reported because the alternative is silence: a fuel price missing for a city looks
+     * exactly like a car with no fuel type, and only the first one is a coverage gap
+     * someone can close. [key] is reference data (a city, a fuel type), never anything
+     * that identifies an owner.
+     */
+    suspend fun missing(entity: String, operation: String, key: String) {
+        logger.warn(
+            TAG,
+            "$entity.$operation.missing",
+            tc = currentTraceContext().toLog(),
+            fields = mapOf(Key.KEY to key),
+        )
+    }
+
+    /**
      * An exception this layer caught and turned into a `DomainError.PersistenceFailure`.
      * Recorded as a non-fatal because a swallowed exception is exactly the kind of broken
      * that never reaches a crash dashboard on its own.
@@ -91,6 +108,7 @@ internal class DataTelemetry(
         const val ENTITY = "entity"
         const val OPERATION = "operation"
         const val ERROR = "error"
+        const val KEY = "key"
     }
 
     internal companion object {
@@ -106,5 +124,6 @@ internal class DataTelemetry(
         const val OVERCHARGE = "overcharge"
         const val PROFILE = "profile"
         const val DOCUMENT = "document"
+        const val FUEL_PRICE = "fuelprice"
     }
 }

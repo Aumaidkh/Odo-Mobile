@@ -389,6 +389,55 @@ class ServiceLogRepositoryImplTest {
         assertNull(repo(db).odometerReadings(CarId("nope")))
     }
 
+    @Test
+    fun observeOdometerReadings_emitsTheSameTimeline() = runTest {
+        val db = newDb().apply { seedCar(odometerKm = 45_000, createdAt = "2026-01-01T09:00:00Z") }
+        val repo = repo(db)
+        repo.add(entry(id = "log-1", day = 15, odometerKm = 50_000))
+
+        val readings = repo.observeOdometerReadings(carId).first()
+
+        assertEquals(2, readings.size)
+        assertEquals(45_000, readings.single { it.logId == null }.odometer.km)
+        assertEquals(50_000, readings.single { it.logId != null }.odometer.km)
+    }
+
+    /** The car's own reading moves from the garage, and the cost screen has to see it. */
+    @Test
+    fun observeOdometerReadings_reEmitsWhenTheCarsReadingChanges() = runTest {
+        val db = newDb().apply { seedCar(odometerKm = 45_000) }
+        val repo = repo(db)
+
+        val before = repo.observeOdometerReadings(carId).first().single().odometer.km
+        db.carQueries.updateCar(
+            make = "Maruti Suzuki",
+            model = "Swift",
+            variant = null,
+            year = 2020,
+            fuelType = "PETROL",
+            registrationNumber = null,
+            odometerKm = 48_000,
+            purchaseYear = null,
+            nickname = null,
+            isPrimary = 1,
+            odometerUpdatedAt = "2026-07-01T09:00:00Z",
+            updatedAt = "2026-07-01T09:00:00Z",
+            syncStatus = SyncStatus.PENDING.name,
+            id = carId.value,
+        )
+        val after = repo.observeOdometerReadings(carId).first().single().odometer.km
+
+        assertEquals(45_000, before)
+        assertEquals(48_000, after)
+    }
+
+    @Test
+    fun observeOdometerReadings_isEmptyForAnUnknownCar() = runTest {
+        val db = newDb()
+
+        assertTrue(repo(db).observeOdometerReadings(CarId("nope")).first().isEmpty())
+    }
+
     /* ------------------------- failure reporting ------------------------- */
 
     @Test

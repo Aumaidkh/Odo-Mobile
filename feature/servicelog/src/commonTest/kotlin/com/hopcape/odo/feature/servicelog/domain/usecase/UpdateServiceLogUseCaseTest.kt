@@ -36,6 +36,8 @@ class UpdateServiceLogUseCaseTest {
         }
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
         override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
+            flowOf(readings.orEmpty())
     }
 
     private class FixedClock(private val instant: Instant) : Clock {

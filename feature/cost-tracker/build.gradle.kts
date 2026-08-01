@@ -33,6 +33,9 @@ kotlin {
             // single config is owned by the app bootstrap.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
+            // Spans for the feature's async work, and the flow trace the telemetry facade
+            // stamps on every event.
+            implementation(projects.observability.performance)
             // LocalDate/Clock in the add/update commands + use cases + form VM.
             implementation(libs.kotlinx.datetime)
             // koinViewModel() for the navigation route hosts (effect -> nav bridge).

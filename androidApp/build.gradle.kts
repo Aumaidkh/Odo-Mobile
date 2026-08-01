@@ -47,6 +47,8 @@ dependencies {
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.
     androidTestImplementation(projects.feature.garage)
+    // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.
+    androidTestImplementation(projects.feature.costTracker)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.

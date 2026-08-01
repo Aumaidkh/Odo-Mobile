@@ -1,76 +1,94 @@
 package com.hopcape.odo.feature.costtracker.presentation.runningcost
 
-import arrow.core.getOrElse
+import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
+import com.hopcape.odo.feature.costtracker.presentation.state.Loadable
 
-/** The window the running-cost figures are computed over. */
-internal enum class CostPeriod { M3, M6, Y1 }
-
-/** The spend categories the running cost breaks down into (drives label + colour). */
-internal enum class CostCategory { FUEL, SERVICE, INSURANCE, REPAIRS }
-
-/** One bar in the "spend by month" chart — a bucket's spend, optionally highlighted (a peak). */
+/** One bar in the spend chart — a slice of the period, highlighted when it is the peak. */
+@Immutable
 internal data class SpendBar(
-    val label: String,
+    val label: UiText,
     val amount: Amount,
     val highlighted: Boolean = false,
 )
 
 /** One "where it goes" row — a category's total spend and its per-km contribution. */
+@Immutable
 internal data class CostCategoryRow(
-    val category: CostCategory,
+    val category: SpendCategory,
     val amount: Amount,
-    val perKm: Amount,
+    val perKm: Amount?,
 )
 
 /**
- * Display state for the "Running cost" screen — the per-km cost tracker.
+ * What the screen says about the fuel half of the cost.
  *
- * All money is [Amount] (integer paise): the headline [costPerKm] is a paise/km rate,
- * category [CostCategoryRow.amount] are whole-rupee totals. Rupees (and the per-km
- * decimals) are rendered only in the UI. The bar/track proportions are derived from
- * the amounts, so nothing here carries a pre-computed ratio.
+ * Fuel is never logged — the PRD drops that as friction — so it is worked out from the
+ * distance driven, a price and an assumed efficiency. The owner has to be able to tell
+ * which part of their ₹/km was estimated, and off what.
  */
-internal data class RunningCostUiState(
-    val costPerKm: Amount,
-    val trendPercent: Int,
-    val trendUp: Boolean,
+@Immutable
+internal sealed interface FuelNote {
+
+    /** No price for the owner's city, or no city at all: the figures carry no fuel. */
+    data object Missing : FuelNote
+
+    /**
+     * Fuel is included, at [pricePerUnit] per [unit]. [ownersOwn] is the rate the owner
+     * set themselves, which is worth saying — it is the number they can trust most.
+     */
+    @Immutable
+    data class Estimated(
+        val pricePerUnit: Amount,
+        val unit: FuelUnit,
+        val city: String?,
+        val ownersOwn: Boolean,
+    ) : FuelNote
+}
+
+/** The headline figure, which a car earns only once it has been driven far enough. */
+@Immutable
+internal sealed interface CostHeadline {
+
+    /** The rate, and how it moved against the window before (`null` = nothing to compare). */
+    @Immutable
+    data class Rate(val perKm: Amount, val trendPercent: Int?, val trendUp: Boolean) : CostHeadline
+
+    /**
+     * No rate, and why. Shown instead of a number, never alongside one: a ₹/km taken off
+     * forty kilometres is arithmetic, not information (the PRD's no-false-precision rule).
+     */
+    @Immutable
+    data class NotEnoughYet(val message: UiText) : CostHeadline
+}
+
+/**
+ * What the running-cost screen renders once the read lands.
+ *
+ * All money is [Amount] (integer paise); rupees appear only where the UI formats them.
+ * [fuelNote] is never null — fuel is never logged, so its share is always an estimate and
+ * the screen always says so, including when there is no estimate to show.
+ */
+@Immutable
+internal data class RunningCostContent(
+    val headline: CostHeadline,
     val distance: Distance,
-    val periodRange: String,
-    val period: CostPeriod,
+    val periodRange: UiText,
     val spendBars: List<SpendBar>,
     val avgPerMonth: Amount,
     val categories: List<CostCategoryRow>,
     val totalSpent: Amount,
+    val fuelNote: FuelNote,
 )
 
-/** Sample state for previews and the pre-ViewModel route host (mirrors the mockup). */
-internal fun sampleRunningCost(period: CostPeriod = CostPeriod.Y1): RunningCostUiState = RunningCostUiState(
-    costPerKm = paise(460),
-    trendPercent = 3,
-    trendUp = true,
-    distance = km(22_200),
-    periodRange = "Jul 2025–Jun 2026",
-    period = period,
-    spendBars = listOf(
-        SpendBar("J–A", rupees(9_000)),
-        SpendBar("S–O", rupees(19_000), highlighted = true),
-        SpendBar("N–D", rupees(8_000)),
-        SpendBar("J–F", rupees(7_500)),
-        SpendBar("M–A", rupees(9_500)),
-        SpendBar("M–J", rupees(18_000), highlighted = true),
-    ),
-    avgPerMonth = rupees(8_500),
-    categories = listOf(
-        CostCategoryRow(CostCategory.FUEL, rupees(66_000), paise(297)),
-        CostCategoryRow(CostCategory.SERVICE, rupees(19_000), paise(86)),
-        CostCategoryRow(CostCategory.INSURANCE, rupees(10_800), paise(49)),
-        CostCategoryRow(CostCategory.REPAIRS, rupees(6_200), paise(28)),
-    ),
-    totalSpent = rupees(102_000),
+/** Screen state: the period chips stay live while the figures under them are read. */
+@Immutable
+internal data class RunningCostUiState(
+    val period: CostPeriod = CostPeriod.Y1,
+    val content: Loadable<RunningCostContent> = Loadable.Loading,
 )
-
-private fun rupees(amount: Long): Amount = paise(amount * 100)
-private fun paise(amount: Long): Amount = Amount.of(amount).getOrElse { Amount.ZERO }
-private fun km(distance: Int): Distance = Distance.of(distance).getOrNull() ?: error("invalid sample distance")
