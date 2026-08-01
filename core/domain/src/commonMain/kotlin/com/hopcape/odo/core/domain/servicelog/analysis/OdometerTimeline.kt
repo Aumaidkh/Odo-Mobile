@@ -57,4 +57,51 @@ object OdometerTimeline {
 
         return candidate.right()
     }
+
+    /**
+     * Every place the car's readings go backwards, oldest first.
+     *
+     * [validate] answers "may this one reading be saved"; this answers "does the history
+     * already on file hold together". The health score is what asks — a timeline with a
+     * rollback in it is exactly the thing a buyer is trying to spot, and the score cannot
+     * ask about one reading at a time.
+     *
+     * Rows that predate the app can still be inconsistent, because history is logged
+     * backwards and each entry was only ever checked against the readings that existed at
+     * the time. So this rescans the whole list rather than trusting that every write passed
+     * [validate].
+     *
+     * Same rules as [validate]: a reading is measured against the **highest** reading dated
+     * strictly before it, and readings sharing a date do not constrain each other.
+     */
+    fun anomalies(readings: List<OdometerReading>): List<OdometerAnomaly> {
+        val found = mutableListOf<OdometerAnomaly>()
+        var peak: OdometerReading? = null
+
+        readings.sortedBy { it.date }.groupBy { it.date }.values.forEach { sameDay ->
+            val before = peak
+            if (before != null) {
+                sameDay.filter { it.odometer.km < before.odometer.km }
+                    .forEach { found += OdometerAnomaly(earlier = before, later = it) }
+            }
+            val highest = sameDay.maxBy { it.odometer.km }
+            if (before == null || highest.odometer.km > before.odometer.km) peak = highest
+        }
+
+        return found
+    }
+}
+
+/**
+ * One reading that sits below a reading taken before it — an odometer that counted down.
+ *
+ * Carries both readings rather than just a count, so whatever reports it can name the two
+ * entries involved instead of telling the owner something is wrong somewhere.
+ */
+data class OdometerAnomaly(
+    val earlier: OdometerReading,
+    val later: OdometerReading,
+) {
+    /** How far the reading fell, in kilometres. Always positive. */
+    val droppedByKm: Int get() = earlier.odometer.km - later.odometer.km
 }
