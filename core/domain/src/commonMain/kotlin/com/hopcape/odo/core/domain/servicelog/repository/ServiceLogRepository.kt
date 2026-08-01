@@ -41,4 +41,16 @@ interface ServiceLogRepository {
      * empty list would mean a car with no readings, which onboarding cannot produce.
      */
     suspend fun odometerReadings(carId: CarId): List<OdometerReading>?
+
+    /**
+     * The same readings as [odometerReadings], as a stream — for screens that stay open
+     * while the timeline changes underneath them.
+     *
+     * The cost tracker is the reason it exists: distance driven comes from these readings,
+     * and the car's own reading moves from the garage, not from a service log. Re-reading
+     * only when the logs change would leave a stale ₹/km on screen after the odometer was
+     * updated. Emits an empty list for a car that does not exist, since a stream has no
+     * "not found" to report and nothing to compute from either way.
+     */
+    fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>>
 }

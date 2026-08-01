@@ -51,6 +51,8 @@ class FairnessUseCasesTest {
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
         override suspend fun odometerReadings(carId: CarId): List<OdometerReading> =
             entries.map { OdometerReading(logId = it.id, date = it.serviceDate, odometer = it.odometer) }
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
+            flowOf(entries.map { OdometerReading(logId = it.id, date = it.serviceDate, odometer = it.odometer) })
     }
 
     private fun line(category: ServiceCategory, paise: Long) =

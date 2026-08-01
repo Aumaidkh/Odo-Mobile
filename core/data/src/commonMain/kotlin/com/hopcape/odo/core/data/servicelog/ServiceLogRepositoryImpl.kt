@@ -188,6 +188,14 @@ internal class ServiceLogRepositoryImpl(
             }
         }
 
+    override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
+        queries.selectOdometerReadings(carId.value, ::odometerReadingFromRow)
+            .asFlow()
+            .mapToList(dispatcher)
+            // The query spans `cars` and `service_logs`, so an odometer update from the
+            // garage re-emits here too — which is the whole reason this is a stream.
+            .reportingFailures(OP_OBSERVE_READINGS, carId.value, empty = emptyList())
+
     /** Delete-and-reinsert, always inside the caller's transaction. */
     private fun writeCategories(entry: ServiceLogEntry) {
         queries.deleteCategoriesFor(entry.id.value)
@@ -214,5 +222,6 @@ internal class ServiceLogRepositoryImpl(
         const val OP_UPDATE = "update"
         const val OP_DELETE = "softDelete"
         const val OP_READINGS = "odometerReadings"
+        const val OP_OBSERVE_READINGS = "observeOdometerReadings"
     }
 }

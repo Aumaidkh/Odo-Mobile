@@ -77,6 +77,7 @@ class ObserveGarageUseCaseTest {
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
         override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = emptyList()
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = flowOf(emptyList())
     }
 
     private fun car(odometerKm: Int = 48_500): Car = Car.reconstitute(
