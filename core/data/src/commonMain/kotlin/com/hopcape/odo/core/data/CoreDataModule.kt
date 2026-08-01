@@ -18,6 +18,7 @@ import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
+import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
@@ -38,6 +39,7 @@ import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
@@ -83,6 +85,11 @@ val coreDataModule = module {
     }
     single<DocumentRepository> {
         DocumentRepositoryImpl(database = get(), telemetry = get(), scheduler = get(), remote = get())
+    }
+    // Score history, not today's score: the number on screen is computed on read, and
+    // this only keeps what the month delta is measured against.
+    single<HealthScoreRepository> {
+        HealthScoreRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
     }
     single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
     single<OverchargeReportRepository> {

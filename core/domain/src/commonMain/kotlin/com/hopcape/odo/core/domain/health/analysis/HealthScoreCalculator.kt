@@ -42,6 +42,17 @@ import kotlinx.datetime.minus
 object HealthScoreCalculator {
 
     /**
+     * Which set of rules produced a score — stored alongside every snapshot (DB_SCHEMA
+     * §9.9 `algo_version`).
+     *
+     * **Bump it whenever the point rules below change.** A stored history is only
+     * comparable within one version: without this, a score that moved because the rules
+     * moved is indistinguishable from one that moved because the owner did something, and
+     * the "your score dropped" push would fire for a release.
+     */
+    const val RULES_VERSION: String = "rule-v1"
+
+    /**
      * The shortest record worth full marks. Below it, a proportion is quoted out of three
      * rather than out of what little exists — otherwise one fair bill on a one-entry log
      * would earn all twenty cost points, which reads as a verdict on the car when it is a
