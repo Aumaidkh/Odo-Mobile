@@ -3,6 +3,7 @@ package com.hopcape.odo.core.data.fairness
 import arrow.core.getOrElse
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
+import com.hopcape.odo.core.domain.fairness.model.FairnessRange
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.shared.Amount
@@ -51,7 +52,19 @@ internal class FairnessRepositoryImpl(
             city = city,
             cityAverage = Amount.of(cityAveragePaise).getOrElse { return null },
             sampleSize = sampleSize,
+            range = range(),
         )
+    }
+
+    /**
+     * The percentile spread, or nothing. Both ends have to be there and make sense — a half
+     * a range, or one that runs backwards, is a range the UI would draw wrong, and no range
+     * at all simply means the screen shows no spread.
+     */
+    private fun FairnessEstimateDto.range(): FairnessRange? {
+        val low = p25Paise?.let { Amount.of(it).getOrNull() } ?: return null
+        val high = p75Paise?.let { Amount.of(it).getOrNull() } ?: return null
+        return if (low.paise <= high.paise) FairnessRange(low = low, high = high) else null
     }
 
     private companion object {

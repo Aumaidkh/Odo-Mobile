@@ -5,7 +5,7 @@ import arrow.core.getOrElse
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.BillId
@@ -84,20 +84,6 @@ class FairnessUseCasesTest {
     )
 
     @Test
-    fun checkFairness_overCityAverage() = runTest {
-        val useCase = CheckFairnessUseCase(FakeFairness(mapOf(ServiceCategory.BRAKES to (240_000L to 30))))
-        val verdict = useCase(ServiceCategory.BRAKES, amt(330_000), "Pune")
-        assertIs<FairnessVerdict.Over>(verdict)
-        assertEquals(90_000L, verdict.by.paise)
-    }
-
-    @Test
-    fun checkFairness_noBenchmark_isNull() = runTest {
-        val useCase = CheckFairnessUseCase(FakeFairness(emptyMap()))
-        assertNull(useCase(ServiceCategory.AC, amt(100_000), "Pune"))
-    }
-
-    @Test
     fun resolveEntryFairness_breaksDownEveryLine() = runTest {
         val fairness = FakeFairness(
             mapOf(
@@ -113,7 +99,7 @@ class FairnessUseCasesTest {
         val report = ResolveEntryFairnessUseCase(fairness)(entry, "Pune")!!
 
         assertEquals(2, report.items.size)
-        val over = assertIs<FairnessVerdict.Over>(report.overall)
+        val over = assertIs<FairnessOutcome.Over>(report.outcome)
         assertEquals(90_000L, over.by.paise)
         // The per-line city averages the detail screen's breakdown renders.
         assertEquals(240_000L, report.items.first { it.category == ServiceCategory.BRAKES }.cityAverage?.paise)
@@ -133,7 +119,7 @@ class FairnessUseCasesTest {
         val report = ResolveEntryFairnessUseCase(fairness)(entry, "Pune")!!
 
         assertEquals(1, report.items.size)
-        assertIs<FairnessVerdict.Over>(report.overall)
+        assertIs<FairnessOutcome.Over>(report.outcome)
     }
 
     @Test

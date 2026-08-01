@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 
 import arrow.core.Either
 import arrow.core.right
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessSnapshot
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
@@ -31,13 +32,16 @@ internal class RecordEntryFairnessUseCase(
 ) {
     /**
      * Returns the entry with its verdict recorded, or **unchanged** when there is nothing
-     * to record — no city, no benchmark for the category, or a report that judged none of
-     * its lines. A snapshot exists to freeze a verdict; there is no verdict in those cases,
-     * and storing an empty one would put a badge on screen with nothing behind it.
+     * to record — no city, or no city average for anything on the entry. A snapshot exists
+     * to freeze a comparison; there was none in those cases, and storing an empty one would
+     * put a badge on screen with nothing behind it.
+     *
+     * A check that came back too thinly sampled *is* stored: it compared real prices, and
+     * "only three bills so far" is a finding the owner should keep seeing.
      */
     suspend operator fun invoke(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> {
         val report = resolveFairness(entry, currentCity.currentCity())
-            ?.takeIf { it.overall != null }
+            ?.takeIf { it.outcome != FairnessOutcome.NoBenchmark }
             ?: return entry.right()
 
         return logs.update(entry.withFairness(FairnessSnapshot(report, clock.now())))

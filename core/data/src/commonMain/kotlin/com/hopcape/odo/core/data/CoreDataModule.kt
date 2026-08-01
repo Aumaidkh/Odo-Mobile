@@ -19,6 +19,7 @@ import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.AlwaysProEntitlement
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
+import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
@@ -39,6 +40,7 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
@@ -94,6 +96,9 @@ val coreDataModule = module {
         HealthScoreRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
     }
     single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
+    // The one way to get a verdict. Any feature injects the port and gets the same
+    // benchmarks, so no screen carries a benchmark table of its own.
+    single<FairnessAnalyzer> { RepositoryFairnessAnalyzer(fairness = get()) }
     single<OverchargeReportRepository> {
         OverchargeReportRepositoryImpl(
             database = get(),

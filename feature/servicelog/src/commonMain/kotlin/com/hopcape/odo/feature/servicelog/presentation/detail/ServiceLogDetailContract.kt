@@ -13,6 +13,15 @@ internal sealed interface ServiceLogDetailEvent {
 
     data object EditClicked : ServiceLogDetailEvent
 
+    /** "Add a bill to verify" — offered while the entry is still self-reported. */
+    data object AttachBillClicked : ServiceLogDetailEvent
+
+    /** The picker came back with a file. [pickedRef] is a borrowed handle, not a stored one. */
+    data class BillPicked(val pickedRef: String) : ServiceLogDetailEvent
+
+    /** "Check fairness" — benchmark this entry's lines against the city. */
+    data object CheckFairnessClicked : ServiceLogDetailEvent
+
     /**
      * Deleting is three taps, not one: asking, confirming, and backing out. Each is its own
      * event because each moves [DeleteUiState] somewhere different.
@@ -32,6 +41,16 @@ internal sealed interface ServiceLogDetailEffect {
     data class OpenReportOvercharge(val id: ServiceLogId) : ServiceLogDetailEffect
     data class OpenEditForm(val id: ServiceLogId) : ServiceLogDetailEffect
 
+    /** Open the platform picker; the file comes back as [ServiceLogDetailEvent.BillPicked]. */
+    data object PickBillPhoto : ServiceLogDetailEffect
+
+    /**
+     * Open the shared fairness report for this entry's lines. The lines travel because the
+     * fairness feature benchmarks what it is given — it never reads the service log, which
+     * is what keeps the two features from importing each other.
+     */
+    data class OpenFairness(val id: ServiceLogId, val lines: List<FairnessCheckLine>) : ServiceLogDetailEffect
+
     /**
      * The entry is gone — leave the screen. Separate from [NavigateBack] because it is a
      * consequence, not a request: the list behind this screen is already re-reading itself.
@@ -40,3 +59,13 @@ internal sealed interface ServiceLogDetailEffect {
 
     data object NavigateBack : ServiceLogDetailEffect
 }
+
+/**
+ * One line handed to the fairness check — primitives only, because the navigation key that
+ * carries it is primitive too. The route maps this onto that key.
+ */
+internal data class FairnessCheckLine(
+    val label: String?,
+    val categoryName: String?,
+    val amountPaise: Long,
+)

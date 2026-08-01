@@ -37,11 +37,15 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
@@ -56,11 +60,18 @@ import com.hopcape.odo.feature.servicelog.resources.sl_detail_fair_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_basis
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_label
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_over_headline
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_report
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_reported
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_resale_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_resale_title
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_share
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_thin_basis
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_thin_headline
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_thin_range
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_title
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_total_paid
 import com.hopcape.odo.feature.servicelog.resources.sl_cd_back
@@ -121,7 +132,7 @@ internal fun ServiceLogDetailScreen(
             )
         },
         bottomBar = {
-            loaded?.let { DetailActions(it.entry, state.reported, onEvent) }
+            loaded?.let { DetailActions(it.entry, state, onEvent) }
         },
     ) { padding ->
         when (content) {
@@ -208,36 +219,56 @@ private fun ResaleProofCard(resale: ResaleProofUiState.Verified) {
     }
 }
 
-/** The fairness verdict headline + the estimate behind it. Amber when over the average. */
+/**
+ * The fairness headline + the evidence behind it. Amber over the average, green inside it,
+ * and neutral when the pool is too thin to say either — a thin sample gets its own tone and
+ * its own words, never the reassuring ones.
+ */
 @Composable
 private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
-    val over = fairness.overall as? FairnessVerdict.Over
-    val accent = if (over != null) OdoTheme.colors.warning else OdoTheme.colors.success
+    val outcome = fairness.overall
+    val accent = when (outcome) {
+        is FairnessOutcome.Over -> OdoTheme.colors.warning
+        is FairnessOutcome.TooLittleData -> OdoTheme.colors.textMuted
+        else -> OdoTheme.colors.success
+    }
     OdoCard(
         color = accent.copy(alpha = 0.08f),
         border = BorderStroke(1.dp, accent.copy(alpha = 0.45f)),
     ) {
         IconLabel(IcWarning, stringResource(Res.string.sl_detail_fairness_label).uppercase(), accent)
         OdoText(
-            text = if (over != null) {
-                stringResource(Res.string.sl_detail_over_headline, over.by.formatRupees())
-            } else {
-                stringResource(Res.string.sl_detail_fair_headline)
+            text = when (outcome) {
+                is FairnessOutcome.Over -> stringResource(Res.string.sl_detail_over_headline, outcome.by.formatRupees())
+                is FairnessOutcome.TooLittleData -> stringResource(Res.string.sl_detail_thin_headline)
+                else -> stringResource(Res.string.sl_detail_fair_headline)
             },
             style = OdoTheme.typography.title,
         )
         OdoText(
             // The sample is the weakest line's, so the claim stays no stronger than its
             // thinnest comparison (PRD: never false precision).
-            text = stringResource(
-                Res.string.sl_detail_fairness_basis,
-                fairness.city,
-                fairness.cityAverageTotal.formatRupees(),
-                fairness.sampleSize,
-            ),
+            text = when (outcome) {
+                is FairnessOutcome.TooLittleData ->
+                    stringResource(Res.string.sl_detail_thin_basis, fairness.sampleSize, fairness.city)
+                else -> stringResource(
+                    Res.string.sl_detail_fairness_basis,
+                    fairness.city,
+                    fairness.cityAverageTotal.formatRupees(),
+                    fairness.sampleSize,
+                )
+            },
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
         )
+        // What the middle of the city paid is the only honest figure a thin pool has.
+        (outcome as? FairnessOutcome.TooLittleData)?.estimate?.range?.let { range ->
+            OdoText(
+                stringResource(Res.string.sl_detail_thin_range, range.low.formatRupees(), range.high.formatRupees()),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+        }
     }
 }
 
@@ -314,7 +345,7 @@ private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
 @Composable
 private fun DetailActions(
     entry: ServiceEntryDetailUiState,
-    reported: Boolean,
+    state: ServiceLogDetailUiState,
     onEvent: (ServiceLogDetailEvent) -> Unit,
 ) {
     Column(
@@ -324,6 +355,34 @@ private fun DetailActions(
             .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
+        // A self-reported entry cannot be judged and cannot be shown to a buyer. Adding the
+        // bill is the one action that changes both, so it leads.
+        if (entry.verification != VerificationStatus.VERIFIED) {
+            OdoButton(
+                text = stringResource(Res.string.sl_detail_attach_bill),
+                onClick = { onEvent(ServiceLogDetailEvent.AttachBillClicked) },
+                modifier = Modifier.fillMaxWidth(),
+                loading = state.attach.isInFlight,
+                leadingIcon = { OdoIcon(IcFileFilled, contentDescription = null, size = OdoTheme.iconSizes.small) },
+            )
+        }
+        state.attach.error?.let { message ->
+            OdoText(
+                message.asString(),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.danger,
+            )
+        }
+        // Verified but never judged: the check is worth offering rather than waiting for the
+        // next write to trigger it.
+        if (entry.verification == VerificationStatus.VERIFIED && entry.fairness is EntryFairnessUiState.NotAssessed) {
+            OdoButton(
+                text = stringResource(Res.string.sl_detail_check_fairness),
+                onClick = { onEvent(ServiceLogDetailEvent.CheckFairnessClicked) },
+                modifier = Modifier.fillMaxWidth(),
+                variant = OdoButtonVariant.Secondary,
+            )
+        }
         if (entry.resale is ResaleProofUiState.Verified) {
             OdoButton(
                 text = stringResource(Res.string.sl_detail_share),
@@ -334,11 +393,11 @@ private fun DetailActions(
         }
         if (entry.isOvercharged) {
             OdoButton(
-                text = stringResource(if (reported) Res.string.sl_detail_reported else Res.string.sl_detail_report),
+                text = stringResource(if (state.reported) Res.string.sl_detail_reported else Res.string.sl_detail_report),
                 onClick = { onEvent(ServiceLogDetailEvent.ReportOverchargeClicked) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = OdoButtonVariant.Secondary,
-                enabled = !reported,
+                enabled = !state.reported,
             )
         }
     }

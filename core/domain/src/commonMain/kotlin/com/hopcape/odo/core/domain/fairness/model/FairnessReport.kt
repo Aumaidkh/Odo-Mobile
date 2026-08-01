@@ -6,7 +6,7 @@ import com.hopcape.odo.core.domain.shared.sum
 
 /**
  * The output of a fairness check — a per-line comparison against city averages, plus the
- * headline [overall] verdict derived from it.
+ * headline [outcome] derived from it.
  *
  * Built only through [of], which is **the** fairness math for the whole app: a scanned
  * bill, a standalone price check and a logged service entry all reduce to a [FairnessQuery]
@@ -29,28 +29,34 @@ data class FairnessReport(
     val cityAverageTotal: Amount get() = items.map { it.estimate?.cityAverage ?: it.amount }.sum()
 
     /**
-     * The headline verdict, merged from the lines — `null` when nothing was comparable (no
-     * city benchmark for anything here), which is the UI's cue to show no verdict at all
-     * rather than a reassuring one.
+     * The headline, merged from the lines.
      *
-     * Any overcharged line makes the whole report [FairnessVerdict.Over] (by the summed
+     * Any overcharged line makes the whole report [FairnessOutcome.Over] (by the summed
      * excess), because a total that lands inside the fair band can still hide one line that
      * is badly over — and catching exactly that is the product's job.
+     *
+     * The two ways of reaching no verdict stay apart: [FairnessOutcome.NoBenchmark] when
+     * nothing here has a city average, [FairnessOutcome.TooLittleData] when the comparisons
+     * exist but rest on too few data points. The UI has to say something different for each.
      */
-    val overall: FairnessVerdict?
+    val outcome: FairnessOutcome
         get() {
             val verdicts = items.mapNotNull { it.verdict }
-            if (verdicts.isEmpty()) return null
+            if (verdicts.isEmpty()) return FairnessOutcome.NoBenchmark
 
             val over = verdicts.filterIsInstance<FairnessVerdict.Over>()
-            if (over.isNotEmpty()) return FairnessVerdict.Over(over.map { it.by }.sum())
-            if (verdicts.any { it is FairnessVerdict.Fair }) return FairnessVerdict.Fair
+            if (over.isNotEmpty()) return FairnessOutcome.Over(over.map { it.by }.sum())
+            if (verdicts.any { it is FairnessVerdict.Fair }) return FairnessOutcome.Fair
 
             val under = verdicts.filterIsInstance<FairnessVerdict.Under>()
-            if (under.isNotEmpty()) return FairnessVerdict.Under(under.map { it.by }.sum())
+            if (under.isNotEmpty()) return FairnessOutcome.Under(under.map { it.by }.sum())
 
-            // Everything comparable was too thinly sampled to judge.
-            return verdicts.filterIsInstance<FairnessVerdict.LowConfidence>().firstOrNull()
+            // Everything comparable was too thinly sampled to judge. The thinnest line
+            // speaks for the report, for the same reason [sampleSize] takes the minimum.
+            val thinnest = verdicts.filterIsInstance<FairnessVerdict.LowConfidence>()
+                .minByOrNull { it.estimate.sampleSize }
+            return thinnest?.let { FairnessOutcome.TooLittleData(it.estimate) }
+                ?: FairnessOutcome.NoBenchmark
         }
 
     /**

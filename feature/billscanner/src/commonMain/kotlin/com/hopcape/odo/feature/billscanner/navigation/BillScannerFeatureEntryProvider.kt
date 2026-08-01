@@ -15,6 +15,7 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.FairnessLineInput
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
+import com.hopcape.odo.core.domain.servicelog.analysis.ServiceCategoryGuesser
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
@@ -89,11 +90,20 @@ internal fun BillReviewRoute(navigationManager: NavigationManager) {
         // "Save & check fairness" hands the reviewed line items to the reusable
         // fairness-check utility via the shared registry — billscanner doesn't own the
         // benchmarking flow, it just builds the input. (Persisting the entry is M2.)
+        //
+        // Each line is read for the job it names: the pool is keyed by category, so a line
+        // with none cannot be benchmarked. A line the guesser does not recognise travels
+        // uncategorised and the report carries it through unjudged.
         onSave = {
             navigationManager.navigateTo(
                 OdoDestination.Fairness(
-                    city = REVIEW_CITY,
-                    items = extracted.lineItems.map { FairnessLineInput(it.label, category = null, amountPaise = it.amount.paise) },
+                    items = extracted.lineItems.map {
+                        FairnessLineInput(
+                            label = it.label,
+                            category = ServiceCategoryGuesser.of(it.label)?.name,
+                            amountPaise = it.amount.paise,
+                        )
+                    },
                 ),
             )
         },
@@ -146,7 +156,7 @@ internal fun ScanErrorRoute(navigationManager: NavigationManager) {
 /** The placeholder car + saved-entry the demo scan flow runs on until real ids thread through. */
 private const val DEMO_CAR_ID = "aaa"
 private const val DEMO_LOG_ID = "aaa"
-/** Sample city for the fairness benchmark until the car's city threads through. */
+/** Sample city on the report-success screen until the owner's city threads through. */
 private const val REVIEW_CITY = "Pune"
 
 /** Exit the scan flow and reset to the car's service log with a clean back stack. */

@@ -26,6 +26,14 @@ internal data class FairnessEstimateDto(
     @SerialName("city") val city: String,
     @SerialName("city_average_paise") val cityAveragePaise: Long,
     @SerialName("sample_size") val sampleSize: Int,
+    /**
+     * The 25th/75th percentile of the pool, which `get_fairness_estimate` already returns
+     * (DB_SCHEMA §12.1). Nullable because a benchmark that carries only an average is a
+     * legal answer, and a thin pool is exactly where the client needs the percentiles: it
+     * is the only honest figure to show when there is no verdict to give.
+     */
+    @SerialName("p25_paise") val p25Paise: Long? = null,
+    @SerialName("p75_paise") val p75Paise: Long? = null,
 )
 
 /**
@@ -44,26 +52,36 @@ internal class FakeFairnessRemoteDataSource : FairnessRemoteDataSource {
 
     override suspend fun estimates(categories: List<String>, city: String): List<FairnessEstimateDto> =
         categories.mapNotNull { name ->
-            CANNED[name]?.let { (averageRupees, sampleSize) ->
+            CANNED[name]?.let { canned ->
                 FairnessEstimateDto(
                     category = name,
                     city = city,
-                    cityAveragePaise = averageRupees * 100,
-                    sampleSize = sampleSize,
+                    cityAveragePaise = canned.averageRupees * 100,
+                    sampleSize = canned.sampleSize,
+                    p25Paise = canned.p25Rupees * 100,
+                    p75Paise = canned.p75Rupees * 100,
                 )
             }
         }
 
+    /** One made-up benchmark, in rupees, with the spread a real pool would have. */
+    private data class Canned(
+        val averageRupees: Long,
+        val sampleSize: Int,
+        val p25Rupees: Long,
+        val p75Rupees: Long,
+    )
+
     private companion object {
-        /** category name → (city average in rupees, sample size). */
         val CANNED = mapOf(
-            "OIL_CHANGE" to (2_100L to 31),
-            "BRAKES" to (3_400L to 24),
-            "GENERAL_SERVICE" to (4_200L to 48),
-            "BATTERY" to (5_800L to 12),
-            "TYRES" to (12_500L to 9),
-            // Under the 5-point floor: exercises the low-confidence path.
-            "AC" to (2_600L to 3),
+            "OIL_CHANGE" to Canned(2_100, 31, 1_800, 2_450),
+            "BRAKES" to Canned(3_400, 24, 2_900, 3_950),
+            "GENERAL_SERVICE" to Canned(4_200, 48, 3_600, 4_900),
+            "BATTERY" to Canned(5_800, 12, 5_200, 6_500),
+            "TYRES" to Canned(12_500, 9, 11_000, 14_000),
+            // Under the 5-point floor: exercises the low-confidence path, where the range
+            // is the only thing the UI can honestly show.
+            "AC" to Canned(2_600, 3, 2_200, 3_100),
         )
     }
 }

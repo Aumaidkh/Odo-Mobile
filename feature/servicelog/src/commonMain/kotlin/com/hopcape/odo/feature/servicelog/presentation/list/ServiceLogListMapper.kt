@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.servicelog.presentation.list
 
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
@@ -47,18 +47,20 @@ internal fun ServiceLogEntry.toCardUiState(): ServiceLogCardUiState = ServiceLog
  * nothing to judge, without a stored verdict nothing has been judged yet, and only then
  * does the verdict itself decide.
  *
- * The verdict is the one that was **stored** when the check ran, never a fresh one — see
+ * The outcome is the one that was **stored** when the check ran, never a fresh one — see
  * `FairnessSnapshot`: the figure the owner was shown is the figure they keep seeing.
  */
 private fun ServiceLogEntry.fairnessBadge(): ServiceLogFairnessBadge = when {
     verification == VerificationStatus.SELF_REPORTED -> ServiceLogFairnessBadge.AddBillToVerify
-    else -> when (val verdict = fairness?.verdict) {
-        null -> ServiceLogFairnessBadge.NotYetChecked
-        is FairnessVerdict.Over -> ServiceLogFairnessBadge.Overcharged(verdict.by)
-        is FairnessVerdict.LowConfidence -> ServiceLogFairnessBadge.NotEnoughData(verdict.estimate)
+    else -> when (val outcome = fairness?.outcome) {
+        // No check stored, and a check that found no city average to compare against, are
+        // the same thing to a card: nothing has been judged.
+        null, FairnessOutcome.NoBenchmark -> ServiceLogFairnessBadge.NotYetChecked
+        is FairnessOutcome.Over -> ServiceLogFairnessBadge.Overcharged(outcome.by)
+        is FairnessOutcome.TooLittleData -> ServiceLogFairnessBadge.NotEnoughData(outcome.estimate)
         // Under the average is a fair price too — the product flags overcharging, and an
         // owner who paid less doesn't need a second, cleverer word for "you're fine".
-        FairnessVerdict.Fair, is FairnessVerdict.Under -> ServiceLogFairnessBadge.FairPrice
+        FairnessOutcome.Fair, is FairnessOutcome.Under -> ServiceLogFairnessBadge.FairPrice
     }
 }
 

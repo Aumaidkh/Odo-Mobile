@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.servicelog.presentation.detail
 
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessReportItem
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
@@ -43,9 +44,10 @@ private fun ServiceLogLineItem.toUiState() = ServiceLineItemUiState(
  */
 private fun ServiceLogEntry.toFairnessUiState(): EntryFairnessUiState {
     val report = fairness?.report ?: return EntryFairnessUiState.NotAssessed
-    val overall = report.overall ?: return EntryFairnessUiState.NotAssessed
+    val outcome = report.outcome
+    if (outcome == FairnessOutcome.NoBenchmark) return EntryFairnessUiState.NotAssessed
     return EntryFairnessUiState.Assessed(
-        overall = overall,
+        overall = outcome,
         city = report.city,
         cityAverageTotal = report.cityAverageTotal,
         sampleSize = report.sampleSize,
@@ -72,9 +74,9 @@ private fun ServiceLogEntry.toResaleUiState(scoreUplift: Int): ResaleProofUiStat
     } else {
         ResaleProofUiState.Verified(
             scoreUplift = scoreUplift,
-            // A snapshot carries a verdict only when something was actually comparable, so
-            // its presence is exactly the claim "this price was checked".
-            fairPriceChecked = fairness?.verdict != null,
+            // Only a real comparison counts as checked. A stored snapshot that found no
+            // benchmark judged nothing, and must not read as a price someone verified.
+            fairPriceChecked = fairness?.outcome?.let { it != FairnessOutcome.NoBenchmark } == true,
         )
     }
 

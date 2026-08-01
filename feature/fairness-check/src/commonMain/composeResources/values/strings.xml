@@ -1,15 +1,28 @@
 <resources>
     <string name="fc_title">Fairness check</string>
 
-    <!-- Verdict hero -->
+    <!-- Verdict hero: paid over the city average -->
     <string name="fc_over_label">OVERCHARGE CAUGHT</string>
     <string name="fc_over_headline">You may have overpaid — </string>
     <string name="fc_over_amount">%1$s over</string>
     <string name="fc_over_body">The %1$s average for this job is %2$s — your bill came to %3$s.</string>
+
+    <!-- Verdict hero: at or under the city average -->
     <string name="fc_fair_label">FAIR PRICE</string>
     <string name="fc_fair_headline">This looks fair — </string>
     <string name="fc_fair_highlight">right on target</string>
     <string name="fc_fair_body">Within %1$s of the %2$s average for this job — no overcharge here.</string>
+
+    <!-- Verdict hero: compared, but on too few bills to judge (PRD: no false precision) -->
+    <string name="fc_thin_label">NOT ENOUGH DATA</string>
+    <string name="fc_thin_headline">Can’t call this one yet</string>
+    <string name="fc_thin_body">Only %1$d bills for this job in %2$s so far — too few to say whether you overpaid.</string>
+    <string name="fc_thin_range">Most owners paid between %1$s and %2$s.</string>
+
+    <!-- Verdict hero: nothing on the bill has a city average -->
+    <string name="fc_none_label">NO CITY DATA</string>
+    <string name="fc_none_headline">Nothing to compare against</string>
+    <string name="fc_none_body">Odo has no %1$s prices for these jobs yet. The more bills owners scan, the sharper this check gets.</string>
 
     <!-- Comparison + breakdown -->
     <string name="fc_basis">BASED ON %1$d VERIFIED BILLS · %2$s</string>
@@ -22,6 +35,16 @@
     <string name="fc_item_unlabelled">This item</string>
     <!-- No city average exists for this line yet, so it is shown but not judged. -->
     <string name="fc_item_no_benchmark">no city average yet</string>
+    <string name="fc_item_thin">too few bills to judge</string>
+
+    <!-- The owner has not set a city, so there is nothing to benchmark against -->
+    <string name="fc_no_city_title">Which city are you in?</string>
+    <string name="fc_no_city_body">Prices differ a lot between cities. Set yours and Odo can tell you whether this bill is fair.</string>
+    <string name="fc_no_city_action">Set your city</string>
+
+    <!-- The lookup itself broke -->
+    <string name="fc_error_check_failed">The price check couldn’t run. Try again in a moment.</string>
+    <string name="fc_retry">Try again</string>
 
     <!-- Actions -->
     <string name="fc_report">Report overcharge</string>

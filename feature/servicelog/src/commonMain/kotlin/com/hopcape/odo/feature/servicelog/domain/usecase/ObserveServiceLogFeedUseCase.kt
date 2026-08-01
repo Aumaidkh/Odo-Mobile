@@ -3,7 +3,7 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.fairness.analysis.SavingsCalculator
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceRecordSummary
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -47,7 +47,7 @@ internal data class ServiceLogFeed(
     val savings: FairnessSavings,
 ) {
     /** The Flagged chip's count — entries whose stored verdict came back over. */
-    val flaggedCount: Int get() = entries.count { it.fairness?.verdict is FairnessVerdict.Over }
+    val flaggedCount: Int get() = entries.count { it.fairness?.outcome is FairnessOutcome.Over }
 
     /** The Verified chip's count, straight off the record summary. */
     val verifiedCount: Int get() = summary.verifiedCount

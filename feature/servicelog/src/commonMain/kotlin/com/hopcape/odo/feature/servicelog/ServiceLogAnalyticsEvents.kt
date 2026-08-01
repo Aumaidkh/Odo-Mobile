@@ -72,6 +72,27 @@ val serviceLogAnalyticsEvents: List<EventSchema> = listOf(
         ),
     ),
 
+    EventSchema(ServiceLogTelemetry.Event.BILL_ATTACHED),
+    EventSchema(
+        ServiceLogTelemetry.Event.ATTACH_FAILED,
+        mapOf(
+            ServiceLogTelemetry.Key.LOG_ID to PropertyType.STRING,
+            ServiceLogTelemetry.Key.ERRORS to PropertyType.STRING,
+        ),
+    ),
+    EventSchema(
+        ServiceLogTelemetry.Event.FAIRNESS_RECORDED,
+        mapOf(ServiceLogTelemetry.Key.OUTCOME to PropertyType.STRING),
+    ),
+    EventSchema(
+        ServiceLogTelemetry.Event.FAIRNESS_FAILED,
+        mapOf(
+            ServiceLogTelemetry.Key.LOG_ID to PropertyType.STRING,
+            ServiceLogTelemetry.Key.ERRORS to PropertyType.STRING,
+        ),
+    ),
+    EventSchema(ServiceLogTelemetry.Event.FAIRNESS_OPENED),
+
     EventSchema(
         ServiceLogTelemetry.Event.REPORT_SUBMITTED,
         mapOf(ServiceLogTelemetry.Key.REASON to PropertyType.STRING),

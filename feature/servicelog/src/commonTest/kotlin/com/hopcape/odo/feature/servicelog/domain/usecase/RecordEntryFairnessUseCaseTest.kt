@@ -3,7 +3,7 @@ package com.hopcape.odo.feature.servicelog.domain.usecase
 import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -81,7 +81,7 @@ class RecordEntryFairnessUseCaseTest {
 
         val snapshot = assertNotNull(assertNotNull(entry).fairness)
         assertEquals(checkedAt, snapshot.checkedAt)
-        val over = assertIs<FairnessVerdict.Over>(snapshot.verdict)
+        val over = assertIs<FairnessOutcome.Over>(snapshot.outcome)
         assertEquals(90_000L, over.by.paise)
     }
 

@@ -4,6 +4,7 @@ import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.FairnessQuery
 import com.hopcape.odo.core.domain.fairness.model.FairnessQueryItem
+import com.hopcape.odo.core.domain.fairness.model.FairnessRange
 import com.hopcape.odo.core.domain.fairness.model.FairnessReport
 import com.hopcape.odo.core.domain.fairness.model.FairnessSnapshot
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
@@ -42,6 +43,13 @@ internal data class FairnessItemDto(
     /** The benchmark as it stood at check time; absent when the line was never judged. */
     @SerialName("city_average_paise") val cityAveragePaise: Long? = null,
     @SerialName("sample_size") val sampleSize: Int? = null,
+    /**
+     * The spread the benchmark carried. Frozen with the average for the same reason: a
+     * thinly sampled line shows this range instead of a verdict, and the owner must not
+     * find a different range on the same entry next week.
+     */
+    @SerialName("p25_paise") val p25Paise: Long? = null,
+    @SerialName("p75_paise") val p75Paise: Long? = null,
 )
 
 /** Lenient about unknown keys so a payload written by a newer build still reads. */
@@ -58,6 +66,8 @@ internal fun FairnessSnapshot.toJson(): String = json.encodeToString(
                 amountPaise = item.amount.paise,
                 cityAveragePaise = item.estimate?.cityAverage?.paise,
                 sampleSize = item.estimate?.sampleSize,
+                p25Paise = item.estimate?.range?.low?.paise,
+                p75Paise = item.estimate?.range?.high?.paise,
             )
         },
     ),
@@ -94,10 +104,18 @@ internal fun String?.toFairnessSnapshot(): FairnessSnapshot? {
             city = dto.city,
             cityAverage = paise(average),
             sampleSize = item.sampleSize ?: 0,
+            range = item.storedRange(),
         )
     }.toMap()
 
     return FairnessSnapshot(report = FairnessReport.of(query, estimates), checkedAt = checkedAt)
+}
+
+/** The stored spread, or nothing — a half a range is treated as no range at all. */
+private fun FairnessItemDto.storedRange(): FairnessRange? {
+    val low = p25Paise ?: return null
+    val high = p75Paise ?: return null
+    return if (low <= high) FairnessRange(low = paise(low), high = paise(high)) else null
 }
 
 private fun paise(value: Long): Amount = Amount.of(value).getOrElse { Amount.ZERO }

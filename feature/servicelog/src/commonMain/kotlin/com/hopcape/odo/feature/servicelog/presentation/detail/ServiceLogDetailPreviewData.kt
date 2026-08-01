@@ -5,6 +5,7 @@ import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.domain.fairness.model.FairnessConfidence
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -31,7 +32,7 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
         ServiceLineItemUiState("Labour", ServiceCategory.BRAKES, rupees(120_000)),
     ),
     fairness = EntryFairnessUiState.Assessed(
-        overall = FairnessVerdict.Over(rupees(110_000)),
+        overall = FairnessOutcome.Over(rupees(110_000)),
         city = "Pune",
         cityAverageTotal = rupees(370_000),
         sampleSize = 240,

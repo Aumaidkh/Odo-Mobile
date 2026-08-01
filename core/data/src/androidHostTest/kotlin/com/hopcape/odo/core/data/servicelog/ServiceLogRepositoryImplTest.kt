@@ -15,7 +15,8 @@ import com.hopcape.odo.core.domain.fairness.model.FairnessQuery
 import com.hopcape.odo.core.domain.fairness.model.FairnessQueryItem
 import com.hopcape.odo.core.domain.fairness.model.FairnessReport
 import com.hopcape.odo.core.domain.fairness.model.FairnessSnapshot
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
+import com.hopcape.odo.core.domain.fairness.model.FairnessRange
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
@@ -177,7 +178,13 @@ class ServiceLogRepositoryImplTest {
                 items = listOf(FairnessQueryItem("Front pads", ServiceCategory.BRAKES, amt(paidPaise))),
             ),
             estimates = mapOf(
-                ServiceCategory.BRAKES to FairnessEstimate(ServiceCategory.BRAKES, "Pune", amt(averagePaise), sampleSize),
+                ServiceCategory.BRAKES to FairnessEstimate(
+                    category = ServiceCategory.BRAKES,
+                    city = "Pune",
+                    cityAverage = amt(averagePaise),
+                    sampleSize = sampleSize,
+                    range = FairnessRange(low = amt(averagePaise - 40_000), high = amt(averagePaise + 50_000)),
+                ),
             ),
         ),
         checkedAt = Instant.parse("2026-07-03T10:00:00Z"),
@@ -234,10 +241,15 @@ class ServiceLogRepositoryImplTest {
         val stored = assertNotNull(repo.observe(ServiceLogId("log-1")).first()?.fairness)
         // The verdict is not stored — it is rebuilt from the frozen estimate, and must come
         // back identical.
-        val over = assertIs<FairnessVerdict.Over>(stored.verdict)
+        val over = assertIs<FairnessOutcome.Over>(stored.outcome)
         assertEquals(90_000L, over.by.paise)
         assertEquals(240_000L, stored.report.items.single().cityAverage?.paise)
         assertEquals(30, stored.report.sampleSize)
+        // The spread is frozen with the average: a thin pool shows it instead of a verdict,
+        // and it must not move under the owner between reads.
+        val range = assertNotNull(stored.report.items.single().estimate?.range)
+        assertEquals(200_000L, range.low.paise)
+        assertEquals(290_000L, range.high.paise)
         assertEquals(Instant.parse("2026-07-03T10:00:00Z"), stored.checkedAt)
     }
 
