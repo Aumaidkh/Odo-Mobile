@@ -40,8 +40,13 @@ class DocumentReconstituteTest {
             title = created.title?.value,
             issuedOn = created.issuedOn,
             expiresOn = created.expiresOn,
+            addedOn = LocalDate(2026, 7, 28),
         )
 
+        // The one field rehydration adds rather than round-trips: a created document has no
+        // stored row yet, so it cannot know the day it was filed.
+        assertNull(created.addedOn)
+        assertEquals(LocalDate(2026, 7, 28), rehydrated.addedOn)
         assertEquals(created.id, rehydrated.id)
         assertEquals(created.ownerId, rehydrated.ownerId)
         assertEquals(created.carId, rehydrated.carId)
@@ -62,8 +67,10 @@ class DocumentReconstituteTest {
             type = DocumentType.RC,
             storagePath = "documents/car-1/rc.pdf",
             source = DocumentSource.DIGILOCKER,
+            addedOn = null,
         )
 
+        assertNull(rehydrated.addedOn)
         assertNull(rehydrated.title)
         assertNull(rehydrated.issuedOn)
         assertNull(rehydrated.expiresOn)
@@ -79,6 +86,7 @@ class DocumentReconstituteTest {
                 type = DocumentType.INSURANCE,
                 storagePath = "documents/car-1/doc-1.pdf",
                 source = DocumentSource.UPLOADED,
+                addedOn = null,
                 title = "x".repeat(DocumentTitle.MAX_LENGTH + 1),
             )
         }
@@ -94,6 +102,7 @@ class DocumentReconstituteTest {
                 type = DocumentType.INSURANCE,
                 storagePath = "  ",
                 source = DocumentSource.UPLOADED,
+                addedOn = null,
             )
         }
     }

@@ -27,6 +27,7 @@ class DocumentReminderPolicyTest {
         type = type,
         storagePath = "documents/car-1/doc-1.pdf",
         source = DocumentSource.UPLOADED,
+        addedOn = null,
         expiresOn = expiresOn,
     )
 

@@ -20,6 +20,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.datetime.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -53,6 +54,7 @@ internal fun testCar(
     purchaseYear = 2021,
     nickname = nickname,
     isPrimary = isPrimary,
+    addedOn = LocalDate(2026, 1, 5),
 )
 
 /** Records what was written, and can be told to fail the way a full disk would. */

@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.domain.car.model
 
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -40,8 +41,13 @@ class CarReconstituteTest {
             purchaseYear = created.purchaseYear?.value,
             nickname = created.nickname,
             isPrimary = created.isPrimary,
+            addedOn = LocalDate(2026, 7, 28),
         )
 
+        // The one field rehydration adds rather than round-trips: a created car has no
+        // stored row yet, so it cannot know the day it was added.
+        assertEquals(null, created.addedOn)
+        assertEquals(LocalDate(2026, 7, 28), rehydrated.addedOn)
         assertEquals(created.id, rehydrated.id)
         assertEquals(created.ownerId, rehydrated.ownerId)
         assertEquals(created.make, rehydrated.make)
@@ -71,8 +77,10 @@ class CarReconstituteTest {
             purchaseYear = null,
             nickname = null,
             isPrimary = false,
+            addedOn = null,
         )
 
+        assertEquals(null, car.addedOn)
         assertEquals(null, car.variant)
         assertEquals(null, car.registrationNumber)
         assertEquals(null, car.purchaseYear)

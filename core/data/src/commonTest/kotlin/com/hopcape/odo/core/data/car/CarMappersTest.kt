@@ -3,11 +3,16 @@ package com.hopcape.odo.core.data.car
 import com.hopcape.odo.core.data.db.Cars
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.FuelType
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class CarMappersTest {
+
+    /** Pinned so the created-at conversion is tested against a zone, not the machine's. */
+    private val delhi = TimeZone.of("Asia/Kolkata")
 
     private fun row(
         variant: String? = "ZXi",
@@ -15,6 +20,7 @@ class CarMappersTest {
         purchaseYear: Long? = 2021L,
         nickname: String? = "Daily",
         isPrimary: Long = 1L,
+        createdAt: String = "2026-06-30T00:00:00Z",
     ) = Cars(
         id = "car-1",
         owner_id = "owner-1",
@@ -29,7 +35,7 @@ class CarMappersTest {
         nickname = nickname,
         is_primary = isPrimary,
         odometer_updated_at = "2026-06-30T00:00:00Z",
-        created_at = "2026-06-30T00:00:00Z",
+        created_at = createdAt,
         updated_at = "2026-06-30T00:00:00Z",
         deleted_at = null,
         remote_version = null,
@@ -38,7 +44,7 @@ class CarMappersTest {
 
     @Test
     fun toDomain_mapsEveryField() {
-        val car = row().toDomain()
+        val car = row().toDomain(delhi)
         assertEquals("car-1", car.id.value)
         assertEquals("owner-1", car.ownerId.value)
         assertEquals("Maruti Suzuki", car.make)
@@ -51,6 +57,16 @@ class CarMappersTest {
         assertEquals(2021, car.purchaseYear?.value)
         assertEquals("Daily", car.nickname)
         assertEquals(true, car.isPrimary)
+        assertEquals(LocalDate(2026, 6, 30), car.addedOn)
+    }
+
+    @Test
+    fun toDomain_readsAddedOnInTheOwnersZoneNotUtc() {
+        // Stored at 20:30 UTC on the 29th, which is 2am on the 30th in Delhi. The milestone
+        // has to say the day the owner added the car.
+        val car = row(createdAt = "2026-06-29T20:30:00Z").toDomain(delhi)
+
+        assertEquals(LocalDate(2026, 6, 30), car.addedOn)
     }
 
     @Test
@@ -61,7 +77,7 @@ class CarMappersTest {
             purchaseYear = null,
             nickname = null,
             isPrimary = 0L,
-        ).toDomain()
+        ).toDomain(delhi)
         assertNull(car.variant)
         assertNull(car.registrationNumber)
         assertNull(car.purchaseYear)

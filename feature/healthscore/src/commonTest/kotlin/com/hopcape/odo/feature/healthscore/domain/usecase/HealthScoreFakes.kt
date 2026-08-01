@@ -77,6 +77,7 @@ internal fun testDocument(
     type = type,
     storagePath = "documents/${TEST_CAR.value}/$id.pdf",
     source = DocumentSource.UPLOADED,
+    addedOn = null,
     expiresOn = expiresOn,
 )
 

@@ -45,6 +45,7 @@ private val sampleCar: Car = Car.reconstitute(
     purchaseYear = 2020,
     nickname = null,
     isPrimary = true,
+    addedOn = LocalDate(2026, 1, 5),
 )
 
 private fun document(
@@ -61,6 +62,7 @@ private fun document(
     title = null,
     issuedOn = null,
     expiresOn = expiresOn,
+    addedOn = LocalDate(2026, 6, 1),
 )
 
 /** Insurance in force, a PUC inside its renewal window, and no RC uploaded at all. */

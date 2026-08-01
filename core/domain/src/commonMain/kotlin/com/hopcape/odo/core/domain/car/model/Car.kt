@@ -9,6 +9,7 @@ import arrow.core.raise.zipOrAccumulate
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.datetime.LocalDate
 
 /**
  * The Car aggregate root — the consistency boundary for a single car.
@@ -35,6 +36,15 @@ class Car private constructor(
     val purchaseYear: PurchaseYear?,
     val nickname: String?,
     val isPrimary: Boolean,
+    /**
+     * The day this car was added to Odo — the date of the timeline's opening milestone.
+     *
+     * Null until the car has been stored: the date comes from the row, so a car built by
+     * [create] and not yet inserted has no answer. A stored car always has one. Kept
+     * nullable rather than stamped in [create] because editing a car re-runs [create] with
+     * the same id, which would move a date that the first insert owns.
+     */
+    val addedOn: LocalDate?,
 ) {
     /**
      * What to call this car on screen: the owner's nickname if they gave one, otherwise
@@ -78,6 +88,7 @@ class Car private constructor(
                 purchaseYear = purchaseYear,
                 nickname = nickname,
                 isPrimary = isPrimary,
+                addedOn = addedOn,
             )
         }
 
@@ -124,6 +135,9 @@ class Car private constructor(
                     purchaseYear = validPurchaseYear,
                     nickname = nickname?.trim()?.ifBlank { null },
                     isPrimary = isPrimary,
+                    // Nothing has been stored yet, so there is no date to claim; the row
+                    // written by the insert is what supplies it on the next read.
+                    addedOn = null,
                 )
             }
         }
@@ -151,6 +165,7 @@ class Car private constructor(
             purchaseYear: Int?,
             nickname: String?,
             isPrimary: Boolean,
+            addedOn: LocalDate?,
         ): Car = Car(
             id = id,
             ownerId = ownerId,
@@ -166,6 +181,7 @@ class Car private constructor(
                 .getOrElse { error("corrupt car.purchaseYear=$purchaseYear for ${id.value}") },
             nickname = nickname,
             isPrimary = isPrimary,
+            addedOn = addedOn,
         )
     }
 }
