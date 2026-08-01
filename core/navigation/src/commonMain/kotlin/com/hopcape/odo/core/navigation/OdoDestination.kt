@@ -201,14 +201,21 @@ sealed interface OdoDestination : NavKey {
 
     /**
      * Fairness check — a **reusable benchmarking utility**. A caller passes the minimal
-     * input (what was paid, per job, and the city); the fairness feature runs the
-     * analysis and shows the report. Any feature invokes it through this one shared key
-     * (bill scanner, a logged entry, a standalone price check), so the benchmarking flow
-     * lives in exactly one place.
+     * input (what was paid, per job); the fairness feature runs the analysis and shows the
+     * report. Any feature invokes it through this one shared key (bill scanner, a logged
+     * entry, a standalone price check), so the benchmarking flow lives in exactly one place.
+     *
+     * The city is deliberately **not** here: it is the owner's, read from their profile, and
+     * a caller passing one would be a second answer to a question the app already has.
+     *
+     * [logId] and [carId] name the entry the check is about, when there is one. They are what
+     * let the report offer "Report overcharge" — a standalone price check has nothing to
+     * report against, so it passes neither and the action does not appear.
      */
     data class Fairness(
-        val city: String,
         val items: List<FairnessLineInput>,
+        val logId: String? = null,
+        val carId: String? = null,
     ) : OdoDestination
 
     /**

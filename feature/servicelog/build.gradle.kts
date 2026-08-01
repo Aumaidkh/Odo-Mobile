@@ -28,6 +28,8 @@ kotlin {
             // Feature-specific use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
+            // The file picker + the store that copies a picked bill into app storage.
+            implementation(projects.core.platform)
             // Observability: structured logging + product analytics, instrumented at
             // the presentation layer (domain stays pure). Interfaces injected; the
             // single config is owned by the app bootstrap.

@@ -71,6 +71,14 @@
     <string name="sl_detail_over_headline">%1$s over the city average</string>
     <string name="sl_detail_fair_headline">Fair price vs the city average</string>
     <string name="sl_detail_fairness_basis">%1$s average is %2$s — based on %3$d verified bills.</string>
+    <!-- Too few bills in the city pool to call the price either way. -->
+    <string name="sl_detail_thin_headline">Not enough data to judge this price</string>
+    <string name="sl_detail_thin_basis">Only %1$d bills for this job in %2$s so far.</string>
+    <string name="sl_detail_thin_range">Most owners paid between %1$s and %2$s.</string>
+    <!-- Turning a self-reported entry into a verified one, and checking its price. -->
+    <string name="sl_detail_attach_bill">Add a bill to verify</string>
+    <string name="sl_detail_check_fairness">Check fairness</string>
+    <string name="sl_error_attach_failed">The bill couldn’t be attached. Try again.</string>
     <string name="sl_detail_city_avg">city avg %1$s</string>
     <string name="sl_detail_share">Share verified record</string>
     <string name="sl_detail_report">Report this overcharge</string>

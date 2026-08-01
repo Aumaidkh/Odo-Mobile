@@ -1,6 +1,8 @@
 package com.hopcape.odo.feature.documentvault
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.feature.documentvault.domain.file.DocumentFileStore
+import com.hopcape.odo.feature.documentvault.domain.file.PlatformDocumentFileStore
 import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.DeleteDocumentUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentDetailUseCase
@@ -31,15 +33,17 @@ import org.koin.dsl.module
  * `DocumentRepository` and `DocumentAllowance` come from `coreDataModule`, `IdGenerator` +
  * `Clock` from `coreCommonModule`.
  *
- * The `DocumentFileStore` binding is deliberately *not* here: storing a file needs
- * platform APIs (a Context on Android), so each platform contributes its own —
- * `documentVaultAndroidModule` / `documentVaultIosModule` — through the bootstrap's
- * platform module.
+ * `PlatformFileStore` comes from `:core:platform`, bound per platform by
+ * `corePlatformAndroidModule` / `corePlatformIosModule` in the bootstrap's platform module.
+ * The vault's own [DocumentFileStore] is named on top of it here, in common code, because
+ * only the naming is vault-specific — the copying is not.
  */
 val documentVaultModule = module {
     single {
         DocumentVaultFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
+
+    single<DocumentFileStore> { PlatformDocumentFileStore(files = get()) }
 
     factory { ObserveDocumentVaultUseCase(documents = get(), clock = get()) }
     factory { ObserveDocumentDetailUseCase(documents = get(), files = get(), clock = get()) }

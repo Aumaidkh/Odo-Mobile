@@ -10,11 +10,14 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
+import com.hopcape.odo.core.navigation.FairnessLineInput
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEffect
+import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEvent
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailViewModel
 import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormEffect
@@ -109,9 +112,31 @@ internal fun ServiceLogDetailRoute(
         parametersOf(CarId(key.carId), ServiceLogId(key.logId))
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Held here because a picker is a platform activity, not a ViewModel call: the launcher
+    // has to be remembered in the composition that will still be alive when it returns.
+    val launchBillPicker = rememberFilePicker { pickedRef ->
+        pickedRef?.let { viewModel.onEvent(ServiceLogDetailEvent.BillPicked(it)) }
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            ServiceLogDetailEffect.PickBillPhoto -> launchBillPicker()
+
+            is ServiceLogDetailEffect.OpenFairness ->
+                navigationManager.navigateTo(
+                    OdoDestination.Fairness(
+                        items = effect.lines.map {
+                            FairnessLineInput(
+                                label = it.label.orEmpty(),
+                                category = it.categoryName,
+                                amountPaise = it.amountPaise,
+                            )
+                        },
+                        logId = effect.id.value,
+                        carId = key.carId,
+                    ),
+                )
+
             ServiceLogDetailEffect.OpenShareRecord ->
                 navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
 
@@ -172,9 +197,9 @@ internal fun ServiceLogFormRoute(
             ServiceLogFormEffect.OpenBillScanner ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
 
-            // TODO(M2): pick/capture a bill photo and attach it via AttachBillPhotoUseCase.
-            //  There is no camera/file capability behind a port yet, so the tap is collected
-            //  rather than opening a picker that can't return anything.
+            // Attaching happens on the entry's detail screen, where there is an entry to
+            // attach to. The form's slot is a prompt, not a second way in: a photo picked
+            // before the entry exists would have nothing to be copied against.
             ServiceLogFormEffect.AttachBill -> Unit
 
             ServiceLogFormEffect.NavigateBack -> navigationManager.back()

@@ -24,9 +24,9 @@ dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.core.data)
-    // Same reason: the vault's Android document store needs a Context to copy picked
-    // files into private storage, so it is constructed in the Koin bootstrap here.
-    implementation(projects.feature.documentVault)
+    // Same reason: the Android file store needs a Context to copy picked files into
+    // private storage, so it is constructed in the Koin bootstrap here.
+    implementation(projects.core.platform)
     implementation(projects.observability.logging)
     // Analytics — HAnalytics.init + consent gate configured here.
     implementation(projects.observability.analytics)
@@ -43,6 +43,8 @@ dependencies {
     // The flow's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.onboarding)
     androidTestImplementation(projects.feature.servicelog)
+    // FairnessTestTags — the fairness report is asserted by identity, not by its copy.
+    androidTestImplementation(projects.feature.fairnessCheck)
     // The vault's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.

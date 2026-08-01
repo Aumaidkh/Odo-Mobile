@@ -4,7 +4,7 @@ import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.document.model.latestOfType
-import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthScore
@@ -185,14 +185,14 @@ object HealthScoreCalculator {
      * An entry earns here only if a fairness check cleared it. An overcharged entry earns
      * nothing, and so does one nobody ever checked — which is what makes scanning bills
      * (the PRD's North Star) the way to move this number. A
-     * [LowConfidence][FairnessVerdict.LowConfidence] verdict counts as unchecked, never as
+     * [TooLittleData][FairnessOutcome.TooLittleData] result counts as unchecked, never as
      * an overcharge: too thin a sample is not evidence against the owner.
      */
     private fun costEfficiencyPoints(entries: List<ServiceLogEntry>): Int {
         if (entries.isEmpty()) return 0
         val fair = entries.count { entry ->
-            when (entry.fairness?.verdict) {
-                FairnessVerdict.Fair, is FairnessVerdict.Under -> true
+            when (entry.fairness?.outcome) {
+                FairnessOutcome.Fair, is FairnessOutcome.Under -> true
                 else -> false
             }
         }

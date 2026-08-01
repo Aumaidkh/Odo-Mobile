@@ -169,6 +169,60 @@ internal class ServiceLogTelemetry(
     }
 
     /**
+     * Times attaching a bill — the copy into app storage plus the write.
+     *
+     * Worth its own span because it is the slowest thing the detail screen does and the one
+     * that changes what the entry is worth: a verified entry is resale proof and is the only
+     * kind fairness will judge. A failure here is a photo the owner picked and lost.
+     */
+    suspend fun billAttach(
+        id: ServiceLogId,
+        write: suspend () -> Either<DomainError, ServiceLogEntry>,
+    ): Either<DomainError, ServiceLogEntry> = traced(Trace.ATTACH_BILL, Key.LOG_ID to id.value) { span ->
+        val result = write()
+        result.fold(
+            ifLeft = { error ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.typeName())
+                analytics.track(Event.ATTACH_FAILED, fields)
+                logger.error(TAG, Event.ATTACH_FAILED, tc = currentTraceContext().toLog(), fields = fields)
+            },
+            ifRight = {
+                analytics.track(Event.BILL_ATTACHED)
+                logger.info(TAG, Event.BILL_ATTACHED, tc = currentTraceContext().toLog(), fields = mapOf(Key.LOG_ID to id.value))
+            },
+        )
+        result
+    }
+
+    /**
+     * A verdict was stored on an entry. [outcome] is the result's type name, or `null` when
+     * the check found nothing to compare against — the gap the fairness pool has to close,
+     * and invisible unless it is counted.
+     */
+    fun fairnessRecorded(outcome: String?) {
+        val fields = mapOf(Key.OUTCOME to (outcome ?: NONE))
+        analytics.track(Event.FAIRNESS_RECORDED, fields)
+        logger.info(TAG, Event.FAIRNESS_RECORDED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /**
+     * The verdict could not be written. The bill is attached either way, so this is a
+     * missing badge rather than lost work — but it is silent, which is why it is logged.
+     */
+    fun fairnessRecordFailed(id: ServiceLogId, error: DomainError) {
+        val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.typeName())
+        analytics.track(Event.FAIRNESS_FAILED, fields)
+        logger.error(TAG, Event.FAIRNESS_FAILED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** "Check fairness" opened the shared report from an entry. */
+    fun fairnessOpened() {
+        analytics.track(Event.FAIRNESS_OPENED)
+        logger.debug(TAG, Event.FAIRNESS_OPENED, tc = flowTrace.toLog())
+    }
+
+    /**
      * Times the overcharge report. The [reason] travels because it is the whole point of
      * the report — which kind of overcharging owners hit is what the fairness pool learns.
      * The note never does: it is free text the owner wrote about a named workshop.
@@ -250,6 +304,9 @@ internal class ServiceLogTelemetry(
         const val TAG = "SERVICELOG"
         const val FLOW = "servicelog"
         const val UNKNOWN = "Unknown"
+
+        /** No verdict at all — the check ran and found nothing to compare against. */
+        const val NONE = "None"
     }
 
     /*
@@ -274,6 +331,12 @@ internal class ServiceLogTelemetry(
         const val ENTRY_DELETED = "servicelog_entry_deleted"
         const val DELETE_FAILED = "servicelog_delete_failed"
 
+        const val BILL_ATTACHED = "servicelog_bill_attached"
+        const val ATTACH_FAILED = "servicelog_attach_failed"
+        const val FAIRNESS_RECORDED = "servicelog_fairness_recorded"
+        const val FAIRNESS_FAILED = "servicelog_fairness_failed"
+        const val FAIRNESS_OPENED = "servicelog_fairness_opened"
+
         const val REPORT_SUBMITTED = "servicelog_report_submitted"
         const val REPORT_FAILED = "servicelog_report_failed"
 
@@ -287,6 +350,8 @@ internal class ServiceLogTelemetry(
         const val ENTRY_LOAD = "servicelog_entry_load"
         const val SAVE_ENTRY = "servicelog_save_entry"
         const val DELETE_ENTRY = "servicelog_delete_entry"
+        const val ATTACH_BILL = "servicelog_attach_bill"
+        const val CHECK_FAIRNESS = "servicelog_check_fairness"
         const val SUBMIT_REPORT = "servicelog_submit_report"
         const val SHARE_LOAD = "servicelog_share_load"
     }

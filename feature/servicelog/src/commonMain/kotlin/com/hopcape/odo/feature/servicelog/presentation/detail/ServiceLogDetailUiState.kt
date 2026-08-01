@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.servicelog.presentation.detail
 
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.fairness.model.FairnessConfidence
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -55,7 +56,7 @@ internal sealed interface EntryFairnessUiState {
      * surface beside the verdict so the PRD's no-false-precision guardrail holds.
      */
     data class Assessed(
-        val overall: FairnessVerdict,
+        val overall: FairnessOutcome,
         val city: String,
         val cityAverageTotal: Amount,
         val sampleSize: Int,
@@ -129,18 +130,35 @@ internal data class ServiceEntryDetailUiState(
 ) {
     /** Whether this entry is over the city average — what offers the "report" action. */
     val isOvercharged: Boolean
-        get() = (fairness as? EntryFairnessUiState.Assessed)?.overall is FairnessVerdict.Over
+        get() = (fairness as? EntryFairnessUiState.Assessed)?.overall is FairnessOutcome.Over
+}
+
+/**
+ * Attaching a bill: the copy into app storage plus the write, as one visible step.
+ *
+ * It has a state of its own because it is the slowest thing this screen does and the one
+ * that changes what the entry *is* — a failed attach that looked like nothing happened
+ * would leave the owner tapping again on a photo they already picked.
+ */
+internal sealed interface AttachUiState {
+    data object Idle : AttachUiState
+    data object InFlight : AttachUiState
+    data class Failed(val message: UiText) : AttachUiState
+
+    val isInFlight: Boolean get() = this is InFlight
+    val error: UiText? get() = (this as? Failed)?.message
 }
 
 /**
  * Detail render state. [content] is the mutually-exclusive load phase — a sealed type, so
  * illegal combinations ("loading, yet has an entry") can't be represented and the UI's
- * `when` is exhaustive. [delete] and [reported] are orthogonal to the load phase (they
- * persist across a re-emit of [content]), so they stay top-level.
+ * `when` is exhaustive. [delete], [attach] and [reported] are orthogonal to the load phase
+ * (they persist across a re-emit of [content]), so they stay top-level.
  */
 internal data class ServiceLogDetailUiState(
     val content: Content = Content.Loading,
     val delete: DeleteUiState = DeleteUiState.Idle,
+    val attach: AttachUiState = AttachUiState.Idle,
     /** 1a: the user has filed the "Report this overcharge" action for this entry. */
     val reported: Boolean = false,
 ) {

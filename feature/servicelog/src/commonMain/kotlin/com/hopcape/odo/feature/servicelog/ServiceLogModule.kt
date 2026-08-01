@@ -4,12 +4,15 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.AttachBillPhotoUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.DeleteServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceLogFeedUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveShareableRecordUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.RecordEntryFairnessUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ReportOverchargeUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.ResolveEntryFairnessUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.UpdateServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.navigation.ServiceLogFeatureEntryProvider
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
@@ -25,7 +28,8 @@ import org.koin.dsl.module
 /**
  * DI graph for the service-log feature. `ServiceLogRepository`, `FairnessRepository`,
  * `OverchargeReportRepository`, `CarRepository` and `CurrentCityProvider` come from
- * `coreDataModule`, `NavigationManager` from `coreNavigationModule`, and the three
+ * `coreDataModule`, `PlatformFileStore` from the bootstrap's platform module,
+ * `NavigationManager` from `coreNavigationModule`, and the three
  * observability ports from the `:observability:*` modules; the `:app` host registers
  * them all.
  *
@@ -47,6 +51,18 @@ val serviceLogModule = module {
     factory { UpdateServiceLogUseCase(logs = get(), clock = get()) }
     factory { DeleteServiceLogUseCase(logs = get()) }
     factory { ReportOverchargeUseCase(reports = get()) }
+    // The bill-to-verdict pair. Attaching copies the picked file through :core:platform's
+    // store; recording asks the shared benchmark pool and freezes what it said.
+    factory { AttachBillPhotoUseCase(logs = get(), files = get()) }
+    factory { ResolveEntryFairnessUseCase(fairness = get()) }
+    factory {
+        RecordEntryFairnessUseCase(
+            logs = get(),
+            resolveFairness = get(),
+            currentCity = get(),
+            clock = get(),
+        )
+    }
 
     // A `factory`, not a `single`: each instance mints its own trace id, so one instance
     // covers one visit to the service log. Every screen of the feature shares the flow id
@@ -67,6 +83,8 @@ val serviceLogModule = module {
             logId = params.get<ServiceLogId>(),
             observeDetail = get(),
             deleteLog = get(),
+            attachBillPhoto = get(),
+            recordFairness = get(),
             telemetry = get(),
         )
     }

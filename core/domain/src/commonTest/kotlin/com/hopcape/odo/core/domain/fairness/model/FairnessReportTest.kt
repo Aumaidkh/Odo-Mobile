@@ -29,7 +29,7 @@ class FairnessReportTest {
             mapOf(ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000)),
         )
 
-        val over = assertIs<FairnessVerdict.Over>(report.overall)
+        val over = assertIs<FairnessOutcome.Over>(report.outcome)
         assertEquals(90_000L, over.by.paise)
     }
 
@@ -46,7 +46,7 @@ class FairnessReportTest {
             ),
         )
 
-        val over = assertIs<FairnessVerdict.Over>(report.overall)
+        val over = assertIs<FairnessOutcome.Over>(report.outcome)
         assertEquals(90_000L, over.by.paise)
     }
 
@@ -60,7 +60,7 @@ class FairnessReportTest {
             ),
         )
 
-        val over = assertIs<FairnessVerdict.Over>(report.overall)
+        val over = assertIs<FairnessOutcome.Over>(report.outcome)
         assertEquals(190_000L, over.by.paise)
     }
 
@@ -71,7 +71,7 @@ class FairnessReportTest {
             mapOf(ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000)),
         )
 
-        val under = assertIs<FairnessVerdict.Under>(report.overall)
+        val under = assertIs<FairnessOutcome.Under>(report.outcome)
         assertEquals(90_000L, under.by.paise)
     }
 
@@ -82,7 +82,7 @@ class FairnessReportTest {
             mapOf(ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000)),
         )
 
-        assertIs<FairnessVerdict.Fair>(report.overall)
+        assertIs<FairnessOutcome.Fair>(report.outcome)
     }
 
     @Test
@@ -93,8 +93,50 @@ class FairnessReportTest {
             mapOf(ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000, sampleSize = 3)),
         )
 
-        assertIs<FairnessVerdict.LowConfidence>(report.overall)
+        val thin = assertIs<FairnessOutcome.TooLittleData>(report.outcome)
+        assertEquals(3, thin.estimate.sampleSize)
         assertEquals(FairnessConfidence.LOW, report.confidence)
+    }
+
+    @Test
+    fun thinnestBenchmark_speaksForTheReport() {
+        val report = FairnessReport.of(
+            query(ServiceCategory.BRAKES to 330_000, ServiceCategory.AC to 200_000),
+            mapOf(
+                ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000, sampleSize = 4),
+                ServiceCategory.AC to estimate(ServiceCategory.AC, 100_000, sampleSize = 2),
+            ),
+        )
+
+        val thin = assertIs<FairnessOutcome.TooLittleData>(report.outcome)
+        assertEquals(2, thin.estimate.sampleSize)
+        assertEquals(ServiceCategory.AC, thin.estimate.category)
+    }
+
+    @Test
+    fun aThinLine_neverSilencesAJudgedOne() {
+        val report = FairnessReport.of(
+            query(ServiceCategory.BRAKES to 330_000, ServiceCategory.AC to 200_000),
+            mapOf(
+                ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000, sampleSize = 30),
+                ServiceCategory.AC to estimate(ServiceCategory.AC, 100_000, sampleSize = 2),
+            ),
+        )
+
+        val over = assertIs<FairnessOutcome.Over>(report.outcome)
+        assertEquals(90_000L, over.by.paise)
+    }
+
+    @Test
+    fun noBenchmarkAndTooLittleData_areNotTheSameAnswer() {
+        val nothingToCompare = FairnessReport.of(query(ServiceCategory.BRAKES to 330_000), emptyMap())
+        val comparedButThin = FairnessReport.of(
+            query(ServiceCategory.BRAKES to 330_000),
+            mapOf(ServiceCategory.BRAKES to estimate(ServiceCategory.BRAKES, 240_000, sampleSize = 3)),
+        )
+
+        assertEquals(FairnessOutcome.NoBenchmark, nothingToCompare.outcome)
+        assertIs<FairnessOutcome.TooLittleData>(comparedButThin.outcome)
     }
 
     @Test
@@ -104,7 +146,7 @@ class FairnessReportTest {
         assertEquals(1, report.items.size)
         assertNull(report.items.single().verdict)
         assertNull(report.items.single().cityAverage)
-        assertNull(report.overall)
+        assertEquals(FairnessOutcome.NoBenchmark, report.outcome)
     }
 
     @Test
@@ -135,10 +177,10 @@ class FairnessReportTest {
     }
 
     @Test
-    fun emptyQuery_hasNoVerdictAndNoSample() {
+    fun emptyQuery_hasNothingToBenchmarkAndNoSample() {
         val report = FairnessReport.of(FairnessQuery(CITY, emptyList()), emptyMap())
 
-        assertNull(report.overall)
+        assertEquals(FairnessOutcome.NoBenchmark, report.outcome)
         assertEquals(0, report.sampleSize)
         assertEquals(Amount.ZERO, report.yourTotal)
     }

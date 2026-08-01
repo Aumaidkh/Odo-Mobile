@@ -20,9 +20,9 @@ data class FairnessSnapshot(
     val report: FairnessReport,
     val checkedAt: Instant,
 ) {
-    /** The headline verdict as judged at [checkedAt] — `null` if nothing was comparable. */
-    val verdict: FairnessVerdict? get() = report.overall
+    /** The headline as judged at [checkedAt]. */
+    val outcome: FairnessOutcome get() = report.outcome
 
     /** How much this entry was overcharged by, or `null` if it was not. */
-    val overchargedBy get() = (verdict as? FairnessVerdict.Over)?.by
+    val overchargedBy get() = (outcome as? FairnessOutcome.Over)?.by
 }
