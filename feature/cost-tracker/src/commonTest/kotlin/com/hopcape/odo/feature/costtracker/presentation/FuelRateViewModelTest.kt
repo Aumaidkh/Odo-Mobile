@@ -160,6 +160,52 @@ class FuelRateViewModelTest {
         assertFalse(viewModel.state.value.saving)
     }
 
+    /** The sheet outlives the visit that saved, so it must not reopen with dead controls. */
+    @Test
+    fun aSavedSheetIsUsableAgainWhenItReopens() = runTest(dispatcher) {
+        val prices = FakeFuelPriceProvider(testFuelPrice(pricePaise = 10_500))
+        val viewModel = viewModel(provider = prices)
+        advanceUntilIdle()
+
+        viewModel.onEvent(FuelRateEvent.PriceChanged("104.40"))
+        viewModel.onEvent(FuelRateEvent.SaveTapped)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.saving, "a saved sheet reopens with live controls")
+        // And it prefills from the price again rather than from what was typed last time.
+        prices.set(testFuelPrice(pricePaise = 10_440, city = null, source = FuelPriceSource.OWNER))
+        advanceUntilIdle()
+        assertEquals("104.40", viewModel.state.value.price)
+    }
+
+    /** The sheet outlives one visit, so a price set on the last one has to show on the next. */
+    @Test
+    fun aPriceChangedElsewhereReachesAnOpenSheet() = runTest(dispatcher) {
+        val prices = FakeFuelPriceProvider(testFuelPrice(pricePaise = 10_500))
+        val viewModel = viewModel(provider = prices)
+        advanceUntilIdle()
+        assertEquals("105", viewModel.state.value.price)
+
+        prices.set(testFuelPrice(pricePaise = 11_040, city = null, source = FuelPriceSource.OWNER))
+        advanceUntilIdle()
+
+        assertEquals("110.40", viewModel.state.value.price)
+        assertTrue(viewModel.state.value.canClear)
+    }
+
+    @Test
+    fun whatTheOwnerHasTypedIsNeverOverwritten() = runTest(dispatcher) {
+        val prices = FakeFuelPriceProvider(testFuelPrice(pricePaise = 10_500))
+        val viewModel = viewModel(provider = prices)
+        advanceUntilIdle()
+
+        viewModel.onEvent(FuelRateEvent.PriceChanged("99.9"))
+        prices.set(testFuelPrice(pricePaise = 11_040))
+        advanceUntilIdle()
+
+        assertEquals("99.9", viewModel.state.value.price)
+    }
+
     @Test
     fun rupeesTypedBecomePaise() {
         assertEquals(10_440L, toPaise("104.40"))
@@ -185,12 +231,13 @@ class FuelRateViewModelTest {
         overrides: FakeFuelPriceOverrides = FakeFuelPriceOverrides(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
         carId: CarId? = TEST_CAR,
+        provider: FakeFuelPriceProvider = FakeFuelPriceProvider(price),
     ) = FuelRateViewModel(
         activeCar = FakeActiveCarProvider(carId),
         getFuelRate = GetFuelRateUseCase(
             cars = FakeCarRepository(testCar(FuelType.PETROL)),
             city = cityProvider("Pune"),
-            fuelPrices = FakeFuelPriceProvider(price),
+            fuelPrices = provider,
         ),
         setFuelRate = SetFuelRateUseCase(
             overrides = overrides,

@@ -25,6 +25,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -102,15 +103,26 @@ internal class FakeServiceLogRepository(
     override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = flowOf(readings)
 }
 
-/** Answers with [price] for every lookup, and records what was asked for. */
+/**
+ * Answers with whatever [price] holds, records what was asked for, and re-emits when a test
+ * changes it — the way the real adapter re-emits when the owner sets a rate.
+ */
 internal class FakeFuelPriceProvider(
-    private val price: FuelPrice? = null,
+    price: FuelPrice? = null,
 ) : FuelPriceProvider {
     val lookups = mutableListOf<Pair<String?, FuelType>>()
+    private val changes = MutableStateFlow(price)
 
     override suspend fun priceFor(city: String?, fuelType: FuelType): FuelPrice? {
         lookups += city to fuelType
-        return price
+        return changes.value
+    }
+
+    override fun priceChanges(): Flow<Unit> = changes.map { }
+
+    /** Stand in for the owner setting or clearing their own rate. */
+    fun set(price: FuelPrice?) {
+        changes.value = price
     }
 }
 

@@ -15,6 +15,8 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
@@ -34,7 +36,7 @@ class LocalFuelPriceProviderTest {
         FuelType.entries.forEach { fuelType ->
             val price = provider.priceFor("Pune", fuelType)
             assertNotNull(price, "$fuelType")
-            assertEquals("pune", price.city)
+            assertEquals("Pune", price.city, "the city is echoed as the owner wrote it")
             assertEquals(fuelType, price.fuelType)
             assertEquals(FuelPriceSource.SEED, price.source)
             assertEquals(SEED_EFFECTIVE_DATE, price.effectiveDate)
@@ -50,6 +52,25 @@ class LocalFuelPriceProviderTest {
             FUEL_PRICE_SEED.getValue("bengaluru").getValue(FuelType.PETROL),
             price?.pricePerUnit?.paise,
         )
+        // Matched on a lowercase key, but reported back as the owner typed it: the key is
+        // Odo's index, and a screen that printed it would read "in bengaluru".
+        assertEquals("BENGALURU", price?.city)
+    }
+
+    @Test
+    fun aWriteReachesAnyoneWatchingThePrices() = runTest {
+        val provider = provider(seededDb())
+        val changes = mutableListOf<Unit>()
+
+        val job = launch { provider.priceChanges().collect { changes += it } }
+        advanceUntilIdle()
+        val onSubscribe = changes.size
+        provider.setOverride(FuelType.PETROL, paise(11_000), today)
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(1, onSubscribe, "a subscriber is told the current state first")
+        assertTrue(changes.size > onSubscribe, "setting a rate has to reach the screen")
     }
 
     @Test

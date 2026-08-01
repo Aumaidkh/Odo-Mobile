@@ -46,6 +46,11 @@ deleteOverride:
 DELETE FROM fuel_price
 WHERE fuel_type = :fuelType AND source = 'OWNER';
 
+-- Any query over the table re-runs on any write to it, which is how a reader learns that
+-- the owner set their own rate. The count itself is not used.
+countPrices:
+SELECT count(*) FROM fuel_price;
+
 -- Seed guard. Counts one batch by its date, so an app update carrying corrected prices
 -- inserts its newer batch instead of being skipped as "already seeded".
 countSeededOn:

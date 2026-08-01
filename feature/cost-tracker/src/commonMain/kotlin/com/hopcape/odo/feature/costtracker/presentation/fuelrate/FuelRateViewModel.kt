@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.costtracker.domain.usecase.ClearFuelRateUseCase
+import com.hopcape.odo.feature.costtracker.domain.usecase.FuelRateSnapshot
 import com.hopcape.odo.feature.costtracker.domain.usecase.GetFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.domain.usecase.SetFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTelemetry
@@ -46,15 +47,25 @@ internal class FuelRateViewModel(
     private val _effects = Channel<FuelRateEffect>(Channel.BUFFERED)
     val effects: Flow<FuelRateEffect> = _effects.receiveAsFlow()
 
-    /** The car's fuel, read once — every write is against it. */
+    /** The car's fuel, read with the price — every write is against it. */
     private var fuelType: FuelType = FuelType.PETROL
 
+    /** Once the owner has typed, the field is theirs and no re-read may overwrite it. */
+    private var edited = false
+
     init {
-        viewModelScope.launch(telemetry.op(OP_LOAD)) { load() }
+        viewModelScope.launch(telemetry.op(OP_LOAD)) {
+            activeCar.activeCarId.value?.let { carId ->
+                getFuelRate.observe(carId).collect(::apply)
+            }
+        }
     }
 
     fun onEvent(event: FuelRateEvent) = when (event) {
-        is FuelRateEvent.PriceChanged -> _state.update { it.copy(price = event.text, error = null) }
+        is FuelRateEvent.PriceChanged -> {
+            edited = true
+            _state.update { it.copy(price = event.text, error = null) }
+        }
         FuelRateEvent.SaveTapped -> save()
         FuelRateEvent.ClearTapped -> clear()
     }
@@ -62,15 +73,17 @@ internal class FuelRateViewModel(
     /**
      * Prefill with the price in force, whoever set it. Odo's own figure is a better starting
      * point than an empty field: most owners are correcting it by a rupee or two.
+     *
+     * A re-read leaves the field alone once the owner has typed into it — the price behind
+     * the sheet can change while they are mid-edit, and their keystrokes win.
      */
-    private suspend fun load() {
-        val carId = activeCar.activeCarId.value ?: return
-        val snapshot = getFuelRate(carId) ?: return
+    private fun apply(snapshot: FuelRateSnapshot?) {
+        if (snapshot == null) return
         fuelType = snapshot.fuelType
         _state.update {
             it.copy(
                 unit = snapshot.price?.unit ?: it.unit,
-                price = snapshot.price?.pricePerUnit?.let(::toRupeeText).orEmpty(),
+                price = if (edited) it.price else snapshot.price?.pricePerUnit?.let(::toRupeeText).orEmpty(),
                 canClear = snapshot.price?.source == FuelPriceSource.OWNER,
             )
         }
@@ -83,6 +96,12 @@ internal class FuelRateViewModel(
             setFuelRate(fuelType, toPaise(_state.value.price))
                 .onRight {
                     telemetry.fuelRateSaved(fuelType.name)
+                    // The sheet is a navigation destination, so this ViewModel outlives the
+                    // visit that saved. Leaving `saving` set would reopen it with every
+                    // control disabled, and leaving `edited` set would reopen it on the old
+                    // text instead of the rate that was just stored.
+                    edited = false
+                    _state.update { it.copy(saving = false) }
                     _effects.trySend(FuelRateEffect.Dismiss)
                 }
                 .onLeft { error ->
@@ -97,6 +116,8 @@ internal class FuelRateViewModel(
             clearFuelRate(fuelType)
                 .onRight {
                     telemetry.fuelRateCleared(fuelType.name)
+                    edited = false
+                    _state.update { it.copy(saving = false, error = null) }
                     _effects.trySend(FuelRateEffect.Dismiss)
                 }
                 .onLeft { error ->

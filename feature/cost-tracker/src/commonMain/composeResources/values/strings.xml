@@ -36,7 +36,7 @@
     <!-- Not enough driving behind the numbers to quote a rate. -->
     <string name="ct_no_rate_title">Not enough to go on yet</string>
     <string name="ct_no_rate_distance">Odo needs about %1$d km of driving before a cost per kilometre means anything. Log your next service with its odometer reading.</string>
-    <string name="ct_no_rate_readings">Add your car\'s odometer reading and Odo will start tracking what it costs to run.</string>
+    <string name="ct_no_rate_readings">Add your car’s odometer reading and Odo will start tracking what it costs to run.</string>
 
     <!-- Summary -->
     <string name="ct_summary">SUMMARY</string>
@@ -44,16 +44,16 @@
     <string name="ct_distance_driven">Distance driven</string>
     <string name="ct_avg_month">Average / month</string>
 
-    <string name="ct_error_load_failed">Couldn\'t load your running cost</string>
+    <string name="ct_error_load_failed">Couldn’t load your running cost</string>
 
-    <!-- The owner\'s own fuel rate — the fix for a price Odo has wrong or does not carry -->
+    <!-- The owner’s own fuel rate — the fix for a price Odo has wrong or does not carry -->
     <string name="ct_fuel_rate_action">Set your rate</string>
     <string name="ct_fuel_rate_title">What do you pay for fuel?</string>
-    <string name="ct_fuel_rate_subtitle">Odo\'s prices are approximate. Enter what your pump charges and every figure here is rebuilt on it.</string>
+    <string name="ct_fuel_rate_subtitle">Odo’s prices are approximate. Enter what your pump charges and every figure here is rebuilt on it.</string>
     <string name="ct_fuel_rate_label">Price per %1$s</string>
     <string name="ct_fuel_rate_placeholder">e.g. 104.40</string>
     <string name="ct_fuel_rate_save">Save rate</string>
-    <string name="ct_fuel_rate_clear">Use Odo\'s estimate instead</string>
+    <string name="ct_fuel_rate_clear">Use Odo’s estimate instead</string>
     <string name="ct_fuel_rate_error_range">Enter a price between Rs. %1$s and Rs. %2$s</string>
-    <string name="ct_fuel_rate_error_save">Couldn\'t save your rate. Try again.</string>
+    <string name="ct_fuel_rate_error_save">Couldn’t save your rate. Try again.</string>
 </resources>

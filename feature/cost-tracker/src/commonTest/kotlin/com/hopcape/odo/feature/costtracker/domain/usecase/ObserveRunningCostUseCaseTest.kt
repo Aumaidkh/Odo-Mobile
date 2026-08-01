@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.costtracker.domain.usecase
 
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.cost.model.CostShortfall
 import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
@@ -134,6 +135,28 @@ class ObserveRunningCostUseCaseTest {
         val trend = assertNotNull(snapshot.trend)
         assertEquals(-50, trend.percentChange)
         assertEquals(false, trend.isUp)
+    }
+
+    /** The owner corrects the rate on a sheet over the screen; the figures have to follow. */
+    @Test
+    fun aNewFuelPriceRecomputesTheFigures() = runTest {
+        val prices = FakeFuelPriceProvider(testFuelPrice(pricePaise = 10_500))
+        val snapshots = ObserveRunningCostUseCase(
+            cars = FakeCarRepository(testCar()),
+            logs = FakeServiceLogRepository(entries = entries, readings = readings),
+            city = cityProvider("Pune"),
+            fuelPrices = prices,
+            clock = FixedClock(Instant.parse("2026-08-01T09:00:00Z")),
+            timeZone = TimeZone.UTC,
+        ).invoke(TEST_CAR, CostPeriod.Y1)
+
+        val before = snapshots.first()
+        prices.set(testFuelPrice(pricePaise = 12_000, source = FuelPriceSource.OWNER, city = null))
+        val after = snapshots.first { it.fuelPrice?.source == FuelPriceSource.OWNER }
+
+        // Rs. 105/litre at 15 km/l against Rs. 120/litre — Rs. 7.00/km against Rs. 8.00/km.
+        assertEquals(8_400_000L, before.cost.fuelSpend.paise)
+        assertEquals(9_600_000L, after.cost.fuelSpend.paise)
     }
 
     @Test

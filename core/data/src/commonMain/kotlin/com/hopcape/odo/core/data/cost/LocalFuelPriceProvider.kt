@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.cost
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOne
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
@@ -16,6 +18,9 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 
@@ -49,7 +54,9 @@ internal class LocalFuelPriceProvider(
                     if (row == null) {
                         telemetry.missing(DataTelemetry.FUEL_PRICE, OP_PRICE_FOR, "$key/${fuelType.name}")
                     }
-                    row?.toDomain()
+                    // The city is echoed back as the owner wrote it, not as the lookup key
+                    // it was matched by: "in pune" is Odo's index, "in Pune" is their city.
+                    row?.toDomain(city?.trim())
                 } catch (e: Exception) {
                     telemetry.crashed(DataTelemetry.FUEL_PRICE, OP_PRICE_FOR, e)
                     // No price means the running cost drops its fuel half and says so. A
@@ -58,6 +65,19 @@ internal class LocalFuelPriceProvider(
                 }
             }
         }
+
+    override fun priceChanges(): Flow<Unit> =
+        queries.countPrices()
+            .asFlow()
+            .mapToOne(dispatcher)
+            .map { }
+            // A reader combines this, so a failure here would take the whole screen's flow
+            // down over reference data it can live without. Reported, because a stream that
+            // has quietly stopped watching prices looks exactly like prices that never change.
+            .catch { cause ->
+                telemetry.crashed(DataTelemetry.FUEL_PRICE, OP_PRICE_CHANGES, cause)
+                emit(Unit)
+            }
 
     override suspend fun setOverride(
         fuelType: FuelType,
@@ -105,11 +125,12 @@ internal class LocalFuelPriceProvider(
      * price is dropped rather than guessed at: a rate attributed to the wrong source is
      * shown with the wrong amount of trust.
      */
-    private fun Fuel_price.toDomain(): FuelPrice? {
+    private fun Fuel_price.toDomain(requestedCity: String?): FuelPrice? {
         val priceSource = FuelPriceSource.entries.firstOrNull { it.name == source } ?: return null
         val fuel = FuelType.entries.firstOrNull { it.name == fuel_type } ?: return null
         return FuelPrice(
-            city = city.ifBlank { null },
+            // An owner's own rate belongs to no city, whatever they were asked about.
+            city = if (priceSource == FuelPriceSource.OWNER) null else requestedCity?.ifBlank { null },
             fuelType = fuel,
             pricePerUnit = Amount.of(paise_per_unit).getOrElse { Amount.ZERO },
             effectiveDate = LocalDate.parse(effective_date),
@@ -119,6 +140,7 @@ internal class LocalFuelPriceProvider(
 
     private companion object {
         const val OP_PRICE_FOR = "priceFor"
+        const val OP_PRICE_CHANGES = "priceChanges"
         const val OP_SET_OVERRIDE = "setOverride"
         const val OP_CLEAR_OVERRIDE = "clearOverride"
     }

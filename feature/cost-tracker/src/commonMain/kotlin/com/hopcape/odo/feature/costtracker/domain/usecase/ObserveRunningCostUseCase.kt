@@ -35,7 +35,8 @@ import kotlin.time.Clock
  *
  * The readings are observed rather than read once, because the car's own reading is
  * changed from the garage: without that, the ₹/km on screen would stay stale until the
- * next service log.
+ * next service log. The fuel price is watched for the same reason — the owner corrects it
+ * on a sheet over this very screen.
  *
  * A car with no city set, or one in a city Odo carries no prices for, simply gets no fuel
  * rate — the cost then covers maintenance only, and the screen says so rather than
@@ -53,7 +54,10 @@ internal class ObserveRunningCostUseCase(
         cars.observe(carId),
         logs.observe(carId),
         logs.observeOdometerReadings(carId),
-    ) { car, entries, readings ->
+        // A price is neither the car nor its logs, so without watching it the screen would
+        // keep showing figures built on a rate the owner has since corrected.
+        fuelPrices.priceChanges(),
+    ) { car, entries, readings, _ ->
         snapshotOf(car, entries, readings, period)
     }
 

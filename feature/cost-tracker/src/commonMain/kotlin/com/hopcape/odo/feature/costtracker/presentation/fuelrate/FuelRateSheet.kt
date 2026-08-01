@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -48,6 +50,9 @@ internal fun FuelRateSheetContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            // The sheet is short, but a keyboard over it is not: without this the save and
+            // the "use Odo's estimate" row sit under the keyboard with no way to reach them.
+            .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .padding(horizontal = OdoTheme.spacing.lg, vertical = OdoTheme.spacing.lg),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),

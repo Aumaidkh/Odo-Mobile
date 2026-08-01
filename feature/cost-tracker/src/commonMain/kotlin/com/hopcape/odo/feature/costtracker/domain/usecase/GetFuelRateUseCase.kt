@@ -6,7 +6,9 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.cost.fuel.FuelPrice
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
  * The fuel price the running cost is currently built on, for the sheet that lets the owner
@@ -31,6 +33,16 @@ internal class GetFuelRateUseCase(
             price = fuelPrices.priceFor(city.currentCity(), car.fuelType),
         )
     }
+
+    /**
+     * The same read, again whenever the stored prices change.
+     *
+     * The sheet is a navigation destination, so its ViewModel outlives one visit: reading
+     * once when it was built would leave a reopened sheet showing the price from before the
+     * owner's last correction.
+     */
+    fun observe(carId: CarId): Flow<FuelRateSnapshot?> =
+        fuelPrices.priceChanges().map { invoke(carId) }
 }
 
 /**
