@@ -4,6 +4,9 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.healthscore.domain.usecase.ObserveHealthScoreUseCase
 import com.hopcape.odo.feature.healthscore.domain.usecase.RecordHealthScoreUseCase
 import com.hopcape.odo.feature.healthscore.navigation.HealthScoreFeatureEntryProvider
+import com.hopcape.odo.feature.healthscore.presentation.HealthScoreTelemetry
+import com.hopcape.odo.feature.healthscore.presentation.HealthScoreViewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -33,4 +36,10 @@ val healthScoreModule = module {
     factory {
         RecordHealthScoreUseCase(snapshots = get(), owners = get(), ids = get(), clock = get())
     }
+
+    // A `factory`, not a `single`: one instance covers one visit to the screen, and every
+    // event of that visit shares one flow id.
+    factory { HealthScoreTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
+
+    viewModelOf(::HealthScoreViewModel)
 }

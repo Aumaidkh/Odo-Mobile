@@ -82,16 +82,15 @@ internal val LightOdoColors = OdoColors(
 internal val LocalOdoColors = staticCompositionLocalOf { DarkOdoColors }
 
 /**
- * Maps an Odo Health Score (0–100, see PRD) onto a status colour. The spec ties
- * danger to "score < 50"; this keeps the same stepped thresholds so the gauge,
- * badges, and copy never disagree.
+ * Maps an Odo Health Score (0–100) onto a status colour, on the PRD §5.4 band
+ * cut-offs, so the gauge, badges, and copy never disagree.
  *
- *  - `< 50`  → [danger]
- *  - `50–79` → [warning]
- *  - `≥ 80`  → [success]
+ *  - `< 50`  → [danger]  (Poor / "Needs care")
+ *  - `50–69` → [warning] (Fair)
+ *  - `≥ 70`  → [success] (Good and Excellent — both are places to be happy about)
  */
 fun OdoColors.healthScoreColor(score: Int): Color = when {
     score < 50 -> danger
-    score < 80 -> warning
+    score < 70 -> warning
     else -> success
 }
