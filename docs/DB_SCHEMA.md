@@ -310,12 +310,34 @@ CREATE TABLE profiles (
                                CHECK (preferred_language IN ('hi', 'en', 'hinglish')),
     onboarding_goal          onboarding_goal,
     onboarding_completed_at  timestamptz,
+    email                    text,                       -- optional contact address, not a login
+    avatar_path              text,                       -- storage key for the profile photo
     created_at               timestamptz NOT NULL DEFAULT now(),
     updated_at               timestamptz NOT NULL DEFAULT now(),
     deleted_at               timestamptz,
     CONSTRAINT chk_profiles_phone CHECK (phone IS NULL OR phone ~ '^\+[1-9]\d{7,14}$')
 );
 ```
+
+`email` is a contact address the owner may add on their profile; sign-in is by phone, so it
+is optional and never used to authenticate. `avatar_path` is a storage key like every other
+file reference here, not a URL.
+
+**Not on this table: units, theme and notification topics.** They live in a device-local
+`app_settings` table in the client's SQLite only (see 9.2a) — a theme belongs to
+the phone it is read on, not to the account. If the notification topics ever have to follow
+an owner between devices, they move here, where they would sync.
+
+### 9.2a Client-only: `app_settings`
+
+The Android/iOS client keeps one more table that has **no server counterpart**: a single-row
+`app_settings` holding the theme, the larger-text flag, the distance and fuel-efficiency
+units, and the six notification topics plus the push channel.
+
+It is deliberately outside this schema and outside the sync engine — it describes a device,
+not an account, and it carries none of the mandatory sync columns (SYNC_DESIGN §4.1) for
+that reason. Nothing it holds changes a stored value: units are a display and entry choice,
+and every reading stays in kilometres and every amount in paise.
 
 ### 9.3 `cars`
 

@@ -13,53 +13,61 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.hopcape.odo.core.designsystem.component.OdoBadge
-import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoDropdownField
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCamera
-import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.platform.file.FileTypes
+import com.hopcape.odo.core.platform.file.rememberFilePicker
+import com.hopcape.odo.feature.profile.presentation.state.text
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_cd_close
 import com.hopcape.odo.feature.profile.resources.pf_change_photo
 import com.hopcape.odo.feature.profile.resources.pf_city
 import com.hopcape.odo.feature.profile.resources.pf_city_note
 import com.hopcape.odo.feature.profile.resources.pf_delete
+import com.hopcape.odo.feature.profile.resources.pf_deleting
 import com.hopcape.odo.feature.profile.resources.pf_edit_title
 import com.hopcape.odo.feature.profile.resources.pf_email
 import com.hopcape.odo.feature.profile.resources.pf_email_hint
 import com.hopcape.odo.feature.profile.resources.pf_full_name
 import com.hopcape.odo.feature.profile.resources.pf_mobile
 import com.hopcape.odo.feature.profile.resources.pf_mobile_note
+import com.hopcape.odo.feature.profile.resources.pf_mobile_signed_out
 import com.hopcape.odo.feature.profile.resources.pf_save
-import com.hopcape.odo.feature.profile.resources.pf_verified
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Edit-profile full screen ([com.hopcape.odo.core.navigation.OdoDestination.Profile.Edit]).
- * Holds its form state (sample-seeded); [onSave] / [onClose] pop back, [onDelete] is the
- * destructive account action.
+ * Edit-profile full screen.
+ *
+ * The city field is the one that matters beyond this screen: it is what turns price
+ * benchmarks on, and onboarding never asks for it.
+ *
+ * The mobile number is read-only and empty until auth lands — there is no session and
+ * therefore no number to show. It stays on the screen because that is where an owner will
+ * look for it once there is one.
  */
 @Composable
-internal fun EditProfileScreen(onClose: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit) {
-    var name by remember { mutableStateOf("Rahul Deshmukh") }
-    var email by remember { mutableStateOf("") }
-    val cities = listOf("Pune", "Mumbai", "Delhi", "Bengaluru", "Chennai", "Hyderabad")
-    var city by remember { mutableStateOf<String?>("Pune") }
+internal fun EditProfileScreen(
+    state: EditProfileUiState,
+    onEvent: (EditProfileEvent) -> Unit,
+    onClose: () -> Unit,
+) {
+    val pickPhoto = rememberFilePicker(mimeTypes = FileTypes.PHOTOS) { picked ->
+        if (picked != null) onEvent(EditProfileEvent.PhotoPicked(picked))
+    }
 
     OdoScreen(
         topBar = { CloseTopBar(stringResource(Res.string.pf_edit_title), stringResource(Res.string.pf_cd_close), onClose) },
@@ -68,13 +76,36 @@ internal fun EditProfileScreen(onClose: () -> Unit, onSave: () -> Unit, onDelete
                 Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.screenEdge).padding(vertical = OdoTheme.spacing.md),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
             ) {
-                OdoButton(stringResource(Res.string.pf_save), onClick = onSave, modifier = Modifier.fillMaxWidth())
+                state.submission.error?.let { message ->
+                    OdoText(
+                        message.asString(),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.danger,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                OdoButton(
+                    stringResource(Res.string.pf_save),
+                    onClick = { onEvent(EditProfileEvent.Save) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = state.canSave,
+                )
                 OdoText(
-                    stringResource(Res.string.pf_delete),
+                    if (state.deletion.isInFlight) {
+                        stringResource(Res.string.pf_deleting)
+                    } else {
+                        stringResource(Res.string.pf_delete)
+                    },
                     style = OdoTheme.typography.label,
                     color = OdoTheme.colors.danger,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onDelete).padding(vertical = OdoTheme.spacing.xs),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !state.deletion.isInFlight) {
+                            onEvent(EditProfileEvent.DeleteRequested)
+                        }
+                        .padding(vertical = OdoTheme.spacing.xs),
                 )
             }
         },
@@ -93,7 +124,12 @@ internal fun EditProfileScreen(onClose: () -> Unit, onSave: () -> Unit, onDelete
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
             ) {
                 Box(contentAlignment = Alignment.BottomEnd) {
-                    Avatar("R", size = 88.dp)
+                    Avatar(
+                        initial = state.name.text.trim().firstOrNull()?.uppercase() ?: "O",
+                        photoKey = state.avatarPath,
+                        size = 88.dp,
+                        onClick = pickPhoto,
+                    )
                     Box(
                         modifier = Modifier.size(30.dp).clip(CircleShape).background(OdoTheme.colors.accent),
                         contentAlignment = Alignment.Center,
@@ -101,26 +137,60 @@ internal fun EditProfileScreen(onClose: () -> Unit, onSave: () -> Unit, onDelete
                         OdoIcon(IcCamera, contentDescription = null, tint = OdoTheme.colors.onAccent, size = OdoTheme.iconSizes.small)
                     }
                 }
-                OdoText(stringResource(Res.string.pf_change_photo), style = OdoTheme.typography.label, color = OdoTheme.colors.accent, modifier = Modifier.clickable(onClick = {}))
+                OdoText(
+                    stringResource(Res.string.pf_change_photo),
+                    style = OdoTheme.typography.label,
+                    color = OdoTheme.colors.accent,
+                    modifier = Modifier.clickable(onClick = pickPhoto),
+                )
             }
-            OdoInputField(value = name, onValueChange = { name = it }, label = stringResource(Res.string.pf_full_name))
+
             OdoInputField(
-                value = "+91 98765 43210",
+                value = state.name.text,
+                onValueChange = { onEvent(EditProfileEvent.NameChanged(it)) },
+                label = stringResource(Res.string.pf_full_name),
+                errorText = state.name.error?.asString(),
+                modifier = Modifier.testTag(EditProfileTestTags.NAME_FIELD),
+            )
+            OdoInputField(
+                value = "",
                 onValueChange = {},
                 readOnly = true,
+                enabled = false,
                 label = stringResource(Res.string.pf_mobile),
+                placeholder = stringResource(Res.string.pf_mobile_signed_out),
                 helperText = stringResource(Res.string.pf_mobile_note),
-                trailingIcon = {
-                    OdoBadge(
-                        stringResource(Res.string.pf_verified),
-                        tone = OdoBadgeTone.Accent,
-                        leadingIcon = { OdoIcon(IcCheck, contentDescription = null, size = OdoTheme.iconSizes.small) },
-                    )
-                },
             )
-            OdoInputField(value = email, onValueChange = { email = it }, label = stringResource(Res.string.pf_email), placeholder = stringResource(Res.string.pf_email_hint))
-            OdoDropdownField(selected = city, options = cities, onSelect = { city = it }, label = stringResource(Res.string.pf_city))
+            OdoInputField(
+                value = state.email.text,
+                onValueChange = { onEvent(EditProfileEvent.EmailChanged(it)) },
+                label = stringResource(Res.string.pf_email),
+                placeholder = stringResource(Res.string.pf_email_hint),
+                errorText = state.email.error?.asString(),
+                modifier = Modifier.testTag(EditProfileTestTags.EMAIL_FIELD),
+            )
+            OdoDropdownField(
+                selected = state.city.value,
+                options = state.cities,
+                onSelect = { onEvent(EditProfileEvent.CityChanged(it)) },
+                label = stringResource(Res.string.pf_city),
+                modifier = Modifier.testTag(EditProfileTestTags.CITY_FIELD),
+            )
             OdoText(stringResource(Res.string.pf_city_note), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
     }
+
+    if (state.confirmingDelete) {
+        DeleteDataDialog(
+            onConfirm = { onEvent(EditProfileEvent.DeleteConfirmed) },
+            onDismiss = { onEvent(EditProfileEvent.DeleteDismissed) },
+        )
+    }
+}
+
+/** Tags for the three fields, which have no unique words of their own once emptied. */
+object EditProfileTestTags {
+    const val NAME_FIELD: String = "profile_name_field"
+    const val EMAIL_FIELD: String = "profile_email_field"
+    const val CITY_FIELD: String = "profile_city_field"
 }

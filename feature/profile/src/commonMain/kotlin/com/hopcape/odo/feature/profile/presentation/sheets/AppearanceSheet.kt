@@ -13,20 +13,19 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.feature.profile.presentation.ProfileSheet
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_appear_dark
@@ -41,29 +40,39 @@ import org.jetbrains.compose.resources.stringResource
 private val PreviewDark = Color(0xFF1C1C1E)
 private val PreviewLight = Color(0xFFF3EFE9)
 
-/** The three appearance choices. */
-private enum class ThemeChoice { DARK, LIGHT, SYSTEM }
-
 /**
- * Appearance sheet ([com.hopcape.odo.core.navigation.OdoDestination.Profile.Appearance]).
- * UI-only theme + text-size selector; [onDone] pops the sheet.
+ * Appearance sheet: theme and text size.
+ *
+ * Each choice is stored as it is tapped and the app redraws behind the sheet, so "Done"
+ * only closes it — there is nothing left to apply by then.
  */
 @Composable
-internal fun AppearanceSheetContent(onDone: () -> Unit) {
-    var choice by remember { mutableStateOf(ThemeChoice.DARK) }
-    var largerText by remember { mutableStateOf(false) }
+internal fun AppearanceSheetContent(
+    state: AppearanceUiState,
+    onEvent: (AppearanceEvent) -> Unit,
+    onDone: () -> Unit,
+) {
     ProfileSheet {
         OdoText(stringResource(Res.string.pf_appearance), style = OdoTheme.typography.heading)
+        state.error?.let { message ->
+            OdoText(message.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.danger)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            ThemeCard(stringResource(Res.string.pf_appear_dark), ThemeChoice.DARK, choice) { choice = ThemeChoice.DARK }
-            ThemeCard(stringResource(Res.string.pf_appear_light), ThemeChoice.LIGHT, choice) { choice = ThemeChoice.LIGHT }
-            ThemeCard(stringResource(Res.string.pf_appear_system), ThemeChoice.SYSTEM, choice) { choice = ThemeChoice.SYSTEM }
+            ThemeCard(stringResource(Res.string.pf_appear_dark), ThemePreference.DARK, state.theme) {
+                onEvent(AppearanceEvent.ThemeChosen(ThemePreference.DARK))
+            }
+            ThemeCard(stringResource(Res.string.pf_appear_light), ThemePreference.LIGHT, state.theme) {
+                onEvent(AppearanceEvent.ThemeChosen(ThemePreference.LIGHT))
+            }
+            ThemeCard(stringResource(Res.string.pf_appear_system), ThemePreference.SYSTEM, state.theme) {
+                onEvent(AppearanceEvent.ThemeChosen(ThemePreference.SYSTEM))
+            }
         }
         OdoDivider()
         OdoSwitchRow(
             label = stringResource(Res.string.pf_appear_larger),
-            checked = largerText,
-            onCheckedChange = { largerText = it },
+            checked = state.largerText,
+            onCheckedChange = { onEvent(AppearanceEvent.LargerTextToggled(it)) },
             supporting = stringResource(Res.string.pf_appear_larger_sub),
         )
         OdoButton(stringResource(Res.string.pf_done), onClick = onDone, modifier = Modifier.fillMaxWidth())
@@ -71,10 +80,15 @@ internal fun AppearanceSheetContent(onDone: () -> Unit) {
 }
 
 @Composable
-private fun RowScope.ThemeCard(label: String, value: ThemeChoice, selected: ThemeChoice, onClick: () -> Unit) {
+private fun RowScope.ThemeCard(
+    label: String,
+    value: ThemePreference,
+    selected: ThemePreference,
+    onClick: () -> Unit,
+) {
     val isSelected = value == selected
     Column(
-        modifier = Modifier.weight(1f).clickable(onClick = onClick),
+        modifier = Modifier.weight(1f).testTag(AppearanceTestTags.themeCard(value)).clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
@@ -89,9 +103,9 @@ private fun RowScope.ThemeCard(label: String, value: ThemeChoice, selected: Them
                 ),
         ) {
             when (value) {
-                ThemeChoice.DARK -> Box(Modifier.fillMaxWidth().fillMaxHeight().background(PreviewDark))
-                ThemeChoice.LIGHT -> Box(Modifier.fillMaxWidth().fillMaxHeight().background(PreviewLight))
-                ThemeChoice.SYSTEM -> Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+                ThemePreference.DARK -> Box(Modifier.fillMaxWidth().fillMaxHeight().background(PreviewDark))
+                ThemePreference.LIGHT -> Box(Modifier.fillMaxWidth().fillMaxHeight().background(PreviewLight))
+                ThemePreference.SYSTEM -> Row(Modifier.fillMaxWidth().fillMaxHeight()) {
                     Box(Modifier.weight(1f).fillMaxHeight().background(PreviewDark))
                     Box(Modifier.weight(1f).fillMaxHeight().background(PreviewLight))
                 }
@@ -99,4 +113,12 @@ private fun RowScope.ThemeCard(label: String, value: ThemeChoice, selected: Them
         }
         OdoText(label, style = OdoTheme.typography.label, color = if (isSelected) OdoTheme.colors.text else OdoTheme.colors.textDim)
     }
+}
+
+/**
+ * The three cards say only "Dark" / "Light" / "System", and the profile row behind the
+ * sheet says one of those words too.
+ */
+object AppearanceTestTags {
+    fun themeCard(theme: ThemePreference): String = "profile_theme_${theme.name}"
 }

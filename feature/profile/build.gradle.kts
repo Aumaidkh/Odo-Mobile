@@ -22,6 +22,23 @@ kotlin {
             implementation(projects.core.navigation)
             // Branded UI atoms (OdoScreen, OdoCard, OdoSwitch, OdoInputField…) + theme.
             implementation(projects.core.designsystem)
+            // The shared kernel these use cases orchestrate: OwnerProfile + its value
+            // objects, AppSettings + the settings port, DistanceUnit/FuelEfficiencyUnit,
+            // ProEntitlement and SessionStatusProvider. Brings Arrow transitively.
+            implementation(projects.core.domain)
+            // The picker for a profile photo + the store that copies it into app storage.
+            implementation(projects.core.platform)
+            // Observability: structured logging + product analytics, instrumented at the
+            // presentation layer (domain stays pure) behind ProfileTelemetry.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            // APM spans around the settings and profile writes the ViewModels drive.
+            implementation(projects.observability.performance)
+            // koinViewModel() in the route hosts.
+            implementation(libs.koin.composeViewmodel)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.profile.presentation
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +26,7 @@ import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
@@ -33,12 +36,21 @@ import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcShare
+import com.hopcape.odo.core.designsystem.icons.IcPerson
 import com.hopcape.odo.core.designsystem.icons.IcSignOut
 import com.hopcape.odo.core.designsystem.icons.IcStarFilled
-import com.hopcape.odo.core.designsystem.icons.IcTagFilled
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.settings.model.ThemePreference
+import com.hopcape.odo.core.domain.shared.suffix
+import com.hopcape.odo.feature.profile.presentation.state.Loadable
 import com.hopcape.odo.feature.profile.resources.Res
+import com.hopcape.odo.feature.profile.resources.pf_appear_dark
+import com.hopcape.odo.feature.profile.resources.pf_appear_light
+import com.hopcape.odo.feature.profile.resources.pf_appear_system
 import com.hopcape.odo.feature.profile.resources.pf_appearance
+import com.hopcape.odo.feature.profile.resources.pf_cd_back
+import com.hopcape.odo.feature.profile.resources.pf_city_missing
 import com.hopcape.odo.feature.profile.resources.pf_data_privacy
 import com.hopcape.odo.feature.profile.resources.pf_edit
 import com.hopcape.odo.feature.profile.resources.pf_export
@@ -46,9 +58,9 @@ import com.hopcape.odo.feature.profile.resources.pf_free_plan
 import com.hopcape.odo.feature.profile.resources.pf_go_pro
 import com.hopcape.odo.feature.profile.resources.pf_help
 import com.hopcape.odo.feature.profile.resources.pf_manage_plan
+import com.hopcape.odo.feature.profile.resources.pf_name_missing
+import com.hopcape.odo.feature.profile.resources.pf_notif_summary
 import com.hopcape.odo.feature.profile.resources.pf_notifications
-import com.hopcape.odo.feature.profile.resources.pf_passport
-import com.hopcape.odo.feature.profile.resources.pf_passport_owned
 import com.hopcape.odo.feature.profile.resources.pf_preferences
 import com.hopcape.odo.feature.profile.resources.pf_privacy
 import com.hopcape.odo.feature.profile.resources.pf_pro_active
@@ -57,17 +69,22 @@ import com.hopcape.odo.feature.profile.resources.pf_pro_feat_2
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_3
 import com.hopcape.odo.feature.profile.resources.pf_pro_title
 import com.hopcape.odo.feature.profile.resources.pf_restore
+import com.hopcape.odo.feature.profile.resources.pf_sign_in
 import com.hopcape.odo.feature.profile.resources.pf_sign_out
 import com.hopcape.odo.feature.profile.resources.pf_start_pro
 import com.hopcape.odo.feature.profile.resources.pf_title
 import com.hopcape.odo.feature.profile.resources.pf_units
+import com.hopcape.odo.feature.profile.resources.pf_units_summary
 import com.hopcape.odo.feature.profile.resources.pf_version
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * The Profile / account home. Switches between the Pro-plan card and the Go-Pro upsell,
- * then the preference + data rows. State-free; each row navigates to its screen/sheet,
- * and "Go Pro" / "Manage plan" jump to the shared [Paywall] route.
+ * then the preference + data rows. Each row navigates to its screen or sheet, and
+ * "Go Pro" / "Manage plan" jump to the shared Paywall route.
+ *
+ * The last row is sign-in or sign-out depending on whether this device has a session.
+ * Offering "Sign out" to someone who never signed in is an action that cannot do anything.
  */
 @Composable
 internal fun ProfileScreen(
@@ -75,102 +92,234 @@ internal fun ProfileScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onGoPro: () -> Unit,
-    onRestore: () -> Unit,
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
+    onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OdoScreen(modifier = modifier, title = stringResource(Res.string.pf_title), onBack = onBack) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(padding)
-                .padding(vertical = OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
-        ) {
-            ProfileCard(state, onEdit)
-            if (state.isPro) ProPlanCard(state, onGoPro, onRestore) else GoProCard(onGoPro, onRestore)
+    OdoScreen(
+        modifier = modifier,
+        title = stringResource(Res.string.pf_title),
+        onBack = onBack,
+        backContentDescription = stringResource(Res.string.pf_cd_back),
+    ) { padding ->
+        when (val content = state.content) {
+            Loadable.Loading -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { OdoLoadingIndicator() }
 
-            SectionLabel(stringResource(Res.string.pf_preferences))
-            SettingsGroup {
-                SettingsRow(IcBellOutlined, stringResource(Res.string.pf_notifications), onNotifications, value = state.notificationsSummary)
-                RowDivider()
-                SettingsRow(IcRupee, stringResource(Res.string.pf_units), onUnits, value = state.unitsSummary)
-                RowDivider()
-                SettingsRow(IcEyeFilled, stringResource(Res.string.pf_appearance), onAppearance, value = state.appearanceSummary)
+            is Loadable.Failed -> Box(
+                Modifier.fillMaxSize().padding(padding).padding(OdoTheme.spacing.screenEdge),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoText(
+                    content.message.asString(),
+                    style = OdoTheme.typography.body,
+                    color = OdoTheme.colors.textDim,
+                    textAlign = TextAlign.Center,
+                )
             }
 
-            SectionLabel(stringResource(Res.string.pf_data_privacy))
-            SettingsGroup {
-                SettingsRow(IcShare, stringResource(Res.string.pf_export), onExport)
-                RowDivider()
-                SettingsRow(IcLockFilled, stringResource(Res.string.pf_privacy), onPrivacy)
-            }
-
-            Spacer(Modifier.height(OdoTheme.spacing.md))
-            SettingsGroup {
-                SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
-                RowDivider()
-                SettingsRow(IcSignOut, stringResource(Res.string.pf_sign_out), onSignOut, danger = true, showChevron = false)
-            }
-
-            OdoText(
-                stringResource(Res.string.pf_version),
-                style = OdoTheme.typography.caption,
-                color = OdoTheme.colors.textMuted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm),
+            is Loadable.Ready -> ProfileContentColumn(
+                content = content.value,
+                version = state.version,
+                padding = padding,
+                onEdit = onEdit,
+                onGoPro = onGoPro,
+                onNotifications = onNotifications,
+                onUnits = onUnits,
+                onAppearance = onAppearance,
+                onExport = onExport,
+                onPrivacy = onPrivacy,
+                onHelp = onHelp,
+                onSignIn = onSignIn,
+                onSignOut = onSignOut,
             )
         }
     }
 }
 
 @Composable
-private fun ProfileCard(state: ProfileUiState, onEdit: () -> Unit) {
+private fun ProfileContentColumn(
+    content: ProfileContent,
+    version: String,
+    padding: PaddingValues,
+    onEdit: () -> Unit,
+    onGoPro: () -> Unit,
+    onNotifications: () -> Unit,
+    onUnits: () -> Unit,
+    onAppearance: () -> Unit,
+    onExport: () -> Unit,
+    onPrivacy: () -> Unit,
+    onHelp: () -> Unit,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(padding)
+            .padding(vertical = OdoTheme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        ProfileCard(content, onEdit)
+        if (content.isPro) ProPlanCard(onGoPro) else GoProCard(onGoPro)
+
+        SectionLabel(stringResource(Res.string.pf_preferences))
+        SettingsGroup {
+            SettingsRow(
+                icon = IcBellOutlined,
+                title = stringResource(Res.string.pf_notifications),
+                onClick = onNotifications,
+                value = stringResource(Res.string.pf_notif_summary, content.notificationTopicsOn),
+                testTag = ProfileTestTags.NOTIFICATIONS_ROW,
+            )
+            RowDivider()
+            SettingsRow(
+                icon = IcRupee,
+                title = stringResource(Res.string.pf_units),
+                onClick = onUnits,
+                value = stringResource(Res.string.pf_units_summary, content.distanceUnit.suffix()),
+                testTag = ProfileTestTags.UNITS_ROW,
+            )
+            RowDivider()
+            SettingsRow(
+                icon = IcEyeFilled,
+                title = stringResource(Res.string.pf_appearance),
+                onClick = onAppearance,
+                value = content.theme.label(),
+                testTag = ProfileTestTags.APPEARANCE_ROW,
+            )
+        }
+
+        SectionLabel(stringResource(Res.string.pf_data_privacy))
+        SettingsGroup {
+            SettingsRow(IcShare, stringResource(Res.string.pf_export), onExport)
+            RowDivider()
+            SettingsRow(IcLockFilled, stringResource(Res.string.pf_privacy), onPrivacy)
+        }
+
+        Spacer(Modifier.height(OdoTheme.spacing.md))
+        SettingsGroup {
+            SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
+            RowDivider()
+            if (content.isSignedIn) {
+                SettingsRow(
+                    icon = IcSignOut,
+                    title = stringResource(Res.string.pf_sign_out),
+                    onClick = onSignOut,
+                    danger = true,
+                    showChevron = false,
+                    testTag = ProfileTestTags.SESSION_ROW,
+                )
+            } else {
+                SettingsRow(
+                    icon = IcPerson,
+                    title = stringResource(Res.string.pf_sign_in),
+                    onClick = onSignIn,
+                    testTag = ProfileTestTags.SESSION_ROW,
+                )
+            }
+        }
+
+        OdoText(
+            stringResource(Res.string.pf_version, version),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm),
+        )
+    }
+}
+
+@Composable
+private fun ProfileCard(content: ProfileContent, onEdit: () -> Unit) {
     OdoCard {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(state.name.take(1))
+            Avatar(initialOf(content.name), photoKey = content.avatarPath)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                OdoText(state.name, style = OdoTheme.typography.heading, maxLines = 1)
-                OdoText(state.phoneLine, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim, maxLines = 1)
+                OdoText(
+                    content.name ?: stringResource(Res.string.pf_name_missing),
+                    style = OdoTheme.typography.heading,
+                    color = if (content.name != null) OdoTheme.colors.text else OdoTheme.colors.textDim,
+                    maxLines = 1,
+                )
+                OdoText(
+                    content.subtitle(),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                    maxLines = 1,
+                )
             }
             OdoButton(stringResource(Res.string.pf_edit), onClick = onEdit, variant = OdoButtonVariant.Secondary)
         }
     }
 }
 
+/**
+ * The line under the name: the owner's city, or the prompt to set one.
+ *
+ * The city earns the line because it is what turns price checks on, and an owner without
+ * one gets no verdicts at all. Whether they are signed in is said by the last row on the
+ * screen, so it does not compete for this line.
+ */
 @Composable
-private fun ProPlanCard(state: ProfileUiState, onManage: () -> Unit, onRestore: () -> Unit) {
+private fun ProfileContent.subtitle(): String =
+    city ?: stringResource(Res.string.pf_city_missing)
+
+@Composable
+private fun ThemePreference.label(): String = when (this) {
+    ThemePreference.DARK -> stringResource(Res.string.pf_appear_dark)
+    ThemePreference.LIGHT -> stringResource(Res.string.pf_appear_light)
+    ThemePreference.SYSTEM -> stringResource(Res.string.pf_appear_system)
+}
+
+/** The monogram shown when there is no photo. Falls back to Odo's own initial. */
+private fun initialOf(name: String?): String = name?.trim()?.firstOrNull()?.uppercase() ?: "O"
+
+/**
+ * The Pro card. It states the plan and nothing about its renewal: there is no subscription
+ * record to read one from, and a date the app invented would be worse than none.
+ */
+@Composable
+private fun ProPlanCard(onManage: () -> Unit) {
     OdoCard(border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.4f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconTile(IcStarFilled)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.pf_pro_title), style = OdoTheme.typography.heading)
-                OdoText(state.proRenews, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+                OdoText(
+                    stringResource(Res.string.pf_pro_feat_2),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
             }
             OdoBadge(stringResource(Res.string.pf_pro_active), tone = OdoBadgeTone.Accent)
         }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-            OdoIcon(IcTagFilled, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
-            OdoText(stringResource(Res.string.pf_passport), style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
-            OdoText(stringResource(Res.string.pf_passport_owned), style = OdoTheme.typography.label, color = OdoTheme.colors.accent)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            OdoButton(stringResource(Res.string.pf_manage_plan), onClick = onManage, modifier = Modifier.weight(1f), variant = OdoButtonVariant.Secondary)
-            OdoButton(stringResource(Res.string.pf_restore), onClick = onRestore, modifier = Modifier.weight(1f), variant = OdoButtonVariant.Secondary)
-        }
+        OdoButton(
+            stringResource(Res.string.pf_manage_plan),
+            onClick = onManage,
+            modifier = Modifier.fillMaxWidth(),
+            variant = OdoButtonVariant.Secondary,
+        )
     }
 }
 
+/**
+ * The upsell. "Restore purchases" goes to the same place as "Start Pro" on purpose: nothing
+ * can be restored until Razorpay lands, and the paywall is where both the purchase and its
+ * restore will live, so the row leads somewhere real rather than doing nothing.
+ */
 @Composable
-private fun GoProCard(onStartPro: () -> Unit, onRestore: () -> Unit) {
+private fun GoProCard(onStartPro: () -> Unit) {
     OdoCard(border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.4f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconTile(IcStarFilled)
@@ -188,7 +337,7 @@ private fun GoProCard(onStartPro: () -> Unit, onRestore: () -> Unit) {
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onRestore),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onStartPro),
         )
     }
 }
