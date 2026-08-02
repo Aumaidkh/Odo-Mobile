@@ -24,4 +24,16 @@ interface OwnerProfileRepository {
 
     /** The stored profile, or `null` before onboarding has written one. */
     fun observe(): Flow<OwnerProfile?>
+
+    /**
+     * Remove the owner's profile — what "delete my data" leaves behind on the device.
+     *
+     * A soft delete, like every other user row: the profile stops being readable (so the
+     * app opens on first-run setup again) while the tombstone stays for the sync engine to
+     * push. Erasing the server account is a different operation, server-side, and is not
+     * this (DB_SCHEMA §13).
+     *
+     * Deleting when there is no profile succeeds — the caller wanted it gone, and it is.
+     */
+    suspend fun delete(): Either<DomainError, Unit>
 }

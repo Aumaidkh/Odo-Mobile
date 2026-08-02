@@ -6,13 +6,17 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.db.OdoDatabase
+import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 
@@ -25,49 +29,100 @@ import kotlin.time.Clock
  */
 internal class OwnerProfileRepositoryImpl(
     private val database: OdoDatabase,
+    private val telemetry: DataTelemetry,
+    private val scheduler: SyncScheduler,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : OwnerProfileRepository {
 
     private val queries get() = database.profileQueries
 
-    override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> = try {
-        val now = clock.now().toString()
-        val fullName = profile.name?.value
-        val goal = profile.goal?.name
-        val completedAt = profile.onboardingCompletedAt?.toString()
-        // Insert-then-update rather than an UPSERT: `ON CONFLICT ... DO UPDATE` needs
-        // SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored when the row already
-        // exists (which is what preserves created_at), so on an edit the UPDATE is what
-        // writes. One transaction, so no reader sees the half-written state.
-        database.transaction {
-            queries.insertProfile(
-                id = profile.id.value,
-                fullName = fullName,
-                onboardingGoal = goal,
-                onboardingCompletedAt = completedAt,
-                city = profile.city,
-                now = now,
-                syncStatus = SyncStatus.PENDING.name,
-            )
-            queries.updateProfile(
-                fullName = fullName,
-                onboardingGoal = goal,
-                onboardingCompletedAt = completedAt,
-                city = profile.city,
-                updatedAt = now,
-                syncStatus = SyncStatus.PENDING.name,
-                id = profile.id.value,
-            )
+    /**
+     * Tell the scheduler there is something worth pushing. Called after a write has
+     * committed, never before, and only when it succeeded.
+     *
+     * Failure to *schedule* never fails the write: the data is safely local and `PENDING`,
+     * and the next trigger will carry it.
+     */
+    private suspend fun requestSync(operation: String, id: String?) {
+        try {
+            scheduler.requestSync(SyncReason.LocalWrite)
+        } catch (e: Exception) {
+            telemetry.crashed(DataTelemetry.PROFILE, "$operation.schedule", e, id)
         }
-        profile.right()
-    } catch (e: Exception) {
-        DomainError.PersistenceFailure(e.message).left()
     }
+
+    override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> =
+        telemetry.span(DataTelemetry.PROFILE, OP_SAVE, profile.id.value) {
+            try {
+                val now = clock.now().toString()
+                val fullName = profile.name?.value
+                val goal = profile.goal?.name
+                val completedAt = profile.onboardingCompletedAt?.toString()
+                val email = profile.email?.value
+                // Insert-then-update rather than an UPSERT: `ON CONFLICT ... DO UPDATE`
+                // needs SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored when
+                // the row already exists (which is what preserves created_at), so on an
+                // edit the UPDATE is what writes. One transaction, so no reader sees the
+                // half-written state.
+                database.transaction {
+                    queries.insertProfile(
+                        id = profile.id.value,
+                        fullName = fullName,
+                        onboardingGoal = goal,
+                        onboardingCompletedAt = completedAt,
+                        city = profile.city,
+                        email = email,
+                        avatarPath = profile.avatarPath,
+                        now = now,
+                        syncStatus = SyncStatus.PENDING.name,
+                    )
+                    queries.updateProfile(
+                        fullName = fullName,
+                        onboardingGoal = goal,
+                        onboardingCompletedAt = completedAt,
+                        city = profile.city,
+                        email = email,
+                        avatarPath = profile.avatarPath,
+                        updatedAt = now,
+                        syncStatus = SyncStatus.PENDING.name,
+                        id = profile.id.value,
+                    )
+                }
+                requestSync(OP_SAVE, profile.id.value)
+                profile.right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.PROFILE, OP_SAVE, e, profile.id.value)
+                DomainError.PersistenceFailure(e.message).left()
+            }
+        }
 
     override fun observe(): Flow<OwnerProfile?> =
         queries.selectProfile()
             .asFlow()
             .mapToOneOrNull(dispatcher)
             .map { row -> row?.toDomain() }
+            .catch { e ->
+                telemetry.crashed(DataTelemetry.PROFILE, OP_OBSERVE, e)
+                emit(null)
+            }
+
+    override suspend fun delete(): Either<DomainError, Unit> =
+        telemetry.span(DataTelemetry.PROFILE, OP_DELETE) {
+            try {
+                val now = clock.now().toString()
+                queries.softDeleteProfiles(deletedAt = now, syncStatus = SyncStatus.PENDING.name)
+                requestSync(OP_DELETE, null)
+                Unit.right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.PROFILE, OP_DELETE, e)
+                DomainError.PersistenceFailure(e.message).left()
+            }
+        }
+
+    private companion object {
+        const val OP_SAVE = "save"
+        const val OP_OBSERVE = "observe"
+        const val OP_DELETE = "delete"
+    }
 }

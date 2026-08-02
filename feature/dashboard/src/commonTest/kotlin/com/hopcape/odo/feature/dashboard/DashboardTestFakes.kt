@@ -249,6 +249,7 @@ internal class FakeOwnerProfileRepository(profile: OwnerProfile? = testProfile()
 
     override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> = profile.right()
     override fun observe(): Flow<OwnerProfile?> = stored
+    override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { stored.value = null }
 
     fun emit(profile: OwnerProfile?) {
         stored.value = profile

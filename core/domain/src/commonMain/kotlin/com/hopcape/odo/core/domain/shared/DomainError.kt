@@ -39,6 +39,12 @@ sealed interface DomainError {
     /** The owner's name exceeded [max] characters after trimming. */
     data class OwnerNameTooLong(val max: Int) : DomainError
 
+    /** The owner's contact email was present but not a usable address. */
+    data object InvalidOwnerEmail : DomainError
+
+    /** The owner's contact email exceeded [max] characters after trimming. */
+    data class OwnerEmailTooLong(val max: Int) : DomainError
+
     /**
      * An onboarding goal was required but not chosen. It decides the surface the owner
      * lands on (PRD §5.1), so setup can't finish without one.
@@ -91,6 +97,12 @@ sealed interface DomainError {
 
     /** The referenced car has no baseline reading — it does not exist for the owner. */
     data object CarNotFound : DomainError
+
+    /**
+     * No profile is stored on this device. Onboarding writes one before the app opens, so
+     * this means it was deleted — an edit has nothing to edit.
+     */
+    data object ProfileNotFound : DomainError
 
     /** No live service log has this id — it was never written, or has been deleted. */
     data object ServiceLogNotFound : DomainError

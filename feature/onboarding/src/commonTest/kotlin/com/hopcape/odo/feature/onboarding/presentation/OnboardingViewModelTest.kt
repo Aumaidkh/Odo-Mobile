@@ -690,6 +690,7 @@ class OnboardingViewModelTest {
             }
 
         override fun observe(): Flow<OwnerProfile?> = flowOf(saved.lastOrNull())
+        override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { saved.clear() }
     }
 
     /** Get the car step to [OnboardingUiState.canContinue] the short way. */

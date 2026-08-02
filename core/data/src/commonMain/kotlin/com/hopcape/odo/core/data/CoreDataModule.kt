@@ -31,6 +31,7 @@ import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.db.createOdoDatabase
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
+import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -47,6 +48,7 @@ import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import app.cash.sqldelight.db.SqlDriver
 import org.koin.dsl.module
 
@@ -72,7 +74,12 @@ val coreDataModule = module {
     // Which car every per-car screen is about. A `single` holding a hot StateFlow, so a
     // navigation handler can name the car synchronously the moment it is tapped.
     single<ActiveCarProvider> { PrimaryCarProvider(cars = get(), telemetry = get()) }
-    single<OwnerProfileRepository> { OwnerProfileRepositoryImpl(database = get()) }
+    single<OwnerProfileRepository> {
+        OwnerProfileRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
+    }
+    // Device settings — theme, units, notification topics. Deliberately no scheduler:
+    // `app_settings` mirrors no server table, so there is nothing to push.
+    single<AppSettingsRepository> { AppSettingsRepositoryImpl(database = get(), telemetry = get()) }
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
 
     // Observability for the whole data layer, behind one facade. A `single`: it holds no

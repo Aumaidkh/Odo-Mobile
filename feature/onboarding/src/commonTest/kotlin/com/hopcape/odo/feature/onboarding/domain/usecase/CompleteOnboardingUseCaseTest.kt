@@ -34,6 +34,7 @@ class CompleteOnboardingUseCaseTest {
         }
 
         override fun observe(): Flow<OwnerProfile?> = flowOf(lastSaved)
+        override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
     }
 
     private val ownerId = OwnerId("owner-1")
