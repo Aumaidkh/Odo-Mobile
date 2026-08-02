@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 
@@ -52,11 +54,28 @@ fun OdoNavHost(
         listOf(ModalBottomSheetSceneStrategy<NavKey>(), SinglePaneSceneStrategy<NavKey>())
     }
 
+    // Each entry gets its own ViewModelStore, cleared when that entry leaves the back stack.
+    //
+    // This has to be passed explicitly. NavDisplay's default is the saveable-state-holder
+    // decorator alone, and without the ViewModel one `LocalViewModelStoreOwner` resolves to
+    // the Activity — so every `koinViewModel()` in the app returns a single instance that
+    // lives as long as the process. A screen would then reopen holding the state it had when
+    // it was last closed, and Koin would hand back the cached ViewModel while silently
+    // ignoring the `parametersOf` a new destination passed it.
+    //
+    // The saveable-state-holder decorator stays: dropping it would lose `rememberSaveable`
+    // state across configuration changes.
+    val entryDecorators = listOf(
+        rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
+        rememberViewModelStoreNavEntryDecorator<NavKey>(),
+    )
+
     NavDisplay(
         backStack = navigator.backStack,
         onBack = { navigator.goBack() },
         modifier = modifier,
         sceneStrategies = sceneStrategies,
+        entryDecorators = entryDecorators,
         // A single, app-wide motion language: pushes slide in from the trailing
         // edge while the current screen eases back; pops (button + predictive
         // gesture) reverse it. Every feature — including bill-scanner — inherits

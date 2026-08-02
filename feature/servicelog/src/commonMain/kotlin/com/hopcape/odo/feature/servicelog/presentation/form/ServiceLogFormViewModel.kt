@@ -157,7 +157,14 @@ internal class ServiceLogFormViewModel(
             telemetry.entrySave(edit = form.isEditing, categories = form.categories) { form.write() }
                 .fold(
                     ifLeft = ::showFailure,
-                    ifRight = { entry -> emit(ServiceLogFormEffect.Saved(entry.id)) },
+                    ifRight = { entry ->
+                        // Leave InFlight before navigating. The form is popped on Saved, so
+                        // this is invisible in the normal case — but a submission stuck at
+                        // InFlight is a Save button that never re-enables, and `canSave`
+                        // reads it. Every other form in the app settles on Succeeded too.
+                        _state.update { it.copy(submission = Submission.Succeeded) }
+                        emit(ServiceLogFormEffect.Saved(entry.id))
+                    },
                 )
         }
     }

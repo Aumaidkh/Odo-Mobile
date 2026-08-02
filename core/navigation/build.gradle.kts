@@ -25,6 +25,9 @@ kotlin {
             // entryProvider, NavEntry — keeping Nav3 a single dependency surface.
             // navigation3-ui transitively provides the runtime/common types.
             api(libs.navigation3.ui)
+            // Per-entry ViewModelStore. `api` because the decorator is part of how the
+            // host is assembled, and :app builds the NavDisplay through OdoNavHost.
+            api(libs.androidx.lifecycle.viewmodelNavigation3)
             // SharedFlow command bus. `api` so a feature that exposes the
             // NavigationManager flow keeps the coroutines types visible.
             api(libs.kotlinx.coroutines.core)

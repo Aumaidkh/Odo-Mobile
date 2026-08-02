@@ -76,6 +76,10 @@ arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 # (NavKey, the back stack, entryProvider) plus NavDisplay. Exposed as `api` from
 # :core:navigation so features/app get the Nav3 types through that one module.
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "nav3" }
+# Gives each NavEntry its own ViewModelStore. Without it `LocalViewModelStoreOwner`
+# falls back to the Activity, every koinViewModel() in the app is one process-wide
+# instance, and a screen's state survives its own destination being popped.
+androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
 # Coroutines core — the command bus (MutableSharedFlow) is multiplatform.
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 # Coroutines test — runTest for suspend use-case tests (commonTest).
