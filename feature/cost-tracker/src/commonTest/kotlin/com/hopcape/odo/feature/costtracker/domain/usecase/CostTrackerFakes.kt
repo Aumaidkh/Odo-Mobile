@@ -19,6 +19,8 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.domain.settings.model.AppSettings
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -166,3 +168,11 @@ internal fun testFuelPrice(
 )
 
 internal fun cityProvider(city: String?) = CurrentCityProvider { city }
+
+/** Settings that never change — the units the figures are shown in. */
+internal class FakeSettingsRepository(
+    private val settings: AppSettings = AppSettings.Default,
+) : AppSettingsRepository {
+    override fun observe(): Flow<AppSettings> = flowOf(settings)
+    override suspend fun save(settings: AppSettings): Either<DomainError, AppSettings> = settings.right()
+}

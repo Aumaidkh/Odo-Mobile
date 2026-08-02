@@ -48,10 +48,10 @@ import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatDayMonth
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.timeline.domain.model.ServiceTrust
@@ -288,7 +288,7 @@ private fun ServiceCard(event: ActivityEvent.Service, onEvent: (TimelineEvent) -
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(workDoneText(event.workDone), style = OdoTheme.typography.heading, maxLines = 1)
-                val odometer = event.odometer.formatKm()
+                val odometer = LocalOdoDistanceFormat.current.format(event.odometer.km)
                 OdoText(
                     event.workshop?.let { stringResource(Res.string.tl_entry_meta, it.value, odometer) } ?: odometer,
                     style = OdoTheme.typography.bodySmall,

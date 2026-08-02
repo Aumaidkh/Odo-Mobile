@@ -49,6 +49,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -56,7 +57,6 @@ import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.formatDate
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
@@ -230,7 +230,7 @@ private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.gr_odometer), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
                 OdoText(
-                    car.odometer.formatKm(),
+                    LocalOdoDistanceFormat.current.format(car.odometer.km),
                     style = OdoTheme.typography.title,
                     modifier = Modifier.testTag(GarageTestTags.ODOMETER),
                 )

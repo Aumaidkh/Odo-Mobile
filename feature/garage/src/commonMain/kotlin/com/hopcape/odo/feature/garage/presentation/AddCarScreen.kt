@@ -28,6 +28,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.feature.garage.presentation.components.fuelLabel
 import com.hopcape.odo.feature.garage.presentation.state.text
@@ -118,10 +119,15 @@ internal fun AddCarScreen(state: AddCarUiState, onEvent: (AddCarEvent) -> Unit) 
 
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.gr_ac_current_odo))
+                val distance = LocalOdoDistanceFormat.current
                 OdoOdometer(
                     modifier = Modifier.testTag(GarageTestTags.ODOMETER_FIELD),
-                    value = state.odometer.value,
-                    onValueChange = { onEvent(AddCarEvent.OdometerChanged(it)) },
+                    // Shown and typed in the owner's unit; stored in kilometres.
+                    value = state.odometer.value?.let { distance.display(it.toInt()).toLong() },
+                    onValueChange = { dialled ->
+                        val km = distance.store(dialled.toInt(), state.odometer.value?.toInt())
+                        onEvent(AddCarEvent.OdometerChanged(km.toLong()))
+                    },
                     title = stringResource(Res.string.gr_ac_current_odo),
                     subtitle = stringResource(Res.string.gr_ac_odo_subtitle),
                     odometerLabel = stringResource(Res.string.gr_odometer),

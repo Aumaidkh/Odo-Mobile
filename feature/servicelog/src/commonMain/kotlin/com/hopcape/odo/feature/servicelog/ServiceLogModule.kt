@@ -98,6 +98,7 @@ val serviceLogModule = module {
             updateLog = get(),
             getLog = get(),
             currentOwner = get(),
+            settings = get(),
             telemetry = get(),
         )
     }

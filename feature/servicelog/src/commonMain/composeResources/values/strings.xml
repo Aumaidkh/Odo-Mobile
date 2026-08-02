@@ -118,8 +118,9 @@
     <!-- Field / submit errors -->
     <string name="sl_error_odometer_required">Odometer reading is required</string>
     <string name="sl_error_odometer_negative">Odometer can’t be negative</string>
-    <string name="sl_error_odometer_regression">Odometer can’t be below the last reading (%1$d km)</string>
-    <string name="sl_error_odometer_ahead">Odometer can’t be above a later reading (%1$d km)</string>
+    <!-- %1$s is the conflicting reading in the owner's unit, e.g. "54,000 km". -->
+    <string name="sl_error_odometer_regression">Odometer can’t be below the last reading (%1$s)</string>
+    <string name="sl_error_odometer_ahead">Odometer can’t be above a later reading (%1$s)</string>
     <string name="sl_error_amount_negative">Amount can’t be negative</string>
     <string name="sl_error_date_required">Service date is required</string>
     <string name="sl_error_date_future">Service date can’t be in the future</string>

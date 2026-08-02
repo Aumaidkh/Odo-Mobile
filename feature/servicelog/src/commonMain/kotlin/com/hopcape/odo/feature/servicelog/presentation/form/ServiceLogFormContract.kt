@@ -19,7 +19,6 @@ internal sealed interface ServiceLogFormEvent {
         data class OdometerChanged(val value: String) : Field
 
         /** Km ⇄ Miles. The reading is stored in km either way (see [toAddCommand]). */
-        data object OdometerUnitToggled : Field
         data class AmountChanged(val value: String) : Field
         data class NotesChanged(val value: String) : Field
         data class CategoryToggled(val category: ServiceCategory) : Field

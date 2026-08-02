@@ -28,7 +28,8 @@
 
     <!-- Home: running cost -->
     <string name="hm_running_cost">RUNNING COST</string>
-    <string name="hm_per_km">/km</string>
+    <!-- The unit the running cost is quoted per, e.g. "/km". -->
+    <string name="hm_per_unit">/%1$s</string>
     <string name="hm_cost_above">%1$d%% above last quarter</string>
     <string name="hm_cost_below">%1$d%% below last quarter</string>
     <string name="hm_cost_flat">Same as last quarter</string>
@@ -52,12 +53,13 @@
     <string name="hm_attn_doc_expiring_sub">Valid till %1$s</string>
     <string name="hm_attn_service_overdue">Service overdue</string>
     <string name="hm_attn_service_overdue_days">%1$d days past due</string>
-    <string name="hm_attn_service_overdue_km">%1$d km past due</string>
-    <string name="hm_attn_service_overdue_both">%1$d days and %2$d km past due</string>
+    <!-- %1$s is a distance in the owner's unit, e.g. "500 km". -->
+    <string name="hm_attn_service_overdue_km">%1$s past due</string>
+    <string name="hm_attn_service_overdue_both">%1$d days and %2$s past due</string>
     <string name="hm_attn_service_due">Service due soon</string>
     <string name="hm_attn_service_due_days">In about %1$d days</string>
-    <string name="hm_attn_service_due_km">In about %1$d km</string>
-    <string name="hm_attn_service_due_both">In about %1$d km or %2$d days</string>
+    <string name="hm_attn_service_due_km">In about %1$s</string>
+    <string name="hm_attn_service_due_both">In about %1$s or %2$d days</string>
 
     <!-- Home: insight card -->
     <string name="hm_insight_eyebrow">ODO INSIGHT</string>

@@ -6,9 +6,6 @@ package com.hopcape.odo.core.domain.shared
  * matches [Amount.formatRupees].
  */
 
-/** "22,200 km" — Indian digit grouping. Kept until every screen reads a chosen unit. */
-fun Distance.formatKm(): String = format(DistanceUnit.KILOMETRE)
-
 /** "22,200 km" / "13,795 mi" — the reading in [unit], Indian digit grouping. */
 fun Distance.format(unit: DistanceUnit): String =
     "${groupIndianDigits(displayValue(unit).toLong())} ${unit.suffix()}"

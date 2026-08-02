@@ -2,7 +2,9 @@
     <!-- Running cost screen -->
     <string name="ct_title">Running cost</string>
     <string name="ct_cost_per_km_label">COST PER KILOMETRE</string>
-    <string name="ct_per_km_suffix"> / km</string>
+    <string name="ct_cost_per_mi_label">COST PER MILE</string>
+    <!-- The unit a rate is quoted per, e.g. " / km". -->
+    <string name="ct_per_unit_suffix"> / %1$s</string>
     <string name="ct_across">Across %1$s · %2$s</string>
     <string name="ct_period_range">%1$s – %2$s</string>
 
@@ -19,7 +21,8 @@
 
     <!-- Where it goes -->
     <string name="ct_where_it_goes">WHERE IT GOES</string>
-    <string name="ct_per_km_rate">%1$s / km</string>
+    <!-- A category's contribution to the rate, e.g. "Rs. 2.10 / km". -->
+    <string name="ct_per_unit_rate">%1$s / %2$s</string>
     <string name="ct_cat_fuel">Fuel</string>
     <string name="ct_cat_service">Service</string>
     <string name="ct_cat_repairs">Repairs</string>
@@ -29,13 +32,16 @@
     <string name="ct_fuel_note_city">Fuel estimated at %1$s per %2$s in %3$s</string>
     <string name="ct_fuel_note_generic">Fuel estimated at %1$s per %2$s</string>
     <string name="ct_fuel_note_missing">Fuel is not included — set your city in Profile to add it</string>
+    <!-- The assumed mileage behind the fuel estimate, e.g. "Assumes 15 km/l." -->
+    <string name="ct_fuel_note_efficiency">Assumes %1$s.</string>
     <string name="ct_unit_litre">litre</string>
     <string name="ct_unit_kg">kg</string>
     <string name="ct_unit_kwh">unit</string>
 
     <!-- Not enough driving behind the numbers to quote a rate. -->
     <string name="ct_no_rate_title">Not enough to go on yet</string>
-    <string name="ct_no_rate_distance">Odo needs about %1$d km of driving before a cost per kilometre means anything. Log your next service with its odometer reading.</string>
+    <!-- %1$s is the distance in the owner's unit, e.g. "100 km". -->
+    <string name="ct_no_rate_distance">Odo needs about %1$s of driving before a running cost means anything. Log your next service with its odometer reading.</string>
     <string name="ct_no_rate_readings">Add your car’s odometer reading and Odo will start tracking what it costs to run.</string>
 
     <!-- Summary -->

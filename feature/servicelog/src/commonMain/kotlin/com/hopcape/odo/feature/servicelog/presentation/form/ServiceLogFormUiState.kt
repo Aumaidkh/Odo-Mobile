@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.servicelog.presentation.form
 
 import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
+import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.feature.servicelog.presentation.state.FormField
@@ -40,6 +41,8 @@ internal data class ServiceLogFormUiState(
     val date: FormField<LocalDate> = FormField(),
     val odometer: FormField<String> = FormField(value = ""),
     val odometerUnit: OdoDistanceUnit = OdoDistanceUnit.KM,
+    /** The same choice as [odometerUnit], as the domain states it — what a save converts by. */
+    val distanceUnit: DistanceUnit = DistanceUnit.Default,
     val amount: FormField<String> = FormField(value = ""),
     val notes: FormField<String> = FormField(value = ""),
     val categories: Set<ServiceCategory> = emptySet(),

@@ -139,7 +139,6 @@ internal fun ServiceLogFormScreen(
                     value = state.odometer.text,
                     onValueChange = { onEvent(ServiceLogFormEvent.Field.OdometerChanged(it)) },
                     unit = state.odometerUnit,
-                    onUnitToggle = { onEvent(ServiceLogFormEvent.Field.OdometerUnitToggled) },
                     kmLabel = stringResource(Res.string.sl_unit_km),
                     milesLabel = stringResource(Res.string.sl_unit_miles),
                     label = stringResource(Res.string.sl_field_odometer),

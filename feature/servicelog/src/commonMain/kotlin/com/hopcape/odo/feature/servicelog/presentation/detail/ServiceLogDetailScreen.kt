@@ -43,11 +43,11 @@ import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.formatDate
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
@@ -176,12 +176,13 @@ private fun DetailContent(entry: ServiceEntryDetailUiState, padding: androidx.co
 private fun DetailHeader(entry: ServiceEntryDetailUiState) {
     // Workshop name lives in the collapsing top bar; the header carries the trust
     // badge + the "date · km · work" line.
+    val distance = LocalOdoDistanceFormat.current
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
         VerificationBadge(entry.verification)
         OdoText(
             text = buildString {
                 append(formatDate(entry.serviceDate))
-                append(" · ").append(entry.odometer.formatKm())
+                append(" · ").append(distance.format(entry.odometer.km))
                 entry.workDone.asString()?.let { append(" · ").append(it) }
             },
             style = OdoTheme.typography.bodySmall,

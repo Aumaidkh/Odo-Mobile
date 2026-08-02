@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.costtracker.presentation.runningcost
 
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.shared.Amount
@@ -48,6 +49,8 @@ internal sealed interface FuelNote {
         val unit: FuelUnit,
         val city: String?,
         val ownersOwn: Boolean,
+        /** The assumed distance per unit of fuel the estimate was built on. */
+        val kmPerUnit: Int,
     ) : FuelNote
 }
 
@@ -91,4 +94,6 @@ internal data class RunningCostContent(
 internal data class RunningCostUiState(
     val period: CostPeriod = CostPeriod.Y1,
     val content: Loadable<RunningCostContent> = Loadable.Loading,
+    /** How the owner writes fuel efficiency — their setting, not this screen's choice. */
+    val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.Default,
 )
