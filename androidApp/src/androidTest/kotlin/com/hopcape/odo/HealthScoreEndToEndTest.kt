@@ -155,15 +155,17 @@ class HealthScoreEndToEndTest {
     }
 
     @Test
-    fun aCarWithNothingLoggedScoresNothingAndIsToldHowToStart() {
+    fun aCarWithNothingLoggedHasNoScoreToOpenAndIsToldHowToEarnOne() {
         startEmptyCar()
-        rule.openHealthScore()
+        rule.openHomeTab()
 
-        // Zero because nothing is proven, not because the car is in bad shape — so the
-        // screen offers a way forward instead of a movement.
-        rule.awaitHealthScore(0)
-        rule.onNodeWithText(HealthCopy.BAND_NEEDS_CARE).assertIsDisplayed()
-        rule.onNodeWithText(HealthCopy.NOTHING_LOGGED).assertIsDisplayed()
+        // Nothing logged and nothing filed, so there is nothing to score. Home says so and
+        // names what would change it, instead of opening a dial reading zero — a number
+        // that would be a verdict on the record rather than on the car.
+        rule.awaitText(HealthCopy.HOME_SCORE_WAITING)
+        rule.onNodeWithText(HealthCopy.HOME_SCORE_WAITING_BODY).assertIsDisplayed()
+        // No breakdown link either: it belongs to the health card, which is not drawn.
+        rule.onNodeWithText(HealthCopy.HOME_SEE_BREAKDOWN).assertDoesNotExist()
     }
 
     @Test

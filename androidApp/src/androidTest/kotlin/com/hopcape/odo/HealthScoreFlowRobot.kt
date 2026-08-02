@@ -44,6 +44,11 @@ internal object HealthCopy {
     /* Under the dial. */
     const val NOTHING_LOGGED = "Log a service or add a document to start building your score"
 
+    /* What Home shows instead of a score while there is nothing to score. */
+    const val HOME_SCORE_WAITING = "Your score is waiting"
+    const val HOME_SCORE_WAITING_BODY =
+        "Add one bill or document and Odo can start scoring your car’s health."
+
     /* Breakdown. */
     const val BREAKDOWN = "WHAT MAKES UP YOUR SCORE"
     const val FACTOR_MAINTENANCE = "Maintenance regularity"
@@ -372,11 +377,20 @@ private const val HEALTH_START_UP_TIMEOUT_MILLIS = 20_000L
 
 /** Open the score the way an owner does: from Home's health card. */
 internal fun HealthTestRule.openHealthScore() {
-    awaitText(HealthCopy.HOME_TAB, HEALTH_START_UP_TIMEOUT_MILLIS)
-    onNodeWithText(HealthCopy.HOME_TAB).performClick()
+    openHomeTab()
     awaitText(HealthCopy.HOME_SEE_BREAKDOWN)
     onNodeWithText(HealthCopy.HOME_SEE_BREAKDOWN).performClick()
     awaitText(HealthCopy.TITLE)
+}
+
+/**
+ * Home itself, which is as far as a car with nothing logged gets: the breakdown link is
+ * part of the health card, and Home shows the setup checklist instead of one until there
+ * is something to score.
+ */
+internal fun HealthTestRule.openHomeTab() {
+    awaitText(HealthCopy.HOME_TAB, HEALTH_START_UP_TIMEOUT_MILLIS)
+    onNodeWithText(HealthCopy.HOME_TAB).performClick()
 }
 
 internal fun HealthTestRule.leaveHealthScore() {
