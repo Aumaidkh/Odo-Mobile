@@ -85,7 +85,7 @@ class OnboardingEndToEndTest {
 
         // The point of the whole flow: it does not happen twice.
         rule.activityRule.scenario.recreate()
-        rule.waitForText(Copy.HOME_HEALTH_SCORE)
+        rule.waitForText(Copy.HOME_SCORE_WAITING)
         rule.onNodeWithText(Copy.WELCOME_HEADLINE).assertDoesNotExist()
         rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
     }

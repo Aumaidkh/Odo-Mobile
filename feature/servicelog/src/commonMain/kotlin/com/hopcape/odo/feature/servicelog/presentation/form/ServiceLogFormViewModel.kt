@@ -12,6 +12,8 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
@@ -50,6 +52,7 @@ internal class ServiceLogFormViewModel(
     private val updateLog: UpdateServiceLogUseCase,
     private val getLog: GetServiceLogUseCase,
     private val currentOwner: CurrentOwnerProvider,
+    private val settings: AppSettingsRepository,
     private val telemetry: ServiceLogTelemetry,
 ) : ViewModel() {
 
@@ -75,7 +78,20 @@ internal class ServiceLogFormViewModel(
     private var original: ServiceLogEntry? = null
 
     init {
+        readDistanceUnit()
         if (editLogId != null) prefill(editLogId)
+    }
+
+    /**
+     * The unit the odometer field is typed in, which is a profile setting rather than
+     * anything this form decides. Read once: the owner is typing a number into it, and a
+     * unit that changed underneath them would silently change what that number means.
+     */
+    private fun readDistanceUnit() {
+        viewModelScope.launch {
+            val unit = settings.observe().first().distanceUnit
+            _state.update { it.copy(odometerUnit = unit.toOdoUnit(), distanceUnit = unit) }
+        }
     }
 
     /**
@@ -119,7 +135,6 @@ internal class ServiceLogFormViewModel(
             is ServiceLogFormEvent.Field.WorkshopChanged -> state.copy(workshop = state.workshop.update(event.value))
             is ServiceLogFormEvent.Field.DateChanged -> state.copy(date = state.date.update(event.date))
             is ServiceLogFormEvent.Field.OdometerChanged -> state.copy(odometer = state.odometer.update(event.value))
-            ServiceLogFormEvent.Field.OdometerUnitToggled -> state.copy(odometerUnit = state.odometerUnit.toggled())
             is ServiceLogFormEvent.Field.AmountChanged -> state.copy(amount = state.amount.update(event.value))
             is ServiceLogFormEvent.Field.NotesChanged -> state.copy(notes = state.notes.update(event.value))
             is ServiceLogFormEvent.Field.CategoryToggled -> state.copy(categories = state.categories.toggle(event.category))
@@ -199,7 +214,8 @@ private fun ServiceLogFormUiState.withError(error: ServiceLogFormFieldError): Se
         ServiceLogFormField.NOTES -> copy(notes = notes.fail(error.message))
     }
 
-private fun OdoDistanceUnit.toggled(): OdoDistanceUnit =
-    if (this == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM
+/** The design system's unit for the same choice — the field is labelled from it. */
+internal fun DistanceUnit.toOdoUnit(): OdoDistanceUnit =
+    if (this == DistanceUnit.MILE) OdoDistanceUnit.MILES else OdoDistanceUnit.KM
 
 private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value

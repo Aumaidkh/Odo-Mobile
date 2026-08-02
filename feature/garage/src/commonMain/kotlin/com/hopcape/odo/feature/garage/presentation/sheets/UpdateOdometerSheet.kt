@@ -14,8 +14,8 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.shared.formatDate
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.feature.garage.domain.usecase.OdometerContext
 import com.hopcape.odo.feature.garage.presentation.GarageSheet
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
@@ -74,9 +74,15 @@ private fun Editor(
     onEvent: (UpdateOdometerEvent) -> Unit,
 ) {
     val recorded = context.lastRecorded
+    val distance = LocalOdoDistanceFormat.current
     OdoOdometerEditor(
-        value = recorded.odometer.km.toLong(),
-        onSave = { onEvent(UpdateOdometerEvent.Save(it)) },
+        // The drums show and take the owner's unit; what is saved is kilometres. Passing
+        // the reading on file lets a re-typed number stay exactly where it was rather than
+        // landing a kilometre lower through the conversion.
+        value = distance.display(recorded.odometer.km).toLong(),
+        onSave = { dialled ->
+            onEvent(UpdateOdometerEvent.Save(distance.store(dialled.toInt(), recorded.odometer.km).toLong()))
+        },
         title = stringResource(Res.string.gr_odo_title),
         subtitle = stringResource(Res.string.gr_odo_subtitle),
         odometerLabel = stringResource(Res.string.gr_odometer),
@@ -88,13 +94,13 @@ private fun Editor(
             OdoText(
                 stringResource(
                     Res.string.gr_odo_last,
-                    recorded.odometer.formatKm(),
+                    distance.format(recorded.odometer.km),
                     formatDate(recorded.date),
                 ),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textMuted,
             )
-            DistanceSince(context, dialled)
+            DistanceSince(context, dialled?.let { distance.store(it.toInt(), recorded.odometer.km).toLong() })
             state.submission.error?.let { message ->
                 OdoText(
                     message.asString(),
@@ -131,14 +137,14 @@ private fun DistanceSince(context: OdometerContext, dialled: Long?) {
                 size = OdoTheme.iconSizes.medium,
             )
             OdoText(
-                stringResource(Res.string.gr_odo_delta, since.grouped(), perMonth.grouped()),
+                stringResource(
+                    Res.string.gr_odo_delta,
+                    LocalOdoDistanceFormat.current.format(since),
+                    LocalOdoDistanceFormat.current.format(perMonth),
+                ),
                 style = OdoTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
         }
     }
 }
-
-/** Thousands separated the way every other number in the app is written. */
-private fun Int.grouped(): String =
-    toString().reversed().chunked(3).joinToString(",").reversed()

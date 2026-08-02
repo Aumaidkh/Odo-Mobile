@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.designsystem.text
 
 import androidx.compose.runtime.Composable
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -18,7 +19,24 @@ data class UiText(
     val args: List<Any> = emptyList(),
 )
 
-/** Resolve this [UiText] against the current composition's resources. */
+/**
+ * A distance inside a message, in stored kilometres.
+ *
+ * Wrapping it — rather than putting a formatted number in the args — is what lets a
+ * ViewModel write "the last reading was this far" without knowing which unit the owner
+ * reads in. [asString] converts it at render time, where the setting is available. Use it
+ * for every distance a message quotes; a raw number would always print kilometres.
+ */
+data class DistanceArg(val km: Int)
+
+/**
+ * Resolve this [UiText] against the current composition's resources, converting any
+ * [DistanceArg] to the owner's distance unit first.
+ */
 @Composable
-fun UiText.asString(): String =
-    if (args.isEmpty()) stringResource(id) else stringResource(id, *args.toTypedArray())
+fun UiText.asString(): String {
+    if (args.isEmpty()) return stringResource(id)
+    val format = LocalOdoDistanceFormat.current
+    val resolved = args.map { arg -> if (arg is DistanceArg) format.format(arg.km) else arg }
+    return stringResource(id, *resolved.toTypedArray())
+}

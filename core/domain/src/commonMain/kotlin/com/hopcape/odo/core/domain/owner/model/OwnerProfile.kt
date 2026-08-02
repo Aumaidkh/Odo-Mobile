@@ -24,7 +24,30 @@ class OwnerProfile private constructor(
     val goal: OnboardingGoal?,
     val onboardingCompletedAt: Instant?,
     val city: String?,
+    val email: OwnerEmail?,
+    val avatarPath: String?,
 ) {
+    /**
+     * Rename the owner. Takes an already-validated [OwnerName], so there is nothing left
+     * to check here — the same split as [new].
+     */
+    fun withName(name: OwnerName): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath)
+
+    /** Set or clear the contact email. Null clears it; Odo never requires an address. */
+    fun withEmail(email: OwnerEmail?): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath)
+
+    /**
+     * Point at the owner's profile photo, or clear it with null.
+     *
+     * A storage key for a file already copied into the app's own storage, not a picked
+     * URI: the URI stops working after the app restarts. Copying is the caller's job
+     * (`:core:platform`), because the domain does not touch files.
+     */
+    fun withAvatar(avatarPath: String?): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null })
+
     /**
      * Set the owner's home city — the key every fairness benchmark is looked up by
      * ("Pune average"). Null until they set it on their profile: onboarding deliberately
@@ -35,7 +58,7 @@ class OwnerProfile private constructor(
      * the benchmark RPC take end to end; wrapping it here would only unwrap it there.
      */
     fun withCity(city: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null })
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath)
 
     /**
      * Whether first-run setup is finished. Stored as a timestamp rather than a boolean
@@ -53,7 +76,7 @@ class OwnerProfile private constructor(
      * call can't rewrite history.
      */
     fun completeOnboarding(at: Instant): OwnerProfile =
-        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city)
+        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath)
 
     companion object {
         /**
@@ -61,8 +84,15 @@ class OwnerProfile private constructor(
          * name is [OwnerName]'s job and deciding that a goal is mandatory is the calling
          * feature's, so by the time this is reached there is nothing left to check.
          */
-        fun new(id: OwnerId, name: OwnerName, goal: OnboardingGoal): OwnerProfile =
-            OwnerProfile(id = id, name = name, goal = goal, onboardingCompletedAt = null, city = null)
+        fun new(id: OwnerId, name: OwnerName, goal: OnboardingGoal): OwnerProfile = OwnerProfile(
+            id = id,
+            name = name,
+            goal = goal,
+            onboardingCompletedAt = null,
+            city = null,
+            email = null,
+            avatarPath = null,
+        )
 
         /**
          * Rehydrate from already-persisted, trusted data (the local DB, or a row pulled
@@ -80,6 +110,8 @@ class OwnerProfile private constructor(
             goal: OnboardingGoal?,
             onboardingCompletedAt: Instant?,
             city: String? = null,
+            email: String? = null,
+            avatarPath: String? = null,
         ): OwnerProfile = OwnerProfile(
             id = id,
             name = name?.let {
@@ -88,6 +120,8 @@ class OwnerProfile private constructor(
             goal = goal,
             onboardingCompletedAt = onboardingCompletedAt,
             city = city,
+            email = OwnerEmail.of(email).getOrElse { error("corrupt profile.email for ${id.value}") },
+            avatarPath = avatarPath,
         )
     }
 }

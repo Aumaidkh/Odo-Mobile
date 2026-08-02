@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.servicelog.presentation.form
 
-import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
+import com.hopcape.odo.core.designsystem.text.DistanceArg
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -8,7 +8,10 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItem
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.displayValue
+import com.hopcape.odo.core.domain.shared.of
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogCommand
 import com.hopcape.odo.feature.servicelog.domain.usecase.UpdateServiceLogCommand
 import com.hopcape.odo.feature.servicelog.presentation.state.text
@@ -22,7 +25,6 @@ import com.hopcape.odo.feature.servicelog.resources.sl_error_odometer_negative
 import com.hopcape.odo.feature.servicelog.resources.sl_error_odometer_regression
 import com.hopcape.odo.feature.servicelog.resources.sl_error_odometer_required
 import com.hopcape.odo.feature.servicelog.resources.sl_error_workshop_too_long
-import kotlin.math.roundToInt
 
 /**
  * The seam between what the owner typed and what the domain accepts: raw text in, commands
@@ -75,10 +77,9 @@ internal fun ServiceLogFormUiState.toUpdateCommand(
 internal fun ServiceLogFormUiState.prefilledFrom(entry: ServiceLogEntry): ServiceLogFormUiState = copy(
     workshop = workshop.update(entry.workshopName?.value.orEmpty()),
     date = date.update(entry.serviceDate),
-    // Always shown in km: that is how it is stored, and re-deriving the unit the owner
-    // originally typed in would be a guess at best.
-    odometer = odometer.update(entry.odometer.km.toString()),
-    odometerUnit = OdoDistanceUnit.KM,
+    // Shown in the owner's unit, which is the one the field is labelled with. The stored
+    // reading is always kilometres; nothing about the entry changes by looking at it.
+    odometer = odometer.update(entry.odometer.displayValue(distanceUnit).toString()),
     amount = amount.update(entry.totalAmount.paise.toRupeeInput()),
     notes = notes.update(entry.notes?.value.orEmpty()),
     categories = entry.categories,
@@ -91,10 +92,9 @@ internal fun ServiceLogFormUiState.prefilledFrom(entry: ServiceLogEntry): Servic
  */
 private fun ServiceLogFormUiState.odometerKm(): Int? {
     val value = odometer.text.digitsOrNull()?.toIntOrNull() ?: return null
-    return when (odometerUnit) {
-        OdoDistanceUnit.KM -> value
-        OdoDistanceUnit.MILES -> (value * KM_PER_MILE).roundToInt()
-    }
+    // The domain owns the conversion, so a reading typed in miles round-trips the same way
+    // it does everywhere else in the app.
+    return Distance.of(value, distanceUnit).getOrNull()?.km
 }
 
 /**
@@ -124,13 +124,13 @@ internal fun DomainError.toFieldError(): ServiceLogFormFieldError? = when (this)
     is DomainError.OdometerRegression ->
         ServiceLogFormFieldError(
             ServiceLogFormField.ODOMETER,
-            UiText(Res.string.sl_error_odometer_regression, listOf(previousKm)),
+            UiText(Res.string.sl_error_odometer_regression, listOf(DistanceArg(previousKm))),
         )
 
     is DomainError.OdometerAheadOfLaterEntry ->
         ServiceLogFormFieldError(
             ServiceLogFormField.ODOMETER,
-            UiText(Res.string.sl_error_odometer_ahead, listOf(nextKm)),
+            UiText(Res.string.sl_error_odometer_ahead, listOf(DistanceArg(nextKm))),
         )
 
     DomainError.MissingServiceDate ->
@@ -180,4 +180,3 @@ private fun Long.toRupeeInput(): String {
 private const val PAISE_PER_RUPEE = 100L
 
 /** Exact by definition (international mile), so a reading converts the same way every time. */
-private const val KM_PER_MILE = 1.609344

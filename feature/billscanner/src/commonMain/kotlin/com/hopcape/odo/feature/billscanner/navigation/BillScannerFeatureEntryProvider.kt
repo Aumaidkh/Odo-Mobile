@@ -7,10 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
-import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.FairnessLineInput
@@ -73,20 +73,16 @@ internal fun BillReviewRoute(navigationManager: NavigationManager) {
     var workshop by remember { mutableStateOf(extracted.workshop) }
     var date by remember { mutableStateOf(extracted.serviceDate) }
     var odometer by remember { mutableStateOf(extracted.odometer) }
-    var odometerUnit by remember { mutableStateOf(extracted.odometerUnit) }
     BillReviewScreen(
         state = extracted.copy(
             workshop = workshop,
             serviceDate = date,
             odometer = odometer,
-            odometerUnit = odometerUnit,
+            odometerUnit = LocalOdoDistanceFormat.current.unit,
         ),
         onWorkshopChange = { workshop = it },
         onDateChange = { date = it },
         onOdometerChange = { odometer = it },
-        onOdometerUnitToggle = {
-            odometerUnit = if (odometerUnit == OdoDistanceUnit.KM) OdoDistanceUnit.MILES else OdoDistanceUnit.KM
-        },
         // "Save & check fairness" hands the reviewed line items to the reusable
         // fairness-check utility via the shared registry — billscanner doesn't own the
         // benchmarking flow, it just builds the input. (Persisting the entry is M2.)

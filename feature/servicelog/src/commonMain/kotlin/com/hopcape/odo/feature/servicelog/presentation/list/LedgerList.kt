@@ -17,6 +17,7 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.feature.servicelog.presentation.list.components.VerdictPill
 import com.hopcape.odo.feature.servicelog.presentation.list.components.isFlagged
@@ -25,7 +26,6 @@ import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogE
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.core.domain.shared.formatDate
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_filter_all
@@ -106,7 +106,7 @@ private fun LedgerCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
             OdoText(text = card.amount.formatRupees(), style = OdoTheme.typography.title)
         }
         OdoText(
-            text = "${formatDate(card.serviceDate)} · ${card.odometer.formatKm()}",
+            text = "${formatDate(card.serviceDate)} · ${LocalOdoDistanceFormat.current.format(card.odometer.km)}",
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
         )

@@ -12,10 +12,12 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
 import com.hopcape.odo.feature.costtracker.domain.usecase.FakeCarRepository
 import com.hopcape.odo.feature.costtracker.domain.usecase.FakeFuelPriceProvider
 import com.hopcape.odo.feature.costtracker.domain.usecase.FakeServiceLogRepository
+import com.hopcape.odo.feature.costtracker.domain.usecase.FakeSettingsRepository
 import com.hopcape.odo.feature.costtracker.domain.usecase.FixedClock
 import com.hopcape.odo.feature.costtracker.domain.usecase.ObserveRunningCostUseCase
 import com.hopcape.odo.feature.costtracker.domain.usecase.TEST_CAR
@@ -191,8 +193,10 @@ class RunningCostViewModelTest {
         entries: List<ServiceLogEntry> = this.entries,
         price: com.hopcape.odo.core.domain.cost.fuel.FuelPrice? = testFuelPrice(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        settings: AppSettings = AppSettings.Default,
     ) = RunningCostViewModel(
         activeCar = FakeActiveCarProvider(carId),
+        settings = FakeSettingsRepository(settings),
         observeRunningCost = ObserveRunningCostUseCase(
             cars = FakeCarRepository(testCar(FuelType.PETROL)),
             logs = FakeServiceLogRepository(entries = entries, readings = readings),

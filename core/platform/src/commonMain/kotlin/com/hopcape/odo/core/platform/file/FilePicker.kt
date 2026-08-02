@@ -7,6 +7,9 @@ object FileTypes {
 
     /** PDFs and images — what an owner has after scanning or photographing a paper. */
     val PAPERS: List<String> = listOf("application/pdf", "image/*")
+
+    /** Images only — for a profile photo, where a PDF is not a picture of anyone. */
+    val PHOTOS: List<String> = listOf("image/*")
 }
 
 /**

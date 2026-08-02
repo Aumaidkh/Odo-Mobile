@@ -177,7 +177,12 @@ class CostTrackerEndToEndTest {
         rule.awaitFuelNoteStartingWith(CostCopy.FUEL_NOTE_ESTIMATED_PREFIX)
         assertTrue(
             "the note should name the city it priced fuel in, got ${rule.fuelNote()}",
-            rule.fuelNote().endsWith("in Pune"),
+            rule.fuelNote().contains("in Pune"),
+        )
+        // The other half of an estimate nobody logged: the mileage it was built on.
+        assertTrue(
+            "the note should name the assumed mileage, got ${rule.fuelNote()}",
+            rule.fuelNote().endsWith(CostCopy.FUEL_NOTE_EFFICIENCY),
         )
     }
 

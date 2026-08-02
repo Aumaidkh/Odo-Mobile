@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasSetTextAction
@@ -16,7 +17,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -403,7 +403,7 @@ internal fun GarageTestRule.confirmModelYear() {
  */
 internal fun GarageTestRule.describeNewCar() {
     typeInto(GarageTestTags.REGISTRATION_FIELD, GarageFixtures.NEW_PLATE_TYPED)
-    Espresso.closeSoftKeyboard()
+    hideKeyboard()
     pickFromSheet(GarageTestTags.MAKE_FIELD, GarageCopy.MAKE_SHEET_TITLE, GarageFixtures.NEW_MAKE, searchable = true)
     pickFromSheet(GarageTestTags.MODEL_FIELD, GarageCopy.MODEL_SHEET_TITLE, GarageFixtures.NEW_MODEL, searchable = true)
     confirmModelYear()
@@ -411,4 +411,23 @@ internal fun GarageTestRule.describeNewCar() {
     onNodeWithTag(GarageTestTags.ODOMETER_FIELD).performScrollTo().performClick()
     awaitText(GarageCopy.ODOMETER_SAVE)
     saveOdometer(GarageFixtures.NEW_ODOMETER)
+}
+
+/**
+ * Put the soft keyboard away, through the activity rather than through Espresso.
+ *
+ * `Espresso.closeSoftKeyboard()` is a view action, and every view action first waits up to
+ * ten seconds for a root window that holds focus. While the keyboard is up the focus is the
+ * keyboard's, so on a slow or headless emulator that wait expires and the test dies with
+ * RootViewWithoutFocusException — which is what it does on CI while passing on a fast local
+ * device. Asking the input-method manager directly needs no root and no focus, so it behaves
+ * the same on both.
+ */
+private fun GarageTestRule.hideKeyboard() {
+    activityRule.scenario.onActivity { activity ->
+        val decorView = activity.window.decorView
+        activity.getSystemService(InputMethodManager::class.java)
+            ?.hideSoftInputFromWindow(decorView.windowToken, 0)
+    }
+    waitForIdle()
 }

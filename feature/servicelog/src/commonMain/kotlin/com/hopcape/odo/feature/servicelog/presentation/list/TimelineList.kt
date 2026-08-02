@@ -34,6 +34,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.feature.servicelog.presentation.list.components.FairnessTone
 import com.hopcape.odo.feature.servicelog.presentation.list.components.TimelineStatus
@@ -42,7 +43,6 @@ import com.hopcape.odo.feature.servicelog.presentation.list.components.tone
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.ServiceLogEntryCard
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.core.domain.shared.formatRupees
 
@@ -129,7 +129,11 @@ private fun RecordCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OdoText(text = card.odometer.formatKm(), style = OdoTheme.typography.title, modifier = Modifier.weight(1f))
+            OdoText(
+                text = LocalOdoDistanceFormat.current.format(card.odometer.km),
+                style = OdoTheme.typography.title,
+                modifier = Modifier.weight(1f),
+            )
             MonthPill(formatMonthYear(card.serviceDate))
         }
         OdoText(

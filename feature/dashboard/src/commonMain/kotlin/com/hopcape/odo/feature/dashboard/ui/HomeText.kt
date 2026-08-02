@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.dashboard.ui
 
 import androidx.compose.runtime.Composable
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -158,22 +159,24 @@ internal fun attentionSubtitle(attention: CarAttention?): String = when (attenti
     is CarAttention.ServiceOverdue -> {
         val km = attention.kmOverdue
         val days = attention.daysOverdue
+        val distance = LocalOdoDistanceFormat.current
         when {
             km == null || km == 0 -> stringResource(Res.string.hm_attn_service_overdue_days, days)
-            days == 0 -> stringResource(Res.string.hm_attn_service_overdue_km, km)
-            else -> stringResource(Res.string.hm_attn_service_overdue_both, days, km)
+            days == 0 -> stringResource(Res.string.hm_attn_service_overdue_km, distance.format(km))
+            else -> stringResource(Res.string.hm_attn_service_overdue_both, days, distance.format(km))
         }
     }
 
     is CarAttention.ServiceDue -> {
         val km = attention.kmLeft
         val days = attention.daysLeft
+        val distance = LocalOdoDistanceFormat.current
         when {
             km == null -> stringResource(Res.string.hm_attn_service_due_days, days)
             // Distance alone once the date is far off: a service 900 km away but four
             // months out is a distance problem, not a date one.
-            days > DUE_SOON_DAYS_FOR_KM_ONLY -> stringResource(Res.string.hm_attn_service_due_km, km)
-            else -> stringResource(Res.string.hm_attn_service_due_both, km, days)
+            days > DUE_SOON_DAYS_FOR_KM_ONLY -> stringResource(Res.string.hm_attn_service_due_km, distance.format(km))
+            else -> stringResource(Res.string.hm_attn_service_due_both, distance.format(km), days)
         }
     }
 }

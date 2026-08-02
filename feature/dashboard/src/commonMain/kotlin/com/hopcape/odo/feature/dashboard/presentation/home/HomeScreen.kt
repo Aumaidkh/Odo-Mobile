@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
@@ -48,10 +49,11 @@ import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.insight.model.CarInsight
-import com.hopcape.odo.core.domain.shared.formatKm
+import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
@@ -71,7 +73,7 @@ import com.hopcape.odo.feature.dashboard.resources.hm_insight_resale_eyebrow
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car_body
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_caught
-import com.hopcape.odo.feature.dashboard.resources.hm_per_km
+import com.hopcape.odo.feature.dashboard.resources.hm_per_unit
 import com.hopcape.odo.feature.dashboard.resources.hm_recent
 import com.hopcape.odo.feature.dashboard.resources.hm_running_cost
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_first
@@ -230,7 +232,7 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
 @Composable
 private fun carLine(content: HomeContent): String {
     val odometer = content.odometer ?: return content.carName
-    return stringResource(Res.string.hm_car_line, content.carName, odometer.formatKm())
+    return stringResource(Res.string.hm_car_line, content.carName, LocalOdoDistanceFormat.current.format(odometer.km))
 }
 
 @Composable
@@ -311,13 +313,16 @@ private fun StatsRow(content: HomeContent) {
             modifier = Modifier.weight(1f).testTag(HomeTestTags.COST_CARD),
             value = {
                 Row(verticalAlignment = Alignment.Bottom) {
+                    val distance = LocalOdoDistanceFormat.current
                     OdoText(
-                        content.perKm?.formatRupeesDecimal() ?: stringResource(Res.string.db_score_none),
+                        content.perKm?.let { rate ->
+                            Amount.of(distance.ratePaise(rate.paise)).getOrElse { rate }.formatRupeesDecimal()
+                        } ?: stringResource(Res.string.db_score_none),
                         style = OdoTheme.typography.title,
                     )
                     if (content.perKm != null) {
                         OdoText(
-                            stringResource(Res.string.hm_per_km),
+                            stringResource(Res.string.hm_per_unit, distance.suffix),
                             style = OdoTheme.typography.bodySmall,
                             color = OdoTheme.colors.textDim,
                         )

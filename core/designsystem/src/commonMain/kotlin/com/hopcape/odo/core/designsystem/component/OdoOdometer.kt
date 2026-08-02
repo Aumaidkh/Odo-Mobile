@@ -43,14 +43,18 @@ import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import kotlinx.coroutines.launch
 
 /**
  * The **odometer** input — a split-flap reading you set on a keypad, not a bare number
  * field. A collapsed surface shows the current reading as mechanical digit drums; tapping
- * opens a bottom-sheet editor with the big drums, a km/miles toggle, quick "+km" chips,
- * and an on-brand keypad. Odometer is Odo's single most important number (it powers
- * per-km cost, the health score, and km-anomaly checks), so it earns a first-class control.
+ * opens a bottom-sheet editor with the big drums, quick-add chips and an on-brand keypad.
+ * Odometer is Odo's single most important number (it powers per-km cost, the health score,
+ * and km-anomaly checks), so it earns a first-class control.
+ *
+ * The unit is the owner's setting, not a control on this component: it defaults to whatever
+ * the app provided, and a screen only passes one when it has a reason to.
  *
  * Distinct from [OdoOdometerField] (the compact inline text input the service-log form
  * uses) — this is the richer, hero capture surface for onboarding and quick edits.
@@ -73,8 +77,7 @@ fun OdoOdometer(
     modifier: Modifier = Modifier,
     helper: String? = null,
     hint: String? = null,
-    unit: OdoDistanceUnit = OdoDistanceUnit.KM,
-    onUnitChange: (OdoDistanceUnit) -> Unit = {},
+    unit: OdoDistanceUnit = LocalOdoDistanceFormat.current.unit,
     note: String? = null,
     quickAdds: List<Int> = listOf(100, 500, 1000),
     scanLabel: String? = null,
@@ -122,7 +125,6 @@ fun OdoOdometer(
                 kmLabel = kmLabel,
                 milesLabel = milesLabel,
                 unit = unit,
-                onUnitChange = onUnitChange,
                 note = note,
                 quickAdds = quickAdds,
                 scanLabel = scanLabel,
@@ -135,18 +137,18 @@ fun OdoOdometer(
 }
 
 /**
- * The odometer **editor on its own** — the drums, km/miles toggle, quick-add chips and
- * keypad, without the collapsed surface or a sheet around it.
+ * The odometer **editor on its own** — the drums, quick-add chips and keypad, without the
+ * collapsed surface or a sheet around it.
  *
  * [OdoOdometer] renders this inside its own [ModalBottomSheet]; this entry point exists
  * for the callers that already own the sheet — a Nav3 bottom-sheet destination, say — so
  * the reading is captured by the same control everywhere instead of a plain number field
  * standing in for it.
  *
- * Stateful in one narrow sense: the in-progress keypad entry and the unit toggled inside
- * the editor are held here (they are transient until saved), seeded from [value] and reset
- * whenever [value] changes. [onSave] fires with the finished reading in whole units of the
- * displayed unit; nothing is reported while the owner is still typing.
+ * Stateful in one narrow sense: the in-progress keypad entry is held here (it is transient
+ * until saved), seeded from [value] and reset whenever [value] changes. [onSave] fires with
+ * the finished reading in whole units of the displayed unit — the caller converts it back to
+ * kilometres — and nothing is reported while the owner is still typing.
  *
  * @param backspaceLabel what a screen reader announces for the keypad's backspace key. The
  *   key is icon-only, so without it the control has nothing to announce.
@@ -167,8 +169,7 @@ fun OdoOdometerEditor(
     kmLabel: String,
     milesLabel: String,
     modifier: Modifier = Modifier,
-    unit: OdoDistanceUnit = OdoDistanceUnit.KM,
-    onUnitChange: (OdoDistanceUnit) -> Unit = {},
+    unit: OdoDistanceUnit = LocalOdoDistanceFormat.current.unit,
     note: String? = null,
     quickAdds: List<Int> = listOf(100, 500, 1000),
     scanLabel: String? = null,
@@ -178,10 +179,9 @@ fun OdoOdometerEditor(
     footer: (@Composable ColumnScope.(dialled: Long?) -> Unit)? = null,
 ) {
     var entry by remember(value) { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
-    var editorUnit by remember(unit) { mutableStateOf(unit) }
     OdometerEditor(
         entry = entry,
-        unit = editorUnit,
+        unit = unit,
         title = title,
         subtitle = subtitle,
         odometerLabel = odometerLabel,
@@ -202,7 +202,6 @@ fun OdoOdometerEditor(
             val next = ((entry.toLongOrNull() ?: 0L) + amount).coerceAtMost(maxReading(digits))
             entry = next.toString()
         },
-        onUnitChange = { u -> editorUnit = u; onUnitChange(u) },
         onSave = { onSave(entry.toLongOrNull() ?: 0L) },
     )
 }
@@ -267,7 +266,6 @@ private fun OdometerEditor(
     onDigit: (Char) -> Unit,
     onBackspace: () -> Unit,
     onQuickAdd: (Int) -> Unit,
-    onUnitChange: (OdoDistanceUnit) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
@@ -285,7 +283,7 @@ private fun OdometerEditor(
             OdoText(subtitle, style = OdoTheme.typography.bodySmall, color = colors.textDim)
         }
 
-        OdometerFrame(entry = entry, unit = unit, digits = digits, odometerLabel = odometerLabel, kmLabel = kmLabel, milesLabel = milesLabel, onUnitChange = onUnitChange)
+        OdometerFrame(entry = entry, unit = unit, digits = digits, odometerLabel = odometerLabel, kmLabel = kmLabel, milesLabel = milesLabel)
 
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             quickAdds.forEach { amount ->
@@ -319,7 +317,7 @@ private fun OdometerEditor(
     }
 }
 
-/** The accent-framed odometer panel: label, big drums + unit toggle, ruler tick strip. */
+/** The accent-framed odometer panel: label, big drums + unit label, ruler tick strip. */
 @Composable
 private fun OdometerFrame(
     entry: String,
@@ -328,7 +326,6 @@ private fun OdometerFrame(
     odometerLabel: String,
     kmLabel: String,
     milesLabel: String,
-    onUnitChange: (OdoDistanceUnit) -> Unit,
 ) {
     val colors = OdoTheme.colors
     Column(
@@ -346,7 +343,11 @@ private fun OdometerFrame(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             DrumRow(reading = entry.toLongOrNull() ?: 0L, filled = entry.length, digits = digits, big = true)
-            UnitToggle(unit = unit, kmLabel = kmLabel, milesLabel = milesLabel, onUnitChange = onUnitChange)
+            OdoText(
+                if (unit == OdoDistanceUnit.KM) kmLabel else milesLabel,
+                style = OdoTheme.typography.label,
+                color = OdoTheme.colors.textDim,
+            )
         }
         Ruler()
     }
@@ -399,33 +400,6 @@ private fun DigitDrum(ch: Char, big: Boolean, isOnes: Boolean, dim: Boolean) {
             ch.toString(),
             style = OdoTheme.typography.numeric.copy(fontSize = if (big) 30.sp else 16.sp),
             color = digitColor,
-        )
-    }
-}
-
-/** Stacked km / mi unit toggle sat beside the drums. */
-@Composable
-private fun UnitToggle(unit: OdoDistanceUnit, kmLabel: String, milesLabel: String, onUnitChange: (OdoDistanceUnit) -> Unit) {
-    val colors = OdoTheme.colors
-    Column(
-        modifier = Modifier
-            .clip(OdoTheme.shapes.small)
-            .background(colors.surfaceRaised)
-            .border(1.dp, colors.border, OdoTheme.shapes.small)
-            .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        OdoText(
-            kmLabel,
-            style = OdoTheme.typography.label,
-            color = if (unit == OdoDistanceUnit.KM) colors.accent else colors.textMuted,
-            modifier = Modifier.clip(OdoTheme.shapes.small).clickable { onUnitChange(OdoDistanceUnit.KM) }.padding(horizontal = OdoTheme.spacing.xs),
-        )
-        OdoText(
-            milesLabel,
-            style = OdoTheme.typography.label,
-            color = if (unit == OdoDistanceUnit.MILES) colors.accent else colors.textMuted,
-            modifier = Modifier.clip(OdoTheme.shapes.small).clickable { onUnitChange(OdoDistanceUnit.MILES) }.padding(horizontal = OdoTheme.spacing.xs),
         )
     }
 }

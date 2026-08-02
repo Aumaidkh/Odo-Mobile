@@ -41,6 +41,7 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
@@ -164,10 +165,16 @@ internal fun CarStepScreen(
                 style = OdoTheme.typography.label,
                 color = OdoTheme.colors.textDim,
             )
+            val distance = LocalOdoDistanceFormat.current
             OdoOdometer(
                 modifier = Modifier.testTag(OnboardingTestTags.ODOMETER_FIELD),
-                value = odometer.value,
-                onValueChange = { onEvent(OnboardingEvent.OdometerChanged(it)) },
+                // The drums show and take the owner's unit; the reading stored is always
+                // kilometres, converted here at the one place the two meet.
+                value = odometer.value?.let { distance.display(it.toInt()).toLong() },
+                onValueChange = { dialled ->
+                    val km = distance.store(dialled.toInt(), odometer.value?.toInt())
+                    onEvent(OnboardingEvent.OdometerChanged(km.toLong()))
+                },
                 title = stringResource(Res.string.onb_odometer_sheet_title),
                 subtitle = stringResource(Res.string.onb_odometer_sheet_subtitle),
                 odometerLabel = stringResource(Res.string.onb_odometer_label),

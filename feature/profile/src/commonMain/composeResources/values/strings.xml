@@ -3,13 +3,21 @@
     <string name="pf_done">Done</string>
     <string name="pf_cancel">Cancel</string>
 
+    <!-- Errors -->
+    <string name="pf_error_read_failed">Couldn’t read your profile. Try again in a moment.</string>
+    <string name="pf_error_save_failed">Couldn’t save that. Try again.</string>
+    <string name="pf_error_name_blank">Add your name.</string>
+    <string name="pf_error_name_too_short">Names are at least %1$d characters.</string>
+    <string name="pf_error_name_too_long">Keep it under %1$d characters.</string>
+    <string name="pf_error_email_invalid">That doesn’t look like an email address.</string>
+    <string name="pf_error_email_too_long">Keep it under %1$d characters.</string>
+    <string name="pf_error_no_profile">There’s no profile on this device yet.</string>
+
     <!-- Profile home -->
     <string name="pf_title">Profile</string>
     <string name="pf_edit">Edit</string>
     <string name="pf_pro_title">Odo Pro</string>
     <string name="pf_pro_active">ACTIVE</string>
-    <string name="pf_passport">Resale Passport</string>
-    <string name="pf_passport_owned">Owned</string>
     <string name="pf_manage_plan">Manage plan</string>
     <string name="pf_restore">Restore purchases</string>
     <string name="pf_go_pro">Go Pro</string>
@@ -27,22 +35,36 @@
     <string name="pf_privacy">Privacy &amp; permissions</string>
     <string name="pf_help">Help &amp; support</string>
     <string name="pf_sign_out">Sign out</string>
-    <string name="pf_version">Odo v1.4.0 · Made in India</string>
+    <string name="pf_sign_in">Sign in to back up your data</string>
+    <!-- App version, e.g. "Odo v1.4.0 · Made in India". -->
+    <string name="pf_version">Odo v%1$s · Made in India</string>
+    <string name="pf_name_missing">Add your name</string>
+    <string name="pf_city_missing">Set your city for price checks</string>
+    <!-- How many notification topics are switched on, e.g. "4 on". -->
+    <string name="pf_notif_summary">%1$d on</string>
+    <!-- The units row summary, e.g. "km · ₹". -->
+    <string name="pf_units_summary">%1$s · ₹</string>
+    <string name="pf_cd_avatar">Profile photo</string>
 
     <!-- Edit profile -->
     <string name="pf_edit_title">Edit profile</string>
     <string name="pf_cd_close">Close</string>
+    <string name="pf_cd_back">Back</string>
     <string name="pf_change_photo">Change photo</string>
     <string name="pf_full_name">Full name</string>
     <string name="pf_mobile">Mobile number</string>
-    <string name="pf_verified">Verified</string>
     <string name="pf_mobile_note">Changing this needs a new OTP.</string>
     <string name="pf_email">Email (optional)</string>
     <string name="pf_email_hint">Add an email for receipts</string>
     <string name="pf_city">City</string>
     <string name="pf_city_note">Sets your price benchmarks.</string>
     <string name="pf_save">Save changes</string>
-    <string name="pf_delete">Delete account</string>
+    <string name="pf_delete">Delete my data</string>
+    <string name="pf_mobile_signed_out">Sign in to add your number</string>
+    <string name="pf_delete_title">Delete everything on this device?</string>
+    <string name="pf_delete_body">Your car, its service history, your documents and your profile are removed from this phone. Nothing has been backed up yet, so this cannot be undone.</string>
+    <string name="pf_delete_confirm">Delete everything</string>
+    <string name="pf_deleting">Deleting…</string>
 
     <!-- Notifications -->
     <string name="pf_notif_reminders">REMINDERS</string>
@@ -61,8 +83,8 @@
     <string name="pf_notif_health_sub">When your score moves</string>
     <string name="pf_notif_channels">CHANNELS</string>
     <string name="pf_notif_push">Push</string>
-    <string name="pf_notif_email">Email</string>
     <string name="pf_notif_system">System notifications are on.</string>
+    <string name="pf_notif_system_off">System notifications are off, so nothing above can reach you.</string>
     <string name="pf_notif_device">Open device settings</string>
 
     <!-- Units &amp; currency sheet -->
@@ -78,8 +100,12 @@
     <string name="pf_units_lower">lower is better</string>
     <string name="pf_units_currency">CURRENCY</string>
     <string name="pf_units_inr">Indian Rupee</string>
-    <!-- Running cost in the chosen currency, e.g. "Rs. 12.3/km · Rs. 8,240 this month". -->
-    <string name="pf_units_inr_summary">%1$s/km · %2$s this month</string>
+    <string name="pf_units_inr_only">Every amount in Odo is in ₹. Benchmarks and fuel prices are Indian, so there is nothing to convert to yet.</string>
+    <!-- Example readings shown on the unit cards, so the choice is legible before it is made. -->
+    <string name="pf_units_example_km">54,000</string>
+    <string name="pf_units_example_mi">33,554</string>
+    <string name="pf_units_example_kmpl">15</string>
+    <string name="pf_units_example_l100">6.7</string>
 
     <!-- Appearance sheet -->
     <string name="pf_appear_dark">Dark</string>
@@ -89,11 +115,11 @@
     <string name="pf_appear_larger_sub">Follows your device text size</string>
 
     <!-- Export data sheet -->
-    <string name="pf_export_sub">Everything Odo holds for your account.</string>
+    <string name="pf_export_sub">Everything Odo holds for your car.</string>
     <string name="pf_export_history">Service history &amp; costs</string>
     <string name="pf_export_docs">Documents</string>
     <string name="pf_export_account">Account &amp; profile info</string>
-    <string name="pf_export_note">We’ll email a ZIP to your number’s linked email within 24 hours.</string>
+    <string name="pf_export_note">A full export ships with the Resale Passport, which also gives a buyer a verified copy of the history.</string>
     <string name="pf_export_pdf">Download PDF</string>
     <string name="pf_export_request">Request export</string>
 

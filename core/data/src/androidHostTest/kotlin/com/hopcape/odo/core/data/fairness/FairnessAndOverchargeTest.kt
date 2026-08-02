@@ -328,7 +328,7 @@ class FairnessAndOverchargeTest {
         val db = newDb()
         db.profileQueries.insertProfile(
             id = "owner-1", fullName = "Rahul", onboardingGoal = null, onboardingCompletedAt = null,
-            city = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
+            city = null, email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
         )
 
         assertNull(ProfileCityProvider(db, telemetry, Dispatchers.Unconfined).currentCity())
@@ -339,7 +339,7 @@ class FairnessAndOverchargeTest {
         val db = newDb()
         db.profileQueries.insertProfile(
             id = "owner-1", fullName = "Rahul", onboardingGoal = null, onboardingCompletedAt = null,
-            city = "Pune", now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
+            city = "Pune", email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
         )
 
         assertEquals("Pune", ProfileCityProvider(db, telemetry, Dispatchers.Unconfined).currentCity())

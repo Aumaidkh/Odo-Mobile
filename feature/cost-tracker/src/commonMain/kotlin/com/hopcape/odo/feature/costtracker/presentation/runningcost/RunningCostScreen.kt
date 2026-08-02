@@ -23,12 +23,14 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
+import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -37,10 +39,13 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
+import com.hopcape.odo.core.designsystem.units.OdoDistanceFormat
+import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.fuel.format
 import com.hopcape.odo.core.domain.cost.model.SpendCategory
 import com.hopcape.odo.core.domain.shared.Amount
-import com.hopcape.odo.core.domain.shared.formatKm
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
@@ -54,15 +59,17 @@ import com.hopcape.odo.feature.costtracker.resources.ct_cat_fuel
 import com.hopcape.odo.feature.costtracker.resources.ct_cat_repairs
 import com.hopcape.odo.feature.costtracker.resources.ct_cat_service
 import com.hopcape.odo.feature.costtracker.resources.ct_cost_per_km_label
+import com.hopcape.odo.feature.costtracker.resources.ct_cost_per_mi_label
 import com.hopcape.odo.feature.costtracker.resources.ct_distance_driven
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_city
+import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_efficiency
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_generic
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_missing
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_owner
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_action
 import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_title
-import com.hopcape.odo.feature.costtracker.resources.ct_per_km_rate
-import com.hopcape.odo.feature.costtracker.resources.ct_per_km_suffix
+import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_rate
+import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_suffix
 import com.hopcape.odo.feature.costtracker.resources.ct_period_1y
 import com.hopcape.odo.feature.costtracker.resources.ct_period_3m
 import com.hopcape.odo.feature.costtracker.resources.ct_period_6m
@@ -115,6 +122,7 @@ internal fun RunningCostScreen(
                 CategoryCard(
                     categories = content.categories,
                     fuelNote = content.fuelNote,
+                    fuelEfficiencyUnit = state.fuelEfficiencyUnit,
                     onEditRate = { onEvent(RunningCostEvent.FuelRateTapped) },
                 )
                 SectionLabel(stringResource(Res.string.ct_summary))
@@ -130,13 +138,14 @@ internal fun RunningCostScreen(
  */
 @Composable
 private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?) {
+    val distance = LocalOdoDistanceFormat.current
     OdoCard {
         if (failure != null) {
             OdoText(failure.message.asString(), style = OdoTheme.typography.heading)
             return@OdoCard
         }
         OdoText(
-            stringResource(Res.string.ct_cost_per_km_label),
+            stringResource(distance.perDistanceLabel()),
             style = OdoTheme.typography.caption,
             color = OdoTheme.colors.textMuted,
         )
@@ -157,12 +166,12 @@ private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
                         OdoText(
-                            headline.perKm.formatRupeesDecimal(),
+                            headline.perKm.perDistanceUnit(distance).formatRupeesDecimal(),
                             style = OdoTheme.typography.display,
                             modifier = Modifier.alignByBaseline().testTag(CostTrackerTestTags.COST_PER_KM),
                         )
                         OdoText(
-                            stringResource(Res.string.ct_per_km_suffix),
+                            stringResource(Res.string.ct_per_unit_suffix, distance.suffix),
                             style = OdoTheme.typography.heading,
                             color = OdoTheme.colors.textDim,
                             modifier = Modifier.alignByBaseline(),
@@ -174,7 +183,7 @@ private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?
                 OdoText(
                     stringResource(
                         Res.string.ct_across,
-                        content.distance.formatKm(),
+                        distance.format(content.distance.km),
                         content.periodRange.asString(),
                     ),
                     style = OdoTheme.typography.bodySmall,
@@ -257,6 +266,7 @@ private fun SpendBarColumn(bar: SpendBar, max: Long, modifier: Modifier = Modifi
 private fun CategoryCard(
     categories: List<CostCategoryRow>,
     fuelNote: FuelNote,
+    fuelEfficiencyUnit: FuelEfficiencyUnit,
     onEditRate: () -> Unit,
 ) {
     OdoCard(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
@@ -267,7 +277,7 @@ private fun CategoryCard(
         // owner the correction, since the estimate is only as good as its price.
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             OdoText(
-                fuelNoteText(fuelNote),
+                fuelNoteText(fuelNote, fuelEfficiencyUnit),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textDim,
                 modifier = Modifier.testTag(CostTrackerTestTags.FUEL_NOTE),
@@ -294,7 +304,11 @@ private fun CategoryRow(row: CostCategoryRow, max: Long) {
                 OdoText(categoryLabel(row.category), style = OdoTheme.typography.heading)
                 row.perKm?.let { perKm ->
                     OdoText(
-                        stringResource(Res.string.ct_per_km_rate, perKm.formatRupeesDecimal()),
+                        stringResource(
+                            Res.string.ct_per_unit_rate,
+                            perKm.perDistanceUnit(LocalOdoDistanceFormat.current).formatRupeesDecimal(),
+                            LocalOdoDistanceFormat.current.suffix,
+                        ),
                         style = OdoTheme.typography.bodySmall,
                         color = OdoTheme.colors.textDim,
                     )
@@ -331,7 +345,10 @@ private fun SummaryCard(content: RunningCostContent) {
     ) {
         SummaryRow(stringResource(Res.string.ct_total_spent), content.totalSpent.formatRupees())
         HorizontalDivider(color = OdoTheme.colors.border)
-        SummaryRow(stringResource(Res.string.ct_distance_driven), content.distance.formatKm())
+        SummaryRow(
+            stringResource(Res.string.ct_distance_driven),
+            LocalOdoDistanceFormat.current.format(content.distance.km),
+        )
         HorizontalDivider(color = OdoTheme.colors.border)
         SummaryRow(stringResource(Res.string.ct_avg_month), content.avgPerMonth.formatRupees())
     }
@@ -356,16 +373,20 @@ private fun SectionLabel(text: String) {
 
 /** The unit name is a resource of its own, so the note is composed here, not in the state. */
 @Composable
-private fun fuelNoteText(note: FuelNote): String = when (note) {
+private fun fuelNoteText(note: FuelNote, efficiencyUnit: FuelEfficiencyUnit): String = when (note) {
     FuelNote.Missing -> stringResource(Res.string.ct_fuel_note_missing)
     is FuelNote.Estimated -> {
         val price = note.pricePerUnit.formatRupeesDecimal()
         val unit = unitLabel(note.unit)
-        when {
+        val efficiency = efficiencyUnit.format(note.kmPerUnit, note.unit)
+        val source = when {
             note.ownersOwn -> stringResource(Res.string.ct_fuel_note_owner, price, unit)
             note.city != null -> stringResource(Res.string.ct_fuel_note_city, price, unit, note.city)
             else -> stringResource(Res.string.ct_fuel_note_generic, price, unit)
         }
+        // The assumed mileage is named, because it is the other half of a figure nobody
+        // logged: a ₹/km built on 15 km/l is only as right as that 15.
+        source + " " + stringResource(Res.string.ct_fuel_note_efficiency, efficiency)
     }
 }
 
@@ -414,3 +435,16 @@ private fun RunningCostScreenPreview() = OdoPreview(padded = false) {
 private fun RunningCostNotEnoughPreview() = OdoPreview(padded = false) {
     RunningCostScreen(state = previewRunningCostNoRate(), onEvent = {})
 }
+
+/**
+ * "COST PER KILOMETRE" or "COST PER MILE" — the heading names the unit in full, so the
+ * figure under it cannot be read as the other one.
+ */
+private fun OdoDistanceFormat.perDistanceLabel() = when (unit) {
+    OdoDistanceUnit.KM -> Res.string.ct_cost_per_km_label
+    OdoDistanceUnit.MILES -> Res.string.ct_cost_per_mi_label
+}
+
+/** A per-kilometre rate restated per shown unit. Money itself never changes, only the rate. */
+private fun Amount.perDistanceUnit(format: OdoDistanceFormat): Amount =
+    Amount.of(format.ratePaise(paise)).getOrElse { this }

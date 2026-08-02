@@ -1,7 +1,11 @@
 package com.hopcape.odo.core.platform
 
+import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.file.IosFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
+import com.hopcape.odo.core.platform.notification.SystemNotificationSettings
 import org.koin.dsl.module
 
 /**
@@ -14,4 +18,6 @@ import org.koin.dsl.module
  */
 val corePlatformIosModule = module {
     single<PlatformFileStore> { IosFileStore() }
+    single<AppInfo> { IosAppInfo() }
+    single<SystemNotificationSettings> { IosSystemNotificationSettings() }
 }

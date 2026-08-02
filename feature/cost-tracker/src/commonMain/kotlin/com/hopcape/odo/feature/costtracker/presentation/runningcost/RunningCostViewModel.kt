@@ -3,10 +3,13 @@ package com.hopcape.odo.feature.costtracker.presentation.runningcost
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import arrow.core.getOrElse
+import com.hopcape.odo.core.designsystem.text.DistanceArg
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyPolicy
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.cost.model.CostShortfall
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.formatMonth
 import com.hopcape.odo.core.domain.shared.formatMonthYear
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -49,6 +53,7 @@ import kotlinx.coroutines.flow.stateIn
 internal class RunningCostViewModel(
     activeCar: ActiveCarProvider,
     observeRunningCost: ObserveRunningCostUseCase,
+    settings: AppSettingsRepository,
     private val telemetry: CostTrackerTelemetry,
 ) : ViewModel() {
 
@@ -71,15 +76,20 @@ internal class RunningCostViewModel(
     val state: StateFlow<RunningCostUiState> = combine(
         activeCar.activeCarId,
         period,
-    ) { carId, chosen -> carId to chosen }
-        .flatMapLatest { (carId, chosen) ->
+        settings.observe().map { it.fuelEfficiencyUnit }.distinctUntilChanged(),
+    ) { carId, chosen, efficiencyUnit -> Triple(carId, chosen, efficiencyUnit) }
+        .flatMapLatest { (carId, chosen, efficiencyUnit) ->
             // No car yet means setup has not finished. Nothing truthful can be said about
             // what an absent car costs to run, so the screen keeps waiting.
             if (carId == null) {
-                flowOf(RunningCostUiState(period = chosen))
+                flowOf(RunningCostUiState(period = chosen, fuelEfficiencyUnit = efficiencyUnit))
             } else {
                 observeRunningCost(carId, chosen).map { snapshot ->
-                    RunningCostUiState(period = chosen, content = Loadable.Ready(snapshot.toContent()))
+                    RunningCostUiState(
+                        period = chosen,
+                        content = Loadable.Ready(snapshot.toContent()),
+                        fuelEfficiencyUnit = efficiencyUnit,
+                    )
                 }
             }
         }
@@ -153,7 +163,8 @@ private fun RunningCostSnapshot.headline(): CostHeadline {
 
 private fun RunningCostSnapshot.shortfallMessage(): UiText = when (val reason = cost.shortfall) {
     null, CostShortfall.NoOdometerReadings -> UiText(Res.string.ct_no_rate_readings)
-    is CostShortfall.NotEnoughDistance -> UiText(Res.string.ct_no_rate_distance, listOf(reason.requiredKm))
+    is CostShortfall.NotEnoughDistance ->
+        UiText(Res.string.ct_no_rate_distance, listOf(DistanceArg(reason.requiredKm)))
 }
 
 /**
@@ -189,6 +200,7 @@ private fun RunningCostSnapshot.fuelNote(): FuelNote {
         unit = price.unit,
         city = price.city,
         ownersOwn = price.source == FuelPriceSource.OWNER,
+        kmPerUnit = FuelEfficiencyPolicy.kmPerUnit(price.fuelType),
     )
 }
 

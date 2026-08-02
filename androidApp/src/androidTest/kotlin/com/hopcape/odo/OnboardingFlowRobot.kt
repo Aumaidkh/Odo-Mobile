@@ -47,7 +47,11 @@ internal object Copy {
     const val AUTH_TITLE = "What’s your number?"
 
     /** Home's own copy, not the flow's — proof the gate landed somewhere else entirely. */
-    const val HOME_HEALTH_SCORE = "HEALTH SCORE"
+    /**
+     * What Home shows a car that has just been set up. Not the health card: nothing has
+     * been logged or filed yet, so Home offers the checklist that earns a score instead.
+     */
+    const val HOME_SCORE_WAITING = "Your score is waiting"
 }
 
 /** What the development registry stub resolves, and what it does not. */

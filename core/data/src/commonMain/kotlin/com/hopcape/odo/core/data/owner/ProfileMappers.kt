@@ -20,4 +20,6 @@ internal fun Profiles.toDomain(): OwnerProfile = OwnerProfile.reconstitute(
     goal = onboarding_goal?.let { stored -> OnboardingGoal.entries.firstOrNull { it.name == stored } },
     onboardingCompletedAt = onboarding_completed_at?.let(Instant::parse),
     city = city,
+    email = email,
+    avatarPath = avatar_path,
 )

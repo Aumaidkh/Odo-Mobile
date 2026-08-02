@@ -41,6 +41,7 @@ internal fun previewRunningCost(): RunningCostUiState = RunningCostUiState(
                 unit = FuelUnit.LITRE,
                 city = "Pune",
                 ownersOwn = false,
+                kmPerUnit = 15,
             ),
         ),
     ),

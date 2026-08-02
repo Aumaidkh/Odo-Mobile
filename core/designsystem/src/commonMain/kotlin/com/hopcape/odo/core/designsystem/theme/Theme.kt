@@ -23,18 +23,22 @@ import androidx.compose.runtime.ReadOnlyComposable
  * ```
  *
  * @param darkTheme whether to use the dark palette (defaults to the system setting).
+ * @param largerText whether the owner asked for bigger type in their profile. It scales
+ *   Odo's own type on top of the device's font scale, which the app already honours.
  */
 @Composable
 fun OdoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    largerText: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val odoColors = if (darkTheme) DarkOdoColors else LightOdoColors
     val materialScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val typography = OdoDefaultTypography.scaledBy(if (largerText) OdoLargerTextScale else 1f)
 
     CompositionLocalProvider(
         LocalOdoColors provides odoColors,
-        LocalOdoTypography provides OdoDefaultTypography,
+        LocalOdoTypography provides typography,
         LocalOdoShapes provides OdoDefaultShapes,
         LocalOdoSpacing provides OdoSpacing(),
         LocalOdoElevation provides OdoElevation(),
@@ -43,7 +47,7 @@ fun OdoTheme(
     ) {
         MaterialTheme(
             colorScheme = materialScheme,
-            typography = odoMaterialTypography(OdoDefaultTypography),
+            typography = odoMaterialTypography(typography),
             shapes = odoMaterialShapes(OdoDefaultShapes),
             content = content,
         )

@@ -104,6 +104,38 @@ val OdoDefaultTypography: OdoTypography = OdoTypography(
 internal val LocalOdoTypography = staticCompositionLocalOf { OdoDefaultTypography }
 
 /**
+ * How much bigger "larger text" makes everything.
+ *
+ * 15% is enough to be an obvious improvement for someone squinting at a bill total, and
+ * small enough that the odometer drum, the badges and the two-across cards still lay out.
+ * It multiplies the device's own font scale rather than replacing it.
+ */
+const val OdoLargerTextScale: Float = 1.15f
+
+/**
+ * Every style at [factor] times its size. Line heights scale with the sizes, so the
+ * spacing between lines stays proportional instead of tightening as the text grows.
+ */
+fun OdoTypography.scaledBy(factor: Float): OdoTypography =
+    if (factor == 1f) {
+        this
+    } else {
+        OdoTypography(
+            display = display.scaledBy(factor),
+            title = title.scaledBy(factor),
+            heading = heading.scaledBy(factor),
+            numeric = numeric.scaledBy(factor),
+            body = body.scaledBy(factor),
+            bodySmall = bodySmall.scaledBy(factor),
+            label = label.scaledBy(factor),
+            caption = caption.scaledBy(factor),
+        )
+    }
+
+private fun TextStyle.scaledBy(factor: Float): TextStyle =
+    copy(fontSize = fontSize * factor, lineHeight = lineHeight * factor)
+
+/**
  * Material 3 [Typography] mapped from the Odo scale, so stock Material components
  * pick up the brand type. Bespoke screens should prefer [OdoTheme.typography].
  */
