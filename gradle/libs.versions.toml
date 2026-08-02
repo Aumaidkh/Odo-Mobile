@@ -41,6 +41,19 @@ kotlinxDatetime = "0.7.1"
 # :core:domain: the shared kernel stays free of framework annotations.
 kotlinxSerialization = "1.9.0"
 
+# Ktor — the HTTP client :infrastructure:supabase uses to talk to PostgREST and
+# Storage. Deliberately plain Ktor rather than supabase-kt: every supabase-kt
+# release up to 3.2.0 compiles against kotlinx-datetime 0.6.2, and 0.7.0 removed
+# the `kotlinx.datetime.Instant`/`Clock` classes that its auth and storage modules
+# reference (auth-kt alone has 57 such references). This project is on 0.7.1 and
+# cannot go back — ~18 files use the 0.7-only `kotlin.time.Instant` extensions.
+# Ktor has no kotlinx-datetime dependency at all, so there is nothing to clash.
+#
+# Not 3.2.0: that release ships a class whose SimpleName contains spaces, which D8 rejects
+# below DEX version 040 ("Space characters in SimpleName 'use streaming syntax' are not
+# allowed"). Odo's minSdk is 26, so the app would not dex at all.
+ktor = "3.5.2"
+
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -81,6 +94,17 @@ sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", versi
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 # kotlinx-serialization — JSON for :core:data DTOs and structured columns.
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Ktor client — :infrastructure:supabase only. `ktor-client-core` carries the
+# HttpTimeout and HttpRequestRetry plugins, so no extra artifact is needed for
+# either. ContentNegotiation is deliberately absent: the Supabase adapters encode
+# and decode with an explicit kotlinx-serialization `Json` so a non-2xx body is
+# inspected before anything tries to parse it as the success shape.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# MockEngine — drives the adapter tests without a network or a Supabase project.
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }

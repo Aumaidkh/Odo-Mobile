@@ -18,7 +18,7 @@ import kotlin.time.Instant
  * pull keyed on a cursor, [push] is the outbox drain that returns what the server stored so
  * the local rows can take their `remote_version` and go SYNCED.
  */
-internal interface ServiceLogRemoteDataSource {
+interface ServiceLogRemoteDataSource {
 
     /** Entries changed since [since] (null = never synced, so everything). */
     suspend fun fetchSince(carId: String, since: Instant?): List<ServiceLogDto>
@@ -36,7 +36,7 @@ internal interface ServiceLogRemoteDataSource {
  * has no sync columns and no `SyncEntity` slot.
  */
 @Serializable
-internal data class ServiceLogDto(
+data class ServiceLogDto(
     @SerialName("id") val id: String,
     @SerialName("car_id") val carId: String,
     @SerialName("owner_id") val ownerId: String,

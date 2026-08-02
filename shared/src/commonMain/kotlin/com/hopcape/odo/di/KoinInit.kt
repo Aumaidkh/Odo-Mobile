@@ -22,6 +22,7 @@ import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
+import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -63,6 +64,10 @@ fun initKoin(
         crashReportingModule,
         coreNavigationModule,
         coreDataModule,
+        // Deliberately right after coreDataModule: it replaces that module's offline
+        // remote-data-source fakes with the real Supabase adapters, and only when the build
+        // carries credentials. Koin lets a later definition win, so order is the wiring.
+        supabaseModule,
         authModule,
         onboardingModule,
         serviceLogModule,

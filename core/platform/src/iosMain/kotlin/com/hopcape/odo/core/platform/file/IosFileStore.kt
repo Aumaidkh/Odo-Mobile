@@ -28,6 +28,9 @@ internal class IosFileStore : PlatformFileStore {
 
     override suspend fun exists(storageKey: String): Boolean = false
 
+    override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
+        DomainError.PersistenceFailure(NOT_IMPLEMENTED).left()
+
     private companion object {
         const val NOT_IMPLEMENTED = "file storage is not implemented on iOS"
     }

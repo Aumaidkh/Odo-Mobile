@@ -52,6 +52,10 @@ kotlin {
             implementation(projects.feature.support)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
+            // Supabase adapters for the remote ports :core:data declares. Listed here
+            // because :shared is the composition root — supabaseModule goes into initKoin
+            // after coreDataModule so its adapters replace that module's offline fakes.
+            implementation(projects.infrastructure.supabase)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.

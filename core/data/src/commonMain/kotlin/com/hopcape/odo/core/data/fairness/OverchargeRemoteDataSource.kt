@@ -10,12 +10,12 @@ import kotlinx.serialization.Serializable
  *
  * `:core:network` implements this once the server side exists.
  */
-internal interface OverchargeRemoteDataSource {
+interface OverchargeRemoteDataSource {
     suspend fun push(reports: List<OverchargeReportDto>): List<OverchargeReportDto>
 }
 
 @Serializable
-internal data class OverchargeReportDto(
+data class OverchargeReportDto(
     @SerialName("id") val id: String,
     @SerialName("service_log_id") val serviceLogId: String,
     @SerialName("owner_id") val ownerId: String,

@@ -23,6 +23,8 @@ import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
+import com.hopcape.odo.core.data.remote.FakeRemoteFileStorage
+import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
@@ -119,12 +121,15 @@ val coreDataModule = module {
     // keeps fairness silent rather than guessing.
     single<CurrentCityProvider> { ProfileCityProvider(database = get(), telemetry = get()) }
 
-    // Remote data sources. These three lines are the entire swap when :core:network lands:
-    // every repository above already talks to the port, not to a client.
+    // Remote data sources — the offline-safe defaults. `supabaseModule` is listed after this
+    // module in `initKoin`, and replaces every one of these with a real adapter as soon as
+    // the build carries Supabase credentials. Koin allows later definitions to override
+    // earlier ones, so with no credentials the fakes simply stand.
     single<ServiceLogRemoteDataSource> { FakeServiceLogRemoteDataSource() }
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
+    single<RemoteFileStorage> { FakeRemoteFileStorage() }
     // Development stub: it knows a couple of hardcoded plates so the "is this your
     // car?" path can be walked, and answers RegistrationNotFound for everything else.
     // MUST be swapped for a real adapter before launch — this one line is the swap.
