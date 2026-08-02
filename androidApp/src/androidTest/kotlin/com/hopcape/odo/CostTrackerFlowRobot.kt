@@ -40,8 +40,9 @@ internal object CostCopy {
     const val PER_KM_LABEL = "COST PER KILOMETRE"
     const val NO_RATE_TITLE = "Not enough to go on yet"
     const val NO_RATE_READINGS = "Add your car’s odometer reading and Odo will start tracking what it costs to run."
+    /** The threshold reads in the owner's unit, so the copy names it as "100 km" here. */
     const val NO_RATE_DISTANCE =
-        "Odo needs about 100 km of driving before a cost per kilometre means anything. " +
+        "Odo needs about 100 km of driving before a running cost means anything. " +
             "Log your next service with its odometer reading."
 
     /* Period chips. */
@@ -66,6 +67,9 @@ internal object CostCopy {
     const val FUEL_NOTE_ESTIMATED_PREFIX = "Fuel estimated at"
     const val FUEL_NOTE_OWNER_PREFIX = "Fuel estimated from your rate"
     const val FUEL_NOTE_MISSING = "Fuel is not included — set your city in Profile to add it"
+
+    /** The assumed mileage every estimated note ends with — petrol, at the shipped policy. */
+    const val FUEL_NOTE_EFFICIENCY = "Assumes 15 km/l."
 
     /* The owner's own rate. */
     const val RATE_ACTION = "Set your rate"

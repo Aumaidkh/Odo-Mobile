@@ -83,8 +83,23 @@ internal object LogCopy {
     /** `"%1$s · %2$d of %3$d services verified"` — the share sheet's summary. */
     fun shareSummary(car: String, verified: Int, total: Int) = "$car · $verified of $total services verified"
 
-    /** `"Odometer can’t be above a later reading (%1$d km)"`. */
-    fun odometerAheadOf(km: Int) = "Odometer can’t be above a later reading ($km km)"
+    /**
+     * `"Odometer can’t be above a later reading (48,500 km)"`.
+     *
+     * The reading is written the way every other reading in the app is — grouped, and in
+     * the owner's distance unit — because the message carries it as a distance rather than
+     * as a bare number.
+     */
+    fun odometerAheadOf(km: Int) = "Odometer can’t be above a later reading (${grouped(km)} km)"
+
+    /** Indian digit grouping — last three, then twos, as the domain formats a reading. */
+    private fun grouped(value: Int): String {
+        val digits = value.toString()
+        if (digits.length <= 3) return digits
+        val last3 = digits.takeLast(3)
+        val rest = digits.dropLast(3)
+        return rest.reversed().chunked(2).joinToString(",").reversed() + "," + last3
+    }
 }
 
 /**
