@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.SignOut
+import com.hopcape.odo.feature.auth.domain.LateBoundAuthGateway
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
 import com.hopcape.odo.feature.auth.domain.SignOutUseCase
 import com.hopcape.odo.feature.auth.presentation.OtpViewModel
@@ -29,7 +30,17 @@ val authModule = module {
     // The session's whole lifecycle: held here, persisted here, refreshed here. It answers
     // three domain ports, so nothing outside auth needs to know a session manager exists.
     single { AuthTelemetry(logger = get(), analytics = get()) }
-    single { OdoSessionManager(gateway = get(), store = get(), telemetry = get(), scheduler = get()) }
+    // The gateway is resolved per call, not captured here. This single is built by the
+    // startup path before the first frame, so holding an instance would let build order
+    // decide which way in the app uses — see LateBoundAuthGateway.
+    single {
+        OdoSessionManager(
+            gateway = LateBoundAuthGateway { get() },
+            store = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
     single<SessionStatusProvider> { get<OdoSessionManager>() }
     single<CurrentOwnerProvider> { get<OdoSessionManager>() }
     single<AccessTokenProvider> { get<OdoSessionManager>() }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -15,6 +16,7 @@ import com.hopcape.odo.core.designsystem.icons.IcSignOut
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.profile.presentation.IconTile
 import com.hopcape.odo.feature.profile.presentation.ProfileSheet
+import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_cancel
 import com.hopcape.odo.feature.profile.resources.pf_sign_out
@@ -49,7 +51,7 @@ internal fun SignOutSheetContent(
         OdoButton(
             stringResource(Res.string.pf_sign_out),
             onClick = onSignOut,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(ProfileTestTags.SIGN_OUT_CONFIRM),
             variant = OdoButtonVariant.Danger,
             loading = state.isSigningOut,
         )

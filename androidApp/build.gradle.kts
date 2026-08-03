@@ -62,6 +62,11 @@ dependencies {
     // The profile's test tags — its settings rows and the delete confirmation, which the
     // end-to-end suite drives.
     androidTestImplementation(projects.feature.profile)
+    // Auth's two field tags. Neither field has any text to aim at.
+    androidTestImplementation(projects.feature.auth)
+    // SmsCodeReader and SecureStore — the auth suite puts a fake in front of both, so a
+    // sign-in never waits on a real SMS or leaves a session behind for the next test.
+    androidTestImplementation(projects.core.platform)
     // Reaching the driver to reset tables between end-to-end runs.
     androidTestImplementation(projects.core.data)
     // The ServiceLogRepository port, to drive a delete the way the app writes one.
