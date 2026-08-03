@@ -159,3 +159,85 @@ VALUES (:serviceLogId, :category);
 
 deleteCategoriesFor:
 DELETE FROM service_log_categories WHERE service_log_id = :serviceLogId;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM service_logs
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM service_logs
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE service_logs
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO service_logs (id, car_id, owner_id, service_date, odometer_km, total_amount_paise, workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :service_date, :odometer_km, :total_amount_paise, :workshop_name, :notes, :source, :bill_id, :bill_photo_path, :fairness_snapshot, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE service_logs
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    service_date = :service_date,
+    odometer_km = :odometer_km,
+    total_amount_paise = :total_amount_paise,
+    workshop_name = :workshop_name,
+    notes = :notes,
+    source = :source,
+    bill_id = :bill_id,
+    bill_photo_path = :bill_photo_path,
+    fairness_snapshot = :fairness_snapshot,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- The tags on one entry, for the outbox payload.
+selectCategoriesFor:
+SELECT category
+FROM service_log_categories
+WHERE service_log_id = :serviceLogId
+ORDER BY category;
+
+-- The stored bill-photo key, read before a pulled row overwrites the entry. The photo is a
+-- device path the server may not know about, and a pull must not blank it.
+selectBillPhotoPath:
+SELECT bill_photo_path
+FROM service_logs
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM service_logs
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE service_logs
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;

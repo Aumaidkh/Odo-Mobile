@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
+import kotlin.time.Instant
 
 /**
  * What the owner did on the profile home.
@@ -49,4 +50,21 @@ internal data class ProfileUiState(
     val content: Loadable<ProfileContent> = Loadable.Loading,
     /** The app's version, as the platform reports it. */
     val version: String = "",
+    /** Where background sync has got to. See [SyncStatus]. */
+    val sync: SyncStatus = SyncStatus(),
+)
+
+/**
+ * What the profile screen shows about sync.
+ *
+ * Diagnostics rather than product copy. SYNC_DESIGN §11 calls this the first thing anyone
+ * asks for when a user says their data is missing, and it is cheap enough to build now
+ * rather than after the first support ticket.
+ */
+internal data class SyncStatus(
+    val isSyncing: Boolean = false,
+    /** Rows the server has not accepted yet, across every table. */
+    val pendingCount: Int = 0,
+    /** When a pull last succeeded, or null on an install that has never synced. */
+    val lastSyncedAt: Instant? = null,
 )

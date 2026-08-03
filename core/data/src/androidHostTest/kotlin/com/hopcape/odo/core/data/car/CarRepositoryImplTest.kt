@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.car
 
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
+import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
@@ -101,6 +103,9 @@ class CarRepositoryImplTest {
 
     private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
         CarRepositoryImpl(
+            remote = FakeCarRemoteDataSource(),
+            syncTelemetry = silentSyncTelemetry(),
+            ownerId = { null },
             database = db,
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,

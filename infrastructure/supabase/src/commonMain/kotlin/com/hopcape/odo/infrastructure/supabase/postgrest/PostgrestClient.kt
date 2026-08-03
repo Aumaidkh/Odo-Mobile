@@ -1,0 +1,172 @@
+package com.hopcape.odo.infrastructure.supabase.postgrest
+
+import com.hopcape.odo.infrastructure.supabase.SupabaseEnvironment
+import com.hopcape.odo.infrastructure.supabase.http.SupabaseAccessTokens
+import com.hopcape.odo.infrastructure.supabase.http.SupabaseJson
+import com.hopcape.odo.infrastructure.supabase.http.SupabaseRequestFailed
+import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
+import io.ktor.http.isSuccess
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlin.coroutines.cancellation.CancellationException
+
+/**
+ * PostgREST — the REST interface Supabase puts in front of Postgres. Selects, upserts and RPC
+ * calls, and nothing else, because that is all Odo's remote ports need.
+ *
+ * Serializers are passed in rather than reified. That keeps the class free of `inline` (which
+ * cannot touch its private members) and, more usefully, means the response body is read as
+ * text and its status checked *before* anything tries to parse it — a PostgREST error is
+ * valid JSON of a completely different shape, and letting a decoder meet it produces a
+ * confusing parse error instead of the HTTP status that says what actually went wrong.
+ *
+ * Nothing here knows what a service log is. The adapters own the table names and the payload
+ * shapes; this owns the protocol.
+ */
+internal class PostgrestClient(
+    private val client: HttpClient,
+    private val environment: SupabaseEnvironment,
+    private val tokens: SupabaseAccessTokens,
+    private val telemetry: SupabaseTelemetry,
+) {
+
+    /**
+     * `GET /rest/v1/{table}` with [filters] as PostgREST query parameters.
+     *
+     * [filters] values carry the operator, PostgREST-style — `"eq.$carId"`, `"gt.$cursor"`,
+     * `"is.null"` — because the operator is part of the filter, not a separate concept.
+     */
+    suspend fun <T> select(
+        table: String,
+        serializer: KSerializer<T>,
+        filters: Map<String, String> = emptyMap(),
+        columns: String = ALL_COLUMNS,
+        order: String? = null,
+    ): List<T> = call(operation = SupabaseTelemetry.SELECT, resource = table) {
+        val response = client.get("${environment.restUrl}/$table") {
+            authorize()
+            url.parameters.append(SELECT_PARAM, columns)
+            filters.forEach { (column, filter) -> url.parameters.append(column, filter) }
+            order?.let { url.parameters.append(ORDER_PARAM, it) }
+        }
+        val body = response.readOrThrow(SupabaseTelemetry.SELECT, table)
+        SupabaseJson.decodeFromString(ListSerializer(serializer), body)
+            .also { telemetry.rows(SupabaseTelemetry.SELECT, table, it.size) }
+    }
+
+    /**
+     * `POST /rest/v1/{table}` with `Prefer: resolution=merge-duplicates`, i.e. an upsert on the
+     * primary key, answering with the rows the server actually stored.
+     *
+     * `return=representation` is what makes the push useful rather than merely successful: the
+     * returned rows carry the server's `updated_at`, which is what a local row's
+     * `remote_version` is set from before it goes SYNCED (SYNC_DESIGN §6).
+     *
+     * An empty [rows] is answered without a request. PostgREST accepts an empty array, but a
+     * round trip to be told nothing happened is a round trip on a metered connection.
+     */
+    suspend fun <T> upsert(
+        table: String,
+        serializer: KSerializer<T>,
+        rows: List<T>,
+    ): List<T> {
+        if (rows.isEmpty()) return emptyList()
+        return call(operation = SupabaseTelemetry.UPSERT, resource = table) {
+            val response = client.post("${environment.restUrl}/$table") {
+                authorize()
+                contentType(ContentType.Application.Json)
+                header(PREFER_HEADER, "$MERGE_DUPLICATES,$RETURN_REPRESENTATION")
+                setBody(SupabaseJson.encodeToString(ListSerializer(serializer), rows))
+            }
+            val body = response.readOrThrow(SupabaseTelemetry.UPSERT, table)
+            SupabaseJson.decodeFromString(ListSerializer(serializer), body)
+                .also { telemetry.rows(SupabaseTelemetry.UPSERT, table, it.size) }
+        }
+    }
+
+    /**
+     * `POST /rest/v1/rpc/{function}` — a database function call.
+     *
+     * The controlled escape hatch for data the client may not read directly. The fairness pool
+     * is de-identified and has no client-readable policy at all (DB_SCHEMA §12), so an
+     * aggregate reaches the app only through a `SECURITY DEFINER` function called this way.
+     */
+    suspend fun <T> rpc(
+        function: String,
+        params: JsonObject,
+        serializer: KSerializer<T>,
+    ): T = call(operation = SupabaseTelemetry.RPC, resource = function) {
+        val response = client.post("${environment.restUrl}/rpc/$function") {
+            authorize()
+            contentType(ContentType.Application.Json)
+            setBody(SupabaseJson.encodeToString(JsonElement.serializer(), params))
+        }
+        val body = response.readOrThrow(SupabaseTelemetry.RPC, function)
+        SupabaseJson.decodeFromString(serializer, body)
+    }
+
+    /**
+     * Span [block], and make sure a request that never got an answer is reported.
+     *
+     * [readOrThrow] already reports a non-2xx, with the status code a dashboard can act on.
+     * Everything else — a timeout, a dropped connection, a DNS failure — gets no further than
+     * the socket and would otherwise leave nothing behind but a closed span. For an
+     * offline-first app that is the failure worth seeing: sync goes quiet while the app looks
+     * perfectly healthy.
+     *
+     * The throw is always rethrown, so this cannot change what a caller does. Cancellation is
+     * passed straight through: a sync pass the app called off is not a fault.
+     */
+    private suspend fun <T> call(operation: String, resource: String, block: suspend () -> T): T =
+        telemetry.span(operation = operation, resource = resource) {
+            try {
+                block()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (throwable: Throwable) {
+                if (throwable !is SupabaseRequestFailed) telemetry.failed(operation, resource, throwable)
+                throw throwable
+            }
+        }
+
+    /**
+     * Read the body, or throw with the status if the server refused.
+     *
+     * The body is never logged. PostgREST error payloads quote the offending row, which for
+     * Odo means a bill amount or a plate number.
+     */
+    private suspend fun HttpResponse.readOrThrow(operation: String, resource: String): String {
+        if (!status.isSuccess()) {
+            telemetry.rejected(operation, resource, status.value)
+            throw SupabaseRequestFailed(operation, resource, status.value)
+        }
+        return bodyAsText()
+    }
+
+    /** Adds the caller's bearer token. Falls back to the anon key, which is Supabase's default. */
+    private suspend fun io.ktor.client.request.HttpRequestBuilder.authorize() {
+        val token = tokens.current() ?: environment.anonKey
+        header(HttpHeaders.Authorization, "Bearer $token")
+    }
+
+    private companion object {
+        const val ALL_COLUMNS = "*"
+        const val SELECT_PARAM = "select"
+        const val ORDER_PARAM = "order"
+        const val PREFER_HEADER = "Prefer"
+        const val MERGE_DUPLICATES = "resolution=merge-duplicates"
+        const val RETURN_REPRESENTATION = "return=representation"
+    }
+}

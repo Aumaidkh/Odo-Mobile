@@ -102,6 +102,7 @@ class AttachBillPhotoUseCaseTest {
 
         override suspend fun delete(storageKey: String) = Unit
         override suspend fun exists(storageKey: String) = true
+        override suspend fun bytes(storageKey: String) = ByteArray(0).right()
     }
 
     private object RefusingFileStore : PlatformFileStore {
@@ -110,5 +111,7 @@ class AttachBillPhotoUseCaseTest {
 
         override suspend fun delete(storageKey: String) = Unit
         override suspend fun exists(storageKey: String) = false
+        override suspend fun bytes(storageKey: String) =
+            DomainError.PersistenceFailure("no bytes").left()
     }
 }

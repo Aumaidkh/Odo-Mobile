@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Supabase sync, storage uploads and the Edge Functions behind the AI features. Odo
+         works fully offline, so nothing here is required for the app to start. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Read before a sync pass, so an offline device queues work instead of retrying. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:name=".OdoApplication"
         android:allowBackup="true"

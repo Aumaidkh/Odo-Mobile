@@ -75,3 +75,69 @@ FROM health_scores
 WHERE car_id = :carId AND deleted_at IS NULL AND computed_at <= :instant
 ORDER BY computed_at DESC
 LIMIT 1;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM health_scores
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM health_scores
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE health_scores
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO health_scores (id, car_id, owner_id, score, maintenance_pts, documentation_pts, cost_efficiency_pts, history_pts, algo_version, computed_at, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :score, :maintenance_pts, :documentation_pts, :cost_efficiency_pts, :history_pts, :algo_version, :computed_at, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE health_scores
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    score = :score,
+    maintenance_pts = :maintenance_pts,
+    documentation_pts = :documentation_pts,
+    cost_efficiency_pts = :cost_efficiency_pts,
+    history_pts = :history_pts,
+    algo_version = :algo_version,
+    computed_at = :computed_at,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM health_scores
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE health_scores
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;

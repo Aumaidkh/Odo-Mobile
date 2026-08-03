@@ -119,6 +119,9 @@ internal class FakeFileStore(var failing: Boolean = false) : PlatformFileStore {
     }
 
     override suspend fun exists(storageKey: String): Boolean = storageKey in saved
+
+    override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
+        if (storageKey in saved) ByteArray(0).right() else DomainError.PersistenceFailure("gone").left()
 }
 
 internal fun entitlement(isPro: Boolean) = ProEntitlement { isPro }

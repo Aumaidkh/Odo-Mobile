@@ -42,4 +42,14 @@ interface PlatformFileStore {
      * opens on nothing.
      */
     suspend fun exists(storageKey: String): Boolean
+
+    /**
+     * Read a stored file back as bytes.
+     *
+     * This is what lets a local file reach the server: `RemoteFileStorage` uploads bytes, not
+     * device paths, so something has to turn a stored key into content. Fails rather than
+     * answering with an empty array when the file is gone, because uploading zero bytes would
+     * replace a good object on the server with an empty one.
+     */
+    suspend fun bytes(storageKey: String): Either<DomainError, ByteArray>
 }

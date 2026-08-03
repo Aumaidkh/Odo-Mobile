@@ -61,3 +61,5 @@ include(":observability:logging")
 include(":observability:analytics")
 include(":observability:performance")
 include(":observability:crashreporting")
+
+include(":infrastructure:supabase")

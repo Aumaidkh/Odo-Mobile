@@ -1,5 +1,11 @@
 package com.hopcape.odo.core.data.document
 
+import com.hopcape.odo.core.data.sync.BlobUploader
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.core.sync.Syncable
+import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
@@ -43,12 +49,27 @@ internal class DocumentRepositoryImpl(
     private val database: OdoDatabase,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    @Suppress("unused") private val remote: DocumentRemoteDataSource,
+    private val remote: DocumentRemoteDataSource,
+    private val syncTelemetry: SyncTelemetry,
+    private val blobs: BlobUploader,
+    private val carId: () -> String?,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : DocumentRepository {
+) : DocumentRepository, Syncable {
 
     private val queries get() = database.documentQueries
+
+    override val entity: SyncEntity = SyncEntity.DOCUMENTS
+
+    private val runner = SyncRunner(
+        entity = SyncEntity.DOCUMENTS,
+        table = DocumentSyncTable(database = database, remote = remote, blobs = blobs, carId = carId),
+        database = database,
+        telemetry = syncTelemetry,
+        clock = clock,
+    )
+
+    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

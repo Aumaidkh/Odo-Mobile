@@ -126,4 +126,14 @@
     <!-- Sign out sheet -->
     <string name="pf_signout_title">Sign out of Odo?</string>
     <string name="pf_signout_body">Your data stays safe — sign back in with your number to pick up where you left off.</string>
+
+    <!-- Sync debug row. Diagnostics, not product copy: this is what someone reads out when
+         they say their data is missing. -->
+    <string name="pf_sync_title">Sync</string>
+    <string name="pf_sync_idle">Up to date</string>
+    <string name="pf_sync_running">Syncing…</string>
+    <string name="pf_sync_pending">%1$d change not backed up yet</string>
+    <string name="pf_sync_pending_plural">%1$d changes not backed up yet</string>
+    <string name="pf_sync_never">Never synced on this device</string>
+    <string name="pf_sync_last">Last synced %1$s</string>
 </resources>

@@ -16,12 +16,12 @@ import kotlinx.serialization.Serializable
  * `:core:network` implements this when it exists; until then [FakeFairnessRemoteDataSource]
  * keeps the flow walkable.
  */
-internal interface FairnessRemoteDataSource {
+interface FairnessRemoteDataSource {
     suspend fun estimates(categories: List<String>, city: String): List<FairnessEstimateDto>
 }
 
 @Serializable
-internal data class FairnessEstimateDto(
+data class FairnessEstimateDto(
     @SerialName("service_category") val category: String,
     @SerialName("city") val city: String,
     @SerialName("city_average_paise") val cityAveragePaise: Long,

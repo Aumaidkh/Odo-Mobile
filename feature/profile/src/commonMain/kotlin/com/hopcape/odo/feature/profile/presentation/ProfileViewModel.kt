@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.feature.profile.domain.model.ProfileSnapshot
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 internal class ProfileViewModel(
     private val observeProfile: ObserveProfileUseCase,
     appInfo: AppInfo,
+    syncStatus: SyncStatusProvider,
     private val telemetry: ProfileTelemetry,
 ) : ViewModel() {
 
@@ -35,6 +37,24 @@ internal class ProfileViewModel(
     private var reported = false
 
     init {
+        // Three separate flows because they change for different reasons: a run starting,
+        // a row being written, and a pull finishing.
+        viewModelScope.launch {
+            syncStatus.isSyncing.collect { running ->
+                _state.update { it.copy(sync = it.sync.copy(isSyncing = running)) }
+            }
+        }
+        viewModelScope.launch {
+            syncStatus.pendingCount.collect { count ->
+                _state.update { it.copy(sync = it.sync.copy(pendingCount = count)) }
+            }
+        }
+        viewModelScope.launch {
+            syncStatus.lastSyncedAt.collect { at ->
+                _state.update { it.copy(sync = it.sync.copy(lastSyncedAt = at)) }
+            }
+        }
+
         observe()
     }
 

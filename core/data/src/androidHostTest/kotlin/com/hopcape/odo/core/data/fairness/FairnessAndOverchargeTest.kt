@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data.fairness
 
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
@@ -251,6 +252,7 @@ class FairnessAndOverchargeTest {
         db: OdoDatabase,
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = OverchargeReportRepositoryImpl(
+        syncTelemetry = silentSyncTelemetry(),
         database = db,
         telemetry = telemetry,
         idGenerator = IdGenerator { "report-1" },

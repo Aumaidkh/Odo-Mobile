@@ -10,9 +10,5 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
  * replaces this in the Koin graph; nothing else changes.
  */
 internal class LocalOwnerProvider : CurrentOwnerProvider {
-    override fun currentOwnerId(): OwnerId = LOCAL_OWNER_ID
-
-    private companion object {
-        val LOCAL_OWNER_ID = OwnerId("local-owner")
-    }
+    override fun currentOwnerId(): OwnerId = OwnerId.LOCAL_PLACEHOLDER
 }

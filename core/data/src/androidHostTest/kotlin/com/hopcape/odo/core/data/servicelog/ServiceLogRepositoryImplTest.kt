@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data.servicelog
 
+import com.hopcape.odo.core.data.sync.noopBlobUploader
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import arrow.core.getOrElse
 import com.hopcape.crashreporting.api.CrashRecorder
@@ -9,6 +10,7 @@ import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncStatus
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.FairnessQuery
@@ -113,6 +115,9 @@ class ServiceLogRepositoryImplTest {
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
         remote = FakeServiceLogRemoteDataSource(),
+        syncTelemetry = silentSyncTelemetry(),
+        blobs = noopBlobUploader(),
+        activeCarId = { null },
         clock = FixedClock(Instant.parse(now)),
         dispatcher = Dispatchers.Unconfined,
     )

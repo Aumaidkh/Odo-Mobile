@@ -116,3 +116,76 @@ SET deleted_at  = :deletedAt,
     updated_at  = :deletedAt,
     sync_status = :syncStatus
 WHERE car_id = :carId AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM documents
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM documents
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE documents
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO documents (id, car_id, owner_id, doc_type, title, storage_path, doc_source, issued_date, expiry_date, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :doc_type, :title, :storage_path, :doc_source, :issued_date, :expiry_date, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE documents
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    doc_type = :doc_type,
+    title = :title,
+    storage_path = :storage_path,
+    doc_source = :doc_source,
+    issued_date = :issued_date,
+    expiry_date = :expiry_date,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- The stored file key, read before a pulled row overwrites the document. Locally this is a
+-- key into app storage; on the server it is a path inside the bucket. They are different
+-- values for the same file, so a pull must not copy one over the other.
+selectStoragePath:
+SELECT storage_path
+FROM documents
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM documents
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE documents
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;

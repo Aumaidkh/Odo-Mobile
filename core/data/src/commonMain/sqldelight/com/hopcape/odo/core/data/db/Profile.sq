@@ -83,3 +83,69 @@ selectProfileById:
 SELECT *
 FROM profiles
 WHERE id = ? AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM profiles
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM profiles
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE profiles
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE profiles
+SET full_name = :full_name,
+    onboarding_goal = :onboarding_goal,
+    onboarding_completed_at = :onboarding_completed_at,
+    email = :email,
+    avatar_path = :avatar_path,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM profiles
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9). Unlike every other table, a profile's primary key IS
+-- the owner id — the server's `profiles.id` is `auth.users.id` — so the row is re-keyed,
+-- not re-stamped. INSERT OR IGNORE first, in case the signed-in account already has a row
+-- pulled from the server; then the placeholder row is dropped either way.
+adoptProfileId:
+UPDATE OR IGNORE profiles
+SET id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE id = :placeholderOwnerId;
+
+deleteProfile:
+DELETE FROM profiles WHERE id = :id;

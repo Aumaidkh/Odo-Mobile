@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.profile.presentation
 
+import kotlin.time.Instant
+import kotlinx.coroutines.flow.flowOf
+import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.settings.model.AppSettings
@@ -76,6 +79,7 @@ class ProfileViewModelsTest {
         )
         val viewModel = ProfileViewModel(
             observeProfile = observeProfile(settings = settings, isPro = true),
+            syncStatus = idleSync(),
             appInfo = FakeAppInfo("2.0.0"),
             telemetry = testTelemetry(),
         )
@@ -95,6 +99,7 @@ class ProfileViewModelsTest {
         val analytics = RecordingAnalytics()
         ProfileViewModel(
             observeProfile = observeProfile(),
+            syncStatus = idleSync(),
             appInfo = FakeAppInfo(),
             telemetry = testTelemetry(analytics),
         )
@@ -109,6 +114,7 @@ class ProfileViewModelsTest {
         val profiles = FakeProfileRepository()
         ProfileViewModel(
             observeProfile = observeProfile(profiles = profiles),
+            syncStatus = idleSync(),
             appInfo = FakeAppInfo(),
             telemetry = testTelemetry(analytics),
         )
@@ -292,6 +298,16 @@ class ProfileViewModelsTest {
             deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files),
             telemetry = testTelemetry(analytics),
         )
+    }
+
+    /**
+     * A device with nothing waiting and no run in flight — the profile tests are about the
+     * profile, and a sync provider that emitted would only add noise.
+     */
+    private fun idleSync() = object : SyncStatusProvider {
+        override val isSyncing = flowOf(false)
+        override val pendingCount = flowOf(0)
+        override val lastSyncedAt = flowOf<Instant?>(null)
     }
 }
 

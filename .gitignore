@@ -18,3 +18,8 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 /issues/
+
+# Supabase setup notes — kept local. The bootstrap script names a specific project
+# and the module notes go with it; docs/DB_SCHEMA.md stays the versioned spec.
+docs/SUPABASE_BOOTSTRAP.md
+infrastructure/supabase/README.md

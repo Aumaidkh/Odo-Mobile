@@ -21,10 +21,19 @@ kotlin {
             // DomainError + Arrow's Either — a store that cannot write says so in the
             // same vocabulary as every other failing port.
             implementation(projects.core.domain)
+            // withContext(Dispatchers.IO) — the Keystore does real crypto work off the main thread.
+            implementation(libs.kotlinx.coroutines.core)
+            // SyncScheduler + SyncEngine — this module supplies the platform scheduler.
+            implementation(projects.core.sync)
+        }
+        commonTest.dependencies {
+            // runTest + the virtual clock the scheduler's debounce is tested against.
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             // rememberLauncherForActivityResult for the system document picker.
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.work.runtime)
         }
     }
 }

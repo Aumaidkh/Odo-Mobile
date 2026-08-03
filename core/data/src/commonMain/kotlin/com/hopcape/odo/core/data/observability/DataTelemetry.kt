@@ -126,5 +126,6 @@ internal class DataTelemetry(
         const val DOCUMENT = "document"
         const val FUEL_PRICE = "fuelprice"
         const val HEALTH_SCORE = "healthscore"
+        const val SYNC = "sync"
     }
 }

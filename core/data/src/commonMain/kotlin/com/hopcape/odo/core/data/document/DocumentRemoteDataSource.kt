@@ -19,7 +19,7 @@ import kotlin.time.Instant
  * The *file* behind a document is not this port's business. Rows sync here; bytes upload to
  * the `documents` bucket, which is a separate M5 job keyed on the same storage path.
  */
-internal interface DocumentRemoteDataSource {
+interface DocumentRemoteDataSource {
 
     /** Documents changed since [since] (null = never synced, so everything). */
     suspend fun fetchSince(carId: String, since: Instant?): List<DocumentDto>
@@ -38,7 +38,7 @@ internal interface DocumentRemoteDataSource {
  * faithful picture of the server row.
  */
 @Serializable
-internal data class DocumentDto(
+data class DocumentDto(
     @SerialName("id") val id: String,
     @SerialName("car_id") val carId: String,
     @SerialName("owner_id") val ownerId: String,

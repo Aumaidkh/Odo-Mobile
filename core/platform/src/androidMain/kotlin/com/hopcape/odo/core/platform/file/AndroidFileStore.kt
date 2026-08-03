@@ -55,6 +55,15 @@ internal class AndroidFileStore(private val context: Context) : PlatformFileStor
         File(context.filesDir, storageKey).exists()
     }
 
+    override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
+        withContext(Dispatchers.IO) {
+            Either.catch {
+                val file = File(context.filesDir, storageKey)
+                if (!file.exists()) error("stored file is missing")
+                file.readBytes()
+            }.mapLeft { DomainError.PersistenceFailure(it.message) }
+        }
+
     /**
      * The file's extension, preferring what the content resolver says the bytes *are* over
      * what the URI is called — a `content://` URI from the picker often has no filename at

@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.document
 
+import com.hopcape.odo.core.data.sync.noopBlobUploader
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
@@ -99,6 +101,9 @@ class DocumentRepositoryImplTest {
         now: String = "2026-07-30T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = DocumentRepositoryImpl(
+        syncTelemetry = silentSyncTelemetry(),
+        blobs = noopBlobUploader(),
+        carId = { null },
         database = db,
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,

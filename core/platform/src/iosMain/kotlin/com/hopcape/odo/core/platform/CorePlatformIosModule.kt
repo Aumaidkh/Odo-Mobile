@@ -5,6 +5,13 @@ import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.file.IosFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
+import com.hopcape.odo.core.platform.secure.IosSecureStore
+import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.platform.sync.CoroutineSyncScheduler
+import com.hopcape.odo.core.sync.SyncScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import com.hopcape.odo.core.platform.notification.SystemNotificationSettings
 import org.koin.dsl.module
 
@@ -20,4 +27,15 @@ val corePlatformIosModule = module {
     single<PlatformFileStore> { IosFileStore() }
     single<AppInfo> { IosAppInfo() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
+    // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not
+    // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
+    single<SecureStore> { IosSecureStore() }
+
+    // iOS has no WorkManager, so sync runs in-process on an app-lifetime scope. That covers
+    // every foreground trigger — launch, a local write, pull-to-refresh — which is what
+    // makes sync work on iOS today. What it does not cover is running after the app is
+    // backgrounded; that needs BGTaskScheduler plus an Info.plist identifier, and is the
+    // one piece of iOS sync still outstanding.
+    single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single<SyncScheduler> { CoroutineSyncScheduler(engine = { get() }, scope = get()) }
 }

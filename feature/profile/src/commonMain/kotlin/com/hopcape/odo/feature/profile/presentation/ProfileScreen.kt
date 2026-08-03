@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -75,6 +76,13 @@ import com.hopcape.odo.feature.profile.resources.pf_start_pro
 import com.hopcape.odo.feature.profile.resources.pf_title
 import com.hopcape.odo.feature.profile.resources.pf_units
 import com.hopcape.odo.feature.profile.resources.pf_units_summary
+import com.hopcape.odo.feature.profile.resources.pf_sync_title
+import com.hopcape.odo.feature.profile.resources.pf_sync_idle
+import com.hopcape.odo.feature.profile.resources.pf_sync_running
+import com.hopcape.odo.feature.profile.resources.pf_sync_pending
+import com.hopcape.odo.feature.profile.resources.pf_sync_pending_plural
+import com.hopcape.odo.feature.profile.resources.pf_sync_never
+import com.hopcape.odo.feature.profile.resources.pf_sync_last
 import com.hopcape.odo.feature.profile.resources.pf_version
 import org.jetbrains.compose.resources.stringResource
 
@@ -129,6 +137,7 @@ internal fun ProfileScreen(
             is Loadable.Ready -> ProfileContentColumn(
                 content = content.value,
                 version = state.version,
+                sync = state.sync,
                 padding = padding,
                 onEdit = onEdit,
                 onGoPro = onGoPro,
@@ -149,6 +158,7 @@ internal fun ProfileScreen(
 private fun ProfileContentColumn(
     content: ProfileContent,
     version: String,
+    sync: SyncStatus,
     padding: PaddingValues,
     onEdit: () -> Unit,
     onGoPro: () -> Unit,
@@ -228,6 +238,8 @@ private fun ProfileContentColumn(
                 )
             }
         }
+
+        SyncDebugRow(sync)
 
         OdoText(
             stringResource(Res.string.pf_version, version),
@@ -348,4 +360,34 @@ private fun FeatureRow(text: String) {
         OdoIcon(IcCheck, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.small)
         OdoText(text, style = OdoTheme.typography.body)
     }
+}
+
+/**
+ * Where sync has got to, in one line under the version.
+ *
+ * A developer row, and it reads like one on purpose — this is what someone is asked to read
+ * out when they say their data has not appeared on another device (SYNC_DESIGN §11). It
+ * shows the pending count even when everything is fine, because "0 changes waiting" and
+ * "sync has never run" look identical from the outside otherwise.
+ */
+@Composable
+private fun SyncDebugRow(sync: SyncStatus) {
+    val status = when {
+        sync.isSyncing -> stringResource(Res.string.pf_sync_running)
+        sync.pendingCount == 1 -> stringResource(Res.string.pf_sync_pending, sync.pendingCount)
+        sync.pendingCount > 1 -> stringResource(Res.string.pf_sync_pending_plural, sync.pendingCount)
+        else -> stringResource(Res.string.pf_sync_idle)
+    }
+    val last = sync.lastSyncedAt
+        ?.let { stringResource(Res.string.pf_sync_last, it.toString()) }
+        ?: stringResource(Res.string.pf_sync_never)
+
+    OdoText(
+        "${stringResource(Res.string.pf_sync_title)}: $status · $last",
+        style = OdoTheme.typography.caption,
+        color = OdoTheme.colors.textMuted,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm)
+            .testTag(ProfileTestTags.SYNC_ROW),
+    )
 }
