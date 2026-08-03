@@ -14,6 +14,9 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.odo.core.platform.sms.SmsAppSignature
 import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import kotlinx.coroutines.flow.flowOf
@@ -198,9 +201,10 @@ class OtpViewModelTest {
         smsCodes: SmsCodeReader = SmsCodeReader { flowOf(SmsCodeStatus.Listening) },
     ) = OtpViewModel(
         phone = phone,
-        sessions = OdoSessionManager(gateway, InMemoryStore(), silentTelemetry(), MovingClock()),
+        sessions = OdoSessionManager(gateway, InMemoryStore(), silentTelemetry(), NoopScheduler, MovingClock()),
         telemetry = silentTelemetry(),
         smsCodes = smsCodes,
+        smsSignature = { emptyList() },
         clock = MovingClock(),
     )
 
@@ -243,6 +247,12 @@ class OtpViewModelTest {
         override fun track(eventName: String, properties: Map<String, Any?>) = Unit
         override fun setConsent(status: ConsentStatus) = Unit
         override fun flush() = Unit
+    }
+
+    /** The code screen's tests are about the code screen, not about scheduling. */
+    private object NoopScheduler : SyncScheduler {
+        override fun scheduleStartupSync() = Unit
+        override fun requestSync(reason: SyncReason) = Unit
     }
 
     private class InMemoryStore : SecureStore {

@@ -34,6 +34,9 @@ internal class SupabaseTestHarness(
     /** Non-fatals the stack recorded — what a crash dashboard would have received. */
     val nonFatals = mutableListOf<Throwable>()
 
+    /** Every log line's event name and fields, for the few assertions that are about logging. */
+    val logs = mutableListOf<Pair<String, Map<String, Any?>>>()
+
     /** Every request the adapters made, in order — the assertions read these. */
     val requests = mutableListOf<HttpRequestData>()
 
@@ -52,8 +55,20 @@ internal class SupabaseTestHarness(
         )
     }
 
+    private val capturingLogger = object : Logger {
+        override fun log(
+            level: LogLevel,
+            tag: String,
+            event: String,
+            traceContext: TraceContext?,
+            fields: Map<String, Any?>,
+        ) { logs += event to fields }
+
+        override fun flush() = Unit
+    }
+
     val telemetry = SupabaseTelemetry(
-        logger = RecordingLogger,
+        logger = capturingLogger,
         tracer = NoopTracer,
         crash = object : CrashRecorder {
             override fun recordNonFatal(throwable: Throwable, customKeys: Map<String, Any?>) {

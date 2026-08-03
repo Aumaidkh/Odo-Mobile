@@ -77,9 +77,14 @@ val generateSupabaseConfig by tasks.registering {
     val url = (properties.getProperty("supabase.url") ?: System.getenv("SUPABASE_URL")).orEmpty()
     val anonKey =
         (properties.getProperty("supabase.anonKey") ?: System.getenv("SUPABASE_ANON_KEY")).orEmpty()
+    // Off unless asked for. Real phone OTP needs a configured SMS provider and, in India,
+    // TRAI DLT registration — until both exist, turning this on means nobody can sign in.
+    val phoneAuth =
+        (properties.getProperty("supabase.phoneAuth") ?: System.getenv("SUPABASE_PHONE_AUTH")) == "true"
 
     inputs.property("url", url)
     inputs.property("anonKey", anonKey)
+    inputs.property("phoneAuth", phoneAuth)
     outputs.dir(outputDir)
 
     doLast {
@@ -104,6 +109,16 @@ val generateSupabaseConfig by tasks.registering {
             internal object BuildSupabaseConfig {
                 const val URL: String = "${url.escaped()}"
                 const val ANON_KEY: String = "${anonKey.escaped()}"
+
+                /**
+                 * Whether to sign in with real phone OTP.
+                 *
+                 * False means the development account is used instead, so the whole flow —
+                 * and everything downstream of it — can be exercised while DLT registration
+                 * is pending. Flip `supabase.phoneAuth=true` in local.properties once the
+                 * SMS provider and DLT template are live; no code changes.
+                 */
+                const val PHONE_AUTH: Boolean = $phoneAuth
             }
 
             """.trimIndent(),

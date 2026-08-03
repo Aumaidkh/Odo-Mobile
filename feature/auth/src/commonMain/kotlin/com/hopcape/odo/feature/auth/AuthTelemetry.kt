@@ -54,6 +54,21 @@ internal class AuthTelemetry(
         analytics.track(EVENT_SESSION_ENDED, emptyMap())
     }
 
+    /**
+     * This build's SMS Retriever signature hash, logged so the sending template can carry it.
+     *
+     * Recorded because the failure it prevents is invisible: a message whose text lacks the
+     * hash is never delivered to the app, with no error and no callback, which from inside
+     * looks exactly like an SMS that never arrived. There is otherwise no way to find out
+     * what the value is for a given build, and debug and release differ.
+     *
+     * The hash is derived from the signing certificate, which is public, so it is not a
+     * secret. Logged at info once per code screen rather than tracked as analytics: it is a
+     * fact about the build, not something an owner did.
+     */
+    suspend fun smsSignature(hashes: List<String>) =
+        log(EVENT_SMS_SIGNATURE, mapOf(Key.HASHES to hashes.joinToString()))
+
     /** A stored session was found and reused, so this launch needed no network. */
     suspend fun sessionRestored() = log(EVENT_SESSION_RESTORED)
 
@@ -89,6 +104,7 @@ internal class AuthTelemetry(
     internal object Key {
         const val REASON = "reason"
         const val STEP = "step"
+        const val HASHES = "hashes"
     }
 
     /** Which screen the owner walked away from. */
@@ -109,5 +125,6 @@ internal class AuthTelemetry(
         const val EVENT_SESSION_RESTORED = "auth_session_restored"
         const val EVENT_SKIPPED = "auth_skipped"
         const val EVENT_ATTEMPTS_EXHAUSTED = "auth_attempts_exhausted"
+        const val EVENT_SMS_SIGNATURE = "auth_sms_signature"
     }
 }

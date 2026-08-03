@@ -15,6 +15,13 @@ package com.hopcape.odo.infrastructure.supabase
 internal data class SupabaseEnvironment(
     val url: String,
     val anonKey: String,
+    /**
+     * Whether to sign in with real phone OTP rather than the development account.
+     *
+     * Config rather than a code branch, so the day DLT registration clears is a
+     * `local.properties` edit and not a commit.
+     */
+    val usePhoneAuth: Boolean = false,
 ) {
 
     /** Whether this build can reach a project. False on a fresh checkout. */
@@ -37,6 +44,7 @@ internal data class SupabaseEnvironment(
         fun fromBuild(): SupabaseEnvironment = SupabaseEnvironment(
             url = BuildSupabaseConfig.URL,
             anonKey = BuildSupabaseConfig.ANON_KEY,
+            usePhoneAuth = BuildSupabaseConfig.PHONE_AUTH,
         )
     }
 }

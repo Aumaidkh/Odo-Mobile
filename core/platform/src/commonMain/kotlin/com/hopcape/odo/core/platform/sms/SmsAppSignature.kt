@@ -16,7 +16,7 @@ package com.hopcape.odo.core.platform.sms
  *
  * Read it with [current] and put the value in the provider's template.
  */
-interface SmsAppSignature {
+fun interface SmsAppSignature {
 
     /**
      * The hashes this build could be delivered against, or empty where the concept does not

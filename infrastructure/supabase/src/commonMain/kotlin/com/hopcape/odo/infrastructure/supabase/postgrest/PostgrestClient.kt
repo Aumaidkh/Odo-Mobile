@@ -152,15 +152,29 @@ internal class PostgrestClient(
     /**
      * Read the body, or throw with the status if the server refused.
      *
-     * The body is never logged. PostgREST error payloads quote the offending row, which for
-     * Odo means a bill amount or a plate number.
+     * **The error body is never logged as-is.** PostgREST quotes the offending row, which
+     * for Odo means a bill amount or a plate number. Only [diagnosis] goes to the log: the
+     * SQLSTATE and the constraint name, which say what rule was broken without saying what
+     * value broke it.
      */
     private suspend fun HttpResponse.readOrThrow(operation: String, resource: String): String {
         if (!status.isSuccess()) {
-            telemetry.rejected(operation, resource, status.value)
+            telemetry.rejected(operation, resource, status.value, bodyAsText().diagnosis())
             throw SupabaseRequestFailed(operation, resource, status.value)
         }
         return bodyAsText()
+    }
+
+    /**
+     * The safe-to-log part of a PostgREST error: `<sqlstate>` plus the constraint it names.
+     *
+     * Null when the body is not the shape expected, rather than falling back to logging it —
+     * an unrecognised body is exactly the case where guessing about PII is a bad idea.
+     */
+    private fun String.diagnosis(): String? {
+        val code = CODE.find(this)?.groupValues?.get(1) ?: return null
+        val constraint = CONSTRAINT.find(this)?.groupValues?.get(1)
+        return if (constraint == null) code else "$code:$constraint"
     }
 
     /** Adds the caller's bearer token. Falls back to the anon key, which is Supabase's default. */
@@ -170,6 +184,15 @@ internal class PostgrestClient(
     }
 
     private companion object {
+        /** PostgREST reports the SQLSTATE as `code`. */
+        val CODE = Regex(""""code"\s*:\s*"([^"]{1,16})"""")
+
+        /**
+         * The constraint named by a Postgres violation message. Bounded and quoted, so it
+         * cannot pick up a free-text row value.
+         */
+        val CONSTRAINT = Regex("""constraint\s+\\?"([a-zA-Z0-9_]{1,63})\\?"""")
+
         const val ALL_COLUMNS = "*"
         const val SELECT_PARAM = "select"
         const val ORDER_PARAM = "order"

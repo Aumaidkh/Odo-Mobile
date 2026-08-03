@@ -11,6 +11,7 @@ import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.SupabaseOtpAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -61,12 +62,19 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     // The session itself lives in :feature:auth behind AccessTokenProvider. Only minting
     // one is a Supabase concern, and that is this:
     //
-    // THIS ONE LINE is the phone-OTP switch. DevPasswordAuthGateway signs in as a fixed
-    // account so everything downstream can be verified for real; SupabaseOtpAuthGateway is
-    // the live path and needs an SMS provider plus TRAI DLT registration first.
+    // Which way in. Driven by `supabase.phoneAuth` in local.properties rather than a code
+    // branch, so the day TRAI DLT registration and the SMS provider are live is a config
+    // edit. Until then the development account signs in, which still produces a real JWT
+    // under real row-level security — everything downstream is verified for real.
     if (environment.isConfigured) {
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
-        single<AuthGateway> { DevPasswordAuthGateway(endpoint = get()) }
+        single<AuthGateway> {
+            if (environment.usePhoneAuth) {
+                SupabaseOtpAuthGateway(endpoint = get())
+            } else {
+                DevPasswordAuthGateway(endpoint = get())
+            }
+        }
     }
 
     single<HttpClient> {

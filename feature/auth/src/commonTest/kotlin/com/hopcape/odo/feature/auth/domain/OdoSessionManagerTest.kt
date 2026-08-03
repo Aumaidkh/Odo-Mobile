@@ -4,6 +4,8 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.domain.auth.AuthSession
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -148,16 +150,75 @@ class OdoSessionManagerTest {
         assertNull(store.get(SecureStore.KEY_ACCESS_TOKEN))
     }
 
+    @Test
+    fun aTokenIsReadableWithoutAnyoneHavingCalledRestore() = runTest {
+        val store = InMemoryStore()
+        manager().verifyOtpWith(SucceedingGateway(), store)
+
+        // A fresh process, nothing restored yet — which is what the sync gate meets when its
+        // worker runs before startup finishes. A null here skips the whole run and nothing
+        // retries it, so the store has to be consulted on demand rather than only at launch.
+        val cold = manager(store = store)
+
+        assertEquals("access-1", cold.currentAccessToken())
+        assertTrue(cold.isSignedIn())
+    }
+
+    @Test
+    fun signingInAsksForASync() = runTest {
+        val requested = mutableListOf<SyncReason>()
+        val manager = OdoSessionManager(
+            gateway = SucceedingGateway(),
+            store = InMemoryStore(),
+            telemetry = silentTelemetry(),
+            scheduler = RecordingScheduler(requested),
+            clock = FixedClock(now),
+        )
+
+        manager.verifyOtp(phone, "123456")
+
+        // Signing in is what the owner was told backs their data up. Without this the
+        // startup pass has already been and gone, and nothing is sent until they edit
+        // something or relaunch. The reason matters as much as the call: SignIn is the one
+        // that replaces a pending job instead of queueing behind its backoff.
+        assertEquals(listOf(SyncReason.SignIn), requested)
+    }
+
+    @Test
+    fun aFailedSignInAsksForNothing() = runTest {
+        val requested = mutableListOf<SyncReason>()
+        val manager = OdoSessionManager(
+            gateway = RefusingGateway,
+            store = InMemoryStore(),
+            telemetry = silentTelemetry(),
+            scheduler = RecordingScheduler(requested),
+            clock = FixedClock(now),
+        )
+
+        manager.verifyOtp(phone, "000000")
+
+        assertTrue(requested.isEmpty())
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
+
+    /** Most tests do not care that a sync was asked for. */
+    private val trigger = RecordingScheduler(mutableListOf())
+
+    /** Records what was asked of the scheduler, without WorkManager anywhere near it. */
+    private class RecordingScheduler(private val into: MutableList<SyncReason>) : SyncScheduler {
+        override fun scheduleStartupSync() = Unit
+        override fun requestSync(reason: SyncReason) { into += reason }
+    }
 
     private fun manager(
         gateway: AuthGateway = SucceedingGateway(),
         store: SecureStore = InMemoryStore(),
-    ) = OdoSessionManager(gateway = gateway, store = store, telemetry = silentTelemetry(), clock = FixedClock(now))
+    ) = OdoSessionManager(gateway = gateway, store = store, telemetry = silentTelemetry(), scheduler = trigger, clock = FixedClock(now))
 
     /** Signs in through a gateway that works, so sign-out has something to clear. */
     private suspend fun OdoSessionManager.verifyOtpWith(gateway: AuthGateway, store: SecureStore) {
-        OdoSessionManager(gateway, store, silentTelemetry(), FixedClock(now)).verifyOtp(phone, "123456")
+        OdoSessionManager(gateway, store, silentTelemetry(), trigger, FixedClock(now)).verifyOtp(phone, "123456")
         restore()
     }
 

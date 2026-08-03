@@ -31,6 +31,10 @@ kotlin {
             // SecureStore — a session's tokens are bearer credentials, so they live in the
             // Keystore/Keychain rather than anywhere the filesystem can hand them over.
             implementation(projects.core.platform)
+            // SyncScheduler, to ask for a backup the moment a session exists. Signing in is
+            // what makes sync possible at all, and the Profile row that leads here promises
+            // it — so the request belongs to whoever owns the session.
+            implementation(projects.core.sync)
             // A session that ends on its own does so with no error and no screen; these are
             // what keep that from being invisible.
             implementation(projects.observability.logging)

@@ -73,6 +73,16 @@ class SqlDelightSynchronizerTest {
         assertEquals(pushedAt, synchronizer.cursor(SyncEntity.DOCUMENTS).lastPulledAt)
     }
 
+    /** A refusal from a remote data source, without dragging in a vendor client. */
+    private class TestRejection(
+        override val status: Int,
+        override val isPermanent: Boolean,
+        message: String,
+    ) : RuntimeException(message), SyncRejection
+
+    private fun rejection(status: Int, permanent: Boolean, message: String = "refused") =
+        TestRejection(status, permanent, message)
+
     @Test
     fun aFailureIsRecordedByTypeName_neverByMessage() = runTest {
         val (db, _) = inMemoryDatabase()
@@ -85,6 +95,47 @@ class SqlDelightSynchronizerTest {
 
         val cursor = synchronizer.cursor(SyncEntity.DOCUMENTS)
         assertEquals("IllegalStateException", cursor.lastError)
+    }
+
+    @Test
+    fun aPermanentRefusalIsRecordedAsPermanent() = runTest {
+        val (db, _) = inMemoryDatabase()
+        val synchronizer = SqlDelightSynchronizer(db, silentDataTelemetry())
+
+        // A duplicate key. Sending the same rows again gets the same answer forever, while
+        // the scheduler's backoff quietly walks the retries out to hours — so unless this is
+        // written down, an entity that can never sync reads as "still working on it".
+        synchronizer.recordFailure(SyncEntity.CARS, rejection(status = 409, permanent = true))
+
+        assertEquals("TestRejection(409, permanent)", synchronizer.cursor(SyncEntity.CARS).lastError)
+    }
+
+    @Test
+    fun aTransientRefusalIsRecordedWithoutIt() = runTest {
+        val (db, _) = inMemoryDatabase()
+        val synchronizer = SqlDelightSynchronizer(db, silentDataTelemetry())
+
+        // The server was unwell. Retrying is exactly the right answer, so nothing should
+        // suggest otherwise.
+        synchronizer.recordFailure(SyncEntity.CARS, rejection(status = 503, permanent = false))
+
+        assertEquals("TestRejection(503)", synchronizer.cursor(SyncEntity.CARS).lastError)
+    }
+
+    @Test
+    fun aRejectionsMessageIsStillNeverRecorded() = runTest {
+        val (db, _) = inMemoryDatabase()
+        val synchronizer = SqlDelightSynchronizer(db, silentDataTelemetry())
+
+        synchronizer.recordFailure(
+            SyncEntity.CARS,
+            rejection(status = 409, permanent = true, message = "duplicate plate MH01AB1234"),
+        )
+
+        // The status is a fact about the request; the message quotes the row. Only one of
+        // those may be stored.
+        val recorded = synchronizer.cursor(SyncEntity.CARS).lastError
+        assertEquals("TestRejection(409, permanent)", recorded)
     }
 
     @Test

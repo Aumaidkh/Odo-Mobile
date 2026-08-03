@@ -67,4 +67,10 @@ internal data class SyncStatus(
     val pendingCount: Int = 0,
     /** When a pull last succeeded, or null on an install that has never synced. */
     val lastSyncedAt: Instant? = null,
+    /**
+     * Why syncing is stuck, or null when nothing is wrong. A diagnostic string from the
+     * sync layer, shown as-is — this row exists to be read out during support, not to be
+     * pretty.
+     */
+    val lastError: String? = null,
 )

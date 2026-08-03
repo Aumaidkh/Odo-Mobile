@@ -31,4 +31,17 @@ interface SyncStatusProvider {
 
     /** When the last run completed successfully, or `null` if it never has on this install. */
     val lastSyncedAt: Flow<Instant?>
+
+    /**
+     * Why syncing is currently stuck, or `null` when nothing is wrong.
+     *
+     * A diagnostic string, not product copy — a failure type and, for a refused request, its
+     * status. It exists because a pending count on its own cannot say whether the app is
+     * mid-upload or has been refused the same way for three days, and those look identical
+     * to whoever is asking why their data is missing.
+     *
+     * Never a server message: those quote the row that was refused, and these rows are the
+     * owner's records.
+     */
+    val lastError: Flow<String?>
 }

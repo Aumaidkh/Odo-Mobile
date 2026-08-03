@@ -56,6 +56,16 @@ SET last_pulled_at = :lastPulledAt,
     last_error     = :lastError
 WHERE entity = :entity;
 
+-- Whatever failure is currently recorded, for the debug row. Any one of them is enough to
+-- answer "why is nothing being backed up" — the engine stops at the first refusal, so there
+-- is normally only one.
+selectAnyError:
+SELECT last_error
+FROM sync_state
+WHERE last_error IS NOT NULL
+ORDER BY entity
+LIMIT 1;
+
 -- Used by the tests and by account deletion; a cleared cursor makes the next run a full
 -- re-pull, which is always safe because applying a row is idempotent.
 deleteAll:

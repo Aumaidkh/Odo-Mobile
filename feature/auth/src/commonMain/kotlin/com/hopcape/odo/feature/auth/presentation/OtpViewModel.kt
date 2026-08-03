@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.core.platform.sms.SmsAppSignature
 import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
@@ -36,6 +37,7 @@ internal class OtpViewModel(
     private val sessions: OdoSessionManager,
     private val telemetry: AuthTelemetry,
     private val smsCodes: SmsCodeReader,
+    private val smsSignature: SmsAppSignature,
     private val clock: Clock = Clock.System,
 ) : ViewModel() {
 
@@ -68,8 +70,17 @@ internal class OtpViewModel(
      *
      * Unsupported and timed out both mean "the owner types it", which is the ordinary path,
      * so neither is surfaced as a failure.
+     *
+     * The signature hash is logged alongside, because "auto-read does nothing" and "the
+     * template is missing this build's hash" look identical from here and the hash is
+     * otherwise unreadable.
      */
     private fun listenForCode() {
+        viewModelScope.launch {
+            smsSignature.current()
+                .takeIf { it.isNotEmpty() }
+                ?.let { telemetry.smsSignature(it) }
+        }
         viewModelScope.launch {
             smsCodes.listen().collect { status ->
                 _state.update { it.copy(autoRead = status) }

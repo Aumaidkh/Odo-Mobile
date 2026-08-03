@@ -28,8 +28,8 @@
     <string name="au_skip_hint">Your car and logs stay on this phone. Sign in later from Profile to back them up.</string>
 
     <!-- Verifying -->
-    <string name="au_verifying_title">Verifying your number</string>
-    <string name="au_verifying_body">This takes a second — hang tight.</string>
+    <string name="au_verifying_title">Number verified</string>
+    <string name="au_verifying_body">Your records are backed up from here on.</string>
 
     <!-- Content descriptions -->
     <string name="au_cd_back">Back</string>

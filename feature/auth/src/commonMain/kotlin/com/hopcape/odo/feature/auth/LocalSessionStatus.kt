@@ -8,7 +8,7 @@ import com.hopcape.odo.core.domain.owner.SessionStatusProvider
  *
  * Auth owns this binding (not onboarding) because sessions are auth's concern; onboarding
  * only asks the port. When Supabase phone auth lands it replaces this class and nothing
- * else moves — same shape as `LocalOwnerProvider` in `:feature:onboarding`.
+ * else moves.
  */
 internal class LocalSessionStatus : SessionStatusProvider {
     override fun isSignedIn(): Boolean = false

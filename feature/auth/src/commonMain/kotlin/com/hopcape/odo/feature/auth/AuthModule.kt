@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.auth
 
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
+import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -28,17 +29,20 @@ val authModule = module {
     // The session's whole lifecycle: held here, persisted here, refreshed here. It answers
     // three domain ports, so nothing outside auth needs to know a session manager exists.
     single { AuthTelemetry(logger = get(), analytics = get()) }
-    single { OdoSessionManager(gateway = get(), store = get(), telemetry = get()) }
+    single { OdoSessionManager(gateway = get(), store = get(), telemetry = get(), scheduler = get()) }
     single<SessionStatusProvider> { get<OdoSessionManager>() }
     single<CurrentOwnerProvider> { get<OdoSessionManager>() }
     single<AccessTokenProvider> { get<OdoSessionManager>() }
+    // The startup path's one write. Without it a restart looks like a fresh install to the
+    // sync gate, and nothing this install has ever written reaches the server.
+    single<SessionRestore> { get<OdoSessionManager>() }
     // Published so :feature:profile can offer sign-out without depending on :feature:auth.
     single<SignOut> { SignOutUseCase(sessions = get(), wipe = get()) }
 
     viewModel { PhoneViewModel(sessions = get(), telemetry = get()) }
     // The number is a route argument, so it is a parameter rather than something the
     // ViewModel goes looking for.
-    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get(), smsCodes = get()) }
+    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get(), smsCodes = get(), smsSignature = get()) }
 
     single {
         AuthFeatureEntryProvider(navigationManager = get())

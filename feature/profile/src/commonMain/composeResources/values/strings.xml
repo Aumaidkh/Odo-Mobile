@@ -136,4 +136,5 @@
     <string name="pf_sync_pending_plural">%1$d changes not backed up yet</string>
     <string name="pf_sync_never">Never synced on this device</string>
     <string name="pf_sync_last">Last synced %1$s</string>
+    <string name="pf_sync_blocked">stuck: %1$s</string>
 </resources>

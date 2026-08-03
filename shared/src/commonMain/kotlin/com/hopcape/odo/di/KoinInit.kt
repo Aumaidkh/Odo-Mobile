@@ -1,12 +1,14 @@
 package com.hopcape.odo.di
 
 import com.hopcape.analytics.api.analyticsModule
+import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.crashreporting.api.crashReportingModule
 import com.hopcape.logging.api.loggingModule
 import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.common.coreCommonModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
+import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.feature.auth.authModule
@@ -25,6 +27,11 @@ import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -93,11 +100,29 @@ fun initKoin(
         platformModule,
     )
 }.also { application ->
-    // The first sync of the session. Here rather than in each platform bootstrap so both
-    // get it, and after the graph is built because the scheduler is part of it.
+    // Restore the session, then ask for the launch's first sync — in that order, because a
+    // sync that starts before the session is loaded sees no token and skips, and nothing
+    // retries it until the next launch.
     //
-    // Cheap by design: on Android this only enqueues WorkManager work, and on iOS the
-    // engine is resolved inside the coroutine — neither touches the database on the
-    // startup thread.
-    application.koin.get<SyncScheduler>().scheduleStartupSync()
+    // Off the startup thread: reading the session touches the Keystore/Keychain. The
+    // scheduling that follows is cheap by design — on Android it only enqueues WorkManager
+    // work, and on iOS the engine is resolved inside the coroutine.
+    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+        // Restoring is allowed to fail — a session that will not decrypt is reported as no
+        // session, which sends the owner to sign in again. What must not happen is losing
+        // the sync request with it: a throw here would end the coroutine and this launch
+        // would never sync, with nothing to show why.
+        try {
+            application.koin.get<SessionRestore>().restore()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: Exception) {
+            application.koin.get<CrashRecorder>().recordNonFatal(e, mapOf(STAGE to RESTORE))
+        }
+        application.koin.get<SyncScheduler>().scheduleStartupSync()
+    }
 }
+
+/* Keys for the one non-fatal the startup path can record. */
+private const val STAGE = "stage"
+private const val RESTORE = "session_restore"

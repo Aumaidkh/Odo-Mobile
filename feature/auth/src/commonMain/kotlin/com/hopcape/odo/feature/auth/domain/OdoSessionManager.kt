@@ -6,12 +6,15 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,8 +46,9 @@ internal class OdoSessionManager(
     private val gateway: AuthGateway,
     private val store: SecureStore,
     private val telemetry: AuthTelemetry,
+    private val scheduler: SyncScheduler,
     private val clock: Clock = Clock.System,
-) : SessionStatusProvider, CurrentOwnerProvider, AccessTokenProvider {
+) : SessionStatusProvider, CurrentOwnerProvider, AccessTokenProvider, SessionRestore {
 
     private val mutex = Mutex()
     private val _session = MutableStateFlow<AuthSession?>(null)
@@ -52,13 +56,17 @@ internal class OdoSessionManager(
     /** The current session, for anything that needs to observe sign-in state. */
     val session: StateFlow<AuthSession?> = _session.asStateFlow()
 
+    /* ---- SessionRestore ---- */
+
     /**
      * Read the stored session into memory. Called once at startup, before anything asks.
      *
      * Restoring is not the same as validating: a session read from disk may already be past
      * its expiry, and the first call that needs a token refreshes it.
      */
-    suspend fun restore() = mutex.withLock { readFromStore()?.also { telemetry.sessionRestored() } }
+    override suspend fun restore() {
+        mutex.withLock { restoreLocked() }
+    }
 
     /* ---- SessionStatusProvider ---- */
 
@@ -90,7 +98,11 @@ internal class OdoSessionManager(
      * the sync gate, and for both "not signed in" means stay offline, not fail.
      */
     override suspend fun currentAccessToken(): String? = mutex.withLock {
-        val current = _session.value ?: return@withLock null
+        // Reads the store when memory is empty rather than trusting that startup got there
+        // first. The sync gate asks from a background worker that can be running before the
+        // startup restore completes, and a null answer there is not retried — it skips the
+        // whole run. Costs one read on a cold process and nothing afterwards.
+        val current = _session.value ?: restoreLocked() ?: return@withLock null
         if (!current.needsRefresh(clock.now())) return@withLock current.accessToken
 
         refreshLocked(current)?.accessToken
@@ -110,6 +122,11 @@ internal class OdoSessionManager(
             .onRight {
                 mutex.withLock { keep(it) }
                 telemetry.signedIn()
+                // Back up what is already on the phone now. Nothing else will until the
+                // owner edits something or relaunches, and they were just told this is
+                // what signing in does. `SignIn` is REPLACE, so it also clears a backoff
+                // earned by runs that failed for the very reason this just fixed.
+                scheduler.requestSync(SyncReason.SignIn)
             }
             .onLeft { telemetry.otpRejected(it) }
 
@@ -159,6 +176,10 @@ internal class OdoSessionManager(
         store.put(SecureStore.KEY_USER_ID, session.ownerId.value)
         return session
     }
+
+    /** Load from the store into memory, reporting it once. Caller already holds the mutex. */
+    private suspend fun restoreLocked(): AuthSession? =
+        readFromStore()?.also { telemetry.sessionRestored() }
 
     /**
      * What the secure store holds, or null if any part is missing.

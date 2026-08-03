@@ -43,8 +43,8 @@ import com.hopcape.odo.core.data.sync.SqlDelightOwnershipAdoption
 import com.hopcape.odo.core.data.sync.SqlDelightSyncStatusProvider
 import com.hopcape.odo.core.data.sync.SqlDelightSynchronizer
 import com.hopcape.odo.core.sync.SyncGate
-import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
 import com.hopcape.odo.core.data.db.OdoDatabase
