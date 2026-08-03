@@ -7,6 +7,8 @@ import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.common.coreCommonModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
+import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
@@ -64,10 +66,9 @@ fun initKoin(
         crashReportingModule,
         coreNavigationModule,
         coreDataModule,
-        // Deliberately right after coreDataModule: it replaces that module's offline
-        // remote-data-source fakes with the real Supabase adapters, and only when the build
-        // carries credentials. Koin lets a later definition win, so order is the wiring.
-        supabaseModule,
+        // The engine collects its Syncables with getAll(), so it must be listed after the
+        // module that registers them.
+        coreSyncModule,
         authModule,
         onboardingModule,
         serviceLogModule,
@@ -83,6 +84,20 @@ fun initKoin(
         supportModule,
         timelineModule,
         paywallModule,
+        // Last of the shared modules, because its whole job is to replace things: the
+        // offline remote-data-source fakes from coreDataModule, the always-signed-out
+        // SessionStatusProvider from authModule, and coreDataModule's session-only SyncGate.
+        // Koin lets a later definition win, so this position *is* the wiring — moving it
+        // earlier silently puts the stubs back.
+        supabaseModule,
         platformModule,
     )
+}.also { application ->
+    // The first sync of the session. Here rather than in each platform bootstrap so both
+    // get it, and after the graph is built because the scheduler is part of it.
+    //
+    // Cheap by design: on Android this only enqueues WorkManager work, and on iOS the
+    // engine is resolved inside the coroutine — neither touches the database on the
+    // startup thread.
+    application.koin.get<SyncScheduler>().scheduleStartupSync()
 }

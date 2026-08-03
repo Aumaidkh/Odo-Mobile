@@ -29,5 +29,13 @@ enum class SyncEntity {
     BILLS,
     BILL_LINE_ITEMS,
     DOCUMENTS,
+
+    /**
+     * Score history. Anywhere after [CARS] would satisfy the FK; it sits last among the
+     * built ones because it is the only entity whose loss costs nothing but a month delta —
+     * every score is recomputed on read, so a run that dies before reaching it has still
+     * saved everything the owner actually typed.
+     */
+    HEALTH_SCORES,
     REMINDERS,
 }

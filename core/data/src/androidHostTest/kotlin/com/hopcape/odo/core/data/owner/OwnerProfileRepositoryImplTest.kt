@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.owner
 
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
+import com.hopcape.odo.core.data.owner.FakeProfileRemoteDataSource
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
@@ -64,6 +66,9 @@ class OwnerProfileRepositoryImplTest {
 
     private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
         OwnerProfileRepositoryImpl(
+            remote = FakeProfileRemoteDataSource(),
+            syncTelemetry = silentSyncTelemetry(),
+            ownerId = { null },
             database = db,
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,

@@ -1,0 +1,101 @@
+package com.hopcape.odo.core.data.health
+
+import com.hopcape.odo.core.data.db.Health_scores
+import com.hopcape.odo.core.data.db.OdoDatabase
+import com.hopcape.odo.core.data.sync.LocalRowState
+import com.hopcape.odo.core.data.sync.SyncTable
+import com.hopcape.odo.core.data.sync.toInstantOrNull
+import com.hopcape.odo.core.data.sync.toSyncStatus
+import kotlin.time.Instant
+
+/**
+ * `health_scores` as the sync algorithm sees it.
+ *
+ * Append-only on both sides: a snapshot records what was true at a moment, so a row this
+ * device already holds can never have changed. The conflict rules still run — they cost
+ * nothing and a table that claims to be append-only is exactly the kind of claim that stops
+ * being true — but in practice every pulled row is either new or identical.
+ *
+ * No enum conversion: every column is a number, a version string or a timestamp.
+ */
+internal class HealthScoreSyncTable(
+    private val database: OdoDatabase,
+    private val remote: HealthScoreRemoteDataSource,
+    private val carId: () -> String?,
+) : SyncTable<HealthScoreDto> {
+
+    private val queries get() = database.healthScoreQueries
+
+    override fun idOf(dto: HealthScoreDto): String = dto.id
+
+    override fun updatedAtOf(dto: HealthScoreDto): Instant? = dto.updatedAt.toInstantOrNull()
+
+    override suspend fun pending(): List<HealthScoreDto> =
+        queries.selectPending().executeAsList().map(Health_scores::toDto)
+
+    override suspend fun push(rows: List<HealthScoreDto>): List<HealthScoreDto> = remote.push(rows)
+
+    override fun markSynced(id: String, remoteVersion: String) =
+        queries.markSynced(remoteVersion = remoteVersion, id = id)
+
+    override suspend fun fetch(since: Instant?): List<HealthScoreDto> {
+        val car = carId() ?: return emptyList()
+        return remote.fetchSince(car, since)
+    }
+
+    override fun localState(id: String): LocalRowState? =
+        queries.selectSyncState(id).executeAsOneOrNull()?.let { row ->
+            LocalRowState(row.sync_status.toSyncStatus(), row.updated_at.toInstantOrNull())
+        }
+
+    override fun applyRemote(dto: HealthScoreDto) {
+        queries.insertFromRemote(
+            id = dto.id,
+            car_id = dto.carId,
+            owner_id = dto.ownerId,
+            score = dto.score.toLong(),
+            maintenance_pts = dto.maintenancePts.toLong(),
+            documentation_pts = dto.documentationPts.toLong(),
+            cost_efficiency_pts = dto.costEfficiencyPts.toLong(),
+            history_pts = dto.historyPts.toLong(),
+            algo_version = dto.algoVersion,
+            computed_at = dto.computedAt,
+            created_at = dto.createdAt,
+            updated_at = dto.updatedAt,
+            deleted_at = dto.deletedAt,
+            remote_version = dto.updatedAt,
+        )
+        queries.updateFromRemote(
+            car_id = dto.carId,
+            owner_id = dto.ownerId,
+            score = dto.score.toLong(),
+            maintenance_pts = dto.maintenancePts.toLong(),
+            documentation_pts = dto.documentationPts.toLong(),
+            cost_efficiency_pts = dto.costEfficiencyPts.toLong(),
+            history_pts = dto.historyPts.toLong(),
+            algo_version = dto.algoVersion,
+            computed_at = dto.computedAt,
+            created_at = dto.createdAt,
+            updated_at = dto.updatedAt,
+            deleted_at = dto.deletedAt,
+            remote_version = dto.updatedAt,
+            id = dto.id,
+        )
+    }
+}
+
+private fun Health_scores.toDto() = HealthScoreDto(
+    id = id,
+    carId = car_id,
+    ownerId = owner_id,
+    score = score.toInt(),
+    maintenancePts = maintenance_pts.toInt(),
+    documentationPts = documentation_pts.toInt(),
+    costEfficiencyPts = cost_efficiency_pts.toInt(),
+    historyPts = history_pts.toInt(),
+    algoVersion = algo_version,
+    computedAt = computed_at,
+    createdAt = created_at,
+    updatedAt = updated_at,
+    deletedAt = deleted_at,
+)

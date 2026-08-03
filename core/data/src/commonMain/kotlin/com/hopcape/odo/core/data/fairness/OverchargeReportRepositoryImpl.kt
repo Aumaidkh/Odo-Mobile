@@ -1,5 +1,10 @@
 package com.hopcape.odo.core.data.fairness
 
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.core.sync.Syncable
+import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -36,10 +41,24 @@ internal class OverchargeReportRepositoryImpl(
     private val telemetry: DataTelemetry,
     private val idGenerator: IdGenerator,
     private val scheduler: SyncScheduler,
-    @Suppress("unused") private val remote: OverchargeRemoteDataSource,
+    private val remote: OverchargeRemoteDataSource,
+    private val syncTelemetry: SyncTelemetry,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : OverchargeReportRepository {
+) : OverchargeReportRepository, Syncable {
+
+    override val entity: SyncEntity = SyncEntity.OVERCHARGE_REPORTS
+
+    private val runner = SyncRunner(
+        entity = SyncEntity.OVERCHARGE_REPORTS,
+        table = OverchargeReportSyncTable(database = database, remote = remote),
+        database = database,
+        telemetry = syncTelemetry,
+        clock = clock,
+    )
+
+    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+
 
     override suspend fun submit(report: OverchargeReport): Either<DomainError, Unit> =
         telemetry.span(DataTelemetry.OVERCHARGE, OP_SUBMIT, report.logId.value) {

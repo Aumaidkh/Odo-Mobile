@@ -1,5 +1,10 @@
 package com.hopcape.odo.core.data.owner
 
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.core.sync.Syncable
+import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import arrow.core.Either
@@ -31,11 +36,26 @@ internal class OwnerProfileRepositoryImpl(
     private val database: OdoDatabase,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
+    private val remote: ProfileRemoteDataSource,
+    private val syncTelemetry: SyncTelemetry,
+    private val ownerId: () -> String?,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : OwnerProfileRepository {
+) : OwnerProfileRepository, Syncable {
 
     private val queries get() = database.profileQueries
+
+    override val entity: SyncEntity = SyncEntity.PROFILES
+
+    private val runner = SyncRunner(
+        entity = SyncEntity.PROFILES,
+        table = ProfileSyncTable(database = database, remote = remote, ownerId = ownerId),
+        database = database,
+        telemetry = syncTelemetry,
+        clock = clock,
+    )
+
+    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

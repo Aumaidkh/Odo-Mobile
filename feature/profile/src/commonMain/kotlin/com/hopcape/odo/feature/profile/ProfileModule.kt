@@ -48,7 +48,14 @@ val profileModule = module {
     // screen and sheet of that visit shares its flow id.
     factory { ProfileTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
-    viewModel { ProfileViewModel(observeProfile = get(), appInfo = get(), telemetry = get()) }
+    viewModel {
+        ProfileViewModel(
+            observeProfile = get(),
+            appInfo = get(),
+            syncStatus = get(),
+            telemetry = get(),
+        )
+    }
     viewModel {
         EditProfileViewModel(
             observeProfile = get(),

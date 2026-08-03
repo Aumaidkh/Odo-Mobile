@@ -15,7 +15,13 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.data.sync.BlobUploader
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.Syncable
+import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import com.hopcape.odo.core.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -29,10 +35,9 @@ import kotlin.time.Clock
  * truth; every write lands `sync_status = PENDING` for the engine that arrives in M5, and
  * nothing here waits on a network call.
  *
- * [remote] is held but not yet driven: pushing and pulling belong to `Syncable.syncWith`,
- * which lands with the engine. It is wired now so the seam exists before there is anything
- * behind it, rather than being retrofitted through a repository that had learned to live
- * without it.
+ * Also the [Syncable] for `service_logs`: the repository owns the row↔DTO mapping, so it is
+ * the only thing that can push and pull them. The algorithm itself is [SyncRunner]'s — this
+ * class only says which table, which remote and which car.
  *
  * Timestamps are client-stamped (offline-first; the server reconciles on sync).
  */
@@ -40,12 +45,27 @@ internal class ServiceLogRepositoryImpl(
     private val database: OdoDatabase,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    @Suppress("unused") private val remote: ServiceLogRemoteDataSource,
+    private val remote: ServiceLogRemoteDataSource,
+    private val syncTelemetry: SyncTelemetry,
+    private val blobs: BlobUploader,
+    private val activeCarId: () -> String?,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : ServiceLogRepository {
+) : ServiceLogRepository, Syncable {
 
     private val queries get() = database.serviceLogQueries
+
+    override val entity: SyncEntity = SyncEntity.SERVICE_LOGS
+
+    private val runner = SyncRunner(
+        entity = SyncEntity.SERVICE_LOGS,
+        table = ServiceLogSyncTable(database = database, remote = remote, blobs = blobs, carId = activeCarId),
+        database = database,
+        telemetry = syncTelemetry,
+        clock = clock,
+    )
+
+    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

@@ -27,4 +27,6 @@ object ProfileTestTags {
 
     /** The confirm button in the delete-my-data dialog. */
     const val DELETE_CONFIRM: String = "profile_delete_confirm"
+    /** The sync diagnostics line under the version. */
+    const val SYNC_ROW = "profile_sync_row"
 }

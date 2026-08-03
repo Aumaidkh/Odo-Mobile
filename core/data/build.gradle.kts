@@ -33,6 +33,9 @@ kotlin {
             // the engine receives its Syncables rather than reaching in for them, which
             // is what keeps the two modules from forming a cycle.
             implementation(projects.core.sync)
+            // PlatformFileStore — a blob has to be read off the device before it can be
+            // uploaded, and reading a file is a platform capability.
+            implementation(projects.core.platform)
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines.extensions)
             implementation(libs.kotlinx.coroutines.core)

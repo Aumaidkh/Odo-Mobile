@@ -1,5 +1,10 @@
 package com.hopcape.odo.core.data.health
 
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.core.sync.Syncable
+import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import arrow.core.Either
@@ -39,11 +44,26 @@ internal class HealthScoreRepositoryImpl(
     private val database: OdoDatabase,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
+    private val remote: HealthScoreRemoteDataSource,
+    private val syncTelemetry: SyncTelemetry,
+    private val carId: () -> String?,
     private val clock: Clock = Clock.System,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : HealthScoreRepository {
+) : HealthScoreRepository, Syncable {
 
     private val queries get() = database.healthScoreQueries
+
+    override val entity: SyncEntity = SyncEntity.HEALTH_SCORES
+
+    private val runner = SyncRunner(
+        entity = SyncEntity.HEALTH_SCORES,
+        table = HealthScoreSyncTable(database = database, remote = remote, carId = carId),
+        database = database,
+        telemetry = syncTelemetry,
+        clock = clock,
+    )
+
+    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
 
     override suspend fun latest(carId: CarId): HealthSnapshot? =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_LATEST, carId.value) {

@@ -31,6 +31,9 @@ kotlin {
             // FeatureEntryProviders App() collects, so it depends on the data layer
             // and each wired feature. (The app root may depend on features.)
             implementation(projects.core.data)
+            // The sync engine's Koin module. :shared is the composition root, so it is what
+            // lists coreSyncModule alongside the module whose Syncables it collects.
+            implementation(projects.core.sync)
             // corePlatformIosModule — the iOS bootstrap lists it alongside the driver.
             implementation(projects.core.platform)
             // The composition root's one decision — open on Welcome or Home — reads

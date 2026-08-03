@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data.health
 
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
+import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
@@ -96,6 +98,9 @@ class HealthScoreRepositoryImplTest {
         now: String = "2026-08-01T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = HealthScoreRepositoryImpl(
+        remote = FakeHealthScoreRemoteDataSource(),
+        syncTelemetry = silentSyncTelemetry(),
+        carId = { null },
         database = db,
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,

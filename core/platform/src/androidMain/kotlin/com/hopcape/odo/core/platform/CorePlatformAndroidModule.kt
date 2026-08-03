@@ -6,6 +6,10 @@ import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.file.AndroidFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
+import com.hopcape.odo.core.platform.secure.AndroidSecureStore
+import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.platform.sync.WorkManagerSyncScheduler
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.platform.notification.SystemNotificationSettings
 import org.koin.dsl.module
 
@@ -21,4 +25,7 @@ val corePlatformAndroidModule = module {
     single<PlatformFileStore> { AndroidFileStore(context = get<Context>()) }
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
     single<SystemNotificationSettings> { AndroidSystemNotificationSettings(context = get<Context>()) }
+    single<SecureStore> { AndroidSecureStore(context = get<Context>()) }
+    // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
+    single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>()) }
 }
