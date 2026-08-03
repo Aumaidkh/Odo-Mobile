@@ -4,7 +4,9 @@ import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.SignOut
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.feature.auth.domain.SignOutUseCase
 import com.hopcape.odo.feature.auth.presentation.OtpViewModel
 import com.hopcape.odo.feature.auth.presentation.PhoneViewModel
 import org.koin.core.module.dsl.viewModel
@@ -30,10 +32,13 @@ val authModule = module {
     single<SessionStatusProvider> { get<OdoSessionManager>() }
     single<CurrentOwnerProvider> { get<OdoSessionManager>() }
     single<AccessTokenProvider> { get<OdoSessionManager>() }
+    // Published so :feature:profile can offer sign-out without depending on :feature:auth.
+    single<SignOut> { SignOutUseCase(sessions = get(), wipe = get()) }
+
     viewModel { PhoneViewModel(sessions = get(), telemetry = get()) }
     // The number is a route argument, so it is a parameter rather than something the
     // ViewModel goes looking for.
-    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get()) }
+    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get(), smsCodes = get()) }
 
     single {
         AuthFeatureEntryProvider(navigationManager = get())

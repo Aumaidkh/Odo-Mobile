@@ -179,3 +179,10 @@ adoptOwnership:
 UPDATE cars
 SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
 WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM cars;

@@ -241,3 +241,17 @@ adoptOwnership:
 UPDATE service_logs
 SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
 WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM service_logs;
+
+deleteAllCategories:
+DELETE FROM service_log_categories;
+
+-- Every bill photo on the device, for the same reason.
+selectAllBillPhotoPaths:
+SELECT bill_photo_path FROM service_logs WHERE bill_photo_path IS NOT NULL;

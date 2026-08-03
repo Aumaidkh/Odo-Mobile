@@ -38,6 +38,7 @@ import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.sync.SessionSyncGate
+import com.hopcape.odo.core.data.sync.SqlDelightLocalUserDataWipe
 import com.hopcape.odo.core.data.sync.SqlDelightOwnershipAdoption
 import com.hopcape.odo.core.data.sync.SqlDelightSyncStatusProvider
 import com.hopcape.odo.core.data.sync.SqlDelightSynchronizer
@@ -65,6 +66,7 @@ import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepositor
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -153,6 +155,12 @@ val coreDataModule = module {
     single { SqlDelightSyncStatusProvider(database = get(), telemetry = get()) }
     single<SyncStatusProvider> { get<SqlDelightSyncStatusProvider>() }
     single<SyncRunObserver> { get<SqlDelightSyncStatusProvider>() }
+
+    // Sign-out forgets the owner's local copy. Hard deletes, and it clears the sync
+    // cursors — a stale one would make the next sign-in skip everything written in between.
+    single<LocalUserDataWipe> {
+        SqlDelightLocalUserDataWipe(database = get(), files = get(), telemetry = get())
+    }
 
     single<OwnershipAdoption> {
         SqlDelightOwnershipAdoption(

@@ -20,6 +20,7 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import com.hopcape.odo.feature.auth.presentation.AutoReadSmsStatus
 import com.hopcape.odo.feature.auth.presentation.OtpScreen
 import com.hopcape.odo.feature.auth.presentation.PhoneScreen
@@ -118,10 +119,7 @@ internal fun OtpRoute(key: OdoDestination.Auth.Otp, navigationManager: Navigatio
     OtpScreen(
         state = state,
         onEvent = viewModel::onEvent,
-        // TODO(auth): drive from the platform SMS retriever — S5. Until it exists the card
-        //  reports Listening, which is what the screen looks like in the common case, and
-        //  never claims a code was auto-filled.
-        autoReadStatus = AutoReadSmsStatus.Listening,
+        autoReadStatus = state.autoRead.toCardStatus(),
         onBack = { navigationManager.back() },
         onGetHelp = { /* TODO(auth): open support. */ },
     )
@@ -134,4 +132,17 @@ internal fun VerifyingRoute(key: OdoDestination.Auth.Verifying, navigationManage
     VerifyingScreen(
         onDone = { navigationManager.leaveAuth(key) },
     )
+}
+
+/**
+ * The reader's status as the card's.
+ *
+ * Unsupported and timed out both collapse to Unavailable: on iOS the keyboard already offers
+ * the code, and a lapsed window is not a failure — in both cases the honest thing is to stop
+ * claiming to listen and let the owner type it.
+ */
+private fun SmsCodeStatus.toCardStatus(): AutoReadSmsStatus = when (this) {
+    SmsCodeStatus.Listening -> AutoReadSmsStatus.Listening
+    is SmsCodeStatus.Received -> AutoReadSmsStatus.Filled
+    SmsCodeStatus.Unsupported, SmsCodeStatus.TimedOut -> AutoReadSmsStatus.Unavailable
 }

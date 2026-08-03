@@ -14,6 +14,9 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.platform.sms.SmsCodeReader
+import com.hopcape.odo.core.platform.sms.SmsCodeStatus
+import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
@@ -165,12 +168,39 @@ class OtpViewModelTest {
         assertEquals(OtpThrottle.MAX_REQUESTS - 1, gateway.requests)
     }
 
+    @Test
+    fun anAutoReadCodeFillsTheFieldAndVerifies() = runTest(dispatcher) {
+        val gateway = ScriptedGateway()
+        val viewModel = viewModel(gateway, smsCodes = { flowOf(SmsCodeStatus.Received("654321")) })
+        advanceTimeBy(SETTLE)
+
+        // Routed through the same path as typing, so the code is visible in the field before
+        // it is submitted — an auto-fill nobody can see looks like the screen acting alone.
+        assertEquals("654321", viewModel.state.value.code)
+        assertEquals(1, gateway.verifications)
+    }
+
+    @Test
+    fun anUnsupportedReaderIsNotAFailure() = runTest(dispatcher) {
+        // iOS, or a device with no Play Services. The owner types the code, which is the
+        // ordinary path — nothing should look broken.
+        val viewModel = viewModel(ScriptedGateway(), smsCodes = { flowOf(SmsCodeStatus.Unsupported) })
+        advanceTimeBy(SETTLE)
+
+        assertEquals(SmsCodeStatus.Unsupported, viewModel.state.value.autoRead)
+        assertFalse(viewModel.state.value.isError)
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
 
-    private fun viewModel(gateway: AuthGateway) = OtpViewModel(
+    private fun viewModel(
+        gateway: AuthGateway,
+        smsCodes: SmsCodeReader = SmsCodeReader { flowOf(SmsCodeStatus.Listening) },
+    ) = OtpViewModel(
         phone = phone,
         sessions = OdoSessionManager(gateway, InMemoryStore(), silentTelemetry(), MovingClock()),
         telemetry = silentTelemetry(),
+        smsCodes = smsCodes,
         clock = MovingClock(),
     )
 

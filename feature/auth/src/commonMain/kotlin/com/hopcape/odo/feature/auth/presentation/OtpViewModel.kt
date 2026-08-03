@@ -6,6 +6,8 @@ import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.core.platform.sms.SmsCodeReader
+import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
 import com.hopcape.odo.feature.auth.presentation.state.Submission
 import kotlinx.coroutines.Job
@@ -33,6 +35,7 @@ internal class OtpViewModel(
     private val phone: PhoneNumber,
     private val sessions: OdoSessionManager,
     private val telemetry: AuthTelemetry,
+    private val smsCodes: SmsCodeReader,
     private val clock: Clock = Clock.System,
 ) : ViewModel() {
 
@@ -53,6 +56,26 @@ internal class OtpViewModel(
         // opens, which is exactly when it is least useful.
         throttle.recordRequest()
         startCountdown()
+        listenForCode()
+    }
+
+    /**
+     * Fill the field from an incoming SMS, which then verifies like anything else typed.
+     *
+     * Routed through the same [onCodeChanged] rather than verifying directly, so the code
+     * appears in the field before it is submitted — an auto-fill the owner cannot see looks
+     * like the screen acting on its own.
+     *
+     * Unsupported and timed out both mean "the owner types it", which is the ordinary path,
+     * so neither is surfaced as a failure.
+     */
+    private fun listenForCode() {
+        viewModelScope.launch {
+            smsCodes.listen().collect { status ->
+                _state.update { it.copy(autoRead = status) }
+                if (status is SmsCodeStatus.Received) onCodeChanged(status.code)
+            }
+        }
     }
 
     fun onEvent(event: OtpEvent) = when (event) {

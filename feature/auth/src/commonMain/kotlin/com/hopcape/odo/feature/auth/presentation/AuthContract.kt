@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.auth.presentation
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import com.hopcape.odo.feature.auth.presentation.state.Submission
 
 /**
@@ -55,6 +56,8 @@ internal data class OtpUiState(
     val resendExhausted: Boolean = false,
     /** Wrong-code attempts left before the screen stops offering a retry. */
     val triesLeft: Int = MAX_ATTEMPTS,
+    /** What the SMS reader is doing, so the card can stop claiming to listen when it isn't. */
+    val autoRead: SmsCodeStatus = SmsCodeStatus.Listening,
 ) {
     val canResend: Boolean get() = resendInSeconds == 0 && !resendExhausted && !submission.isInFlight
 

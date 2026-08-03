@@ -34,6 +34,8 @@ kotlin {
             // rememberLauncherForActivityResult for the system document picker.
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.work.runtime)
+            // SMS Retriever, so an OTP can be read without the READ_SMS permission.
+            implementation(libs.playServices.auth)
         }
     }
 }

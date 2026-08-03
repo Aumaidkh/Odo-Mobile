@@ -125,7 +125,7 @@
 
     <!-- Sign out sheet -->
     <string name="pf_signout_title">Sign out of Odo?</string>
-    <string name="pf_signout_body">Your data stays safe — sign back in with your number to pick up where you left off.</string>
+    <string name="pf_signout_body">Your records stay backed up. They&#8217;ll be removed from this phone and come back when you sign in again.</string>
 
     <!-- Sync debug row. Diagnostics, not product copy: this is what someone reads out when
          they say their data is missing. -->
