@@ -30,6 +30,19 @@ internal interface SyncTable<Dto : Any> {
     suspend fun pending(): List<Dto>
 
     /**
+     * Last chance to make [rows] acceptable before they are sent.
+     *
+     * For tables the server constrains on something other than the primary key, a locally
+     * generated row can be a duplicate the moment it is written — a car re-added after a
+     * reinstall carries a fresh id for a plate the server already holds. Fixing that is
+     * per-entity knowledge, so it lives with the entity; the runner only knows that it
+     * happens before the push.
+     *
+     * Most tables have nothing to reconcile and the default does nothing.
+     */
+    suspend fun reconcileBeforePush(rows: List<Dto>): List<Dto> = rows
+
+    /**
      * Get any files these rows name onto the server, and answer with the rows carrying the
      * paths the objects landed on.
      *
@@ -55,6 +68,17 @@ internal interface SyncTable<Dto : Any> {
      * (SYNC_DESIGN §6.1).
      */
     fun markSynced(id: String, remoteVersion: String)
+
+    /**
+     * Take a row out of the outbox because the server will never accept it.
+     *
+     * Only for a refusal that is about the payload — a duplicate key, a rejected value, a
+     * policy that says no. Those get the same answer however many times they are sent, so
+     * leaving them `PENDING` means every later run fails on the same row and no other table
+     * ever gets its turn. The row keeps its data and comes back to `PENDING` the moment the
+     * owner edits it.
+     */
+    fun markConflict(id: String)
 
     /* ---- pull ---- */
 

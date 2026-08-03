@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -76,6 +77,58 @@ class SyncRunnerTest {
         val table = FakeTable()
         assertTrue(runner(table).run(FakeSynchronizer()))
         assertTrue(table.pushed.isEmpty())
+    }
+
+    /* --------------------- permanently refused rows --------------------- */
+
+    @Test
+    fun aPermanentlyRefusedRowLeavesTheOutboxAndTheRunCarriesOn() = runTest {
+        // A duplicate key gets the same answer every time. Leaving it PENDING would fail
+        // this entity on every future run, and the engine stops at the first failure — so
+        // one bad row would take every table after this one offline with it.
+        val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"))
+
+        assertTrue(runner(table).run(FakeSynchronizer()))
+
+        assertEquals(setOf("a"), table.markedConflict)
+        assertTrue(table.markedSynced.isEmpty())
+    }
+
+    @Test
+    fun aRefusedBatchIsRetriedRowByRowSoOnlyTheBadRowIsMarked() = runTest {
+        // PostgREST answers a batch on its first violation, so a rejected batch says nothing
+        // about the rows after the bad one.
+        val table = FakeTable(pending = listOf(row("a", t0), row("b", t0)), refuses = setOf("a"))
+
+        assertTrue(runner(table).run(FakeSynchronizer()))
+
+        assertEquals(setOf("a"), table.markedConflict)
+        assertEquals(mapOf("b" to t0.toString()), table.markedSynced)
+    }
+
+    @Test
+    fun aRefusalIsLeftOnTheCursorRatherThanClearedByTheSameRun() = runTest {
+        val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"))
+        val synchronizer = FakeSynchronizer()
+
+        runner(table).run(synchronizer)
+
+        // Otherwise the debug row reads "last sync fine" for an entity carrying a row the
+        // server has permanently refused.
+        assertNotNull(synchronizer.cursors[SyncEntity.CARS]?.lastError)
+    }
+
+    @Test
+    fun aTransientRejectionStillStopsTheEntity() = runTest {
+        // A 503 is about the moment, not the payload. Retrying is the right answer, so the
+        // row stays in the outbox and the run reports failure.
+        val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"), refusalStatus = 503)
+        val synchronizer = FakeSynchronizer()
+
+        assertFalse(runner(table).run(synchronizer))
+
+        assertTrue(table.markedConflict.isEmpty())
+        assertEquals(listOf(SyncEntity.CARS), synchronizer.failures)
     }
 
     /* ------------------------------ pull ------------------------------ */
@@ -225,15 +278,25 @@ class SyncRunnerTest {
 
     private data class Row(val id: String, val updatedAt: Instant?, val deleted: Boolean = false)
 
+    /** A server refusal, permanent or not. Mirrors `SupabaseRequestFailed` without the HTTP. */
+    private class TestRejection(
+        override val status: Int,
+        override val isPermanent: Boolean,
+    ) : RuntimeException("refused"), SyncRejection
+
     private class FakeTable(
         var pending: List<Row> = emptyList(),
         private val remote: List<Row> = emptyList(),
         private val local: Map<String, LocalRowState> = emptyMap(),
         private val pushThrows: Throwable? = null,
+        /** Ids the server refuses for good; a batch containing one is rejected whole. */
+        private val refuses: Set<String> = emptySet(),
+        private val refusalStatus: Int = 409,
     ) : SyncTable<Row> {
         val pushed = mutableListOf<Row>()
         val applied = mutableListOf<Row>()
         val markedSynced = mutableMapOf<String, String>()
+        val markedConflict = mutableSetOf<String>()
         val calls = mutableListOf<String>()
         var fetchedSince: Instant? = null
 
@@ -244,12 +307,17 @@ class SyncRunnerTest {
         override suspend fun push(rows: List<Row>): List<Row> {
             calls += "push"
             pushThrows?.let { throw it }
+            if (rows.any { it.id in refuses }) throw TestRejection(refusalStatus, refusalStatus == 409)
             pushed += rows
             return rows
         }
 
         override fun markSynced(id: String, remoteVersion: String) {
             markedSynced[id] = remoteVersion
+        }
+
+        override fun markConflict(id: String) {
+            markedConflict += id
         }
 
         override suspend fun fetch(since: Instant?): List<Row> {

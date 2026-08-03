@@ -108,6 +108,33 @@ class SyncTelemetry(
     }
 
     /**
+     * Rows the server refused for good, taken out of the outbox so the run can carry on.
+     *
+     * A warning and an event rather than a silent skip: these rows are the owner's records
+     * and they are now not going to reach the server without help. [status] is the HTTP code
+     * the server answered with — never the row, never the constraint's value.
+     */
+    suspend fun refused(entity: SyncEntity, count: Int, status: Int) {
+        val fields = mapOf(Key.ENTITY to entity.name, Key.REFUSED to count, Key.STATUS to status)
+        logger.warn(TAG, EVENT_ROWS_REFUSED, tc = currentTraceContext().toLog(), fields = fields)
+        analytics.track(EVENT_ROWS_REFUSED, fields)
+    }
+
+    /**
+     * Local rows that took on the server's identity before being pushed — a car re-added
+     * after a reinstall, carrying a fresh id for a plate the server already holds.
+     *
+     * Reported because the row's primary key changed and its children moved with it. That is
+     * the kind of thing nobody believes happened until they can see it in a log. It also
+     * counts reinstalls, which is worth knowing on its own.
+     */
+    suspend fun identityAdopted(entity: SyncEntity, count: Int) {
+        val fields = mapOf(Key.ENTITY to entity.name, Key.ADOPTED to count)
+        logger.warn(TAG, EVENT_IDENTITY_ADOPTED, tc = currentTraceContext().toLog(), fields = fields)
+        analytics.track(EVENT_IDENTITY_ADOPTED, fields)
+    }
+
+    /**
      * A last-write-wins resolution. Always reported: the losing side is never silently
      * discarded, so a conflict storm shows up as a spike rather than as a mystery
      * (SYNC_DESIGN §7).
@@ -138,6 +165,9 @@ class SyncTelemetry(
         const val PUSHED = "pushed"
         const val PULLED = "pulled"
         const val WINNER = "winner"
+        const val REFUSED = "refused"
+        const val STATUS = "status"
+        const val ADOPTED = "adopted"
     }
 
     companion object {
@@ -150,6 +180,8 @@ class SyncTelemetry(
         const val EVENT_RUN_SKIPPED = "sync_skipped"
         const val EVENT_ENTITY_MOVED = "sync_entity_moved"
         const val EVENT_CONFLICT_RESOLVED = "sync_conflict_resolved"
+        const val EVENT_ROWS_REFUSED = "sync_rows_refused"
+        const val EVENT_IDENTITY_ADOPTED = "sync_identity_adopted"
 
         const val UNTRACED = "untraced"
         const val UNKNOWN = "Unknown"

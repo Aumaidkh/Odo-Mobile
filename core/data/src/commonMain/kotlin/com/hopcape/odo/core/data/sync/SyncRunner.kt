@@ -21,6 +21,12 @@ import kotlin.time.Instant
  * creating a twin. A pull re-applies rows it has already applied without harm, which is why
  * the cursor can afford to be conservative.
  *
+ * **A permanent refusal does not stop the run.** A row the server has decided against gets
+ * the same answer every time it is sent, so leaving it `PENDING` means the next run fails on
+ * it too and every table after this one is never reached — one bad row takes the whole app
+ * offline. Those rows are isolated and marked `CONFLICT` instead. Everything else — a
+ * timeout, a 5xx, a dropped connection — still stops the run and is retried.
+ *
  * Design: [docs/SYNC_DESIGN.md] §6, §7.
  */
 internal class SyncRunner<Dto : Any>(
@@ -48,12 +54,13 @@ internal class SyncRunner<Dto : Any>(
                 copy(
                     lastPushedAt = clock.now(),
                     lastPulledAt = pulled.highWater ?: lastPulledAt,
-                    // A run that got here succeeded, so yesterday's failure stops being
-                    // shown on the debug row.
-                    lastError = null,
+                    // A run that got here reconciled, so yesterday's failure stops being
+                    // shown on the debug row — unless rows were refused on the way past, in
+                    // which case that is the current state of this entity and has to stand.
+                    lastError = pushed.refusal,
                 )
             }
-            telemetry.moved(entity, pushed = pushed, pulled = pulled.count)
+            telemetry.moved(entity, pushed = pushed.accepted, pulled = pulled.count)
             true
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -64,21 +71,37 @@ internal class SyncRunner<Dto : Any>(
             false
         }
 
+    /** What a push achieved: rows the server took, and a refusal worth showing if it made one. */
+    private data class Pushed(val accepted: Int, val refusal: String? = null)
+
     /**
      * Drain the outbox, and record what the server accepted.
      *
      * The bookkeeping lands in one transaction. A crash between the server storing rows and
      * this device recording that leaves them `PENDING`, which pushes them again next run —
      * and the upsert makes that a no-op rather than a duplicate.
+     *
+     * A **permanent** refusal is not a reason to stop. The server has decided about the
+     * payload, so the same batch gets the same answer forever, and leaving it in the outbox
+     * means every later run dies on the same row and no table after this one is ever
+     * reached. The refused rows are isolated, marked `CONFLICT`, and the run carries on.
      */
-    private suspend fun push(): Int {
+    private suspend fun push(): Pushed {
         val pending = table.pending()
-        if (pending.isEmpty()) return 0
+        if (pending.isEmpty()) return Pushed(accepted = 0)
 
+        val reconciled = table.reconcileBeforePush(pending)
         // Bytes first, always. A row that names an object the server does not have is
         // worse than a row that has not synced yet.
-        val stored = table.push(table.uploadBlobs(pending))
-        if (stored.isEmpty()) return 0
+        val ready = table.uploadBlobs(reconciled)
+
+        val stored = try {
+            table.push(ready)
+        } catch (rejection: Exception) {
+            val permanent = (rejection as? SyncRejection)?.takeIf { it.isPermanent } ?: throw rejection
+            return refuse(ready, permanent)
+        }
+        if (stored.isEmpty()) return Pushed(accepted = 0)
 
         var accepted = 0
         database.transaction {
@@ -94,8 +117,56 @@ internal class SyncRunner<Dto : Any>(
                 }
             }
         }
-        return accepted
+        return Pushed(accepted = accepted)
     }
+
+    /**
+     * Work out which of [rows] the server actually refused, and take those out of the outbox.
+     *
+     * PostgREST answers a batch on its first violation, so a rejected batch says nothing
+     * about the rows after the bad one. Anything longer than a single row is therefore sent
+     * again one row at a time: the good ones sync as usual, and only the ones that are
+     * refused on their own are marked `CONFLICT`.
+     *
+     * A row that fails **transiently** during isolation is left alone and the throw is
+     * allowed out. That is a network problem rather than a verdict, and it stops the run in
+     * the usual way.
+     */
+    private suspend fun refuse(rows: List<Dto>, rejection: SyncRejection): Pushed {
+        if (rows.size == 1) {
+            database.transaction { table.markConflict(table.idOf(rows.single())) }
+            telemetry.refused(entity, count = 1, status = rejection.status)
+            return Pushed(accepted = 0, refusal = refusalOf(rejection, refused = 1))
+        }
+
+        var accepted = 0
+        var refused = 0
+        var lastStatus = rejection.status
+        rows.forEach { row ->
+            val stored = try {
+                table.push(listOf(row))
+            } catch (single: Exception) {
+                val permanent = (single as? SyncRejection)?.takeIf { it.isPermanent } ?: throw single
+                lastStatus = permanent.status
+                database.transaction { table.markConflict(table.idOf(row)) }
+                refused++
+                return@forEach
+            }
+            val version = stored.firstOrNull()?.let(table::updatedAtOf)?.toString() ?: return@forEach
+            database.transaction { table.markSynced(table.idOf(row), version) }
+            accepted++
+        }
+
+        if (refused > 0) telemetry.refused(entity, count = refused, status = lastStatus)
+        return Pushed(
+            accepted = accepted,
+            refusal = if (refused > 0) refusalOf(rejection, refused, lastStatus) else null,
+        )
+    }
+
+    /** What the debug row shows for an entity carrying refused rows. */
+    private fun refusalOf(rejection: SyncRejection, refused: Int, status: Int = rejection.status) =
+        "${rejection::class.simpleName}($status, refused $refused)"
 
     /** How far a pull got: how many rows it saw, and the newest server timestamp among them. */
     private data class Pulled(val count: Int, val highWater: Instant?)

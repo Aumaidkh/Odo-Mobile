@@ -60,6 +60,8 @@ internal class ServiceLogSyncTable(
     override fun markSynced(id: String, remoteVersion: String) =
         queries.markSynced(remoteVersion = remoteVersion, id = id)
 
+    override fun markConflict(id: String) = queries.markConflict(id)
+
     override suspend fun fetch(since: Instant?): List<ServiceLogDto> {
         // Service logs hang off a car, so there is nothing to pull before one exists. A run
         // on a device with no car is a no-op rather than a query for every log on the

@@ -47,7 +47,7 @@ class PlaceholderOwnerTest {
     fun theCarPullIsSkippedWhileSignedOut() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingCars()
-        val table = CarSyncTable(db, remote, ownerId = { OwnerId.LOCAL_PLACEHOLDER.value })
+        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { OwnerId.LOCAL_PLACEHOLDER.value })
 
         assertTrue(table.fetch(since = null).isEmpty())
         assertNull(remote.askedFor, "the placeholder must never be sent as a filter")
@@ -67,7 +67,7 @@ class PlaceholderOwnerTest {
     fun aRealOwnerIsPassedThrough() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingCars()
-        val table = CarSyncTable(db, remote, ownerId = { "5b28c012-545f-447d-9a85-920084f68246" })
+        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { "5b28c012-545f-447d-9a85-920084f68246" })
 
         table.fetch(since = null)
 

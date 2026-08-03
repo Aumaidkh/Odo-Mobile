@@ -73,11 +73,15 @@ DELETE FROM sync_state;
 
 -- How much of the owner's data has not reached the server yet, across every syncable table.
 -- One query rather than six, because it backs a Flow that re-runs on any of them changing.
+--
+-- `<> 'SYNCED'`, not `= 'PENDING'`: a CONFLICT row is one the server refused, so it is not
+-- backed up either. Counting only PENDING would clear the "not backed up yet" chip for
+-- exactly the rows that will never reach the server on their own.
 countAllPending:
 SELECT
-    (SELECT COUNT(*) FROM profiles           WHERE sync_status = 'PENDING') +
-    (SELECT COUNT(*) FROM cars               WHERE sync_status = 'PENDING') +
-    (SELECT COUNT(*) FROM service_logs       WHERE sync_status = 'PENDING') +
-    (SELECT COUNT(*) FROM overcharge_reports WHERE sync_status = 'PENDING') +
-    (SELECT COUNT(*) FROM documents          WHERE sync_status = 'PENDING') +
-    (SELECT COUNT(*) FROM health_scores      WHERE sync_status = 'PENDING') AS pending;
+    (SELECT COUNT(*) FROM profiles           WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM cars               WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM service_logs       WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM overcharge_reports WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM documents          WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM health_scores      WHERE sync_status <> 'SYNCED') AS pending;

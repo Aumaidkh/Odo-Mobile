@@ -38,6 +38,8 @@ internal class HealthScoreSyncTable(
     override fun markSynced(id: String, remoteVersion: String) =
         queries.markSynced(remoteVersion = remoteVersion, id = id)
 
+    override fun markConflict(id: String) = queries.markConflict(id)
+
     override suspend fun fetch(since: Instant?): List<HealthScoreDto> {
         val car = carId() ?: return emptyList()
         return remote.fetchSince(car, since)

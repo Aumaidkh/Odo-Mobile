@@ -39,6 +39,8 @@ internal class ProfileSyncTable(
     override fun markSynced(id: String, remoteVersion: String) =
         queries.markSynced(remoteVersion = remoteVersion, id = id)
 
+    override fun markConflict(id: String) = queries.markConflict(id)
+
     override suspend fun fetch(since: Instant?): List<ProfileDto> {
         // Signed out, or not signed in yet — either way there is nothing to ask for.
         val owner = ownerId().orNullIfPlaceholder() ?: return emptyList()

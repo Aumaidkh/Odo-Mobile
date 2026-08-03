@@ -51,7 +51,12 @@ internal class CarRepositoryImpl(
 
     private val runner = SyncRunner(
         entity = SyncEntity.CARS,
-        table = CarSyncTable(database = database, remote = remote, ownerId = ownerId),
+        table = CarSyncTable(
+            database = database,
+            remote = remote,
+            telemetry = syncTelemetry,
+            ownerId = ownerId,
+        ),
         database = database,
         telemetry = syncTelemetry,
         clock = clock,

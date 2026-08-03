@@ -104,6 +104,14 @@ UPDATE health_scores
 SET sync_status = 'SYNCED', remote_version = :remoteVersion
 WHERE id = :id;
 
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE health_scores
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
 -- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
@@ -148,3 +156,14 @@ WHERE owner_id = :placeholderOwnerId;
 -- delete a backup.
 deleteAllRows:
 DELETE FROM health_scores;
+
+-- Follow a car that took on the server's id (Car.sq `adoptServerIdentity`). `car_id` is a
+-- plain column here — the local schema declares no foreign keys — so the children have to
+-- be moved by hand, and they are, inside the same transaction as the car itself.
+--
+-- Deliberately not filtered on `deleted_at` or `sync_status`: a tombstone still has to
+-- name a car the server knows, or the delete can never be pushed.
+repointCar:
+UPDATE health_scores
+SET car_id = :serverId
+WHERE car_id = :localId;
