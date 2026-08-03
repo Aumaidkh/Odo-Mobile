@@ -6,7 +6,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import com.hopcape.odo.infrastructure.supabase.http.AnonAccessTokens
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
@@ -17,7 +17,7 @@ import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
-import io.ktor.http.headersOf
+import io.ktor.http.HeadersBuilder
 import io.ktor.utils.io.ByteReadChannel
 
 /**
@@ -45,7 +45,10 @@ internal class SupabaseTestHarness(
         respond(
             content = ByteReadChannel(scripted.body),
             status = scripted.status,
-            headers = headersOf("Content-Type", "application/json"),
+            headers = HeadersBuilder().apply {
+                append("Content-Type", "application/json")
+                scripted.headers.forEach { (name, value) -> append(name, value) }
+            }.build(),
         )
     }
 
@@ -68,7 +71,7 @@ internal class SupabaseTestHarness(
     val postgrest = PostgrestClient(
         client = client,
         environment = environment,
-        tokens = AnonAccessTokens(environment),
+        tokens = AccessTokenProvider { null },
         telemetry = telemetry,
     )
 
@@ -79,10 +82,11 @@ internal class SupabaseTestHarness(
     }
 }
 
-/** A scripted server answer. */
+/** A scripted server answer. [headers] carries the ones behaviour depends on, like Retry-After. */
 internal data class MockResponse(
     val body: String,
     val status: HttpStatusCode = HttpStatusCode.OK,
+    val headers: Map<String, String> = emptyMap(),
 )
 
 /** The JSON a request carried, for asserting on payload shape. */

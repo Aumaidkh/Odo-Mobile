@@ -1,17 +1,24 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import com.hopcape.odo.core.data.car.CarRemoteDataSource
+import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
+import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
+import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseProfileRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseOverchargeRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorage
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
-import com.hopcape.odo.infrastructure.supabase.http.AnonAccessTokens
-import com.hopcape.odo.infrastructure.supabase.http.SupabaseAccessTokens
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClientEngine
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
@@ -51,8 +58,16 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     // state — the trace comes from the calling coroutine, not from this object.
     single { SupabaseTelemetry(logger = get(), tracer = get(), crash = get()) }
 
-    // Anon until Supabase phone auth lands (M5). THIS ONE LINE is that swap.
-    single<SupabaseAccessTokens> { AnonAccessTokens(environment = get()) }
+    // The session itself lives in :feature:auth behind AccessTokenProvider. Only minting
+    // one is a Supabase concern, and that is this:
+    //
+    // THIS ONE LINE is the phone-OTP switch. DevPasswordAuthGateway signs in as a fixed
+    // account so everything downstream can be verified for real; SupabaseOtpAuthGateway is
+    // the live path and needs an SMS provider plus TRAI DLT registration first.
+    if (environment.isConfigured) {
+        single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
+        single<AuthGateway> { DevPasswordAuthGateway(endpoint = get()) }
+    }
 
     single<HttpClient> {
         supabaseHttpClient(
@@ -76,7 +91,10 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     single(createdAtStart = true) { SupabaseReadiness(environment = get(), telemetry = get()) }
 
     if (environment.isConfigured) {
+        single<ProfileRemoteDataSource> { SupabaseProfileRemoteDataSource(postgrest = get()) }
+        single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<ServiceLogRemoteDataSource> { SupabaseServiceLogRemoteDataSource(postgrest = get()) }
+        single<HealthScoreRemoteDataSource> { SupabaseHealthScoreRemoteDataSource(postgrest = get()) }
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
         single<OverchargeRemoteDataSource> { SupabaseOverchargeRemoteDataSource(postgrest = get()) }

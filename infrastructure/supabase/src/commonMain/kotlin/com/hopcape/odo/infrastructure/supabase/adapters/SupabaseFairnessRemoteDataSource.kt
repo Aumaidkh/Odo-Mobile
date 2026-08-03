@@ -24,13 +24,10 @@ import kotlinx.serialization.json.JsonPrimitive
  * concurrently. A category the pool has nothing for is dropped rather than reported as zero —
  * "no benchmark" and "the benchmark is ₹0" are very different things to show an owner.
  *
- * > **Contract gap, unresolved.** DB_SCHEMA §12.1 declares
- * > `get_fairness_estimate(p_category uuid, p_city uuid, p_fuel fuel_type)`, but the client
- * > holds neither lookup id — the port deals in category and city *names*, because the server
- * > owns the taxonomy — and the port carries no fuel type at all. This adapter therefore calls
- * > the function with text names and no fuel. Before the RPC is deployed, either it takes text
- * > and resolves the lookups itself, or the port has to start carrying ids and a fuel type.
- * > That decision is owed; nothing here can settle it.
+ * The deployed function takes text: the client holds category slugs and a city name, never
+ * the lookup uuids, and resolving them is the server's job because the server owns the
+ * taxonomy. Fuel type is omitted, which widens the pool — the right trade when a city is
+ * thin, and the only option while the port carries no fuel type.
  */
 internal class SupabaseFairnessRemoteDataSource(
     private val postgrest: PostgrestClient,

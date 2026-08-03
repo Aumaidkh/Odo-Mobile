@@ -6,6 +6,7 @@ import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessRemoteDataSource
@@ -71,6 +72,9 @@ class SupabaseModuleTest {
                 single<Logger> { RecordingLogger }
                 single<PerformanceTracer> { NoopTracer }
                 single<CrashRecorder> { RecordingCrashRecorder }
+                // The session lives in :feature:auth now; this module only consumes the
+                // token through the domain port.
+                single<AccessTokenProvider> { AccessTokenProvider { null } }
             },
             supabaseModule(environment),
         )

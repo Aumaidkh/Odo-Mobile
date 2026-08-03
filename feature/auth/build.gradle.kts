@@ -26,8 +26,19 @@ kotlin {
             // "is there a session?" without depending on :feature:auth. `api` so the
             // binding published by authModule stays resolvable from the app's graph.
             api(projects.core.domain)
+            // SecureStore — a session's tokens are bearer credentials, so they live in the
+            // Keystore/Keychain rather than anywhere the filesystem can hand them over.
+            implementation(projects.core.platform)
+            // A session that ends on its own does so with no error and no screen; these are
+            // what keep that from being invisible.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            implementation(projects.observability.performance)
             // delay() drives the sample "verifying" hand-off to Home.
             implementation(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

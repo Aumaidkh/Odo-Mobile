@@ -1,7 +1,7 @@
 package com.hopcape.odo.infrastructure.supabase.postgrest
 
 import com.hopcape.odo.infrastructure.supabase.SupabaseEnvironment
-import com.hopcape.odo.infrastructure.supabase.http.SupabaseAccessTokens
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.infrastructure.supabase.http.SupabaseJson
 import com.hopcape.odo.infrastructure.supabase.http.SupabaseRequestFailed
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
@@ -38,7 +38,7 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class PostgrestClient(
     private val client: HttpClient,
     private val environment: SupabaseEnvironment,
-    private val tokens: SupabaseAccessTokens,
+    private val tokens: AccessTokenProvider,
     private val telemetry: SupabaseTelemetry,
 ) {
 
@@ -81,16 +81,24 @@ internal class PostgrestClient(
         table: String,
         serializer: KSerializer<T>,
         rows: List<T>,
+        returnRows: Boolean = true,
     ): List<T> {
         if (rows.isEmpty()) return emptyList()
         return call(operation = SupabaseTelemetry.UPSERT, resource = table) {
+            val prefer = if (returnRows) "$MERGE_DUPLICATES,$RETURN_REPRESENTATION" else "$MERGE_DUPLICATES,$RETURN_MINIMAL"
             val response = client.post("${environment.restUrl}/$table") {
                 authorize()
                 contentType(ContentType.Application.Json)
-                header(PREFER_HEADER, "$MERGE_DUPLICATES,$RETURN_REPRESENTATION")
+                header(PREFER_HEADER, prefer)
                 setBody(SupabaseJson.encodeToString(ListSerializer(serializer), rows))
             }
             val body = response.readOrThrow(SupabaseTelemetry.UPSERT, table)
+            // A caller that ignores the stored rows gets an empty body to parse, which is
+            // both cheaper and one less thing that can fail on a payload nobody reads.
+            if (!returnRows) {
+                telemetry.rows(SupabaseTelemetry.UPSERT, table, rows.size)
+                return@call emptyList()
+            }
             SupabaseJson.decodeFromString(ListSerializer(serializer), body)
                 .also { telemetry.rows(SupabaseTelemetry.UPSERT, table, it.size) }
         }
@@ -157,7 +165,7 @@ internal class PostgrestClient(
 
     /** Adds the caller's bearer token. Falls back to the anon key, which is Supabase's default. */
     private suspend fun io.ktor.client.request.HttpRequestBuilder.authorize() {
-        val token = tokens.current() ?: environment.anonKey
+        val token = tokens.currentAccessToken() ?: environment.anonKey
         header(HttpHeaders.Authorization, "Bearer $token")
     }
 
@@ -168,5 +176,6 @@ internal class PostgrestClient(
         const val PREFER_HEADER = "Prefer"
         const val MERGE_DUPLICATES = "resolution=merge-duplicates"
         const val RETURN_REPRESENTATION = "return=representation"
+        const val RETURN_MINIMAL = "return=minimal"
     }
 }

@@ -37,6 +37,7 @@ import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
+import com.hopcape.odo.core.data.sync.SessionSyncGate
 import com.hopcape.odo.core.data.sync.SqlDelightOwnershipAdoption
 import com.hopcape.odo.core.data.sync.SqlDelightSyncStatusProvider
 import com.hopcape.odo.core.data.sync.SqlDelightSynchronizer
@@ -136,11 +137,10 @@ val coreDataModule = module {
     // describes (SYNC_DESIGN §4.2).
     single<Synchronizer> { SqlDelightSynchronizer(database = get(), telemetry = get()) }
 
-    // Whether a run may happen at all. Bound off the session port rather than the engine
-    // reaching for it: `owner_id` is stamped server-side from auth.uid(), so an anonymous
-    // run can only collect 401s (SYNC_DESIGN §9). Today the stub answers false, which is
-    // why nothing syncs yet — real auth replaces that one binding, not this one.
-    single<SyncGate> { SyncGate { get<SessionStatusProvider>().isSignedIn() } }
+    // Whether a run may happen at all, and whether this install's rows belong to the
+    // account yet. Asking for a token rather than a boolean refreshes a stale one on the
+    // way past, so a run never starts with one that dies mid-push.
+    single<SyncGate> { SessionSyncGate(tokens = get(), owners = get(), adoption = get()) }
 
     // Moves rows created before sign-in onto the account that signed in (SYNC_DESIGN §9).
     // The placeholder id comes from the provider that stamps it, so the two can never drift.

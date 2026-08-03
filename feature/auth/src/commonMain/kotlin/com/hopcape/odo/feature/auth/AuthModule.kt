@@ -1,6 +1,9 @@
 package com.hopcape.odo.feature.auth
 
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
+import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
+import com.hopcape.odo.feature.auth.domain.OdoSessionManager
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.auth.navigation.AuthFeatureEntryProvider
 import org.koin.dsl.bind
@@ -16,7 +19,13 @@ import org.koin.dsl.module
  * without ever referencing `:feature:auth`.
  */
 val authModule = module {
-    single<SessionStatusProvider> { LocalSessionStatus() }
+    // The session's whole lifecycle: held here, persisted here, refreshed here. It answers
+    // three domain ports, so nothing outside auth needs to know a session manager exists.
+    single { AuthTelemetry(logger = get(), analytics = get()) }
+    single { OdoSessionManager(gateway = get(), store = get(), telemetry = get()) }
+    single<SessionStatusProvider> { get<OdoSessionManager>() }
+    single<CurrentOwnerProvider> { get<OdoSessionManager>() }
+    single<AccessTokenProvider> { get<OdoSessionManager>() }
     single {
         AuthFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class

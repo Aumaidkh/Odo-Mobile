@@ -26,6 +26,9 @@ internal data class SupabaseEnvironment(
     /** Storage base — bucket objects hang off this. */
     val storageUrl: String get() = "$normalizedUrl/storage/v1"
 
+    /** GoTrue base — sign-in and token refresh hang off this. */
+    val authUrl: String get() = "$normalizedUrl/auth/v1"
+
     /** A trailing slash in the configured URL would produce `//rest/v1`, which 404s. */
     private val normalizedUrl: String get() = url.trimEnd('/')
 
