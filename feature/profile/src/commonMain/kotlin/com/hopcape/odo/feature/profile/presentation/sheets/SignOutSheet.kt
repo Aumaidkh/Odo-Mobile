@@ -25,9 +25,17 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Sign-out confirmation ([com.hopcape.odo.core.navigation.OdoDestination.Profile.SignOut]).
  * Shown as a sheet; [onSignOut] is the destructive confirm, [onCancel]/swipe-down dismiss.
+ *
+ * Both buttons are disabled while [SignOutUiState.isSigningOut]. Signing out clears the
+ * session and then wipes the local copy, and dismissing the sheet mid-way would cancel the
+ * wipe and leave the owner's rows on the device.
  */
 @Composable
-internal fun SignOutSheetContent(onSignOut: () -> Unit, onCancel: () -> Unit) {
+internal fun SignOutSheetContent(
+    state: SignOutUiState,
+    onSignOut: () -> Unit,
+    onCancel: () -> Unit,
+) {
     ProfileSheet {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -38,7 +46,19 @@ internal fun SignOutSheetContent(onSignOut: () -> Unit, onCancel: () -> Unit) {
             OdoText(stringResource(Res.string.pf_signout_title), style = OdoTheme.typography.title, textAlign = TextAlign.Center)
             OdoText(stringResource(Res.string.pf_signout_body), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim, textAlign = TextAlign.Center)
         }
-        OdoButton(stringResource(Res.string.pf_sign_out), onClick = onSignOut, modifier = Modifier.fillMaxWidth(), variant = OdoButtonVariant.Danger)
-        OdoButton(stringResource(Res.string.pf_cancel), onClick = onCancel, modifier = Modifier.fillMaxWidth(), variant = OdoButtonVariant.Tertiary)
+        OdoButton(
+            stringResource(Res.string.pf_sign_out),
+            onClick = onSignOut,
+            modifier = Modifier.fillMaxWidth(),
+            variant = OdoButtonVariant.Danger,
+            loading = state.isSigningOut,
+        )
+        OdoButton(
+            stringResource(Res.string.pf_cancel),
+            onClick = onCancel,
+            modifier = Modifier.fillMaxWidth(),
+            variant = OdoButtonVariant.Tertiary,
+            enabled = !state.isSigningOut,
+        )
     }
 }

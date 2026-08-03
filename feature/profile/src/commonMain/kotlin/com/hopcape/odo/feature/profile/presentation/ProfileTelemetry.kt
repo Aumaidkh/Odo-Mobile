@@ -172,7 +172,7 @@ internal class ProfileTelemetry(
         logger.info(TAG, Event.SIGN_IN_STARTED, tc = flowTrace.toLog())
     }
 
-    /** Sign-out was confirmed. */
+    /** Sign-out finished: the session is gone and the local copy has been wiped. */
     fun signedOut() {
         analytics.track(Event.SIGNED_OUT)
         logger.info(TAG, Event.SIGNED_OUT, tc = flowTrace.toLog())
@@ -267,6 +267,7 @@ internal class ProfileTelemetry(
         const val SAVE_AVATAR = "profile_save_avatar"
         const val SAVE_SETTING = "profile_save_setting"
         const val DELETE_DATA = "profile_delete_data"
+        const val SIGN_OUT = "profile_sign_out"
     }
 
     /** Property names carried by the events and spans above. */
@@ -296,6 +297,7 @@ internal class ProfileTelemetry(
         const val NOTIFICATIONS = "notifications"
         const val UNITS = "units"
         const val APPEARANCE = "appearance"
+        const val SIGN_OUT = "sign_out"
     }
 
     /** Values for [Key.SETTING] — which slice of the settings a write touched. */

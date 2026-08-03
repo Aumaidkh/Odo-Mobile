@@ -25,7 +25,9 @@ import com.hopcape.odo.feature.profile.presentation.ProfileViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceSheetContent
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.ExportDataSheetContent
+import com.hopcape.odo.feature.profile.presentation.sheets.SignOutEffect
 import com.hopcape.odo.feature.profile.presentation.sheets.SignOutSheetContent
+import com.hopcape.odo.feature.profile.presentation.sheets.SignOutViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsCurrencySheetContent
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsViewModel
 import org.koin.compose.koinInject
@@ -166,20 +168,32 @@ private fun ExportRoute(navigationManager: NavigationManager) {
     )
 }
 
+/**
+ * The sign-out sheet moves on the ViewModel's effect, not on the tap. Signing out clears the
+ * session and wipes the local copy, and navigating first would tear the sheet down before
+ * either finished — which is exactly what left the app signed in with all its data after a
+ * "sign-out".
+ */
 @Composable
 private fun SignOutRoute(navigationManager: NavigationManager) {
-    val telemetry = koinInject<ProfileTelemetry>()
-    SignOutSheetContent(
-        // Confirming sign-out returns to the first-run value-prop, clearing the whole
-        // in-app stack (popUpTo Home inclusive) so back can't re-enter the app.
-        onSignOut = {
-            telemetry.signedOut()
-            navigationManager.navigateTo(
+    val viewModel = koinViewModel<SignOutViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            // Nothing of the owner's is left, so the app is back to first run. The whole
+            // in-app stack goes with it (popUpTo Home inclusive), so back can't re-enter.
+            SignOutEffect.SignedOut -> navigationManager.navigateTo(
                 OdoDestination.Welcome,
                 popUpTo = OdoDestination.Home,
                 inclusive = true,
             )
-        },
+        }
+    }
+
+    SignOutSheetContent(
+        state = state,
+        onSignOut = viewModel::onConfirm,
         onCancel = { navigationManager.back() },
     )
 }
