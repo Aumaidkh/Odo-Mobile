@@ -40,3 +40,21 @@ internal data class UnitsUiState(
     val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.Default,
     val error: UiText? = null,
 )
+
+/**
+ * Display state for the sign-out sheet.
+ *
+ * [isSigningOut] is on screen for as long as the wipe takes, and both buttons are disabled
+ * while it is true. Leaving the sheet mid-wipe would cancel it.
+ */
+@Immutable
+internal data class SignOutUiState(val isSigningOut: Boolean = false)
+
+/**
+ * The sign-out sheet's one outcome, raised only after the session is gone and the local
+ * copy has been wiped. The caller navigates on it rather than on the tap, because moving
+ * first is what left the old flow signed in.
+ */
+internal sealed interface SignOutEffect {
+    data object SignedOut : SignOutEffect
+}

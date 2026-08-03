@@ -41,6 +41,8 @@ internal class OverchargeReportSyncTable(
     override fun markSynced(id: String, remoteVersion: String) =
         queries.markSynced(remoteVersion = remoteVersion, id = id)
 
+    override fun markConflict(id: String) = queries.markConflict(id)
+
     /** Nothing to pull — see the class note. */
     override suspend fun fetch(since: Instant?): List<OverchargeReportDto> = emptyList()
 

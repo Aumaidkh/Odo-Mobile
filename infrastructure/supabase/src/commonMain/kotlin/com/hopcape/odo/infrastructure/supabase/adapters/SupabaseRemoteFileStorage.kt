@@ -5,7 +5,7 @@ import com.hopcape.odo.core.data.remote.RemoteBucket
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.infrastructure.supabase.SupabaseEnvironment
-import com.hopcape.odo.infrastructure.supabase.http.SupabaseAccessTokens
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.infrastructure.supabase.http.SupabaseJson
 import com.hopcape.odo.infrastructure.supabase.http.SupabaseRequestFailed
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
@@ -42,7 +42,7 @@ import kotlinx.serialization.json.JsonPrimitive
 internal class SupabaseRemoteFileStorage(
     private val client: HttpClient,
     private val environment: SupabaseEnvironment,
-    private val tokens: SupabaseAccessTokens,
+    private val tokens: AccessTokenProvider,
     private val telemetry: SupabaseTelemetry,
 ) : RemoteFileStorage {
 
@@ -137,7 +137,7 @@ internal class SupabaseRemoteFileStorage(
     }
 
     private suspend fun io.ktor.client.request.HttpRequestBuilder.authorize() {
-        val token = tokens.current() ?: environment.anonKey
+        val token = tokens.currentAccessToken() ?: environment.anonKey
         header(HttpHeaders.Authorization, "Bearer $token")
     }
 

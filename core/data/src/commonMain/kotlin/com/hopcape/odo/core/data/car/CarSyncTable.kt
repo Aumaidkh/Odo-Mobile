@@ -7,6 +7,8 @@ import com.hopcape.odo.core.data.sync.SyncTable
 import com.hopcape.odo.core.data.sync.orNullIfPlaceholder
 import com.hopcape.odo.core.data.sync.toInstantOrNull
 import com.hopcape.odo.core.data.sync.toSyncStatus
+import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import kotlin.time.Instant
 
 /**
@@ -22,6 +24,7 @@ import kotlin.time.Instant
 internal class CarSyncTable(
     private val database: OdoDatabase,
     private val remote: CarRemoteDataSource,
+    private val telemetry: SyncTelemetry,
     private val ownerId: () -> String?,
 ) : SyncTable<CarDto> {
 
@@ -34,10 +37,94 @@ internal class CarSyncTable(
     override suspend fun pending(): List<CarDto> =
         queries.selectPending().executeAsList().map(Cars::toDto)
 
+    /**
+     * Give a re-added car back the id the server already knows it by.
+     *
+     * The server keeps at most one live car per plate per owner. A reinstall takes the local
+     * database with it, so onboarding the same car again mints a fresh id for a plate the
+     * server still holds — and the push, which upserts on the primary key, becomes an INSERT
+     * that breaks that rule. The server refuses it, and because a duplicate key is refused
+     * the same way every time, the car and everything hanging off it would never sync again.
+     *
+     * So before the push, any never-synced car with a plate is looked up on the server, and
+     * a match takes on the server's id locally. The push that follows is then an update of
+     * the row that is already there. The local copy still wins on content: the owner typed
+     * it just now, and that is newer than whatever the server has.
+     *
+     * Costs nothing in the normal case — a car that has synced once carries a
+     * `remote_version`, and with no candidates the server is never asked.
+     */
+    override suspend fun reconcileBeforePush(rows: List<CarDto>): List<CarDto> {
+        val owner = ownerId().orNullIfPlaceholder() ?: return rows
+        // `registration_number` is non-null here: the query filters on it.
+        val candidates = queries.selectUnsyncedWithPlate().executeAsList()
+            .map { row -> row.id to row.registration_number }
+        if (candidates.isEmpty()) return rows
+
+        // Live rows only: a soft-deleted car has released its plate, so re-adding it really
+        // is a new row and the id it was given locally is the right one.
+        val serverByPlate = remote.fetchSince(owner, since = null)
+            .filter { it.deletedAt == null && it.registrationNumber != null }
+            .associateBy { it.registrationNumber }
+
+        // What each re-pointed row becomes: the server's row when the local one survived
+        // under its id, or null when the local one was dropped as a duplicate.
+        val outcome = mutableMapOf<String, CarDto?>()
+        candidates.forEach { (localId, plate) ->
+            val server = serverByPlate[plate] ?: return@forEach
+            if (server.id == localId) return@forEach
+            outcome[localId] = if (adoptIdentity(localId = localId, server = server)) server else null
+        }
+        if (outcome.isEmpty()) return rows
+        telemetry.identityAdopted(SyncEntity.CARS, count = outcome.size)
+
+        // The rows were read before the ids moved, so the ones that were re-pointed are
+        // restated here rather than read back — the same values, under the server's identity.
+        // A dropped row leaves the push entirely: the row it merged into is the one to send,
+        // and it is already in this list if it had anything to say.
+        return rows.mapNotNull { dto ->
+            if (!outcome.containsKey(dto.id)) return@mapNotNull dto
+            val server = outcome[dto.id] ?: return@mapNotNull null
+            dto.copy(id = server.id, createdAt = server.createdAt)
+        }
+    }
+
+    /**
+     * Move the local car, and everything that names it, onto [server]'s id. Answers whether
+     * the local row survived the move.
+     *
+     * One transaction: a car that moved while its service logs did not would leave the
+     * owner's history pointing at a row that no longer exists. If the server's row is
+     * already here — a pull got to it first — the local one is dropped instead, after its
+     * children have been carried across, and this answers `false`.
+     */
+    private fun adoptIdentity(localId: String, server: CarDto): Boolean {
+        var survived = false
+        database.transaction {
+            database.serviceLogQueries.repointCar(serverId = server.id, localId = localId)
+            database.documentQueries.repointCar(serverId = server.id, localId = localId)
+            database.healthScoreQueries.repointCar(serverId = server.id, localId = localId)
+
+            if (queries.countById(server.id).executeAsOne() > 0) {
+                queries.deleteById(localId)
+            } else {
+                queries.adoptServerIdentity(
+                    serverId = server.id,
+                    createdAt = server.createdAt,
+                    localId = localId,
+                )
+                survived = true
+            }
+        }
+        return survived
+    }
+
     override suspend fun push(rows: List<CarDto>): List<CarDto> = remote.push(rows)
 
     override fun markSynced(id: String, remoteVersion: String) =
         queries.markSynced(remoteVersion = remoteVersion, id = id)
+
+    override fun markConflict(id: String) = queries.markConflict(id)
 
     override suspend fun fetch(since: Instant?): List<CarDto> {
         // Signed out, or not signed in yet — either way there is nothing to ask for.

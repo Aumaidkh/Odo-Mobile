@@ -15,6 +15,13 @@ package com.hopcape.odo.infrastructure.supabase
 internal data class SupabaseEnvironment(
     val url: String,
     val anonKey: String,
+    /**
+     * Whether to sign in with real phone OTP rather than the development account.
+     *
+     * Config rather than a code branch, so the day DLT registration clears is a
+     * `local.properties` edit and not a commit.
+     */
+    val usePhoneAuth: Boolean = false,
 ) {
 
     /** Whether this build can reach a project. False on a fresh checkout. */
@@ -26,6 +33,9 @@ internal data class SupabaseEnvironment(
     /** Storage base — bucket objects hang off this. */
     val storageUrl: String get() = "$normalizedUrl/storage/v1"
 
+    /** GoTrue base — sign-in and token refresh hang off this. */
+    val authUrl: String get() = "$normalizedUrl/auth/v1"
+
     /** A trailing slash in the configured URL would produce `//rest/v1`, which 404s. */
     private val normalizedUrl: String get() = url.trimEnd('/')
 
@@ -34,6 +44,7 @@ internal data class SupabaseEnvironment(
         fun fromBuild(): SupabaseEnvironment = SupabaseEnvironment(
             url = BuildSupabaseConfig.URL,
             anonKey = BuildSupabaseConfig.ANON_KEY,
+            usePhoneAuth = BuildSupabaseConfig.PHONE_AUTH,
         )
     }
 }

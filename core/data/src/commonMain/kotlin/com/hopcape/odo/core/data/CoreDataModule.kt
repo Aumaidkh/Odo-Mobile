@@ -37,12 +37,14 @@ import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
+import com.hopcape.odo.core.data.sync.SessionSyncGate
+import com.hopcape.odo.core.data.sync.SqlDelightLocalUserDataWipe
 import com.hopcape.odo.core.data.sync.SqlDelightOwnershipAdoption
 import com.hopcape.odo.core.data.sync.SqlDelightSyncStatusProvider
 import com.hopcape.odo.core.data.sync.SqlDelightSynchronizer
 import com.hopcape.odo.core.sync.SyncGate
-import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
 import com.hopcape.odo.core.data.db.OdoDatabase
@@ -64,6 +66,7 @@ import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepositor
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -136,11 +139,10 @@ val coreDataModule = module {
     // describes (SYNC_DESIGN §4.2).
     single<Synchronizer> { SqlDelightSynchronizer(database = get(), telemetry = get()) }
 
-    // Whether a run may happen at all. Bound off the session port rather than the engine
-    // reaching for it: `owner_id` is stamped server-side from auth.uid(), so an anonymous
-    // run can only collect 401s (SYNC_DESIGN §9). Today the stub answers false, which is
-    // why nothing syncs yet — real auth replaces that one binding, not this one.
-    single<SyncGate> { SyncGate { get<SessionStatusProvider>().isSignedIn() } }
+    // Whether a run may happen at all, and whether this install's rows belong to the
+    // account yet. Asking for a token rather than a boolean refreshes a stale one on the
+    // way past, so a run never starts with one that dies mid-push.
+    single<SyncGate> { SessionSyncGate(tokens = get(), owners = get(), adoption = get()) }
 
     // Moves rows created before sign-in onto the account that signed in (SYNC_DESIGN §9).
     // The placeholder id comes from the provider that stamps it, so the two can never drift.
@@ -153,6 +155,12 @@ val coreDataModule = module {
     single { SqlDelightSyncStatusProvider(database = get(), telemetry = get()) }
     single<SyncStatusProvider> { get<SqlDelightSyncStatusProvider>() }
     single<SyncRunObserver> { get<SqlDelightSyncStatusProvider>() }
+
+    // Sign-out forgets the owner's local copy. Hard deletes, and it clears the sync
+    // cursors — a stale one would make the next sign-in skip everything written in between.
+    single<LocalUserDataWipe> {
+        SqlDelightLocalUserDataWipe(database = get(), files = get(), telemetry = get())
+    }
 
     single<OwnershipAdoption> {
         SqlDelightOwnershipAdoption(

@@ -7,6 +7,10 @@ import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.platform.sms.IosSmsAppSignature
+import com.hopcape.odo.core.platform.sms.IosSmsCodeReader
+import com.hopcape.odo.core.platform.sms.SmsAppSignature
+import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sync.CoroutineSyncScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -38,4 +42,7 @@ val corePlatformIosModule = module {
     // one piece of iOS sync still outstanding.
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single<SyncScheduler> { CoroutineSyncScheduler(engine = { get() }, scope = get()) }
+    // Unsupported on purpose: the iOS keyboard already offers the code from the notification.
+    single<SmsCodeReader> { IosSmsCodeReader() }
+    single<SmsAppSignature> { IosSmsAppSignature() }
 }

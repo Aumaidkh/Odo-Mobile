@@ -70,12 +70,22 @@ internal expect fun supabaseHttpClientEngine(): HttpClientEngine
  * The JSON codec for every payload.
  *
  * `ignoreUnknownKeys` because the server is allowed to grow columns without breaking an
- * installed app, and `explicitNulls = false` because PostgREST treats an omitted key as
- * "leave it alone" on an upsert while an explicit `null` clears the column.
+ * installed app. `encodeDefaults` so every column a row has is named in the payload.
+ *
+ * **Nulls are written out, not omitted.** Omitting them looks appealing — PostgREST reads an
+ * absent key on an upsert as "leave this column alone" — but it is wrong twice here:
+ *
+ *  - A bulk upsert requires every object in the array to carry the same keys. Omitting nulls
+ *    makes the key set depend on each row's data, so two cars where one has a `variant` and
+ *    the other does not produce different keys and PostgREST rejects the **whole batch** with
+ *    `PGRST102: All object keys must match`. One row always works, which is what makes this
+ *    the kind of bug that ships.
+ *  - These rows are full snapshots from the local source of truth, so "leave it alone" is
+ *    never what is meant. An owner who clears a nickname needs that clearing to reach the
+ *    server; an omitted null would leave the old value there for good.
  */
 internal val SupabaseJson: Json = Json {
     ignoreUnknownKeys = true
-    explicitNulls = false
     encodeDefaults = true
 }
 

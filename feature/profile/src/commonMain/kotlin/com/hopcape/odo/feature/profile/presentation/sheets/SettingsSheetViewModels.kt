@@ -3,16 +3,20 @@ package com.hopcape.odo.feature.profile.presentation.sheets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
+import com.hopcape.odo.core.domain.owner.SignOut
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
 import com.hopcape.odo.feature.profile.presentation.ProfileTelemetry
 import com.hopcape.odo.feature.profile.presentation.toProfileMessage
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -123,6 +127,46 @@ internal class UnitsViewModel(
             telemetry.settingSave(setting, value) {
                 updateSettings.units(distanceUnit, fuelEfficiencyUnit)
             }.onLeft { error -> _state.update { it.copy(error = error.toProfileMessage()) } }
+        }
+    }
+}
+
+/**
+ * State holder for the sign-out sheet.
+ *
+ * It exists because confirming sign-out used to only navigate. The session and the owner's
+ * rows stayed on the device, so the next screen still read as signed in and the sign-in
+ * flow never appeared again. [SignOut] has to run, and the caller has to wait for it before
+ * moving.
+ *
+ * The work runs on `viewModelScope` and the sheet stays up while it does. Navigating first
+ * would remove the sheet, cancel the scope, and leave the wipe half done.
+ */
+internal class SignOutViewModel(
+    private val signOut: SignOut,
+    private val telemetry: ProfileTelemetry,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(SignOutUiState())
+    val state: StateFlow<SignOutUiState> = _state.asStateFlow()
+
+    private val _effects = Channel<SignOutEffect>(Channel.BUFFERED)
+    val effects: Flow<SignOutEffect> = _effects.receiveAsFlow()
+
+    init {
+        telemetry.settingsOpened(ProfileTelemetry.Screen.SIGN_OUT)
+    }
+
+    /** Confirmed. Ignored while one is already running, so a double tap signs out once. */
+    fun onConfirm() {
+        if (_state.value.isSigningOut) return
+        _state.update { it.copy(isSigningOut = true) }
+        viewModelScope.launch(telemetry.op(ProfileTelemetry.Trace.SIGN_OUT)) {
+            // Cannot fail in a way worth reporting to the owner: the server call is best
+            // effort and the wipe is followed by another sign-out or a reinstall.
+            signOut()
+            telemetry.signedOut()
+            _effects.trySend(SignOutEffect.SignedOut)
         }
     }
 }

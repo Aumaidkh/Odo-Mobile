@@ -50,13 +50,16 @@ class SupabaseAdaptersTest {
 
     @Test
     fun `a pull keeps soft-deleted rows so a tombstone can reach the device`() = runTest {
-        val harness = SupabaseTestHarness { MockResponse("[${serviceLogJson(deletedAt = "2026-02-01T00:00:00Z")}]") }
+        val harness = SupabaseTestHarness { request ->
+            if (request.url.encodedPath.endsWith("service_log_categories")) MockResponse("[]")
+            else MockResponse("[${serviceLogJson(deletedAt = "2026-02-01T00:00:00Z")}]")
+        }
         val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
 
         assertEquals(1, pulled.size)
         assertEquals("2026-02-01T00:00:00Z", pulled.single().deletedAt)
         // No `deleted_at=is.null` filter — that would hide exactly the rows sync needs.
-        assertNull(harness.onlyRequest().url.parameters["deleted_at"])
+        assertNull(harness.requests.first().url.parameters["deleted_at"])
     }
 
     @Test
@@ -72,25 +75,74 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a push drops the three fields service_logs has no column for`() = runTest {
+    fun `a push sends the fields the table now has, and categories to their own table`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[${serviceLogJson()}]") }
         SupabaseServiceLogRemoteDataSource(harness.postgrest).push(
             listOf(
                 serviceLogDto().copy(
                     billPhotoPath = "bills/local.jpg",
                     fairnessSnapshot = """{"verdict":"FAIR"}""",
-                    categories = listOf("oil_change"),
+                    categories = listOf("oil_change", "brakes"),
                 ),
             ),
         )
 
-        // Sending any of these would fail the whole upsert with PGRST204.
-        val body = harness.onlyRequest().bodyText()
-        assertTrue("bill_photo_path" !in body, "bill_photo_path must not be sent")
-        assertTrue("fairness_snapshot" !in body, "fairness_snapshot must not be sent")
-        assertTrue("categories" !in body, "categories must not be sent")
-        // ...but the columns the table does have are still there.
-        assertContains(body, "\"odometer_km\":45000")
+        assertEquals(2, harness.requests.size)
+        val parent = harness.requests[0]
+        val children = harness.requests[1]
+
+        // The parent goes first. A category row referencing an entry the server has not
+        // accepted is a foreign-key error.
+        assertEquals("/rest/v1/service_logs", parent.url.encodedPath)
+        assertEquals("/rest/v1/service_log_categories", children.url.encodedPath)
+
+        // These two are real columns now, so they must actually be sent.
+        val parentBody = parent.bodyText()
+        assertContains(parentBody, "bill_photo_path")
+        assertContains(parentBody, "fairness_snapshot")
+        // ...but `categories` is not a column on service_logs, and sending it would fail the
+        // whole upsert with PGRST204.
+        assertTrue("\"categories\"" !in parentBody, "categories must not be sent to service_logs")
+
+        val childBody = children.bodyText()
+        assertContains(childBody, "oil_change")
+        assertContains(childBody, "brakes")
+        // owner_id is stamped from the parent entry by trigger; a client value is overwritten.
+        assertTrue("owner_id" !in childBody, "owner_id must not be sent for a category row")
+    }
+
+    @Test
+    fun `an entry with no categories writes only the parent`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[${serviceLogJson()}]") }
+        SupabaseServiceLogRemoteDataSource(harness.postgrest).push(listOf(serviceLogDto()))
+
+        assertEquals(1, harness.requests.size)
+    }
+
+    @Test
+    fun `a pull fetches categories for the page in one extra request`() = runTest {
+        val harness = SupabaseTestHarness { request ->
+            if (request.url.encodedPath.endsWith("service_log_categories")) {
+                MockResponse("""[{"service_log_id":"log-1","category":"oil_change"}]""")
+            } else {
+                MockResponse("[${serviceLogJson()}]")
+            }
+        }
+
+        val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+
+        assertEquals(listOf("oil_change"), pulled.single().categories)
+        // One request per page, not one per entry.
+        assertEquals(2, harness.requests.size)
+        assertContains(harness.requests[1].url.parameters["service_log_id"].orEmpty(), "in.(log-1)")
+    }
+
+    @Test
+    fun `an empty page skips the categories request`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[]") }
+        SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+
+        assertEquals(1, harness.requests.size)
     }
 
     @Test

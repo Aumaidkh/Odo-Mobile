@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -30,15 +31,16 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcWarning
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_cd_back
 import com.hopcape.odo.feature.auth.resources.au_change
 import com.hopcape.odo.feature.auth.resources.au_get_help
-import com.hopcape.odo.feature.auth.resources.au_otp_error
 import com.hopcape.odo.feature.auth.resources.au_otp_sent
 import com.hopcape.odo.feature.auth.resources.au_otp_title
 import com.hopcape.odo.feature.auth.resources.au_resend
+import com.hopcape.odo.feature.auth.resources.au_resend_exhausted
 import com.hopcape.odo.feature.auth.resources.au_resend_in
 import com.hopcape.odo.feature.auth.resources.au_skip
 import com.hopcape.odo.feature.auth.resources.au_still_not
@@ -58,18 +60,15 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun OtpScreen(
-    phone: String,
-    isError: Boolean,
+    state: OtpUiState,
+    onEvent: (OtpEvent) -> Unit,
     autoReadStatus: AutoReadSmsStatus,
     onBack: () -> Unit,
-    onChange: () -> Unit,
-    onResend: () -> Unit,
     onGetHelp: () -> Unit,
-    onSkip: () -> Unit,
-    onComplete: () -> Unit,
 ) {
-    // TODO(auth): hoist to a ViewModel once Supabase phone auth lands.
-    var code by remember { mutableStateOf(if (isError) "472915" else "") }
+    val phone = state.maskedPhone
+    val isError = state.isError
+    val code = state.code
 
     OdoScreen {
         Column(
@@ -99,17 +98,19 @@ internal fun OtpScreen(
                     stringResource(Res.string.au_change),
                     style = OdoTheme.typography.body,
                     color = OdoTheme.colors.accent,
-                    modifier = Modifier.clickable(onClick = onChange),
+                    modifier = Modifier.clickable { onEvent(OtpEvent.ChangeNumberClicked) },
                 )
             }
 
             Spacer(Modifier.height(OdoTheme.spacing.xl))
             OdoOtpField(
                 value = code,
-                onValueChange = { entered -> code = entered },
+                onValueChange = { entered -> onEvent(OtpEvent.CodeChanged(entered)) },
+                modifier = Modifier.testTag(AuthTestTags.OTP_FIELD),
                 isError = isError,
                 requestFocus = true,
-                onFilled = { onComplete() },
+                // Verification fires from the ViewModel on the last digit; nothing to confirm.
+                onFilled = {},
             )
             Spacer(Modifier.height(OdoTheme.spacing.lg))
 
@@ -119,8 +120,11 @@ internal fun OtpScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.danger, size = OdoTheme.iconSizes.small)
+                    // The ViewModel's own message, not the wrong-code line every time: an
+                    // expired code and a mistyped one need different answers, and this slot
+                    // used to give both the same one.
                     OdoText(
-                        stringResource(Res.string.au_otp_error, 2),
+                        state.submission.error?.asString().orEmpty(),
                         style = OdoTheme.typography.bodySmall,
                         color = OdoTheme.colors.danger,
                     )
@@ -128,7 +132,7 @@ internal fun OtpScreen(
                 Spacer(Modifier.height(OdoTheme.spacing.lg))
                 OdoButton(
                     stringResource(Res.string.au_resend),
-                    onClick = onResend,
+                    onClick = { onEvent(OtpEvent.ResendClicked) },
                     variant = OdoButtonVariant.Secondary,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -149,23 +153,52 @@ internal fun OtpScreen(
             } else {
                 AutoReadSmsCard(status = autoReadStatus)
                 Spacer(Modifier.height(OdoTheme.spacing.md))
-                OdoText(
-                    stringResource(Res.string.au_resend_in, "00:24"),
-                    style = OdoTheme.typography.bodySmall,
-                    color = OdoTheme.colors.textDim,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                when {
+                    // Out of codes for this sitting. A countdown here would be a lie —
+                    // waiting does not bring Resend back.
+                    state.resendExhausted -> OdoText(
+                        stringResource(Res.string.au_resend_exhausted),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    state.canResend -> OdoText(
+                        stringResource(Res.string.au_resend),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.accent,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onEvent(OtpEvent.ResendClicked) },
+                    )
+
+                    else -> OdoText(
+                        stringResource(Res.string.au_resend_in, state.resendInSeconds.asCountdown()),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
             Spacer(Modifier.height(OdoTheme.spacing.lg))
             OdoButton(
                 stringResource(Res.string.au_skip),
-                onClick = onSkip,
+                onClick = { onEvent(OtpEvent.SkipClicked) },
                 variant = OdoButtonVariant.Tertiary,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(OdoTheme.spacing.xl))
         }
     }
+}
+
+/** Seconds as `mm:ss`, which is what the countdown copy expects. */
+private fun Int.asCountdown(): String {
+    val minutes = this / 60
+    val seconds = this % 60
+    return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
 }

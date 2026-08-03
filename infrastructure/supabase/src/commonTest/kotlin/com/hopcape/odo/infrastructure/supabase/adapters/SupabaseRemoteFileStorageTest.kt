@@ -6,7 +6,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.infrastructure.supabase.MockResponse
 import com.hopcape.odo.infrastructure.supabase.SupabaseTestHarness
 import com.hopcape.odo.infrastructure.supabase.bodyBytes
-import com.hopcape.odo.infrastructure.supabase.http.AnonAccessTokens
+import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
@@ -135,7 +135,7 @@ class SupabaseRemoteFileStorageTest {
     private fun storage(harness: SupabaseTestHarness) = SupabaseRemoteFileStorage(
         client = harness.client,
         environment = harness.environment,
-        tokens = AnonAccessTokens(harness.environment),
+        tokens = AccessTokenProvider { null },
         telemetry = harness.telemetry,
     )
 }

@@ -12,6 +12,7 @@ import com.hopcape.odo.feature.profile.presentation.NotificationsViewModel
 import com.hopcape.odo.feature.profile.presentation.ProfileTelemetry
 import com.hopcape.odo.feature.profile.presentation.ProfileViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceViewModel
+import com.hopcape.odo.feature.profile.presentation.sheets.SignOutViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
@@ -68,4 +69,6 @@ val profileModule = module {
     viewModel { NotificationsViewModel(settings = get(), updateSettings = get(), telemetry = get()) }
     viewModel { AppearanceViewModel(settings = get(), updateSettings = get(), telemetry = get()) }
     viewModel { UnitsViewModel(settings = get(), updateSettings = get(), telemetry = get()) }
+    // `SignOut` is bound by :feature:auth, which owns sessions. Profile only has the button.
+    viewModel { SignOutViewModel(signOut = get(), telemetry = get()) }
 }

@@ -112,6 +112,14 @@ UPDATE profiles
 SET sync_status = 'SYNCED', remote_version = :remoteVersion
 WHERE id = :id;
 
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE profiles
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
 -- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
@@ -149,3 +157,10 @@ WHERE id = :placeholderOwnerId;
 
 deleteProfile:
 DELETE FROM profiles WHERE id = :id;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM profiles;

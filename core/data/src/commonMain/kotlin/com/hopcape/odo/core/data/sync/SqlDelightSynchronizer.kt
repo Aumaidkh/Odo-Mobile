@@ -81,11 +81,32 @@ internal class SqlDelightSynchronizer(
     }
 
     override suspend fun recordFailure(entity: SyncEntity, cause: Throwable) {
-        // The type name, never the message: a Ktor or PostgREST message can quote the
-        // request, and these rows are the owner's records.
-        val reason = cause::class.simpleName ?: UNKNOWN_FAILURE
+        // The type name and, for a rejection, its status — never the message: a Ktor or
+        // PostgREST message can quote the request, and these rows are the owner's records.
+        // The status is what tells "the server is down" apart from "the server will never
+        // accept this", and those need different reactions from whoever is looking.
+        val reason = cause.reason()
         telemetry.failed(DataTelemetry.SYNC, OP_RECORD_FAILURE, cause, entity.name)
         updateCursor(entity) { copy(lastError = reason) }
+    }
+
+    /**
+     * The safe-to-store description of a failure.
+     *
+     * Marked [PERMANENT_SUFFIX] when sending the same rows again cannot change the answer.
+     * Without it, an entity that can never sync is indistinguishable from one whose server
+     * happened to be down, and both read as "still trying" forever.
+     */
+    private fun Throwable.reason(): String {
+        val name = this::class.simpleName ?: UNKNOWN_FAILURE
+        val rejection = this as? SyncRejection ?: return name
+        return buildString {
+            append(name)
+            append('(')
+            append(rejection.status)
+            if (rejection.isPermanent) append(PERMANENT_SUFFIX)
+            append(')')
+        }
     }
 
     /**
@@ -101,5 +122,8 @@ internal class SqlDelightSynchronizer(
         const val OP_UPDATE_CURSOR = "updateCursor"
         const val OP_RECORD_FAILURE = "recordFailure"
         const val UNKNOWN_FAILURE = "UnknownFailure"
+
+        /** Reads in a log or the Profile row as `SupabaseRequestFailed(409, permanent)`. */
+        const val PERMANENT_SUFFIX = ", permanent"
     }
 }

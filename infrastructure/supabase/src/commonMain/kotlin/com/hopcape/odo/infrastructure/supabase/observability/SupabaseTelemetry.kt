@@ -54,13 +54,24 @@ internal class SupabaseTelemetry(
         }
     }
 
-    /** A request the server answered, but not with success. The status is the actionable part. */
-    suspend fun rejected(operation: String, resource: String, status: Int) {
+    /**
+     * A request the server answered, but not with success.
+     *
+     * [cause] carries the SQLSTATE and the violated constraint's name when the server sent
+     * them. Both are schema facts, so they are safe to log where the error body is not: a
+     * status alone cannot tell a duplicate plate from a bad enum value from a rejected
+     * policy, and those have nothing in common to fix.
+     */
+    suspend fun rejected(operation: String, resource: String, status: Int, cause: String? = null) {
         logger.error(
             TAG,
             "$operation.rejected",
             tc = currentTraceContext().toLog(),
-            fields = mapOf(Key.RESOURCE to resource, Key.STATUS to status),
+            fields = buildMap {
+                put(Key.RESOURCE, resource)
+                put(Key.STATUS, status)
+                cause?.let { put(Key.CAUSE, it) }
+            },
         )
     }
 
@@ -123,6 +134,7 @@ internal class SupabaseTelemetry(
         const val RESOURCE = "resource"
         const val OPERATION = "operation"
         const val STATUS = "status"
+        const val CAUSE = "cause"
         const val ERROR = "error"
         const val ATTEMPT = "attempt"
         const val COUNT = "count"

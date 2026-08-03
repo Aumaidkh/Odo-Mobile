@@ -27,6 +27,14 @@ object ProfileTestTags {
 
     /** The confirm button in the delete-my-data dialog. */
     const val DELETE_CONFIRM: String = "profile_delete_confirm"
+
+    /**
+     * The confirm button in the sign-out sheet.
+     *
+     * Tagged because it reads the same as the row that opened it, so "Sign out" matches two
+     * nodes the moment the sheet is up.
+     */
+    const val SIGN_OUT_CONFIRM: String = "profile_sign_out_confirm"
     /** The sync diagnostics line under the version. */
     const val SYNC_ROW = "profile_sync_row"
 }

@@ -54,6 +54,11 @@ internal class ProfileViewModel(
                 _state.update { it.copy(sync = it.sync.copy(lastSyncedAt = at)) }
             }
         }
+        viewModelScope.launch {
+            syncStatus.lastError.collect { error ->
+                _state.update { it.copy(sync = it.sync.copy(lastError = error)) }
+            }
+        }
 
         observe()
     }

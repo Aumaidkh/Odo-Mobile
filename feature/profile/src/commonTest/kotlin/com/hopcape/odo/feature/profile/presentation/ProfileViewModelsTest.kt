@@ -308,6 +308,7 @@ class ProfileViewModelsTest {
         override val isSyncing = flowOf(false)
         override val pendingCount = flowOf(0)
         override val lastSyncedAt = flowOf<Instant?>(null)
+        override val lastError = flowOf<String?>(null)
     }
 }
 

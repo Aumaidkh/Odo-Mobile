@@ -140,6 +140,42 @@ sealed interface DomainError {
      */
     data class FuelPriceOutOfRange(val minPaise: Long, val maxPaise: Long) : DomainError
 
+    /* ---- Auth ---- */
+
+    /** A phone number was required to sign in but nothing was typed. */
+    data object BlankPhoneNumber : DomainError
+
+    /**
+     * Something was typed, but it is not a number an SMS could reach — the wrong length, or
+     * characters that are not digits once separators are removed.
+     */
+    data object InvalidPhoneNumber : DomainError
+
+    /** The code was wrong. The owner retypes it; the same code may still be live. */
+    data object InvalidOtp : DomainError
+
+    /**
+     * The code was right but too old. Distinct from [InvalidOtp] because the answer is
+     * different: resend, don't retype.
+     */
+    data object OtpExpired : DomainError
+
+    /**
+     * Too many codes asked for, too fast — by our own limit or the server's. [retryAfter]
+     * is how long until another is allowed, so the screen can count down instead of
+     * guessing.
+     */
+    data class TooManyOtpRequests(val retryAfterSeconds: Long) : DomainError
+
+    /** The code could not be sent at all: no network, or the SMS provider refused. */
+    data object OtpRequestFailed : DomainError
+
+    /**
+     * The session is gone and could not be renewed — revoked, or the refresh token expired.
+     * The app keeps working offline; only syncing stops until someone signs in again.
+     */
+    data object SessionExpired : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }

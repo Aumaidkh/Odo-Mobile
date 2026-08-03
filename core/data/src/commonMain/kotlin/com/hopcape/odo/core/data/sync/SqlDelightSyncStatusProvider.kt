@@ -57,11 +57,21 @@ internal class SqlDelightSyncStatusProvider(
                 emit(null)
             }
 
+    override val lastError: Flow<String?> =
+        database.syncStateQueries.selectAnyError()
+            .asFlow()
+            .mapToOneOrNull(dispatcher)
+            .catch { cause ->
+                telemetry.crashed(DataTelemetry.SYNC, OP_LAST_ERROR, cause)
+                emit(null)
+            }
+
     /** The engine's bookends. Not part of the port — the UI only ever reads. */
     override fun onRunning(running: Boolean) { _isSyncing.value = running }
 
     private companion object {
         const val OP_PENDING_COUNT = "pendingCount"
         const val OP_LAST_SYNCED = "lastSyncedAt"
+        const val OP_LAST_ERROR = "lastError"
     }
 }

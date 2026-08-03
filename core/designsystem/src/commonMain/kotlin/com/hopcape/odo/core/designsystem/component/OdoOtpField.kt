@@ -95,7 +95,10 @@ fun OdoOtpField(
     // field composes before the window is ready (the usual case on a fresh destination).
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val acceptsInput = enabled && !isError
+    // `isError` colours the boxes; it does not lock them. A field that stops accepting
+    // input after a refusal leaves the owner with a message counting down attempts they
+    // have no way to spend.
+    val acceptsInput = enabled
     if (requestFocus) {
         LaunchedEffect(acceptsInput) {
             if (acceptsInput) {

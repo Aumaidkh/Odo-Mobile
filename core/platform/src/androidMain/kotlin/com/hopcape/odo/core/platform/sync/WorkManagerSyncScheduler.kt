@@ -25,8 +25,8 @@ import kotlin.time.Duration.Companion.seconds
  * is already taken. Three service entries logged in a row become one sync, with no timer of
  * our own (SYNC_DESIGN §10).
  *
- * A manual refresh uses `REPLACE` and no delay — someone is watching, so it cancels the
- * waiting job and goes now.
+ * A manual refresh and a fresh sign-in use `REPLACE` and no delay — someone is watching, so
+ * they cancel the waiting job and go now.
  */
 internal class WorkManagerSyncScheduler(context: Context) : SyncScheduler {
 
@@ -39,9 +39,13 @@ internal class WorkManagerSyncScheduler(context: Context) : SyncScheduler {
         SyncReason.LocalWrite -> enqueue(DEBOUNCE.inWholeSeconds, ExistingWorkPolicy.KEEP)
         // Bypasses a pending job rather than waiting behind it.
         SyncReason.Manual -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.REPLACE)
+        // Also REPLACE, and for a sharper reason: any job already waiting was queued while
+        // there was no session, so its backoff was earned by failures that signing in just
+        // fixed. KEEP would make the owner wait out a penalty for the very thing they have
+        // now done — up to hours, while the screen says their data is backed up.
+        SyncReason.SignIn -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.REPLACE)
         SyncReason.AppForeground,
         SyncReason.RemoteChange,
-        SyncReason.SignIn,
         -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.KEEP)
     }
 

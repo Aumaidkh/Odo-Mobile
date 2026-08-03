@@ -239,6 +239,55 @@ Guarantees:
 - **Deletes are pushes.** A soft delete is an ordinary update (`deleted_at` set,
   `sync_status = 'PENDING'`). No tombstone table.
 
+#### 6.1.1 A refusal the server will repeat
+
+A push can fail two ways, and they need opposite reactions:
+
+| Refusal | Examples | Reaction |
+| --- | --- | --- |
+| **Transient** | 5xx, timeout, dropped connection, `401` (token just expired), `408`, `429` | Leave the rows `PENDING`, stop the entity, let the scheduler's backoff retry. |
+| **Permanent** | any other 4xx — a duplicate key, a value the schema rejects, an RLS policy that says no | Take the offending rows out of the outbox: `sync_status = 'CONFLICT'`. **The run carries on.** |
+
+Retrying a permanent refusal cannot change the answer, so leaving those rows `PENDING`
+means every later run dies on the same row — and because a failing entity stops the run
+(§8), one bad row takes every table after it offline too. That is how a single duplicate
+car stops service logs, documents and health scores from ever syncing.
+
+PostgREST answers a batch on its first violation, so a rejected batch says nothing about
+the rows after the bad one. A batch of more than one row is therefore re-sent **one row at
+a time**: the good rows sync as usual, and only rows refused on their own are marked
+`CONFLICT`. A row that fails transiently during that pass stops the run in the usual way.
+
+A `CONFLICT` row keeps its data and still counts as "not backed up". It returns to
+`PENDING` the moment the owner edits it.
+
+#### 6.1.2 Adopting the server's identity for a re-added row
+
+Some tables are constrained on something other than the primary key. `cars` allows one live
+row per `(owner_id, registration_number)`. A reinstall takes the local database with it, so
+onboarding the same car again mints a **fresh UUID for a plate the server already holds** —
+and the push, an upsert on the primary key, becomes an INSERT that breaks that rule. Left
+alone it is a permanent refusal, i.e. §6.1.1 forever.
+
+So before the push, a table may reconcile its own rows against the server:
+
+```
+candidates = PENDING rows with remote_version IS NULL and a plate       # never synced
+if candidates is empty: skip entirely — no request is made
+server = fetch all live rows for this owner
+for each candidate matching a server row by plate, with a different id:
+    in one transaction:
+        repoint every child table's car_id from the local id to the server id
+        rewrite the local row's id to the server id, and take the server's created_at
+```
+
+The push that follows is then an update of the row that is already there. The **local copy
+still wins on content** — the owner typed it just now, which is newer than whatever the
+server has. Only the identity is adopted.
+
+This costs nothing in the normal case: a row that has synced once carries a
+`remote_version`, so there are no candidates and the server is never asked.
+
 ### 6.2 Pull (delta)
 
 ```
@@ -288,8 +337,9 @@ single-device MVP means a reinstall or a second device, i.e. rare.
 The losing side is **never silently discarded**: every LWW resolution emits a structured
 log + an analytics event, so a conflict storm is visible rather than mysterious.
 
-`CONFLICT` status and true merge semantics are **Phase 2**, when multi-car/multi-device
-makes them real.
+True merge semantics are **Phase 2**, when multi-car/multi-device makes them real. The
+`CONFLICT` status is already in use, but for the other thing it can mean: a row the *server*
+refused for good (§6.1.1), not a row two devices disagree about.
 
 ---
 
@@ -304,7 +354,8 @@ profiles → cars → service_logs → bills → bill_line_items → documents �
 
 Pull uses the same order for the same reason. If a parent entity's `syncWith` returns
 `false`, the engine **stops the run** — pushing children whose parent failed can only
-produce FK errors.
+produce FK errors. A permanent refusal is not one of those cases: those rows leave the
+outbox and the entity still reports success (§6.1.1).
 
 **Blobs are two-phase, upload first:**
 
@@ -376,8 +427,10 @@ day one via the existing `:observability:*` modules:
 
 - **Logging** — one structured line per run: trigger reason, per-entity pushed/pulled
   counts, duration, outcome. Every LWW resolution logged with both timestamps.
-- **Analytics** — `sync_completed` / `sync_failed` (with a coarse failure category), and
-  `sync_conflict_resolved`. Never log row contents; these are the user's records.
+- **Analytics** — `sync_completed` / `sync_failed` (with a coarse failure category),
+  `sync_conflict_resolved`, `sync_rows_refused` (§6.1.1 — entity, count, HTTP status) and
+  `sync_identity_adopted` (§6.1.2 — entity, count, which also counts reinstalls). Never log
+  row contents; these are the user's records.
 - **Performance** — a trace span per run, per-entity child spans, so a slow table is
   attributable.
 - **Debug surface** — Profile → a developer row showing `pendingCount`, `lastSyncedAt` and
@@ -394,6 +447,8 @@ The engine must be fully testable with **no network and no Android**:
 | --- | --- |
 | `SyncEngine` ordering + failure propagation | fake `Syncable`s; assert order, and that a failing parent stops the run |
 | Push | in-memory SQLDelight (`JdbcSqliteDriver`) + fake remote; assert idempotency (run twice → one row), and that a failed push leaves `PENDING` |
+| Permanent refusal (§6.1.1) | fake remote refusing named ids; assert only the bad row goes `CONFLICT`, the rest sync, the run reports success, and a transient status still stops the entity |
+| Identity adoption (§6.1.2) | fake remote holding the plate under another id; assert the local id and its children move, `created_at` comes across, a soft-deleted server row does not claim the plate, and a synced row makes no request |
 | Pull | fake remote pages; assert cursor advance, resumability after a mid-run kill, soft-delete propagation |
 | Conflicts | table-driven over §7's matrix — one test per row of that table |
 | Adoption (§9) | placeholder → real uid, re-run safety |

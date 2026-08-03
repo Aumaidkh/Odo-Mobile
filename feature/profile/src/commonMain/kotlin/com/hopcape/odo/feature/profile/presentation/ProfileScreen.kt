@@ -82,6 +82,7 @@ import com.hopcape.odo.feature.profile.resources.pf_sync_running
 import com.hopcape.odo.feature.profile.resources.pf_sync_pending
 import com.hopcape.odo.feature.profile.resources.pf_sync_pending_plural
 import com.hopcape.odo.feature.profile.resources.pf_sync_never
+import com.hopcape.odo.feature.profile.resources.pf_sync_blocked
 import com.hopcape.odo.feature.profile.resources.pf_sync_last
 import com.hopcape.odo.feature.profile.resources.pf_version
 import org.jetbrains.compose.resources.stringResource
@@ -381,11 +382,15 @@ private fun SyncDebugRow(sync: SyncStatus) {
     val last = sync.lastSyncedAt
         ?.let { stringResource(Res.string.pf_sync_last, it.toString()) }
         ?: stringResource(Res.string.pf_sync_never)
+    // A pending count on its own cannot say whether an upload is in progress or has been
+    // refused the same way for three days, and those look identical to whoever is asking
+    // why their data is missing.
+    val blocked = sync.lastError?.let { " · " + stringResource(Res.string.pf_sync_blocked, it) }.orEmpty()
 
     OdoText(
-        "${stringResource(Res.string.pf_sync_title)}: $status · $last",
+        "${stringResource(Res.string.pf_sync_title)}: $status · $last$blocked",
         style = OdoTheme.typography.caption,
-        color = OdoTheme.colors.textMuted,
+        color = if (sync.lastError == null) OdoTheme.colors.textMuted else OdoTheme.colors.danger,
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm)
             .testTag(ProfileTestTags.SYNC_ROW),
