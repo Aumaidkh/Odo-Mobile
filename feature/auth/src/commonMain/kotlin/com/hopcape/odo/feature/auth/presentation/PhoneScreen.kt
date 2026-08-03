@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -30,6 +31,7 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_cd_back
@@ -94,9 +96,13 @@ internal fun PhoneScreen(
             OdoPhoneNumberField(
                 value = phone,
                 onValueChange = { input -> onEvent(PhoneEvent.PhoneChanged(input)) },
+                modifier = Modifier.testTag(AuthTestTags.PHONE_FIELD),
                 label = stringResource(Res.string.au_phone_label),
                 placeholder = stringResource(Res.string.au_phone_hint),
                 requestFocus = true,
+                // A refused number, or a code that never left the server, is said on the
+                // field it belongs to. Without this the button simply does nothing.
+                errorText = state.submission.error?.asString(),
             )
 
             Spacer(Modifier.height(OdoTheme.spacing.md))

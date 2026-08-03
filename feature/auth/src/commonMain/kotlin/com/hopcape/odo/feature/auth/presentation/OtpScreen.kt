@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -30,12 +31,12 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcWarning
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_cd_back
 import com.hopcape.odo.feature.auth.resources.au_change
 import com.hopcape.odo.feature.auth.resources.au_get_help
-import com.hopcape.odo.feature.auth.resources.au_otp_error
 import com.hopcape.odo.feature.auth.resources.au_otp_sent
 import com.hopcape.odo.feature.auth.resources.au_otp_title
 import com.hopcape.odo.feature.auth.resources.au_resend
@@ -105,6 +106,7 @@ internal fun OtpScreen(
             OdoOtpField(
                 value = code,
                 onValueChange = { entered -> onEvent(OtpEvent.CodeChanged(entered)) },
+                modifier = Modifier.testTag(AuthTestTags.OTP_FIELD),
                 isError = isError,
                 requestFocus = true,
                 // Verification fires from the ViewModel on the last digit; nothing to confirm.
@@ -118,8 +120,11 @@ internal fun OtpScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.danger, size = OdoTheme.iconSizes.small)
+                    // The ViewModel's own message, not the wrong-code line every time: an
+                    // expired code and a mistyped one need different answers, and this slot
+                    // used to give both the same one.
                     OdoText(
-                        stringResource(Res.string.au_otp_error, state.triesLeft),
+                        state.submission.error?.asString().orEmpty(),
                         style = OdoTheme.typography.bodySmall,
                         color = OdoTheme.colors.danger,
                     )

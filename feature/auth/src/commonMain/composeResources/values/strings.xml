@@ -36,10 +36,10 @@
 
     <!-- Sign-in failures. Each says what to do next, not what went wrong internally. -->
     <string name="au_error_phone_blank">Enter your mobile number to continue.</string>
-    <string name="au_error_phone_invalid">That doesn\'t look like a mobile number. Check and try again.</string>
-    <string name="au_error_code_wrong">That code isn\'t right. Check and try again.</string>
+    <string name="au_error_phone_invalid">That doesn’t look like a mobile number. Check and try again.</string>
+    <string name="au_error_code_wrong">That code isn’t right. Check and try again.</string>
     <string name="au_error_code_expired">That code has expired. Ask for a new one.</string>
     <string name="au_error_too_many">Too many attempts. Wait a moment before asking again.</string>
-    <string name="au_error_send_failed">Couldn\'t send the code. Check your connection and try again.</string>
+    <string name="au_error_send_failed">Couldn’t send the code. Check your connection and try again.</string>
     <string name="au_resend_exhausted">No more codes for now. Check the number, or try again later.</string>
 </resources>
