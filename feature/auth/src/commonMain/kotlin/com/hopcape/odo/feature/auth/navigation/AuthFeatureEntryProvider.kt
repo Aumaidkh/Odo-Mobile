@@ -1,14 +1,20 @@
 package com.hopcape.odo.feature.auth.navigation
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.navigation.CollectEffects
+import com.hopcape.odo.feature.auth.presentation.OtpEffect
+import com.hopcape.odo.feature.auth.presentation.OtpViewModel
+import com.hopcape.odo.feature.auth.presentation.PhoneEffect
+import com.hopcape.odo.feature.auth.presentation.PhoneViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import com.hopcape.odo.core.designsystem.component.OdoPhoneNumberDefaults
-import com.hopcape.odo.core.designsystem.component.formatPhoneNumber
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
@@ -61,44 +67,70 @@ private fun NavigationManager.leaveAuth(key: OdoDestination.Auth) {
 
 @Composable
 internal fun PhoneRoute(key: OdoDestination.Auth.Phone, navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<PhoneViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            // The parsed E.164 number travels, not what was typed — the next screen has to
+            // verify against the same thing the code was issued for.
+            is PhoneEffect.CodeSent ->
+                navigationManager.navigateTo(OdoDestination.Auth.Otp(effect.phone, key.next))
+
+            PhoneEffect.LeaveAuth -> navigationManager.leaveAuth(key)
+        }
+    }
+
     PhoneScreen(
+        state = state,
+        onEvent = viewModel::onEvent,
         // Phone is the root of the stack here — onboarding cleared everything behind it,
         // so there is nothing to pop back to. Backing out of a prompt means declining it,
         // so back and "Skip for now" are the same action; a plain `back()` would be a
         // dead control (Navigator.goBack no-ops at the root).
         onBack = { navigationManager.leaveAuth(key) },
-        // TODO(auth): actually request the OTP here. The number rides along on the key so
-        //  the OTP screen's "Sent to …" line can state the real one.
-        onSendCode = { phone -> navigationManager.navigateTo(OdoDestination.Auth.Otp(phone, key.next)) },
-        onSkip = { navigationManager.leaveAuth(key) },
     )
 }
 
 @Composable
 internal fun OtpRoute(key: OdoDestination.Auth.Otp, navigationManager: NavigationManager) {
-    // TODO(auth): source the code, error state, and resend timer from a koinViewModel.
-    //  `isError` is a compile-time switch so the wrong-code mockup can be verified live.
-    val isError = false
-    // TODO(auth): drive from the platform SMS retriever (Android's SMS Retriever API
-    //  behind a :core:platform port). Until that exists the card reports Listening — what
-    //  the screen looks like in the common case — and never claims a code was auto-filled.
-    var autoReadStatus by remember { mutableStateOf(AutoReadSmsStatus.Listening) }
+    // The key carries the parsed number, so the ViewModel verifies against exactly what the
+    // code was issued for rather than re-parsing a display string.
+    val phone = remember(key.phone) { PhoneNumber.of(key.phone).getOrNull() }
+    if (phone == null) {
+        // Unreachable in the flow — Phone only navigates here with a number it parsed. A
+        // hand-built deep link could still get here, and going back is better than a crash.
+        LaunchedEffect(Unit) { navigationManager.back() }
+        return
+    }
+
+    val viewModel = koinViewModel<OtpViewModel> { parametersOf(phone) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            OtpEffect.Verified -> navigationManager.navigateTo(OdoDestination.Auth.Verifying(key.next))
+            OtpEffect.LeaveAuth -> navigationManager.leaveAuth(key)
+            OtpEffect.ChangeNumber -> navigationManager.back()
+        }
+    }
 
     OtpScreen(
-        phone = "${OdoPhoneNumberDefaults.CountryCode} ${formatPhoneNumber(key.phone)}",
-        isError = isError,
-        autoReadStatus = autoReadStatus,
+        state = state,
+        onEvent = viewModel::onEvent,
+        // TODO(auth): drive from the platform SMS retriever — S5. Until it exists the card
+        //  reports Listening, which is what the screen looks like in the common case, and
+        //  never claims a code was auto-filled.
+        autoReadStatus = AutoReadSmsStatus.Listening,
         onBack = { navigationManager.back() },
-        onChange = { navigationManager.back() },
-        onResend = { autoReadStatus = AutoReadSmsStatus.Listening },
         onGetHelp = { /* TODO(auth): open support. */ },
-        onSkip = { navigationManager.leaveAuth(key) },
-        onComplete = { navigationManager.navigateTo(OdoDestination.Auth.Verifying(key.next)) },
     )
 }
 
 @Composable
 internal fun VerifyingRoute(key: OdoDestination.Auth.Verifying, navigationManager: NavigationManager) {
+    // Reached only after the session already exists — verification happens on the code
+    // screen. This is the hand-off beat, not the work.
     VerifyingScreen(
         onDone = { navigationManager.leaveAuth(key) },
     )

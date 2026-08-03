@@ -48,21 +48,19 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Entered *after* car setup, so the owner already has something to protect — which is why
  * the copy talks about securing records rather than creating an account, and why
- * [onSkip] is a first-class action rather than a hidden escape.
+ * declining is a first-class action rather than a hidden escape.
  *
  * The field is [OdoPhoneNumberField] from the design system, driven by the platform
  * keyboard; it takes focus on arrival so the keyboard is already up.
  */
 @Composable
 internal fun PhoneScreen(
+    state: PhoneUiState,
+    onEvent: (PhoneEvent) -> Unit,
     onBack: () -> Unit,
-    onSendCode: (phone: String) -> Unit,
-    onSkip: () -> Unit,
 ) {
-    // TODO(auth): hoist to a ViewModel once Supabase phone auth lands — the screen
-    //  shape does not change, only where `phone` lives.
-    var phone by remember { mutableStateOf("") }
-    val isComplete = phone.length == OdoPhoneNumberDefaults.MaxLength
+    val phone = state.phone
+    val isComplete = state.canSubmit
 
     OdoScreen {
         Column(
@@ -95,7 +93,7 @@ internal fun PhoneScreen(
             Spacer(Modifier.height(OdoTheme.spacing.xl))
             OdoPhoneNumberField(
                 value = phone,
-                onValueChange = { input -> phone = input },
+                onValueChange = { input -> onEvent(PhoneEvent.PhoneChanged(input)) },
                 label = stringResource(Res.string.au_phone_label),
                 placeholder = stringResource(Res.string.au_phone_hint),
                 requestFocus = true,
@@ -117,14 +115,14 @@ internal fun PhoneScreen(
             Spacer(Modifier.height(OdoTheme.spacing.lg))
             OdoButton(
                 stringResource(Res.string.au_send_code),
-                onClick = { onSendCode(phone) },
+                onClick = { onEvent(PhoneEvent.SendCodeClicked) },
                 enabled = isComplete,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(OdoTheme.spacing.sm))
             OdoButton(
                 stringResource(Res.string.au_skip),
-                onClick = onSkip,
+                onClick = { onEvent(PhoneEvent.SkipClicked) },
                 variant = OdoButtonVariant.Tertiary,
                 modifier = Modifier.fillMaxWidth(),
             )

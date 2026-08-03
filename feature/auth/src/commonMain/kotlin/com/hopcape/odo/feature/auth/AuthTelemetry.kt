@@ -57,6 +57,29 @@ internal class AuthTelemetry(
     /** A stored session was found and reused, so this launch needed no network. */
     suspend fun sessionRestored() = log(EVENT_SESSION_RESTORED)
 
+    /**
+     * Sign-in was declined — from either screen, and back counts as declining.
+     *
+     * The biggest drop-off in the flow, and the session manager cannot see it: nothing was
+     * requested and nothing failed. Sync stays off for everyone who lands here, which makes
+     * this the number that says how much of the install base is never backed up.
+     */
+    suspend fun signInSkipped(step: String) {
+        log(EVENT_SKIPPED, mapOf(Key.STEP to step))
+        analytics.track(EVENT_SKIPPED, mapOf(Key.STEP to step))
+    }
+
+    /**
+     * Three wrong codes, so the owner was sent back to correct the number.
+     *
+     * A dead end reached by someone who *was* trying to sign in — worth telling apart from
+     * skipping, because the fix is different: a wrong number, or codes not arriving.
+     */
+    suspend fun otpAttemptsExhausted() {
+        log(EVENT_ATTEMPTS_EXHAUSTED)
+        analytics.track(EVENT_ATTEMPTS_EXHAUSTED, emptyMap())
+    }
+
     private suspend fun log(event: String, fields: Map<String, Any?> = emptyMap()) =
         logger.info(TAG, event, tc = currentTraceContext().toLog(), fields = fields)
 
@@ -65,6 +88,13 @@ internal class AuthTelemetry(
 
     internal object Key {
         const val REASON = "reason"
+        const val STEP = "step"
+    }
+
+    /** Which screen the owner walked away from. */
+    internal object Step {
+        const val PHONE = "phone"
+        const val OTP = "otp"
     }
 
     internal companion object {
@@ -77,5 +107,7 @@ internal class AuthTelemetry(
         const val EVENT_SIGNED_OUT = "auth_signed_out"
         const val EVENT_SESSION_ENDED = "auth_session_ended"
         const val EVENT_SESSION_RESTORED = "auth_session_restored"
+        const val EVENT_SKIPPED = "auth_skipped"
+        const val EVENT_ATTEMPTS_EXHAUSTED = "auth_attempts_exhausted"
     }
 }

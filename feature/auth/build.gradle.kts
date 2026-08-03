@@ -22,6 +22,8 @@ kotlin {
             implementation(projects.core.navigation)
             // Branded UI atoms (OdoScreen, OdoButton, OdoPhoneNumberField, OdoText…) + theme.
             implementation(projects.core.designsystem)
+            // koinViewModel() in the route hosts, and the viewModel { } DSL in authModule.
+            implementation(libs.koin.composeViewmodel)
             // SessionStatusProvider — the port auth implements so other features can ask
             // "is there a session?" without depending on :feature:auth. `api` so the
             // binding published by authModule stays resolvable from the app's graph.

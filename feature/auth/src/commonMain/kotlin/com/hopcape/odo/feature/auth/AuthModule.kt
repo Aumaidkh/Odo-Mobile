@@ -3,7 +3,11 @@ package com.hopcape.odo.feature.auth
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.feature.auth.presentation.OtpViewModel
+import com.hopcape.odo.feature.auth.presentation.PhoneViewModel
+import org.koin.core.module.dsl.viewModel
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.auth.navigation.AuthFeatureEntryProvider
 import org.koin.dsl.bind
@@ -26,6 +30,11 @@ val authModule = module {
     single<SessionStatusProvider> { get<OdoSessionManager>() }
     single<CurrentOwnerProvider> { get<OdoSessionManager>() }
     single<AccessTokenProvider> { get<OdoSessionManager>() }
+    viewModel { PhoneViewModel(sessions = get(), telemetry = get()) }
+    // The number is a route argument, so it is a parameter rather than something the
+    // ViewModel goes looking for.
+    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get()) }
+
     single {
         AuthFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
