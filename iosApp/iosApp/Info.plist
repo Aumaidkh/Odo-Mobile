@@ -4,5 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Shown in the system camera prompt. iOS asks once and never again, so this string is
+	     the only explanation some owners will read. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Odo uses the camera to read your service bills, your insurance and PUC papers, and payment QR codes. Photos are taken only when you tap Scan.</string>
 </dict>
 </plist>

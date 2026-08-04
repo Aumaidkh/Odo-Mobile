@@ -7,8 +7,16 @@ import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
+import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.data.cost.seedFuelPrices
+import com.hopcape.odo.core.data.scan.FreeTierScanAllowance
+import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
+import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
+import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
+import com.hopcape.odo.core.domain.scan.BillExtractor
+import com.hopcape.odo.core.domain.scan.DocumentExtractor
+import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
@@ -256,6 +264,25 @@ val coreDataModule = module {
     // truthfully rather than standing in for a reader that does not exist. The vault asks
     // before every add; a real entitlement adapter swaps in on this one line.
     single<DocumentAllowance> { FreeTierDocumentAllowance() }
+
+    // The same shape for AI scans: everyone is on the free tier's three a month. The count
+    // that enforces it is the server's — this one only tells the owner where they stand
+    // before they take the photo.
+    single<ScanAllowance> { FreeTierScanAllowance() }
+
+    // Extraction has no implementation yet, so both ports refuse and say why. A stub that
+    // invented a bill would put made-up amounts into someone's service history, which is the
+    // one thing this feature must never do. Swapping in the Edge Function callers is these
+    // two lines.
+    single<BillExtractor> { UnconfiguredBillExtractor() }
+    single<DocumentExtractor> { UnconfiguredDocumentExtractor() }
+
+    // Fuel fills. No `bind Syncable::class`: there is no server table to push to yet, and a
+    // Syncable posting to one that does not exist would only manufacture failures. The rows
+    // carry the sync columns and wait as PENDING.
+    single<FuelFillRepository> {
+        FuelFillRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
+    }
 
     // Everyone is Pro until Razorpay lands in M6. Answering false would hide Pro-gated
     // content behind a paywall that cannot take money yet. MUST be swapped before launch —

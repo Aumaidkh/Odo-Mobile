@@ -78,7 +78,7 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
 
             // TODO(billscanner): hand the saved car to BillScanner.Capture and come back —
             //  waiting on the car actually being persisted during setup.
-            OnboardingEffect.OpenBillScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+            OnboardingEffect.OpenBillScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
 
             // TODO(ui): show this in a snackbar. Every step screen scaffolds itself with its
             //  own OdoScreen, so the host state has to be threaded through OnboardingFlow

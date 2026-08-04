@@ -196,6 +196,11 @@ internal class CarRepositoryImpl(
                         syncStatus = pending,
                         carId = id.value,
                     )
+                    database.fuelFillQueries.softDeleteFuelFillsForCar(
+                        deletedAt = now,
+                        syncStatus = pending,
+                        carId = id.value,
+                    )
                     queries.softDeleteCar(deletedAt = now, syncStatus = pending, id = id.value)
                 }
                 requestSync(OP_DELETE, id.value)

@@ -32,6 +32,7 @@ internal class SqlDelightOwnershipAdoption(
                     database.carQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.serviceLogQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.documentQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    database.fuelFillQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.healthScoreQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.overchargeReportQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
 

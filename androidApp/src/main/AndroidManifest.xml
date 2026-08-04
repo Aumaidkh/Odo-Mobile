@@ -6,6 +6,29 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Read before a sync pass, so an offline device queues work instead of retrying. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- The scanner: bills, documents and payment QR codes all start as a camera frame.
+         Requested at runtime the first time the owner opens the scanner, never at launch. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Declared not-required so a device without a camera can still install Odo. Everything
+         except scanning works without one, and the scanner reports the camera as unavailable
+         rather than the app being missing from the store. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <!-- Android 11 hides installed apps from each other unless they are declared here. Without
+         this, asking whether anything can take a UPI payment always answers "nothing", and the
+         scan-to-pay flow would report no UPI app on a phone that has four. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" />
+        </intent>
+    </queries>
 
     <application
         android:name=".OdoApplication"

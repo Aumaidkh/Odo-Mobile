@@ -125,6 +125,9 @@ internal class DataTelemetry(
         const val PROFILE = "profile"
         const val DOCUMENT = "document"
         const val FUEL_PRICE = "fuelprice"
+
+        /** Fuel fills — the measured half of the running cost, kept apart from the price feed. */
+        const val FUEL_FILL = "fuelfill"
         const val HEALTH_SCORE = "healthscore"
         const val SYNC = "sync"
     }

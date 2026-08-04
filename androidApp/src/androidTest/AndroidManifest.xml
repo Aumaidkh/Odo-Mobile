@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Stands in for a UPI app, so the scan-to-pay flow has something to resolve against.
+
+             Before handing over a payment link, Odo asks the package manager whether anything
+             can pay it, and answers "no UPI app on this phone" when nothing can. An emulator
+             has none, so without this the flow could only ever be tested down its failure
+             path. Espresso answers the intent before this activity is ever started — it exists
+             to be found, not to run.
+
+             It also makes that check real: package visibility on Android 11+ hides other apps
+             unless the app manifest declares a matching <queries> element, so if that
+             declaration were dropped this activity would become invisible and the test would
+             fail — which is exactly what would happen to an owner. -->
+        <activity
+            android:name="android.app.Activity"
+            android:exported="true"
+            android:label="Test UPI app">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="upi" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

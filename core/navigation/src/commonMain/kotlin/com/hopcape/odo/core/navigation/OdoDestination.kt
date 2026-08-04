@@ -132,10 +132,38 @@ sealed interface OdoDestination : NavKey {
      * import billscanner — they navigate through this shared registry.
      */
     sealed interface BillScanner : OdoDestination {
-        /** Camera viewfinder — capture a photo or pick one from the gallery. */
-        data object Capture : BillScanner
-        /** Review + confirm the AI-extracted bill details before saving. */
-        data object Review : BillScanner
+        /**
+         * Camera viewfinder — capture a photo or pick one from the gallery.
+         *
+         * [target] is what the caller came to scan. One destination rather than three,
+         * because all three are the same camera, the same permission and the same capture;
+         * only the frame guide and what happens to the photo afterwards differ.
+         */
+        data class Capture(val target: ScanTarget = ScanTarget.Bill) : BillScanner
+
+        /**
+         * Review + confirm the AI-extracted bill details before saving.
+         *
+         * [photoKey] is where the captured bill was stored, as a
+         * `PlatformFileStore` key. Null when the flow was reached without a photo.
+         */
+        data class Review(val photoKey: String? = null) : BillScanner
+
+        /**
+         * Confirm a scanned paper's type and dates before it is filed in the vault.
+         *
+         * Its own key rather than a mode of [Review] because the two confirm different things
+         * and end somewhere different — one in the service log, one in the document vault.
+         */
+        data class DocumentReview(val photoKey: String) : BillScanner
+
+        /**
+         * Pay a scanned QR, then record the fill it bought.
+         *
+         * [payload] is the raw string read out of the code. Parsing it is the feature's job,
+         * so `:core:navigation` stays free of any knowledge about UPI.
+         */
+        data class PayAtPump(val payload: String) : BillScanner
         /** Terminal success after the reviewed bill is saved to the log. */
         data object SaveSuccess : BillScanner
         /** Terminal success after an overcharge is anonymously reported. */
@@ -340,6 +368,24 @@ sealed interface OdoDestination : NavKey {
          */
         val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker.Home, Garage.Home)
     }
+}
+
+/**
+ * What the scanner is being pointed at, stated by whoever opened it.
+ *
+ * The owner can still switch once the camera is open — this is the starting point, not a
+ * lock. Opening the scanner from the document vault should not begin on a bill frame.
+ */
+enum class ScanTarget {
+
+    /** A workshop service bill: extract the date, odometer, line items and total. */
+    Bill,
+
+    /** A paper with an expiry date on it: insurance, PUC, RC or a licence. */
+    Document,
+
+    /** A payment QR at a fuel pump or a workshop counter. */
+    PaymentQr,
 }
 
 /**

@@ -1,45 +1,72 @@
 package com.hopcape.odo.feature.billscanner.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.core.navigation.FairnessLineInput
+import com.hopcape.odo.core.platform.camera.CameraEvent
+import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
+import com.hopcape.odo.core.platform.payment.UpiLaunchResult
+import com.hopcape.odo.core.platform.payment.rememberUpiPaymentLauncher
+import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
+import com.hopcape.odo.core.platform.permission.rememberCameraPermissionController
+import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewEffect
+import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewEvent
+import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewScreen
+import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewViewModel
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
-import com.hopcape.odo.core.domain.servicelog.analysis.ServiceCategoryGuesser
-import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpEffect
+import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpEvent
+import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpScreen
+import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpViewModel
+import com.hopcape.odo.feature.billscanner.presentation.permission.CameraRationaleScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
+import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewEffect
+import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewEvent
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewScreen
-import com.hopcape.odo.feature.billscanner.presentation.review.sampleBillReviewState
+import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewViewModel
+import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEffect
+import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEvent
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanScreen
-import com.hopcape.odo.feature.billscanner.presentation.scan.sampleBillScanState
+import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
- * BillScanner's contribution to the navigation graph: the [OdoDestination.BillScanner]
- * flow — [OdoDestination.BillScanner.Capture] (camera viewfinder) routing into
- * [OdoDestination.BillScanner.Review] (confirm the extracted fields). The service-log
- * form + list deep-link to Capture through the shared [OdoDestination] registry — no
- * feature imports another feature.
+ * BillScanner's contribution to the navigation graph: the [OdoDestination.BillScanner] flow.
  *
- * Collected by the `:app` host via `getAll<FeatureEntryProvider>()`, so wiring the
- * feature in is just listing [com.hopcape.odo.feature.billscanner.billScannerModule].
+ * [OdoDestination.BillScanner.Capture] is the one camera surface for all three targets; where
+ * a capture goes next is the only thing the target changes — a bill to
+ * [OdoDestination.BillScanner.Review], a paper to [OdoDestination.BillScanner.DocumentReview],
+ * a payment code to [OdoDestination.BillScanner.PayAtPump]. Every other feature reaches this
+ * flow through the shared [OdoDestination] registry, so none of them imports this module.
  */
 internal class BillScannerFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.BillScanner.Capture> { BillScanRoute(navigationManager) }
-        entry<OdoDestination.BillScanner.Review> { BillReviewRoute(navigationManager) }
+        entry<OdoDestination.BillScanner.Capture> { key ->
+            BillScanRoute(navigationManager, key.target)
+        }
+        entry<OdoDestination.BillScanner.Review> { key ->
+            BillReviewRoute(navigationManager, photoKey = key.photoKey)
+        }
+        entry<OdoDestination.BillScanner.DocumentReview> { key ->
+            DocumentReviewRoute(navigationManager, photoKey = key.photoKey)
+        }
+        entry<OdoDestination.BillScanner.PayAtPump> { key ->
+            PayAtPumpRoute(navigationManager, payload = key.payload)
+        }
         entry<OdoDestination.BillScanner.SaveSuccess> { SaveSuccessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.ReportSuccess> { ReportSuccessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.ScanError> { ScanErrorRoute(navigationManager) }
@@ -47,80 +74,182 @@ internal class BillScannerFeatureEntryProvider(
 }
 
 /**
- * The capture route host — bridges the (future) scan ViewModel to navigation. For now
- * a successful capture or gallery pick jumps straight to [OdoDestination.BillScanner.Review]
- * with sample extracted data; "Manual" pops back to the manual-entry form.
+ * The capture route host — the camera permission gate, the camera, and where a photo goes.
+ *
+ * The rationale is shown **before** the system prompt, not after a refusal: Android gives one
+ * second chance and iOS gives none, so the single prompt an owner sees should follow an
+ * explanation. Choosing "Not now" drops through to the scan screen, which keeps a nudge on
+ * offer instead of leaving them on a dead screen.
  */
 @Composable
-internal fun BillScanRoute(navigationManager: NavigationManager) {
+internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTarget) {
+    val viewModel: BillScanViewModel = koinViewModel { parametersOf(target) }
+    val state by viewModel.state.collectAsState()
+    val permission = rememberCameraPermissionController()
+    val cameraState = rememberOdoCameraState()
+
+    // The controller is Compose state of its own; this is what folds it into the ViewModel's.
+    LaunchedEffect(permission.status) {
+        viewModel.onEvent(BillScanEvent.PermissionChanged(permission.status))
+    }
+
+    val grant = {
+        if (permission.status == CameraPermissionStatus.Blocked) {
+            permission.openAppSettings()
+        } else {
+            permission.request()
+        }
+    }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is BillScanEffect.OpenBillReview ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.Review(effect.photoKey))
+            is BillScanEffect.OpenDocumentReview ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.DocumentReview(effect.photoKey))
+            is BillScanEffect.OpenPayment ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.PayAtPump(effect.payload))
+            // "Manual" pops back to whatever opened the scanner, which is the form itself in
+            // every path that offers it.
+            BillScanEffect.OpenManualEntry -> navigationManager.back()
+            BillScanEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    if (state.showRationale) {
+        CameraRationaleScreen(
+            blocked = state.cameraBlocked,
+            onAllow = grant,
+            onNotNow = { viewModel.onEvent(BillScanEvent.PermissionDeclined) },
+            onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
+        )
+        return
+    }
+
     BillScanScreen(
-        state = sampleBillScanState(),
-        onClose = { navigationManager.back() },
-        onCapture = { navigationManager.navigateTo(OdoDestination.BillScanner.Review) },
-        onPickGallery = { navigationManager.navigateTo(OdoDestination.BillScanner.Review) },
-        onManual = { navigationManager.back() },
+        state = state,
+        cameraState = cameraState,
+        onCameraEvent = { event ->
+            when (event) {
+                is CameraEvent.PhotoCaptured -> viewModel.onEvent(BillScanEvent.PhotoCaptured(event.storageKey))
+                is CameraEvent.QrDetected -> viewModel.onEvent(BillScanEvent.QrDetected(event.payload))
+                is CameraEvent.Failed -> viewModel.onEvent(BillScanEvent.CameraFailed(event.failure))
+                CameraEvent.Ready -> viewModel.onEvent(BillScanEvent.CameraReady)
+            }
+        },
+        onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
+        onCapture = cameraState::capture,
+        // Still the pre-camera stub: picking from the gallery needs the file to be copied into
+        // app storage first, which is the add-from-gallery slice rather than this one.
+        onPickGallery = { navigationManager.navigateTo(OdoDestination.BillScanner.Review()) },
+        onManual = { viewModel.onEvent(BillScanEvent.ManualTapped) },
+        onGrantCamera = grant,
+        onTargetSelected = { viewModel.onEvent(BillScanEvent.TargetSelected(it)) },
     )
 }
 
 /**
- * The review route host — renders the AI-extracted fields for confirmation. Holds the
- * editable workshop name locally until the scan ViewModel lands; saving (which will
- * persist the entry + run the fairness check) and retaking are M2 stubs.
+ * The review route host — reads the captured bill, then saves what the owner confirmed and
+ * hands the lines to the fairness check.
  */
 @Composable
-internal fun BillReviewRoute(navigationManager: NavigationManager) {
-    val extracted = remember { sampleBillReviewState() }
-    var workshop by remember { mutableStateOf(extracted.workshop) }
-    var date by remember { mutableStateOf(extracted.serviceDate) }
-    var odometer by remember { mutableStateOf(extracted.odometer) }
-    BillReviewScreen(
-        state = extracted.copy(
-            workshop = workshop,
-            serviceDate = date,
-            odometer = odometer,
-            odometerUnit = LocalOdoDistanceFormat.current.unit,
-        ),
-        onWorkshopChange = { workshop = it },
-        onDateChange = { date = it },
-        onOdometerChange = { odometer = it },
-        // "Save & check fairness" hands the reviewed line items to the reusable
-        // fairness-check utility via the shared registry — billscanner doesn't own the
-        // benchmarking flow, it just builds the input. (Persisting the entry is M2.)
-        //
-        // Each line is read for the job it names: the pool is keyed by category, so a line
-        // with none cannot be benchmarked. A line the guesser does not recognise travels
-        // uncategorised and the report carries it through unjudged.
-        onSave = {
-            navigationManager.navigateTo(
+internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: String?) {
+    val viewModel: BillReviewViewModel = koinViewModel { parametersOf(photoKey) }
+    val state by viewModel.state.collectAsState()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is BillReviewEffect.OpenFairness -> navigationManager.navigateTo(
                 OdoDestination.Fairness(
-                    items = extracted.lineItems.map {
-                        FairnessLineInput(
-                            label = it.label,
-                            category = ServiceCategoryGuesser.of(it.label)?.name,
-                            amountPaise = it.amount.paise,
-                        )
-                    },
+                    items = effect.items,
+                    logId = effect.logId,
+                    carId = effect.carId,
                 ),
             )
-        },
-        onRetake = { navigationManager.back() },
-        onBack = { navigationManager.back() },
+            BillReviewEffect.Retake -> navigationManager.back()
+            BillReviewEffect.OpenManualEntry -> navigationManager.back()
+            BillReviewEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    BillReviewScreen(
+        state = state,
+        onWorkshopChange = { viewModel.onEvent(BillReviewEvent.WorkshopChanged(it)) },
+        onDateChange = { viewModel.onEvent(BillReviewEvent.DateChanged(it)) },
+        onOdometerChange = { viewModel.onEvent(BillReviewEvent.OdometerChanged(it)) },
+        onSave = { viewModel.onEvent(BillReviewEvent.SaveTapped) },
+        onRetake = { viewModel.onEvent(BillReviewEvent.RetakeTapped) },
+        onBack = { viewModel.onEvent(BillReviewEvent.BackTapped) },
     )
 }
 
+/** The scanned-document confirm host — files the paper in the vault, then opens it there. */
+@Composable
+internal fun DocumentReviewRoute(navigationManager: NavigationManager, photoKey: String) {
+    val viewModel: DocumentReviewViewModel = koinViewModel { parametersOf(photoKey) }
+    val state by viewModel.state.collectAsState()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is DocumentReviewEffect.OpenDocument -> navigationManager.navigateTo(
+                OdoDestination.Documents.AddSuccess(effect.documentId),
+            )
+            DocumentReviewEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    DocumentReviewScreen(state = state, onEvent = viewModel::onEvent)
+}
+
 /**
- * Terminal save-success host. "View in Service Log" / "Done" both exit the whole scan
- * flow and land back on the service log with a clean back stack.
+ * The scan-to-pay host.
  *
- * TODO(M2): thread the real car + saved-entry ids so we return to that car's log (the
- * demo uses the placeholder car the rest of the flow runs on).
+ * The UPI hand-off is a platform launcher rather than something the ViewModel can call, so the
+ * route owns it and reports the outcome back as an event. Every way the hand-off can fail —
+ * no app, no support on this platform, dismissed — is reported, because a payment screen that
+ * does nothing when tapped is the worst possible thing to hand someone at a pump.
+ */
+@Composable
+internal fun PayAtPumpRoute(navigationManager: NavigationManager, payload: String) {
+    val viewModel: PayAtPumpViewModel = koinViewModel { parametersOf(payload) }
+    val state by viewModel.state.collectAsState()
+
+    val launchUpi = rememberUpiPaymentLauncher { result ->
+        when (result) {
+            is UpiLaunchResult.Completed -> viewModel.onEvent(PayAtPumpEvent.PaymentReturned(result.response))
+            UpiLaunchResult.Dismissed -> viewModel.onEvent(PayAtPumpEvent.PaymentReturned(null))
+            UpiLaunchResult.NoUpiApp ->
+                viewModel.onEvent(PayAtPumpEvent.PaymentUnavailable(onThisPlatform = false))
+            UpiLaunchResult.Unsupported ->
+                viewModel.onEvent(PayAtPumpEvent.PaymentUnavailable(onThisPlatform = true))
+        }
+    }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is PayAtPumpEffect.LaunchUpi -> launchUpi(effect.link)
+            // The fill is written, so the errand is over; going back to the viewfinder would
+            // invite a second payment for the same tank.
+            PayAtPumpEffect.FillSaved -> navigationManager.back()
+            PayAtPumpEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    PayAtPumpScreen(state = state, onEvent = viewModel::onEvent)
+}
+
+/**
+ * Terminal save-success host. "View in Service Log" / "Done" both exit the whole scan flow and
+ * land back on the service log with a clean back stack.
  */
 @Composable
 internal fun SaveSuccessRoute(navigationManager: NavigationManager) {
-    val sample = remember { sampleBillReviewState() }
+    // Nothing routes here today: a saved scan goes straight to the fairness report, which is
+    // the more useful confirmation. The key stays registered because the screen is what the
+    // "save without a fairness check" path will land on.
     SaveSuccessScreen(
-        workshop = sample.workshop,
-        dateLabel = formatDate(sample.serviceDate),
+        workshop = "",
+        dateLabel = "",
         onViewLog = { navigationManager.backToServiceLog() },
         onDone = { navigationManager.backToServiceLog() },
     )
@@ -149,9 +278,9 @@ internal fun ScanErrorRoute(navigationManager: NavigationManager) {
     )
 }
 
-/** The placeholder car + saved-entry the demo scan flow runs on until real ids thread through. */
+/** The placeholder car the terminal screens still run on until real ids thread through. */
 private const val DEMO_CAR_ID = "aaa"
-private const val DEMO_LOG_ID = "aaa"
+
 /** Sample city on the report-success screen until the owner's city threads through. */
 private const val REVIEW_CITY = "Pune"
 

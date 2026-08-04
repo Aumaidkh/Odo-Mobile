@@ -210,6 +210,7 @@ CREATE TYPE subscription_status AS ENUM ('active', 'past_due', 'cancelled', 'exp
 CREATE TYPE payment_status   AS ENUM ('created', 'authorized', 'captured', 'failed', 'refunded');
 CREATE TYPE payment_kind     AS ENUM ('subscription', 'passport_unlock');
 CREATE TYPE passport_status  AS ENUM ('generating', 'ready', 'expired', 'revoked');
+CREATE TYPE fuel_payment_method AS ENUM ('upi', 'cash', 'card', 'unknown');
 CREATE TYPE affiliate_event_type AS ENUM ('impression', 'click', 'lead', 'conversion');
 CREATE TYPE message_role     AS ENUM ('user', 'assistant', 'system');
 ```
@@ -588,6 +589,53 @@ CREATE TABLE fuel_prices (
 CREATE INDEX idx_fuel_prices_lookup
     ON fuel_prices (city_id, fuel_type, effective_date DESC);
 ```
+
+### 9.13a `fuel_fills`
+
+One tank of fuel as it was actually bought — the *measured* counterpart to `fuel_prices`,
+which only says what a litre cost somewhere on a day.
+
+Recorded when the owner pays a pump's QR through Odo's scanner. Two fills give a real
+kilometres-per-litre figure, which supersedes the assumed mileage the running cost was
+previously built on.
+
+`odometer_km` is `NOT NULL` for the same reason it is on `service_logs`: it is the number the
+whole product turns on, and a fill without one cannot measure anything. `quantity_milli` is
+thousandths of a unit (32.45 litres → `32450`), integer for the same reason money is integer
+paise. `price_per_unit` is deliberately **not** a column — it is derived from the amount and
+the quantity, so the three can never disagree.
+
+`upi_transaction_ref` is what makes a fill checkable rather than merely claimed; only a fill
+paid through Odo has one.
+
+> **Client-side today.** The local SQLDelight table ships with the full sync column set, but
+> the repository is not yet `Syncable` — there is nothing to push to until this table exists
+> on the server. The rows sit `PENDING` and are pushed unchanged once it does.
+
+```sql
+CREATE TABLE fuel_fills (
+    id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    car_id              uuid NOT NULL REFERENCES cars (id) ON DELETE CASCADE,
+    owner_id            uuid NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
+    filled_on           date NOT NULL,
+    odometer_km         integer NOT NULL CHECK (odometer_km >= 0),
+    quantity_milli      bigint NOT NULL CHECK (quantity_milli > 0),
+    fuel_unit           text NOT NULL,
+    amount_paise        bigint NOT NULL CHECK (amount_paise >= 0),
+    station_name        text,
+    paid_via            fuel_payment_method NOT NULL DEFAULT 'unknown',
+    upi_transaction_ref text,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    deleted_at          timestamptz
+);
+
+CREATE INDEX idx_fuel_fills_car
+    ON fuel_fills (car_id, filled_on DESC) WHERE deleted_at IS NULL;
+```
+
+`owner_id` is stamped by the same `BEFORE INSERT` trigger every other user-owned table uses,
+and RLS checks the flat `owner_id = (SELECT auth.uid())`.
 
 ### 9.14 `subscriptions`
 

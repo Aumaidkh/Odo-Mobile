@@ -119,7 +119,7 @@
     <string name="onb_scan_subtitle">Most bills have something worth checking — and it takes 10 seconds.</string>
     <string name="onb_scan_permission">Camera access is asked here, only for scanning bills.</string>
     <string name="onb_scan_cta">Check my last bill</string>
-    <string name="onb_save_error">Couldn\'t save that on your phone. Please try again.</string>
+    <string name="onb_save_error">Couldn’t save that on your phone. Please try again.</string>
 
     <string name="onb_scan_later">I’ll do this later</string>
 </resources>

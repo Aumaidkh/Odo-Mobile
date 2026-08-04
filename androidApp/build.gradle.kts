@@ -64,6 +64,11 @@ dependencies {
     androidTestImplementation(projects.feature.profile)
     // Auth's two field tags. Neither field has any text to aim at.
     androidTestImplementation(projects.feature.auth)
+    // The scanner's field tags, and the scan/payment ports the suite puts a fake in front
+    // of — the extractor has no implementation yet, so without one there is no readable
+    // bill to drive at all.
+    androidTestImplementation(projects.feature.billscanner)
+    androidTestImplementation(projects.core.navigation)
     // SmsCodeReader and SecureStore — the auth suite puts a fake in front of both, so a
     // sign-in never waits on a real SMS or leaves a session behind for the next test.
     androidTestImplementation(projects.core.platform)
@@ -76,6 +81,8 @@ dependencies {
     androidTestImplementation(libs.compose.uiTestJunit4)
     androidTestImplementation(libs.androidx.testExt.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    // GrantPermissionRule — the scanner's flows split on whether the camera is allowed.
+    androidTestImplementation(libs.androidx.test.rules)
     // Compose's ui-test-junit4 drags in Espresso 3.5.0, which calls
     // InputManager.getInstance() — removed in current Android, so every test dies in
     // Espresso.onIdle before it reaches an assertion. Declared explicitly to win.

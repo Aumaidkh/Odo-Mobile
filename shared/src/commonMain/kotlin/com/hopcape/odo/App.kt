@@ -143,7 +143,7 @@ private fun OdoApp(startDestination: OdoDestination) {
         // navigateTo default) skips the re-push when that tab is already on top, so
         // reselecting the current tab is a no-op rather than a stack of duplicates.
         onSelectTab = { tab -> navigationManager.navigateTo(tab, popUpTo = OdoDestination.Home) },
-        onScan = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture) },
+        onScan = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture()) },
     ) { padding ->
         // Apply the shell's bar/inset padding once, then consume it: each screen's own
         // OdoScreen scaffold would otherwise add the status and nav insets a second
