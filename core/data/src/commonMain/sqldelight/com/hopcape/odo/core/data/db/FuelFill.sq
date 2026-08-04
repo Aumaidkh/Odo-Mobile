@@ -1,0 +1,80 @@
+-- Local fuel fills — every tank the owner bought through Odo's QR payment flow, plus any
+-- they recorded by hand. The first table in the app that *measures* fuel rather than
+-- estimating it from an assumed mileage.
+--
+-- The sync columns (SYNC_DESIGN §4.1) are present from this first version, as they must be
+-- on every table that mirrors a server one: retrofitting them is a migration nobody needs to
+-- write. Nothing pushes them yet — `fuel_fills` does not exist on the server, and a
+-- `Syncable` that posted to a table that is not there would only manufacture failures. The
+-- rows sit `PENDING`, which is exactly what they should be until the server table lands.
+--
+-- `odometer_km` is NOT NULL on purpose: it is what turns two fills into a measured mileage,
+-- and a fill without one is a receipt rather than a reading.
+--
+-- `quantity_milli` is thousandths of a unit (32.45 litres → 32450). Integer, for the same
+-- reason money is integer paise: a mileage divided out of a float quantity drifts.
+CREATE TABLE fuel_fills (
+    id              TEXT NOT NULL PRIMARY KEY,
+    car_id          TEXT NOT NULL,
+    owner_id        TEXT NOT NULL,
+    filled_on       TEXT NOT NULL,
+    odometer_km     INTEGER NOT NULL,
+    quantity_milli  INTEGER NOT NULL,
+    fuel_unit       TEXT NOT NULL,
+    amount_paise    INTEGER NOT NULL,
+    station_name    TEXT,
+    paid_via        TEXT NOT NULL DEFAULT 'UNKNOWN',
+    transaction_ref TEXT,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    deleted_at      TEXT,
+    remote_version  TEXT,
+    sync_status     TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- Nothing reads fills back yet, but the index ships with the table rather than as a later
+-- migration: it is the shape every read will want, and adding it costs nothing on an empty one.
+CREATE INDEX idx_fuel_fills_car ON fuel_fills (car_id, filled_on) WHERE deleted_at IS NULL;
+
+insertFuelFill:
+INSERT INTO fuel_fills (
+    id, car_id, owner_id, filled_on, odometer_km, quantity_milli, fuel_unit,
+    amount_paise, station_name, paid_via, transaction_ref,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, :filledOn, :odometerKm, :quantityMilli, :fuelUnit,
+    :amountPaise, :stationName, :paidVia, :transactionRef,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- Tombstoning one fill at a time has no caller yet: nothing shows fills, so nothing can
+-- delete one. Removing the car still has to take its fills with it, which is this statement.
+-- There is deliberately no update — a fill records a payment that already happened.
+softDeleteFuelFillsForCar:
+UPDATE fuel_fills
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Housekeeping shared with every other table: sign-in adoption, sign-out wipe and
+-- following a car that took on the server's id. These are needed whether or not the
+-- rows sync yet, because all three are local operations.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+adoptOwnership:
+UPDATE fuel_fills
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Hard delete, like every other sign-out wipe: a soft delete would leave tombstones that a
+-- later sign-in pushes, destroying the owner's data on the server.
+deleteAllRows:
+DELETE FROM fuel_fills;
+
+repointCar:
+UPDATE fuel_fills
+SET car_id = :serverId
+WHERE car_id = :localId;
+

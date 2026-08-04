@@ -103,6 +103,7 @@ internal class CarSyncTable(
         database.transaction {
             database.serviceLogQueries.repointCar(serverId = server.id, localId = localId)
             database.documentQueries.repointCar(serverId = server.id, localId = localId)
+            database.fuelFillQueries.repointCar(serverId = server.id, localId = localId)
             database.healthScoreQueries.repointCar(serverId = server.id, localId = localId)
 
             if (queries.countById(server.id).executeAsOne() > 0) {

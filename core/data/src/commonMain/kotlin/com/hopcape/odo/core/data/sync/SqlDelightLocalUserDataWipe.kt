@@ -42,6 +42,7 @@ internal class SqlDelightLocalUserDataWipe(
                     database.overchargeReportQueries.deleteAllRows()
                     database.serviceLogQueries.deleteAllRows()
                     database.documentQueries.deleteAllRows()
+                    database.fuelFillQueries.deleteAllRows()
                     database.healthScoreQueries.deleteAllRows()
                     database.carQueries.deleteAllRows()
                     database.profileQueries.deleteAllRows()

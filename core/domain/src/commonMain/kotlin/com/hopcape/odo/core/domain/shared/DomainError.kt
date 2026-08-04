@@ -140,6 +140,91 @@ sealed interface DomainError {
      */
     data class FuelPriceOutOfRange(val minPaise: Long, val maxPaise: Long) : DomainError
 
+    /* ---- Scanning ---- */
+
+    /**
+     * The photo yielded nothing usable — too blurry, too dark, or not a bill at all. An
+     * ordinary outcome of pointing a camera at a crumpled receipt, so the screen offers a
+     * retake or manual entry rather than treating it as a fault.
+     */
+    data object ScanUnreadable : DomainError
+
+    /**
+     * The owner's plan has no AI scans left this period ([limit] included). Not a validation
+     * failure — the photo was fine — so the surface that catches this offers Pro.
+     *
+     * The client's copy of the count is a mirror; the Edge Function enforces the real one.
+     */
+    data class ScanQuotaExhausted(val limit: Int) : DomainError
+
+    /** The scan came back, but with nothing in it worth showing the owner. */
+    data object ScanRejected : DomainError
+
+    /**
+     * There is no extractor to ask — the AI service could not be reached, or this build has
+     * none configured.
+     *
+     * Kept apart from [ScanUnreadable] because the two lead somewhere different: an
+     * unreadable photo invites a retake, while an unavailable service means retaking is
+     * pointless and the honest offer is manual entry.
+     */
+    data object ScanUnavailable : DomainError
+
+    /* ---- UPI payments ---- */
+
+    /**
+     * The QR was read but is not a UPI payment link. Includes the EMVCo/Bharat QR grammar,
+     * which is deliberately not guessed at — misreading one would send money elsewhere.
+     */
+    data object UnsupportedQr : DomainError
+
+    /** The payment address in the code is not a well-formed `name@handle`. */
+    data object InvalidUpiAddress : DomainError
+
+    /** The amount in the code was not a plain rupee figure. */
+    data object InvalidUpiAmount : DomainError
+
+    /** No app on this device can take a UPI payment, so there is nothing to hand the request to. */
+    data object NoUpiAppAvailable : DomainError
+
+    /**
+     * This platform has no UPI hand-off at all — iOS, where the payment apps register
+     * private URL schemes and none accepts the standard link.
+     *
+     * Distinct from [NoUpiAppAvailable], which is a device that happens to have none
+     * installed: that one is fixed by installing an app, and this one is not.
+     */
+    data object UpiUnsupportedOnDevice : DomainError
+
+    /** The owner backed out of the UPI app without paying. */
+    data object PaymentCancelled : DomainError
+
+    /**
+     * The bank declined, or the UPI app reported a failure. Distinct from
+     * [PaymentCancelled] because one is the owner's choice and the other is not.
+     */
+    data object PaymentFailed : DomainError
+
+    /**
+     * The payment was submitted but not settled. Deliberately its own case: nothing may be
+     * recorded against it, and it is not a failure either — the money may still move.
+     */
+    data object PaymentPending : DomainError
+
+    /* ---- Fuel fills ---- */
+
+    /** A fill was submitted without the day it happened. */
+    data object MissingFillDate : DomainError
+
+    /** A fill claimed a date in the future. */
+    data object FillDateInFuture : DomainError
+
+    /**
+     * A fill was submitted with no fuel in it. Zero is rejected rather than stored as
+     * "unknown": it makes the measured mileage meaningless with no way to tell afterwards.
+     */
+    data object MissingFuelQuantity : DomainError
+
     /* ---- Auth ---- */
 
     /** A phone number was required to sign in but nothing was typed. */
