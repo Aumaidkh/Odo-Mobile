@@ -42,7 +42,7 @@
     <string name="hs_paywall_cta">Unlock with Pro · Rs. 149/mo</string>
 
     <!-- Failed read -->
-    <string name="hs_error_load_failed">We couldn\'t read your score. Pull down or try again in a moment.</string>
+    <string name="hs_error_load_failed">We couldn’t read your score. Pull down or try again in a moment.</string>
 
     <!-- "How your score works" info sheet -->
     <string name="hs_info_title">How your score works</string>
