@@ -28,11 +28,16 @@ kotlin {
             // Feature-specific use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
+            // The camera + camera-permission seams, and reading a captured photo back.
+            implementation(projects.core.platform)
             // Observability: structured logging + product analytics, instrumented at
             // the presentation layer (domain stays pure). Interfaces injected; the
             // single config is owned by the app bootstrap.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
+            // Spans around the extraction, the saves and the payment — every one of them is
+            // asynchronous, and the scan is the slowest thing the app does.
+            implementation(projects.observability.performance)
             // LocalDate/Clock in the add/update commands + use cases + form VM.
             implementation(libs.kotlinx.datetime)
             // koinViewModel() for the navigation route hosts (effect -> nav bridge).

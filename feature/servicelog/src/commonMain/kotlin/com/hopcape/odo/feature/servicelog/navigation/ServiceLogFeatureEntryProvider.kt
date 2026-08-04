@@ -86,7 +86,7 @@ internal fun ServiceLogListRoute(
                 navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(carId = key.carId))
 
             ServiceLogListEffect.OpenBillScanner ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+                navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
 
             ServiceLogListEffect.OpenShareRecord ->
                 navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
@@ -195,7 +195,7 @@ internal fun ServiceLogFormRoute(
             is ServiceLogFormEffect.Saved -> navigationManager.back()
 
             ServiceLogFormEffect.OpenBillScanner ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+                navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
 
             // Attaching happens on the entry's detail screen, where there is an entry to
             // attach to. The form's slot is a prompt, not a second way in: a photo picked

@@ -91,7 +91,7 @@ private fun AddToHistoryRoute(replace: (OdoDestination, OdoDestination) -> Unit)
     val carId by activeCar.activeCarId.collectAsStateWithLifecycle()
 
     AddToHistorySheetContent(
-        onScan = { replace(here, OdoDestination.BillScanner.Capture) },
+        onScan = { replace(here, OdoDestination.BillScanner.Capture()) },
         onManual = { carId?.let { replace(here, OdoDestination.ServiceLog.AddEdit(carId = it.value)) } },
         onAddDocument = { replace(here, OdoDestination.Documents.Add()) },
         onViewAll = { carId?.let { replace(here, OdoDestination.ServiceLog.List(carId = it.value)) } },

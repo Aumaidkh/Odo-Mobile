@@ -55,7 +55,7 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
 
             HomeEffect.OpenReminders -> navigationManager.navigateTo(OdoDestination.Reminders.List)
             HomeEffect.OpenProfile -> navigationManager.navigateTo(OdoDestination.Profile.Root)
-            HomeEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+            HomeEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
             HomeEffect.OpenAddDocument -> navigationManager.navigateTo(OdoDestination.Documents.Add())
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
         }

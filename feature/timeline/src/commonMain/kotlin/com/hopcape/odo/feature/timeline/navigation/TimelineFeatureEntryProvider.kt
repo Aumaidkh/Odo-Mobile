@@ -54,7 +54,7 @@ internal fun TimelineRoute(navigationManager: NavigationManager) {
                     OdoDestination.ServiceLog.Detail(logId = effect.logId, carId = effect.carId),
                 )
 
-            TimelineEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture)
+            TimelineEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
         }
     }
 
