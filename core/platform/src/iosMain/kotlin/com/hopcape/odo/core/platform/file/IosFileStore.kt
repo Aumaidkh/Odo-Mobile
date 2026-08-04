@@ -1,19 +1,23 @@
 package com.hopcape.odo.core.platform.file
 
 import arrow.core.Either
-import arrow.core.left
 import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import platform.Foundation.NSData
+import platform.Foundation.NSFileManager
+import platform.Foundation.NSURL
+import platform.Foundation.dataWithContentsOfURL
+import platform.Foundation.writeToFile
 
 /**
- * iOS file storage — not built. The MVP is Android-only; the real store lands with the iOS
- * picker in Phase 2.
+ * iOS file storage: copies the picked file under the app's own Documents directory and hands
+ * back the relative [StorageKey], the same contract [AndroidFileStore] fulfils.
  *
- * It **refuses** rather than pretending to succeed. A store that answered with a key for
- * bytes it never wrote would hand a feature a row pointing at nothing, and the failure would
- * surface later, as a paper that will not open, instead of here, where it is obvious what is
- * missing. The iOS picker already returns nothing, so no real call can reach this today — it
- * exists so resolving the port on iOS fails honestly instead of crashing on a missing
- * definition.
+ * Reading a picked URL is what the file store exists for, and it is also what a captured
+ * photo needs to be readable afterwards — the camera writes into the same root, so a scan and
+ * an uploaded paper are the same kind of file from here on.
  */
 internal class IosFileStore : PlatformFileStore {
 
@@ -21,17 +25,44 @@ internal class IosFileStore : PlatformFileStore {
         pickedRef: String,
         directory: String,
         fileName: String,
-    ): Either<DomainError, String> = DomainError.PersistenceFailure(NOT_IMPLEMENTED).left()
+    ): Either<DomainError, String> = withContext(Dispatchers.Default) {
+        Either.catch {
+            val url = NSURL.URLWithString(pickedRef) ?: error("picked file is not a URL")
+            // Files handed over by the system picker live outside the app's sandbox, and the
+            // permission to read them is only granted while this call is scoped to it.
+            val scoped = url.startAccessingSecurityScopedResource()
+            val data = try {
+                NSData.dataWithContentsOfURL(url) ?: error("picked file could not be read")
+            } finally {
+                if (scoped) url.stopAccessingSecurityScopedResource()
+            }
 
-    /** Nothing was ever stored, so there is nothing to remove — a no-op that is true. */
-    override suspend fun delete(storageKey: String) = Unit
+            val key = StorageKey.of(directory, fileName, url.pathExtension)
+            if (!ensureParentDirectory(key)) error("storage directory could not be created")
+            if (!data.writeToFile(absolutePathFor(key), atomically = true)) {
+                error("file could not be written")
+            }
+            key
+        }.mapLeft { DomainError.PersistenceFailure(it.message) }
+    }
 
-    override suspend fun exists(storageKey: String): Boolean = false
+    @OptIn(ExperimentalForeignApi::class)
+    override suspend fun delete(storageKey: String) {
+        withContext(Dispatchers.Default) {
+            NSFileManager.defaultManager.removeItemAtPath(absolutePathFor(storageKey), null)
+        }
+    }
+
+    override suspend fun exists(storageKey: String): Boolean = withContext(Dispatchers.Default) {
+        NSFileManager.defaultManager.fileExistsAtPath(absolutePathFor(storageKey))
+    }
 
     override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
-        DomainError.PersistenceFailure(NOT_IMPLEMENTED).left()
-
-    private companion object {
-        const val NOT_IMPLEMENTED = "file storage is not implemented on iOS"
-    }
+        withContext(Dispatchers.Default) {
+            Either.catch {
+                val data = NSFileManager.defaultManager.contentsAtPath(absolutePathFor(storageKey))
+                    ?: error("stored file is missing")
+                data.toByteArray()
+            }.mapLeft { DomainError.PersistenceFailure(it.message) }
+        }
 }

@@ -31,11 +31,20 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
-            // rememberLauncherForActivityResult for the system document picker.
+            // rememberLauncherForActivityResult for the system document picker, the camera
+            // permission dialog, and the trip to the app's settings page.
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.work.runtime)
             // SMS Retriever, so an OTP can be read without the READ_SMS permission.
             implementation(libs.playServices.auth)
+            // The camera preview: PreviewView + LifecycleCameraController, on camera2.
+            implementation(libs.androidx.camera.view)
+            implementation(libs.androidx.camera.lifecycle)
+            implementation(libs.androidx.camera.camera2)
+            // On-device QR reading off the live preview frames.
+            implementation(libs.mlkit.barcodeScanning)
+            // LocalLifecycleOwner — what the camera binds its use cases to.
+            implementation(libs.androidx.lifecycle.runtimeCompose)
         }
     }
 }
