@@ -229,10 +229,11 @@ FROM service_log_categories
 WHERE service_log_id = :serviceLogId
 ORDER BY category;
 
--- The stored bill-photo key, read before a pulled row overwrites the entry. The photo is a
--- device path the server may not know about, and a pull must not blank it.
-selectBillPhotoPath:
-SELECT bill_photo_path
+-- The columns this device owns, read before a pulled row overwrites the entry. The photo is
+-- a device path the server may not know about, and the bill id names an extraction the
+-- server has no `bills` row for yet — a pull must not blank either.
+selectLocalOnly:
+SELECT bill_photo_path, bill_id
 FROM service_logs
 WHERE id = :id;
 
