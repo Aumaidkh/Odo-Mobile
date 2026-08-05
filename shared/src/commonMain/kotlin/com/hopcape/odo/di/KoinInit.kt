@@ -26,6 +26,7 @@ import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
+import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -91,12 +92,15 @@ fun initKoin(
         supportModule,
         timelineModule,
         paywallModule,
-        // Last of the shared modules, because its whole job is to replace things: the
+        // After every feature module, because its whole job is to replace things: the
         // offline remote-data-source fakes from coreDataModule, the always-signed-out
         // SessionStatusProvider from authModule, and coreDataModule's session-only SyncGate.
         // Koin lets a later definition win, so this position *is* the wiring — moving it
         // earlier silently puts the stubs back.
         supabaseModule,
+        // After coreDataModule for the same reason: its on-device BillExtractor binding
+        // replaces that module's UnconfiguredBillExtractor stub.
+        aiInfrastructureModule,
         platformModule,
     )
 }.also { application ->
