@@ -45,6 +45,13 @@ sealed interface CameraEvent {
      */
     data class QrDetected(val payload: String) : CameraEvent
 
+    /**
+     * The live frames contain a paper's outline — or stopped containing one, in which case
+     * [quad] is null. Already smoothed across frames, so the screen can draw it directly
+     * without the markers jittering.
+     */
+    data class EdgesDetected(val quad: DetectedQuad?) : CameraEvent
+
     /** The camera failed. The preview is not usable and the screen should offer a way out. */
     data class Failed(val failure: CameraFailure) : CameraEvent
 }
@@ -100,14 +107,30 @@ fun rememberOdoCameraState(): OdoCameraState = remember { OdoCameraState() }
  * call it only once [com.hopcape.odo.core.platform.permission.CameraPermissionStatus] is
  * granted, otherwise it reports [CameraFailure.Unavailable].
  *
- * @param detectQr run QR detection on the live frames. Off by default because it costs a
- *   frame analyser that a photo-only screen has no use for. Detection happens on the device —
- *   no network, no AI call.
+ * @param analysis what to look for in the live frames. One job, not flags, because the
+ *   camera has a single analyser slot — an impossible combination should not be
+ *   expressible. [CameraFrameAnalysis.None] by default: analysis costs a per-frame
+ *   analyser that a photo-only screen has no use for. Everything happens on the device —
+ *   no network, no AI call. Edge detection is Android-only for the MVP; iOS simply never
+ *   sends [CameraEvent.EdgesDetected].
  */
 @Composable
 expect fun OdoCameraPreview(
     state: OdoCameraState,
     onEvent: (CameraEvent) -> Unit,
     modifier: Modifier = Modifier,
-    detectQr: Boolean = false,
+    analysis: CameraFrameAnalysis = CameraFrameAnalysis.None,
 )
+
+/** What the live frames are analysed for. */
+enum class CameraFrameAnalysis {
+
+    /** Nothing — the preview is just a viewfinder. */
+    None,
+
+    /** Read QR codes, reported as [CameraEvent.QrDetected]. */
+    Qr,
+
+    /** Find a paper's outline, reported as [CameraEvent.EdgesDetected]. */
+    DocumentEdges,
+}
