@@ -60,6 +60,12 @@ data class ExtractedBill(
      * a sum would change what the owner paid.
      */
     val total: Amount? = null,
+    /**
+     * Whether the photo itself measured blurry — a fact about the capture, not the model's
+     * opinion of its own reading. Set by extractors that measure sharpness; the review
+     * screen uses it to say "retake" instead of implying the bill was the problem.
+     */
+    val photoBlurry: Boolean = false,
 ) {
     /**
      * Whether the owner must check every field before anything is saved.
