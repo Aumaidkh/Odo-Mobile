@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.billscanner.presentation.scan
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
+import com.hopcape.odo.core.platform.camera.CameraFrameAnalysis
+import com.hopcape.odo.core.platform.camera.DetectedQuad
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 
 /**
@@ -24,6 +26,10 @@ internal data class BillScanUiState(
     val cameraFailure: CameraFailure? = null,
     /** True once the owner chose "Not now" — the rationale gives way to the nudge. */
     val rationaleDismissed: Boolean = false,
+    /** The paper outline the live frames currently hold, for the corner markers. */
+    val detectedQuad: DetectedQuad? = null,
+    /** True once the owner tapped to pin the outline — detection updates stop moving it. */
+    val edgesLocked: Boolean = false,
 ) {
     /** Whether a live preview can be shown at all. */
     val cameraGranted: Boolean get() = cameraPermission == CameraPermissionStatus.Granted
@@ -34,8 +40,9 @@ internal data class BillScanUiState(
     /** Show the full rationale: not granted, and the owner has not waved it away yet. */
     val showRationale: Boolean get() = !cameraGranted && !rationaleDismissed
 
-    /** Whether the live frames should be analysed for QR codes. */
-    val detectQr: Boolean get() = target == ScanTarget.PaymentQr
+    /** What the live frames are analysed for: the payment mode reads QRs, paper modes find edges. */
+    val frameAnalysis: CameraFrameAnalysis
+        get() = if (target == ScanTarget.PaymentQr) CameraFrameAnalysis.Qr else CameraFrameAnalysis.DocumentEdges
 
     /** Whether the quota pill has anything true to say. */
     val showQuota: Boolean get() = freeTotal > 0 && target != ScanTarget.PaymentQr

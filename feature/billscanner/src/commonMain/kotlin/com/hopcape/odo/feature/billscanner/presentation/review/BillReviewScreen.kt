@@ -62,6 +62,7 @@ import com.hopcape.odo.feature.billscanner.resources.bs_review_check
 import com.hopcape.odo.feature.billscanner.resources.bs_review_date
 import com.hopcape.odo.feature.billscanner.resources.bs_review_extracted
 import com.hopcape.odo.feature.billscanner.resources.bs_review_line_items
+import com.hopcape.odo.feature.billscanner.resources.bs_review_blurry_note
 import com.hopcape.odo.feature.billscanner.resources.bs_review_low_confidence
 import com.hopcape.odo.feature.billscanner.resources.bs_review_low_note
 import com.hopcape.odo.feature.billscanner.resources.bs_review_odometer
@@ -136,8 +137,11 @@ internal fun BillReviewScreen(
 
             ExtractedBanner(confidence = state.confidence, high = state.highConfidence)
 
-            if (!state.highConfidence) {
-                LowConfidenceNote()
+            // One caution at a time: a blurry capture is the more actionable fact (retake
+            // beats squinting), so it wins over the generic check-the-lines note.
+            when {
+                state.photoBlurry -> CautionNote(stringResource(Res.string.bs_review_blurry_note))
+                !state.highConfidence -> CautionNote(stringResource(Res.string.bs_review_low_note))
             }
 
             LabeledField(stringResource(Res.string.bs_review_workshop)) {
@@ -285,10 +289,12 @@ private fun ExtractedBanner(confidence: Int, high: Boolean) {
     ) {
         OdoIcon(IcCheck, contentDescription = null, tint = tone, size = OdoTheme.iconSizes.small)
         OdoText(
+            // Both states carry the measured number — a warning with no figure reads as
+            // boilerplate, and the figure is real either way.
             text = if (high) {
                 stringResource(Res.string.bs_review_extracted, "$confidence%")
             } else {
-                stringResource(Res.string.bs_review_low_confidence)
+                stringResource(Res.string.bs_review_low_confidence, "$confidence%")
             },
             style = OdoTheme.typography.caption,
             color = tone,
@@ -297,16 +303,16 @@ private fun ExtractedBanner(confidence: Int, high: Boolean) {
 }
 
 /**
- * Caution note shown only for a low-confidence read — reassures the user that Odo
- * flags rather than guesses, and points them at the [BillLineItem.needsCheck] lines.
+ * Caution note under the banner — the blur warning or the check-the-lines nudge,
+ * whichever fact the extraction actually measured.
  */
 @Composable
-private fun LowConfidenceNote() {
+private fun CautionNote(text: String) {
     OdoCard(color = OdoTheme.colors.surface) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             OdoIcon(IcWarning, contentDescription = null, tint = OdoTheme.colors.warning, size = OdoTheme.iconSizes.medium)
             OdoText(
-                stringResource(Res.string.bs_review_low_note),
+                text,
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textDim,
             )

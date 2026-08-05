@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
+import com.hopcape.odo.core.platform.camera.DetectedQuad
+import com.hopcape.odo.core.platform.camera.DocumentCropper
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTelemetry
 import kotlinx.coroutines.channels.Channel
@@ -33,6 +35,7 @@ import kotlinx.coroutines.launch
 internal class BillScanViewModel(
     initialTarget: ScanTarget,
     private val allowance: ScanAllowance,
+    private val cropper: DocumentCropper,
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
 
@@ -56,6 +59,13 @@ internal class BillScanViewModel(
         BillScanEvent.PermissionDeclined -> declined()
         is BillScanEvent.PhotoCaptured -> photoCaptured(event.storageKey)
         is BillScanEvent.QrDetected -> qrDetected(event.payload)
+        // Deliberately silent in telemetry — this fires per frame, and a log per frame is
+        // a log nobody can read. A pinned outline stays put: that is what the pin is for.
+        is BillScanEvent.EdgesDetected -> _state.update {
+            if (it.edgesLocked) it else it.copy(detectedQuad = event.quad)
+        }
+
+        BillScanEvent.EdgeLockToggled -> toggleEdgeLock()
         BillScanEvent.CameraReady -> _state.update { it.copy(cameraFailure = null) }
         is BillScanEvent.CameraFailed -> cameraFailed(event.failure)
         BillScanEvent.ManualTapped -> emit(BillScanEffect.OpenManualEntry)
@@ -87,9 +97,23 @@ internal class BillScanViewModel(
         if (target == _state.value.target) return
         telemetry.targetSwitched(target.name)
         // Switching away from and back to QR should scan again, so the guard is released
-        // with the mode it belongs to.
+        // with the mode it belongs to. The outline and its pin belong to the old mode's frames.
         qrHandled = false
-        _state.update { it.copy(target = target, cameraFailure = null) }
+        _state.update {
+            it.copy(target = target, cameraFailure = null, detectedQuad = null, edgesLocked = false)
+        }
+    }
+
+    /**
+     * Pin the outline where it is, or release it. Locking with nothing detected is a
+     * no-op rather than an error — a stray tap on the viewfinder should do nothing.
+     */
+    private fun toggleEdgeLock() {
+        val current = _state.value
+        val locked = !current.edgesLocked && current.detectedQuad != null
+        if (locked == current.edgesLocked) return
+        telemetry.edgeLockToggled(locked)
+        _state.update { it.copy(edgesLocked = locked) }
     }
 
     private fun permissionChanged(status: CameraPermissionStatus) {
@@ -105,16 +129,30 @@ internal class BillScanViewModel(
 
     private fun photoCaptured(storageKey: String) {
         val target = _state.value.target
+        val quad = _state.value.detectedQuad
         telemetry.photoCaptured(target.name)
-        emit(
-            when (target) {
-                ScanTarget.Bill -> BillScanEffect.OpenBillReview(storageKey)
-                ScanTarget.Document -> BillScanEffect.OpenDocumentReview(storageKey)
-                // The shutter does nothing useful in QR mode — the code is read off the live
-                // frames — so a stray tap reviews the photo as a bill rather than dropping it.
-                ScanTarget.PaymentQr -> BillScanEffect.OpenBillReview(storageKey)
-            },
-        )
+        viewModelScope.launch {
+            // Cropped to the outline that was on screen at the shutter, when there was one.
+            // The cropper answers the original key on any failure, so this can only improve
+            // the photo, never lose it.
+            val key = cropTo(quad, storageKey, target)
+            _effects.send(
+                when (target) {
+                    ScanTarget.Bill -> BillScanEffect.OpenBillReview(key)
+                    ScanTarget.Document -> BillScanEffect.OpenDocumentReview(key)
+                    // The shutter does nothing useful in QR mode — the code is read off the live
+                    // frames — so a stray tap reviews the photo as a bill rather than dropping it.
+                    ScanTarget.PaymentQr -> BillScanEffect.OpenBillReview(key)
+                },
+            )
+        }
+    }
+
+    private suspend fun cropTo(quad: DetectedQuad?, storageKey: String, target: ScanTarget): String {
+        if (quad == null || target == ScanTarget.PaymentQr) return storageKey
+        val cropped = runCatching { cropper.crop(storageKey, quad) }.getOrDefault(storageKey)
+        telemetry.photoCropped(target.name, applied = cropped != storageKey)
+        return cropped
     }
 
     private fun qrDetected(payload: String) {

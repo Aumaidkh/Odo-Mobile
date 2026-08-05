@@ -11,6 +11,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +47,7 @@ import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoPermissionNudge
+import com.hopcape.odo.core.designsystem.component.OdoQuadMarkers
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCamera
@@ -65,6 +72,8 @@ import com.hopcape.odo.feature.billscanner.resources.bs_camera_nudge_action
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_nudge_settings
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_unavailable
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_close
+import com.hopcape.odo.feature.billscanner.resources.bs_scan_edges_locked
+import com.hopcape.odo.feature.billscanner.resources.bs_scan_edges_pinned
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_gallery
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_torch_off
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_torch_on
@@ -107,6 +116,7 @@ internal fun BillScanScreen(
     onManual: () -> Unit,
     onGrantCamera: () -> Unit,
     onTargetSelected: (ScanTarget) -> Unit,
+    onToggleEdgeLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
@@ -131,6 +141,7 @@ internal fun BillScanScreen(
             cameraState = cameraState,
             onCameraEvent = onCameraEvent,
             onGrantCamera = onGrantCamera,
+            onToggleEdgeLock = onToggleEdgeLock,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -259,6 +270,7 @@ private fun Viewfinder(
     cameraState: OdoCameraState,
     onCameraEvent: (CameraEvent) -> Unit,
     onGrantCamera: () -> Unit,
+    onToggleEdgeLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val transition = rememberInfiniteTransition(label = "viewfinder")
@@ -269,10 +281,21 @@ private fun Viewfinder(
         label = "scanLine",
     )
     val accent = OdoTheme.colors.accent
+    // The viewfinder's pixel size — the frame-to-viewport mapping for the edge markers
+    // needs it, because the preview centre-crops the camera frame to fill this box.
+    var viewfinderSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier
+            .onSizeChanged { viewfinderSize = it }
             .clip(OdoTheme.shapes.device)
-            .border(1.dp, OdoTheme.colors.border, OdoTheme.shapes.device),
+            .border(1.dp, OdoTheme.colors.border, OdoTheme.shapes.device)
+            // Tap to pin the detected outline (and tap again to release). No ripple: a
+            // flash over a live camera preview reads as a capture, which this is not.
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onToggleEdgeLock,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         BillSilhouette()
@@ -281,9 +304,18 @@ private fun Viewfinder(
                 state = cameraState,
                 onEvent = onCameraEvent,
                 modifier = Modifier.fillMaxSize(),
-                detectQr = state.detectQr,
+                analysis = state.frameAnalysis,
             )
         }
+        // The detected paper outline, mapped from camera-frame space onto this viewport
+        // (the preview centre-crops to fill, and the mapping accounts for that —
+        // including the not-yet-measured viewport, for which it answers no corners).
+        OdoQuadMarkers(
+            corners = state.detectedQuad
+                ?.cornersInViewport(viewfinderSize.width.toFloat(), viewfinderSize.height.toFloat()),
+            modifier = Modifier.fillMaxSize(),
+            locked = state.edgesLocked,
+        )
         Canvas(Modifier.fillMaxSize().padding(20.dp)) {
             val arm = 30.dp.toPx()
             val stroke = 3.dp.toPx()
@@ -319,7 +351,15 @@ private fun Viewfinder(
                 val failure = state.cameraFailure
                 if (failure == null) {
                     OdoText(
-                        stringResource(state.target.guidanceResource()),
+                        stringResource(
+                            // The outline is on screen — tell the owner the next move,
+                            // which changes once they pin it.
+                            when {
+                                state.edgesLocked -> Res.string.bs_scan_edges_pinned
+                                state.detectedQuad != null -> Res.string.bs_scan_edges_locked
+                                else -> state.target.guidanceResource()
+                            },
+                        ),
                         style = OdoTheme.typography.body,
                         color = OdoTheme.colors.text,
                         textAlign = TextAlign.Center,
@@ -510,5 +550,6 @@ private fun BillScanScreenPreview() = OdoPreview(padded = false) {
         onManual = {},
         onGrantCamera = {},
         onTargetSelected = {},
+        onToggleEdgeLock = {},
     )
 }

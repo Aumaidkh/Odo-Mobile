@@ -47,6 +47,8 @@ internal data class BillReviewUiState(
     val total: Amount = Amount.ZERO,
     /** Where the captured bill photo was stored, so the screen can show it. */
     val photoKey: String? = null,
+    /** True when the capture itself measured blurry — the note says retake, not "bad bill". */
+    val photoBlurry: Boolean = false,
 ) {
     /** Above this, the extraction reads as trustworthy (green); below, flag it (amber). */
     val highConfidence: Boolean get() = confidence >= ExtractionConfidence.HIGH
@@ -81,6 +83,7 @@ internal fun sampleBillReviewState(): BillReviewUiState = BillReviewUiState(
 internal fun sampleBillReviewLowConfidence(): BillReviewUiState = sampleBillReviewState().copy(
     confidence = 62,
     requiresReview = true,
+    photoBlurry = true,
     lineItems = listOf(
         BillLineItem("Oil change", amountOf(280_000)),
         BillLineItem("Air filter", amountOf(45_000)),

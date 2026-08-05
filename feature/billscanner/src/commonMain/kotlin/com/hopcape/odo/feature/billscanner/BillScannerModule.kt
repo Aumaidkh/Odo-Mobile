@@ -56,6 +56,7 @@ val billScannerModule = module {
         BillScanViewModel(
             initialTarget = params.getOrNull<ScanTarget>() ?: ScanTarget.Bill,
             allowance = get(),
+            cropper = get(),
             telemetry = get(),
         )
     }
@@ -68,6 +69,7 @@ val billScannerModule = module {
             saveBill = get(),
             activeCar = get(),
             currentOwner = get(),
+            clock = get(),
             telemetry = get(),
         )
     }
