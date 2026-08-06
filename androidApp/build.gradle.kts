@@ -64,6 +64,9 @@ dependencies {
     androidTestImplementation(projects.feature.profile)
     // Auth's two field tags. Neither field has any text to aim at.
     androidTestImplementation(projects.feature.auth)
+    // The reminders test tags — the FAB, the per-preset "Remind me" buttons and the
+    // settings switches, none of which carry text of their own.
+    androidTestImplementation(projects.feature.reminders)
     // The scanner's field tags, and the scan/payment ports the suite puts a fake in front
     // of — the extractor has no implementation yet, so without one there is no readable
     // bill to drive at all.

@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoCard
@@ -29,6 +30,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.feature.reminders.presentation.RemindersTestTags
 import com.hopcape.odo.feature.reminders.presentation.state.Loadable
 import com.hopcape.odo.feature.reminders.resources.Res
 import com.hopcape.odo.feature.reminders.resources.rm_settings_custom
@@ -95,7 +97,7 @@ private fun SettingsContent(
     ) {
         Section(stringResource(Res.string.rm_settings_how)) {
             GroupCard {
-                ToggleRow(IcBellOutlined, OdoTheme.colors.text, stringResource(Res.string.rm_settings_push), null, content.push) { onToggle(ReminderToggle.PUSH) }
+                ToggleRow(IcBellOutlined, OdoTheme.colors.text, stringResource(Res.string.rm_settings_push), null, content.push, tag = RemindersTestTags.settingsToggle(ReminderToggle.PUSH.name)) { onToggle(ReminderToggle.PUSH) }
                 RowDivider()
                 ToggleRow(
                     icon = IcChatOutlined,
@@ -104,6 +106,7 @@ private fun SettingsContent(
                     subtitle = stringResource(Res.string.rm_settings_whatsapp_soon),
                     checked = content.whatsapp,
                     enabled = false,
+                    tag = RemindersTestTags.SETTINGS_WHATSAPP_SWITCH,
                     onToggle = {},
                 )
             }
@@ -111,13 +114,13 @@ private fun SettingsContent(
 
         Section(stringResource(Res.string.rm_settings_what)) {
             GroupCard {
-                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_insurance), null, content.documents) { onToggle(ReminderToggle.DOCUMENTS) }
+                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_insurance), null, content.documents, tag = RemindersTestTags.settingsToggle(ReminderToggle.DOCUMENTS.name)) { onToggle(ReminderToggle.DOCUMENTS) }
                 RowDivider()
-                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_service), null, content.service) { onToggle(ReminderToggle.SERVICE) }
+                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_service), null, content.service, tag = RemindersTestTags.settingsToggle(ReminderToggle.SERVICE.name)) { onToggle(ReminderToggle.SERVICE) }
                 RowDivider()
-                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_custom), null, content.custom) { onToggle(ReminderToggle.CUSTOM) }
+                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_custom), null, content.custom, tag = RemindersTestTags.settingsToggle(ReminderToggle.CUSTOM.name)) { onToggle(ReminderToggle.CUSTOM) }
                 RowDivider()
-                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_partner), stringResource(Res.string.rm_settings_partner_sub), content.partner) { onToggle(ReminderToggle.PARTNER) }
+                ToggleRow(null, Color.Unspecified, stringResource(Res.string.rm_settings_partner), stringResource(Res.string.rm_settings_partner_sub), content.partner, tag = RemindersTestTags.settingsToggle(ReminderToggle.PARTNER.name)) { onToggle(ReminderToggle.PARTNER) }
             }
         }
     }
@@ -152,6 +155,7 @@ private fun ToggleRow(
     subtitle: String?,
     checked: Boolean,
     enabled: Boolean = true,
+    tag: String? = null,
     onToggle: () -> Unit,
 ) {
     Row(
@@ -166,16 +170,17 @@ private fun ToggleRow(
             OdoText(title, style = OdoTheme.typography.heading)
             if (subtitle != null) OdoText(subtitle, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
-        SettingSwitch(checked = checked, enabled = enabled, onToggle = onToggle)
+        SettingSwitch(checked = checked, enabled = enabled, tag = tag, onToggle = onToggle)
     }
 }
 
 @Composable
-private fun SettingSwitch(checked: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+private fun SettingSwitch(checked: Boolean, enabled: Boolean, tag: String?, onToggle: () -> Unit) {
     Switch(
         checked = checked,
         onCheckedChange = { onToggle() },
         enabled = enabled,
+        modifier = if (tag != null) Modifier.testTag(tag) else Modifier,
         colors = SwitchDefaults.colors(
             checkedThumbColor = OdoTheme.colors.onAccent,
             checkedTrackColor = OdoTheme.colors.accent,

@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -318,19 +319,23 @@ private fun UpcomingRow(row: ReminderRow, onRemindMe: (ReminderPreset, String) -
 
             RowStatus.OnTrack -> OdoBadge(stringResource(Res.string.rm_status_on_track), tone = OdoBadgeTone.Success)
 
-            is RowStatus.Suggested -> RemindMeButton { onRemindMe(status.preset, title) }
+            is RowStatus.Suggested -> RemindMeButton(
+                tag = RemindersTestTags.remindMe(status.preset.name),
+                onClick = { onRemindMe(status.preset, title) },
+            )
         }
     }
 }
 
 @Composable
-private fun RemindMeButton(onClick: () -> Unit) {
+private fun RemindMeButton(tag: String, onClick: () -> Unit) {
     Box(
         Modifier
             .clip(OdoTheme.shapes.pill)
             .border(1.dp, OdoTheme.colors.border, OdoTheme.shapes.pill)
             .clickable(onClick = onClick)
-            .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.xs),
+            .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.xs)
+            .testTag(tag),
     ) {
         OdoText(stringResource(Res.string.rm_remind_me), style = OdoTheme.typography.label)
     }
@@ -339,7 +344,12 @@ private fun RemindMeButton(onClick: () -> Unit) {
 @Composable
 private fun AddFab(onAdd: () -> Unit) {
     Box(
-        Modifier.size(56.dp).clip(OdoTheme.shapes.card).background(OdoTheme.colors.accent).clickable(onClick = onAdd),
+        Modifier
+            .size(56.dp)
+            .clip(OdoTheme.shapes.card)
+            .background(OdoTheme.colors.accent)
+            .clickable(onClick = onAdd)
+            .testTag(RemindersTestTags.ADD_FAB),
         contentAlignment = Alignment.Center,
     ) {
         OdoIcon(IcPlusLarge, contentDescription = stringResource(Res.string.rm_cd_add), tint = OdoTheme.colors.bg, size = OdoTheme.iconSizes.large)
