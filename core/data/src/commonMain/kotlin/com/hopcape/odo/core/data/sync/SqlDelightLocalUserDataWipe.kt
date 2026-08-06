@@ -44,6 +44,7 @@ internal class SqlDelightLocalUserDataWipe(
                     database.documentQueries.deleteAllRows()
                     database.fuelFillQueries.deleteAllRows()
                     database.healthScoreQueries.deleteAllRows()
+                    database.reminderQueries.deleteAllRows()
                     database.carQueries.deleteAllRows()
                     database.profileQueries.deleteAllRows()
                     // Without this the next sign-in's pull starts from a stale mark.

@@ -130,6 +130,7 @@ internal class CarSyncTable(
             database.documentQueries.repointCar(serverId = server.id, localId = localId)
             database.fuelFillQueries.repointCar(serverId = server.id, localId = localId)
             database.healthScoreQueries.repointCar(serverId = server.id, localId = localId)
+            database.reminderQueries.repointCar(serverId = server.id, localId = localId)
 
             if (queries.countById(server.id).executeAsOne() > 0) {
                 queries.deleteById(localId)

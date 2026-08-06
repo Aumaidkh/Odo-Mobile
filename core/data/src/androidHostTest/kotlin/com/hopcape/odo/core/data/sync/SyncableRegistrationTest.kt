@@ -56,6 +56,7 @@ class SyncableRegistrationTest {
                 SyncEntity.OVERCHARGE_REPORTS,
                 SyncEntity.DOCUMENTS,
                 SyncEntity.HEALTH_SCORES,
+                SyncEntity.REMINDERS,
             ),
             entities,
             "a missing entity here means that table silently stops syncing",
@@ -75,12 +76,12 @@ class SyncableRegistrationTest {
 
     @Test
     fun unbuiltEntitiesAreDeclaredButNotRegistered() {
-        // bills, bill_line_items and reminders hold their positions in the push order so
-        // the foreign-key ordering is already right when they are built — but nothing
+        // bills and bill_line_items hold their positions in the push order so the
+        // foreign-key ordering is already right when they are built — but nothing
         // registers them, and the engine simply does not see them.
         val entities = graph().getAll<Syncable>().map { it.entity }.toSet()
 
-        assertEquals(emptySet(), entities intersect setOf(SyncEntity.BILLS, SyncEntity.BILL_LINE_ITEMS, SyncEntity.REMINDERS))
+        assertEquals(emptySet(), entities intersect setOf(SyncEntity.BILLS, SyncEntity.BILL_LINE_ITEMS))
     }
 
     /** `coreDataModule`, with the driver and the ports it expects from elsewhere supplied. */

@@ -1,6 +1,7 @@
 package com.hopcape.odo.infrastructure.supabase.adapters
 
 import com.hopcape.odo.core.data.document.DocumentDto
+import com.hopcape.odo.core.data.reminder.ReminderDto
 import com.hopcape.odo.core.data.servicelog.ServiceLogDto
 import com.hopcape.odo.infrastructure.supabase.MockResponse
 import com.hopcape.odo.infrastructure.supabase.SupabaseTestHarness
@@ -231,6 +232,31 @@ class SupabaseAdaptersTest {
         assertEquals("/rest/v1/documents", harness.onlyRequest().url.encodedPath)
     }
 
+    // ─── reminders ──────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a reminder round-trips with its cadence columns`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[${reminderJson()}]") }
+        val pushed = SupabaseReminderRemoteDataSource(harness.postgrest).push(listOf(reminderDto()))
+
+        assertEquals("rem-1", pushed.single().id)
+        assertEquals("custom", pushed.single().reminderType)
+        assertEquals("every_days", pushed.single().repeatKind)
+        assertEquals(15L, pushed.single().repeatEveryDays)
+        assertEquals("/rest/v1/reminders", harness.onlyRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `a reminder pull filters on car and cursor`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[]") }
+        SupabaseReminderRemoteDataSource(harness.postgrest)
+            .fetchSince(carId = "car-1", since = Instant.parse("2026-08-01T00:00:00Z"))
+
+        val url = harness.onlyRequest().url
+        assertEquals("eq.car-1", url.parameters["car_id"])
+        assertEquals("gt.2026-08-01T00:00:00Z", url.parameters["updated_at"])
+    }
+
     // ─── fairness ───────────────────────────────────────────────────────────────────
 
     @Test
@@ -297,5 +323,29 @@ class SupabaseAdaptersTest {
         {"id":"doc-1","car_id":"car-1","owner_id":"owner-1","doc_type":"insurance",
          "storage_path":"owner-1/car-1/doc-1.pdf","doc_source":"uploaded",
          "created_at":"2026-01-15T10:00:00Z","updated_at":"2026-01-15T10:00:00Z"}
+    """.trimIndent()
+
+    private fun reminderDto() = ReminderDto(
+        id = "rem-1",
+        carId = "car-1",
+        ownerId = "owner-1",
+        reminderType = "custom",
+        dueDate = "2026-08-10",
+        status = "scheduled",
+        title = "Air pressure check",
+        startsOn = "2026-08-10",
+        remindAt = "09:00",
+        repeatKind = "every_days",
+        repeatEveryDays = 15,
+        createdAt = "2026-08-06T10:00:00Z",
+        updatedAt = "2026-08-06T10:00:00Z",
+    )
+
+    private fun reminderJson() = """
+        {"id":"rem-1","car_id":"car-1","owner_id":"owner-1","reminder_type":"custom",
+         "due_date":"2026-08-10","status":"scheduled","title":"Air pressure check",
+         "is_paused":false,"starts_on":"2026-08-10","remind_at":"09:00:00",
+         "repeat_kind":"every_days","repeat_every_days":15,
+         "created_at":"2026-08-06T10:00:00Z","updated_at":"2026-08-06T10:00:00Z"}
     """.trimIndent()
 }

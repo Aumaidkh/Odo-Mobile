@@ -1,0 +1,246 @@
+-- Local reminders table — the offline-first source of truth, mirroring DB_SCHEMA §9.8
+-- (Postgres types mapped to SQLite). Dates are ISO-8601 TEXT; `remind_at` is HH:MM.
+--
+-- Two client-written shapes share the table, like on the server:
+--   * custom rows — user-authored reminders (`reminder_type = 'CUSTOM'`, status SCHEDULED),
+--     carrying the cadence columns and `is_paused`;
+--   * dismissal rows — one waved-away occurrence (`status = 'DISMISSED'`,
+--     `dismissed_custom_id` set when the dismissed kind is CUSTOM).
+-- The derived reminders themselves are never stored: the feed recomputes them from
+-- documents and service history on every read.
+--
+-- `title`/`body`/`payload`/`channel`/`sent_at` from the server table are mostly absent
+-- here on purpose: only `title` has a local reader (a custom reminder's name). The rest
+-- belong to the server dispatch pipeline, and a pulled row keeps working without them.
+--
+-- Enum-ish columns store the Kotlin constant name (`CUSTOM`, `EVERY_DAYS`); the wire uses
+-- the lowercase Postgres labels and the sync table converts at the boundary.
+CREATE TABLE reminders (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    car_id              TEXT NOT NULL,
+    owner_id            TEXT NOT NULL,
+    reminder_type       TEXT NOT NULL,
+    due_date            TEXT NOT NULL,       -- custom rows: same day as starts_on
+    status              TEXT NOT NULL DEFAULT 'SCHEDULED',
+    title               TEXT,                -- custom rows only
+    is_paused           INTEGER NOT NULL DEFAULT 0,
+    starts_on           TEXT,
+    remind_at           TEXT,
+    repeat_kind         TEXT,
+    repeat_every_days   INTEGER,
+    repeat_every_km     INTEGER,
+    anchor_km           INTEGER,
+    preset              TEXT,
+    dismissed_custom_id TEXT,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL,
+    deleted_at          TEXT,
+    remote_version      TEXT,
+    sync_status         TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- The feed's query: one car's live rows.
+CREATE INDEX idx_reminders_car ON reminders (car_id) WHERE deleted_at IS NULL;
+
+-- Dismissing the same occurrence twice must be one row, so `dismiss` can INSERT OR
+-- IGNORE and mean it. Two partial indexes because SQLite treats NULLs as distinct in a
+-- unique index — one covers derived kinds (no custom id), one covers custom occurrences.
+CREATE UNIQUE INDEX uq_reminders_dismissal_derived
+    ON reminders (car_id, reminder_type, due_date)
+    WHERE status = 'DISMISSED' AND dismissed_custom_id IS NULL;
+CREATE UNIQUE INDEX uq_reminders_dismissal_custom
+    ON reminders (car_id, reminder_type, due_date, dismissed_custom_id)
+    WHERE status = 'DISMISSED' AND dismissed_custom_id IS NOT NULL;
+
+-- One car's live custom reminders, paused ones included — the manage list's order is
+-- newest first. Dismissal rows are excluded by status, not by type: a dismissal of a
+-- custom occurrence also carries reminder_type = 'CUSTOM'.
+selectCustomByCar:
+SELECT *
+FROM reminders
+WHERE car_id = :carId
+  AND reminder_type = 'CUSTOM'
+  AND status <> 'DISMISSED'
+  AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+selectById:
+SELECT *
+FROM reminders
+WHERE id = :id AND status <> 'DISMISSED' AND deleted_at IS NULL;
+
+-- Existence check for an update, without building a whole reminder to throw it away.
+selectLiveId:
+SELECT id
+FROM reminders
+WHERE id = :id AND status <> 'DISMISSED' AND deleted_at IS NULL;
+
+-- One car's recorded dismissals. The feed filters a handful of rows against these in
+-- memory, so the whole set travels rather than a query per occurrence.
+selectDismissalsByCar:
+SELECT reminder_type, due_date, dismissed_custom_id
+FROM reminders
+WHERE car_id = :carId AND status = 'DISMISSED' AND deleted_at IS NULL;
+
+insertReminder:
+INSERT INTO reminders (
+    id, car_id, owner_id, reminder_type, due_date, status, title,
+    is_paused, starts_on, remind_at, repeat_kind, repeat_every_days,
+    repeat_every_km, anchor_km, preset, dismissed_custom_id,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, 'CUSTOM', :dueDate, 'SCHEDULED', :title,
+    :isPaused, :startsOn, :remindAt, :repeatKind, :repeatEveryDays,
+    :repeatEveryKm, :anchorKm, :preset, NULL,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- `car_id`, `owner_id`, `created_at` and `remote_version` are absent on purpose: a
+-- reminder does not change car or owner by being edited, the first write owns the
+-- creation time, and the last sync owns the remote version. `sync_status` returns to
+-- PENDING because an edited row has to reach the server again.
+updateReminder:
+UPDATE reminders
+SET due_date          = :dueDate,
+    title             = :title,
+    is_paused         = :isPaused,
+    starts_on         = :startsOn,
+    remind_at         = :remindAt,
+    repeat_kind       = :repeatKind,
+    repeat_every_days = :repeatEveryDays,
+    repeat_every_km   = :repeatEveryKm,
+    anchor_km         = :anchorKm,
+    preset            = :preset,
+    updated_at        = :updatedAt,
+    sync_status       = :syncStatus
+WHERE id = :id AND status <> 'DISMISSED' AND deleted_at IS NULL;
+
+-- A dismissal row. OR IGNORE + the unique indexes above make a repeated dismissal of the
+-- same occurrence a no-op, which is what the repository promises.
+insertDismissal:
+INSERT OR IGNORE INTO reminders (
+    id, car_id, owner_id, reminder_type, due_date, status, title,
+    is_paused, starts_on, remind_at, repeat_kind, repeat_every_days,
+    repeat_every_km, anchor_km, preset, dismissed_custom_id,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, :reminderType, :dueDate, 'DISMISSED', NULL,
+    0, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, :dismissedCustomId,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- Soft delete: the row stays as a tombstone so the deletion itself can sync.
+softDeleteReminder:
+UPDATE reminders
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Every live row of one car, tombstoned together. Used when the car itself is removed:
+-- a custom reminder of a deleted car must never fire again, and its dismissals go with it.
+softDeleteRemindersForCar:
+UPDATE reminders
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM reminders
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM reminders
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE reminders
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE reminders
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO reminders (id, car_id, owner_id, reminder_type, due_date, status, title, is_paused, starts_on, remind_at, repeat_kind, repeat_every_days, repeat_every_km, anchor_km, preset, dismissed_custom_id, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :reminder_type, :due_date, :status, :title, :is_paused, :starts_on, :remind_at, :repeat_kind, :repeat_every_days, :repeat_every_km, :anchor_km, :preset, :dismissed_custom_id, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE reminders
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    reminder_type = :reminder_type,
+    due_date = :due_date,
+    status = :status,
+    title = :title,
+    is_paused = :is_paused,
+    starts_on = :starts_on,
+    remind_at = :remind_at,
+    repeat_kind = :repeat_kind,
+    repeat_every_days = :repeat_every_days,
+    repeat_every_km = :repeat_every_km,
+    anchor_km = :anchor_km,
+    preset = :preset,
+    dismissed_custom_id = :dismissed_custom_id,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM reminders
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE reminders
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM reminders;
+
+-- Follow a car that took on the server's id (Car.sq `adoptServerIdentity`). `car_id` is a
+-- plain column here — the local schema declares no foreign keys — so the children have to
+-- be moved by hand, and they are, inside the same transaction as the car itself.
+--
+-- Deliberately not filtered on `deleted_at` or `sync_status`: a tombstone still has to
+-- name a car the server knows, or the delete can never be pushed.
+repointCar:
+UPDATE reminders
+SET car_id = :serverId
+WHERE car_id = :localId;

@@ -39,6 +39,9 @@ import com.hopcape.odo.core.data.owner.ProfileCityProvider
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.data.remote.FakeRemoteFileStorage
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
+import com.hopcape.odo.core.data.reminder.FakeReminderRemoteDataSource
+import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
+import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
@@ -77,6 +80,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
+import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
@@ -239,6 +243,21 @@ val coreDataModule = module {
         )
     } bind Syncable::class
     single<OverchargeReportRepository> { get<OverchargeReportRepositoryImpl>() }
+    // Custom reminders + dismissals. The derived reminders have no rows — the feed
+    // recomputes them — so this table only carries what cannot be recomputed.
+    single {
+        ReminderRepositoryImpl(
+            database = get(),
+            telemetry = get(),
+            scheduler = get(),
+            remote = get(),
+            syncTelemetry = get(),
+            ids = get(),
+            owners = get(),
+            carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+        )
+    } bind Syncable::class
+    single<ReminderRepository> { get<ReminderRepositoryImpl>() }
     // The owner's city, read from their profile — null until they set it, which is what
     // keeps fairness silent rather than guessing.
     single<CurrentCityProvider> { ProfileCityProvider(database = get(), telemetry = get()) }
@@ -251,6 +270,7 @@ val coreDataModule = module {
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
+    single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
     single<RemoteFileStorage> { FakeRemoteFileStorage() }
     single<CarRemoteDataSource> { FakeCarRemoteDataSource() }
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
