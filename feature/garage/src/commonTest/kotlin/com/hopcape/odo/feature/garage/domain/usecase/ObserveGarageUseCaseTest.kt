@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.garage.domain.usecase
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
@@ -20,6 +21,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
@@ -50,6 +52,8 @@ class ObserveGarageUseCaseTest {
         override fun now(): Instant = instant
     }
 
+    private fun km(value: Int): Distance = Distance.of(value).getOrElse { error("bad km=$value") }
+
     private class FakeCarRepository(car: Car?) : CarRepository {
         val cars = MutableStateFlow(car)
         override suspend fun add(car: Car): Either<DomainError, Car> = car.right()
@@ -69,15 +73,18 @@ class ObserveGarageUseCaseTest {
         override suspend fun countForOwner(ownerId: OwnerId): Int = documents.value.size
     }
 
-    private class FakeServiceLogRepository(entries: List<ServiceLogEntry>) : ServiceLogRepository {
+    private class FakeServiceLogRepository(
+        entries: List<ServiceLogEntry>,
+        private val readings: List<OdometerReading> = emptyList(),
+    ) : ServiceLogRepository {
         val entries = MutableStateFlow(entries)
         override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> = entries
         override fun observe(id: ServiceLogId): Flow<ServiceLogEntry?> = flowOf(null)
         override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = emptyList()
-        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = flowOf(emptyList())
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = flowOf(readings)
     }
 
     private fun car(odometerKm: Int = 48_500): Car = Car.reconstitute(
@@ -149,10 +156,11 @@ class ObserveGarageUseCaseTest {
         car: Car? = car(),
         documents: List<Document> = emptyList(),
         entries: List<ServiceLogEntry> = emptyList(),
+        readings: List<OdometerReading> = emptyList(),
     ): GarageSnapshot = useCase(
         cars = FakeCarRepository(car),
         documents = FakeDocumentRepository(documents),
-        logs = FakeServiceLogRepository(entries),
+        logs = FakeServiceLogRepository(entries, readings),
     ).invoke(carId).first()
 
     @Test
@@ -167,6 +175,25 @@ class ObserveGarageUseCaseTest {
         assertEquals(today, snapshot.today)
         // One row per tracked paper, whether or not the car has it.
         assertEquals(GarageDocument.TRACKED.size, snapshot.documents.size)
+    }
+
+    @Test
+    fun theCardsReading_isTheNewestOnTheTimeline() = runTest {
+        // A service logged after onboarding carries a newer reading than the car's own —
+        // the card must move with it.
+        val snapshot = snapshotOf(
+            readings = listOf(
+                OdometerReading(logId = null, date = LocalDate(2026, 1, 5), odometer = km(48_500)),
+                OdometerReading(logId = ServiceLogId("s1"), date = LocalDate(2026, 6, 15), odometer = km(52_000)),
+            ),
+        )
+
+        assertEquals(52_000, snapshot.currentOdometer?.km)
+    }
+
+    @Test
+    fun withNoReadings_theCardFallsBackToTheCarsOwn() = runTest {
+        assertEquals(48_500, snapshotOf().currentOdometer?.km)
     }
 
     @Test

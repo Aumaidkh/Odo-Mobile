@@ -80,9 +80,26 @@ class UpdateOdometerUseCaseTest {
         assertIs<DomainError.OdometerRegression>(result.leftOrNull())
     }
 
+    /** A service logged earlier today binds too — the reading cannot dip below it. */
+    @Test
+    fun aReadingBelowASameDayService_isRefused() = runTest {
+        val cars = FakeCarRepository(testCar(odometerKm = 45_000))
+        val logs = FakeServiceLogRepository(
+            listOf(
+                baseline(45_000, on = LocalDate(2026, 1, 1)),
+                reading("log-1", LocalDate(2026, 7, 28), 52_000),
+            ),
+        )
+
+        val result = useCase(cars, logs)(TEST_CAR, 50_000)
+
+        assertIs<DomainError.OdometerRegression>(result.leftOrNull())
+        assertTrue(cars.updated.isEmpty(), "a refused reading must not be stored")
+    }
+
     /**
-     * A reading written down today can be corrected downwards on the same day. Two readings
-     * on one date have no knowable order, so there is nothing to contradict.
+     * A reading written down today can be corrected downwards on the same day: the new
+     * value replaces the car's own same-day reading, so its stored value does not bind.
      */
     @Test
     fun aTypoFixedOnTheSameDay_isAllowed() = runTest {

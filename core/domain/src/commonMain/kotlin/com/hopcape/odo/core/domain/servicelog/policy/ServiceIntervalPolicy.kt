@@ -2,6 +2,7 @@ package com.hopcape.odo.core.domain.servicelog.policy
 
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -109,9 +110,8 @@ object ServiceIntervalPolicy {
         )
     }
 
-    /** The car's reading today: the most recently *dated* one, ties going to the higher km. */
     private fun currentOdometer(readings: List<OdometerReading>): Distance? =
-        readings.maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))?.odometer
+        readings.currentReading()?.odometer
 
     /**
      * Kilometres left on the interval, or `null` when either reading is missing.

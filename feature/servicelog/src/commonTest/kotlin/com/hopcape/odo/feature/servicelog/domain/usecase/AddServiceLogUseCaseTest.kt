@@ -114,6 +114,22 @@ class AddServiceLogUseCaseTest {
     }
 
     @Test
+    fun sameDayReadingBelowAnEarlierLog_isRejectedAndNotPersisted() = runTest {
+        // The reported bug: a service already logged today at 55,000 km must stop a second
+        // same-day log at 54,000 km.
+        val repo = repo(
+            baseline + listOf(reading(km = 55_000, date = LocalDate(2026, 6, 1), id = "log-9")),
+        )
+
+        val result = useCase(repo)(command(odometerKm = 54_000, serviceDate = LocalDate(2026, 6, 1)), carId, ownerId)
+
+        val error = assertIs<DomainError.OdometerRegression>(result.leftOrNull()!!.head)
+        assertEquals(55_000, error.previousKm)
+        assertEquals(54_000, error.attemptedKm)
+        assertEquals(0, repo.addCount)
+    }
+
+    @Test
     fun backdatedHistory_belowTheBaseline_isPersisted() = runTest {
         // Building the service history after onboarding: the car joined Odo at 50,000 km
         // in January, and its 2024 service (30,000 km) is being logged now. Nothing about

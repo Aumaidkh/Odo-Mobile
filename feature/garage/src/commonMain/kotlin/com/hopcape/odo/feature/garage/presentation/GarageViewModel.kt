@@ -139,6 +139,7 @@ private fun emptyContent(): Loadable<GarageContent> = Loadable.Ready(
 private fun toContent(snapshot: GarageSnapshot): Loadable<GarageContent> = Loadable.Ready(
     GarageContent(
         car = snapshot.car,
+        odometer = snapshot.currentOdometer,
         documents = snapshot.documents,
         history = snapshot.history,
     ),

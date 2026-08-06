@@ -13,13 +13,16 @@ import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.GetCurrentOdometerUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.UpdateServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.presentation.FakeServiceLogRepository
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
 import com.hopcape.odo.feature.servicelog.presentation.TEST_CAR
 import com.hopcape.odo.feature.servicelog.presentation.TEST_CLOCK
+import com.hopcape.odo.feature.servicelog.presentation.testEntry
 import com.hopcape.odo.feature.servicelog.presentation.state.Submission
+import com.hopcape.odo.feature.servicelog.presentation.state.text
 import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -113,12 +116,42 @@ class ServiceLogFormViewModelTest {
         val viewModel = viewModel(logs)
         advanceUntilIdle()
 
-        // Odo's one mandatory field. Save is refused by the state, not just by a disabled button.
+        // Odo's one mandatory field. The form opens prefilled, so the owner clearing it is
+        // the empty case — and Save is refused by the state, not just by a disabled button.
+        viewModel.onEvent(ServiceLogFormEvent.Field.OdometerChanged(""))
         viewModel.onEvent(ServiceLogFormEvent.SaveClicked)
         advanceUntilIdle()
 
         assertEquals(0, logs.addCount)
         assertEquals(Submission.Idle, viewModel.state.value.submission)
+    }
+
+    @Test
+    fun theOdometerFieldStartsAtTheCarsLatestReading() = runTest(dispatcher) {
+        // Onboarded at 45,000 km, then a service logged at 52,000 km — the form must start
+        // from the newest number, not the onboarding baseline.
+        val logs = FakeServiceLogRepository(
+            initial = listOf(testEntry("log-1", km = 52_000, date = LocalDate(2026, 2, 1))),
+            carBaselineKm = 45_000,
+            carBaselineDate = LocalDate(2026, 1, 1),
+        )
+
+        val viewModel = viewModel(logs)
+        advanceUntilIdle()
+
+        assertEquals("52000", viewModel.state.value.odometer.text)
+    }
+
+    @Test
+    fun thePrefilledReadingNeverOverwritesWhatWasTyped() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository(carBaselineKm = 45_000)
+        val viewModel = viewModel(logs)
+
+        // Typed before the prefill read lands.
+        viewModel.onEvent(ServiceLogFormEvent.Field.OdometerChanged("47000"))
+        advanceUntilIdle()
+
+        assertEquals("47000", viewModel.state.value.odometer.text)
     }
 
     /**
@@ -137,6 +170,7 @@ class ServiceLogFormViewModelTest {
         addLog = AddServiceLogUseCase(logs = logs, idGenerator = SequentialIds(), clock = TEST_CLOCK),
         updateLog = UpdateServiceLogUseCase(logs = logs, clock = TEST_CLOCK),
         getLog = GetServiceLogUseCase(logs),
+        currentOdometer = GetCurrentOdometerUseCase(logs),
         currentOwner = CurrentOwnerProvider { OwnerId("owner-1") },
         settings = DefaultSettings,
         telemetry = ServiceLogTelemetry(

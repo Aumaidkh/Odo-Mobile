@@ -5,6 +5,7 @@ import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.datetime.LocalDate
@@ -17,9 +18,10 @@ import kotlin.time.Clock
  * What the update-odometer sheet needs before the owner touches the drum: the reading
  * already on record and the day it was written down.
  *
- * The car alone cannot answer this. It carries the reading but not its date, and the date
- * is the whole point — "+5,000 km since March" is useful, "+5,000 km since some earlier
- * moment" is not.
+ * The car alone cannot answer this. Its own reading can be stale — a service logged after
+ * onboarding carries a newer, higher reading — so the sheet starts from the **latest
+ * reading on the whole timeline**, logs included. Starting lower would offer the owner
+ * numbers the odometer rule then rejects.
  *
  * The sheet works out how far the car has come and roughly how far it goes in a month from
  * these two facts and whatever the owner dials in, so nothing here is computed against a
@@ -34,10 +36,10 @@ internal class GetOdometerContextUseCase(
         val readings = ensureNotNull(logs.odometerReadings(carId)) { DomainError.CarNotFound }
         // The car's own reading is the one without a log id. A live car always has it, so
         // its absence means the readings came from somewhere they should not have.
-        val current = ensureNotNull(readings.firstOrNull { it.logId == null }) { DomainError.CarNotFound }
+        val own = ensureNotNull(readings.firstOrNull { it.logId == null }) { DomainError.CarNotFound }
 
         OdometerContext(
-            lastRecorded = current,
+            lastRecorded = readings.currentReading() ?: own,
             today = clock.now().toLocalDateTime(timeZone).date,
         )
     }

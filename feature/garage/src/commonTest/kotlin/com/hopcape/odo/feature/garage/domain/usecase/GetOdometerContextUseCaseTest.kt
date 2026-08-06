@@ -45,6 +45,22 @@ class GetOdometerContextUseCaseTest {
     }
 
     @Test
+    fun aServiceNewerThanTheCarsOwnReading_seedsTheSheet() = runTest {
+        // A service logged after onboarding carries the freshest reading; starting the
+        // sheet below it would offer numbers the odometer rule then rejects.
+        val result = useCase(
+            listOf(
+                reading(null, LocalDate(2026, 3, 2), 45_000),
+                reading("log-1", LocalDate(2026, 6, 15), 52_000),
+            ),
+        )(TEST_CAR)
+
+        val context = result.getOrNull()!!
+        assertEquals(52_000, context.lastRecorded.odometer.km)
+        assertEquals(LocalDate(2026, 6, 15), context.lastRecorded.date)
+    }
+
+    @Test
     fun noReadings_isCarNotFound() = runTest {
         assertIs<DomainError.CarNotFound>(useCase(null)(TEST_CAR).leftOrNull())
     }

@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.cost.model.RunningCost
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.insight.model.CarInsight
+import com.hopcape.odo.core.domain.shared.Distance
 
 /**
  * Everything Home shows, computed together from one read of the car's whole record.
@@ -25,6 +26,8 @@ internal data class HomeSnapshot(
     val ownerName: String?,
     /** `null` while the car is still loading, or if setup never stored one. */
     val car: Car?,
+    /** The newest odometer reading on record, logs included. `null` only when [car] is. */
+    val odometer: Distance?,
     val score: HealthScore,
     /**
      * Points gained or lost against the score from a month ago. `null` when there is no

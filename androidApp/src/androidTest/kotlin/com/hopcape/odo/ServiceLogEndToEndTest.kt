@@ -164,11 +164,14 @@ class ServiceLogEndToEndTest {
         rule.openServiceLog()
         rule.openAddForm()
 
-        // Odo's core number: without it there is no ₹/km, no health score and no anomaly
-        // check, so Save never opens.
-        rule.onNodeWithTag(ServiceLogTestTags.SAVE).assertIsNotEnabled()
-        rule.fillServiceForm(odometer = LogFixtures.NEW_ODOMETER)
+        // The field opens at the car's latest known reading, so Save is offered right away.
+        rule.awaitText(LogFixtures.CAR_ODOMETER.toString())
         rule.onNodeWithTag(ServiceLogTestTags.SAVE).assertIsEnabled()
+
+        // Odo's core number: without it there is no ₹/km, no health score and no anomaly
+        // check, so clearing the field closes Save.
+        rule.replaceInto(ServiceLogTestTags.ODOMETER_FIELD, "")
+        rule.onNodeWithTag(ServiceLogTestTags.SAVE).assertIsNotEnabled()
     }
 
     @Test

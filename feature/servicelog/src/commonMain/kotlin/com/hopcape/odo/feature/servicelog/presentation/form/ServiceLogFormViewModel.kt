@@ -15,11 +15,14 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.displayValue
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.GetCurrentOdometerUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.UpdateServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
 import com.hopcape.odo.feature.servicelog.presentation.state.Submission
+import com.hopcape.odo.feature.servicelog.presentation.state.text
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_error_save_failed
 import kotlinx.coroutines.Job
@@ -51,6 +54,7 @@ internal class ServiceLogFormViewModel(
     private val addLog: AddServiceLogUseCase,
     private val updateLog: UpdateServiceLogUseCase,
     private val getLog: GetServiceLogUseCase,
+    private val currentOdometer: GetCurrentOdometerUseCase,
     private val currentOwner: CurrentOwnerProvider,
     private val settings: AppSettingsRepository,
     private val telemetry: ServiceLogTelemetry,
@@ -78,8 +82,12 @@ internal class ServiceLogFormViewModel(
     private var original: ServiceLogEntry? = null
 
     init {
-        readDistanceUnit()
-        if (editLogId != null) prefill(editLogId)
+        viewModelScope.launch {
+            // The unit first: both prefills render the reading in it, and a unit that
+            // changed underneath a typed number would silently change what it means.
+            readDistanceUnit()
+            if (editLogId != null) prefill(editLogId) else prefillCurrentOdometer()
+        }
     }
 
     /**
@@ -87,10 +95,21 @@ internal class ServiceLogFormViewModel(
      * anything this form decides. Read once: the owner is typing a number into it, and a
      * unit that changed underneath them would silently change what that number means.
      */
-    private fun readDistanceUnit() {
-        viewModelScope.launch {
-            val unit = settings.observe().first().distanceUnit
-            _state.update { it.copy(odometerUnit = unit.toOdoUnit(), distanceUnit = unit) }
+    private suspend fun readDistanceUnit() {
+        val unit = settings.observe().first().distanceUnit
+        _state.update { it.copy(odometerUnit = unit.toOdoUnit(), distanceUnit = unit) }
+    }
+
+    /**
+     * Start a new entry's odometer field at the car's latest known reading, so the owner
+     * adjusts an up-to-date number instead of recalling one. Skipped when the car has no
+     * readings, and never over something already typed.
+     */
+    private suspend fun prefillCurrentOdometer() {
+        val reading = currentOdometer(carId) ?: return
+        _state.update { state ->
+            if (state.odometer.text.isNotBlank()) state
+            else state.copy(odometer = state.odometer.update(reading.displayValue(state.distanceUnit).toString()))
         }
     }
 

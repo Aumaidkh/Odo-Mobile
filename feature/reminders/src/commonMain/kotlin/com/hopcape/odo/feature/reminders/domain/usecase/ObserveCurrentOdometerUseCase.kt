@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.reminders.domain.usecase
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -16,6 +17,6 @@ internal class ObserveCurrentOdometerUseCase(
 ) {
     operator fun invoke(carId: CarId): Flow<Int?> =
         serviceLogs.observeOdometerReadings(carId).map { readings ->
-            readings.maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))?.odometer?.km
+            readings.currentReading()?.odometer?.km
         }
 }

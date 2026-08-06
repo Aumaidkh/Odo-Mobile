@@ -89,14 +89,47 @@ class OdometerTimelineTest {
     }
 
     @Test
-    fun sameDayReadings_doNotConstrainEachOther() {
-        // Two garages in one day. A service date carries no time, so their order is
-        // unknowable — neither may reject the other.
+    fun aSameDayReadingBelowAnExistingOne_isRejected() {
+        // The reported bug: a service logged at 46,200 km today must not let a second
+        // service be logged at 46,000 km today — the odometer only counts up.
+        val logged = reading("log-1", 2026, 7, 20, 46_200)
+        val candidate = reading("log-2", 2026, 7, 20, 46_000)
+
+        val error = OdometerTimeline.validate(candidate, listOf(baseline, logged)).leftOrNull()
+
+        val regression = assertIs<DomainError.OdometerRegression>(error)
+        assertEquals(46_200, regression.previousKm)
+        assertEquals(46_000, regression.attemptedKm)
+    }
+
+    @Test
+    fun aSameDayReadingAboveAnExistingOne_isAccepted() {
+        // Two garages in one day, logged in the order they happened.
         val morning = reading("log-1", 2026, 7, 20, 46_000)
         val second = reading("log-2", 2026, 7, 20, 46_200)
 
         assertTrue(OdometerTimeline.validate(second, listOf(baseline, morning)).isRight())
-        assertTrue(OdometerTimeline.validate(morning, listOf(baseline, second)).isRight())
+    }
+
+    @Test
+    fun theCarsOwnReadingRewrittenOnItsOwnDay_ignoresItsStoredValue() {
+        // The garage typo fix: the baseline was written down today as 450,000 and is being
+        // corrected to 45,000. Its same-day stored value is the mistake, not a constraint.
+        val stored = reading(null, 2026, 7, 1, 450_000)
+        val corrected = reading(null, 2026, 7, 1, 45_000)
+
+        assertTrue(OdometerTimeline.validate(corrected, listOf(stored)).isRight())
+    }
+
+    @Test
+    fun theCarsOwnReadingRewrittenLater_isStillBoundByItsOldValue() {
+        // The baseline dated 1 Jul was a real observation; a lower reading on a later day
+        // contradicts it and is refused.
+        val candidate = reading(null, 2026, 7, 20, 40_000)
+
+        val error = OdometerTimeline.validate(candidate, listOf(baseline)).leftOrNull()
+
+        assertIs<DomainError.OdometerRegression>(error)
     }
 
     @Test

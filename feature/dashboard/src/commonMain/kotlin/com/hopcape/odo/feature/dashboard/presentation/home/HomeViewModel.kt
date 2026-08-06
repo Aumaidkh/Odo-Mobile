@@ -176,7 +176,7 @@ internal class HomeViewModel(
 private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     userName = ownerName.orEmpty(),
     carName = car?.displayName.orEmpty(),
-    odometer = car?.odometer,
+    odometer = odometer,
     score = score.total,
     band = score.band,
     scoreDelta = scoreDelta,

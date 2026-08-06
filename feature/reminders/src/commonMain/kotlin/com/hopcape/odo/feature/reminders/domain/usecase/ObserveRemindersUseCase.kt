@@ -5,7 +5,7 @@ import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.reminder.analysis.ReminderFeedPolicy
 import com.hopcape.odo.core.domain.reminder.model.ReminderFeed
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
-import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceIntervalPolicy
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import kotlinx.coroutines.flow.Flow
@@ -44,11 +44,7 @@ internal class ObserveRemindersUseCase(
             customs = customs,
             dismissals = dismissals,
             today = today,
-            currentKm = readings.currentKm(),
+            currentKm = readings.currentReading()?.odometer?.km,
         )
     }
-
-    /** The car's reading today: the most recently dated one, ties to the higher km. */
-    private fun List<OdometerReading>.currentKm(): Int? =
-        maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))?.odometer?.km
 }

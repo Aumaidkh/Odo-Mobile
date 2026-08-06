@@ -31,7 +31,10 @@ import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
@@ -43,6 +46,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ServiceLogRepositoryImplTest {
 
     private val carId = CarId("car-1")
@@ -446,6 +450,30 @@ class ServiceLogRepositoryImplTest {
 
         assertEquals(45_000, before)
         assertEquals(48_000, after)
+    }
+
+    /**
+     * The garage card collects this stream while services are being logged. Each write must
+     * reach an already-open collector at once — a card one write behind is the reported bug.
+     */
+    @Test
+    fun aLiveCollector_seesEachNewServiceLogImmediately() = runTest {
+        val db = newDb().apply { seedCar(odometerKm = 5_100) }
+        val repo = repo(db)
+
+        val highestSeen = mutableListOf<Int>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            repo.observeOdometerReadings(carId).collect { readings ->
+                highestSeen += readings.maxOf { it.odometer.km }
+            }
+        }
+
+        repo.add(entry(id = "log-1", day = 10, odometerKm = 5_150))
+        repo.add(entry(id = "log-2", day = 11, odometerKm = 5_160))
+        repo.add(entry(id = "log-3", day = 12, odometerKm = 5_190))
+        collector.cancel()
+
+        assertEquals(listOf(5_100, 5_150, 5_160, 5_190), highestSeen)
     }
 
     @Test
