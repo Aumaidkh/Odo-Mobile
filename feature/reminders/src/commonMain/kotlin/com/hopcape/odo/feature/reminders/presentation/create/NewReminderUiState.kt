@@ -1,49 +1,41 @@
 package com.hopcape.odo.feature.reminders.presentation.create
 
-/** The quick-pick topics on the create screen; [CUSTOM] frees the name field. */
-internal enum class ReminderPreset { AIR_PRESSURE, COOLANT, WIPER_FLUID, BATTERY, CUSTOM }
+import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
 
 /** How often the reminder recurs. [BY_DISTANCE] triggers off odometer, not the calendar. */
 internal enum class ReminderRepeat { EVERY_15_DAYS, MONTHLY, BY_DISTANCE, ONCE }
 
 /**
- * Display state for the "New reminder" (create custom) form — the topic, its name,
- * the cadence, and when it starts. The reminder engine turns this into a schedule; the
- * screen just edits it.
+ * Display state for the "New reminder" form — create, or edit when [editing].
  *
- * [startMillis] is the first-nudge date as epoch millis (fed to / read from the date
- * picker); [hour]/[minute] are the 24h time (fed to / read from the time picker).
- * [customLabel] holds the owner's own topic once they've typed one into the "+ Custom"
- * chip — empty until then.
+ * [preset] is the picked ready-made topic; `null` means the owner's own topic, whose
+ * label sits in [customLabel]. [startMillis] is the first-nudge date as epoch millis
+ * (fed to / read from the date picker); [hour]/[minute] are the 24h time.
+ *
+ * [anchorKm] is the car's odometer reading today — what a distance cadence counts from.
+ * `null` disables the by-distance chip: a reminder cannot count kilometres from a
+ * reading nobody recorded.
  */
+@Immutable
 internal data class NewReminderUiState(
-    val preset: ReminderPreset,
-    val name: String,
-    val repeat: ReminderRepeat,
-    val startMillis: Long,
-    val hour: Int,
-    val minute: Int,
+    val editing: Boolean = false,
+    val preset: ReminderPreset? = ReminderPreset.AIR_PRESSURE,
     val customLabel: String = "",
+    val name: String = "",
+    val repeat: ReminderRepeat = ReminderRepeat.EVERY_15_DAYS,
+    val startMillis: Long = 0L,
+    val hour: Int = 9,
+    val minute: Int = 0,
+    val anchorKm: Int? = null,
+    val nameError: UiText? = null,
+    val startError: UiText? = null,
+    val formError: UiText? = null,
+    val saving: Boolean = false,
 ) {
-    /**
-     * Picks a preset. A concrete topic also fills the name with its [defaultName];
-     * [ReminderPreset.CUSTOM] leaves whatever the owner has typed intact.
-     */
-    fun selectPreset(preset: ReminderPreset, defaultName: String): NewReminderUiState =
-        if (preset == ReminderPreset.CUSTOM) copy(preset = preset)
-        else copy(preset = preset, name = defaultName)
+    /** The "+ Custom" chip is the selected topic. */
+    val customSelected: Boolean get() = preset == null
 
-    /** Commits a typed custom topic: selects [ReminderPreset.CUSTOM] and names it [label]. */
-    fun withCustomLabel(label: String): NewReminderUiState =
-        copy(preset = ReminderPreset.CUSTOM, customLabel = label, name = label)
+    val distanceAvailable: Boolean get() = anchorKm != null
 }
-
-/** Sample state (mirrors the mockup: air-pressure check, every 15 days, [startMillis] at 9 AM). */
-internal fun sampleNewReminder(startMillis: Long): NewReminderUiState = NewReminderUiState(
-    preset = ReminderPreset.AIR_PRESSURE,
-    name = "Air pressure check",
-    repeat = ReminderRepeat.EVERY_15_DAYS,
-    startMillis = startMillis,
-    hour = 9,
-    minute = 0,
-)
