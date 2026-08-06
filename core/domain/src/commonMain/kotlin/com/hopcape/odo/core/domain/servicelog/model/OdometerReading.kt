@@ -22,3 +22,11 @@ data class OdometerReading(
     val date: LocalDate,
     val odometer: Distance,
 )
+
+/**
+ * The car's reading as of today: the most recently *dated* one, ties going to the higher
+ * km. `null` on an empty list. This is the one definition of "current odometer" — every
+ * screen that prefills or anchors on the latest reading uses it.
+ */
+fun List<OdometerReading>.currentReading(): OdometerReading? =
+    maxWithOrNull(compareBy({ it.date }, { it.odometer.km }))

@@ -22,6 +22,7 @@ import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
@@ -107,6 +108,9 @@ internal class ObserveHomeUseCase(
         return HomeSnapshot(
             ownerName = ownerName,
             car = record.car,
+            // The header's reading comes from the whole timeline: a service logged after
+            // onboarding moves it, even though the car's own stored reading stays put.
+            odometer = record.readings.currentReading()?.odometer ?: record.car?.odometer,
             score = score,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,

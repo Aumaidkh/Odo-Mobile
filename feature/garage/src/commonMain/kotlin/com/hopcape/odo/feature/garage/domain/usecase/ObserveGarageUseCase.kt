@@ -5,10 +5,13 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
@@ -44,16 +47,21 @@ internal class ObserveGarageUseCase(
         cars.observe(carId),
         documents.observe(carId),
         logs.observe(carId),
-    ) { car, documents, entries -> snapshotOf(car, documents, entries) }
+        logs.observeOdometerReadings(carId),
+    ) { car, documents, entries, readings -> snapshotOf(car, documents, entries, readings) }
 
     private fun snapshotOf(
         car: Car?,
         documents: List<Document>,
         entries: List<ServiceLogEntry>,
+        readings: List<OdometerReading>,
     ): GarageSnapshot {
         val today = clock.now().toLocalDateTime(timeZone).date
         return GarageSnapshot(
             car = car,
+            // The card shows the latest reading on the whole timeline: a service logged
+            // after onboarding moves it, even though the car's own stored reading stays put.
+            currentOdometer = readings.currentReading()?.odometer ?: car?.odometer,
             documents = GarageDocument.rowsFor(documents, today),
             history = entries.map { it.toHistoryEntry() },
             today = today,
@@ -80,6 +88,8 @@ internal class ObserveGarageUseCase(
  */
 internal data class GarageSnapshot(
     val car: Car?,
+    /** The newest reading on record, logs included. `null` only when [car] is `null`. */
+    val currentOdometer: Distance?,
     val documents: List<GarageDocument>,
     val history: List<ServiceHistoryEntry>,
     /** The day the document rows were resolved against. */

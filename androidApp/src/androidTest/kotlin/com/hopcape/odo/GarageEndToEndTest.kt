@@ -167,6 +167,38 @@ class GarageEndToEndTest {
         rule.onNodeWithText(GarageCopy.entriesSummary(0, "Rs. 0")).assertIsDisplayed()
     }
 
+    /**
+     * The reported bug: after logging a service the card kept its previous reading, running
+     * one service behind. The new reading must be on the card as soon as the garage is back
+     * on screen.
+     */
+    @Test
+    fun loggingAServiceMovesTheCardsReadingAtOnce() {
+        rule.openGarage()
+        rule.awaitText(GarageCopy.HISTORY)
+        rule.onNodeWithTag(GarageTestTags.ODOMETER).assertTextEquals(GarageFixtures.CAR_ODOMETER_SHOWN)
+
+        rule.openAddToHistory()
+        rule.onNodeWithText(GarageCopy.ADD_HISTORY_MANUAL).performClick()
+        rule.awaitText(LogCopy.FORM_TITLE_ADD)
+        rule.fillServiceForm(odometer = "41000", date = todayTyped())
+        rule.saveServiceLog()
+
+        // Saving may land on the new entry rather than straight back on the garage.
+        rule.waitUntil(10_000) {
+            rule.textCount(GarageCopy.HISTORY) > 0 || rule.textCount(LogCopy.ADD_BILL_TO_VERIFY) > 0
+        }
+        if (rule.textCount(GarageCopy.HISTORY) == 0) androidx.test.espresso.Espresso.pressBack()
+        rule.awaitText(GarageCopy.HISTORY)
+
+        rule.onNodeWithTag(GarageTestTags.ODOMETER).assertTextEquals("41,000 km")
+    }
+
+    private fun todayTyped(): String {
+        val today = LocalDate.now()
+        return "%02d%02d%04d".format(today.monthValue, today.dayOfMonth, today.year)
+    }
+
     /* ------------------------------ The odometer ------------------------------ */
 
     @Test

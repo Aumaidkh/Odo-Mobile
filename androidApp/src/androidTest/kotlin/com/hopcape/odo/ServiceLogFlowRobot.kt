@@ -10,8 +10,10 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -347,9 +349,17 @@ internal fun LogTestRule.fillServiceForm(
     date: String? = null,
 ) {
     workshop?.let { typeInto(ServiceLogTestTags.WORKSHOP_FIELD, it) }
-    odometer?.let { typeInto(ServiceLogTestTags.ODOMETER_FIELD, it) }
+    // Replaced, not typed: the field starts at the car's latest reading, and typing would
+    // append the digits to it.
+    odometer?.let { replaceInto(ServiceLogTestTags.ODOMETER_FIELD, it) }
     amount?.let { typeInto(ServiceLogTestTags.AMOUNT_FIELD, it) }
     date?.let { setServiceDate(it) }
+}
+
+/** [typeInto]'s replacing twin, for fields that open with a value already in them. */
+internal fun LogTestRule.replaceInto(fieldTag: String, text: String) {
+    onNode(hasSetTextAction() and (hasTestTag(fieldTag) or hasAnyAncestor(hasTestTag(fieldTag))))
+        .performTextReplacement(text)
 }
 
 /**

@@ -56,6 +56,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
@@ -181,6 +182,7 @@ private fun PopulatedGarage(
     ) {
         CarCard(
             car = car,
+            odometer = content.odometer ?: car.odometer,
             onUpdate = { onEvent(GarageEvent.UpdateOdometerTapped) },
             onMenu = { onEvent(GarageEvent.CarMenuTapped) },
         )
@@ -202,7 +204,7 @@ private fun PopulatedGarage(
 }
 
 @Composable
-private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
+private fun CarCard(car: Car, odometer: Distance, onUpdate: () -> Unit, onMenu: () -> Unit) {
     OdoCard(modifier = Modifier.testTag(GarageTestTags.CAR_CARD)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -230,7 +232,7 @@ private fun CarCard(car: Car, onUpdate: () -> Unit, onMenu: () -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.gr_odometer), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
                 OdoText(
-                    LocalOdoDistanceFormat.current.format(car.odometer.km),
+                    LocalOdoDistanceFormat.current.format(odometer.km),
                     style = OdoTheme.typography.title,
                     modifier = Modifier.testTag(GarageTestTags.ODOMETER),
                 )

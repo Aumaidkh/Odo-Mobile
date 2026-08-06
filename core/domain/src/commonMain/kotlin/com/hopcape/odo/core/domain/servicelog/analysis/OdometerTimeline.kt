@@ -23,9 +23,11 @@ import com.hopcape.odo.core.domain.shared.DomainError
  * most the **lowest** reading dated after it — the tightest bound on each side, which on a
  * consistent timeline is simply the adjacent entry.
  *
- * **Same-day readings do not constrain each other.** A service date is a date, with no time
- * of day, so two services on one day have no knowable order — constraining them would
- * reject the honest case (two garages, one day) to catch nothing.
+ * **Same-day readings count towards the floor.** A service date carries no time of day, but
+ * the reading already on file was saved first, and a new reading below it is exactly the
+ * regression this rule exists to catch — log 550 km, then 540 km the same day. So the lower
+ * bound is the highest reading dated **on or before** the candidate, and two services on
+ * one day must be logged lower reading first.
  */
 object OdometerTimeline {
 
@@ -35,6 +37,9 @@ object OdometerTimeline {
      * The candidate excludes itself by [OdometerReading.logId], which is what makes an
      * **edit** work: correcting the newest entry's reading downwards is a typo fix, not a
      * regression, and comparing it against its own stored value would reject every such fix.
+     * A `null`-id candidate is the car's own reading being rewritten; its stored same-day
+     * value is the typo being fixed, so that one row is excluded too. On an earlier date the
+     * stored value stands — it was a real observation, and today cannot read less.
      *
      * Returns the candidate on success so callers can `bind()` it into a larger `either {}`.
      */
@@ -42,10 +47,10 @@ object OdometerTimeline {
         candidate: OdometerReading,
         known: List<OdometerReading>,
     ): Either<DomainError, OdometerReading> {
-        val others = known.filterNot { candidate.logId != null && it.logId == candidate.logId }
+        val others = known.filterNot { it.excludedFor(candidate) }
         val km = candidate.odometer.km
 
-        val previous = others.filter { it.date < candidate.date }.maxByOrNull { it.odometer.km }
+        val previous = others.filter { it.date <= candidate.date }.maxByOrNull { it.odometer.km }
         if (previous != null && km < previous.odometer.km) {
             return DomainError.OdometerRegression(previousKm = previous.odometer.km, attemptedKm = km).left()
         }
@@ -56,6 +61,15 @@ object OdometerTimeline {
         }
 
         return candidate.right()
+    }
+
+    /** Whether this stored reading is the one [candidate] is replacing. */
+    private fun OdometerReading.excludedFor(candidate: OdometerReading): Boolean = when {
+        // An edited entry is never checked against its own stored reading.
+        candidate.logId != null -> logId == candidate.logId
+        // A baseline rewrite replaces the car's own reading, but only its same-day value:
+        // an earlier baseline was a real observation and still binds.
+        else -> logId == null && date == candidate.date
     }
 
     /**
@@ -71,8 +85,9 @@ object OdometerTimeline {
      * the time. So this rescans the whole list rather than trusting that every write passed
      * [validate].
      *
-     * Same rules as [validate]: a reading is measured against the **highest** reading dated
-     * strictly before it, and readings sharing a date do not constrain each other.
+     * Looser than [validate] on one point: readings sharing a date are not flagged against
+     * each other. [validate] can order same-day readings by which was saved first; a scan
+     * of stored history cannot, so a same-day pair is left alone rather than guessed at.
      */
     fun anomalies(readings: List<OdometerReading>): List<OdometerAnomaly> {
         val found = mutableListOf<OdometerAnomaly>()

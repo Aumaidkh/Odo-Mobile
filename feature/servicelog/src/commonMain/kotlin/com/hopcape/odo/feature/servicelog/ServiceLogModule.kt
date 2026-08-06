@@ -6,6 +6,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.servicelog.domain.usecase.AddServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.AttachBillPhotoUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.DeleteServiceLogUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.GetCurrentOdometerUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceLogFeedUseCase
@@ -47,6 +48,7 @@ val serviceLogModule = module {
     factory { ObserveEntryDetailUseCase(observeFeed = get()) }
     factory { ObserveShareableRecordUseCase(observeFeed = get(), cars = get()) }
     factory { GetServiceLogUseCase(logs = get()) }
+    factory { GetCurrentOdometerUseCase(logs = get()) }
     factory { AddServiceLogUseCase(logs = get(), idGenerator = get(), clock = get()) }
     factory { UpdateServiceLogUseCase(logs = get(), clock = get()) }
     factory { DeleteServiceLogUseCase(logs = get()) }
@@ -97,6 +99,7 @@ val serviceLogModule = module {
             addLog = get(),
             updateLog = get(),
             getLog = get(),
+            currentOdometer = get(),
             currentOwner = get(),
             settings = get(),
             telemetry = get(),

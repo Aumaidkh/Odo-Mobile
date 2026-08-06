@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.garage.presentation
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
@@ -38,6 +39,8 @@ internal data class GarageUiState(
 @Immutable
 internal data class GarageContent(
     val car: Car?,
+    /** The newest reading on record, logs included — what the car card shows. */
+    val odometer: Distance? = null,
     val documents: List<GarageDocument>,
     val history: List<ServiceHistoryEntry>,
 )
