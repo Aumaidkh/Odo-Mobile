@@ -1,11 +1,13 @@
 package com.hopcape.odo
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -184,6 +186,31 @@ class GarageEndToEndTest {
         rule.onNodeWithTag(GarageTestTags.ODOMETER)
             .assertTextEquals(GarageFixtures.HIGHER_READING_SHOWN)
         assertEquals("88888", storedCarValue("current_odometer_km"))
+    }
+
+    /**
+     * The reading is typed on the phone's own number pad, not an in-app keypad. The field
+     * behind the drums takes focus as soon as the sheet opens — that is what raises the
+     * keyboard — what is typed is cleaned as it lands (a leading zero is dropped, a
+     * seventh digit has nowhere to go), and the keyboard's done key saves like the button.
+     */
+    @Test
+    fun theReadingIsTypedOnTheSystemKeyboard() {
+        rule.openGarage()
+        rule.awaitText(LogFixtures.CAR_NAME)
+        rule.openOdometerSheet()
+
+        rule.odometerEntry().assertIsFocused()
+
+        rule.dialOdometer("")
+        rule.typeOdometer("0" + GarageFixtures.FULL_READING)
+        rule.typeOdometer("9")
+        rule.odometerEntry().performImeAction()
+
+        rule.awaitGone(GarageCopy.ODOMETER_SAVE)
+        rule.onNodeWithTag(GarageTestTags.ODOMETER)
+            .assertTextEquals(GarageFixtures.FULL_READING_SHOWN)
+        assertEquals(GarageFixtures.FULL_READING, storedCarValue("current_odometer_km"))
     }
 
     /**

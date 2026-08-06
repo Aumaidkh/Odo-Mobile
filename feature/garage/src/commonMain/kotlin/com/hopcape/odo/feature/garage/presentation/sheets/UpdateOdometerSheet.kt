@@ -20,7 +20,6 @@ import com.hopcape.odo.feature.garage.domain.usecase.OdometerContext
 import com.hopcape.odo.feature.garage.presentation.GarageSheet
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
-import com.hopcape.odo.feature.garage.resources.gr_odo_backspace
 import com.hopcape.odo.feature.garage.resources.gr_odo_delta
 import com.hopcape.odo.feature.garage.resources.gr_odo_last
 import com.hopcape.odo.feature.garage.resources.gr_odo_save
@@ -35,7 +34,7 @@ import org.jetbrains.compose.resources.stringResource
  * Update-odometer sheet ([com.hopcape.odo.core.navigation.OdoDestination.Garage.UpdateOdometer]).
  *
  * The reading is captured by the design system's [OdoOdometerEditor] — the same drums,
- * km/miles toggle, quick-adds and keypad the owner met during onboarding — rather than a
+ * km/miles toggle and quick-adds the owner met during onboarding — rather than a
  * plain number field. The sheet chrome itself comes from the Nav3 scene strategy, so the
  * editor is rendered bare and the garage's own context (what was last recorded, how far
  * the car has come since) goes in the editor's footer slot.
@@ -89,7 +88,6 @@ private fun Editor(
         saveLabel = stringResource(Res.string.gr_odo_save),
         kmLabel = stringResource(Res.string.gr_odo_unit_km),
         milesLabel = stringResource(Res.string.gr_odo_unit_miles),
-        backspaceLabel = stringResource(Res.string.gr_odo_backspace),
         footer = { dialled ->
             OdoText(
                 stringResource(

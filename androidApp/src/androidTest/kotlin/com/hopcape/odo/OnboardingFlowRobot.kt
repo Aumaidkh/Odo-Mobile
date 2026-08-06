@@ -103,9 +103,8 @@ internal fun OdoTestRule.startFromWelcome() {
 /**
  * Open the odometer sheet and put a reading in it.
  *
- * The reading is entered with the sheet's own "+1,000" shortcut rather than by typing: the
- * drum is a custom control with no text input behind it, and the shortcut is what most
- * owners will tap anyway.
+ * The reading is entered with the sheet's own "+1,000" shortcut rather than by typing: it
+ * needs no keyboard on screen, and the shortcut is what most owners will tap anyway.
  */
 internal fun OdoTestRule.setOdometer(thousands: Int = 5) {
     onNodeWithTag(OnboardingTestTags.ODOMETER_FIELD).performClick()
