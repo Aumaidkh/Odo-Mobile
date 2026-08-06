@@ -69,7 +69,6 @@ val billScannerModule = module {
             saveBill = get(),
             activeCar = get(),
             currentOwner = get(),
-            clock = get(),
             telemetry = get(),
         )
     }

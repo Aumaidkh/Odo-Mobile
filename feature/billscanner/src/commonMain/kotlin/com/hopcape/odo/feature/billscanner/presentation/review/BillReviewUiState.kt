@@ -53,6 +53,13 @@ internal data class BillReviewUiState(
     /** Above this, the extraction reads as trustworthy (green); below, flag it (amber). */
     val highConfidence: Boolean get() = confidence >= ExtractionConfidence.HIGH
 
+    /**
+     * Whether the banner warns instead of reassures. A poor score flags, and so does a
+     * handwritten bill at any score — the model being sure about handwriting is not the
+     * same as being right about it (PRD §5.2).
+     */
+    val flagged: Boolean get() = requiresReview || !highConfidence
+
     /** Whether the fields can be saved yet. */
     val canSave: Boolean get() = !submission.isInFlight && serviceDate != null
 

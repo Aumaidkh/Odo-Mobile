@@ -25,11 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 import kotlinx.coroutines.launch
-import kotlinx.datetime.LocalDate
 
 /**
  * State holder for the review step: reads the photo, shows what came back, and writes what the
@@ -50,7 +46,6 @@ internal class BillReviewViewModel(
     private val saveBill: SaveScannedBillUseCase,
     private val activeCar: ActiveCarProvider,
     private val currentOwner: CurrentOwnerProvider,
-    private val clock: Clock,
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
 
@@ -99,10 +94,9 @@ internal class BillReviewViewModel(
     }
 
     /**
-     * Fill the form from what was read. Fields that were not read stay empty — with one
-     * deliberate exception: an unread date defaults to today, because the date is required
-     * to save and most bills are scanned the day they were issued. It is a *form default*
-     * the owner reviews, not an extraction claim; the extraction itself stays null.
+     * Fill the form from what was read. A field that was not read stays empty — including
+     * the date: it shows "Not set" and the save waits until the owner picks one. Defaulting
+     * to today would quietly file a wrong date on every bill scanned later than its visit.
      */
     private fun show(bill: ExtractedBill) {
         extracted = bill
@@ -113,7 +107,7 @@ internal class BillReviewViewModel(
                 requiresReview = bill.requiresManualReview,
                 photoBlurry = bill.photoBlurry,
                 workshop = bill.workshopName.orEmpty(),
-                serviceDate = bill.serviceDate ?: today(),
+                serviceDate = bill.serviceDate,
                 odometer = bill.odometerKm?.toString().orEmpty(),
                 lineItems = bill.lineItems.map { line ->
                     BillLineItem(
@@ -131,10 +125,6 @@ internal class BillReviewViewModel(
         edited = true
         _state.update { change(it).copy(submission = Submission.Idle) }
     }
-
-    /** Today on this device's calendar — the date field's form default. */
-    private fun today(): LocalDate =
-        clock.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
 
     /**
      * Write the entry, then hand its lines to the fairness check.
