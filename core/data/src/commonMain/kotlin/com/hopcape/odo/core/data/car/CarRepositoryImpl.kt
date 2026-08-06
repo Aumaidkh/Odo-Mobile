@@ -201,6 +201,13 @@ internal class CarRepositoryImpl(
                         syncStatus = pending,
                         carId = id.value,
                     )
+                    // A custom reminder of a deleted car must never fire again, and its
+                    // dismissals go with it.
+                    database.reminderQueries.softDeleteRemindersForCar(
+                        deletedAt = now,
+                        syncStatus = pending,
+                        carId = id.value,
+                    )
                     queries.softDeleteCar(deletedAt = now, syncStatus = pending, id = id.value)
                 }
                 requestSync(OP_DELETE, id.value)

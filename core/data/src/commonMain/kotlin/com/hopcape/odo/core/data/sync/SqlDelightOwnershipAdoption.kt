@@ -35,6 +35,7 @@ internal class SqlDelightOwnershipAdoption(
                     database.fuelFillQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.healthScoreQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.overchargeReportQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    database.reminderQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
 
                     // Last, and a re-key rather than a stamp. `UPDATE OR IGNORE` because the
                     // signed-in account may already have a profile row pulled from the
