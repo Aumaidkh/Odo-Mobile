@@ -225,6 +225,29 @@ sealed interface DomainError {
      */
     data object MissingFuelQuantity : DomainError
 
+    /* ---- Reminders ---- */
+
+    /** A custom reminder was submitted without a topic name — there is nothing to say. */
+    data object BlankReminderTitle : DomainError
+
+    /** A reminder title exceeded [max] characters after trimming. */
+    data class ReminderTitleTooLong(val max: Int) : DomainError
+
+    /** A repeating cadence was given a step of zero or less (days or kilometres). */
+    data object ReminderIntervalNotPositive : DomainError
+
+    /**
+     * A reminder's first nudge was set before today. It would be late the moment it was
+     * saved, so the field is corrected rather than the date stored.
+     */
+    data object ReminderStartInPast : DomainError
+
+    /** A distance-based reminder needs the odometer reading it counts from, but none was given. */
+    data object MissingReminderAnchorOdometer : DomainError
+
+    /** No live custom reminder has this id — it was never written, or has been deleted. */
+    data object ReminderNotFound : DomainError
+
     /* ---- Auth ---- */
 
     /** A phone number was required to sign in but nothing was typed. */
