@@ -65,7 +65,9 @@ internal class AppSettingsRepositoryImpl(
                         notifOvercharge = notifications.overchargeAlerts.toLong(),
                         notifMonthly = notifications.monthlySummary.toLong(),
                         notifHealthDrop = notifications.healthScoreDrops.toLong(),
+                        notifPartner = notifications.partnerOffers.toLong(),
                         notifPush = notifications.push.toLong(),
+                        notifWhatsapp = notifications.whatsapp.toLong(),
                         updatedAt = now,
                     )
                     queries.updateSettings(
@@ -79,7 +81,9 @@ internal class AppSettingsRepositoryImpl(
                         notifOvercharge = notifications.overchargeAlerts.toLong(),
                         notifMonthly = notifications.monthlySummary.toLong(),
                         notifHealthDrop = notifications.healthScoreDrops.toLong(),
+                        notifPartner = notifications.partnerOffers.toLong(),
                         notifPush = notifications.push.toLong(),
+                        notifWhatsapp = notifications.whatsapp.toLong(),
                         updatedAt = now,
                     )
                 }

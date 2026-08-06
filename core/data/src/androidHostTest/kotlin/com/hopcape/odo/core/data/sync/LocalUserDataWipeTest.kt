@@ -85,8 +85,8 @@ class LocalUserDataWipeTest {
         driver.exec(
             "INSERT INTO app_settings (id, theme, larger_text, distance_unit, fuel_efficiency_unit, " +
                 "notif_doc_expiry, notif_service_due, notif_custom, notif_overcharge, notif_monthly, " +
-                "notif_health_drop, notif_push, updated_at) " +
-                "VALUES (1, 'DARK', 1, 'KM', 'KMPL', 1, 1, 1, 1, 1, 1, 1, '$now')",
+                "notif_health_drop, notif_partner, notif_push, notif_whatsapp, updated_at) " +
+                "VALUES (1, 'DARK', 1, 'KM', 'KMPL', 1, 1, 1, 1, 1, 1, 0, 1, 0, '$now')",
         )
 
         wipe(db).wipe()
