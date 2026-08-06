@@ -129,6 +129,9 @@ internal class DataTelemetry(
         /** Fuel fills — the measured half of the running cost, kept apart from the price feed. */
         const val FUEL_FILL = "fuelfill"
         const val HEALTH_SCORE = "healthscore"
+
+        /** Custom reminders + dismissals — the stored half; the derived feed has no rows. */
+        const val REMINDER = "reminder"
         const val SYNC = "sync"
     }
 }
