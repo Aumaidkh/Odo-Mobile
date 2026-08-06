@@ -176,7 +176,12 @@ MVP caps free users at 3 documents **per owner** — enforced in the application
 
 ### 5.7 `reminders`
 
-Generated, not user-authored. `reminder_type` enum maps to the PRD trigger table. `due_date`, `status` (`scheduled` / `sent` / `dismissed` / `actioned`), `channel` (`push` / `whatsapp` / `push_whatsapp`), `payload` jsonb (deep-link target, affiliate URL). A scheduler (Edge Function / cron) reads due rows and dispatches via FCM.
+Mostly generated, with two client-written shapes in the same table. The derived kinds (`insurance_expiry`, `puc_expiry`, `licence_expiry`, `service_due_*`, `health_drop`, `inactivity`) are generated server-side; a scheduler (Edge Function / cron) reads due rows and dispatches via FCM. The client writes two kinds of row of its own:
+
+- **`custom` rows** are user-authored reminders ("check air pressure every 15 days"). They carry the cadence columns (`repeat_kind`, `repeat_every_days`, `repeat_every_km`, `anchor_km`, `starts_on`, `remind_at`, `preset`) plus the `is_paused` switch, and fire from the device — the server engine has no generator for them. `due_date` holds `starts_on` so the NOT NULL and the indexes keep working.
+- **Dismissal rows** record one waved-away occurrence: `status = 'dismissed'`, `due_date` = the occurrence day, and `dismissed_custom_id` naming the custom reminder when the kind is `custom`. Because the dedupe index covers generated kinds, a synced dismissal also blocks the server from re-creating that occurrence.
+
+`title`/`body` are nullable: the engine renders copy for generated rows at dispatch time, and client-written rows carry none. `payload` jsonb holds the deep-link target / affiliate URL on generated rows. `deleted_at` exists because custom rows are user content and sync soft deletes like every other user table.
 
 ### 5.8 `health_scores`
 
@@ -200,10 +205,12 @@ CREATE TYPE log_source       AS ENUM ('manual', 'scanned');
 CREATE TYPE scan_status      AS ENUM ('pending', 'processing', 'completed', 'failed', 'needs_review');
 CREATE TYPE document_type    AS ENUM ('insurance', 'puc', 'rc', 'licence', 'loan', 'other');
 CREATE TYPE document_source  AS ENUM ('scanned', 'uploaded', 'digilocker');
-CREATE TYPE reminder_type    AS ENUM ('insurance_expiry', 'puc_expiry', 'service_due_km',
-                                      'service_due_time', 'health_drop', 'inactivity');
+CREATE TYPE reminder_type    AS ENUM ('insurance_expiry', 'puc_expiry', 'licence_expiry',
+                                      'service_due_km', 'service_due_time', 'health_drop',
+                                      'inactivity', 'custom');
 CREATE TYPE reminder_status  AS ENUM ('scheduled', 'sent', 'dismissed', 'actioned', 'cancelled');
 CREATE TYPE reminder_channel AS ENUM ('push', 'whatsapp', 'push_whatsapp');
+CREATE TYPE reminder_repeat  AS ENUM ('once', 'every_days', 'monthly', 'every_km');
 CREATE TYPE onboarding_goal  AS ENUM ('sell_soon', 'track_costs', 'never_miss_renewal');
 CREATE TYPE subscription_tier AS ENUM ('free', 'pro', 'fleet');
 CREATE TYPE subscription_status AS ENUM ('active', 'past_due', 'cancelled', 'expired');
@@ -478,25 +485,72 @@ CREATE TABLE reminders (
     owner_id       uuid NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
     car_id         uuid NOT NULL REFERENCES cars (id) ON DELETE CASCADE,
     reminder_type  reminder_type NOT NULL,
-    due_date       date NOT NULL,
+    due_date       date NOT NULL,                        -- custom rows store starts_on here
     status         reminder_status NOT NULL DEFAULT 'scheduled',
     channel        reminder_channel NOT NULL DEFAULT 'push',
-    title          text NOT NULL,
-    body           text NOT NULL,
+    title          text,                                 -- engine renders copy for generated
+    body           text,                                 --   rows; client rows carry none
     payload        jsonb,                                -- deep link, affiliate URL, etc.
     sent_at        timestamptz,
+
+    -- custom rows only (user-authored; NULL on generated rows)
+    is_paused         boolean NOT NULL DEFAULT false,
+    starts_on         date,
+    remind_at         time,
+    repeat_kind       reminder_repeat,
+    repeat_every_days integer CHECK (repeat_every_days IS NULL OR repeat_every_days > 0),
+    repeat_every_km   integer CHECK (repeat_every_km IS NULL OR repeat_every_km > 0),
+    anchor_km         integer CHECK (anchor_km IS NULL OR anchor_km >= 0),
+    preset            text,
+
+    -- dismissal rows only: which custom reminder's occurrence was waved away.
+    -- Deliberately no FK: the dismissal can sync before the custom row it names.
+    dismissed_custom_id uuid,
+
     created_at     timestamptz NOT NULL DEFAULT now(),
-    updated_at     timestamptz NOT NULL DEFAULT now()
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    deleted_at     timestamptz                           -- custom rows are user content
 );
 
 -- the scheduler's hot query: "what is due and still scheduled?"
 CREATE INDEX idx_reminders_due
     ON reminders (due_date) WHERE status = 'scheduled';
 CREATE INDEX idx_reminders_car ON reminders (car_id);
--- avoid duplicate reminders of the same type/date per car
+-- avoid duplicate generated reminders of the same type/date per car. Custom rows are
+-- excluded: two of the owner's own reminders may fall due on the same day.
 CREATE UNIQUE INDEX uq_reminders_dedupe
-    ON reminders (car_id, reminder_type, due_date);
+    ON reminders (car_id, reminder_type, due_date)
+    WHERE reminder_type <> 'custom';
 ```
+
+Already-provisioned projects apply the same change as a delta (`0022_reminders_custom.sql`):
+
+```sql
+ALTER TYPE reminder_type ADD VALUE 'licence_expiry';
+ALTER TYPE reminder_type ADD VALUE 'custom';
+CREATE TYPE reminder_repeat AS ENUM ('once', 'every_days', 'monthly', 'every_km');
+
+ALTER TABLE reminders
+    ALTER COLUMN title DROP NOT NULL,
+    ALTER COLUMN body  DROP NOT NULL,
+    ADD COLUMN is_paused           boolean NOT NULL DEFAULT false,
+    ADD COLUMN starts_on           date,
+    ADD COLUMN remind_at           time,
+    ADD COLUMN repeat_kind         reminder_repeat,
+    ADD COLUMN repeat_every_days   integer CHECK (repeat_every_days IS NULL OR repeat_every_days > 0),
+    ADD COLUMN repeat_every_km     integer CHECK (repeat_every_km IS NULL OR repeat_every_km > 0),
+    ADD COLUMN anchor_km           integer CHECK (anchor_km IS NULL OR anchor_km >= 0),
+    ADD COLUMN preset              text,
+    ADD COLUMN dismissed_custom_id uuid,
+    ADD COLUMN deleted_at          timestamptz;
+
+DROP INDEX IF EXISTS uq_reminders_dedupe;
+CREATE UNIQUE INDEX uq_reminders_dedupe
+    ON reminders (car_id, reminder_type, due_date)
+    WHERE reminder_type <> 'custom';
+```
+
+The `owner_all` RLS template (Section 12) already grants what the client-written rows need — inserts and updates are checked against `owner_id = auth.uid()` like every other user table.
 
 ### 9.9 `health_scores`
 
@@ -1094,6 +1148,7 @@ Split into ordered files; each is idempotent-friendly and forward-only.
 0016_functions_triggers.sql    -- set_updated_at, stamp_owner, odometer, anomaly
 0017_views.sql
 0018_rls.sql                   -- enable + policies + RPCs
+0022_reminders_custom.sql      -- custom/licence_expiry types, cadence columns, scoped dedupe
 -- Phase 2
 0019_resale_passports.sql      -- + ALTER payments ADD fk_payments_passport
 0020_ai_doctor.sql
