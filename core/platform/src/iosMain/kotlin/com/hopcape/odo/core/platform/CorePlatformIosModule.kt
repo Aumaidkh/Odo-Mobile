@@ -3,6 +3,7 @@ package com.hopcape.odo.core.platform
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
+import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.IosFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
@@ -33,6 +34,9 @@ val corePlatformIosModule = module {
     // No edge detection on iOS yet, so there is never a quad to crop to — the photo
     // passes through untouched.
     single<DocumentCropper> { DocumentCropper { storageKey, _ -> storageKey } }
+    // No still-image reader on iOS yet — the live preview is the only way in. Answering
+    // "no code here" leaves the screen's own message doing the explaining.
+    single<QrImageDecoder> { QrImageDecoder { null } }
     single<AppInfo> { IosAppInfo() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
     // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not

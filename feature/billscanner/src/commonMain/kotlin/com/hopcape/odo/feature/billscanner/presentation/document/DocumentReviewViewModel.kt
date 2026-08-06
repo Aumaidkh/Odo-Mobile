@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.scan.model.ExtractedDocument
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedDocumentCommand
@@ -33,6 +34,7 @@ import kotlinx.coroutines.launch
  */
 internal class DocumentReviewViewModel(
     private val photoKey: String?,
+    private val initialType: DocumentType?,
     private val scanDocument: ScanDocumentUseCase,
     private val saveDocument: SaveScannedDocumentUseCase,
     private val activeCar: ActiveCarProvider,
@@ -40,7 +42,12 @@ internal class DocumentReviewViewModel(
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(DocumentReviewUiState(photoKey = photoKey))
+    private val _state = MutableStateFlow(
+        DocumentReviewUiState(
+            photoKey = photoKey,
+            type = initialType ?: DocumentType.INSURANCE,
+        ),
+    )
     val state: StateFlow<DocumentReviewUiState> = _state.asStateFlow()
 
     private val _effects = Channel<DocumentReviewEffect>(Channel.BUFFERED)
@@ -85,7 +92,9 @@ internal class DocumentReviewViewModel(
         _state.update { current ->
             current.copy(
                 submission = Submission.Idle,
-                type = document.documentType ?: current.type,
+                // The caller's type wins over the read's guess: the owner tapped "Add" on the
+                // RC row, so an insurance-looking policy in frame does not get to rename it.
+                type = initialType ?: document.documentType ?: current.type,
                 title = document.suggestedTitle.orEmpty(),
                 issuedOn = document.issuedOn,
                 expiresOn = document.expiresOn,

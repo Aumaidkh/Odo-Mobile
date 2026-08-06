@@ -152,8 +152,17 @@ sealed interface OdoDestination : NavKey {
          * [target] is what the caller came to scan. One destination rather than three,
          * because all three are the same camera, the same permission and the same capture;
          * only the frame guide and what happens to the photo afterwards differ.
+         *
+         * [documentType] is the paper the caller already knows it wants, as a
+         * `DocumentType` name — the vault's RC row opens the scanner knowing it is an RC.
+         * Null when nobody said, which is when the read's own guess is used instead. A
+         * string because a key is serialized into the back stack, and because
+         * `:core:navigation` holds no domain types.
          */
-        data class Capture(val target: ScanTarget = ScanTarget.Bill) : BillScanner
+        data class Capture(
+            val target: ScanTarget = ScanTarget.Bill,
+            val documentType: String? = null,
+        ) : BillScanner
 
         /**
          * Review + confirm the AI-extracted bill details before saving.
@@ -168,8 +177,13 @@ sealed interface OdoDestination : NavKey {
          *
          * Its own key rather than a mode of [Review] because the two confirm different things
          * and end somewhere different — one in the service log, one in the document vault.
+         *
+         * [documentType] carries what the caller already knew, the same way [Capture] does.
          */
-        data class DocumentReview(val photoKey: String) : BillScanner
+        data class DocumentReview(
+            val photoKey: String,
+            val documentType: String? = null,
+        ) : BillScanner
 
         /**
          * Pay a scanned QR, then record the fill it bought.

@@ -4,7 +4,9 @@ import android.content.Context
 import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
+import com.hopcape.odo.core.platform.camera.AndroidQrImageDecoder
 import com.hopcape.odo.core.platform.camera.DocumentCropper
+import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.AndroidFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
@@ -30,6 +32,7 @@ import org.koin.dsl.module
 val corePlatformAndroidModule = module {
     single<PlatformFileStore> { AndroidFileStore(context = get<Context>()) }
     single<DocumentCropper> { AndroidDocumentCropper(context = get<Context>()) }
+    single<QrImageDecoder> { AndroidQrImageDecoder(context = get<Context>()) }
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
     single<SystemNotificationSettings> { AndroidSystemNotificationSettings(context = get<Context>()) }
     single<SecureStore> { AndroidSecureStore(context = get<Context>()) }

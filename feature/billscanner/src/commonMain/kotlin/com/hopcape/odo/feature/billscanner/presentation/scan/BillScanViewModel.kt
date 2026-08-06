@@ -2,13 +2,21 @@ package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.model.ScanId
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.DetectedQuad
 import com.hopcape.odo.core.platform.camera.DocumentCropper
+import com.hopcape.odo.core.platform.camera.QrImageDecoder
+import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTelemetry
+import com.hopcape.odo.feature.billscanner.resources.Res
+import com.hopcape.odo.feature.billscanner.resources.bs_error_gallery_no_qr
+import com.hopcape.odo.feature.billscanner.resources.bs_error_gallery_unreadable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +44,9 @@ internal class BillScanViewModel(
     initialTarget: ScanTarget,
     private val allowance: ScanAllowance,
     private val cropper: DocumentCropper,
+    private val files: PlatformFileStore,
+    private val qrDecoder: QrImageDecoder,
+    private val ids: IdGenerator,
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
 
@@ -68,6 +79,8 @@ internal class BillScanViewModel(
         BillScanEvent.EdgeLockToggled -> toggleEdgeLock()
         BillScanEvent.CameraReady -> _state.update { it.copy(cameraFailure = null) }
         is BillScanEvent.CameraFailed -> cameraFailed(event.failure)
+        BillScanEvent.GalleryTapped -> galleryTapped()
+        is BillScanEvent.GalleryPicked -> event.pickedRef?.let(::galleryPicked) ?: Unit
         BillScanEvent.ManualTapped -> emit(BillScanEffect.OpenManualEntry)
         BillScanEvent.CloseTapped -> emit(BillScanEffect.NavigateBack)
     }
@@ -100,7 +113,13 @@ internal class BillScanViewModel(
         // with the mode it belongs to. The outline and its pin belong to the old mode's frames.
         qrHandled = false
         _state.update {
-            it.copy(target = target, cameraFailure = null, detectedQuad = null, edgesLocked = false)
+            it.copy(
+                target = target,
+                cameraFailure = null,
+                detectedQuad = null,
+                edgesLocked = false,
+                failure = null,
+            )
         }
     }
 
@@ -148,6 +167,60 @@ internal class BillScanViewModel(
         }
     }
 
+    private fun galleryTapped() {
+        telemetry.galleryOpened(_state.value.target.name)
+        _state.update { it.copy(failure = null) }
+        emit(BillScanEffect.PickFromGallery)
+    }
+
+    /**
+     * Take a picture the owner chose and send it the same way a capture goes.
+     *
+     * The file is copied into app storage first. What the picker hands back is a borrowed
+     * handle that stops resolving once this process dies, so a review screen opened from it
+     * tomorrow would read nothing — and a bill photo is what earns an entry its Verified
+     * badge, which makes losing it worse than never storing it.
+     *
+     * No cropping: the outline the camera detects belongs to the live frames, and a picture
+     * from the gallery has none. It goes to the reader whole.
+     */
+    private fun galleryPicked(pickedRef: String) {
+        val target = _state.value.target
+        viewModelScope.launch(telemetry.op(BillScannerTelemetry.Trace.GALLERY_IMPORT)) {
+            _state.update { it.copy(failure = null) }
+            val key = files.save(pickedRef, SCAN_DIRECTORY, ScanId.new(ids).value)
+                .getOrNull()
+            if (key == null) {
+                telemetry.galleryImportFailed(target.name)
+                _state.update { it.copy(failure = UiText(Res.string.bs_error_gallery_unreadable)) }
+                return@launch
+            }
+            telemetry.galleryImported(target.name)
+            _effects.send(effectFor(target, key) ?: return@launch)
+        }
+    }
+
+    /**
+     * Where a picked picture goes, by what the owner came to scan. The payment mode is the
+     * one that has to read the picture here rather than passing it on: every other target
+     * hands the photo to a screen that reads it, but a QR is a payload, not a document, and
+     * the pay screen takes the payload.
+     */
+    private suspend fun effectFor(target: ScanTarget, key: String): BillScanEffect? = when (target) {
+        ScanTarget.Bill -> BillScanEffect.OpenBillReview(key)
+        ScanTarget.Document -> BillScanEffect.OpenDocumentReview(key)
+        ScanTarget.PaymentQr -> {
+            val payload = runCatching { qrDecoder.decode(key) }.getOrNull()
+            if (payload == null) {
+                telemetry.galleryQrMissing()
+                _state.update { it.copy(failure = UiText(Res.string.bs_error_gallery_no_qr)) }
+                null
+            } else {
+                BillScanEffect.OpenPayment(payload)
+            }
+        }
+    }
+
     private suspend fun cropTo(quad: DetectedQuad?, storageKey: String, target: ScanTarget): String {
         if (quad == null || target == ScanTarget.PaymentQr) return storageKey
         val cropped = runCatching { cropper.crop(storageKey, quad) }.getOrDefault(storageKey)
@@ -168,5 +241,10 @@ internal class BillScanViewModel(
 
     private fun emit(effect: BillScanEffect) {
         viewModelScope.launch { _effects.send(effect) }
+    }
+
+    private companion object {
+        /** Where captures already live, so a picked picture is stored like any other scan. */
+        const val SCAN_DIRECTORY = "scans"
     }
 }

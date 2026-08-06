@@ -209,6 +209,71 @@ class BillScannerEndToEndTest {
         assertEquals(ScanFixtures.WORKSHOP, scannedLogWorkshop())
     }
 
+    /* ------------------------------ Picking from the gallery ------------------------------ */
+
+    /**
+     * The gallery button used to navigate to the bill review with no photo at all, in every
+     * mode. These three prove it now copies the picked picture into app storage and sends it
+     * where the chosen mode says.
+     */
+    @Test
+    fun aPickedBillPictureIsReadAsABill() {
+        installBillExtractor(readableBill())
+        stubPickedImage()
+        rule.openScanner()
+        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
+
+        rule.pickFromGallery()
+
+        rule.awaitText(ScanCopy.REVIEW_TITLE)
+        rule.awaitGone(ScanCopy.READING)
+        rule.onNodeWithText(ScanFixtures.WORKSHOP).assertIsDisplayed()
+    }
+
+    @Test
+    fun aPickedPaperIsReadAsADocument() {
+        installDocumentExtractor(readableDocument())
+        stubPickedImage()
+        rule.openScanner()
+        rule.selectScanMode(ScanCopy.MODE_DOCUMENT)
+        rule.awaitText(ScanCopy.SCAN_TITLE_DOCUMENT)
+
+        rule.pickFromGallery()
+
+        rule.awaitText(ScanCopy.DOC_TITLE)
+        rule.awaitGone(ScanCopy.READING)
+        rule.onNodeWithText(ScanFixtures.INSURER).assertIsDisplayed()
+    }
+
+    /** A payment code is a payload, not a paper — the picture is read here, not passed on. */
+    @Test
+    fun aPickedPaymentCodeOpensThePayScreen() {
+        installQrImageDecoder(ScanFixtures.QR_WITH_AMOUNT)
+        stubPickedImage()
+        rule.openScanner()
+        rule.selectScanMode(ScanCopy.MODE_QR)
+        rule.awaitText(ScanCopy.SCAN_TITLE_QR)
+
+        rule.pickFromGallery()
+
+        rule.awaitText(ScanCopy.PAY_TITLE)
+        rule.onNodeWithText(ScanFixtures.PAYEE).assertIsDisplayed()
+    }
+
+    @Test
+    fun aPictureWithNoCodeInItSaysSoAndStaysPut() {
+        installQrImageDecoder(null)
+        stubPickedImage()
+        rule.openScanner()
+        rule.selectScanMode(ScanCopy.MODE_QR)
+        rule.awaitText(ScanCopy.SCAN_TITLE_QR)
+
+        rule.pickFromGallery()
+
+        rule.awaitText(ScanCopy.ERROR_GALLERY_NO_QR)
+        rule.onNodeWithText(ScanCopy.SCAN_TITLE_QR).assertIsDisplayed()
+    }
+
     /* ------------------------------ Reading a document ------------------------------ */
 
     @Test

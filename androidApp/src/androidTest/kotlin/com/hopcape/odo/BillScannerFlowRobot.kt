@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.core.content.ContextCompat
+import android.net.Uri
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.ext.junit.rules.ActivityScenarioRule
@@ -38,6 +39,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.ScanTarget
+import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTestTags
 import kotlinx.datetime.LocalDate
@@ -86,6 +88,7 @@ internal object ScanCopy {
     const val MODE_QR = "Pay QR"
     const val MANUAL = "Manual"
     const val TORCH_ON = "Turn the light on"
+    const val GALLERY = "Choose from gallery"
 
     /* Review. */
     const val REVIEW_TITLE = "Review details"
@@ -119,6 +122,7 @@ internal object ScanCopy {
     const val ERROR_PAYMENT_PENDING =
         "Your bank hasn’t confirmed yet. Check your UPI app, then log the fill from Costs."
     const val ERROR_PAYMENT_CANCELLED = "Payment cancelled. Nothing was charged."
+    const val ERROR_GALLERY_NO_QR = "No payment code in that picture. Try another one."
 
     /** `"%1$d of %2$d free"` — the quota pill. */
     fun quota(remaining: Int, total: Int) = "$remaining of $total free"
@@ -215,6 +219,9 @@ internal fun installDefaultScanning() {
     installScanAllowance(ScanLimit.UpTo(max = 3, used = 0))
     installBillExtractor(DomainError.ScanUnavailable.left())
     installDocumentExtractor(DomainError.ScanUnavailable.left())
+    // A picture holds no code unless a test says it does — the shipped decoder needs a
+    // real QR in the pixels, which no fixture image has.
+    installQrImageDecoder(null)
 }
 
 /** A printed bill that read cleanly — three lines, a date, an odometer and a workshop. */
@@ -449,13 +456,50 @@ private fun countRows(sql: String): Int = scanDriver().executeQuery(
  * behind the key the image simply does not draw, which is a different screen from the one
  * under test.
  */
+/**
+ * Answer the gallery picker with a picture, the way an owner choosing one would.
+ *
+ * The bytes only have to decode — nothing in these tests reads the pixels. What is being
+ * proved is the path: the picker's borrowed handle is copied into app storage and the
+ * scanner routes the stored key by what the owner came to scan.
+ */
+internal fun stubPickedImage(): Uri {
+    val file = File(scanAppContext().cacheDir, "picked-scan.jpg")
+    file.writeBytes(JPEG_BYTES)
+    val uri = Uri.fromFile(file)
+    intending(hasAction(Intent.ACTION_OPEN_DOCUMENT))
+        .respondWith(ActivityResult(Activity.RESULT_OK, Intent().setData(uri)))
+    return uri
+}
+
+/**
+ * Decide what a picked picture is found to hold.
+ *
+ * The decoder is faked for the same reason the extractors are: producing a real QR photo
+ * an emulator will decode is a test about ML Kit, not about Odo. Everything above the port
+ * — the copy into storage, the routing, the pay screen — is the real thing.
+ */
+internal fun installQrImageDecoder(payload: String?) {
+    GlobalContext.get().loadModules(
+        listOf(module { single<QrImageDecoder> { QrImageDecoder { payload } } }),
+        allowOverride = true,
+    )
+}
+
+/** Tap the gallery affordance on the viewfinder. */
+internal fun ScanTestRule.pickFromGallery() {
+    onNodeWithLabel(ScanCopy.GALLERY).performClick()
+}
+
 internal fun seedCapturedPhoto(storageKey: String = ScanFixtures.PHOTO_KEY) {
     val file = File(appFilesDir(), storageKey)
     file.parentFile?.mkdirs()
     file.writeBytes(JPEG_BYTES)
 }
 
-private fun appFilesDir() = InstrumentationRegistry.getInstrumentation().targetContext.filesDir
+private fun scanAppContext() = InstrumentationRegistry.getInstrumentation().targetContext
+
+private fun appFilesDir() = scanAppContext().filesDir
 
 /** A 1×1 JPEG. Nothing reads the pixels; it only has to decode. */
 private val JPEG_BYTES = byteArrayOf(

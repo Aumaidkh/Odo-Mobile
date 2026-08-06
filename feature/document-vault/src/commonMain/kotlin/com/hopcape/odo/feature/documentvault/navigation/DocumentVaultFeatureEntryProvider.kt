@@ -12,6 +12,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
@@ -107,6 +108,17 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDest
         when (effect) {
             is AddDocumentEffect.OpenSuccess ->
                 navigationManager.navigateTo(OdoDestination.Documents.AddSuccess(documentId = effect.id.value))
+
+            // The scanner files the document itself, so this leaves the add screen behind:
+            // coming back to it after a paper was already filed would offer to file it twice.
+            is AddDocumentEffect.OpenScanner -> navigationManager.navigateTo(
+                OdoDestination.BillScanner.Capture(
+                    target = ScanTarget.Document,
+                    documentType = effect.type.name,
+                ),
+                popUpTo = key,
+                inclusive = true,
+            )
 
             AddDocumentEffect.NavigateBack -> navigationManager.back()
         }

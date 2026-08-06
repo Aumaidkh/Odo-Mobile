@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextAlign
+import com.hopcape.odo.core.designsystem.text.asString
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
@@ -124,6 +125,17 @@ internal fun BillScanScreen(
         topBar = { ScanTopBar(state = state, cameraState = cameraState, onClose = onClose) },
         bottomBar = {
             Column {
+                state.failure?.let { message ->
+                    OdoText(
+                        message.asString(),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.danger,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = OdoTheme.spacing.xl, vertical = OdoTheme.spacing.xs),
+                    )
+                }
                 TargetChips(selected = state.target, onSelect = onTargetSelected)
                 ScanControls(
                     // Nothing to shoot in QR mode: the code is read off the live frames, so

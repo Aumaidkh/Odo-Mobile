@@ -116,44 +116,8 @@ internal class BillTextParser {
         return rupees * 100 + fraction
     }
 
-    /**
-     * The first thing on the bill that parses as a day-month-year date.
-     *
-     * Tried as written, then once more with digit lookalikes repaired — a handwritten
-     * `07/04/20` routinely arrives as `O7/O4/2O`. The repair only touches tokens that
-     * carry both a date separator and at least one real digit, so a word never turns
-     * into a date.
-     */
-    private fun dateIn(line: String): LocalDate? =
-        dateFrom(line)
-            ?: monthNameDateFrom(line)
-            ?: repairDigitTokens(line, requireDateSeparator = true)?.let(::dateFrom)
-
-    private fun dateFrom(line: String): LocalDate? {
-        val match = DATE.find(line) ?: return null
-        val (day, month, rawYear) = match.destructured
-        val year = rawYear.toInt().let { if (it < 100) 2000 + it else it }
-        return runCatching { LocalDate(year, month.toInt(), day.toInt()) }.getOrNull()
-    }
-
-    /** Printed bills spell the month out — `October 26, 2023`, `26 Oct 2023`. */
-    private fun monthNameDateFrom(line: String): LocalDate? {
-        MONTH_FIRST_DATE.find(line)?.let { match ->
-            val (monthName, day, year) = match.destructured
-            return buildDate(year, monthName, day)
-        }
-        DAY_FIRST_DATE.find(line)?.let { match ->
-            val (day, monthName, year) = match.destructured
-            return buildDate(year, monthName, day)
-        }
-        return null
-    }
-
-    private fun buildDate(year: String, monthName: String, day: String): LocalDate? {
-        val month = MONTHS.indexOfFirst { monthName.startsWith(it, ignoreCase = true) } + 1
-        if (month == 0) return null
-        return runCatching { LocalDate(year.toInt(), month, day.toInt()) }.getOrNull()
-    }
+    /** The first thing on the bill that parses as a date — see [DateReader] for the forms. */
+    private fun dateIn(line: String): LocalDate? = DateReader.first(line)
 
     /**
      * A reading from a line that mentions the odometer. Bounded to a plausible range so a
@@ -249,7 +213,7 @@ internal class BillTextParser {
         if (ITEM_NOISE.containsMatchIn(line)) return null
         val label = labelOf(read.labelPart)
         if (label.length < MIN_LABEL_LENGTH || label.none { it.isLetter() }) return null
-        if (dateIn(line) != null && label.replace(DATE, "").none { it.isLetter() }) return null
+        if (dateIn(line) != null && label.replace(DateReader.NUMERIC_DATE, "").none { it.isLetter() }) return null
         val amount = Amount.of(read.paise).getOrNull() ?: return null
         return ExtractedLineItem(label = label, amount = amount, needsCheck = read.fuzzy)
     }
@@ -330,7 +294,7 @@ internal class BillTextParser {
         val TRAILING_JUNK = charArrayOf(' ', '.', '|', '*', '·', '~', '`', '\'', '"')
 
         /** What separates the parts of a written date. */
-        const val DATE_SEPARATOR_CHARS = "/.-"
+        val DATE_SEPARATOR_CHARS = DateReader.DATE_SEPARATOR_CHARS
 
         /** What a repaired amount must carry to count as money at all. */
         val MONEY_MARKS = listOf("/-", "₹", ",", ".")
@@ -347,22 +311,6 @@ internal class BillTextParser {
         val ITEM_NOISE = Regex(
             """\b(?:gstin|gst\s*no|[cs]gst|igst|subtotal|sub\s*total|invoice|bill\s*no|receipt\s*no|unit\s*price|signature)\b""" +
                 """|\b(?:mobile|phone|contact|customer|vehicle|veh\s*no|reg\s*no|description|date|odometer|mechanic|manager|s\.?\s*no)\s*[.:#]""",
-            RegexOption.IGNORE_CASE,
-        )
-
-        val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-        private const val MONTH_PATTERN =
-            """(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"""
-
-        /** `October 26, 2023` / `Oct 26 2023`. */
-        val MONTH_FIRST_DATE = Regex(
-            """\b$MONTH_PATTERN\.?\s+([0-3]?\d)(?:st|nd|rd|th)?,?\s+((?:19|20)\d{2})\b""",
-            RegexOption.IGNORE_CASE,
-        )
-
-        /** `26 October 2023` / `26th Oct, 2023`. */
-        val DAY_FIRST_DATE = Regex(
-            """\b([0-3]?\d)(?:st|nd|rd|th)?\s+$MONTH_PATTERN\.?,?\s+((?:19|20)\d{2})\b""",
             RegexOption.IGNORE_CASE,
         )
 
@@ -392,9 +340,6 @@ internal class BillTextParser {
          */
         const val BARE_AMOUNT_MIN = 10L
         const val BARE_AMOUNT_MAX = 99_999L
-
-        /** `14/07/2026`, `14-07-26`, `14.07.2026`. */
-        val DATE = Regex("""\b([0-3]?[0-9])[/.\-]([01]?[0-9])[/.\-]((?:20)?[0-9]{2})\b""")
 
         val ODOMETER_HINT = Regex("""\b(?:odo(?:meter)?|kms?|km\s*reading|reading)\b""", RegexOption.IGNORE_CASE)
         val ODOMETER_VALUE = Regex("""[0-9][0-9,]{2,7}""")

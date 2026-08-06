@@ -93,6 +93,37 @@ internal class BillScannerTelemetry(
         logger.info(TAG, Event.PHOTO_CAPTURED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /**
+     * The gallery was opened, and what came of it.
+     *
+     * A funnel of its own, because picking a picture is a different journey from pointing
+     * the camera at something: an owner who imports a screenshot of a bill never sees the
+     * viewfinder, and how often that happens decides whether the camera is even the primary
+     * path. The picked file's reference is never recorded — it names a file on the device.
+     */
+    fun galleryOpened(target: String) {
+        val fields = mapOf(Key.TARGET to target)
+        analytics.track(Event.GALLERY_OPENED, fields)
+        logger.info(TAG, Event.GALLERY_OPENED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    fun galleryImported(target: String) {
+        analytics.track(Event.GALLERY_IMPORTED, mapOf(Key.TARGET to target))
+    }
+
+    /** The picked file could not be copied into app storage — the picture never arrives. */
+    fun galleryImportFailed(target: String) {
+        val fields = mapOf(Key.TARGET to target)
+        analytics.track(Event.GALLERY_IMPORT_FAILED, fields)
+        logger.warn(TAG, Event.GALLERY_IMPORT_FAILED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** A picture was imported to pay from, and held no code. Expected often enough to count. */
+    fun galleryQrMissing() {
+        analytics.track(Event.GALLERY_QR_MISSING, emptyMap())
+        logger.info(TAG, Event.GALLERY_QR_MISSING, tc = flowTrace.toLog())
+    }
+
     /** The owner pinned or released the detected outline. A log — a UI nicety, not a funnel step. */
     fun edgeLockToggled(locked: Boolean) {
         logger.info(
@@ -345,6 +376,10 @@ internal class BillScannerTelemetry(
         const val TARGET_SWITCHED = "scanner_target_switched"
         const val PHOTO_CAPTURED = "scanner_photo_captured"
         const val PHOTO_CROPPED = "scanner_photo_cropped"
+        const val GALLERY_OPENED = "scanner_gallery_opened"
+        const val GALLERY_IMPORTED = "scanner_gallery_imported"
+        const val GALLERY_IMPORT_FAILED = "scanner_gallery_import_failed"
+        const val GALLERY_QR_MISSING = "scanner_gallery_qr_missing"
         const val EDGE_LOCK_TOGGLED = "scanner_edge_lock_toggled"
         const val CAMERA_FAILED = "scanner_camera_failed"
         const val BILL_EXTRACTED = "scanner_bill_extracted"
@@ -363,6 +398,7 @@ internal class BillScannerTelemetry(
 
     /** Span names for the feature's async operations. */
     object Trace {
+        const val GALLERY_IMPORT = "scanner_gallery_import"
         const val EXTRACT_BILL = "scanner_extract_bill"
         const val EXTRACT_DOCUMENT = "scanner_extract_document"
         const val SAVE_BILL = "scanner_save_bill"

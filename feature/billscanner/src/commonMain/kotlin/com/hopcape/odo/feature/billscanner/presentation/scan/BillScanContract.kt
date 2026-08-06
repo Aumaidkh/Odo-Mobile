@@ -20,6 +20,14 @@ internal sealed interface BillScanEvent {
     /** The shutter produced a file at this storage key. */
     data class PhotoCaptured(val storageKey: String) : BillScanEvent
 
+    /**
+     * A picture was chosen from the gallery, or the picker was cancelled (`null`).
+     *
+     * Carries the picker's own reference, not a storage key: the file still has to be
+     * copied into app storage before anything can keep it.
+     */
+    data class GalleryPicked(val pickedRef: String?) : BillScanEvent
+
     /** A QR came into frame. Fires repeatedly while it stays there. */
     data class QrDetected(val payload: String) : BillScanEvent
 
@@ -34,6 +42,8 @@ internal sealed interface BillScanEvent {
 
     /** The camera could not be used. */
     data class CameraFailed(val failure: CameraFailure) : BillScanEvent
+
+    data object GalleryTapped : BillScanEvent
 
     data object ManualTapped : BillScanEvent
 
@@ -51,6 +61,9 @@ internal sealed interface BillScanEffect {
 
     /** A payment code was read; the pay-at-pump flow takes over. */
     data class OpenPayment(val payload: String) : BillScanEffect
+
+    /** Ask the platform for a picture from the gallery. */
+    data object PickFromGallery : BillScanEffect
 
     /** Fall back to typing the entry by hand. */
     data object OpenManualEntry : BillScanEffect
