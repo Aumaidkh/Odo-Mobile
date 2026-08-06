@@ -45,7 +45,10 @@ import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTyre
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
+import com.hopcape.odo.feature.reminders.presentation.state.Loadable
 import com.hopcape.odo.feature.reminders.resources.Res
 import com.hopcape.odo.feature.reminders.resources.rm_actions_reschedule
 import com.hopcape.odo.feature.reminders.resources.rm_actions_snooze
@@ -53,6 +56,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_actions_turn_off
 import com.hopcape.odo.feature.reminders.resources.rm_cd_reschedule
 import com.hopcape.odo.feature.reminders.resources.rm_cd_snooze
 import com.hopcape.odo.feature.reminders.resources.rm_cd_turn_off
+import com.hopcape.odo.feature.reminders.resources.rm_attention_body
 import com.hopcape.odo.feature.reminders.resources.rm_attention_title_many
 import com.hopcape.odo.feature.reminders.resources.rm_attention_title_one
 import com.hopcape.odo.feature.reminders.resources.rm_caught_up_body
@@ -73,14 +77,16 @@ import org.jetbrains.compose.resources.stringResource
  * caught up"), an urgent "this week" section when relevant, and the always-present
  * "upcoming" forward look. A "Manage" affordance sits in the header and a FAB adds one.
  *
- * State-free: renders [state] and forwards intents. The reminder engine + schedules are M2.
+ * State-free: renders [state] and forwards intents. The tap callbacks carry the row's
+ * *resolved* copy alongside the data, because only the composition can resolve a
+ * resource and the sheet / one-tap create need the string.
  */
 @Composable
 internal fun RemindersScreen(
     state: RemindersUiState,
     onManage: () -> Unit,
-    onOpenActions: (ThisWeekItem) -> Unit,
-    onRemindMe: (UpcomingItem) -> Unit,
+    onOpenActions: (ReminderRow, String, String) -> Unit,
+    onRemindMe: (ReminderPreset, String) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -89,24 +95,48 @@ internal fun RemindersScreen(
         topBar = { RemindersTopBar(onManage) },
         floatingActionButton = { AddFab(onAdd) },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(padding)
-                .padding(vertical = OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
-        ) {
-            HeaderCard(state.header)
-            if (state.thisWeek.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                    SectionLabel(stringResource(Res.string.rm_this_week))
-                    state.thisWeek.forEach { item -> ThisWeekCard(item, onOpen = onOpenActions) }
-                }
+        when (val content = state.content) {
+            // The local DB answers in milliseconds; a spinner would only flash.
+            Loadable.Loading -> Box(Modifier.fillMaxSize().padding(padding))
+
+            is Loadable.Failed -> Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoText(content.message.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
             }
+
+            is Loadable.Ready -> RemindersLoadedContent(content.value, padding, onOpenActions, onRemindMe)
+        }
+    }
+}
+
+@Composable
+private fun RemindersLoadedContent(
+    content: RemindersContent,
+    padding: PaddingValues,
+    onOpenActions: (ReminderRow, String, String) -> Unit,
+    onRemindMe: (ReminderPreset, String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(padding)
+            .padding(vertical = OdoTheme.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        HeaderCard(content.header)
+        if (content.thisWeek.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                SectionLabel(stringResource(Res.string.rm_this_week))
+                content.thisWeek.forEach { row -> ThisWeekCard(row, onOpen = onOpenActions) }
+            }
+        }
+        if (content.upcoming.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 SectionLabel(stringResource(Res.string.rm_upcoming))
-                UpcomingCard(state.upcoming, onRemindMe)
+                UpcomingCard(content.upcoming, onRemindMe)
             }
         }
     }
@@ -116,11 +146,19 @@ internal fun RemindersScreen(
  * The actions sheet **body** for a "this week" reminder — reschedule, snooze, or turn it
  * off. Shown as a bottom-sheet destination ([OdoDestination.Reminders.Actions]) from
  * tapping the reminder's card; the ModalBottomSheet chrome comes from the navigation
- * layer. The header echoes the reminder; "turn off" uses the danger tone.
+ * layer. The header echoes the tapped card; "turn off" uses the danger tone.
+ *
+ * [showReschedule] is false for derived reminders (their dates come from documents and
+ * service history); [showSnooze] is false when there is no dated occurrence to dismiss
+ * (a distance target).
  */
 @Composable
 internal fun ReminderActionsSheetContent(
-    item: ThisWeekItem,
+    icon: ReminderIcon,
+    title: String,
+    due: String,
+    showReschedule: Boolean,
+    showSnooze: Boolean,
     onReschedule: () -> Unit,
     onSnooze: () -> Unit,
     onTurnOff: () -> Unit,
@@ -134,20 +172,24 @@ internal fun ReminderActionsSheetContent(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconChip(iconFor(item.icon), toneFor(item.icon))
+            IconChip(iconFor(icon), toneFor(icon))
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(item.title, style = OdoTheme.typography.heading)
-                OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+                OdoText(title, style = OdoTheme.typography.heading)
+                OdoText(due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
             }
         }
         OdoCard(
             contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            ActionRow(IcCalendar, stringResource(Res.string.rm_actions_reschedule), stringResource(Res.string.rm_cd_reschedule), OdoTheme.colors.text, chevron = true, onClick = onReschedule)
-            HorizontalDivider(color = OdoTheme.colors.border)
-            ActionRow(IcClock, stringResource(Res.string.rm_actions_snooze), stringResource(Res.string.rm_cd_snooze), OdoTheme.colors.text, chevron = true, onClick = onSnooze)
-            HorizontalDivider(color = OdoTheme.colors.border)
+            if (showReschedule) {
+                ActionRow(IcCalendar, stringResource(Res.string.rm_actions_reschedule), stringResource(Res.string.rm_cd_reschedule), OdoTheme.colors.text, chevron = true, onClick = onReschedule)
+                HorizontalDivider(color = OdoTheme.colors.border)
+            }
+            if (showSnooze) {
+                ActionRow(IcClock, stringResource(Res.string.rm_actions_snooze), stringResource(Res.string.rm_cd_snooze), OdoTheme.colors.text, chevron = true, onClick = onSnooze)
+                HorizontalDivider(color = OdoTheme.colors.border)
+            }
             ActionRow(IcClose, stringResource(Res.string.rm_actions_turn_off), stringResource(Res.string.rm_cd_turn_off), OdoTheme.colors.danger, chevron = false, onClick = onTurnOff)
         }
     }
@@ -209,7 +251,7 @@ private fun HeaderCard(header: RemindersHeader) {
         RemindersHeader.CaughtUp -> stringResource(Res.string.rm_caught_up_title)
     }
     val body = when (header) {
-        is RemindersHeader.Attention -> header.detail
+        is RemindersHeader.Attention -> stringResource(Res.string.rm_attention_body)
         RemindersHeader.CaughtUp -> stringResource(Res.string.rm_caught_up_body)
     }
     OdoCard(color = tone.copy(alpha = 0.10f), border = BorderStroke(1.dp, tone.copy(alpha = 0.45f))) {
@@ -224,13 +266,15 @@ private fun HeaderCard(header: RemindersHeader) {
 }
 
 @Composable
-private fun ThisWeekCard(item: ThisWeekItem, onOpen: (ThisWeekItem) -> Unit) {
-    OdoCard(onClick = { onOpen(item) }) {
+private fun ThisWeekCard(row: ReminderRow, onOpen: (ReminderRow, String, String) -> Unit) {
+    val title = row.title.asString()
+    val due = row.line.asString()
+    OdoCard(onClick = { onOpen(row, title, due) }) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            IconChip(iconFor(item.icon), toneFor(item.icon))
+            IconChip(iconFor(row.icon), toneFor(row.icon))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(item.title, style = OdoTheme.typography.heading)
-                OdoText(item.due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
+                OdoText(title, style = OdoTheme.typography.heading)
+                OdoText(due, style = OdoTheme.typography.label, color = OdoTheme.colors.warning)
             }
             OdoIcon(
                 IcChevronRight,
@@ -243,34 +287,38 @@ private fun ThisWeekCard(item: ThisWeekItem, onOpen: (ThisWeekItem) -> Unit) {
 }
 
 @Composable
-private fun UpcomingCard(items: List<UpcomingItem>, onRemindMe: (UpcomingItem) -> Unit) {
+private fun UpcomingCard(rows: List<ReminderRow>, onRemindMe: (ReminderPreset, String) -> Unit) {
     OdoCard(
         contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        items.forEachIndexed { index, item ->
+        rows.forEachIndexed { index, row ->
             if (index > 0) HorizontalDivider(color = OdoTheme.colors.border)
-            UpcomingRow(item, onRemindMe)
+            UpcomingRow(row, onRemindMe)
         }
     }
 }
 
 @Composable
-private fun UpcomingRow(item: UpcomingItem, onRemindMe: (UpcomingItem) -> Unit) {
+private fun UpcomingRow(row: ReminderRow, onRemindMe: (ReminderPreset, String) -> Unit) {
+    val title = row.title.asString()
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconChip(iconFor(item.icon), toneFor(item.icon))
+        IconChip(iconFor(row.icon), toneFor(row.icon))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-            OdoText(item.title, style = OdoTheme.typography.heading)
-            OdoText(item.subtitle, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+            OdoText(title, style = OdoTheme.typography.heading)
+            OdoText(row.line.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
-        when (item.status) {
-            UpcomingStatus.DueSoon -> OdoBadge(stringResource(Res.string.rm_status_due_soon), tone = OdoBadgeTone.Warning)
-            UpcomingStatus.OnTrack -> OdoBadge(stringResource(Res.string.rm_status_on_track), tone = OdoBadgeTone.Success)
-            UpcomingStatus.Suggested -> RemindMeButton { onRemindMe(item) }
+        when (val status = row.status) {
+            RowStatus.DueThisWeek, RowStatus.DueSoon ->
+                OdoBadge(stringResource(Res.string.rm_status_due_soon), tone = OdoBadgeTone.Warning)
+
+            RowStatus.OnTrack -> OdoBadge(stringResource(Res.string.rm_status_on_track), tone = OdoBadgeTone.Success)
+
+            is RowStatus.Suggested -> RemindMeButton { onRemindMe(status.preset, title) }
         }
     }
 }
@@ -331,11 +379,11 @@ private fun toneFor(icon: ReminderIcon): Color = when (icon) {
 @OdoThemePreviews
 @Composable
 private fun RemindersAttentionPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpenActions = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onAdd = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun RemindersCaughtUpPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpenActions = {}, onRemindMe = {}, onAdd = {})
+    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onAdd = {})
 }

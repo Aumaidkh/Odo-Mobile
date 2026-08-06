@@ -2,11 +2,10 @@ package com.hopcape.odo.feature.reminders.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -15,18 +14,28 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.reminders.presentation.ReminderActionsSheetContent
 import com.hopcape.odo.feature.reminders.presentation.ReminderIcon
+import com.hopcape.odo.feature.reminders.presentation.RemindersEffect
+import com.hopcape.odo.feature.reminders.presentation.RemindersEvent
 import com.hopcape.odo.feature.reminders.presentation.RemindersScreen
-import com.hopcape.odo.feature.reminders.presentation.ThisWeekItem
-import com.hopcape.odo.feature.reminders.presentation.sampleRemindersAttention
+import com.hopcape.odo.feature.reminders.presentation.RemindersViewModel
+import com.hopcape.odo.feature.reminders.presentation.actions.ReminderActionsArgs
+import com.hopcape.odo.feature.reminders.presentation.actions.ReminderActionsEffect
+import com.hopcape.odo.feature.reminders.presentation.actions.ReminderActionsEvent
+import com.hopcape.odo.feature.reminders.presentation.actions.ReminderActionsViewModel
+import com.hopcape.odo.feature.reminders.presentation.create.NewReminderArgs
+import com.hopcape.odo.feature.reminders.presentation.create.NewReminderEffect
+import com.hopcape.odo.feature.reminders.presentation.create.NewReminderEvent
 import com.hopcape.odo.feature.reminders.presentation.create.NewReminderScreen
-import com.hopcape.odo.feature.reminders.presentation.create.sampleNewReminder
+import com.hopcape.odo.feature.reminders.presentation.create.NewReminderViewModel
+import com.hopcape.odo.feature.reminders.presentation.settings.ReminderSettingsEffect
+import com.hopcape.odo.feature.reminders.presentation.settings.ReminderSettingsEvent
 import com.hopcape.odo.feature.reminders.presentation.settings.ReminderSettingsScreen
-import com.hopcape.odo.feature.reminders.presentation.settings.sampleReminderSettings
-import kotlin.time.Clock
+import com.hopcape.odo.feature.reminders.presentation.settings.ReminderSettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /**
- * Reminders' contribution to the navigation graph: the [OdoDestination.Reminders] group —
- * the [OdoDestination.Reminders.List] home and its [OdoDestination.Reminders.Settings].
+ * Reminders' contribution to the navigation graph: the [OdoDestination.Reminders] group.
  * Collected by the `:app` host via `getAll<FeatureEntryProvider>()`.
  */
 internal class RemindersFeatureEntryProvider(
@@ -35,84 +44,130 @@ internal class RemindersFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Reminders.List> { RemindersRoute(navigationManager) }
         entry<OdoDestination.Reminders.Settings> { ReminderSettingsRoute(navigationManager) }
-        entry<OdoDestination.Reminders.New> { NewReminderRoute(navigationManager) }
+        entry<OdoDestination.Reminders.New> { key -> NewReminderRoute(navigationManager, key) }
         entry<OdoDestination.Reminders.Actions>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
             ReminderActionsRoute(key, navigationManager)
         }
     }
 }
 
-/**
- * The reminders route host — renders sample reminders until the reminder engine (renewal
- * triggers + schedules) lands. "Manage" opens the settings; tapping a this-week reminder
- * opens its actions sheet; remind-me is an M2 stub.
- */
+/** The reminders home route host. */
 @Composable
 internal fun RemindersRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<RemindersViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is RemindersEffect.OpenActions -> navigationManager.navigateTo(
+                OdoDestination.Reminders.Actions(
+                    kind = effect.kind,
+                    dueOn = effect.dueOn,
+                    customId = effect.customId,
+                    title = effect.title,
+                    due = effect.due,
+                    icon = effect.icon,
+                ),
+            )
+
+            RemindersEffect.OpenSettings -> navigationManager.navigateTo(OdoDestination.Reminders.Settings)
+            RemindersEffect.OpenNew -> navigationManager.navigateTo(OdoDestination.Reminders.New())
+        }
+    }
+
     RemindersScreen(
-        state = sampleRemindersAttention(),
-        onManage = { navigationManager.navigateTo(OdoDestination.Reminders.Settings) },
-        onOpenActions = { item ->
-            navigationManager.navigateTo(OdoDestination.Reminders.Actions(title = item.title, due = item.due, icon = item.icon.name))
-        },
-        onRemindMe = { /* TODO(M2): opt into a suggested reminder. */ },
-        onAdd = { navigationManager.navigateTo(OdoDestination.Reminders.New) },
+        state = state,
+        onManage = { viewModel.onEvent(RemindersEvent.ManageTapped) },
+        onOpenActions = { row, title, due -> viewModel.onEvent(RemindersEvent.ReminderTapped(row, title, due)) },
+        onRemindMe = { preset, name -> viewModel.onEvent(RemindersEvent.SuggestionTapped(preset, name)) },
+        onAdd = { viewModel.onEvent(RemindersEvent.AddTapped) },
     )
 }
 
 /**
- * The reminder-actions route host — the this-week actions sheet. Reconstructs the tapped
- * reminder from the typed key; each action pops back for now (the reminder engine is M2).
+ * The reminder-actions route host — the this-week actions sheet. The key's primitives
+ * carry both the identity the ViewModel acts on and the display echo the sheet renders.
  */
 @Composable
 internal fun ReminderActionsRoute(
     key: OdoDestination.Reminders.Actions,
     navigationManager: NavigationManager,
 ) {
-    val item = ThisWeekItem(icon = ReminderIcon.valueOf(key.icon), title = key.title, due = key.due)
+    val viewModel = koinViewModel<ReminderActionsViewModel> {
+        parametersOf(ReminderActionsArgs(kind = key.kind, dueOn = key.dueOn, customId = key.customId))
+    }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            ReminderActionsEffect.Close -> navigationManager.back()
+
+            is ReminderActionsEffect.OpenEdit -> {
+                // The sheet closes and the edit form opens over the list.
+                navigationManager.back()
+                navigationManager.navigateTo(OdoDestination.Reminders.New(reminderId = effect.reminderId))
+            }
+        }
+    }
+
     ReminderActionsSheetContent(
-        item = item,
-        onReschedule = { navigationManager.back() /* TODO(M2): open reschedule flow. */ },
-        onSnooze = { navigationManager.back() /* TODO(M2): snooze 1 week. */ },
-        onTurnOff = { navigationManager.back() /* TODO(M2): disable this reminder. */ },
+        icon = runCatching { ReminderIcon.valueOf(key.icon) }.getOrDefault(ReminderIcon.OIL),
+        title = key.title,
+        due = key.due,
+        showReschedule = viewModel.canReschedule,
+        showSnooze = viewModel.canSnooze,
+        onReschedule = { viewModel.onEvent(ReminderActionsEvent.RescheduleTapped) },
+        onSnooze = { viewModel.onEvent(ReminderActionsEvent.SnoozeTapped) },
+        onTurnOff = { viewModel.onEvent(ReminderActionsEvent.TurnOffTapped) },
     )
 }
 
-/**
- * The new-reminder route host — holds the create-form state locally until the
- * reminder-creation use case (persisting a schedule) lands. "Save" and the close
- * button both pop back for now; "Change" jumps to the notification settings.
- */
+/** The new/edit-reminder route host. */
 @Composable
-internal fun NewReminderRoute(navigationManager: NavigationManager) {
-    // Seed the start date to today (UTC midnight, matching the date picker's millis).
-    val todayMillis = (Clock.System.now().toEpochMilliseconds() / 86_400_000L) * 86_400_000L
-    var state by remember { mutableStateOf(sampleNewReminder(startMillis = todayMillis)) }
+internal fun NewReminderRoute(
+    navigationManager: NavigationManager,
+    key: OdoDestination.Reminders.New,
+) {
+    val viewModel = koinViewModel<NewReminderViewModel> {
+        parametersOf(NewReminderArgs(reminderId = key.reminderId))
+    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            NewReminderEffect.OpenSettings -> navigationManager.navigateTo(OdoDestination.Reminders.Settings)
+            NewReminderEffect.Close -> navigationManager.back()
+        }
+    }
+
     NewReminderScreen(
         state = state,
-        onPresetSelect = { preset, defaultName -> state = state.selectPreset(preset, defaultName) },
-        onCustomSave = { state = state.withCustomLabel(it) },
-        onNameChange = { state = state.copy(name = it) },
-        onRepeatChange = { state = state.copy(repeat = it) },
-        onStartChange = { state = state.copy(startMillis = it) },
-        onTimeChange = { hour, minute -> state = state.copy(hour = hour, minute = minute) },
-        onChangeChannels = { navigationManager.navigateTo(OdoDestination.Reminders.Settings) },
-        onSave = { navigationManager.back() },
-        onClose = { navigationManager.back() },
+        onPresetSelect = { preset, defaultName -> viewModel.onEvent(NewReminderEvent.PresetSelected(preset, defaultName)) },
+        onCustomSave = { viewModel.onEvent(NewReminderEvent.CustomLabelSaved(it)) },
+        onNameChange = { viewModel.onEvent(NewReminderEvent.NameChanged(it)) },
+        onRepeatChange = { viewModel.onEvent(NewReminderEvent.RepeatChanged(it)) },
+        onStartChange = { viewModel.onEvent(NewReminderEvent.StartChanged(it)) },
+        onTimeChange = { hour, minute -> viewModel.onEvent(NewReminderEvent.TimeChanged(hour, minute)) },
+        onChangeChannels = { viewModel.onEvent(NewReminderEvent.ChangeChannelsTapped) },
+        onSave = { viewModel.onEvent(NewReminderEvent.SaveTapped) },
+        onClose = { viewModel.onEvent(NewReminderEvent.CloseTapped) },
     )
 }
 
-/**
- * The reminder-settings route host — holds the toggle + lead-time state locally until the
- * settings ViewModel (persisting to the reminder engine) lands.
- */
+/** The reminder-settings route host. */
 @Composable
 internal fun ReminderSettingsRoute(navigationManager: NavigationManager) {
-    var state by remember { mutableStateOf(sampleReminderSettings()) }
+    val viewModel = koinViewModel<ReminderSettingsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            ReminderSettingsEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
     ReminderSettingsScreen(
         state = state,
-        onToggle = { state = state.toggled(it) },
-        onRemindBeforeChange = { state = state.copy(remindBefore = it) },
-        onBack = { navigationManager.back() },
+        onToggle = { viewModel.onEvent(ReminderSettingsEvent.Toggled(it)) },
+        onBack = { viewModel.onEvent(ReminderSettingsEvent.BackTapped) },
     )
 }

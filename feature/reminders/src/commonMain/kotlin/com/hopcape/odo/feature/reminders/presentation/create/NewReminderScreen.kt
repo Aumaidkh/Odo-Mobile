@@ -62,16 +62,22 @@ import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcTyre
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.DistanceArg
+import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.feature.reminders.resources.Res
 import com.hopcape.odo.feature.reminders.resources.rm_new_about
 import com.hopcape.odo.feature.reminders.resources.rm_new_cd_close
 import com.hopcape.odo.feature.reminders.resources.rm_new_change
 import com.hopcape.odo.feature.reminders.resources.rm_new_custom_placeholder
+import com.hopcape.odo.feature.reminders.resources.rm_new_anchor
 import com.hopcape.odo.feature.reminders.resources.rm_new_default_air
 import com.hopcape.odo.feature.reminders.resources.rm_new_default_battery
 import com.hopcape.odo.feature.reminders.resources.rm_new_default_coolant
+import com.hopcape.odo.feature.reminders.resources.rm_new_default_tyre
 import com.hopcape.odo.feature.reminders.resources.rm_new_default_wiper
 import com.hopcape.odo.feature.reminders.resources.rm_new_name_label
 import com.hopcape.odo.feature.reminders.resources.rm_new_name_placeholder
@@ -84,6 +90,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_new_preset_air
 import com.hopcape.odo.feature.reminders.resources.rm_new_preset_battery
 import com.hopcape.odo.feature.reminders.resources.rm_new_preset_coolant
 import com.hopcape.odo.feature.reminders.resources.rm_new_preset_custom
+import com.hopcape.odo.feature.reminders.resources.rm_new_preset_tyre
 import com.hopcape.odo.feature.reminders.resources.rm_new_preset_wiper
 import com.hopcape.odo.feature.reminders.resources.rm_new_repeat_15
 import com.hopcape.odo.feature.reminders.resources.rm_new_repeat_distance
@@ -96,6 +103,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_new_starts_today
 import com.hopcape.odo.feature.reminders.resources.rm_new_starts_tomorrow
 import com.hopcape.odo.feature.reminders.resources.rm_new_time_label
 import com.hopcape.odo.feature.reminders.resources.rm_new_title
+import com.hopcape.odo.feature.reminders.resources.rm_new_title_edit
 import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
@@ -129,10 +137,11 @@ internal fun NewReminderScreen(
         ReminderPreset.COOLANT to stringResource(Res.string.rm_new_default_coolant),
         ReminderPreset.WIPER_FLUID to stringResource(Res.string.rm_new_default_wiper),
         ReminderPreset.BATTERY to stringResource(Res.string.rm_new_default_battery),
+        ReminderPreset.TYRE_ROTATION to stringResource(Res.string.rm_new_default_tyre),
     )
     OdoScreen(
         modifier = modifier,
-        topBar = { NewReminderTopBar(onClose) },
+        topBar = { NewReminderTopBar(state.editing, onClose) },
         bottomBar = { SaveBar(onSave) },
     ) { padding ->
         Column(
@@ -148,19 +157,19 @@ internal fun NewReminderScreen(
                     horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                 ) {
-                    concretePresets.forEach { preset ->
+                    ReminderPreset.entries.forEach { preset ->
                         OdoChip(
                             label = presetLabel(preset),
                             selected = preset == state.preset,
                             onClick = { onPresetSelect(preset, defaultNames[preset].orEmpty()) },
-                            leadingIcon = if (preset == ReminderPreset.AIR_PRESSURE) {
+                            leadingIcon = if (preset == ReminderPreset.AIR_PRESSURE || preset == ReminderPreset.TYRE_ROTATION) {
                                 { OdoIcon(IcTyre, contentDescription = null, size = OdoTheme.iconSizes.small) }
                             } else null,
                         )
                     }
                     CustomChip(
                         label = state.customLabel,
-                        selected = state.preset == ReminderPreset.CUSTOM,
+                        selected = state.customSelected,
                         onSave = onCustomSave,
                     )
                 }
@@ -173,6 +182,7 @@ internal fun NewReminderScreen(
                     placeholder = stringResource(Res.string.rm_new_name_placeholder),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                state.nameError?.let { ErrorLine(it.asString()) }
             }
 
             Field(stringResource(Res.string.rm_new_repeat_label)) {
@@ -180,13 +190,24 @@ internal fun NewReminderScreen(
                     horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                 ) {
-                    ReminderRepeat.entries.forEach { repeat ->
-                        OdoChip(
-                            label = repeatLabel(repeat),
-                            selected = repeat == state.repeat,
-                            onClick = { onRepeatChange(repeat) },
-                        )
-                    }
+                    // No reading, no by-distance: a chip that creates a reminder the
+                    // domain rejects is worse than an absent one.
+                    ReminderRepeat.entries
+                        .filter { it != ReminderRepeat.BY_DISTANCE || state.distanceAvailable }
+                        .forEach { repeat ->
+                            OdoChip(
+                                label = repeatLabel(repeat),
+                                selected = repeat == state.repeat,
+                                onClick = { onRepeatChange(repeat) },
+                            )
+                        }
+                }
+                if (state.repeat == ReminderRepeat.BY_DISTANCE && state.anchorKm != null) {
+                    OdoText(
+                        UiText(Res.string.rm_new_anchor, listOf(DistanceArg(state.anchorKm))).asString(),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
                 }
             }
 
@@ -198,6 +219,8 @@ internal fun NewReminderScreen(
                     PickerField(value = formatTime(state.hour, state.minute), trailing = IcClock) { showTimePicker = true }
                 }
             }
+            state.startError?.let { ErrorLine(it.asString()) }
+            state.formError?.let { ErrorLine(it.asString()) }
 
             NotifyCard(onChangeChannels)
         }
@@ -240,14 +263,6 @@ internal fun NewReminderScreen(
         )
     }
 }
-
-/** The four concrete presets; [ReminderPreset.CUSTOM] is rendered separately as an editable chip. */
-private val concretePresets = listOf(
-    ReminderPreset.AIR_PRESSURE,
-    ReminderPreset.COOLANT,
-    ReminderPreset.WIPER_FLUID,
-    ReminderPreset.BATTERY,
-)
 
 /**
  * The "+ Custom" chip. Tapping it turns the chip into an inline text field; once the
@@ -303,7 +318,12 @@ private fun CustomChipEditor(initial: String, onCommit: (String) -> Unit) {
 }
 
 @Composable
-private fun NewReminderTopBar(onClose: () -> Unit) {
+private fun ErrorLine(message: String) {
+    OdoText(message, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.danger)
+}
+
+@Composable
+private fun NewReminderTopBar(editing: Boolean, onClose: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -318,7 +338,10 @@ private fun NewReminderTopBar(onClose: () -> Unit) {
             onClick = onClose,
             variant = OdoCircularIconButtonVariant.Raised,
         )
-        OdoText(stringResource(Res.string.rm_new_title), style = OdoTheme.typography.title)
+        OdoText(
+            stringResource(if (editing) Res.string.rm_new_title_edit else Res.string.rm_new_title),
+            style = OdoTheme.typography.title,
+        )
     }
 }
 
@@ -410,7 +433,7 @@ private fun presetLabel(preset: ReminderPreset): String = stringResource(
         ReminderPreset.COOLANT -> Res.string.rm_new_preset_coolant
         ReminderPreset.WIPER_FLUID -> Res.string.rm_new_preset_wiper
         ReminderPreset.BATTERY -> Res.string.rm_new_preset_battery
-        ReminderPreset.CUSTOM -> Res.string.rm_new_preset_custom
+        ReminderPreset.TYRE_ROTATION -> Res.string.rm_new_preset_tyre
     },
 )
 
@@ -428,7 +451,7 @@ private fun repeatLabel(repeat: ReminderRepeat): String = stringResource(
 @Composable
 private fun NewReminderScreenPreview() = OdoPreview(padded = false) {
     NewReminderScreen(
-        state = sampleNewReminder(startMillis = 0L),
+        state = NewReminderUiState(name = "Air pressure check", anchorKm = 42_000),
         onPresetSelect = { _, _ -> },
         onCustomSave = {},
         onNameChange = {},

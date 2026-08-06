@@ -86,14 +86,28 @@ sealed interface OdoDestination : NavKey {
         data object List : Reminders
         /** Notification + reminder preferences — reached from the home's "Manage". */
         data object Settings : Reminders
-        /** Create a custom reminder — reached from the home's "+ Add". */
-        data object New : Reminders
+        /**
+         * Create a custom reminder — reached from the home's "+ Add" — or edit one when
+         * [reminderId] names it (the actions sheet's "Reschedule").
+         */
+        data class New(val reminderId: String? = null) : Reminders
         /**
          * Actions for a "this week" reminder (reschedule / snooze / turn off) — shown as a
          * bottom-sheet destination from tapping the reminder's card. Primitives only, so
          * `:core:navigation` stays free of the feature's presentation types.
+         *
+         * [kind], [dueOn] (ISO date of the occurrence, absent for a distance target) and
+         * [customId] identify the reminder so the sheet can act on it; [title], [due] and
+         * [icon] are the display echo of the tapped card.
          */
-        data class Actions(val title: String, val due: String, val icon: String) : Reminders
+        data class Actions(
+            val kind: String,
+            val dueOn: String?,
+            val customId: String?,
+            val title: String,
+            val due: String,
+            val icon: String,
+        ) : Reminders
     }
 
     // --- Nested / argument-carrying destinations ---
