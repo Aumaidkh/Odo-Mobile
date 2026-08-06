@@ -82,6 +82,8 @@ class PlaceholderOwnerTest {
         }
 
         override suspend fun push(cars: List<CarDto>) = cars
+
+        override suspend fun demoteOtherPrimaries(ownerId: String, keepCarId: String) = Unit
     }
 
     private class RecordingProfiles : ProfileRemoteDataSource {

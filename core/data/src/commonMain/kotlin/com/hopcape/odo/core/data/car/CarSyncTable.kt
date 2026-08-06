@@ -56,6 +56,13 @@ internal class CarSyncTable(
      */
     override suspend fun reconcileBeforePush(rows: List<CarDto>): List<CarDto> {
         val owner = ownerId().orNullIfPlaceholder() ?: return rows
+        val outgoing = adoptIdentities(owner, rows)
+        reclaimPrimary(owner, outgoing)
+        return outgoing
+    }
+
+    /** The plate-match adoption of §6.1.2. Answers the rows as they should now be pushed. */
+    private suspend fun adoptIdentities(owner: String, rows: List<CarDto>): List<CarDto> {
         // `registration_number` is non-null here: the query filters on it.
         val candidates = queries.selectUnsyncedWithPlate().executeAsList()
             .map { row -> row.id to row.registration_number }
@@ -87,6 +94,24 @@ internal class CarSyncTable(
             val server = outcome[dto.id] ?: return@mapNotNull null
             dto.copy(id = server.id, createdAt = server.createdAt)
         }
+    }
+
+    /**
+     * Clear the primary flag on the server's other cars before this device's primary goes up.
+     *
+     * The server allows one primary car per owner. A fresh install onboards its car as
+     * primary while the server may still hold a different primary from before the reinstall
+     * — plate adoption cannot catch that pair when the plates differ — and the push is then
+     * refused for good, taking every service log and document on this car down with it.
+     *
+     * The device wins on purpose: the local flag is the owner's most recent word on which
+     * car is primary (the same tie-break the pull's conflict matrix uses). The demoted rows
+     * get a fresh `updated_at` on the server, so every device pulls the change.
+     */
+    private suspend fun reclaimPrimary(owner: String, outgoing: List<CarDto>) {
+        val primary = outgoing.firstOrNull { it.isPrimary && it.deletedAt == null } ?: return
+        remote.demoteOtherPrimaries(ownerId = owner, keepCarId = primary.id)
+        telemetry.primaryReclaimed(SyncEntity.CARS)
     }
 
     /**
@@ -139,6 +164,11 @@ internal class CarSyncTable(
         }
 
     override fun applyRemote(dto: CarDto) {
+        // Make room first, or the one-primary index refuses this row — and the INSERT OR
+        // IGNORE refuses it *silently*: the device would keep re-pulling the server's primary
+        // forever and never store it. No telemetry from here: this runs inside the pull's
+        // transaction, where nothing may suspend.
+        if (dto.isPrimary && dto.deletedAt == null) queries.demoteOthersFromRemote(keepId = dto.id)
         queries.insertFromRemote(
             id = dto.id,
             owner_id = dto.ownerId,

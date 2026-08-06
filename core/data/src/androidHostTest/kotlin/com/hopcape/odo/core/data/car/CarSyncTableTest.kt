@@ -109,6 +109,79 @@ class CarSyncTableTest {
         assertTrue(remote.fetches == 0)
     }
 
+    /* --------------------- the primary flag (SYNC_DESIGN §6.1.3) --------------------- */
+
+    @Test
+    fun pushingAPrimaryCarDemotesTheServersOtherPrimariesFirst() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1")
+        // No plate match on the server, so adoption finds nothing — the reinstall case that
+        // used to deadlock: the push would be an INSERT against a server that already holds
+        // a different primary.
+        val remote = RecordingRemote(listOf(serverCar(id = "server-1", plate = "MH01ZZ9999")))
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+
+        table.reconcileBeforePush(table.pending())
+
+        assertEquals(owner to "local-1", remote.demotedFor)
+    }
+
+    @Test
+    fun aPushWithNoPrimaryLeavesTheServersFlagAlone() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1", isPrimary = false)
+        val remote = RecordingRemote(emptyList())
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+
+        table.reconcileBeforePush(table.pending())
+
+        assertNull(remote.demotedFor)
+    }
+
+    @Test
+    fun theReclaimKeepsTheAdoptedIdWhenThePlatesMatched() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1")
+        val remote = RecordingRemote(listOf(serverCar(id = "server-1")))
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+
+        table.reconcileBeforePush(table.pending())
+
+        // Adoption re-keyed the row first, so the id spared from demotion is the server's.
+        assertEquals(owner to "server-1", remote.demotedFor)
+    }
+
+    @Test
+    fun aPulledPrimaryCarTakesTheFlagFromTheLocalOne() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1", remoteVersion = earlier)
+        db.carQueries.markSynced(remoteVersion = earlier, id = "local-1")
+        val table = table(db, server = emptyList())
+
+        table.applyRemote(serverCar(id = "server-2", plate = "MH01ZZ9999"))
+
+        // Before this, the one-primary index made the INSERT OR IGNORE drop the pulled row
+        // silently, and the device never learned which car the account's primary is.
+        val rows = db.carQueries.selectById("server-2").executeAsOne()
+        assertEquals(1L, rows.is_primary)
+        val demoted = db.carQueries.selectById("local-1").executeAsOne()
+        assertEquals(0L, demoted.is_primary)
+        // The demotion mirrors server state; it is not a local edit to push back.
+        assertEquals("SYNCED", demoted.sync_status)
+    }
+
+    @Test
+    fun aPulledPrimaryTombstoneClaimsNothing() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1")
+        val table = table(db, server = emptyList())
+
+        table.applyRemote(serverCar(id = "server-2", plate = "MH01ZZ9999", deletedAt = now))
+
+        // A deleted car is out of the index's sight on both sides; its flag means nothing.
+        assertEquals(1L, db.carQueries.selectById("local-1").executeAsOne().is_primary)
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
 
     private fun table(db: OdoDatabase, server: List<CarDto>) =
@@ -119,7 +192,12 @@ class CarSyncTableTest {
             ownerId = { owner },
         )
 
-    private fun serverCar(id: String, createdAt: String = earlier, deletedAt: String? = null) = CarDto(
+    private fun serverCar(
+        id: String,
+        createdAt: String = earlier,
+        deletedAt: String? = null,
+        plate: String = this.plate,
+    ) = CarDto(
         id = id,
         ownerId = owner,
         make = "Maruti",
@@ -138,9 +216,10 @@ class CarSyncTableTest {
         id: String,
         plate: String? = this@CarSyncTableTest.plate,
         remoteVersion: String? = null,
+        isPrimary: Boolean = true,
     ) = carQueries.insertCar(
         id, owner, "Maruti", "Swift", null, 2019, "PETROL", plate,
-        42_000, null, null, 1, now, now, now, null, remoteVersion, "PENDING",
+        42_000, null, null, if (isPrimary) 1 else 0, now, now, now, null, remoteVersion, "PENDING",
     )
 
     private fun OdoDatabase.insertServiceLog(id: String, carId: String) =
@@ -164,11 +243,17 @@ class CarSyncTableTest {
     /** Answers with a fixed server table, and counts how often it was asked. */
     private class RecordingRemote(private val cars: List<CarDto>) : CarRemoteDataSource {
         var fetches = 0
+        var demotedFor: Pair<String, String>? = null
+
         override suspend fun fetchSince(ownerId: String, since: Instant?): List<CarDto> {
             fetches++
             return cars
         }
 
         override suspend fun push(cars: List<CarDto>): List<CarDto> = cars
+
+        override suspend fun demoteOtherPrimaries(ownerId: String, keepCarId: String) {
+            demotedFor = ownerId to keepCarId
+        }
     }
 }

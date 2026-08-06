@@ -22,6 +22,16 @@ interface CarRemoteDataSource {
 
     /** Send local changes; the returned rows are the server's accepted versions. */
     suspend fun push(cars: List<CarDto>): List<CarDto>
+
+    /**
+     * Clear `is_primary` on every live car of [ownerId] except [keepCarId].
+     *
+     * The server allows one primary car per owner. A fresh install onboards its car as
+     * primary while the server may still hold another primary from before the reinstall, and
+     * pushing the new one is then refused for good — this call makes room first. The demoted
+     * rows get a new `updated_at` on the server, so other devices pull the change.
+     */
+    suspend fun demoteOtherPrimaries(ownerId: String, keepCarId: String)
 }
 
 /**
@@ -67,4 +77,5 @@ data class CarDto(
 internal class FakeCarRemoteDataSource : CarRemoteDataSource {
     override suspend fun fetchSince(ownerId: String, since: Instant?): List<CarDto> = emptyList()
     override suspend fun push(cars: List<CarDto>): List<CarDto> = cars
+    override suspend fun demoteOtherPrimaries(ownerId: String, keepCarId: String) = Unit
 }

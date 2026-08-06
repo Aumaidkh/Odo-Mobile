@@ -188,6 +188,16 @@ deleteById:
 DELETE FROM cars
 WHERE id = :id;
 
+-- Make room before a pulled primary car is written: the local one-primary index would
+-- otherwise refuse it — and because `insertFromRemote` is INSERT OR IGNORE, refuse it
+-- *silently*, leaving this device never learning which car the account's primary is.
+-- Sync columns are left alone on purpose. The server enforces the same one-primary rule,
+-- so the demoted rows' server copies are demoted too and their own pull restates them.
+demoteOthersFromRemote:
+UPDATE cars
+SET is_primary = 0
+WHERE is_primary = 1 AND deleted_at IS NULL AND id != :keepId;
+
 -- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.

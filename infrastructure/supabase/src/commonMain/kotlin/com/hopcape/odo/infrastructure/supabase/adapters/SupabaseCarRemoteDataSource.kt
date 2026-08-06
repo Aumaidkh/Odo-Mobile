@@ -3,6 +3,8 @@ package com.hopcape.odo.infrastructure.supabase.adapters
 import com.hopcape.odo.core.data.car.CarDto
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.time.Instant
 
 /**
@@ -30,9 +32,27 @@ internal class SupabaseCarRemoteDataSource(
     override suspend fun push(cars: List<CarDto>): List<CarDto> =
         postgrest.upsert(table = TABLE, serializer = CarDto.serializer(), rows = cars)
 
+    // One PATCH scoped by filters — no read needed to find out which car currently holds
+    // the flag. Matching zero rows is fine and costs nothing on the server.
+    override suspend fun demoteOtherPrimaries(ownerId: String, keepCarId: String) {
+        postgrest.update(
+            table = TABLE,
+            filters = mapOf(
+                COLUMN_OWNER_ID to "eq.$ownerId",
+                COLUMN_IS_PRIMARY to "is.true",
+                COLUMN_ID to "neq.$keepCarId",
+                COLUMN_DELETED_AT to "is.null",
+            ),
+            patch = buildJsonObject { put(COLUMN_IS_PRIMARY, false) },
+        )
+    }
+
     private companion object {
         const val TABLE = "cars"
+        const val COLUMN_ID = "id"
         const val COLUMN_OWNER_ID = "owner_id"
         const val COLUMN_UPDATED_AT = "updated_at"
+        const val COLUMN_IS_PRIMARY = "is_primary"
+        const val COLUMN_DELETED_AT = "deleted_at"
     }
 }

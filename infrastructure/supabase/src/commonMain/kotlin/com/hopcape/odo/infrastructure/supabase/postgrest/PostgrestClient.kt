@@ -8,6 +8,7 @@ import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -101,6 +102,33 @@ internal class PostgrestClient(
             }
             SupabaseJson.decodeFromString(ListSerializer(serializer), body)
                 .also { telemetry.rows(SupabaseTelemetry.UPSERT, table, it.size) }
+        }
+    }
+
+    /**
+     * `PATCH /rest/v1/{table}` — update the columns in [patch] on every row matching
+     * [filters], without reading anything back.
+     *
+     * For writes that assert a rule across rows this device does not hold copies of, e.g.
+     * clearing `is_primary` on whatever other car the server thinks is primary. A filter is
+     * required: PostgREST would otherwise apply the patch to every row the policy lets this
+     * user touch.
+     */
+    suspend fun update(
+        table: String,
+        filters: Map<String, String>,
+        patch: JsonObject,
+    ) {
+        require(filters.isNotEmpty()) { "an unfiltered PATCH would update every visible row" }
+        call(operation = SupabaseTelemetry.UPDATE, resource = table) {
+            val response = client.patch("${environment.restUrl}/$table") {
+                authorize()
+                contentType(ContentType.Application.Json)
+                header(PREFER_HEADER, RETURN_MINIMAL)
+                filters.forEach { (column, filter) -> url.parameters.append(column, filter) }
+                setBody(SupabaseJson.encodeToString(JsonElement.serializer(), patch))
+            }
+            response.readOrThrow(SupabaseTelemetry.UPDATE, table)
         }
     }
 
