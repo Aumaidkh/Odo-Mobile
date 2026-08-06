@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -109,9 +110,6 @@ internal object GarageCopy {
     const val MODEL_SHEET_TITLE = "Pick the model"
     const val FUEL_SHEET_TITLE = "What does it run on?"
 
-    /** The odometer keypad's backspace, announced for screen readers and matched by it here. */
-    const val ODOMETER_BACKSPACE = "Delete last digit"
-
     /* Edit car. */
     const val EDIT_TITLE = "Edit car"
     const val EDIT_SAVE = "Save changes"
@@ -178,6 +176,10 @@ internal object GarageFixtures {
     /** Above the seeded baseline and every seeded log — a reading that has to be accepted. */
     const val HIGHER_READING = "88888"
     const val HIGHER_READING_SHOWN = "88,888 km"
+
+    /** Six digits — the drums full, so one more typed digit has nowhere to go. */
+    const val FULL_READING = "888888"
+    const val FULL_READING_SHOWN = "8,88,888 km"
 
     /** Below the baseline, dated before today — the reading the timeline has to refuse. */
     const val LOWER_READING = "1000"
@@ -279,17 +281,23 @@ internal fun GarageTestRule.openAddToHistory() {
 }
 
 /**
- * Clear the drums and dial [digits] in on the keypad.
+ * The invisible text field behind the drums — what the system number pad types into.
  *
- * The drums start on the reading already on record, so every digit of it is deleted first —
- * the keypad's backspace is the only way to clear it, and a reading is at most six digits.
- *
- * A digit is matched on the **last** node showing it: the drums render the current reading
- * as text too, and they sit above the keypad in the tree.
+ * The drums are a display, not the input. The field is matched *inside the sheet's own
+ * window* because the add-car form's text fields are still in the semantics tree behind
+ * it, and it is the only editable node the sheet holds.
  */
+internal fun GarageTestRule.odometerEntry() =
+    onNode(hasSetTextAction() and hasAnyAncestor(isDialog()))
+
+/** Replace whatever the drums show with [digits]. */
 internal fun GarageTestRule.dialOdometer(digits: String) {
-    repeat(ODOMETER_DIGITS) { onNodeWithLabel(GarageCopy.ODOMETER_BACKSPACE).performClick() }
-    digits.forEach { digit -> onAllNodesWithText(digit.toString()).onLast().performClick() }
+    odometerEntry().performTextReplacement(digits)
+}
+
+/** Type [digits] after what the drums already show, the way the keyboard lands them. */
+internal fun GarageTestRule.typeOdometer(digits: String) {
+    odometerEntry().performTextInput(digits)
 }
 
 /** Dial [digits] and save the reading. */
@@ -297,9 +305,6 @@ internal fun GarageTestRule.saveOdometer(digits: String) {
     dialOdometer(digits)
     onNodeWithText(GarageCopy.ODOMETER_SAVE).performClick()
 }
-
-/** How many digits a reading can hold — what a full clear has to delete. */
-private const val ODOMETER_DIGITS = 6
 
 /* ------------------------------ Assertions ------------------------------ */
 

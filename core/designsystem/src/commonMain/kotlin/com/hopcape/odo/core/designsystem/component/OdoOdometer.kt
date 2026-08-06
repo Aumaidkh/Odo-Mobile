@@ -9,18 +9,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,14 +32,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hopcape.odo.core.designsystem.icons.IcBackspace
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcInfo
@@ -47,9 +59,10 @@ import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import kotlinx.coroutines.launch
 
 /**
- * The **odometer** input — a split-flap reading you set on a keypad, not a bare number
- * field. A collapsed surface shows the current reading as mechanical digit drums; tapping
- * opens a bottom-sheet editor with the big drums, quick-add chips and an on-brand keypad.
+ * The **odometer** input — a split-flap reading typed on the phone's number pad, not a
+ * bare number field. A collapsed surface shows the current reading as mechanical digit
+ * drums; tapping opens a bottom-sheet editor with the big drums and quick-add chips, and
+ * the system numeric keyboard comes up for typing.
  * Odometer is Odo's single most important number (it powers per-km cost, the health score,
  * and km-anomaly checks), so it earns a first-class control.
  *
@@ -83,7 +96,6 @@ fun OdoOdometer(
     scanLabel: String? = null,
     scanBadge: String? = null,
     digits: Int = 6,
-    backspaceLabel: String? = null,
     enabled: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -130,33 +142,32 @@ fun OdoOdometer(
                 scanLabel = scanLabel,
                 scanBadge = scanBadge,
                 digits = digits,
-                backspaceLabel = backspaceLabel,
             )
         }
     }
 }
 
 /**
- * The odometer **editor on its own** — the drums, quick-add chips and keypad, without the
- * collapsed surface or a sheet around it.
+ * The odometer **editor on its own** — the drums and quick-add chips, without the
+ * collapsed surface or a sheet around it. Typing happens on the system numeric keyboard,
+ * which is asked for as soon as the editor appears; tapping the drums brings it back if
+ * it was dismissed.
  *
  * [OdoOdometer] renders this inside its own [ModalBottomSheet]; this entry point exists
  * for the callers that already own the sheet — a Nav3 bottom-sheet destination, say — so
  * the reading is captured by the same control everywhere instead of a plain number field
  * standing in for it.
  *
- * Stateful in one narrow sense: the in-progress keypad entry is held here (it is transient
+ * Stateful in one narrow sense: the in-progress entry is held here (it is transient
  * until saved), seeded from [value] and reset whenever [value] changes. [onSave] fires with
  * the finished reading in whole units of the displayed unit — the caller converts it back to
  * kilometres — and nothing is reported while the owner is still typing.
  *
- * @param backspaceLabel what a screen reader announces for the keypad's backspace key. The
- *   key is icon-only, so without it the control has nothing to announce.
  * @param footer rendered between the note and the save button — the slot for caller
  *   context the design system can't know, e.g. the last recorded reading or the distance
  *   driven since. It is handed the reading currently dialled in (null while the drums are
  *   empty), so a caller can show how far that is from where the car was last read. Keep it
- *   short; the keypad sits below the fold already.
+ *   short; the keyboard takes the bottom of the screen already.
  */
 @Composable
 fun OdoOdometerEditor(
@@ -175,7 +186,6 @@ fun OdoOdometerEditor(
     scanLabel: String? = null,
     scanBadge: String? = null,
     digits: Int = 6,
-    backspaceLabel: String? = null,
     footer: (@Composable ColumnScope.(dialled: Long?) -> Unit)? = null,
 ) {
     var entry by remember(value) { mutableStateOf(value?.takeIf { it > 0 }?.toString().orEmpty()) }
@@ -193,11 +203,11 @@ fun OdoOdometerEditor(
         scanLabel = scanLabel,
         scanBadge = scanBadge,
         digits = digits,
-        backspaceLabel = backspaceLabel,
         modifier = modifier,
         footer = footer?.let { slot -> { slot(entry.toLongOrNull()) } },
-        onDigit = { c -> if (entry.length < digits) entry = (entry + c).trimStart('0').ifEmpty { "" } },
-        onBackspace = { entry = entry.dropLast(1) },
+        onEntryChange = { typed ->
+            entry = typed.filter { it.isDigit() }.trimStart('0').take(digits)
+        },
         onQuickAdd = { amount ->
             val next = ((entry.toLongOrNull() ?: 0L) + amount).coerceAtMost(maxReading(digits))
             entry = next.toString()
@@ -262,20 +272,21 @@ private fun OdometerEditor(
     scanLabel: String?,
     scanBadge: String?,
     digits: Int,
-    backspaceLabel: String?,
-    onDigit: (Char) -> Unit,
-    onBackspace: () -> Unit,
+    onEntryChange: (String) -> Unit,
     onQuickAdd: (Int) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val colors = OdoTheme.colors
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = OdoTheme.spacing.screenEdge)
-            .padding(bottom = OdoTheme.spacing.xl),
+            .padding(bottom = OdoTheme.spacing.xl)
+            .imePadding(),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -283,7 +294,36 @@ private fun OdometerEditor(
             OdoText(subtitle, style = OdoTheme.typography.bodySmall, color = colors.textDim)
         }
 
-        OdometerFrame(entry = entry, unit = unit, digits = digits, odometerLabel = odometerLabel, kmLabel = kmLabel, milesLabel = milesLabel)
+        Box {
+            OdometerFrame(
+                entry = entry,
+                unit = unit,
+                digits = digits,
+                odometerLabel = odometerLabel,
+                kmLabel = kmLabel,
+                milesLabel = milesLabel,
+                onClick = {
+                    focusRequester.requestFocus()
+                    keyboard?.show()
+                },
+            )
+            // Typing comes from the system number pad. This invisible field owns the
+            // focus; the drums above are the display. The cursor is pinned to the end so
+            // the keyboard's backspace always removes the last digit.
+            BasicTextField(
+                value = TextFieldValue(entry, TextRange(entry.length)),
+                onValueChange = { onEntryChange(it.text) },
+                modifier = Modifier
+                    .size(1.dp)
+                    .alpha(0f)
+                    .focusRequester(focusRequester),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (entry.isNotEmpty()) onSave() }),
+                cursorBrush = SolidColor(Color.Transparent),
+                singleLine = true,
+            )
+        }
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             quickAdds.forEach { amount ->
@@ -311,13 +351,12 @@ private fun OdometerEditor(
         footer?.invoke(this)
 
         OdoButton(text = saveLabel, onClick = onSave, enabled = entry.isNotEmpty(), modifier = Modifier.fillMaxWidth())
-
-        OdoDivider()
-        Keypad(onDigit = onDigit, onBackspace = onBackspace, backspaceLabel = backspaceLabel)
     }
 }
 
-/** The accent-framed odometer panel: label, big drums + unit label, ruler tick strip. */
+/** The accent-framed odometer panel: label, big drums + unit label, ruler tick strip.
+ *  Tapping it calls [onClick], which brings the system keyboard back. No ripple: the
+ *  panel is a display, not a button, and a flash across it reads as a glitch. */
 @Composable
 private fun OdometerFrame(
     entry: String,
@@ -326,6 +365,7 @@ private fun OdometerFrame(
     odometerLabel: String,
     kmLabel: String,
     milesLabel: String,
+    onClick: () -> Unit,
 ) {
     val colors = OdoTheme.colors
     Column(
@@ -333,6 +373,11 @@ private fun OdometerFrame(
             .fillMaxWidth()
             .clip(OdoTheme.shapes.card)
             .border(1.5.dp, colors.accent, OdoTheme.shapes.card)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
             .padding(OdoTheme.spacing.lg),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -448,40 +493,6 @@ private fun ScanChip(label: String, badge: String?) {
         OdoText(label, style = OdoTheme.typography.label, color = colors.textMuted)
         if (badge != null) OdoBadge(badge, tone = OdoBadgeTone.Neutral)
     }
-}
-
-/* ------------------------------ Keypad ------------------------------ */
-
-@Composable
-private fun Keypad(onDigit: (Char) -> Unit, onBackspace: () -> Unit, backspaceLabel: String?) {
-    Column(Modifier.fillMaxWidth()) {
-        listOf("123", "456", "789").forEach { row ->
-            Row(Modifier.fillMaxWidth()) {
-                row.forEach { c -> KeyCell(onClick = { onDigit(c) }) { OdoText(c.toString(), style = OdoTheme.typography.title) } }
-            }
-        }
-        Row(Modifier.fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            KeyCell(onClick = { onDigit('0') }) { OdoText("0", style = OdoTheme.typography.title) }
-            KeyCell(onClick = onBackspace) {
-                OdoIcon(
-                    IcBackspace,
-                    contentDescription = backspaceLabel,
-                    tint = OdoTheme.colors.textDim,
-                    size = OdoTheme.iconSizes.large,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.KeyCell(onClick: () -> Unit, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.weight(1f).height(56.dp).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-        content = { content() },
-    )
 }
 
 /** A small right-pointing chevron for the collapsed field. */
