@@ -25,7 +25,9 @@ internal fun App_settings.toDomain(): AppSettings = AppSettings(
         overchargeAlerts = notif_overcharge.toBoolean(),
         monthlySummary = notif_monthly.toBoolean(),
         healthScoreDrops = notif_health_drop.toBoolean(),
+        partnerOffers = notif_partner.toBoolean(),
         push = notif_push.toBoolean(),
+        whatsapp = notif_whatsapp.toBoolean(),
     ),
 )
 

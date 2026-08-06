@@ -55,7 +55,9 @@ class AppSettingsRepositoryImplTest {
                 overchargeAlerts = false,
                 monthlySummary = false,
                 healthScoreDrops = true,
+                partnerOffers = true,
                 push = false,
+                whatsapp = true,
             ),
         )
 
@@ -92,7 +94,9 @@ class AppSettingsRepositoryImplTest {
             notifOvercharge = 1,
             notifMonthly = 1,
             notifHealthDrop = 0,
+            notifPartner = 0,
             notifPush = 1,
+            notifWhatsapp = 0,
             updatedAt = "2026-08-01T10:00:00Z",
         )
 
