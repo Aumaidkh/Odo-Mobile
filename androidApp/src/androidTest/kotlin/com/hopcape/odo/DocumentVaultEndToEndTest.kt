@@ -224,16 +224,18 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun theFreeTierCapRefusesAFourthDocument() {
-        // Three is the free tier's whole allowance (PRD pricing), counted per owner.
+    fun theFreeTierCapRefusesAFourthDocumentAndSaysWhy() {
+        // Three is the free tier's whole allowance (PRD pricing), counted per owner. The
+        // refusal must name that reason: it used to surface as "Something went wrong",
+        // which reads as a broken app rather than a full plan.
         seedTrackedDocuments()
         rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
         rule.addFromRow(DocumentType.LICENCE)
         rule.uploadAFile()
 
-        // Refused, and the flow stays where it was rather than claiming a save.
-        rule.awaitText(VaultCopy.WRITE_FAILED)
+        // Refused with the reason, and the flow stays put rather than claiming a save.
+        rule.awaitText(VaultCopy.LIMIT_REACHED)
         rule.onNodeWithText(VaultCopy.ADD_TITLE).assertIsDisplayed()
     }
 
