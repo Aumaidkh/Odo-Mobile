@@ -70,10 +70,22 @@ internal class AddDocumentViewModel(
     }
 
     private fun onCapture(event: AddDocumentEvent.Capture) = when (event) {
-        AddDocumentEvent.Capture.Scan -> captureUnavailable(DocumentVaultTelemetry.CaptureMethod.SCAN)
+        AddDocumentEvent.Capture.Scan -> scan()
         AddDocumentEvent.Capture.DigiLocker -> captureUnavailable(DocumentVaultTelemetry.CaptureMethod.DIGILOCKER)
         // A cancelled picker is not a failure; the screen stays as it was.
         is AddDocumentEvent.Capture.FilePicked -> event.pickedRef?.let(::save) ?: Unit
+    }
+
+    /**
+     * Hand the chosen type to the scanner and let it read the paper.
+     *
+     * Nothing is saved here: the scanner captures the photo and its confirm step files the
+     * document, which is also the only path that can fill in an expiry date.
+     */
+    private fun scan() {
+        val type = _state.value.selectedType
+        telemetry.captureStarted(DocumentVaultTelemetry.CaptureMethod.SCAN, type)
+        emit(AddDocumentEffect.OpenScanner(type))
     }
 
     private fun captureUnavailable(method: String) {

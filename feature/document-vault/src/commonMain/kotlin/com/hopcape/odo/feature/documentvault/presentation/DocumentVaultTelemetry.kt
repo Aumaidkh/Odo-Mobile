@@ -115,6 +115,14 @@ internal class DocumentVaultTelemetry(
     }
 
     /**
+     * A capture method was started — the top of the add funnel, per method. What the owner
+     * does next (a filed document, or nothing) is what turns this into a completion rate.
+     */
+    fun captureStarted(method: String, type: DocumentType) {
+        analytics.track(Event.CAPTURE_STARTED, mapOf(Key.METHOD to method, Key.TYPE to type.name))
+    }
+
+    /**
      * A capture method with no implementation behind it was tapped. Counted because it is
      * demand: how often owners reach for the scanner or DigiLocker decides which is built
      * first.
@@ -280,6 +288,7 @@ internal class DocumentVaultTelemetry(
         const val FILE_MISSING = "documents_file_missing"
         const val ADD_OPENED = "documents_add_opened"
         const val TYPE_SELECTED = "documents_type_selected"
+        const val CAPTURE_STARTED = "documents_capture_started"
         const val CAPTURE_UNAVAILABLE = "documents_capture_unavailable"
         const val DOCUMENT_ADDED = "documents_document_added"
         const val SAVE_FAILED = "documents_save_failed"

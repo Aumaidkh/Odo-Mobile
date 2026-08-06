@@ -91,8 +91,9 @@ internal class AiTelemetry(
         const val EXTRACT = "extract"
         const val UNTRACED = "untraced"
 
-        /** Target — bills are the one extraction kind with an adapter today. */
+        /** Target — which kind of paper was read. */
         const val BILL = "bill"
+        const val DOCUMENT = "document"
 
         /** Engine — which pipeline produced the result. */
         const val ENGINE_MLKIT = "mlkit"

@@ -155,12 +155,29 @@ class AddDocumentViewModelTest {
         val analytics = RecordingAnalytics()
         val viewModel = viewModel(analytics = analytics)
 
-        viewModel.onEvent(AddDocumentEvent.Capture.Scan)
+        viewModel.onEvent(AddDocumentEvent.Capture.DigiLocker)
         advanceUntilIdle()
 
         assertIs<Submission.Failed>(viewModel.state.value.submission)
         val (_, properties) = analytics.events.first { it.first == DocumentVaultTelemetry.Event.CAPTURE_UNAVAILABLE }
-        assertEquals(DocumentVaultTelemetry.CaptureMethod.SCAN, properties[DocumentVaultTelemetry.Key.METHOD])
+        assertEquals(DocumentVaultTelemetry.CaptureMethod.DIGILOCKER, properties[DocumentVaultTelemetry.Key.METHOD])
+    }
+
+    /**
+     * Scanning is a hand-off, not a save: the scanner captures the paper and its confirm
+     * step files it, which is the only path that can read an expiry date off the photo.
+     */
+    @Test
+    fun scanning_handsTheChosenTypeToTheScannerAndStoresNothingHere() = runTest(dispatcher) {
+        val repository = FakeDocumentRepository()
+        val viewModel = viewModel(prefillType = DocumentType.RC, repository = repository)
+
+        viewModel.onEvent(AddDocumentEvent.Capture.Scan)
+        advanceUntilIdle()
+
+        val effect = assertIs<AddDocumentEffect.OpenScanner>(viewModel.effects.first())
+        assertEquals(DocumentType.RC, effect.type)
+        assertTrue(repository.observe(TEST_CAR).first().isEmpty(), "nothing is filed until the scan is confirmed")
     }
 
     @Test

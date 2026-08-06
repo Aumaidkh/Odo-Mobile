@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.espresso.intent.Intents
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import org.junit.After
@@ -47,6 +49,10 @@ class DocumentVaultEndToEndTest {
 
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
+
+    /** Granted for the whole class so the hand-off to the scanner reaches its viewfinder. */
+    @get:Rule
+    val cameraPermission: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
 
     /**
      * Start every test from a set-up device with an empty vault.
@@ -206,21 +212,37 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun scanningAndDigiLockerSayTheyAreNotReadyAndStoreNothing() {
+    fun digiLockerSaysItIsNotReadyAndStoresNothing() {
         rule.openVault()
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
         rule.addFromRow(DocumentType.INSURANCE)
 
-        // Neither has a capture behind it yet. Saying so beats walking an owner to a success
-        // screen for a document that was never written.
-        rule.onNodeWithText(VaultCopy.CAPTURE_SCAN).performClick()
-        rule.awaitText(VaultCopy.CAPTURE_UNAVAILABLE)
+        // No importer behind it yet. Saying so beats walking an owner to a success screen
+        // for a document that was never written.
         rule.onNodeWithText(VaultCopy.CAPTURE_DIGILOCKER).performClick()
         rule.awaitText(VaultCopy.CAPTURE_UNAVAILABLE)
 
         rule.onNodeWithLabel(VaultCopy.CLOSE_LABEL).performClick()
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
         rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.INSURANCE)).assertIsDisplayed()
+    }
+
+    /**
+     * The vault's "Scan with camera" used to dead-end on "coming soon" while the scanner's
+     * document path was already built. It hands over now, and it takes the type the owner
+     * chose with it — an RC scanned from the RC row must not come back as an insurance.
+     */
+    @Test
+    fun scanningFromTheVaultOpensTheScannerOnTheChosenPaper() {
+        rule.openVault()
+        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
+        rule.addFromRow(DocumentType.RC)
+
+        rule.onNodeWithText(VaultCopy.CAPTURE_SCAN).performClick()
+
+        // The viewfinder opens pointed at a paper, not at a bill.
+        rule.awaitText(ScanCopy.SCAN_TITLE_DOCUMENT)
+        rule.onNodeWithText(ScanCopy.ALIGN_DOCUMENT).assertIsDisplayed()
     }
 
     @Test

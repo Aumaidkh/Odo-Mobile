@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.CameraFrameAnalysis
@@ -30,6 +31,12 @@ internal data class BillScanUiState(
     val detectedQuad: DetectedQuad? = null,
     /** True once the owner tapped to pin the outline — detection updates stop moving it. */
     val edgesLocked: Boolean = false,
+    /**
+     * What went wrong with the last picture the owner chose from their gallery — a file that
+     * could not be copied, or a picture with no payment code in it. Cleared on the next
+     * attempt, and on a mode switch, so a stale complaint never outlives what caused it.
+     */
+    val failure: UiText? = null,
 ) {
     /** Whether a live preview can be shown at all. */
     val cameraGranted: Boolean get() = cameraPermission == CameraPermissionStatus.Granted

@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.billscanner
 
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.feature.billscanner.domain.usecase.LogFuelFillUseCase
@@ -57,13 +58,18 @@ val billScannerModule = module {
             initialTarget = params.getOrNull<ScanTarget>() ?: ScanTarget.Bill,
             allowance = get(),
             cropper = get(),
+            // A picture from the gallery is copied into app storage and, in the payment
+            // mode, read for a code — neither of which the camera path needs.
+            files = get(),
+            qrDecoder = get(),
+            ids = get(),
             telemetry = get(),
         )
     }
     viewModel { params ->
         BillReviewViewModel(
-            // Absent when the review was reached without a capture — the gallery stub does
-            // that today, and the screen says so rather than reading a photo that isn't there.
+            // Absent when the review was reached without a capture; the screen says so
+            // rather than reading a photo that isn't there.
             photoKey = params.getOrNull<String>(),
             scanBill = get(),
             saveBill = get(),
@@ -75,6 +81,9 @@ val billScannerModule = module {
     viewModel { params ->
         DocumentReviewViewModel(
             photoKey = params.getOrNull<String>(),
+            // What the caller already knew the paper was — the vault's RC row says RC.
+            // Absent when nobody said, and then the read's own guess is used.
+            initialType = params.getOrNull<DocumentType>(),
             scanDocument = get(),
             saveDocument = get(),
             activeCar = get(),

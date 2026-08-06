@@ -55,6 +55,8 @@
     <string name="bs_error_payment_failed">The payment didn’t go through.</string>
     <string name="bs_error_payment_pending">Your bank hasn’t confirmed yet. Check your UPI app, then log the fill from Costs.</string>
     <string name="bs_error_no_car">Add a car before scanning.</string>
+    <string name="bs_error_gallery_unreadable">Couldn\'t open that picture. Try another one.</string>
+    <string name="bs_error_gallery_no_qr">No payment code in that picture. Try another one.</string>
 
     <!-- Document review screen -->
     <string name="bs_doc_title">Check the document</string>

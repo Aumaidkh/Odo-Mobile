@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -15,6 +16,8 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.camera.CameraEvent
 import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
+import com.hopcape.odo.core.platform.file.FileTypes
+import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.core.platform.payment.UpiLaunchResult
 import com.hopcape.odo.core.platform.payment.rememberUpiPaymentLauncher
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
@@ -56,13 +59,13 @@ internal class BillScannerFeatureEntryProvider(
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.BillScanner.Capture> { key ->
-            BillScanRoute(navigationManager, key.target)
+            BillScanRoute(navigationManager, key.target, key.documentType)
         }
         entry<OdoDestination.BillScanner.Review> { key ->
             BillReviewRoute(navigationManager, photoKey = key.photoKey)
         }
         entry<OdoDestination.BillScanner.DocumentReview> { key ->
-            DocumentReviewRoute(navigationManager, photoKey = key.photoKey)
+            DocumentReviewRoute(navigationManager, photoKey = key.photoKey, documentType = key.documentType)
         }
         entry<OdoDestination.BillScanner.PayAtPump> { key ->
             PayAtPumpRoute(navigationManager, payload = key.payload)
@@ -82,11 +85,19 @@ internal class BillScannerFeatureEntryProvider(
  * offer instead of leaving them on a dead screen.
  */
 @Composable
-internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTarget) {
+internal fun BillScanRoute(
+    navigationManager: NavigationManager,
+    target: ScanTarget,
+    documentType: String? = null,
+) {
     val viewModel: BillScanViewModel = koinViewModel { parametersOf(target) }
     val state by viewModel.state.collectAsState()
     val permission = rememberCameraPermissionController()
     val cameraState = rememberOdoCameraState()
+    // Pictures only: a PDF has no frame to read a code or an expiry date off.
+    val pickFromGallery = rememberFilePicker(mimeTypes = FileTypes.PHOTOS) { pickedRef ->
+        viewModel.onEvent(BillScanEvent.GalleryPicked(pickedRef))
+    }
 
     // The controller is Compose state of its own; this is what folds it into the ViewModel's.
     LaunchedEffect(permission.status) {
@@ -105,10 +116,12 @@ internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTar
         when (effect) {
             is BillScanEffect.OpenBillReview ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.Review(effect.photoKey))
-            is BillScanEffect.OpenDocumentReview ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.DocumentReview(effect.photoKey))
+            is BillScanEffect.OpenDocumentReview -> navigationManager.navigateTo(
+                OdoDestination.BillScanner.DocumentReview(effect.photoKey, documentType),
+            )
             is BillScanEffect.OpenPayment ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.PayAtPump(effect.payload))
+            BillScanEffect.PickFromGallery -> pickFromGallery()
             // "Manual" pops back to whatever opened the scanner, which is the form itself in
             // every path that offers it.
             BillScanEffect.OpenManualEntry -> navigationManager.back()
@@ -140,9 +153,7 @@ internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTar
         },
         onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
         onCapture = cameraState::capture,
-        // Still the pre-camera stub: picking from the gallery needs the file to be copied into
-        // app storage first, which is the add-from-gallery slice rather than this one.
-        onPickGallery = { navigationManager.navigateTo(OdoDestination.BillScanner.Review()) },
+        onPickGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
         onManual = { viewModel.onEvent(BillScanEvent.ManualTapped) },
         onGrantCamera = grant,
         onTargetSelected = { viewModel.onEvent(BillScanEvent.TargetSelected(it)) },
@@ -185,10 +196,25 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
     )
 }
 
+/**
+ * The type a navigation key names, or null when it names none or one this build cannot read.
+ *
+ * The name travels as a string because a key is serialized into the back stack. An
+ * unrecognised name falls back to what the read itself suggests, rather than failing.
+ */
+private fun String?.toDocumentType(): DocumentType? =
+    this?.let { name -> DocumentType.entries.firstOrNull { it.name == name } }
+
 /** The scanned-document confirm host — files the paper in the vault, then opens it there. */
 @Composable
-internal fun DocumentReviewRoute(navigationManager: NavigationManager, photoKey: String) {
-    val viewModel: DocumentReviewViewModel = koinViewModel { parametersOf(photoKey) }
+internal fun DocumentReviewRoute(
+    navigationManager: NavigationManager,
+    photoKey: String,
+    documentType: String? = null,
+) {
+    val viewModel: DocumentReviewViewModel = koinViewModel {
+        parametersOf(photoKey, documentType.toDocumentType())
+    }
     val state by viewModel.state.collectAsState()
 
     CollectEffects(viewModel.effects) { effect ->
