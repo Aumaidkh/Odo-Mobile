@@ -67,7 +67,10 @@ actual fun OdoCameraPreview(
     state: OdoCameraState,
     onEvent: (CameraEvent) -> Unit,
     modifier: Modifier,
-    detectQr: Boolean,
+    // DocumentEdges is accepted and ignored: on-device edge detection is Android-only for
+    // the MVP, so iOS never sends CameraEvent.EdgesDetected and the screen keeps its
+    // static frame.
+    analysis: CameraFrameAnalysis,
 ) {
     val currentOnEvent by rememberUpdatedState(onEvent)
     val session = remember { IosCameraSession() }
@@ -76,8 +79,8 @@ actual fun OdoCameraPreview(
     // holding the callback it was given first.
     SideEffect { session.onEvent = { event -> currentOnEvent(event) } }
 
-    DisposableEffect(session, detectQr) {
-        session.start(detectQr) { ready -> state.isReady = ready }
+    DisposableEffect(session, analysis) {
+        session.start(detectQr = analysis == CameraFrameAnalysis.Qr) { ready -> state.isReady = ready }
         onDispose { session.stop() }
     }
 

@@ -135,6 +135,23 @@ class SyncTelemetry(
     }
 
     /**
+     * The device asserted its primary flag before a push: whatever other car the server held
+     * as primary was demoted to make room, or there was nothing to demote.
+     *
+     * A log line, not an analytics event — it fires on every push that carries a primary
+     * car, and the interesting cases (a reinstall reclaiming the flag) are already counted
+     * by [identityAdopted] and visible in the server's row history.
+     */
+    suspend fun primaryReclaimed(entity: SyncEntity) {
+        logger.info(
+            TAG,
+            EVENT_PRIMARY_RECLAIMED,
+            tc = currentTraceContext().toLog(),
+            fields = mapOf(Key.ENTITY to entity.name),
+        )
+    }
+
+    /**
      * A last-write-wins resolution. Always reported: the losing side is never silently
      * discarded, so a conflict storm shows up as a spike rather than as a mystery
      * (SYNC_DESIGN §7).
@@ -182,6 +199,7 @@ class SyncTelemetry(
         const val EVENT_CONFLICT_RESOLVED = "sync_conflict_resolved"
         const val EVENT_ROWS_REFUSED = "sync_rows_refused"
         const val EVENT_IDENTITY_ADOPTED = "sync_identity_adopted"
+        const val EVENT_PRIMARY_RECLAIMED = "sync_primary_reclaimed"
 
         const val UNTRACED = "untraced"
         const val UNKNOWN = "Unknown"

@@ -33,6 +33,14 @@ value class ExtractionConfidence private constructor(val percent: Int) {
      */
     val needsManualReview: Boolean get() = percent < REVIEW_FLOOR
 
+    /**
+     * This score docked [points] for a fact that makes the read less trustworthy — a
+     * blurry photo, say. Owned by the value object so no caller can walk the score out
+     * of 0..100 while applying a penalty.
+     */
+    fun reducedBy(points: Int): ExtractionConfidence =
+        ExtractionConfidence((percent - points).coerceIn(0, 100))
+
     companion object {
         /** At or above this, an extraction reads as trustworthy. */
         const val HIGH = 85

@@ -4,6 +4,8 @@
     <string name="bs_scan_quota">%1$d of %2$d free</string>
     <string name="bs_scan_align">Align the bill inside the frame</string>
     <string name="bs_scan_detecting">AUTO-DETECTING EDGES</string>
+    <string name="bs_scan_edges_locked">Bill detected — tap to lock edges</string>
+    <string name="bs_scan_edges_pinned">Edges locked — capture, or tap to unlock</string>
     <string name="bs_scan_manual">Manual</string>
 
     <!-- Camera permission rationale, shown before the system prompt -->
@@ -79,8 +81,12 @@
     <!-- Review details screen -->
     <string name="bs_review_title">Review details</string>
     <string name="bs_review_extracted">≈ EXTRACTED · %1$s CONFIDENCE</string>
-    <string name="bs_review_low_confidence">≈ LOW CONFIDENCE — PLEASE CHECK</string>
-    <string name="bs_review_low_note">The blurry lines below need a look before we save. Odo never auto-fills what it isn’t sure about.</string>
+    <string name="bs_review_low_confidence">≈ %1$s CONFIDENCE — PLEASE CHECK</string>
+    <!-- The word the amber banner shows in place of a score. A precise figure is withheld
+         on purpose: for handwriting the model's score is not evidence of being right. -->
+    <string name="bs_review_confidence_low">LOW</string>
+    <string name="bs_review_low_note">The flagged lines below need a look before we save. Odo never auto-fills what it isn’t sure about.</string>
+    <string name="bs_review_blurry_note">This photo reads blurry — double-check the amounts, or retake for a cleaner scan.</string>
     <string name="bs_review_check">CHECK</string>
     <string name="bs_review_workshop">Workshop</string>
     <string name="bs_review_date">Date</string>

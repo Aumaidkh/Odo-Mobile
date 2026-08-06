@@ -56,6 +56,7 @@ val billScannerModule = module {
         BillScanViewModel(
             initialTarget = params.getOrNull<ScanTarget>() ?: ScanTarget.Bill,
             allowance = get(),
+            cropper = get(),
             telemetry = get(),
         )
     }

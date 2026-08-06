@@ -32,4 +32,19 @@ val syncAnalyticsEvents: List<EventSchema> = listOf(
             SyncTelemetry.Key.WINNER to PropertyType.STRING,
         ),
     ),
+    EventSchema(
+        SyncTelemetry.EVENT_ROWS_REFUSED,
+        mapOf(
+            SyncTelemetry.Key.ENTITY to PropertyType.STRING,
+            SyncTelemetry.Key.REFUSED to PropertyType.INT,
+            SyncTelemetry.Key.STATUS to PropertyType.INT,
+        ),
+    ),
+    EventSchema(
+        SyncTelemetry.EVENT_IDENTITY_ADOPTED,
+        mapOf(
+            SyncTelemetry.Key.ENTITY to PropertyType.STRING,
+            SyncTelemetry.Key.ADOPTED to PropertyType.INT,
+        ),
+    ),
 )

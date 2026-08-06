@@ -59,6 +59,9 @@ kotlin {
             // because :shared is the composition root — supabaseModule goes into initKoin
             // after coreDataModule so its adapters replace that module's offline fakes.
             implementation(projects.infrastructure.supabase)
+            // On-device scan adapters for the ports :core:domain declares — same
+            // composition-root reasoning; aiInfrastructureModule goes in after coreDataModule.
+            implementation(projects.infrastructure.ai)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.

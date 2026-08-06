@@ -63,3 +63,4 @@ include(":observability:performance")
 include(":observability:crashreporting")
 
 include(":infrastructure:supabase")
+include(":infrastructure:ai")

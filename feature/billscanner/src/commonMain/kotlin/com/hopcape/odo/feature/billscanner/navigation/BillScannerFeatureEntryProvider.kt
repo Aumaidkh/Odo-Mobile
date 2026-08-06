@@ -133,6 +133,7 @@ internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTar
             when (event) {
                 is CameraEvent.PhotoCaptured -> viewModel.onEvent(BillScanEvent.PhotoCaptured(event.storageKey))
                 is CameraEvent.QrDetected -> viewModel.onEvent(BillScanEvent.QrDetected(event.payload))
+                is CameraEvent.EdgesDetected -> viewModel.onEvent(BillScanEvent.EdgesDetected(event.quad))
                 is CameraEvent.Failed -> viewModel.onEvent(BillScanEvent.CameraFailed(event.failure))
                 CameraEvent.Ready -> viewModel.onEvent(BillScanEvent.CameraReady)
             }
@@ -145,6 +146,7 @@ internal fun BillScanRoute(navigationManager: NavigationManager, target: ScanTar
         onManual = { viewModel.onEvent(BillScanEvent.ManualTapped) },
         onGrantCamera = grant,
         onTargetSelected = { viewModel.onEvent(BillScanEvent.TargetSelected(it)) },
+        onToggleEdgeLock = { viewModel.onEvent(BillScanEvent.EdgeLockToggled) },
     )
 }
 

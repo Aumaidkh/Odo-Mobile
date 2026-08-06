@@ -32,7 +32,7 @@ internal class AndroidFileStore(private val context: Context) : PlatformFileStor
         Either.catch {
             val uri = pickedRef.toUri()
             val key = StorageKey.of(directory, fileName, extensionOf(uri))
-            val target = File(context.filesDir, key)
+            val target = context.storedFile(key)
             target.parentFile?.mkdirs()
 
             // The stream is opened first: a picker URI whose permission has already lapsed
@@ -47,18 +47,18 @@ internal class AndroidFileStore(private val context: Context) : PlatformFileStor
 
     override suspend fun delete(storageKey: String) {
         withContext(Dispatchers.IO) {
-            runCatching { File(context.filesDir, storageKey).delete() }
+            runCatching { context.storedFile(storageKey).delete() }
         }
     }
 
     override suspend fun exists(storageKey: String): Boolean = withContext(Dispatchers.IO) {
-        File(context.filesDir, storageKey).exists()
+        context.storedFile(storageKey).exists()
     }
 
     override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
         withContext(Dispatchers.IO) {
             Either.catch {
-                val file = File(context.filesDir, storageKey)
+                val file = context.storedFile(storageKey)
                 if (!file.exists()) error("stored file is missing")
                 file.readBytes()
             }.mapLeft { DomainError.PersistenceFailure(it.message) }

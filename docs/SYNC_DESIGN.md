@@ -288,6 +288,26 @@ server has. Only the identity is adopted.
 This costs nothing in the normal case: a row that has synced once carries a
 `remote_version`, so there are no candidates and the server is never asked.
 
+#### 6.1.3 Reclaiming the primary flag
+
+`cars` also allows one live `is_primary` row per owner, and plate adoption cannot catch
+this pair when the plates differ: a reinstall onboards its car as primary with a plate the
+server has never seen, while the server still holds the old primary. The push is then a
+permanent refusal (`uq_cars_one_primary`), and because every service log and document is
+stamped from its car by a server trigger, everything on the car is refused with it.
+
+So a push whose rows include a live primary car first clears `is_primary` on the owner's
+other cars, in one filtered `PATCH`, and then pushes. **The device wins on purpose** — the
+local flag is the owner's most recent word on which car is primary, the same tie-break §7
+uses. The demoted rows get a fresh `updated_at` from the server's trigger, so every device
+pulls the change.
+
+The pull applies the same rule in the other direction: before a pulled primary row is
+written, any other local live primary is demoted (sync columns untouched — it mirrors
+server state, it is not a local edit). Without this the local one-primary index makes the
+`INSERT OR IGNORE` drop the pulled row **silently**, and the device re-pulls the server's
+primary forever without ever storing it.
+
 ### 6.2 Pull (delta)
 
 ```

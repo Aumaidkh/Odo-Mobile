@@ -79,11 +79,13 @@ internal class ServiceLogSyncTable(
         }
 
     override fun applyRemote(dto: ServiceLogDto) {
-        // Read before writing. The bill photo is a key into *this device's* storage, so a
-        // server row that has never carried one must not blank the copy already here —
-        // that would turn a Verified entry into a self-reported one on a pull.
-        val keptBillPhoto = dto.billPhotoPath
-            ?: queries.selectBillPhotoPath(dto.id).executeAsOneOrNull()?.bill_photo_path
+        // Read before writing. The bill photo is a key into *this device's* storage, and the
+        // bill id names an extraction the server has no row for — a server row that has
+        // never carried either must not blank the copies already here. Blanking the photo
+        // would turn a Verified entry into a self-reported one on a pull.
+        val localOnly = queries.selectLocalOnly(dto.id).executeAsOneOrNull()
+        val keptBillPhoto = dto.billPhotoPath ?: localOnly?.bill_photo_path
+        val keptBillId = dto.billId ?: localOnly?.bill_id
 
         queries.insertFromRemote(
             id = dto.id,
@@ -95,7 +97,7 @@ internal class ServiceLogSyncTable(
             workshop_name = dto.workshopName,
             notes = dto.notes,
             source = dto.source.uppercase(),
-            bill_id = dto.billId,
+            bill_id = keptBillId,
             bill_photo_path = keptBillPhoto,
             fairness_snapshot = dto.fairnessSnapshot,
             created_at = dto.createdAt,
@@ -112,7 +114,7 @@ internal class ServiceLogSyncTable(
             workshop_name = dto.workshopName,
             notes = dto.notes,
             source = dto.source.uppercase(),
-            bill_id = dto.billId,
+            bill_id = keptBillId,
             // The local bill photo is a device path; a server row that has never seen one
             // must not blank the copy this device already holds.
             bill_photo_path = keptBillPhoto,
@@ -146,7 +148,11 @@ private fun Service_logs.toDto(categories: List<String>) = ServiceLogDto(
     workshopName = workshop_name,
     notes = notes,
     source = source.lowercase(),
-    billId = bill_id,
+    // Never transmitted: the id names an extraction, and the client creates no `bills`
+    // rows (the table is reserved), so the server's fk_service_logs_bill would refuse
+    // the whole row with a 409 that no retry can fix. The local column keeps the id;
+    // the bills sync slice revisits this when rows exist to point at.
+    billId = null,
     billPhotoPath = bill_photo_path,
     fairnessSnapshot = fairness_snapshot,
     categories = categories,

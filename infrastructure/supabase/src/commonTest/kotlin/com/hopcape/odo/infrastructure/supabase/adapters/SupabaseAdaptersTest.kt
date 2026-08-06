@@ -146,6 +146,25 @@ class SupabaseAdaptersTest {
     }
 
     @Test
+    fun `demoting other primaries is one scoped PATCH with no read-back`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("") }
+        SupabaseCarRemoteDataSource(harness.postgrest)
+            .demoteOtherPrimaries(ownerId = "owner-1", keepCarId = "car-1")
+
+        val request = harness.onlyRequest()
+        assertEquals(HttpMethod.Patch, request.method)
+        assertEquals("/rest/v1/cars", request.url.encodedPath)
+        // Scoped to the owner's other live primaries — an unfiltered PATCH would demote
+        // every car the policy lets this user touch.
+        assertEquals("eq.owner-1", request.url.parameters["owner_id"])
+        assertEquals("is.true", request.url.parameters["is_primary"])
+        assertEquals("neq.car-1", request.url.parameters["id"])
+        assertEquals("is.null", request.url.parameters["deleted_at"])
+        assertEquals("""{"is_primary":false}""", request.bodyText())
+        assertContains(request.headers["Prefer"].orEmpty(), "return=minimal")
+    }
+
+    @Test
     fun `an empty push makes no request at all`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[]") }
         val pushed = SupabaseServiceLogRemoteDataSource(harness.postgrest).push(emptyList())

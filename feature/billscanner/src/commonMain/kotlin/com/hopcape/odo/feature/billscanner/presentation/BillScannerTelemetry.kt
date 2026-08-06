@@ -93,6 +93,29 @@ internal class BillScannerTelemetry(
         logger.info(TAG, Event.PHOTO_CAPTURED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /** The owner pinned or released the detected outline. A log — a UI nicety, not a funnel step. */
+    fun edgeLockToggled(locked: Boolean) {
+        logger.info(
+            TAG,
+            Event.EDGE_LOCK_TOGGLED,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.APPLIED to locked),
+        )
+    }
+
+    /**
+     * Whether the capture was auto-cropped to the detected outline. A log rather than an
+     * analytics event — it qualifies the capture, and PHOTO_CAPTURED already counts it.
+     */
+    fun photoCropped(target: String, applied: Boolean) {
+        logger.info(
+            TAG,
+            Event.PHOTO_CROPPED,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.TARGET to target, Key.APPLIED to applied),
+        )
+    }
+
     /**
      * The camera itself failed. Worth an error rather than an event: it means the owner is
      * looking at a viewfinder that cannot take a picture, and nothing else reports it.
@@ -321,6 +344,8 @@ internal class BillScannerTelemetry(
         const val SCANNER_OPENED = "scanner_opened"
         const val TARGET_SWITCHED = "scanner_target_switched"
         const val PHOTO_CAPTURED = "scanner_photo_captured"
+        const val PHOTO_CROPPED = "scanner_photo_cropped"
+        const val EDGE_LOCK_TOGGLED = "scanner_edge_lock_toggled"
         const val CAMERA_FAILED = "scanner_camera_failed"
         const val BILL_EXTRACTED = "scanner_bill_extracted"
         const val DOCUMENT_EXTRACTED = "scanner_document_extracted"
@@ -357,6 +382,7 @@ internal class BillScannerTelemetry(
         const val BILL_TYPE = "bill_type"
         const val LINE_ITEM_COUNT = "line_item_count"
         const val MANUAL_REVIEW = "manual_review"
+        const val APPLIED = "applied"
         const val HAS_ODOMETER = "has_odometer"
         const val HAS_EXPIRY = "has_expiry"
         const val EDITED = "edited"

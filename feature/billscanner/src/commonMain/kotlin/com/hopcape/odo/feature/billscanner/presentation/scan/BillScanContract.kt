@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
+import com.hopcape.odo.core.platform.camera.DetectedQuad
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 
 /** What happened on the scan screen, as data. */
@@ -21,6 +22,12 @@ internal sealed interface BillScanEvent {
 
     /** A QR came into frame. Fires repeatedly while it stays there. */
     data class QrDetected(val payload: String) : BillScanEvent
+
+    /** The live frames found a paper's outline, or lost it (null). */
+    data class EdgesDetected(val quad: DetectedQuad?) : BillScanEvent
+
+    /** The owner tapped the viewfinder — pin the detected outline, or release it. */
+    data object EdgeLockToggled : BillScanEvent
 
     /** The camera is live. */
     data object CameraReady : BillScanEvent

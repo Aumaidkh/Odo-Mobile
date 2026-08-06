@@ -149,6 +149,7 @@ internal class SupabaseTelemetry(
         /* Operation names used as the first half of every span/event name. */
         const val SELECT = "select"
         const val UPSERT = "upsert"
+        const val UPDATE = "update"
         const val RPC = "rpc"
         const val UPLOAD = "upload"
         const val DOWNLOAD = "download"

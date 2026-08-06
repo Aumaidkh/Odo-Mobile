@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.LocalDate
 
 /**
  * State holder for the review step: reads the photo, shows what came back, and writes what the
@@ -94,7 +93,11 @@ internal class BillReviewViewModel(
         }
     }
 
-    /** Fill the form from what was read. Nothing is invented: a field that was not read stays empty. */
+    /**
+     * Fill the form from what was read. A field that was not read stays empty — including
+     * the date: it shows "Not set" and the save waits until the owner picks one. Defaulting
+     * to today would quietly file a wrong date on every bill scanned later than its visit.
+     */
     private fun show(bill: ExtractedBill) {
         extracted = bill
         _state.update { current ->
@@ -102,6 +105,7 @@ internal class BillReviewViewModel(
                 submission = Submission.Idle,
                 confidence = bill.confidence.percent,
                 requiresReview = bill.requiresManualReview,
+                photoBlurry = bill.photoBlurry,
                 workshop = bill.workshopName.orEmpty(),
                 serviceDate = bill.serviceDate,
                 odometer = bill.odometerKm?.toString().orEmpty(),

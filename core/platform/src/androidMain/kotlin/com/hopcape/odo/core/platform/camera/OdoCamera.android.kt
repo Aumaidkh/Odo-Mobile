@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.hopcape.odo.core.platform.file.StorageKey
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -37,7 +38,7 @@ actual fun OdoCameraPreview(
     state: OdoCameraState,
     onEvent: (CameraEvent) -> Unit,
     modifier: Modifier,
-    detectQr: Boolean,
+    analysis: CameraFrameAnalysis,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -57,15 +58,35 @@ actual fun OdoCameraPreview(
         onDispose { controller.unbind() }
     }
 
-    // QR detection is attached and removed with the flag, so a bill scan is not paying for a
-    // barcode analyser on every frame.
-    DisposableEffect(controller, detectQr) {
-        if (!detectQr) return@DisposableEffect onDispose { }
-        val analyzer = QrFrameAnalyzer { payload -> currentOnEvent(CameraEvent.QrDetected(payload)) }
-        controller.setImageAnalysisAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
-        onDispose {
-            controller.clearImageAnalysisAnalyzer()
-            analyzer.close()
+    // The analyser slot carries at most one job, attached and removed with the mode so a
+    // photo-only screen is not paying for per-frame analysis.
+    DisposableEffect(controller, analysis) {
+        when (analysis) {
+            CameraFrameAnalysis.Qr -> {
+                // The main executor is fine here: ML Kit's process() only *starts* the scan
+                // and does its work off-thread.
+                val analyzer = QrFrameAnalyzer { payload -> currentOnEvent(CameraEvent.QrDetected(payload)) }
+                controller.setImageAnalysisAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
+                onDispose {
+                    controller.clearImageAnalysisAnalyzer()
+                    analyzer.close()
+                }
+            }
+
+            CameraFrameAnalysis.DocumentEdges -> {
+                // Unlike the QR analyzer, this one does all its work inline — so it gets
+                // its own thread rather than a slice of every frame's UI budget. The
+                // event still reaches Compose safely: state writes are thread-agnostic.
+                val executor = Executors.newSingleThreadExecutor()
+                val analyzer = DocumentEdgeAnalyzer { quad -> currentOnEvent(CameraEvent.EdgesDetected(quad)) }
+                controller.setImageAnalysisAnalyzer(executor, analyzer)
+                onDispose {
+                    controller.clearImageAnalysisAnalyzer()
+                    executor.shutdown()
+                }
+            }
+
+            CameraFrameAnalysis.None -> onDispose { }
         }
     }
 
