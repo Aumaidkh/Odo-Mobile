@@ -16,7 +16,10 @@ import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentUseCase
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentViewModel
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.feature.documentvault.presentation.state.Submission
+import com.hopcape.odo.feature.documentvault.resources.Res
+import com.hopcape.odo.feature.documentvault.resources.dv_error_limit_reached
 import com.hopcape.odo.feature.documentvault.testTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -116,7 +119,7 @@ class AddDocumentViewModelTest {
     }
 
     @Test
-    fun aFullPlan_failsWithAMessageInsteadOfSaving() = runTest(dispatcher) {
+    fun aFullPlan_failsNamingTheLimitInsteadOfSaving() = runTest(dispatcher) {
         val repository = FakeDocumentRepository(
             List(3) { document("held-$it", DocumentType.OTHER, expiresOn = null) },
         )
@@ -126,7 +129,10 @@ class AddDocumentViewModelTest {
         viewModel.onEvent(AddDocumentEvent.Capture.FilePicked("content://downloads/policy.pdf"))
         advanceUntilIdle()
 
-        assertIs<Submission.Failed>(viewModel.state.value.submission)
+        // The refusal names its reason. "Something went wrong" here read as a broken app,
+        // and the owner's next step (delete one, or upgrade) was invisible.
+        val failure = assertIs<Submission.Failed>(viewModel.state.value.submission)
+        assertEquals(UiText(Res.string.dv_error_limit_reached, listOf(3)), failure.message)
         assertEquals(3, repository.observe(TEST_CAR).first().size, "nothing was added")
         assertTrue(
             analytics.names().contains(DocumentVaultTelemetry.Event.LIMIT_REACHED),

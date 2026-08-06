@@ -38,6 +38,7 @@
     <string name="dv_add_document">Add a document</string>
     <string name="dv_error_load_failed">Could not read your documents. Pull down to try again.</string>
     <string name="dv_error_write_failed">Something went wrong. Please try again.</string>
+    <string name="dv_error_limit_reached">Your free plan stores %1$d documents. Delete one to add another.</string>
     <string name="dv_error_no_car">Add your car first — documents are stored against it.</string>
     <string name="dv_error_capture_unavailable">This way of adding a document is coming soon. Upload a file for now.</string>
 

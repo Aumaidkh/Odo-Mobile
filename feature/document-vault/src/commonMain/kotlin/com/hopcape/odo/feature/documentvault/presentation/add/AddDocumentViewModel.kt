@@ -12,7 +12,10 @@ import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentUseCase
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTelemetry
 import com.hopcape.odo.feature.documentvault.presentation.state.Submission
 import com.hopcape.odo.feature.documentvault.resources.Res
+import arrow.core.NonEmptyList
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.resources.dv_error_capture_unavailable
+import com.hopcape.odo.feature.documentvault.resources.dv_error_limit_reached
 import com.hopcape.odo.feature.documentvault.resources.dv_error_no_car
 import com.hopcape.odo.feature.documentvault.resources.dv_error_write_failed
 import kotlinx.coroutines.channels.Channel
@@ -106,7 +109,7 @@ internal class AddDocumentViewModel(
                     ownerId = currentOwner.currentOwnerId(),
                 )
             }.fold(
-                ifLeft = { _state.update { it.copy(submission = Submission.Failed(UiText(Res.string.dv_error_write_failed))) } },
+                ifLeft = { errors -> _state.update { it.copy(submission = Submission.Failed(errors.toMessage())) } },
                 ifRight = { document ->
                     _state.update { it.copy(submission = Submission.Succeeded) }
                     emit(AddDocumentEffect.OpenSuccess(document.id))
@@ -120,4 +123,15 @@ internal class AddDocumentViewModel(
         Unit
     }
 
+}
+
+/**
+ * The message a failed add shows. A full plan gets its own message naming the cap — the
+ * generic "something went wrong" read as a broken app, and hid the owner's next step.
+ * Every other failure stays generic: the owner cannot act on a storage error's details.
+ */
+private fun NonEmptyList<DomainError>.toMessage(): UiText {
+    val limit = filterIsInstance<DomainError.DocumentLimitReached>().firstOrNull()
+    return if (limit != null) UiText(Res.string.dv_error_limit_reached, listOf(limit.limit))
+    else UiText(Res.string.dv_error_write_failed)
 }
