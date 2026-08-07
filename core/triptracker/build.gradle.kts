@@ -34,5 +34,14 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
         }
+        androidMain.dependencies {
+            // FusedLocationProviderClient + the ActivityRecognition Transition API.
+            implementation(libs.playServices.location)
+            // Task.await() bridge for both of the above.
+            implementation(libs.kotlinx.coroutines.play.services)
+            // SharedPreferences (PrefsVehicleBondStore) and NotificationCompat (the
+            // trip-tracking foreground service's notification).
+            implementation(libs.androidx.core.ktx)
+        }
     }
 }
