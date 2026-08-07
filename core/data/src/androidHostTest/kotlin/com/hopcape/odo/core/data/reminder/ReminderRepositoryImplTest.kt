@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data.reminder
 
+import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
@@ -9,8 +10,6 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.sync.SyncRunner
-import com.hopcape.odo.core.data.sync.SyncStatus
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.reminder.model.CustomReminder
@@ -25,8 +24,10 @@ import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -35,15 +36,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Clock
-import kotlin.time.Instant
 
+/**
+ * Orchestration only — error mapping, id generation, the owner lookup, and sync
+ * scheduling. The SQL behaviour these used to exercise through a real database now lives
+ * in [SqlDelightReminderLocalDataSourceTest]; this suite drives [ReminderRepositoryImpl]
+ * against a [FakeReminderLocalDataSource] instead.
+ */
 class ReminderRepositoryImplTest {
 
     private val carId = CarId("car-1")
     private val ownerId = OwnerId("owner-1")
-
-    /* ------------------------- fixtures ------------------------- */
 
     private object NoopLogger : Logger {
         override fun log(
@@ -79,16 +82,6 @@ class ReminderRepositoryImplTest {
         override fun setUserId(userId: String?) = Unit
     }
 
-    private class FixedClock(private val instant: Instant) : Clock {
-        override fun now(): Instant = instant
-    }
-
-    /** Hands out `gen-1`, `gen-2`, … so two dismissals never collide on the primary key. */
-    private class SequentialIdGenerator : IdGenerator {
-        private var next = 0
-        override fun newId(): String = "gen-${++next}"
-    }
-
     /** Records what the repository asked the scheduler for. */
     private class RecordingScheduler : SyncScheduler {
         val requested = mutableListOf<SyncReason>()
@@ -96,35 +89,83 @@ class ReminderRepositoryImplTest {
         override fun requestSync(reason: SyncReason) { requested += reason }
     }
 
-    private fun newDb(): OdoDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        return OdoDatabase(driver)
+    private class SequentialIdGenerator : IdGenerator {
+        private var next = 0
+        override fun newId(): String = "gen-${++next}"
     }
 
+    private data class DismissalCall(val id: String, val carId: CarId, val ownerId: OwnerId, val dismissal: ReminderDismissal)
+
+    private class FakeReminderLocalDataSource(
+        private val insertThrows: Throwable? = null,
+        private val updateResult: Boolean = true,
+        private val updateThrows: Throwable? = null,
+        private val softDeleteThrows: Throwable? = null,
+        private val customByCar: Flow<List<CustomReminder>> = flowOf(emptyList()),
+        private val byId: Flow<CustomReminder?> = flowOf(null),
+        private val dismissals: Flow<List<ReminderDismissal>> = flowOf(emptyList()),
+        private val insertDismissalThrows: Throwable? = null,
+    ) : ReminderLocalDataSource {
+        var inserted: CustomReminder? = null
+            private set
+        var updated: CustomReminder? = null
+            private set
+        var softDeleted: ReminderId? = null
+            private set
+        var dismissalCall: DismissalCall? = null
+            private set
+
+        override suspend fun insert(reminder: CustomReminder) {
+            insertThrows?.let { throw it }
+            inserted = reminder
+        }
+
+        override suspend fun update(reminder: CustomReminder): Boolean {
+            updateThrows?.let { throw it }
+            updated = reminder
+            return updateResult
+        }
+
+        override suspend fun softDelete(id: ReminderId) {
+            softDeleteThrows?.let { throw it }
+            softDeleted = id
+        }
+
+        override fun observeCustomByCar(carId: CarId): Flow<List<CustomReminder>> = customByCar
+        override fun observeById(id: ReminderId): Flow<CustomReminder?> = byId
+        override fun observeDismissals(carId: CarId): Flow<List<ReminderDismissal>> = dismissals
+
+        override suspend fun insertDismissal(id: String, carId: CarId, ownerId: OwnerId, dismissal: ReminderDismissal) {
+            insertDismissalThrows?.let { throw it }
+            dismissalCall = DismissalCall(id, carId, ownerId, dismissal)
+        }
+    }
+
+    /**
+     * A fresh, unexercised sync stack — [ReminderRepositoryImpl] still takes a
+     * [SyncRunner] to construct, but nothing in this suite calls `syncWith`, so a
+     * throwaway in-memory DB is all it needs.
+     */
     private fun repo(
-        db: OdoDatabase,
+        local: ReminderLocalDataSource,
         scheduler: SyncScheduler = RecordingScheduler(),
-        now: String = "2026-08-06T10:00:00Z",
+        ids: IdGenerator = SequentialIdGenerator(),
+        owners: OwnerId = ownerId,
     ): ReminderRepositoryImpl {
-        val telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash)
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        OdoDatabase.Schema.create(driver)
+        val db = OdoDatabase(driver)
         return ReminderRepositoryImpl(
-            local = SqlDelightReminderLocalDataSource(
-                database = db,
-                telemetry = telemetry,
-                clock = FixedClock(Instant.parse(now)),
-                dispatcher = Dispatchers.Unconfined,
-            ),
-            telemetry = telemetry,
+            local = local,
+            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
-            ids = SequentialIdGenerator(),
-            owners = { ownerId },
+            ids = ids,
+            owners = { owners },
             runner = SyncRunner(
                 entity = SyncEntity.REMINDERS,
                 table = ReminderSyncTable(database = db, remote = FakeReminderRemoteDataSource(), carId = { null }),
                 database = db,
                 telemetry = silentSyncTelemetry(),
-                clock = FixedClock(Instant.parse(now)),
             ),
         )
     }
@@ -132,9 +173,6 @@ class ReminderRepositoryImplTest {
     private fun reminder(
         id: String = "rem-1",
         cadence: ReminderCadence = ReminderCadence.EveryDays(15),
-        preset: ReminderPreset? = ReminderPreset.AIR_PRESSURE,
-        anchorKm: Int? = null,
-        paused: Boolean = false,
     ) = CustomReminder.reconstitute(
         id = ReminderId(id),
         ownerId = ownerId,
@@ -143,193 +181,159 @@ class ReminderRepositoryImplTest {
         cadence = cadence,
         startsOn = LocalDate(2026, 8, 10),
         at = LocalTime(9, 0),
-        paused = paused,
+        paused = false,
         addedOn = null,
-        preset = preset,
-        anchorKm = anchorKm,
+        preset = ReminderPreset.AIR_PRESSURE,
+        anchorKm = null,
     )
 
     /* ------------------------- custom reminders ------------------------- */
 
     @Test
-    fun add_thenObserveCustom_roundTripsEveryField() = runTest {
-        val sut = repo(newDb())
-
-        sut.add(reminder())
-
-        val stored = sut.observeCustom(carId).first().single()
-        assertEquals("rem-1", stored.id.value)
-        assertEquals("Air pressure check", stored.title.value)
-        assertEquals(ReminderCadence.EveryDays(15), stored.cadence)
-        assertEquals(LocalDate(2026, 8, 10), stored.startsOn)
-        assertEquals(LocalTime(9, 0), stored.at)
-        assertEquals(ReminderPreset.AIR_PRESSURE, stored.preset)
-        assertEquals(false, stored.paused)
-        // The row's created_at supplies the filing date the domain object was built without.
-        assertEquals(LocalDate(2026, 8, 6), stored.addedOn)
-    }
-
-    @Test
-    fun distanceCadenceKeepsItsAnchor() = runTest {
-        val sut = repo(newDb())
-
-        sut.add(reminder(cadence = ReminderCadence.EveryDistance(10_000), anchorKm = 42_000))
-
-        val stored = sut.observeCustom(carId).first().single()
-        assertEquals(ReminderCadence.EveryDistance(10_000), stored.cadence)
-        assertEquals(42_000, stored.anchorKm)
-    }
-
-    @Test
-    fun add_stampsPendingAndAsksForASync() = runTest {
-        val db = newDb()
+    fun add_success_writesThroughLocalAndAsksForASync() = runTest {
+        val local = FakeReminderLocalDataSource()
         val scheduler = RecordingScheduler()
 
-        repo(db, scheduler).add(reminder())
+        val result = repo(local, scheduler).add(reminder())
 
-        val row = db.reminderQueries.selectPending().executeAsList().single()
-        assertEquals(SyncStatus.PENDING.name, row.sync_status)
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("rem-1", local.inserted?.id?.value)
         assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
     @Test
-    fun update_editsTheRowAndReturnsItToPending() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(reminder())
-        db.reminderQueries.markSynced(remoteVersion = "v1", id = "rem-1")
+    fun add_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeReminderLocalDataSource(insertThrows = RuntimeException("disk full"))
 
-        sut.update(reminder(paused = true))
+        val result = repo(local).add(reminder())
 
-        val stored = sut.observeCustom(carId).first().single()
-        assertTrue(stored.paused)
-        assertEquals(SyncStatus.PENDING.name, db.reminderQueries.selectPending().executeAsList().single().sync_status)
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
     }
 
     @Test
-    fun update_ofAMissingReminderSaysSo() = runTest {
-        val result = repo(newDb()).update(reminder(id = "rem-gone"))
+    fun update_localAnswersTrue_asksForASync() = runTest {
+        val local = FakeReminderLocalDataSource(updateResult = true)
+        val scheduler = RecordingScheduler()
+
+        val result = repo(local, scheduler).update(reminder())
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun update_localAnswersFalse_isReminderNotFound() = runTest {
+        val local = FakeReminderLocalDataSource(updateResult = false)
+
+        val result = repo(local).update(reminder(id = "rem-gone"))
+
         assertIs<DomainError.ReminderNotFound>(result.leftOrNull())
     }
 
     @Test
-    fun softDelete_hidesTheReminderButKeepsTheTombstone() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(reminder())
+    fun softDelete_success_asksForASync() = runTest {
+        val local = FakeReminderLocalDataSource()
+        val scheduler = RecordingScheduler()
 
-        sut.softDelete(ReminderId("rem-1"))
+        val result = repo(local, scheduler).softDelete(ReminderId("rem-1"))
 
-        assertTrue(sut.observeCustom(carId).first().isEmpty())
-        assertNull(sut.observe(ReminderId("rem-1")).first())
-        // The tombstone stays, PENDING, so the deletion itself can reach the server.
-        val row = db.reminderQueries.selectPending().executeAsList().single()
-        assertEquals("rem-1", row.id)
-        assertTrue(row.deleted_at != null)
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(ReminderId("rem-1"), local.softDeleted)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
-    /* ------------------------- dismissals ------------------------- */
+    @Test
+    fun aSchedulerThatThrows_doesNotFailTheWrite() = runTest {
+        val local = FakeReminderLocalDataSource()
+        val exploding = object : SyncScheduler {
+            override fun scheduleStartupSync() = Unit
+            override fun requestSync(reason: SyncReason): Nothing = error("no WorkManager here")
+        }
+
+        val result = repo(local, exploding).add(reminder())
+
+        assertTrue(result.isRight(), "scheduling is not part of the write's success: $result")
+    }
+
+    /* ------------------------- dismissals: id generation and owner lookup ------------------------- */
 
     @Test
-    fun dismiss_thenObserveDismissals_roundTrips() = runTest {
-        val sut = repo(newDb())
+    fun dismiss_generatesAnIdAndTakesTheOwnerFromItsProvider() = runTest {
+        val local = FakeReminderLocalDataSource()
         val dismissal = ReminderDismissal(ReminderKind.INSURANCE_EXPIRY, LocalDate(2026, 9, 1))
 
-        sut.dismiss(carId, dismissal)
+        val result = repo(local, ids = SequentialIdGenerator(), owners = OwnerId("owner-9")).dismiss(carId, dismissal)
 
-        assertEquals(listOf(dismissal), sut.observeDismissals(carId).first())
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("gen-1", local.dismissalCall?.id)
+        assertEquals(carId, local.dismissalCall?.carId)
+        assertEquals(OwnerId("owner-9"), local.dismissalCall?.ownerId)
+        assertEquals(dismissal, local.dismissalCall?.dismissal)
     }
 
     @Test
-    fun dismissingTheSameOccurrenceTwiceKeepsOneRow() = runTest {
-        val sut = repo(newDb())
-        val dismissal = ReminderDismissal(ReminderKind.PUC_EXPIRY, LocalDate(2026, 9, 1))
+    fun dismiss_asksForASync() = runTest {
+        val local = FakeReminderLocalDataSource()
+        val scheduler = RecordingScheduler()
 
-        assertTrue(sut.dismiss(carId, dismissal).isRight())
-        assertTrue(sut.dismiss(carId, dismissal).isRight())
+        repo(local, scheduler).dismiss(carId, ReminderDismissal(ReminderKind.PUC_EXPIRY, LocalDate(2026, 9, 1)))
 
-        assertEquals(1, sut.observeDismissals(carId).first().size)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
     @Test
-    fun customDismissalCarriesItsReminderId() = runTest {
-        val sut = repo(newDb())
-        val dismissal = ReminderDismissal(
-            kind = ReminderKind.CUSTOM,
-            dueOn = LocalDate(2026, 9, 1),
-            customId = ReminderId("rem-1"),
-        )
+    fun dismiss_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeReminderLocalDataSource(insertDismissalThrows = RuntimeException("locked"))
 
-        sut.dismiss(carId, dismissal)
+        val result = repo(local).dismiss(carId, ReminderDismissal(ReminderKind.PUC_EXPIRY, LocalDate(2026, 9, 1)))
 
-        assertEquals(listOf(dismissal), sut.observeDismissals(carId).first())
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
+    }
+
+    /* ------------------------- observe flows ------------------------- */
+
+    @Test
+    fun observeCustom_passesThroughTheLocalStream() = runTest {
+        val expected = listOf(reminder())
+        val local = FakeReminderLocalDataSource(customByCar = flowOf(expected))
+
+        assertEquals(expected, repo(local).observeCustom(carId).first())
     }
 
     @Test
-    fun dismissalRowsStayOutOfTheCustomList() = runTest {
-        val sut = repo(newDb())
-        sut.add(reminder())
-        sut.dismiss(
-            carId,
-            ReminderDismissal(ReminderKind.CUSTOM, LocalDate(2026, 9, 1), ReminderId("rem-1")),
-        )
+    fun observeCustom_localThrows_emitsEmptyListInstead() = runTest {
+        val local = FakeReminderLocalDataSource(customByCar = flow { throw RuntimeException("read failed") })
 
-        assertEquals(1, sut.observeCustom(carId).first().size)
-        assertEquals(1, sut.observeDismissals(carId).first().size)
-    }
-
-    /* ------------------------- unreadable rows ------------------------- */
-
-    @Test
-    fun aRowWithAnUnknownRepeatKindIsSkippedNotCrashed() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(reminder())
-        db.reminderQueries.insertReminder(
-            id = "rem-newer",
-            carId = carId.value,
-            ownerId = ownerId.value,
-            dueDate = "2026-09-01",
-            title = "Written by a newer build",
-            isPaused = 0,
-            startsOn = "2026-09-01",
-            remindAt = "09:00",
-            repeatKind = "LUNAR_CYCLE",
-            repeatEveryDays = null,
-            repeatEveryKm = null,
-            anchorKm = null,
-            preset = null,
-            now = "2026-08-06T10:00:00Z",
-            syncStatus = SyncStatus.SYNCED.name,
-        )
-
-        val stored = sut.observeCustom(carId).first()
-
-        assertEquals(listOf("rem-1"), stored.map { it.id.value })
+        assertEquals(emptyList(), repo(local).observeCustom(carId).first())
     }
 
     @Test
-    fun anUnknownPresetAloneDoesNotSkipTheRow() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(reminder())
-        db.reminderQueries.updateReminder(
-            dueDate = "2026-08-10",
-            title = "Air pressure check",
-            isPaused = 0,
-            startsOn = "2026-08-10",
-            remindAt = "09:00",
-            repeatKind = REPEAT_EVERY_DAYS,
-            repeatEveryDays = 15,
-            repeatEveryKm = null,
-            anchorKm = null,
-            preset = "PRESET_FROM_THE_FUTURE",
-            updatedAt = "2026-08-06T11:00:00Z",
-            syncStatus = SyncStatus.PENDING.name,
-            id = "rem-1",
-        )
+    fun observe_byId_passesThroughTheLocalStream() = runTest {
+        val expected = reminder()
+        val local = FakeReminderLocalDataSource(byId = flowOf(expected))
 
-        val stored = sut.observeCustom(carId).first().single()
-        assertNull(stored.preset)
+        assertEquals(expected, repo(local).observe(ReminderId("rem-1")).first())
+    }
+
+    @Test
+    fun observe_byId_localThrows_emitsNullInstead() = runTest {
+        val local = FakeReminderLocalDataSource(byId = flow { throw RuntimeException("read failed") })
+
+        assertNull(repo(local).observe(ReminderId("rem-1")).first())
+    }
+
+    @Test
+    fun observeDismissals_passesThroughTheLocalStream() = runTest {
+        val expected = listOf(ReminderDismissal(ReminderKind.PUC_EXPIRY, LocalDate(2026, 9, 1)))
+        val local = FakeReminderLocalDataSource(dismissals = flowOf(expected))
+
+        assertEquals(expected, repo(local).observeDismissals(carId).first())
+    }
+
+    @Test
+    fun observeDismissals_localThrows_emitsEmptyListInstead() = runTest {
+        val local = FakeReminderLocalDataSource(dismissals = flow { throw RuntimeException("read failed") })
+
+        assertEquals(emptyList(), repo(local).observeDismissals(carId).first())
     }
 }
