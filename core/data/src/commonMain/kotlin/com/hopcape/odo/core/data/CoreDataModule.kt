@@ -37,8 +37,11 @@ import com.hopcape.odo.core.data.entitlement.AlwaysProEntitlement
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
 import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
+import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
+import com.hopcape.odo.core.data.health.HealthScoreSyncTable
+import com.hopcape.odo.core.data.health.SqlDelightHealthScoreLocalDataSource
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.FakeProfileRemoteDataSource
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
@@ -273,14 +276,22 @@ val coreDataModule = module {
     single<DocumentRepository> { get<DocumentRepositoryImpl>() }
     // Score history, not today's score: the number on screen is computed on read, and
     // this only keeps what the month delta is measured against.
+    single<HealthScoreLocalDataSource> { SqlDelightHealthScoreLocalDataSource(database = get()) }
     single {
         HealthScoreRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
-            carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+            runner = SyncRunner(
+                entity = SyncEntity.HEALTH_SCORES,
+                table = HealthScoreSyncTable(
+                    database = get(),
+                    remote = get(),
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<HealthScoreRepository> { get<HealthScoreRepositoryImpl>() }

@@ -9,6 +9,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
@@ -18,6 +19,7 @@ import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.model.HealthSnapshotId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -98,13 +100,16 @@ class HealthScoreRepositoryImplTest {
         now: String = "2026-08-01T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = HealthScoreRepositoryImpl(
-        remote = FakeHealthScoreRemoteDataSource(),
-        syncTelemetry = silentSyncTelemetry(),
-        carId = { null },
-        database = db,
+        local = SqlDelightHealthScoreLocalDataSource(database = db, clock = FixedClock(Instant.parse(now))),
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
-        clock = FixedClock(Instant.parse(now)),
+        runner = SyncRunner(
+            entity = SyncEntity.HEALTH_SCORES,
+            table = HealthScoreSyncTable(database = db, remote = FakeHealthScoreRemoteDataSource(), carId = { null }),
+            database = db,
+            telemetry = silentSyncTelemetry(),
+            clock = FixedClock(Instant.parse(now)),
+        ),
     )
 
     private fun score(maintenance: Int = 28, documentation: Int = 24, cost: Int = 14, history: Int = 8) =
