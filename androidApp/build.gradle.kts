@@ -31,6 +31,9 @@ dependencies {
     // Same reason: the Android file store needs a Context to copy picked files into
     // private storage, so it is constructed in the Koin bootstrap here.
     implementation(projects.core.platform)
+    // tripTrackerAndroidModule is included from the Koin bootstrap here, same as
+    // corePlatformAndroidModule above.
+    implementation(projects.core.triptracker)
     implementation(projects.observability.logging)
     // Analytics — HAnalytics.init + consent gate configured here.
     implementation(projects.observability.analytics)

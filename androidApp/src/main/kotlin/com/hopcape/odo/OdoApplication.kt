@@ -17,6 +17,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
+import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.di.initKoin
@@ -86,6 +87,7 @@ class OdoApplication : Application() {
                 // Copying a picked file into app storage needs a Context, so the store is
                 // bound by the platform module rather than in common code.
                 includes(corePlatformAndroidModule)
+                includes(tripTrackerAndroidModule)
             },
         ) {
             androidLogger(Level.INFO)

@@ -34,6 +34,9 @@ kotlin {
             // The sync engine's Koin module. :shared is the composition root, so it is what
             // lists coreSyncModule alongside the module whose Syncables it collects.
             implementation(projects.core.sync)
+            // The trip-tracking engine's Koin module + tripTrackerAndroidModule/
+            // tripTrackerIosModule the platform bootstraps include alongside the driver.
+            implementation(projects.core.triptracker)
             // corePlatformIosModule — the iOS bootstrap lists it alongside the driver.
             implementation(projects.core.platform)
             // The composition root's one decision — open on Welcome or Home — reads

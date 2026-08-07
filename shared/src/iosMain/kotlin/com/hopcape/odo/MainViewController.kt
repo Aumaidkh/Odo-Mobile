@@ -11,6 +11,7 @@ import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.odo.core.platform.corePlatformIosModule
+import com.hopcape.odo.core.triptracker.tripTrackerIosModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.infrastructure.firebase.analytics.configureFirebaseForIos
@@ -57,6 +58,7 @@ fun MainViewController() = ComposeUIViewController {
             platformModule = module {
                 single { DriverFactory() }
                 includes(corePlatformIosModule)
+                includes(tripTrackerIosModule)
             },
         )
         koinStarted = true
