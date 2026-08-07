@@ -42,7 +42,7 @@ internal class TripFinalizer(
         )
         val status = verdict.status
         if (!verdict.save || status == null) {
-            telemetry.discarded(session.mode, session.distanceMeters)
+            telemetry.discarded(session.mode, session.distanceMeters, reason = TripTrackerTelemetry.REASON_BELOW_FLOOR)
             return
         }
 
@@ -64,7 +64,7 @@ internal class TripFinalizer(
             endLat = endPoint?.lat,
             endLon = endPoint?.lon,
         ).getOrNull() ?: run {
-            telemetry.discarded(session.mode, session.distanceMeters)
+            telemetry.discarded(session.mode, session.distanceMeters, reason = TripTrackerTelemetry.REASON_INVALID)
             return
         }
 

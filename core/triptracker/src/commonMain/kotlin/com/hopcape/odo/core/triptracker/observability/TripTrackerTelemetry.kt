@@ -5,14 +5,17 @@ import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.domain.trip.model.TripMode
 import com.hopcape.performance.api.PerformanceTracer
+import com.hopcape.performance.api.Span
 
 /**
  * Every event name and log line for this module lives here — never scattered through the
  * engine or the finalizer. Never a coordinate, never a Bluetooth MAC (D4) — no method
  * signature below accepts one, so the rule can't be broken at a call site.
  *
- * S9 gives this its final pass (spans, non-fatals, the analytics schema registration);
- * these are the events the engine (S5) already has enough information to report.
+ * Deliberately uninstrumented, said out loud rather than left as an oversight: the pure
+ * algorithm and state-machine classes, the row mappers, and every value object. A wrong
+ * transition shows up in [saved]'s numbers, not in a log line — instrumenting the pure
+ * layer would only duplicate what the outcome already reports.
  */
 class TripTrackerTelemetry(
     private val logger: Logger,
@@ -20,11 +23,21 @@ class TripTrackerTelemetry(
     private val tracer: PerformanceTracer,
     private val crash: CrashRecorder,
 ) {
+    /** The current trip's span, from [started] to whichever of [saved]/[discarded] closes it. */
+    private var activeTripSpan: Span? = null
+
     fun enabled() = analytics.track(EVENT_TRACKING_ENABLED)
 
     fun disabled() = analytics.track(EVENT_TRACKING_DISABLED)
 
-    fun started(mode: TripMode) = analytics.track(EVENT_TRIP_STARTED, mapOf(Key.MODE to mode.name))
+    fun started(mode: TripMode) {
+        // UNTRACED, not the caller's coroutine trace: a trip's span outlives whatever
+        // request/effect happened to start it, the same reason it isn't opened inside
+        // DataTelemetry.span's per-call scoping.
+        activeTripSpan = tracer.startSpan(name = "$TAG.trip", traceId = UNTRACED)
+            .setAttribute(Key.MODE, mode.name)
+        analytics.track(EVENT_TRIP_STARTED, mapOf(Key.MODE to mode.name))
+    }
 
     fun stitchResumed() = analytics.track(EVENT_TRIP_STITCH_RESUMED)
 
@@ -32,6 +45,7 @@ class TripTrackerTelemetry(
 
     /** [needsConfirmation] mirrors [com.hopcape.odo.core.domain.trip.model.TripStatus.NEEDS_CONFIRMATION]. */
     fun saved(mode: TripMode, needsConfirmation: Boolean, distanceMeters: Long, estimatedMeters: Long) {
+        endActiveTripSpan()
         val fields = mapOf(
             Key.MODE to mode.name,
             Key.DISTANCE_KM_BUCKET to distanceKmBucket(distanceMeters),
@@ -40,9 +54,12 @@ class TripTrackerTelemetry(
         analytics.track(if (needsConfirmation) EVENT_TRIP_NEEDS_CONFIRMATION else EVENT_TRIP_SAVED, fields)
     }
 
-    fun discarded(mode: TripMode, distanceMeters: Long) {
-        logger.info(TAG, EVENT_TRIP_DISCARDED, fields = mapOf(Key.MODE to mode.name, Key.DISTANCE_M to distanceMeters))
-        analytics.track(EVENT_TRIP_DISCARDED, mapOf(Key.MODE to mode.name))
+    /** [reason] is a fixed label ([REASON_BELOW_FLOOR] / [REASON_INVALID]), never free text. */
+    fun discarded(mode: TripMode, distanceMeters: Long, reason: String) {
+        endActiveTripSpan()
+        val fields = mapOf(Key.MODE to mode.name, Key.DISTANCE_M to distanceMeters, Key.REASON to reason)
+        logger.info(TAG, EVENT_TRIP_DISCARDED, fields = fields)
+        analytics.track(EVENT_TRIP_DISCARDED, mapOf(Key.MODE to mode.name, Key.REASON to reason))
     }
 
     fun preconditionLost(which: String) = analytics.track(EVENT_PRECONDITION_LOST, mapOf(Key.WHICH to which))
@@ -53,6 +70,11 @@ class TripTrackerTelemetry(
     fun nonFatal(throwable: Throwable, stage: String) {
         logger.error(TAG, "trip_tracker_error", fields = mapOf(Key.STAGE to stage))
         crash.recordNonFatal(throwable, mapOf(Key.STAGE to stage))
+    }
+
+    private fun endActiveTripSpan() {
+        activeTripSpan?.let { tracer.endSpan(it) }
+        activeTripSpan = null
     }
 
     private fun distanceKmBucket(meters: Long): String = when {
@@ -81,10 +103,12 @@ class TripTrackerTelemetry(
         const val WHICH = "which"
         const val OUTCOME = "outcome"
         const val STAGE = "stage"
+        const val REASON = "reason"
     }
 
     companion object {
         const val TAG = "triptracker"
+        const val UNTRACED = "untraced"
 
         /* Event names. Once shipped these are what the dashboard queries — do not rename. */
         const val EVENT_TRACKING_ENABLED = "trip_tracking_enabled"
@@ -97,5 +121,16 @@ class TripTrackerTelemetry(
         const val EVENT_TRIP_STITCH_RESUMED = "trip_stitch_resumed"
         const val EVENT_PRECONDITION_LOST = "tracking_precondition_lost"
         const val EVENT_SESSION_RESTORED = "trip_session_restored"
+
+        /* discarded()'s fixed reason labels. */
+        const val REASON_BELOW_FLOOR = "below_validation_floor"
+        const val REASON_INVALID = "invalid_trip_data"
+
+        /* sessionRestored()'s fixed outcome labels. */
+        const val OUTCOME_RESUMED_TRACKING = "resumed_tracking"
+        const val OUTCOME_RESUMED_SOFT_PAUSED = "resumed_soft_paused"
+        const val OUTCOME_RESUMED_PENDING_STOP = "resumed_pending_stop"
+        const val OUTCOME_FINALIZED_EXPIRED = "finalized_expired"
+        const val OUTCOME_MALFORMED = "malformed"
     }
 }

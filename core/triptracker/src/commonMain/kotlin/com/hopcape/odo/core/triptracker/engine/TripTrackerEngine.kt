@@ -62,6 +62,7 @@ internal class TripTrackerEngine(
     private var parked: ParkedLocation? = null
     private var primaryCar: Car? = null
     private var lastPersistedDistance: Long = 0
+    private var lastReadiness: TrackingReadiness? = null
 
     private var carJob: Job? = null
     private var motionJob: Job? = null
@@ -77,9 +78,11 @@ internal class TripTrackerEngine(
     fun observeCar() {
         if (carJob?.isActive == true) return
         carJob = scope.launch {
-            carRepository.observePrimaryCar().collect { car ->
-                primaryCar = car
-                parked = car?.let { tripRepository.parkedLocation(it.id) }
+            safely(STAGE_CAR_COLLECT) {
+                carRepository.observePrimaryCar().collect { car ->
+                    primaryCar = car
+                    parked = car?.let { tripRepository.parkedLocation(it.id) }
+                }
             }
         }
     }
@@ -87,13 +90,17 @@ internal class TripTrackerEngine(
     suspend fun setEnabled(enabled: Boolean) {
         if (enabled) {
             motionJob = scope.launch {
-                motionSource.signals().collect { signal ->
-                    motionDebouncer.accept(signal)?.let { handle(TripEvent.Motion(it)) }
+                safely(STAGE_MOTION_COLLECT) {
+                    motionSource.signals().collect { signal ->
+                        motionDebouncer.accept(signal)?.let { handle(TripEvent.Motion(it)) }
+                    }
                 }
             }
             presenceJob = scope.launch {
-                presenceSource.presence().collect { presence ->
-                    handle(if (presence is VehiclePresence.Connected) TripEvent.PresenceConnected else TripEvent.PresenceLost)
+                safely(STAGE_PRESENCE_COLLECT) {
+                    presenceSource.presence().collect { presence ->
+                        handle(if (presence is VehiclePresence.Connected) TripEvent.PresenceConnected else TripEvent.PresenceLost)
+                    }
                 }
             }
             handle(TripEvent.Enabled)
@@ -103,7 +110,10 @@ internal class TripTrackerEngine(
                 telemetry.nonFatal(e, stage = STAGE_SESSION_LOAD)
                 null
             }
-            restored?.let { handle(TripEvent.SessionRestored(it)) }
+            restored?.let {
+                handle(TripEvent.SessionRestored(it))
+                reportSessionRestoreOutcome()
+            }
         } else {
             handle(TripEvent.Disabled)
             motionJob?.cancel()
@@ -134,7 +144,39 @@ internal class TripTrackerEngine(
         } catch (e: Exception) {
             telemetry.nonFatal(e, stage = STAGE_SESSION_PERSIST)
         }
-        _status.value = phase.toTrackingStatus(preconditions.status())
+        val readiness = preconditions.status()
+        reportPreconditionLost(readiness)
+        _status.value = phase.toTrackingStatus(readiness)
+    }
+
+    /** Fires only on a true->false transition — nothing to report the first time readiness is read. */
+    private fun reportPreconditionLost(current: TrackingReadiness) {
+        val previous = lastReadiness
+        lastReadiness = current
+        if (previous == null) return
+        if (previous.fineLocation && !current.fineLocation) telemetry.preconditionLost("fine_location")
+        if (previous.backgroundLocation && !current.backgroundLocation) telemetry.preconditionLost("background_location")
+        if (previous.activityRecognition && !current.activityRecognition) telemetry.preconditionLost("activity_recognition")
+        if (previous.bluetoothConnect && !current.bluetoothConnect) telemetry.preconditionLost("bluetooth_connect")
+        if (previous.notifications && !current.notifications) telemetry.preconditionLost("notifications")
+    }
+
+    /** Called once, right after a [TripEvent.SessionRestored] has been processed. */
+    private fun reportSessionRestoreOutcome() {
+        val outcome = when (phase) {
+            is TripPhase.Tracking -> TripTrackerTelemetry.OUTCOME_RESUMED_TRACKING
+            is TripPhase.SoftPaused -> TripTrackerTelemetry.OUTCOME_RESUMED_SOFT_PAUSED
+            is TripPhase.PendingStop -> TripTrackerTelemetry.OUTCOME_RESUMED_PENDING_STOP
+            is TripPhase.Finalizing -> TripTrackerTelemetry.OUTCOME_FINALIZED_EXPIRED
+            else -> {
+                // A snapshot existed but SessionSnapshotMapper couldn't turn it into a live
+                // phase — landed back in Standby, same as no snapshot, but this case is
+                // actually unexpected and worth a trace to find out why.
+                telemetry.nonFatal(IllegalStateException("session snapshot did not parse into a live phase"), stage = STAGE_SESSION_LOAD)
+                TripTrackerTelemetry.OUTCOME_MALFORMED
+            }
+        }
+        telemetry.sessionRestored(outcome)
     }
 
     private suspend fun executeEffect(effect: TripEffect) {
@@ -157,10 +199,25 @@ internal class TripTrackerEngine(
     private fun startFixes() {
         fixesJob?.cancel()
         fixesJob = scope.launch {
-            locationProvider.fixes(FixRequest(FIX_INTERVAL)).collect { sample ->
-                val integration = distanceIntegrator.accept(sample)
-                handle(TripEvent.Fix(sample, integration))
+            safely(STAGE_FIXES_COLLECT) {
+                locationProvider.fixes(FixRequest(FIX_INTERVAL)).collect { sample ->
+                    val integration = distanceIntegrator.accept(sample)
+                    handle(TripEvent.Fix(sample, integration))
+                }
             }
+        }
+    }
+
+    /**
+     * A signal-source collector dying silently is worse than it never having started —
+     * the next event from that source (a permission revoked mid-trip, a Play Services
+     * hiccup) would simply never arrive again with nothing to explain why.
+     */
+    private suspend fun safely(stage: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            telemetry.nonFatal(e, stage = stage)
         }
     }
 
@@ -245,5 +302,9 @@ internal class TripTrackerEngine(
         const val STAGE_FINALIZE_NO_CAR = "finalize_no_car"
         const val STAGE_SESSION_LOAD = "session_load"
         const val STAGE_SESSION_PERSIST = "session_persist"
+        const val STAGE_MOTION_COLLECT = "motion_collect"
+        const val STAGE_PRESENCE_COLLECT = "presence_collect"
+        const val STAGE_FIXES_COLLECT = "fixes_collect"
+        const val STAGE_CAR_COLLECT = "car_collect"
     }
 }
