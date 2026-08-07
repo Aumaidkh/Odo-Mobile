@@ -10,8 +10,10 @@ import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
 import com.hopcape.odo.core.data.car.seedVehicleReferenceData
+import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.cost.LocalFuelPriceProvider
+import com.hopcape.odo.core.data.cost.SqlDelightFuelFillLocalDataSource
 import com.hopcape.odo.core.data.cost.seedFuelPrices
 import com.hopcape.odo.core.data.scan.FreeTierScanAllowance
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
@@ -84,7 +86,9 @@ import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.owner.ProfileSyncTable
 import com.hopcape.odo.core.data.owner.SqlDelightProfileLocalDataSource
+import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
+import com.hopcape.odo.core.data.settings.SqlDelightAppSettingsLocalDataSource
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -180,7 +184,8 @@ val coreDataModule = module {
     single<OwnerProfileRepository> { get<OwnerProfileRepositoryImpl>() }
     // Device settings — theme, units, notification topics. Deliberately no scheduler:
     // `app_settings` mirrors no server table, so there is nothing to push.
-    single<AppSettingsRepository> { AppSettingsRepositoryImpl(database = get(), telemetry = get()) }
+    single<AppSettingsLocalDataSource> { SqlDelightAppSettingsLocalDataSource(database = get()) }
+    single<AppSettingsRepository> { AppSettingsRepositoryImpl(local = get(), telemetry = get()) }
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
 
     // Observability for the whole data layer, behind one facade. A `single`: it holds no
@@ -383,8 +388,9 @@ val coreDataModule = module {
     // Fuel fills. No `bind Syncable::class`: there is no server table to push to yet, and a
     // Syncable posting to one that does not exist would only manufacture failures. The rows
     // carry the sync columns and wait as PENDING.
+    single<FuelFillLocalDataSource> { SqlDelightFuelFillLocalDataSource(database = get()) }
     single<FuelFillRepository> {
-        FuelFillRepositoryImpl(database = get(), telemetry = get(), scheduler = get())
+        FuelFillRepositoryImpl(local = get(), telemetry = get(), scheduler = get())
     }
 
     // Everyone is Pro until Razorpay lands in M6. Answering false would hide Pro-gated

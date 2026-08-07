@@ -30,9 +30,8 @@ class AppSettingsRepositoryImplTest {
     }
 
     private fun repo(db: OdoDatabase) = AppSettingsRepositoryImpl(
-        database = db,
+        local = SqlDelightAppSettingsLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined),
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
-        dispatcher = Dispatchers.Unconfined,
     )
 
     @Test
