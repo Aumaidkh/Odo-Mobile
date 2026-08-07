@@ -284,6 +284,17 @@ sealed interface DomainError {
      */
     data object SessionExpired : DomainError
 
+    /* ---- Trips ---- */
+
+    /** No live trip has this id — it was never written, or has been deleted. */
+    data object TripNotFound : DomainError
+
+    /** A trip's end time was not after its start time. */
+    data object InvalidTripWindow : DomainError
+
+    /** A latitude/longitude pair fell outside the valid -90..90 / -180..180 range. */
+    data class InvalidCoordinate(val field: String, val value: Double) : DomainError
+
     /** A persistence/infrastructure failure mapped up from an outer layer. */
     data class PersistenceFailure(val cause: String? = null) : DomainError
 }
