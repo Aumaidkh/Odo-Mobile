@@ -10,6 +10,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
+import com.hopcape.odo.core.data.owner.SqlDelightProfileLocalDataSource
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.fairness.model.FairnessConfidence
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
@@ -333,7 +334,7 @@ class FairnessAndOverchargeTest {
             city = null, email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
         )
 
-        assertNull(ProfileCityProvider(db, telemetry, Dispatchers.Unconfined).currentCity())
+        assertNull(cityProvider(db).currentCity())
     }
 
     @Test
@@ -344,11 +345,16 @@ class FairnessAndOverchargeTest {
             city = "Pune", email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
         )
 
-        assertEquals("Pune", ProfileCityProvider(db, telemetry, Dispatchers.Unconfined).currentCity())
+        assertEquals("Pune", cityProvider(db).currentCity())
     }
 
     @Test
     fun withNoProfileAtAll_cityIsNullRatherThanAFailure() = runTest {
-        assertNull(ProfileCityProvider(newDb(), telemetry, Dispatchers.Unconfined).currentCity())
+        assertNull(cityProvider(newDb()).currentCity())
     }
+
+    private fun cityProvider(db: OdoDatabase) = ProfileCityProvider(
+        local = SqlDelightProfileLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined),
+        telemetry = telemetry,
+    )
 }

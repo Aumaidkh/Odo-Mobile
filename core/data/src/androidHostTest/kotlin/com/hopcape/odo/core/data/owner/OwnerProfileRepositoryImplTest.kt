@@ -10,12 +10,14 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -66,13 +68,19 @@ class OwnerProfileRepositoryImplTest {
 
     private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
         OwnerProfileRepositoryImpl(
-            remote = FakeProfileRemoteDataSource(),
-            syncTelemetry = silentSyncTelemetry(),
-            ownerId = { null },
-            database = db,
+            local = SqlDelightProfileLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined),
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
-            dispatcher = Dispatchers.Unconfined,
+            runner = SyncRunner(
+                entity = SyncEntity.PROFILES,
+                table = ProfileSyncTable(
+                    database = db,
+                    remote = FakeProfileRemoteDataSource(),
+                    ownerId = { null },
+                ),
+                database = db,
+                telemetry = silentSyncTelemetry(),
+            ),
         )
 
     private object NoopLogger : Logger {

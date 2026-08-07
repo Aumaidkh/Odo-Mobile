@@ -72,6 +72,9 @@ import com.hopcape.odo.core.sync.Synchronizer
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.db.createOdoDatabase
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
+import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
+import com.hopcape.odo.core.data.owner.ProfileSyncTable
+import com.hopcape.odo.core.data.owner.SqlDelightProfileLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
@@ -145,14 +148,24 @@ val coreDataModule = module {
     // Which car every per-car screen is about. A `single` holding a hot StateFlow, so a
     // navigation handler can name the car synchronously the moment it is tapped.
     single<ActiveCarProvider> { PrimaryCarProvider(cars = get(), telemetry = get()) }
+    // Shared by the repository and ProfileCityProvider — both read the same `profiles`
+    // table, so there is one local data source rather than two paths to the same row.
+    single<ProfileLocalDataSource> { SqlDelightProfileLocalDataSource(database = get()) }
     single {
         OwnerProfileRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
-            ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+            runner = SyncRunner(
+                entity = SyncEntity.PROFILES,
+                table = ProfileSyncTable(
+                    database = get(),
+                    remote = get(),
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<OwnerProfileRepository> { get<OwnerProfileRepositoryImpl>() }
@@ -300,7 +313,7 @@ val coreDataModule = module {
     single<ReminderRepository> { get<ReminderRepositoryImpl>() }
     // The owner's city, read from their profile — null until they set it, which is what
     // keeps fairness silent rather than guessing.
-    single<CurrentCityProvider> { ProfileCityProvider(database = get(), telemetry = get()) }
+    single<CurrentCityProvider> { ProfileCityProvider(local = get(), telemetry = get()) }
 
     // Remote data sources — the offline-safe defaults. `supabaseModule` is listed after this
     // module in `initKoin`, and replaces every one of these with a real adapter as soon as
