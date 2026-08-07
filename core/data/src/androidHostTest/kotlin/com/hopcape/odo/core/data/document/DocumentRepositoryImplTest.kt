@@ -9,6 +9,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
@@ -17,6 +18,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -101,15 +103,25 @@ class DocumentRepositoryImplTest {
         now: String = "2026-07-30T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = DocumentRepositoryImpl(
-        syncTelemetry = silentSyncTelemetry(),
-        blobs = noopBlobUploader(),
-        carId = { null },
-        database = db,
+        local = SqlDelightDocumentLocalDataSource(
+            database = db,
+            clock = FixedClock(Instant.parse(now)),
+            dispatcher = Dispatchers.Unconfined,
+        ),
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
-        remote = FakeDocumentRemoteDataSource(),
-        clock = FixedClock(Instant.parse(now)),
-        dispatcher = Dispatchers.Unconfined,
+        runner = SyncRunner(
+            entity = SyncEntity.DOCUMENTS,
+            table = DocumentSyncTable(
+                database = db,
+                remote = FakeDocumentRemoteDataSource(),
+                blobs = noopBlobUploader(),
+                carId = { null },
+            ),
+            database = db,
+            telemetry = silentSyncTelemetry(),
+            clock = FixedClock(Instant.parse(now)),
+        ),
     )
 
     private fun document(

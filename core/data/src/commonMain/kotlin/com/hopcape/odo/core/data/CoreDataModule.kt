@@ -21,10 +21,13 @@ import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.data.db.DriverFactory
+import com.hopcape.odo.core.data.document.DocumentLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
+import com.hopcape.odo.core.data.document.DocumentSyncTable
 import com.hopcape.odo.core.data.document.FakeDocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.FreeTierDocumentAllowance
+import com.hopcape.odo.core.data.document.SqlDelightDocumentLocalDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRepositoryImpl
 import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
@@ -232,15 +235,23 @@ val coreDataModule = module {
         // override one another and getAll() would come back with one entity.
     } bind Syncable::class
     single<ServiceLogRepository> { get<ServiceLogRepositoryImpl>() }
+    single<DocumentLocalDataSource> { SqlDelightDocumentLocalDataSource(database = get()) }
     single {
         DocumentRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
-            blobs = get(),
-            carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+            runner = SyncRunner(
+                entity = SyncEntity.DOCUMENTS,
+                table = DocumentSyncTable(
+                    database = get(),
+                    remote = get(),
+                    blobs = get(),
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<DocumentRepository> { get<DocumentRepositoryImpl>() }
