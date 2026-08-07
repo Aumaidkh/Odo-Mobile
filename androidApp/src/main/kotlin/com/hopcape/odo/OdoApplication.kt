@@ -12,8 +12,8 @@ import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
-import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
+import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM

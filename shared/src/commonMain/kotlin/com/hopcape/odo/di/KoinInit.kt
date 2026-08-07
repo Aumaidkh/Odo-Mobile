@@ -27,6 +27,7 @@ import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
+import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -73,9 +74,12 @@ fun initKoin(
         performanceModule,
         crashReportingModule,
         coreNavigationModule,
+        // The SQLDelight database and the LocalDataSource adapters coreDataModule's
+        // repositories depend on.
+        databaseInfrastructureModule,
         coreDataModule,
         // The engine collects its Syncables with getAll(), so it must be listed after the
-        // module that registers them.
+        // modules that register them.
         coreSyncModule,
         authModule,
         onboardingModule,

@@ -1,110 +1,32 @@
 package com.hopcape.odo.core.data.settings
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.AppSettings
-import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
-import com.hopcape.odo.core.domain.shared.DistanceUnit
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+/**
+ * Orchestration only — the missing-or-unreadable-row -> [AppSettings.Default] policy, and
+ * error mapping on save. The SQL behaviour these used to exercise through a real database
+ * now lives in [SqlDelightAppSettingsLocalDataSourceTest]; this suite drives
+ * [AppSettingsRepositoryImpl] against a [FakeAppSettingsLocalDataSource] instead.
+ */
 class AppSettingsRepositoryImplTest {
-
-    private fun newDb(): OdoDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        return OdoDatabase(driver)
-    }
-
-    private fun repo(db: OdoDatabase) = AppSettingsRepositoryImpl(
-        database = db,
-        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
-        dispatcher = Dispatchers.Unconfined,
-    )
-
-    @Test
-    fun observe_beforeAnythingIsStored_emitsTheDefaults() = runTest {
-        assertEquals(AppSettings.Default, repo(newDb()).observe().first())
-    }
-
-    @Test
-    fun save_thenObserve_readsEverythingBack() = runTest {
-        val repo = repo(newDb())
-        val settings = AppSettings(
-            theme = ThemePreference.DARK,
-            largerText = true,
-            distanceUnit = DistanceUnit.MILE,
-            fuelEfficiencyUnit = FuelEfficiencyUnit.UNITS_PER_100KM,
-            notifications = NotificationPreferences(
-                documentExpiry = false,
-                serviceDue = true,
-                customReminders = true,
-                overchargeAlerts = false,
-                monthlySummary = false,
-                healthScoreDrops = true,
-                partnerOffers = true,
-                push = false,
-                whatsapp = true,
-            ),
-        )
-
-        assertTrue(repo.save(settings).isRight())
-
-        assertEquals(settings, repo.observe().first())
-    }
-
-    @Test
-    fun save_twice_editsTheOneRowInsteadOfDuplicating() = runTest {
-        val db = newDb()
-        val repo = repo(db)
-
-        assertTrue(repo.save(AppSettings(theme = ThemePreference.LIGHT)).isRight())
-        assertTrue(repo.save(AppSettings(theme = ThemePreference.DARK)).isRight())
-
-        assertEquals(ThemePreference.DARK, repo.observe().first().theme)
-        assertEquals(1, db.appSettingsQueries.selectSettings().executeAsList().size)
-    }
-
-    @Test
-    fun observe_unreadableStoredValues_readAsDefaultsRatherThanCrashing() = runTest {
-        val db = newDb()
-        // A row written by a newer build. Settings are a preference: the app has to
-        // start, so an unknown value reads as the default.
-        db.appSettingsQueries.insertSettings(
-            theme = "NEON",
-            largerText = 0,
-            distanceUnit = "FURLONG",
-            fuelEfficiencyUnit = "MPG",
-            notifDocExpiry = 1,
-            notifServiceDue = 1,
-            notifCustom = 0,
-            notifOvercharge = 1,
-            notifMonthly = 1,
-            notifHealthDrop = 0,
-            notifPartner = 0,
-            notifPush = 1,
-            notifWhatsapp = 0,
-            updatedAt = "2026-08-01T10:00:00Z",
-        )
-
-        val stored = repo(db).observe().first()
-        assertEquals(ThemePreference.SYSTEM, stored.theme)
-        assertEquals(DistanceUnit.KILOMETRE, stored.distanceUnit)
-        assertEquals(FuelEfficiencyUnit.DISTANCE_PER_UNIT, stored.fuelEfficiencyUnit)
-    }
 
     private object NoopLogger : Logger {
         override fun log(
@@ -138,5 +60,65 @@ class AppSettingsRepositoryImplTest {
         override fun leaveBreadcrumb(tag: String, message: String) = Unit
         override fun setCustomKey(key: String, value: Any?) = Unit
         override fun setUserId(userId: String?) = Unit
+    }
+
+    private class FakeAppSettingsLocalDataSource(
+        private val saveThrows: Throwable? = null,
+        private val observed: Flow<AppSettings?> = flowOf(null),
+    ) : AppSettingsLocalDataSource {
+        var saved: AppSettings? = null
+            private set
+
+        override suspend fun save(settings: AppSettings) {
+            saveThrows?.let { throw it }
+            saved = settings
+        }
+
+        override fun observe(): Flow<AppSettings?> = observed
+    }
+
+    private fun repo(local: AppSettingsLocalDataSource) = AppSettingsRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
+    )
+
+    @Test
+    fun observe_localAnswersNull_isDefault() = runTest {
+        assertEquals(AppSettings.Default, repo(FakeAppSettingsLocalDataSource(observed = flowOf(null))).observe().first())
+    }
+
+    @Test
+    fun observe_passesThroughANonNullValue() = runTest {
+        val expected = AppSettings(theme = ThemePreference.DARK)
+        val local = FakeAppSettingsLocalDataSource(observed = flowOf(expected))
+
+        assertEquals(expected, repo(local).observe().first())
+    }
+
+    @Test
+    fun observe_localThrows_isDefault() = runTest {
+        val local = FakeAppSettingsLocalDataSource(observed = flow { throw RuntimeException("read failed") })
+
+        assertEquals(AppSettings.Default, repo(local).observe().first())
+    }
+
+    @Test
+    fun save_success_writesThroughLocal() = runTest {
+        val local = FakeAppSettingsLocalDataSource()
+        val settings = AppSettings(theme = ThemePreference.DARK)
+
+        val result = repo(local).save(settings)
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(settings, local.saved)
+    }
+
+    @Test
+    fun save_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeAppSettingsLocalDataSource(saveThrows = RuntimeException("disk full"))
+
+        val result = repo(local).save(AppSettings.Default)
+
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
     }
 }

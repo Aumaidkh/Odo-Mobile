@@ -4,9 +4,9 @@ import androidx.compose.ui.window.ComposeUIViewController
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
-import com.hopcape.odo.core.data.db.DriverFactory
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.core.platform.corePlatformIosModule
+import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.Platform
 import org.koin.dsl.module

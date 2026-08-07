@@ -1,27 +1,15 @@
 package com.hopcape.odo.core.data.fairness
 
-import com.hopcape.odo.core.data.sync.SyncRunner
-import com.hopcape.odo.core.sync.SyncEntity
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
-import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.servicelog.serviceLogFromRow
-import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReport
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.time.Clock
 
 /**
  * Stores an overcharge report locally, PENDING, and leaves it there until something can push
@@ -32,76 +20,44 @@ import kotlin.time.Clock
  * syncable record in its own right — its own identity, its own lifecycle — so it carries the
  * full sync column set and its own `SyncEntity` slot, unlike an entry's categories.
  *
- * `owner_id` is taken from the parent service log rather than from the caller, mirroring the
- * server's `BEFORE INSERT` trigger (DB_SCHEMA §4): ownership is derived from the record being
- * reported, never asserted by the client.
+ * This layer owns what an operation means: mapping storage failures to [DomainError],
+ * telemetry, id generation, and asking the scheduler for a sync after a committed write.
+ * Deriving `owner_id` from the reported service log lives behind [local].
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `OverchargeReportSyncTable` it would need live in
+ * `:infrastructure:database`, which this module cannot depend on without a cycle.
+ * `OverchargeReportSyncable`, in that module, wraps the same runner this class used to
+ * hold.
  */
 internal class OverchargeReportRepositoryImpl(
-    private val database: OdoDatabase,
+    private val local: OverchargeReportLocalDataSource,
     private val telemetry: DataTelemetry,
     private val idGenerator: IdGenerator,
     private val scheduler: SyncScheduler,
-    private val remote: OverchargeRemoteDataSource,
-    private val syncTelemetry: SyncTelemetry,
-    private val clock: Clock = Clock.System,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : OverchargeReportRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.OVERCHARGE_REPORTS
-
-    private val runner = SyncRunner(
-        entity = SyncEntity.OVERCHARGE_REPORTS,
-        table = OverchargeReportSyncTable(database = database, remote = remote),
-        database = database,
-        telemetry = syncTelemetry,
-        clock = clock,
-    )
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
-
+) : OverchargeReportRepository {
 
     override suspend fun submit(report: OverchargeReport): Either<DomainError, Unit> =
         telemetry.span(DataTelemetry.OVERCHARGE, OP_SUBMIT, report.logId.value) {
-            withContext(dispatcher) {
-                try {
-                    val now = clock.now().toString()
-                    val result = database.transactionWithResult {
-                        val entry = database.serviceLogQueries
-                            .selectById(report.logId.value, ::serviceLogFromRow)
-                            .executeAsOneOrNull()
-
-                        if (entry == null) {
-                            DomainError.ServiceLogNotFound.left()
-                        } else {
-                            database.overchargeReportQueries.insertOverchargeReport(
-                                id = idGenerator.newId(),
-                                serviceLogId = report.logId.value,
-                                ownerId = entry.ownerId.value,
-                                reason = report.reason.name,
-                                category = report.category?.name,
-                                note = report.note,
-                                now = now,
-                                syncStatus = SyncStatus.PENDING.name,
-                            )
-                            Unit.right()
-                        }
+            try {
+                val id = idGenerator.newId()
+                if (local.insert(id, report)) {
+                    // A filed report is a syncable record of its own, so it asks for a push
+                    // like any other local write. Scheduling failure never fails the report
+                    // — it is safely local and PENDING.
+                    try {
+                        scheduler.requestSync(SyncReason.LocalWrite)
+                    } catch (e: Exception) {
+                        telemetry.crashed(DataTelemetry.OVERCHARGE, "$OP_SUBMIT.schedule", e, report.logId.value)
                     }
-                    result
-                        .onRight {
-                            // A filed report is a syncable record of its own, so it asks for
-                            // a push like any other local write. Scheduling failure never
-                            // fails the report — it is safely local and PENDING.
-                            try {
-                                scheduler.requestSync(SyncReason.LocalWrite)
-                            } catch (e: Exception) {
-                                telemetry.crashed(DataTelemetry.OVERCHARGE, "$OP_SUBMIT.schedule", e, report.logId.value)
-                            }
-                        }
-                        .onLeft { telemetry.failed(DataTelemetry.OVERCHARGE, OP_SUBMIT, it, report.logId.value) }
-                } catch (e: Exception) {
-                    telemetry.crashed(DataTelemetry.OVERCHARGE, OP_SUBMIT, e, report.logId.value)
-                    DomainError.PersistenceFailure(e.message).left()
+                    Unit.right()
+                } else {
+                    telemetry.failed(DataTelemetry.OVERCHARGE, OP_SUBMIT, DomainError.ServiceLogNotFound, report.logId.value)
+                    DomainError.ServiceLogNotFound.left()
                 }
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.OVERCHARGE, OP_SUBMIT, e, report.logId.value)
+                DomainError.PersistenceFailure(e.message).left()
             }
         }
 

@@ -1,58 +1,46 @@
 package com.hopcape.odo.core.data.servicelog
 
-import com.hopcape.odo.core.data.sync.noopBlobUploader
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import arrow.core.getOrElse
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncStatus
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
-import com.hopcape.odo.core.domain.fairness.model.FairnessQuery
-import com.hopcape.odo.core.domain.fairness.model.FairnessQueryItem
-import com.hopcape.odo.core.domain.fairness.model.FairnessReport
-import com.hopcape.odo.core.domain.fairness.model.FairnessSnapshot
-import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
-import com.hopcape.odo.core.domain.fairness.model.FairnessRange
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
-import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Clock
-import kotlin.time.Instant
 
-@OptIn(ExperimentalCoroutinesApi::class)
+/**
+ * Orchestration only — error mapping, telemetry, sync scheduling, and the two domain
+ * decisions [ServiceLogRepositoryImpl.odometerReadings] makes on top of what the local data
+ * source answers. The SQL behaviour these used to exercise through a real database now
+ * lives in [SqlDelightServiceLogLocalDataSourceTest]; this suite drives
+ * [ServiceLogRepositoryImpl] against a [FakeServiceLogLocalDataSource] instead.
+ */
 class ServiceLogRepositoryImplTest {
 
     private val carId = CarId("car-1")
     private val ownerId = OwnerId("owner-1")
-
-    /* ------------------------- fixtures ------------------------- */
 
     private object NoopLogger : Logger {
         override fun log(
@@ -91,440 +79,150 @@ class ServiceLogRepositoryImplTest {
         override fun setUserId(userId: String?) = Unit
     }
 
-    private class FixedClock(private val instant: Instant) : Clock {
-        override fun now(): Instant = instant
-    }
-
-    /** Records what the repository asked the scheduler for, and when. */
+    /** Records what the repository asked the scheduler for. */
     private class RecordingScheduler : SyncScheduler {
         val requested = mutableListOf<SyncReason>()
-        var startupRuns = 0
-        override fun scheduleStartupSync() { startupRuns++ }
+        override fun scheduleStartupSync() = Unit
         override fun requestSync(reason: SyncReason) { requested += reason }
     }
 
-    private fun newDb(): OdoDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        return OdoDatabase(driver)
+    /** A scheduler that is simply broken — scheduling failure must never fail the write. */
+    private class ThrowingScheduler : SyncScheduler {
+        override fun scheduleStartupSync() = Unit
+        override fun requestSync(reason: SyncReason): Nothing = error("no WorkManager here")
+    }
+
+    private class FakeServiceLogLocalDataSource(
+        private val insertThrows: Throwable? = null,
+        private val updateResult: Boolean = true,
+        private val updateThrows: Throwable? = null,
+        private val softDeleteThrows: Throwable? = null,
+        private val byCar: Flow<List<ServiceLogEntry>> = flowOf(emptyList()),
+        private val byId: Flow<ServiceLogEntry?> = flowOf(null),
+        private val odometerReadingsResult: List<OdometerReading> = emptyList(),
+        private val odometerReadingsThrows: Throwable? = null,
+        private val observedOdometerReadings: Flow<List<OdometerReading>> = flowOf(emptyList()),
+    ) : ServiceLogLocalDataSource {
+        var inserted: ServiceLogEntry? = null
+            private set
+        var updated: ServiceLogEntry? = null
+            private set
+        var softDeleted: ServiceLogId? = null
+            private set
+
+        override suspend fun insert(entry: ServiceLogEntry) {
+            insertThrows?.let { throw it }
+            inserted = entry
+        }
+
+        override suspend fun update(entry: ServiceLogEntry): Boolean {
+            updateThrows?.let { throw it }
+            updated = entry
+            return updateResult
+        }
+
+        override suspend fun softDelete(id: ServiceLogId) {
+            softDeleteThrows?.let { throw it }
+            softDeleted = id
+        }
+
+        override fun observeByCar(carId: CarId): Flow<List<ServiceLogEntry>> = byCar
+        override fun observeById(id: ServiceLogId): Flow<ServiceLogEntry?> = byId
+
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> {
+            odometerReadingsThrows?.let { throw it }
+            return odometerReadingsResult
+        }
+
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = observedOdometerReadings
     }
 
     private fun repo(
-        db: OdoDatabase,
+        local: ServiceLogLocalDataSource,
         crash: CrashRecorder = RecordingCrash(),
-        now: String = "2026-07-30T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = ServiceLogRepositoryImpl(
-        database = db,
+        local = local,
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
-        remote = FakeServiceLogRemoteDataSource(),
-        syncTelemetry = silentSyncTelemetry(),
-        blobs = noopBlobUploader(),
-        activeCarId = { null },
-        clock = FixedClock(Instant.parse(now)),
-        dispatcher = Dispatchers.Unconfined,
     )
 
-    /** A car row is the odometer timeline's baseline, so most tests need one. */
-    private fun OdoDatabase.seedCar(
-        odometerKm: Long = 45_000,
-        createdAt: String = "2026-01-01T09:00:00Z",
-        odometerUpdatedAt: String? = createdAt,
-    ) {
-        carQueries.insertCar(
-            id = carId.value,
-            owner_id = ownerId.value,
-            make = "Maruti Suzuki",
-            model = "Swift",
-            variant = null,
-            year = 2020,
-            fuel_type = "PETROL",
-            registration_number = null,
-            current_odometer_km = odometerKm,
-            purchase_year = null,
-            nickname = null,
-            is_primary = 1,
-            odometer_updated_at = odometerUpdatedAt,
-            created_at = createdAt,
-            updated_at = createdAt,
-            deleted_at = null,
-            remote_version = null,
-            sync_status = SyncStatus.PENDING.name,
-        )
-    }
-
-    private fun amt(paise: Long) = Amount.of(paise).getOrElse { Amount.ZERO }
-
-    private fun entry(
-        id: String = "log-1",
-        day: Int = 15,
-        odometerKm: Int = 50_000,
-        totalPaise: Long = 330_000,
-        categories: Set<ServiceCategory> = setOf(ServiceCategory.BRAKES),
-        fairness: FairnessSnapshot? = null,
-        billPhotoRef: String? = null,
-    ) = ServiceLogEntry.reconstitute(
+    private fun entry(id: String = "log-1") = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = carId,
         ownerId = ownerId,
-        serviceDate = LocalDate(2026, 6, day),
-        odometerKm = odometerKm,
-        totalAmountPaise = totalPaise,
+        serviceDate = LocalDate(2026, 6, 15),
+        odometerKm = 50_000,
+        totalAmountPaise = 330_000,
         workshopName = "Sharma Motors",
         notes = "front pads",
         source = LogSource.MANUAL,
         billId = null,
-        categories = categories,
-        billPhotoRef = billPhotoRef,
-        fairness = fairness,
+        categories = setOf(ServiceCategory.BRAKES),
+        billPhotoRef = null,
+        fairness = null,
     )
 
-    private fun snapshot(paidPaise: Long, averagePaise: Long, sampleSize: Int = 30) = FairnessSnapshot(
-        report = FairnessReport.of(
-            query = FairnessQuery(
-                city = "Pune",
-                items = listOf(FairnessQueryItem("Front pads", ServiceCategory.BRAKES, amt(paidPaise))),
-            ),
-            estimates = mapOf(
-                ServiceCategory.BRAKES to FairnessEstimate(
-                    category = ServiceCategory.BRAKES,
-                    city = "Pune",
-                    cityAverage = amt(averagePaise),
-                    sampleSize = sampleSize,
-                    range = FairnessRange(low = amt(averagePaise - 40_000), high = amt(averagePaise + 50_000)),
-                ),
-            ),
-        ),
-        checkedAt = Instant.parse("2026-07-03T10:00:00Z"),
+    private fun reading(logId: String?, km: Int) = OdometerReading(
+        logId = logId?.let(::ServiceLogId),
+        date = LocalDate(2026, 6, 1),
+        odometer = Distance.of(km).getOrNull()!!,
     )
-
-    /* ------------------------- round trip ------------------------- */
-
-    @Test
-    fun addedEntry_comesBackWithEveryField() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-
-        assertTrue(repo.add(entry()).isRight())
-
-        val stored = repo.observe(carId).first().single()
-        assertEquals("log-1", stored.id.value)
-        assertEquals(LocalDate(2026, 6, 15), stored.serviceDate)
-        assertEquals(50_000, stored.odometer.km)
-        assertEquals(330_000L, stored.totalAmount.paise)
-        assertEquals("Sharma Motors", stored.workshopName?.value)
-        assertEquals("front pads", stored.notes?.value)
-        assertEquals(setOf(ServiceCategory.BRAKES), stored.categories)
-    }
-
-    @Test
-    fun categories_roundTripAsASet() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-        val tags = setOf(ServiceCategory.BRAKES, ServiceCategory.OIL_CHANGE, ServiceCategory.AC)
-
-        repo.add(entry(categories = tags))
-
-        assertEquals(tags, repo.observe(carId).first().single().categories)
-    }
-
-    @Test
-    fun anEntryWithNoCategories_readsBackEmptyRatherThanFailing() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-
-        val added = repo.add(entry(categories = emptySet()))
-        assertTrue(added.isRight(), "add failed: $added")
-
-        assertEquals(emptySet(), repo.observe(carId).first().single().categories)
-    }
-
-    @Test
-    fun fairnessSnapshot_survivesTheRoundTrip() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-
-        repo.add(entry(fairness = snapshot(paidPaise = 330_000, averagePaise = 240_000)))
-
-        val stored = assertNotNull(repo.observe(ServiceLogId("log-1")).first()?.fairness)
-        // The verdict is not stored — it is rebuilt from the frozen estimate, and must come
-        // back identical.
-        val over = assertIs<FairnessOutcome.Over>(stored.outcome)
-        assertEquals(90_000L, over.by.paise)
-        assertEquals(240_000L, stored.report.items.single().cityAverage?.paise)
-        assertEquals(30, stored.report.sampleSize)
-        // The spread is frozen with the average: a thin pool shows it instead of a verdict,
-        // and it must not move under the owner between reads.
-        val range = assertNotNull(stored.report.items.single().estimate?.range)
-        assertEquals(200_000L, range.low.paise)
-        assertEquals(290_000L, range.high.paise)
-        assertEquals(Instant.parse("2026-07-03T10:00:00Z"), stored.checkedAt)
-    }
-
-    @Test
-    fun entriesComeBackNewestFirst() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-
-        repo.add(entry(id = "old", day = 1, odometerKm = 46_000))
-        repo.add(entry(id = "new", day = 20, odometerKm = 52_000))
-
-        assertEquals(listOf("new", "old"), repo.observe(carId).first().map { it.id.value })
-    }
 
     /* ------------------------- writes ------------------------- */
 
     @Test
-    fun writesLandPending() = runTest {
-        val db = newDb().apply { seedCar() }
-        repo(db).add(entry())
+    fun add_success_writesThroughLocalAndAsksForASync() = runTest {
+        val local = FakeServiceLogLocalDataSource()
+        val scheduler = RecordingScheduler()
 
-        val row = db.serviceLogQueries.selectById("log-1").executeAsOne()
-        assertEquals(SyncStatus.PENDING.name, row.sync_status)
-        assertEquals("2026-07-30T10:00:00Z", row.created_at)
+        val result = repo(local, scheduler = scheduler).add(entry())
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("log-1", local.inserted?.id?.value)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
     @Test
-    fun anEdit_rewritesCategoriesAndStampsTheParent() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-        repo.add(entry(categories = setOf(ServiceCategory.BRAKES)))
+    fun update_localAnswersFalse_isServiceLogNotFound() = runTest {
+        val local = FakeServiceLogLocalDataSource(updateResult = false)
 
-        // Mark the row SYNCED so the edit's return to PENDING is observable.
-        db.serviceLogQueries.updateServiceLog(
-            serviceDate = "2026-06-15", odometerKm = 50_000, totalAmountPaise = 330_000,
-            workshopName = "Sharma Motors", notes = "front pads", source = "MANUAL",
-            billId = null, billPhotoPath = null, fairnessSnapshot = null,
-            updatedAt = "2026-07-29T00:00:00Z", syncStatus = SyncStatus.SYNCED.name, id = "log-1",
-        )
-
-        val edited = repo(db, now = "2026-07-31T08:00:00Z")
-            .update(entry(categories = setOf(ServiceCategory.OIL_CHANGE, ServiceCategory.AC)))
-
-        assertTrue(edited.isRight(), "expected Right but was $edited")
-        val stored = repo.observe(ServiceLogId("log-1")).first()
-        assertEquals(setOf(ServiceCategory.OIL_CHANGE, ServiceCategory.AC), stored?.categories)
-
-        // A tag-only change still has to reach the server, so the parent goes back to PENDING.
-        val row = db.serviceLogQueries.selectById("log-1").executeAsOne()
-        assertEquals(SyncStatus.PENDING.name, row.sync_status)
-        assertEquals("2026-07-31T08:00:00Z", row.updated_at)
-    }
-
-    @Test
-    fun updatingAMissingEntry_isServiceLogNotFound() = runTest {
-        val db = newDb().apply { seedCar() }
-
-        val result = repo(db).update(entry(id = "ghost"))
+        val result = repo(local).update(entry())
 
         assertEquals(DomainError.ServiceLogNotFound, result.leftOrNull())
     }
 
     @Test
-    fun softDelete_hidesTheEntryFromBothObservers() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-        repo.add(entry())
+    fun softDelete_success_asksForASync() = runTest {
+        val local = FakeServiceLogLocalDataSource()
+        val scheduler = RecordingScheduler()
 
-        assertTrue(repo.softDelete(ServiceLogId("log-1")).isRight())
+        val result = repo(local, scheduler = scheduler).softDelete(ServiceLogId("log-1"))
 
-        assertEquals(emptyList(), repo.observe(carId).first())
-        assertNull(repo.observe(ServiceLogId("log-1")).first())
-        // The tombstone survives, PENDING, so the deletion itself can sync.
-        val row = db.serviceLogQueries.selectById("log-1").executeAsOneOrNull()
-        assertNull(row, "the query filters tombstones")
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(ServiceLogId("log-1"), local.softDeleted)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
-
-    /* ------------------------- odometer timeline ------------------------- */
-
-    @Test
-    fun odometerReadings_coalesceTheCarBaselineWithItsLogs() = runTest {
-        val db = newDb().apply { seedCar(odometerKm = 45_000, createdAt = "2026-01-01T09:00:00Z") }
-        val repo = repo(db)
-        repo.add(entry(id = "log-1", day = 15, odometerKm = 50_000))
-
-        val readings = assertNotNull(repo.odometerReadings(carId))
-
-        assertEquals(2, readings.size)
-        val baseline = readings.single { it.logId == null }
-        assertEquals(45_000, baseline.odometer.km)
-        // The car's instant is truncated to the date the timeline compares on.
-        assertEquals(LocalDate(2026, 1, 1), baseline.date)
-        val log = readings.single { it.logId != null }
-        assertEquals(50_000, log.odometer.km)
-        assertEquals(LocalDate(2026, 6, 15), log.date)
-    }
-
-    /**
-     * The car's reading is dated from when it was last written down, not from when the car
-     * was added. Otherwise the first odometer update would leave the timeline claiming a
-     * reading was taken months before it was, and every backdated log after it would be
-     * measured against a day that never happened.
-     */
-    @Test
-    fun odometerReadings_dateTheCarFromItsLastOdometerUpdate() = runTest {
-        val db = newDb().apply {
-            seedCar(
-                odometerKm = 61_500,
-                createdAt = "2026-01-01T09:00:00Z",
-                odometerUpdatedAt = "2026-06-20T18:00:00Z",
-            )
-        }
-
-        val baseline = assertNotNull(repo(db).odometerReadings(carId)).single { it.logId == null }
-
-        assertEquals(LocalDate(2026, 6, 20), baseline.date)
-        assertEquals(61_500, baseline.odometer.km)
-    }
-
-    /** Cars written before the column existed have no stamp; the day they were added stands in. */
-    @Test
-    fun odometerReadings_fallBackToTheDayTheCarWasAdded() = runTest {
-        val db = newDb().apply {
-            seedCar(createdAt = "2026-01-01T09:00:00Z", odometerUpdatedAt = null)
-        }
-
-        val baseline = assertNotNull(repo(db).odometerReadings(carId)).single { it.logId == null }
-
-        assertEquals(LocalDate(2026, 1, 1), baseline.date)
-    }
-
-    @Test
-    fun odometerReadings_excludeDeletedEntries() = runTest {
-        val db = newDb().apply { seedCar() }
-        val repo = repo(db)
-        repo.add(entry(id = "log-1", odometerKm = 50_000))
-        repo.softDelete(ServiceLogId("log-1"))
-
-        val readings = assertNotNull(repo.odometerReadings(carId))
-
-        assertEquals(1, readings.size, "only the car baseline should remain")
-        assertNull(readings.single().logId)
-    }
-
-    @Test
-    fun odometerReadings_areNullForAnUnknownCar() = runTest {
-        val db = newDb()
-
-        assertNull(repo(db).odometerReadings(CarId("nope")))
-    }
-
-    @Test
-    fun observeOdometerReadings_emitsTheSameTimeline() = runTest {
-        val db = newDb().apply { seedCar(odometerKm = 45_000, createdAt = "2026-01-01T09:00:00Z") }
-        val repo = repo(db)
-        repo.add(entry(id = "log-1", day = 15, odometerKm = 50_000))
-
-        val readings = repo.observeOdometerReadings(carId).first()
-
-        assertEquals(2, readings.size)
-        assertEquals(45_000, readings.single { it.logId == null }.odometer.km)
-        assertEquals(50_000, readings.single { it.logId != null }.odometer.km)
-    }
-
-    /** The car's own reading moves from the garage, and the cost screen has to see it. */
-    @Test
-    fun observeOdometerReadings_reEmitsWhenTheCarsReadingChanges() = runTest {
-        val db = newDb().apply { seedCar(odometerKm = 45_000) }
-        val repo = repo(db)
-
-        val before = repo.observeOdometerReadings(carId).first().single().odometer.km
-        db.carQueries.updateCar(
-            make = "Maruti Suzuki",
-            model = "Swift",
-            variant = null,
-            year = 2020,
-            fuelType = "PETROL",
-            registrationNumber = null,
-            odometerKm = 48_000,
-            purchaseYear = null,
-            nickname = null,
-            isPrimary = 1,
-            odometerUpdatedAt = "2026-07-01T09:00:00Z",
-            updatedAt = "2026-07-01T09:00:00Z",
-            syncStatus = SyncStatus.PENDING.name,
-            id = carId.value,
-        )
-        val after = repo.observeOdometerReadings(carId).first().single().odometer.km
-
-        assertEquals(45_000, before)
-        assertEquals(48_000, after)
-    }
-
-    /**
-     * The garage card collects this stream while services are being logged. Each write must
-     * reach an already-open collector at once — a card one write behind is the reported bug.
-     */
-    @Test
-    fun aLiveCollector_seesEachNewServiceLogImmediately() = runTest {
-        val db = newDb().apply { seedCar(odometerKm = 5_100) }
-        val repo = repo(db)
-
-        val highestSeen = mutableListOf<Int>()
-        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
-            repo.observeOdometerReadings(carId).collect { readings ->
-                highestSeen += readings.maxOf { it.odometer.km }
-            }
-        }
-
-        repo.add(entry(id = "log-1", day = 10, odometerKm = 5_150))
-        repo.add(entry(id = "log-2", day = 11, odometerKm = 5_160))
-        repo.add(entry(id = "log-3", day = 12, odometerKm = 5_190))
-        collector.cancel()
-
-        assertEquals(listOf(5_100, 5_150, 5_160, 5_190), highestSeen)
-    }
-
-    @Test
-    fun observeOdometerReadings_isEmptyForAnUnknownCar() = runTest {
-        val db = newDb()
-
-        assertTrue(repo(db).observeOdometerReadings(CarId("nope")).first().isEmpty())
-    }
-
-    /* ------------------------- failure reporting ------------------------- */
 
     @Test
     fun aFailedWrite_isRecordedAsANonFatal() = runTest {
-        val db = newDb().apply { seedCar() }
+        val local = FakeServiceLogLocalDataSource(insertThrows = RuntimeException("duplicate id"))
         val crash = RecordingCrash()
-        val repo = repo(db, crash = crash)
-        repo.add(entry())
 
-        // Same primary key twice — the insert throws, and the caller only ever sees a Left.
-        val result = repo.add(entry())
+        val result = repo(local, crash = crash).add(entry())
 
         assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
         assertEquals(1, crash.nonFatals.size, "a swallowed exception must still reach the dashboard")
     }
 
-    /* ------------------------- sync is asked for ------------------------- */
-
-    @Test
-    fun deletingAnEntry_asksForASync() = runTest {
-        // The one that is easiest to miss: a deletion's whole payload is the tombstone, so
-        // without this ask the row sits PENDING forever and no other device ever learns it
-        // went.
-        val db = newDb().apply { seedCar() }
-        val scheduler = RecordingScheduler()
-        val repo = repo(db, scheduler = scheduler)
-        repo.add(entry())
-        scheduler.requested.clear()
-
-        repo.softDelete(ServiceLogId("log-1"))
-
-        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
-    }
-
     @Test
     fun everyWrite_asksForASync() = runTest {
-        val db = newDb().apply { seedCar() }
+        val local = FakeServiceLogLocalDataSource()
         val scheduler = RecordingScheduler()
-        val repo = repo(db, scheduler = scheduler)
+        val repo = repo(local, scheduler = scheduler)
 
         repo.add(entry())
-        repo.update(entry(odometerKm = 51_000))
+        repo.update(entry())
         repo.softDelete(ServiceLogId("log-1"))
 
         // Three writes, three asks — coalescing them is the scheduler's job, not ours.
@@ -533,27 +231,103 @@ class ServiceLogRepositoryImplTest {
 
     @Test
     fun aFailedWrite_doesNotAskForASync() = runTest {
-        val db = newDb().apply { seedCar() }
+        val local = FakeServiceLogLocalDataSource(updateResult = false)
         val scheduler = RecordingScheduler()
 
-        // No such entry: the update never happens, so there is nothing to push.
-        repo(db, scheduler = scheduler).update(entry(id = "ghost"))
+        repo(local, scheduler = scheduler).update(entry(id = "ghost"))
 
         assertTrue(scheduler.requested.isEmpty(), "a rejected write left nothing PENDING")
     }
 
     @Test
     fun aSchedulerThatThrows_doesNotFailTheWrite() = runTest {
-        val db = newDb().apply { seedCar() }
-        val exploding = object : SyncScheduler {
-            override fun scheduleStartupSync() = Unit
-            override fun requestSync(reason: SyncReason) = error("no WorkManager here")
-        }
+        val local = FakeServiceLogLocalDataSource()
 
-        val result = repo(db, scheduler = exploding).add(entry())
+        val result = repo(local, scheduler = ThrowingScheduler()).add(entry())
 
         // The data is safely local and PENDING; the next trigger will carry it.
         assertTrue(result.isRight(), "scheduling is not part of the write's success: $result")
-        assertEquals(1, repo(db).observe(carId).first().size)
+    }
+
+    /* ------------------------- odometer readings: the domain decisions ------------------------- */
+
+    /**
+     * An empty result from the local data source means no live car contributed its
+     * baseline — the car does not exist for this owner, which the domain reads as
+     * CarNotFound. This mapping is the repository's, not the local data source's.
+     */
+    @Test
+    fun odometerReadings_emptyLocalResult_readsAsNull() = runTest {
+        val local = FakeServiceLogLocalDataSource(odometerReadingsResult = emptyList())
+
+        assertNull(repo(local).odometerReadings(carId))
+    }
+
+    @Test
+    fun odometerReadings_nonEmptyLocalResult_passesThrough() = runTest {
+        val readings = listOf(reading(logId = null, km = 45_000))
+        val local = FakeServiceLogLocalDataSource(odometerReadingsResult = readings)
+
+        assertEquals(readings, repo(local).odometerReadings(carId))
+    }
+
+    /**
+     * A read failure is not "no such car" — it is reported and read as an empty timeline,
+     * so a legitimate write is not rejected with the wrong error.
+     */
+    @Test
+    fun odometerReadings_localThrows_readsAsEmptyListNotNull() = runTest {
+        val local = FakeServiceLogLocalDataSource(odometerReadingsThrows = RuntimeException("disk error"))
+
+        assertEquals(emptyList(), repo(local).odometerReadings(carId))
+    }
+
+    /* ------------------------- observe flows ------------------------- */
+
+    @Test
+    fun observe_byCar_passesThroughTheLocalStream() = runTest {
+        val expected = listOf(entry())
+        val local = FakeServiceLogLocalDataSource(byCar = flowOf(expected))
+
+        assertEquals(expected, repo(local).observe(carId).first())
+    }
+
+    @Test
+    fun observe_byCar_localThrows_emitsEmptyListInstead() = runTest {
+        val local = FakeServiceLogLocalDataSource(byCar = flow { throw RuntimeException("read failed") })
+
+        assertEquals(emptyList(), repo(local).observe(carId).first())
+    }
+
+    @Test
+    fun observe_byId_passesThroughTheLocalStream() = runTest {
+        val expected = entry()
+        val local = FakeServiceLogLocalDataSource(byId = flowOf(expected))
+
+        assertEquals(expected, repo(local).observe(ServiceLogId("log-1")).first())
+    }
+
+    @Test
+    fun observe_byId_localThrows_emitsNullInstead() = runTest {
+        val local = FakeServiceLogLocalDataSource(byId = flow { throw RuntimeException("read failed") })
+
+        assertNull(repo(local).observe(ServiceLogId("log-1")).first())
+    }
+
+    @Test
+    fun observeOdometerReadings_passesThroughTheLocalStream() = runTest {
+        val expected = listOf(reading(logId = null, km = 45_000))
+        val local = FakeServiceLogLocalDataSource(observedOdometerReadings = flowOf(expected))
+
+        assertEquals(expected, repo(local).observeOdometerReadings(carId).first())
+    }
+
+    @Test
+    fun observeOdometerReadings_localThrows_emitsEmptyListInstead() = runTest {
+        val local = FakeServiceLogLocalDataSource(
+            observedOdometerReadings = flow { throw RuntimeException("read failed") },
+        )
+
+        assertEquals(emptyList(), repo(local).observeOdometerReadings(carId).first())
     }
 }

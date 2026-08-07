@@ -1,11 +1,7 @@
 package com.hopcape.odo.core.data.owner
 
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
  * The owner's city, read from their stored profile.
@@ -20,19 +16,17 @@ import kotlinx.coroutines.withContext
  * and an unreadable one look identical from the outside, and only one of them is a bug.
  */
 internal class ProfileCityProvider(
-    private val database: OdoDatabase,
+    private val local: ProfileLocalDataSource,
     private val telemetry: DataTelemetry,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : CurrentCityProvider {
 
-    override suspend fun currentCity(): String? = withContext(dispatcher) {
+    override suspend fun currentCity(): String? =
         try {
-            database.profileQueries.selectProfile().executeAsOneOrNull()?.city
+            local.currentCity()
         } catch (e: Exception) {
             telemetry.crashed(DataTelemetry.PROFILE, OP_CITY, e)
             null
         }
-    }
 
     private companion object {
         const val OP_CITY = "currentCity"

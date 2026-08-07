@@ -23,6 +23,7 @@ android {
 dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
+    implementation(projects.infrastructure.database)
     implementation(projects.core.data)
     // Same reason: the Android file store needs a Context to copy picked files into
     // private storage, so it is constructed in the Koin bootstrap here.

@@ -22,7 +22,7 @@ import com.hopcape.odo.core.platform.file.PlatformFileStore
  * that — the check is whether the local key still resolves to bytes, and a row whose file
  * the device no longer has is left alone rather than being blanked on the server.
  */
-internal class BlobUploader(
+class BlobUploader(
     private val files: PlatformFileStore,
     private val storage: RemoteFileStorage,
     private val telemetry: DataTelemetry,
@@ -89,7 +89,7 @@ internal class BlobUploader(
  * corrupt file. Odo only ever stores bill photos and vault papers, so the list is short and
  * anything unrecognised falls back to a type that means "bytes".
  */
-internal fun contentTypeOf(key: String?): String = when (key?.substringAfterLast('.', "")?.lowercase()) {
+fun contentTypeOf(key: String?): String = when (key?.substringAfterLast('.', "")?.lowercase()) {
     "jpg", "jpeg" -> "image/jpeg"
     "png" -> "image/png"
     "webp" -> "image/webp"

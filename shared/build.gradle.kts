@@ -55,6 +55,11 @@ kotlin {
             implementation(projects.feature.support)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
+            // The SQLDelight database and the LocalDataSource adapters :core:data's
+            // repositories depend on. Listed here because :shared is the composition
+            // root — databaseInfrastructureModule goes into initKoin before
+            // coreSyncModule so its Syncables are registered before the engine collects them.
+            implementation(projects.infrastructure.database)
             // Supabase adapters for the remote ports :core:data declares. Listed here
             // because :shared is the composition root — supabaseModule goes into initKoin
             // after coreDataModule so its adapters replace that module's offline fakes.

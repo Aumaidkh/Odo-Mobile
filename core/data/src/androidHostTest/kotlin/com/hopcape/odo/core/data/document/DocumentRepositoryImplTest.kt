@@ -1,15 +1,10 @@
 package com.hopcape.odo.core.data.document
 
-import com.hopcape.odo.core.data.sync.noopBlobUploader
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -21,25 +16,28 @@ import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Clock
-import kotlin.time.Instant
 
+/**
+ * Orchestration only — error mapping, telemetry, sync scheduling, and the count's
+ * fail-safe-to-zero policy. The SQL behaviour these used to exercise through a real
+ * database now lives in [SqlDelightDocumentLocalDataSourceTest]; this suite drives
+ * [DocumentRepositoryImpl] against a [FakeDocumentLocalDataSource] instead.
+ */
 class DocumentRepositoryImplTest {
 
     private val carId = CarId("car-1")
     private val ownerId = OwnerId("owner-1")
-
-    /* ------------------------- fixtures ------------------------- */
 
     private object NoopLogger : Logger {
         override fun log(
@@ -78,10 +76,6 @@ class DocumentRepositoryImplTest {
         override fun setUserId(userId: String?) = Unit
     }
 
-    private class FixedClock(private val instant: Instant) : Clock {
-        override fun now(): Instant = instant
-    }
-
     /** Records what the repository asked the scheduler for. */
     private class RecordingScheduler : SyncScheduler {
         val requested = mutableListOf<SyncReason>()
@@ -89,247 +83,203 @@ class DocumentRepositoryImplTest {
         override fun requestSync(reason: SyncReason) { requested += reason }
     }
 
-    private fun newDb(): OdoDatabase {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        return OdoDatabase(driver)
-    }
+    private class FakeDocumentLocalDataSource(
+        private val insertThrows: Throwable? = null,
+        private val updateResult: Boolean = true,
+        private val updateThrows: Throwable? = null,
+        private val softDeleteThrows: Throwable? = null,
+        private val byCar: Flow<List<Document>> = flowOf(emptyList()),
+        private val byId: Flow<Document?> = flowOf(null),
+        private val countResult: Int = 0,
+        private val countThrows: Throwable? = null,
+    ) : DocumentLocalDataSource {
+        var inserted: Document? = null
+            private set
+        var updated: Document? = null
+            private set
+        var softDeleted: DocumentId? = null
+            private set
 
-    private fun repo(
-        db: OdoDatabase,
-        crash: CrashRecorder = RecordingCrash(),
-        now: String = "2026-07-30T10:00:00Z",
-        scheduler: SyncScheduler = RecordingScheduler(),
-    ) = DocumentRepositoryImpl(
-        syncTelemetry = silentSyncTelemetry(),
-        blobs = noopBlobUploader(),
-        carId = { null },
-        database = db,
-        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
-        scheduler = scheduler,
-        remote = FakeDocumentRemoteDataSource(),
-        clock = FixedClock(Instant.parse(now)),
-        dispatcher = Dispatchers.Unconfined,
-    )
+        override suspend fun insert(document: Document) {
+            insertThrows?.let { throw it }
+            inserted = document
+        }
 
-    private fun document(
-        id: String = "doc-1",
-        car: CarId = carId,
-        owner: OwnerId = ownerId,
-        type: DocumentType = DocumentType.INSURANCE,
-        source: DocumentSource = DocumentSource.UPLOADED,
-        title: String? = "SafeDrive comprehensive",
-        storagePath: String = "documents/${car.value}/$id.pdf",
-        expiresOn: LocalDate? = LocalDate(2027, 3, 31),
-    ) = Document.reconstitute(
-        id = DocumentId(id),
-        ownerId = owner,
-        carId = car,
-        type = type,
-        storagePath = storagePath,
-        source = source,
-        title = title,
-        issuedOn = LocalDate(2026, 4, 1),
-        expiresOn = expiresOn,
-        // The date the row carries, not one this fixture chooses: the repository writes
-        // `created_at` itself, and every read of this document comes back with that day.
-        addedOn = null,
-    )
+        override suspend fun update(document: Document): Boolean {
+            updateThrows?.let { throw it }
+            updated = document
+            return updateResult
+        }
 
-    /* ------------------------- reads & writes ------------------------- */
+        override suspend fun softDelete(id: DocumentId) {
+            softDeleteThrows?.let { throw it }
+            softDeleted = id
+        }
 
-    @Test
-    fun add_thenObserveByCar_returnsTheDocument() = runTest {
-        val db = newDb()
-        val sut = repo(db)
+        override fun observeByCar(carId: CarId): Flow<List<Document>> = byCar
+        override fun observeById(id: DocumentId): Flow<Document?> = byId
 
-        sut.add(document())
-
-        val stored = sut.observe(carId).first()
-        assertEquals(1, stored.size)
-        with(stored.single()) {
-            assertEquals("doc-1", id.value)
-            assertEquals(DocumentType.INSURANCE, type)
-            assertEquals("SafeDrive comprehensive", title?.value)
-            assertEquals("documents/car-1/doc-1.pdf", storagePath)
-            assertEquals(DocumentSource.UPLOADED, source)
-            assertEquals(LocalDate(2026, 4, 1), issuedOn)
-            assertEquals(LocalDate(2027, 3, 31), expiresOn)
+        override suspend fun countLiveForOwner(ownerId: OwnerId): Int {
+            countThrows?.let { throw it }
+            return countResult
         }
     }
 
-    @Test
-    fun observeById_emitsNullForAnUnknownDocument() = runTest {
-        val sut = repo(newDb())
+    private fun repo(
+        local: DocumentLocalDataSource,
+        crash: CrashRecorder = RecordingCrash(),
+        scheduler: SyncScheduler = RecordingScheduler(),
+    ) = DocumentRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
+        scheduler = scheduler,
+    )
 
-        assertNull(sut.observe(DocumentId("nope")).first())
+    private fun document(id: String = "doc-1") = Document.reconstitute(
+        id = DocumentId(id),
+        ownerId = ownerId,
+        carId = carId,
+        type = DocumentType.INSURANCE,
+        storagePath = "documents/$carId/$id.pdf",
+        source = DocumentSource.UPLOADED,
+        title = "SafeDrive comprehensive",
+        issuedOn = LocalDate(2026, 4, 1),
+        expiresOn = LocalDate(2027, 3, 31),
+        addedOn = null,
+    )
+
+    /* ------------------------- writes ------------------------- */
+
+    @Test
+    fun add_success_writesThroughLocalAndAsksForASync() = runTest {
+        val local = FakeDocumentLocalDataSource()
+        val scheduler = RecordingScheduler()
+
+        val result = repo(local, scheduler = scheduler).add(document())
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("doc-1", local.inserted?.id?.value)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
     @Test
-    fun add_leavesTheRowPendingForTheSyncEngine() = runTest {
-        val db = newDb()
-        repo(db).add(document())
+    fun add_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeDocumentLocalDataSource(insertThrows = RuntimeException("disk full"))
 
-        val row = db.documentQueries.selectById("doc-1").executeAsOne()
-        assertEquals(SyncStatus.PENDING.name, row.sync_status)
-        assertEquals("2026-07-30T10:00:00Z", row.created_at)
-        assertEquals("2026-07-30T10:00:00Z", row.updated_at)
-        assertNull(row.remote_version)
+        val result = repo(local).add(document())
+
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
     }
 
     @Test
-    fun observeByCar_onlySeesThatCarsDocuments() = runTest {
-        val db = newDb()
-        val sut = repo(db)
+    fun update_localAnswersFalse_isDocumentNotFound() = runTest {
+        val local = FakeDocumentLocalDataSource(updateResult = false)
 
-        sut.add(document(id = "doc-1"))
-        sut.add(document(id = "doc-2", car = CarId("car-2")))
-
-        assertEquals(listOf("doc-1"), sut.observe(carId).first().map { it.id.value })
-    }
-
-    /* ------------------------- update ------------------------- */
-
-    @Test
-    fun update_rewritesTheEditableFieldsAndKeepsTheRest() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(document())
-
-        val edited = repo(db, now = "2026-08-05T08:00:00Z").update(
-            document(type = DocumentType.PUC, title = "Renewed PUC", expiresOn = LocalDate(2027, 9, 30)),
-        )
-
-        assertTrue(edited.isRight())
-        val row = db.documentQueries.selectById("doc-1").executeAsOne()
-        assertEquals(DocumentType.PUC.name, row.doc_type)
-        assertEquals("Renewed PUC", row.title)
-        assertEquals("2027-09-30", row.expiry_date)
-        // Ownership and creation time belong to the first write, not to an edit.
-        assertEquals(carId.value, row.car_id)
-        assertEquals(ownerId.value, row.owner_id)
-        assertEquals("2026-07-30T10:00:00Z", row.created_at)
-        assertEquals("2026-08-05T08:00:00Z", row.updated_at)
-        assertEquals(SyncStatus.PENDING.name, row.sync_status)
-    }
-
-    @Test
-    fun update_swapsTheFileAndItsSourceTogether() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(document(source = DocumentSource.DIGILOCKER))
-
-        // "Replace file": a phone photo over a DigiLocker copy has to lose the badge.
-        sut.update(document(source = DocumentSource.SCANNED, storagePath = "documents/car-1/doc-1.jpg"))
-
-        val stored = assertNotNull(sut.observe(DocumentId("doc-1")).first())
-        assertEquals("documents/car-1/doc-1.jpg", stored.storagePath)
-        assertEquals(DocumentSource.SCANNED, stored.source)
-        assertEquals(false, stored.source.isVerified)
-    }
-
-    @Test
-    fun update_reportsNotFoundForAnUnknownDocument() = runTest {
-        val result = repo(newDb()).update(document(id = "ghost"))
+        val result = repo(local).update(document())
 
         assertIs<DomainError.DocumentNotFound>(result.leftOrNull())
     }
 
     @Test
-    fun update_reportsNotFoundForADeletedDocument() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(document())
-        sut.softDelete(DocumentId("doc-1"))
-
-        assertIs<DomainError.DocumentNotFound>(sut.update(document()).leftOrNull())
-    }
-
-    /* ------------------------- soft delete ------------------------- */
-
-    @Test
-    fun softDelete_hidesTheDocumentButKeepsTheTombstone() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(document())
-
-        assertTrue(sut.softDelete(DocumentId("doc-1")).isRight())
-
-        assertEquals(emptyList(), sut.observe(carId).first())
-        assertNull(sut.observe(DocumentId("doc-1")).first())
-        // The row survives so the deletion itself can reach the server.
-        val row = db.documentQueries.selectByCar(carId.value).executeAsList()
-        assertEquals(0, row.size)
-        val tombstone = db.documentQueries.selectLiveId("doc-1").executeAsOneOrNull()
-        assertNull(tombstone)
-    }
-
-    /* ------------------------- the free-tier count ------------------------- */
-
-    @Test
-    fun countForOwner_countsLiveDocumentsAcrossEveryCar() = runTest {
-        val db = newDb()
-        val sut = repo(db)
-        sut.add(document(id = "doc-1"))
-        sut.add(document(id = "doc-2", car = CarId("car-2")))
-        sut.add(document(id = "doc-3", owner = OwnerId("owner-2")))
-        sut.add(document(id = "doc-4"))
-        sut.softDelete(DocumentId("doc-4"))
-
-        // Two live documents for this owner: a second car does not multiply the allowance,
-        // another owner's document is not theirs, and a deleted one no longer counts.
-        assertEquals(2, sut.countForOwner(ownerId))
-    }
-
-    /* ------------------------- failures stay visible ------------------------- */
-
-    @Test
-    fun observeByCar_survivesACorruptRowAndReportsIt() = runTest {
-        val db = newDb()
-        val crash = RecordingCrash()
-        // A row no domain write could produce: storage_path is required, and reading it
-        // back throws. The stream must not take the vault screen down with it.
-        db.documentQueries.insertDocument(
-            id = "doc-broken",
-            carId = carId.value,
-            ownerId = ownerId.value,
-            docType = DocumentType.RC.name,
-            title = null,
-            storagePath = "",
-            docSource = DocumentSource.UPLOADED.name,
-            issuedDate = null,
-            expiryDate = null,
-            now = "2026-07-30T10:00:00Z",
-            syncStatus = SyncStatus.PENDING.name,
-        )
-
-        val emitted = repo(db, crash = crash).observe(carId).first()
-
-        assertEquals(emptyList(), emitted)
-        assertEquals(1, crash.nonFatals.size)
-    }
-
-    /* ------------------------- sync scheduling ------------------------- */
-
-    @Test
-    fun everyWriteAsksForASync() = runTest {
-        val db = newDb()
+    fun update_localAnswersTrue_asksForASync() = runTest {
+        val local = FakeDocumentLocalDataSource(updateResult = true)
         val scheduler = RecordingScheduler()
-        val sut = repo(db, scheduler = scheduler)
 
-        sut.add(document())
-        sut.update(document(title = "Renewed"))
-        sut.softDelete(DocumentId("doc-1"))
+        val result = repo(local, scheduler = scheduler).update(document())
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun softDelete_success_asksForASync() = runTest {
+        val local = FakeDocumentLocalDataSource()
+        val scheduler = RecordingScheduler()
+
+        val result = repo(local, scheduler = scheduler).softDelete(DocumentId("doc-1"))
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(DocumentId("doc-1"), local.softDeleted)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun everyWrite_asksForASync() = runTest {
+        val local = FakeDocumentLocalDataSource()
+        val scheduler = RecordingScheduler()
+        val repo = repo(local, scheduler = scheduler)
+
+        repo.add(document())
+        repo.update(document())
+        repo.softDelete(DocumentId("doc-1"))
 
         assertEquals(List(3) { SyncReason.LocalWrite }, scheduler.requested)
     }
 
     @Test
-    fun aFailedUpdateAsksForNothing() = runTest {
+    fun aFailedUpdate_asksForNothing() = runTest {
+        val local = FakeDocumentLocalDataSource(updateResult = false)
         val scheduler = RecordingScheduler()
 
-        repo(newDb(), scheduler = scheduler).update(document(id = "ghost"))
+        repo(local, scheduler = scheduler).update(document())
 
         assertEquals(emptyList(), scheduler.requested)
+    }
+
+    /* ------------------------- the free-tier count ------------------------- */
+
+    @Test
+    fun countForOwner_passesThroughTheLocalCount() = runTest {
+        val local = FakeDocumentLocalDataSource(countResult = 2)
+
+        assertEquals(2, repo(local).countForOwner(ownerId))
+    }
+
+    /**
+     * Zero, not "too many": a broken count must not reject a legitimate add with "limit
+     * reached", a lie about why it failed. Answering zero lets the add proceed to the
+     * write, which fails on the same broken store and says so honestly.
+     */
+    @Test
+    fun countForOwner_localThrows_readsAsZero() = runTest {
+        val local = FakeDocumentLocalDataSource(countThrows = RuntimeException("disk error"))
+
+        assertEquals(0, repo(local).countForOwner(ownerId))
+    }
+
+    /* ------------------------- observe flows ------------------------- */
+
+    @Test
+    fun observe_byCar_passesThroughTheLocalStream() = runTest {
+        val expected = listOf(document())
+        val local = FakeDocumentLocalDataSource(byCar = flowOf(expected))
+
+        assertEquals(expected, repo(local).observe(carId).first())
+    }
+
+    @Test
+    fun observe_byCar_localThrows_emitsEmptyListInstead() = runTest {
+        val local = FakeDocumentLocalDataSource(byCar = flow { throw RuntimeException("read failed") })
+        val crash = RecordingCrash()
+
+        val emitted = repo(local, crash = crash).observe(carId).first()
+
+        assertEquals(emptyList(), emitted)
+        assertEquals(1, crash.nonFatals.size, "a swallowed exception must still reach the dashboard")
+    }
+
+    @Test
+    fun observe_byId_passesThroughTheLocalStream() = runTest {
+        val expected = document()
+        val local = FakeDocumentLocalDataSource(byId = flowOf(expected))
+
+        assertEquals(expected, repo(local).observe(DocumentId("doc-1")).first())
+    }
+
+    @Test
+    fun observe_byId_localThrows_emitsNullInstead() = runTest {
+        val local = FakeDocumentLocalDataSource(byId = flow { throw RuntimeException("read failed") })
+
+        assertNull(repo(local).observe(DocumentId("doc-1")).first())
     }
 }

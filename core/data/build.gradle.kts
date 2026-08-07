@@ -1,10 +1,12 @@
 plugins {
-    // Data layer: SQLDelight-backed repository implementations + mappers. The
-    // local DB is the offline-first source of truth. Depends inward on
-    // :core:domain only (ports + entities); domain never sees a generated row.
+    // Data layer: repository implementations + ports over the LocalDataSource
+    // seam. The SQLDelight database and its implementations live in
+    // :infrastructure:database — this module never imports SQLDelight, which
+    // is what keeps the storage adapter swappable behind the ports it declares.
+    // Depends inward on :core:domain only (ports + entities); domain never
+    // sees a generated row.
     alias(libs.plugins.odo.kmpLibrary)
     alias(libs.plugins.odo.koin)
-    alias(libs.plugins.sqldelight)
     // DTOs for the sync payload and for columns holding a structured value.
     alias(libs.plugins.kotlinSerialization)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
@@ -14,13 +16,6 @@ plugins {
 kotlin {
     androidLibrary {
         namespace = "com.hopcape.odo.core.data"
-    }
-
-    // DriverFactory is an expect/actual *class* (the platform driver needs a
-    // Context on Android) — opt in to the stable-enough Beta feature so the
-    // build stays warning-free.
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
     sourceSets {
@@ -36,8 +31,6 @@ kotlin {
             // PlatformFileStore — a blob has to be read off the device before it can be
             // uploaded, and reading a file is a platform capability.
             implementation(projects.core.platform)
-            implementation(libs.sqldelight.runtime)
-            implementation(libs.sqldelight.coroutines.extensions)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
@@ -50,29 +43,8 @@ kotlin {
             implementation(projects.observability.performance)
             implementation(projects.observability.crashreporting)
         }
-        androidMain.dependencies {
-            implementation(libs.sqldelight.android.driver)
-        }
-        iosMain.dependencies {
-            // One declaration covers iosArm64 + iosSimulatorArm64 via the
-            // default hierarchy template's iosMain intermediate source set.
-            implementation(libs.sqldelight.native.driver)
-        }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
-        }
-        // Driver-backed repository/DB tests run on the JVM host with an
-        // in-memory database (JdbcSqliteDriver).
-        getByName("androidHostTest").dependencies {
-            implementation(libs.sqldelight.sqlite.driver)
-        }
-    }
-}
-
-sqldelight {
-    databases {
-        create("OdoDatabase") {
-            packageName.set("com.hopcape.odo.core.data.db")
         }
     }
 }

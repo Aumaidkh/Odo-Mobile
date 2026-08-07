@@ -1,74 +1,45 @@
 package com.hopcape.odo.core.data.health
 
-import com.hopcape.odo.core.data.sync.SyncRunner
-import com.hopcape.odo.core.sync.SyncEntity
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
-import com.hopcape.odo.core.sync.observability.SyncTelemetry
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
-import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * SQLDelight-backed [HealthScoreRepository] — offline-first. The local DB is the source of
- * truth; every write lands `sync_status = PENDING` for the engine that arrives in M5, and
- * nothing here waits on a network call.
+ * [HealthScoreRepository] over a [HealthScoreLocalDataSource] — offline-first. This layer
+ * owns what an operation means: mapping storage failures to [DomainError], telemetry, and
+ * asking the scheduler for a sync after a committed write. How the rows are read and
+ * written lives behind [local].
  *
  * There is no remote data source held yet, unlike the service-log and document
  * repositories. Nothing pushes a score today, and the server recomputes its own snapshots
  * from the rows it receives, so the seam is left for the engine to define rather than
  * guessed at now.
  *
- * Timestamps are client-stamped (offline-first; the server reconciles on sync).
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `HealthScoreSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `HealthScoreSyncable`, in that
+ * module, wraps the same runner this class used to hold.
  */
 internal class HealthScoreRepositoryImpl(
-    private val database: OdoDatabase,
+    private val local: HealthScoreLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val remote: HealthScoreRemoteDataSource,
-    private val syncTelemetry: SyncTelemetry,
-    private val carId: () -> String?,
-    private val clock: Clock = Clock.System,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : HealthScoreRepository, Syncable {
-
-    private val queries get() = database.healthScoreQueries
-
-    override val entity: SyncEntity = SyncEntity.HEALTH_SCORES
-
-    private val runner = SyncRunner(
-        entity = SyncEntity.HEALTH_SCORES,
-        table = HealthScoreSyncTable(database = database, remote = remote, carId = carId),
-        database = database,
-        telemetry = syncTelemetry,
-        clock = clock,
-    )
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : HealthScoreRepository {
 
     override suspend fun latest(carId: CarId): HealthSnapshot? =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_LATEST, carId.value) {
             try {
-                queries.selectLatest(carId.value).executeAsOneOrNull()?.toDomain()
+                local.latest(carId)
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.HEALTH_SCORE, OP_LATEST, e, carId.value)
                 // No history reads as no history: the caller writes a fresh snapshot and
@@ -80,9 +51,7 @@ internal class HealthScoreRepositoryImpl(
     override suspend fun latestOnOrBefore(carId: CarId, instant: Instant): HealthSnapshot? =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_LATEST_BEFORE, carId.value) {
             try {
-                queries.selectLatestOnOrBefore(carId.value, instant.toString())
-                    .executeAsOneOrNull()
-                    ?.toDomain()
+                local.latestOnOrBefore(carId, instant)
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.HEALTH_SCORE, OP_LATEST_BEFORE, e, carId.value)
                 null
@@ -90,10 +59,7 @@ internal class HealthScoreRepositoryImpl(
         }
 
     override fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>> =
-        queries.selectHistory(carId.value)
-            .asFlow()
-            .mapToList(dispatcher)
-            .map { rows -> rows.map { it.toDomain() } }
+        local.observeHistory(carId)
             .catch { cause ->
                 telemetry.crashed(DataTelemetry.HEALTH_SCORE, OP_OBSERVE_HISTORY, cause, carId.value)
                 // No readable history reads as none: the timeline drops its score events and
@@ -104,24 +70,7 @@ internal class HealthScoreRepositoryImpl(
     override suspend fun record(snapshot: HealthSnapshot): Either<DomainError, HealthSnapshot> =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_RECORD, snapshot.carId.value) {
             try {
-                val now = clock.now().toString()
-                queries.insertSnapshot(
-                    id = snapshot.id.value,
-                    carId = snapshot.carId.value,
-                    ownerId = snapshot.ownerId.value,
-                    score = snapshot.score.total.toLong(),
-                    maintenancePts = snapshot.score.pointsFor(HealthFactorKind.MAINTENANCE),
-                    documentationPts = snapshot.score.pointsFor(HealthFactorKind.DOCUMENTATION),
-                    costEfficiencyPts = snapshot.score.pointsFor(HealthFactorKind.COST_EFFICIENCY),
-                    historyPts = snapshot.score.pointsFor(HealthFactorKind.HISTORY),
-                    // The snapshot's own version, not whatever this build computes today: the
-                    // caller stamped it when the score was taken, and a row that claims newer
-                    // rules than the ones that produced it is a false comparison later.
-                    algoVersion = snapshot.algoVersion,
-                    computedAt = snapshot.computedAt.toString(),
-                    now = now,
-                    syncStatus = SyncStatus.PENDING.name,
-                )
+                local.insert(snapshot)
                 requestSync(snapshot.id.value)
                 snapshot.right()
             } catch (e: Exception) {
