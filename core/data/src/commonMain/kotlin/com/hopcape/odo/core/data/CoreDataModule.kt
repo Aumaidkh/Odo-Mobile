@@ -34,8 +34,11 @@ import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.AlwaysProEntitlement
+import com.hopcape.odo.core.data.fairness.OverchargeReportLocalDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
+import com.hopcape.odo.core.data.fairness.OverchargeReportSyncTable
 import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
+import com.hopcape.odo.core.data.fairness.SqlDelightOverchargeReportLocalDataSource
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
@@ -299,14 +302,19 @@ val coreDataModule = module {
     // The one way to get a verdict. Any feature injects the port and gets the same
     // benchmarks, so no screen carries a benchmark table of its own.
     single<FairnessAnalyzer> { RepositoryFairnessAnalyzer(fairness = get()) }
+    single<OverchargeReportLocalDataSource> { SqlDelightOverchargeReportLocalDataSource(database = get()) }
     single {
         OverchargeReportRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             idGenerator = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
+            runner = SyncRunner(
+                entity = SyncEntity.OVERCHARGE_REPORTS,
+                table = OverchargeReportSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<OverchargeReportRepository> { get<OverchargeReportRepositoryImpl>() }

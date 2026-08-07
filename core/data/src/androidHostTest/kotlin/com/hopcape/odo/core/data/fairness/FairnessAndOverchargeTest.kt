@@ -11,6 +11,7 @@ import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
 import com.hopcape.odo.core.data.owner.SqlDelightProfileLocalDataSource
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.fairness.model.FairnessConfidence
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
@@ -22,6 +23,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -252,16 +254,26 @@ class FairnessAndOverchargeTest {
     private fun overchargeRepo(
         db: OdoDatabase,
         scheduler: SyncScheduler = RecordingScheduler(),
-    ) = OverchargeReportRepositoryImpl(
-        syncTelemetry = silentSyncTelemetry(),
-        database = db,
-        telemetry = telemetry,
-        idGenerator = IdGenerator { "report-1" },
-        scheduler = scheduler,
-        remote = FakeOverchargeRemoteDataSource(),
-        clock = object : Clock { override fun now() = Instant.parse("2026-07-30T11:00:00Z") },
-        dispatcher = Dispatchers.Unconfined,
-    )
+    ): OverchargeReportRepositoryImpl {
+        val fixedClock = object : Clock { override fun now() = Instant.parse("2026-07-30T11:00:00Z") }
+        return OverchargeReportRepositoryImpl(
+            local = SqlDelightOverchargeReportLocalDataSource(
+                database = db,
+                clock = fixedClock,
+                dispatcher = Dispatchers.Unconfined,
+            ),
+            telemetry = telemetry,
+            idGenerator = IdGenerator { "report-1" },
+            scheduler = scheduler,
+            runner = SyncRunner(
+                entity = SyncEntity.OVERCHARGE_REPORTS,
+                table = OverchargeReportSyncTable(database = db, remote = FakeOverchargeRemoteDataSource()),
+                database = db,
+                telemetry = silentSyncTelemetry(),
+                clock = fixedClock,
+            ),
+        )
+    }
 
     @Test
     fun aReport_isStoredPendingWithTheOwnerTakenFromTheEntry() = runTest {
