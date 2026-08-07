@@ -8,6 +8,7 @@ import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
@@ -19,6 +20,7 @@ import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.model.ReminderKind
 import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -104,18 +106,28 @@ class ReminderRepositoryImplTest {
         db: OdoDatabase,
         scheduler: SyncScheduler = RecordingScheduler(),
         now: String = "2026-08-06T10:00:00Z",
-    ) = ReminderRepositoryImpl(
-        database = db,
-        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
-        scheduler = scheduler,
-        remote = FakeReminderRemoteDataSource(),
-        syncTelemetry = silentSyncTelemetry(),
-        ids = SequentialIdGenerator(),
-        owners = { ownerId },
-        carId = { null },
-        clock = FixedClock(Instant.parse(now)),
-        dispatcher = Dispatchers.Unconfined,
-    )
+    ): ReminderRepositoryImpl {
+        val telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash)
+        return ReminderRepositoryImpl(
+            local = SqlDelightReminderLocalDataSource(
+                database = db,
+                telemetry = telemetry,
+                clock = FixedClock(Instant.parse(now)),
+                dispatcher = Dispatchers.Unconfined,
+            ),
+            telemetry = telemetry,
+            scheduler = scheduler,
+            ids = SequentialIdGenerator(),
+            owners = { ownerId },
+            runner = SyncRunner(
+                entity = SyncEntity.REMINDERS,
+                table = ReminderSyncTable(database = db, remote = FakeReminderRemoteDataSource(), carId = { null }),
+                database = db,
+                telemetry = silentSyncTelemetry(),
+                clock = FixedClock(Instant.parse(now)),
+            ),
+        )
+    }
 
     private fun reminder(
         id: String = "rem-1",

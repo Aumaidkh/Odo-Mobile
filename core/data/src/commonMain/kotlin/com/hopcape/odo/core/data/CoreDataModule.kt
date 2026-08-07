@@ -46,8 +46,11 @@ import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.data.remote.FakeRemoteFileStorage
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.reminder.FakeReminderRemoteDataSource
+import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
 import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
+import com.hopcape.odo.core.data.reminder.ReminderSyncTable
+import com.hopcape.odo.core.data.reminder.SqlDelightReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
@@ -298,16 +301,24 @@ val coreDataModule = module {
     single<OverchargeReportRepository> { get<OverchargeReportRepositoryImpl>() }
     // Custom reminders + dismissals. The derived reminders have no rows — the feed
     // recomputes them — so this table only carries what cannot be recomputed.
+    single<ReminderLocalDataSource> { SqlDelightReminderLocalDataSource(database = get(), telemetry = get()) }
     single {
         ReminderRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
             ids = get(),
             owners = get(),
-            carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+            runner = SyncRunner(
+                entity = SyncEntity.REMINDERS,
+                table = ReminderSyncTable(
+                    database = get(),
+                    remote = get(),
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<ReminderRepository> { get<ReminderRepositoryImpl>() }
