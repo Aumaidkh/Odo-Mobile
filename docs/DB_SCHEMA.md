@@ -347,6 +347,21 @@ not an account, and it carries none of the mandatory sync columns (SYNC_DESIGN Â
 that reason. Nothing it holds changes a stored value: units are a display and entry choice,
 and every reading stays in kilometres and every amount in paise.
 
+### 9.2b Client-only: `analytics_events`
+
+A second client-only table with **no server counterpart**: the durable queue between
+`AnalyticsTracker.track()` and a vendor SDK (Firebase, PostHog) actually taking the event,
+so a killed process does not lose whatever was buffered. One row per queued event
+(`event_id`, `name`, its properties/context as JSON, `attempt_count`); a row is deleted once
+every configured destination accepts it.
+
+Outside this schema and the sync engine for the same reason as `app_settings`: Firebase and
+PostHog are themselves the systems of record for delivered events, so a server table
+mirroring this one would just be a second copy of someone else's data. Cleared on sign-out
+(a queued-but-undelivered event carries the outgoing owner's user id in its stored context).
+Capped at 1000 rows / 7 days so a permanently-failing destination cannot grow it forever â€”
+see `:infrastructure:database`'s `AnalyticsEvent.sq` for the eviction rules.
+
 ### 9.3 `cars`
 
 ```sql
