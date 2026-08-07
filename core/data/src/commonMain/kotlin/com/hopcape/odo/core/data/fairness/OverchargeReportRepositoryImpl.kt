@@ -5,15 +5,11 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReport
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 
 /**
  * Stores an overcharge report locally, PENDING, and leaves it there until something can push
@@ -27,18 +23,19 @@ import com.hopcape.odo.core.sync.Synchronizer
  * This layer owns what an operation means: mapping storage failures to [DomainError],
  * telemetry, id generation, and asking the scheduler for a sync after a committed write.
  * Deriving `owner_id` from the reported service log lives behind [local].
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `OverchargeReportSyncTable` it would need live in
+ * `:infrastructure:database`, which this module cannot depend on without a cycle.
+ * `OverchargeReportSyncable`, in that module, wraps the same runner this class used to
+ * hold.
  */
 internal class OverchargeReportRepositoryImpl(
     private val local: OverchargeReportLocalDataSource,
     private val telemetry: DataTelemetry,
     private val idGenerator: IdGenerator,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<OverchargeReportDto>,
-) : OverchargeReportRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.OVERCHARGE_REPORTS
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : OverchargeReportRepository {
 
     override suspend fun submit(report: OverchargeReport): Either<DomainError, Unit> =
         telemetry.span(DataTelemetry.OVERCHARGE, OP_SUBMIT, report.logId.value) {

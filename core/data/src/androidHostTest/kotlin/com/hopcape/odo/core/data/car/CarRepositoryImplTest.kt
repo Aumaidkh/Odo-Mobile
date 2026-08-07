@@ -1,20 +1,15 @@
 package com.hopcape.odo.core.data.car
 
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -121,32 +116,12 @@ class CarRepositoryImplTest {
         override fun setUserId(userId: String?) = Unit
     }
 
-    /**
-     * A fresh, unexercised sync stack — [CarRepositoryImpl] still takes a [SyncRunner] to
-     * construct, but nothing in this suite calls `syncWith`, so a throwaway in-memory DB is
-     * all it needs.
-     */
-    private fun repo(local: CarLocalDataSource, scheduler: SyncScheduler = RecordingScheduler()): CarRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return CarRepositoryImpl(
+    private fun repo(local: CarLocalDataSource, scheduler: SyncScheduler = RecordingScheduler()) =
+        CarRepositoryImpl(
             local = local,
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
-            runner = SyncRunner(
-                entity = SyncEntity.CARS,
-                table = CarSyncTable(
-                    database = db,
-                    remote = FakeCarRemoteDataSource(),
-                    telemetry = silentSyncTelemetry(),
-                    ownerId = { null },
-                ),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
         )
-    }
 
     private fun car(id: String = "car-1", isPrimary: Boolean = true): Car = Car.create(
         id = CarId(id),

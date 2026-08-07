@@ -1,20 +1,15 @@
 package com.hopcape.odo.core.data.fairness
 
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReport
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -91,32 +86,16 @@ class OverchargeReportRepositoryImplTest {
         }
     }
 
-    /**
-     * A fresh, unexercised sync stack — [OverchargeReportRepositoryImpl] still takes a
-     * [SyncRunner] to construct, but nothing in this suite calls `syncWith`, so a
-     * throwaway in-memory DB is all it needs.
-     */
     private fun repo(
         local: OverchargeReportLocalDataSource,
         scheduler: SyncScheduler = RecordingScheduler(),
         idGenerator: IdGenerator = IdGenerator { "report-1" },
-    ): OverchargeReportRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return OverchargeReportRepositoryImpl(
-            local = local,
-            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
-            idGenerator = idGenerator,
-            scheduler = scheduler,
-            runner = SyncRunner(
-                entity = SyncEntity.OVERCHARGE_REPORTS,
-                table = OverchargeReportSyncTable(database = db, remote = FakeOverchargeRemoteDataSource()),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
-        )
-    }
+    ) = OverchargeReportRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
+        idGenerator = idGenerator,
+        scheduler = scheduler,
+    )
 
     private fun report(logId: String = "log-1") = OverchargeReport(
         logId = ServiceLogId(logId),

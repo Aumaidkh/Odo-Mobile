@@ -4,16 +4,12 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlin.time.Instant
@@ -28,17 +24,17 @@ import kotlin.time.Instant
  * repositories. Nothing pushes a score today, and the server recomputes its own snapshots
  * from the rows it receives, so the seam is left for the engine to define rather than
  * guessed at now.
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `HealthScoreSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `HealthScoreSyncable`, in that
+ * module, wraps the same runner this class used to hold.
  */
 internal class HealthScoreRepositoryImpl(
     private val local: HealthScoreLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<HealthScoreDto>,
-) : HealthScoreRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.HEALTH_SCORES
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : HealthScoreRepository {
 
     override suspend fun latest(carId: CarId): HealthSnapshot? =
         telemetry.span(DataTelemetry.HEALTH_SCORE, OP_LATEST, carId.value) {

@@ -4,18 +4,14 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 
@@ -28,17 +24,17 @@ import kotlinx.coroutines.flow.catch
  * This repository stores the *row* that describes a document. The file itself belongs to
  * the vault feature's `DocumentFileStore`, so deleting a row never touches bytes — the use
  * case that owns both does that, in the order it decides.
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `DocumentSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `DocumentSyncable`, in that module,
+ * wraps the same runner this class used to hold.
  */
 internal class DocumentRepositoryImpl(
     private val local: DocumentLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<DocumentDto>,
-) : DocumentRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.DOCUMENTS
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : DocumentRepository {
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

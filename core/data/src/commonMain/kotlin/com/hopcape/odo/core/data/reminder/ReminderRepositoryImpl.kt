@@ -5,7 +5,6 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.reminder.model.CustomReminder
@@ -13,11 +12,8 @@ import com.hopcape.odo.core.domain.reminder.model.ReminderDismissal
 import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 
@@ -31,6 +27,11 @@ import kotlinx.coroutines.flow.catch
  * Stores only what cannot be recomputed: the owner's custom reminders and the record of
  * dismissed occurrences. The derived reminders (insurance, PUC, service due) have no
  * rows here — the feed recomputes them from documents and service history on every read.
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `ReminderSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `ReminderSyncable`, in that module,
+ * wraps the same runner this class used to hold.
  */
 internal class ReminderRepositoryImpl(
     private val local: ReminderLocalDataSource,
@@ -38,12 +39,7 @@ internal class ReminderRepositoryImpl(
     private val scheduler: SyncScheduler,
     private val ids: IdGenerator,
     private val owners: CurrentOwnerProvider,
-    private val runner: SyncRunner<ReminderDto>,
-) : ReminderRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.REMINDERS
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : ReminderRepository {
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

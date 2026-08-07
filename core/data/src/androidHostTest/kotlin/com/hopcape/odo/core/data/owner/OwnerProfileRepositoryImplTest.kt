@@ -1,20 +1,15 @@
 package com.hopcape.odo.core.data.owner
 
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -107,27 +102,12 @@ class OwnerProfileRepositoryImplTest {
         override suspend fun currentCity(): String? = currentCityResult
     }
 
-    /**
-     * A fresh, unexercised sync stack — [OwnerProfileRepositoryImpl] still takes a
-     * [SyncRunner] to construct, but nothing in this suite calls `syncWith`, so a
-     * throwaway in-memory DB is all it needs.
-     */
-    private fun repo(local: ProfileLocalDataSource, scheduler: SyncScheduler = RecordingScheduler()): OwnerProfileRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return OwnerProfileRepositoryImpl(
+    private fun repo(local: ProfileLocalDataSource, scheduler: SyncScheduler = RecordingScheduler()) =
+        OwnerProfileRepositoryImpl(
             local = local,
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
-            runner = SyncRunner(
-                entity = SyncEntity.PROFILES,
-                table = ProfileSyncTable(database = db, remote = FakeProfileRemoteDataSource(), ownerId = { null }),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
         )
-    }
 
     private fun profile(
         name: String = "Rahul",

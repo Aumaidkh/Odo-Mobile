@@ -4,18 +4,14 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 
@@ -25,17 +21,17 @@ import kotlinx.coroutines.flow.catch
  * failures to [DomainError], telemetry, and asking the scheduler for a sync after a
  * committed write. How the rows and their categories are read and written lives behind
  * [local].
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `ServiceLogSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `ServiceLogSyncable`, in that module,
+ * wraps the same runner this class used to hold.
  */
 internal class ServiceLogRepositoryImpl(
     private val local: ServiceLogLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<ServiceLogDto>,
-) : ServiceLogRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.SERVICE_LOGS
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : ServiceLogRepository {
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

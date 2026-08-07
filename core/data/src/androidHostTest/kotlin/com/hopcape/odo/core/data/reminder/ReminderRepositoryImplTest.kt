@@ -1,15 +1,11 @@
 package com.hopcape.odo.core.data.reminder
 
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.reminder.model.CustomReminder
@@ -19,7 +15,6 @@ import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.model.ReminderKind
 import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -151,24 +146,13 @@ class ReminderRepositoryImplTest {
         scheduler: SyncScheduler = RecordingScheduler(),
         ids: IdGenerator = SequentialIdGenerator(),
         owners: OwnerId = ownerId,
-    ): ReminderRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return ReminderRepositoryImpl(
-            local = local,
-            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
-            scheduler = scheduler,
-            ids = ids,
-            owners = { owners },
-            runner = SyncRunner(
-                entity = SyncEntity.REMINDERS,
-                table = ReminderSyncTable(database = db, remote = FakeReminderRemoteDataSource(), carId = { null }),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
-        )
-    }
+    ) = ReminderRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
+        scheduler = scheduler,
+        ids = ids,
+        owners = { owners },
+    )
 
     private fun reminder(
         id: String = "rem-1",

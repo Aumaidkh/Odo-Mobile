@@ -4,15 +4,11 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 
@@ -21,17 +17,17 @@ import kotlinx.coroutines.flow.catch
  * repository here. This layer owns what an operation means: mapping storage failures to
  * [DomainError], telemetry, and asking the scheduler for a sync after a committed write.
  * How the row is read and written lives behind [local].
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `ProfileSyncTable` it would need live in `:infrastructure:database`,
+ * which this module cannot depend on without a cycle. `ProfileSyncable`, in that module,
+ * wraps the same runner this class used to hold.
  */
 internal class OwnerProfileRepositoryImpl(
     private val local: ProfileLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<ProfileDto>,
-) : OwnerProfileRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.PROFILES
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : OwnerProfileRepository {
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

@@ -1,15 +1,10 @@
 package com.hopcape.odo.core.data.servicelog
 
-import com.hopcape.odo.core.data.sync.noopBlobUploader
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
@@ -19,7 +14,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.Distance
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -143,36 +137,15 @@ class ServiceLogRepositoryImplTest {
         override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = observedOdometerReadings
     }
 
-    /**
-     * A fresh, unexercised sync stack — [ServiceLogRepositoryImpl] still takes a [SyncRunner]
-     * to construct, but nothing in this suite calls `syncWith`, so a throwaway in-memory DB
-     * is all it needs.
-     */
     private fun repo(
         local: ServiceLogLocalDataSource,
         crash: CrashRecorder = RecordingCrash(),
         scheduler: SyncScheduler = RecordingScheduler(),
-    ): ServiceLogRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return ServiceLogRepositoryImpl(
-            local = local,
-            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
-            scheduler = scheduler,
-            runner = SyncRunner(
-                entity = SyncEntity.SERVICE_LOGS,
-                table = ServiceLogSyncTable(
-                    database = db,
-                    remote = FakeServiceLogRemoteDataSource(),
-                    blobs = noopBlobUploader(),
-                    carId = { null },
-                ),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
-        )
-    }
+    ) = ServiceLogRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
+        scheduler = scheduler,
+    )
 
     private fun entry(id: String = "log-1") = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),

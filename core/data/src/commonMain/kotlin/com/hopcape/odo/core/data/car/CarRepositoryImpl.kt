@@ -4,16 +4,12 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
-import com.hopcape.odo.core.sync.Syncable
-import com.hopcape.odo.core.sync.Synchronizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 
@@ -22,17 +18,17 @@ import kotlinx.coroutines.flow.catch
  * source of truth. This layer owns what an operation means: mapping storage failures to
  * [DomainError], telemetry, and asking the scheduler for a sync after a committed write.
  * How the rows are read and written lives behind [local].
+ *
+ * Not [Syncable][com.hopcape.odo.core.sync.Syncable] itself — the SQLDelight-backed
+ * `SyncRunner` and `CarSyncTable` it would need live in `:infrastructure:database`, which
+ * this module cannot depend on without a cycle. `CarSyncable`, in that module, wraps the
+ * same runner this class used to hold.
  */
 internal class CarRepositoryImpl(
     private val local: CarLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val runner: SyncRunner<CarDto>,
-) : CarRepository, Syncable {
-
-    override val entity: SyncEntity = SyncEntity.CARS
-
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+) : CarRepository {
 
     /**
      * Tell the scheduler there is something worth pushing. Called after a write has

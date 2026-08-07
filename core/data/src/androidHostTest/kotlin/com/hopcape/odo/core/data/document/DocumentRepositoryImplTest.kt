@@ -1,15 +1,10 @@
 package com.hopcape.odo.core.data.document
 
-import com.hopcape.odo.core.data.sync.noopBlobUploader
-import com.hopcape.odo.core.data.sync.silentSyncTelemetry
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -17,7 +12,6 @@ import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -131,36 +125,15 @@ class DocumentRepositoryImplTest {
         }
     }
 
-    /**
-     * A fresh, unexercised sync stack — [DocumentRepositoryImpl] still takes a [SyncRunner]
-     * to construct, but nothing in this suite calls `syncWith`, so a throwaway in-memory DB
-     * is all it needs.
-     */
     private fun repo(
         local: DocumentLocalDataSource,
         crash: CrashRecorder = RecordingCrash(),
         scheduler: SyncScheduler = RecordingScheduler(),
-    ): DocumentRepositoryImpl {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        val db = OdoDatabase(driver)
-        return DocumentRepositoryImpl(
-            local = local,
-            telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
-            scheduler = scheduler,
-            runner = SyncRunner(
-                entity = SyncEntity.DOCUMENTS,
-                table = DocumentSyncTable(
-                    database = db,
-                    remote = FakeDocumentRemoteDataSource(),
-                    blobs = noopBlobUploader(),
-                    carId = { null },
-                ),
-                database = db,
-                telemetry = silentSyncTelemetry(),
-            ),
-        )
-    }
+    ) = DocumentRepositoryImpl(
+        local = local,
+        telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
+        scheduler = scheduler,
+    )
 
     private fun document(id: String = "doc-1") = Document.reconstitute(
         id = DocumentId(id),
