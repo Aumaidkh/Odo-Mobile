@@ -17,7 +17,7 @@ import kotlin.time.Instant
  * `DomainError.PersistenceFailure`. The reads and [observeHistory] are raw — a failure
  * propagates to the caller, and the repository decides how to report it.
  */
-internal interface HealthScoreLocalDataSource {
+interface HealthScoreLocalDataSource {
 
     /** Insert [snapshot] as a `PENDING` row. */
     suspend fun insert(snapshot: HealthSnapshot)

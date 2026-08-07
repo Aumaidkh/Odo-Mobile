@@ -10,7 +10,7 @@ import com.hopcape.odo.core.domain.cost.model.FuelFill
  * Throws on storage failure; the repository turns that into a
  * `DomainError.PersistenceFailure`.
  */
-internal interface FuelFillLocalDataSource {
+interface FuelFillLocalDataSource {
 
     /** Insert [fill] as a `PENDING` row. */
     suspend fun insert(fill: FuelFill)

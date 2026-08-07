@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
  * saved, and a read failure propagates to the collector for the repository to report and
  * fall back on.
  */
-internal interface AppSettingsLocalDataSource {
+interface AppSettingsLocalDataSource {
 
     /**
      * Write [settings] over the single stored row, creating it on the first call.

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
  * reported `null`. [observe] is raw — a read failure propagates to the collector, and the
  * repository decides how to report it.
  */
-internal interface ProfileLocalDataSource {
+interface ProfileLocalDataSource {
 
     /**
      * Write [profile] over the single stored row, creating it on the first call.

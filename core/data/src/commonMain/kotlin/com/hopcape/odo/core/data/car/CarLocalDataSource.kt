@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
  * `DomainError.PersistenceFailure`. The observe flows are raw — a read failure
  * propagates to the collector, and the repository decides how to report it.
  */
-internal interface CarLocalDataSource {
+interface CarLocalDataSource {
 
     /**
      * Insert [car] as a `PENDING` row. Demotes any existing primary in the same

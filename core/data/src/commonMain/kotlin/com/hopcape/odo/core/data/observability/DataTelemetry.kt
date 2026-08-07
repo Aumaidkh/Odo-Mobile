@@ -27,7 +27,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * Fire-and-forget by contract: nothing here returns a decision and [span] hands back its
  * block's result untouched, so instrumentation can never change what a repository does.
  */
-internal class DataTelemetry(
+class DataTelemetry(
     private val logger: Logger,
     private val tracer: PerformanceTracer,
     private val crash: CrashRecorder,
@@ -111,7 +111,7 @@ internal class DataTelemetry(
         const val KEY = "key"
     }
 
-    internal companion object {
+    companion object {
         const val TAG = "data"
 
         /** Span traceId when no caller installed a trace — grouped rather than dropped. */

@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
  * `DomainError.PersistenceFailure`. The observe flows and [odometerReadings] are raw —
  * a read failure propagates to the caller, and the repository decides how to report it.
  */
-internal interface ServiceLogLocalDataSource {
+interface ServiceLogLocalDataSource {
 
     /** Insert [entry] as a `PENDING` row, together with its categories. */
     suspend fun insert(entry: ServiceLogEntry)
