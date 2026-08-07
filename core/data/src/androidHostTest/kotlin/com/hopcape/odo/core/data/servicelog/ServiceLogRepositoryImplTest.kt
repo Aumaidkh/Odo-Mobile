@@ -9,6 +9,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.data.sync.silentSyncTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
@@ -26,6 +27,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -115,15 +117,25 @@ class ServiceLogRepositoryImplTest {
         now: String = "2026-07-30T10:00:00Z",
         scheduler: SyncScheduler = RecordingScheduler(),
     ) = ServiceLogRepositoryImpl(
-        database = db,
+        local = SqlDelightServiceLogLocalDataSource(
+            database = db,
+            clock = FixedClock(Instant.parse(now)),
+            dispatcher = Dispatchers.Unconfined,
+        ),
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
-        remote = FakeServiceLogRemoteDataSource(),
-        syncTelemetry = silentSyncTelemetry(),
-        blobs = noopBlobUploader(),
-        activeCarId = { null },
-        clock = FixedClock(Instant.parse(now)),
-        dispatcher = Dispatchers.Unconfined,
+        runner = SyncRunner(
+            entity = SyncEntity.SERVICE_LOGS,
+            table = ServiceLogSyncTable(
+                database = db,
+                remote = FakeServiceLogRemoteDataSource(),
+                blobs = noopBlobUploader(),
+                carId = { null },
+            ),
+            database = db,
+            telemetry = silentSyncTelemetry(),
+            clock = FixedClock(Instant.parse(now)),
+        ),
     )
 
     /** A car row is the odometer timeline's baseline, so most tests need one. */

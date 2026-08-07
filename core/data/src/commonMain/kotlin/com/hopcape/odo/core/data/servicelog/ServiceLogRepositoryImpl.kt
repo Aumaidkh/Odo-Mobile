@@ -1,69 +1,39 @@
 package com.hopcape.odo.core.data.servicelog
 
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
-import app.cash.sqldelight.coroutines.mapToOneOrNull
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncStatus
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.core.data.sync.BlobUploader
-import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
-import com.hopcape.odo.core.sync.observability.SyncTelemetry
-import com.hopcape.odo.core.sync.SyncScheduler
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flow
-import kotlin.time.Clock
 
 /**
- * SQLDelight-backed [ServiceLogRepository] — offline-first. The local DB is the source of
- * truth; every write lands `sync_status = PENDING` for the engine that arrives in M5, and
- * nothing here waits on a network call.
- *
- * Also the [Syncable] for `service_logs`: the repository owns the row↔DTO mapping, so it is
- * the only thing that can push and pull them. The algorithm itself is [SyncRunner]'s — this
- * class only says which table, which remote and which car.
- *
- * Timestamps are client-stamped (offline-first; the server reconciles on sync).
+ * [ServiceLogRepository] over a [ServiceLogLocalDataSource] — offline-first; the local
+ * store is the source of truth. This layer owns what an operation means: mapping storage
+ * failures to [DomainError], telemetry, and asking the scheduler for a sync after a
+ * committed write. How the rows and their categories are read and written lives behind
+ * [local].
  */
 internal class ServiceLogRepositoryImpl(
-    private val database: OdoDatabase,
+    private val local: ServiceLogLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
-    private val remote: ServiceLogRemoteDataSource,
-    private val syncTelemetry: SyncTelemetry,
-    private val blobs: BlobUploader,
-    private val activeCarId: () -> String?,
-    private val clock: Clock = Clock.System,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val runner: SyncRunner<ServiceLogDto>,
 ) : ServiceLogRepository, Syncable {
 
-    private val queries get() = database.serviceLogQueries
-
     override val entity: SyncEntity = SyncEntity.SERVICE_LOGS
-
-    private val runner = SyncRunner(
-        entity = SyncEntity.SERVICE_LOGS,
-        table = ServiceLogSyncTable(database = database, remote = remote, blobs = blobs, carId = activeCarId),
-        database = database,
-        telemetry = syncTelemetry,
-        clock = clock,
-    )
 
     override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
 
@@ -89,40 +59,15 @@ internal class ServiceLogRepositoryImpl(
     }
 
     override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> =
-        queries.selectByCar(carId.value, ::serviceLogFromRow)
-            .asFlow()
-            .mapToList(dispatcher)
-            .reportingFailures(OP_OBSERVE_CAR, carId.value, empty = emptyList())
+        local.observeByCar(carId).reportingFailures(OP_OBSERVE_CAR, carId.value, empty = emptyList())
 
     override fun observe(id: ServiceLogId): Flow<ServiceLogEntry?> =
-        queries.selectById(id.value, ::serviceLogFromRow)
-            .asFlow()
-            .mapToOneOrNull(dispatcher)
-            .reportingFailures(OP_OBSERVE_ONE, id.value, empty = null)
+        local.observeById(id).reportingFailures(OP_OBSERVE_ONE, id.value, empty = null)
 
     override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> =
         telemetry.span(DataTelemetry.SERVICE_LOG, OP_ADD, entry.id.value) {
             try {
-                val now = clock.now().toString()
-                database.transaction {
-                    queries.insertServiceLog(
-                        id = entry.id.value,
-                        carId = entry.carId.value,
-                        ownerId = entry.ownerId.value,
-                        serviceDate = entry.serviceDate.toString(),
-                        odometerKm = entry.odometer.km.toLong(),
-                        totalAmountPaise = entry.totalAmount.paise,
-                        workshopName = entry.workshopName?.value,
-                        notes = entry.notes?.value,
-                        source = entry.source.name,
-                        billId = entry.billId?.value,
-                        billPhotoPath = entry.billPhotoRef,
-                        fairnessSnapshot = entry.fairness?.toJson(),
-                        now = now,
-                        syncStatus = SyncStatus.PENDING.name,
-                    )
-                    writeCategories(entry)
-                }
+                local.insert(entry)
                 requestSync(OP_ADD, entry.id.value)
                 entry.right()
             } catch (e: Exception) {
@@ -134,39 +79,13 @@ internal class ServiceLogRepositoryImpl(
     override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> =
         telemetry.span(DataTelemetry.SERVICE_LOG, OP_UPDATE, entry.id.value) {
             try {
-                val now = clock.now().toString()
-                // The existence check shares the write's transaction, so an entry deleted
-                // between them cannot turn a ServiceLogNotFound into a silent no-op.
-                val result = database.transactionWithResult {
-                    if (queries.selectById(entry.id.value, ::serviceLogFromRow).executeAsOneOrNull() == null) {
-                        DomainError.ServiceLogNotFound.left()
-                    } else {
-                        queries.updateServiceLog(
-                            serviceDate = entry.serviceDate.toString(),
-                            odometerKm = entry.odometer.km.toLong(),
-                            totalAmountPaise = entry.totalAmount.paise,
-                            workshopName = entry.workshopName?.value,
-                            notes = entry.notes?.value,
-                            source = entry.source.name,
-                            billId = entry.billId?.value,
-                            billPhotoPath = entry.billPhotoRef,
-                            fairnessSnapshot = entry.fairness?.toJson(),
-                            updatedAt = now,
-                            // An edited row has to reach the server again.
-                            syncStatus = SyncStatus.PENDING.name,
-                            id = entry.id.value,
-                        )
-                        // Categories are rewritten wholesale with their parent. Because the
-                        // parent row is always written too, a category-only edit still bumps
-                        // `updated_at` and goes PENDING — without that, a tag change would
-                        // never sync.
-                        writeCategories(entry)
-                        entry.right()
-                    }
+                if (local.update(entry)) {
+                    requestSync(OP_UPDATE, entry.id.value)
+                    entry.right()
+                } else {
+                    telemetry.failed(DataTelemetry.SERVICE_LOG, OP_UPDATE, DomainError.ServiceLogNotFound, entry.id.value)
+                    DomainError.ServiceLogNotFound.left()
                 }
-                result
-                    .onRight { requestSync(OP_UPDATE, entry.id.value) }
-                    .onLeft { telemetry.failed(DataTelemetry.SERVICE_LOG, OP_UPDATE, it, entry.id.value) }
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.SERVICE_LOG, OP_UPDATE, e, entry.id.value)
                 DomainError.PersistenceFailure(e.message).left()
@@ -176,10 +95,7 @@ internal class ServiceLogRepositoryImpl(
     override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> =
         telemetry.span(DataTelemetry.SERVICE_LOG, OP_DELETE, id.value) {
             try {
-                val now = clock.now().toString()
-                // The tombstone stays PENDING so the deletion itself reaches the server;
-                // the categories stay with it, since a restored row would need them back.
-                queries.softDeleteServiceLog(deletedAt = now, syncStatus = SyncStatus.PENDING.name, id = id.value)
+                local.softDelete(id)
                 // The tombstone is the whole payload of a deletion: without this ask, the
                 // row sits PENDING forever and the other device never learns it went.
                 requestSync(OP_DELETE, id.value)
@@ -195,9 +111,7 @@ internal class ServiceLogRepositoryImpl(
             try {
                 // An empty result means no live car contributed its baseline — the car does
                 // not exist for this owner, which the domain reads as CarNotFound.
-                queries.selectOdometerReadings(carId.value, ::odometerReadingFromRow)
-                    .executeAsList()
-                    .ifEmpty { null }
+                local.odometerReadings(carId).ifEmpty { null }
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.SERVICE_LOG, OP_READINGS, e, carId.value)
                 // Null here would read as "no such car" and reject a legitimate write with
@@ -209,20 +123,8 @@ internal class ServiceLogRepositoryImpl(
         }
 
     override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
-        queries.selectOdometerReadings(carId.value, ::odometerReadingFromRow)
-            .asFlow()
-            .mapToList(dispatcher)
-            // The query spans `cars` and `service_logs`, so an odometer update from the
-            // garage re-emits here too — which is the whole reason this is a stream.
+        local.observeOdometerReadings(carId)
             .reportingFailures(OP_OBSERVE_READINGS, carId.value, empty = emptyList())
-
-    /** Delete-and-reinsert, always inside the caller's transaction. */
-    private fun writeCategories(entry: ServiceLogEntry) {
-        queries.deleteCategoriesFor(entry.id.value)
-        entry.categories.forEach { category ->
-            queries.insertCategory(serviceLogId = entry.id.value, category = category.name)
-        }
-    }
 
     /**
      * A read that throws would otherwise tear down the collecting screen. The stream stays

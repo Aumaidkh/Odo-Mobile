@@ -46,8 +46,11 @@ import com.hopcape.odo.core.data.reminder.FakeReminderRemoteDataSource
 import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
 import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
+import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
+import com.hopcape.odo.core.data.servicelog.ServiceLogSyncTable
+import com.hopcape.odo.core.data.servicelog.SqlDelightServiceLogLocalDataSource
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.sync.SyncEntity
@@ -204,17 +207,26 @@ val coreDataModule = module {
     // A `single` bound to two types: the repository the features use, and the Syncable the
     // engine collects with getAll(). One instance either way — the sync half needs the same
     // row↔DTO mapping the read half has.
+    single<ServiceLogLocalDataSource> { SqlDelightServiceLogLocalDataSource(database = get()) }
     single {
         ServiceLogRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
-            blobs = get(),
-            // Read at push time, not at construction: the active car changes while the app
-            // runs, and a sync started before onboarding finished has nothing to pull.
-            activeCarId = { get<ActiveCarProvider>().activeCarId.value?.value },
+            runner = SyncRunner(
+                entity = SyncEntity.SERVICE_LOGS,
+                table = ServiceLogSyncTable(
+                    database = get(),
+                    remote = get(),
+                    blobs = get(),
+                    // Read at push time, not at construction: the active car changes while
+                    // the app runs, and a sync started before onboarding finished has
+                    // nothing to pull.
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
         // `bind`, not a second `single<Syncable>`: six definitions of the same type would
         // override one another and getAll() would come back with one entity.
