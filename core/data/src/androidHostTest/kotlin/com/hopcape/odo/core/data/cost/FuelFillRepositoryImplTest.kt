@@ -1,20 +1,17 @@
 package com.hopcape.odo.core.data.cost
 
-import app.cash.sqldelight.db.QueryResult
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
-import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.cost.model.FuelFillId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.payment.model.PaymentMethod
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
@@ -23,32 +20,16 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+/**
+ * Orchestration only — error mapping and sync scheduling. The SQL behaviour these used to
+ * exercise through a real database now lives in [SqlDelightFuelFillLocalDataSourceTest];
+ * this suite drives [FuelFillRepositoryImpl] against a [FakeFuelFillLocalDataSource]
+ * instead.
+ */
 class FuelFillRepositoryImplTest {
-
-    private lateinit var driver: JdbcSqliteDriver
-
-    private fun newDb(): OdoDatabase {
-        driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        OdoDatabase.Schema.create(driver)
-        return OdoDatabase(driver)
-    }
-
-    private data class StoredRow(val syncStatus: String, val remoteVersion: String?)
-
-    /** No generated `selectById` exists for `fuel_fills` yet, so this reads the raw row. */
-    private fun rowFor(id: String): StoredRow? = driver.executeQuery(
-        identifier = null,
-        sql = "SELECT sync_status, remote_version FROM fuel_fills WHERE id = ?",
-        mapper = { cursor ->
-            QueryResult.Value(
-                if (cursor.next().value) StoredRow(cursor.getString(0)!!, cursor.getString(1)) else null,
-            )
-        },
-        parameters = 1,
-    ) { bindString(0, id) }.value
 
     /** Records what the repository asked the scheduler for. */
     private class RecordingScheduler : SyncScheduler {
@@ -91,9 +72,21 @@ class FuelFillRepositoryImplTest {
         override fun setUserId(userId: String?) = Unit
     }
 
-    private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
+    private class FakeFuelFillLocalDataSource(
+        private val insertThrows: Throwable? = null,
+    ) : FuelFillLocalDataSource {
+        var inserted: FuelFill? = null
+            private set
+
+        override suspend fun insert(fill: FuelFill) {
+            insertThrows?.let { throw it }
+            inserted = fill
+        }
+    }
+
+    private fun repo(local: FuelFillLocalDataSource, scheduler: SyncScheduler = RecordingScheduler()) =
         FuelFillRepositoryImpl(
-            local = SqlDelightFuelFillLocalDataSource(database = db),
+            local = local,
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
         )
@@ -114,23 +107,36 @@ class FuelFillRepositoryImplTest {
     ).getOrNull()!!
 
     @Test
-    fun add_storesTheFillAsPending() = runTest {
-        val db = newDb()
+    fun add_success_writesThroughLocalAndAsksForASync() = runTest {
+        val local = FakeFuelFillLocalDataSource()
+        val scheduler = RecordingScheduler()
 
-        val result = repo(db).add(fill())
+        val result = repo(local, scheduler).add(fill())
 
         assertTrue(result.isRight(), "expected Right but was $result")
-        assertEquals(SyncStatus.PENDING.name, rowFor("fill-1")?.syncStatus)
-        assertNull(rowFor("fill-1")?.remoteVersion)
+        assertEquals("fill-1", local.inserted?.id?.value)
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
     }
 
     @Test
-    fun add_asksForASync() = runTest {
-        val db = newDb()
-        val scheduler = RecordingScheduler()
+    fun add_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeFuelFillLocalDataSource(insertThrows = RuntimeException("disk full"))
 
-        assertTrue(repo(db, scheduler).add(fill()).isRight())
+        val result = repo(local).add(fill())
 
-        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
+    }
+
+    @Test
+    fun add_schedulingFailure_stillSucceeds() = runTest {
+        val local = FakeFuelFillLocalDataSource()
+        val exploding = object : SyncScheduler {
+            override fun scheduleStartupSync() = Unit
+            override fun requestSync(reason: SyncReason): Nothing = error("scheduler unavailable")
+        }
+
+        val result = repo(local, exploding).add(fill())
+
+        assertTrue(result.isRight(), "a broken scheduler must not fail an already-committed write")
     }
 }
