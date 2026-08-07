@@ -43,6 +43,7 @@ import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.SessionSyncGate
+import com.hopcape.odo.core.data.trip.TripRepositoryImpl
 import com.hopcape.odo.core.sync.SyncGate
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
@@ -62,6 +63,7 @@ import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.domain.trip.repository.TripRepository
 import org.koin.dsl.module
 
 /**
@@ -84,6 +86,9 @@ val coreDataModule = module {
     // Device settings — theme, units, notification topics. Deliberately no scheduler:
     // `app_settings` mirrors no server table, so there is nothing to push.
     single<AppSettingsRepository> { AppSettingsRepositoryImpl(local = get(), telemetry = get()) }
+    // Automatically-detected drives. No scheduler: no SyncEntity.TRIPS/Syncable yet (D3) —
+    // the rows carry the sync columns and wait as PENDING with nothing to push them.
+    single<TripRepository> { TripRepositoryImpl(local = get(), telemetry = get()) }
 
     // Observability for the whole data layer, behind one facade. A `single`: it holds no
     // per-call state — the trace comes from the calling coroutine, not from this object.

@@ -44,6 +44,7 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 notifPartner = notifications.partnerOffers.toLong(),
                 notifPush = notifications.push.toLong(),
                 notifWhatsapp = notifications.whatsapp.toLong(),
+                trackerEnabled = settings.trackerEnabled.toLong(),
                 updatedAt = now,
             )
             queries.updateSettings(
@@ -60,6 +61,7 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 notifPartner = notifications.partnerOffers.toLong(),
                 notifPush = notifications.push.toLong(),
                 notifWhatsapp = notifications.whatsapp.toLong(),
+                trackerEnabled = settings.trackerEnabled.toLong(),
                 updatedAt = now,
             )
         }

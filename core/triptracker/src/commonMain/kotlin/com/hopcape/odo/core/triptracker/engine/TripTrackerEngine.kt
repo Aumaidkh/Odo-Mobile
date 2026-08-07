@@ -97,7 +97,13 @@ internal class TripTrackerEngine(
                 }
             }
             handle(TripEvent.Enabled)
-            sessionStore.load()?.let { handle(TripEvent.SessionRestored(it)) }
+            val restored = try {
+                sessionStore.load()
+            } catch (e: Exception) {
+                telemetry.nonFatal(e, stage = STAGE_SESSION_LOAD)
+                null
+            }
+            restored?.let { handle(TripEvent.SessionRestored(it)) }
         } else {
             handle(TripEvent.Disabled)
             motionJob?.cancel()
@@ -112,8 +118,22 @@ internal class TripTrackerEngine(
         val result = TripStateMachine.transition(phase, event, config, now(), parked)
         val previous = phase
         phase = result.newState
-        for (effect in result.effects) executeEffect(effect)
-        maybePersist(previous, phase)
+        // The state transition itself is pure and can't fail; an effect touching real IO
+        // (session store, foreground service) can. One effect's failure must not stop the
+        // rest, and must not kill the collector coroutine that got us here — the next
+        // signal from the same source would silently never arrive again.
+        for (effect in result.effects) {
+            try {
+                executeEffect(effect)
+            } catch (e: Exception) {
+                telemetry.nonFatal(e, stage = "effect.${effect::class.simpleName}")
+            }
+        }
+        try {
+            maybePersist(previous, phase)
+        } catch (e: Exception) {
+            telemetry.nonFatal(e, stage = STAGE_SESSION_PERSIST)
+        }
         _status.value = phase.toTrackingStatus(preconditions.status())
     }
 
@@ -223,5 +243,7 @@ internal class TripTrackerEngine(
         val FIX_INTERVAL = 1.seconds
         const val PERSIST_DISTANCE_MILESTONE_M = 250L
         const val STAGE_FINALIZE_NO_CAR = "finalize_no_car"
+        const val STAGE_SESSION_LOAD = "session_load"
+        const val STAGE_SESSION_PERSIST = "session_persist"
     }
 }

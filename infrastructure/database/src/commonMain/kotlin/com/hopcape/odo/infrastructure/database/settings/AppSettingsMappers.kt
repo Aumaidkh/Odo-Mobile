@@ -29,6 +29,7 @@ internal fun App_settings.toDomain(): AppSettings = AppSettings(
         push = notif_push.toBoolean(),
         whatsapp = notif_whatsapp.toBoolean(),
     ),
+    trackerEnabled = tracker_enabled.toBoolean(),
 )
 
 private inline fun <reified T : Enum<T>> String.toEnum(fallback: T): T =

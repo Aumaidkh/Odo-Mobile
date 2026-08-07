@@ -4,10 +4,8 @@ import com.hopcape.odo.core.triptracker.algorithm.CurvatureFactorRouteEstimator
 import com.hopcape.odo.core.triptracker.config.TripTrackerConfig
 import com.hopcape.odo.core.triptracker.engine.TripFinalizer
 import com.hopcape.odo.core.triptracker.engine.TripTrackerEngine
-import com.hopcape.odo.core.triptracker.internal.NoopTripSessionStore
 import com.hopcape.odo.core.triptracker.observability.TripTrackerTelemetry
 import com.hopcape.odo.core.triptracker.port.RouteDistanceEstimator
-import com.hopcape.odo.core.triptracker.port.TripSessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,20 +17,19 @@ import org.koin.dsl.module
  * [tripTrackerIosModule]) live only in the platform modules, never here, so there is no
  * later-module-wins override game between them.
  *
- * [RouteDistanceEstimator] and [TripSessionStore] are the two exceptions: neither varies
- * by platform (the real curvature-factor estimator is commonMain, and the real session
- * store is the same `:infrastructure:database` impl on both platforms), so their bindings
- * live here from the start. [RouteDistanceEstimator] is real as of S3;
- * [TripSessionStore] stays a Noop until `:infrastructure:database` supplies the real
- * journal (S6) — until then a process kill during a trip loses that trip's distance
- * instead of resuming it, same as before any of this module existed.
+ * [RouteDistanceEstimator] is the one exception: it doesn't vary by platform (the real
+ * curvature-factor estimator is commonMain), so its binding lives here from the start.
+ * `TripSessionStore` is *not* bound here — its real implementation is
+ * `:infrastructure:database`'s `TripSessionStoreImpl` (S6), registered by
+ * `databaseInfrastructureModule`. A binding here would be later in `initKoin`'s module
+ * list than that one and silently win, which is exactly the stale-stub trap this repo
+ * has hit before — see `databaseInfrastructureModule`'s registration, not this file.
  */
 val coreTripTrackerModule = module {
     single { TripTrackerConfig() }
     single { TripTrackerTelemetry(logger = get(), analytics = get(), tracer = get(), crash = get()) }
 
     single<RouteDistanceEstimator> { CurvatureFactorRouteEstimator(config = get()) }
-    single<TripSessionStore> { NoopTripSessionStore() }
 
     // SupervisorJob: one signal source's collector failing must not cancel the others or
     // the timer jobs. Dispatchers.Default: no UI work happens here.

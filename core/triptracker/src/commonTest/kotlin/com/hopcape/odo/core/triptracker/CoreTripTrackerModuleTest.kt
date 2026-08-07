@@ -16,6 +16,7 @@ import com.hopcape.odo.core.domain.trip.model.Trip
 import com.hopcape.odo.core.domain.trip.model.TripId
 import com.hopcape.odo.core.domain.trip.model.TripStatus
 import com.hopcape.odo.core.domain.trip.repository.TripRepository
+import com.hopcape.odo.core.triptracker.model.SessionSnapshot
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.common.id.UuidIdGenerator
 import com.hopcape.odo.core.triptracker.config.TripTrackerConfig
@@ -71,7 +72,9 @@ class CoreTripTrackerModuleTest {
 
     /**
      * Stands in for the four observability modules, the platform module's
-     * [TrackingPreconditions]/signal-source bindings, and the not-yet-built
+     * [TrackingPreconditions]/signal-source bindings, [TripSessionStore] (real impl in
+     * `:infrastructure:database`'s `databaseInfrastructureModule`, deliberately not bound
+     * by `coreTripTrackerModule` itself — see that module's KDoc), and the not-yet-built
      * [CarRepository]/[TripRepository] implementations, so [coreTripTrackerModule]
      * resolves the same way it will once the rest of the app graph is wired in.
      */
@@ -87,6 +90,7 @@ class CoreTripTrackerModuleTest {
                 single<MotionActivitySource> { NoopMotionActivitySource() }
                 single<VehiclePresenceSource> { NoopVehiclePresenceSource() }
                 single<TripForegroundSession> { NoopTripForegroundSession() }
+                single<TripSessionStore> { NoopTripSessionStore }
                 single<CarRepository> { NoopCarRepository }
                 single<TripRepository> { NoopTripRepository }
                 single { UuidIdGenerator() }
@@ -143,6 +147,12 @@ private object NoopCarRepository : CarRepository {
     override fun observePrimaryCar(): Flow<Car?> = flowOf(null)
     override fun observe(id: CarId): Flow<Car?> = flowOf(null)
     override suspend fun softDelete(id: CarId) = throw NotImplementedError()
+}
+
+private object NoopTripSessionStore : TripSessionStore {
+    override suspend fun save(snapshot: SessionSnapshot) = Unit
+    override suspend fun load(): SessionSnapshot? = null
+    override suspend fun clear() = Unit
 }
 
 private object NoopTripRepository : TripRepository {
