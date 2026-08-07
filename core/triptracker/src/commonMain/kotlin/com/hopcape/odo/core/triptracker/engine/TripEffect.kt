@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.triptracker.engine
 
 import com.hopcape.odo.core.domain.trip.model.TripMode
-import com.hopcape.odo.core.triptracker.model.SessionSnapshot
 import kotlin.time.Duration
 
 /** The two durations the machine cannot detect on its own — a real, engine-scheduled timer. */
@@ -19,7 +18,6 @@ internal sealed interface TripEffect {
     data object StopForegroundSession : TripEffect
     data object RequestFixes : TripEffect
     data object StopFixes : TripEffect
-    data class PersistSession(val snapshot: SessionSnapshot) : TripEffect
     data object ClearSession : TripEffect
     data class StartTimer(val kind: TimerKind, val duration: Duration) : TripEffect
     data class CancelTimer(val kind: TimerKind) : TripEffect

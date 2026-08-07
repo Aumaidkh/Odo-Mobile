@@ -12,16 +12,34 @@ import kotlin.time.Instant
  * [attributionConfident] is [com.hopcape.odo.core.triptracker.algorithm.AttributionResult.confident]
  * at start time — carried forward so the finalizer's validation ladder can downgrade a
  * radius-marginal trip regardless of size (§4.4), without re-running the check later.
+ *
+ * [firstFix] is the trip's opening point — unknown at BT_VERIFIED start (no fix was
+ * involved in that decision), so it is captured from the first [TripEvent.Fix] TRACKING
+ * receives rather than at [TripPhase.Starting]. The finalizer needs it as the trip's
+ * start coordinate and to decide whether a BT_VERIFIED trip needs a GAP_INFERRED twin
+ * (§4.5). Not persisted in [SessionSnapshot] — lost on a kill before the first post-resume
+ * fix, which only costs that one trip's gap-inferred twin, not its correctness.
  */
 internal data class TripSession(
     val startedAt: Instant,
     val mode: TripMode,
     val distanceMeters: Long = 0,
     val estimatedMeters: Long = 0,
+    val firstFix: LocationSample? = null,
     val lastGoodFix: LocationSample? = null,
     val lastMotionKind: MotionKind? = null,
     val attributionConfident: Boolean,
 )
+
+/** The live session carried by this phase, or `null` for phases with none. */
+internal fun TripPhase.sessionOrNull(): TripSession? = when (this) {
+    is TripPhase.Tracking -> session
+    is TripPhase.SoftPaused -> session
+    is TripPhase.SignalLost -> session
+    is TripPhase.PendingStop -> session
+    is TripPhase.Finalizing -> session
+    else -> null
+}
 
 /**
  * The trip tracker's state, one value per §4.2. Persisted via [SessionSnapshotMapper] so

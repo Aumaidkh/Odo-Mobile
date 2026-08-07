@@ -37,7 +37,11 @@ class TripStateMachineTest {
             step2.newState,
         )
         assertEquals(
-            listOf(TripEffect.StartForegroundSession, TripEffect.Telemetry(TripTelemetryEvent.Started(TripMode.BT_VERIFIED))),
+            listOf(
+                TripEffect.StartForegroundSession,
+                TripEffect.RequestFixes,
+                TripEffect.Telemetry(TripTelemetryEvent.Started(TripMode.BT_VERIFIED)),
+            ),
             step2.effects,
         )
 
@@ -69,7 +73,11 @@ class TripStateMachineTest {
             result.newState,
         )
         assertEquals(
-            listOf(TripEffect.StartForegroundSession, TripEffect.Telemetry(TripTelemetryEvent.Started(TripMode.GPS_ONLY))),
+            listOf(
+                TripEffect.StartForegroundSession,
+                TripEffect.RequestFixes,
+                TripEffect.Telemetry(TripTelemetryEvent.Started(TripMode.GPS_ONLY)),
+            ),
             result.effects,
         )
     }

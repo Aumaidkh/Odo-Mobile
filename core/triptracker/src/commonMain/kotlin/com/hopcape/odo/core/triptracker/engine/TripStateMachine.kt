@@ -83,15 +83,6 @@ internal object TripStateMachine {
         return Transition(restored, effects)
     }
 
-    private fun TripPhase.sessionOrNull(): TripSession? = when (this) {
-        is TripPhase.Tracking -> session
-        is TripPhase.SoftPaused -> session
-        is TripPhase.SignalLost -> session
-        is TripPhase.PendingStop -> session
-        is TripPhase.Finalizing -> session
-        else -> null
-    }
-
     // ---- STANDBY ----
 
     private fun handleStandby(
@@ -154,7 +145,13 @@ internal object TripStateMachine {
 
     private fun startTrip(mode: TripMode, now: Instant, attributionConfident: Boolean): Transition = Transition(
         TripPhase.Starting(mode, now, attributionConfident),
-        listOf(TripEffect.StartForegroundSession, TripEffect.Telemetry(TripTelemetryEvent.Started(mode))),
+        // RequestFixes is idempotent for the GPS path (already flowing from the sustain
+        // candidate) but load-bearing for BT_VERIFIED, which never asked for a fix before now.
+        listOf(
+            TripEffect.StartForegroundSession,
+            TripEffect.RequestFixes,
+            TripEffect.Telemetry(TripTelemetryEvent.Started(mode)),
+        ),
     )
 
     // ---- STARTING ----
@@ -218,6 +215,7 @@ internal object TripStateMachine {
     private fun handleTrackingFix(state: TripPhase.Tracking, event: TripEvent.Fix, config: TripTrackerConfig, now: Instant): Transition {
         val session = state.session.copy(
             distanceMeters = state.session.distanceMeters + event.integration.addedMeters,
+            firstFix = state.session.firstFix ?: event.sample,
             lastGoodFix = event.sample,
         )
         if (event.integration.gapOpened) {
