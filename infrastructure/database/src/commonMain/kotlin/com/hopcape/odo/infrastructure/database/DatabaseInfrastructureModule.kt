@@ -1,6 +1,7 @@
 package com.hopcape.odo.infrastructure.database
 
 import app.cash.sqldelight.db.SqlDriver
+import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentLocalDataSource
@@ -23,6 +24,7 @@ import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
+import com.hopcape.odo.infrastructure.database.analytics.SqlDelightAnalyticsEventStore
 import com.hopcape.odo.infrastructure.database.car.CarSyncTable
 import com.hopcape.odo.infrastructure.database.car.CarSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
@@ -125,6 +127,12 @@ val databaseInfrastructureModule = module {
     // Device settings — theme, units, notification topics. No Syncable adapter:
     // `app_settings` mirrors no server table, so there is nothing to push.
     single<AppSettingsLocalDataSource> { SqlDelightAppSettingsLocalDataSource(database = get()) }
+
+    // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
+    // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no
+    // server table this mirrors — Firebase/PostHog are the systems of record for delivered
+    // events.
+    single<AnalyticsEventStore> { SqlDelightAnalyticsEventStore(database = get(), telemetry = get()) }
 
     single<ServiceLogLocalDataSource> { SqlDelightServiceLogLocalDataSource(database = get()) }
     single {

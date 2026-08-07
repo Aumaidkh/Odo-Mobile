@@ -12,6 +12,8 @@ import com.hopcape.analytics.internal.model.AnalyticsEvent
 internal interface AnalyticsDestination {
     val name: String
     fun identify(traits: UserTraits)
-    fun track(event: AnalyticsEvent)
+
+    /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
+    fun track(event: AnalyticsEvent): Boolean
     fun flush()
 }

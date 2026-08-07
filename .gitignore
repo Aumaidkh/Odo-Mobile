@@ -23,3 +23,12 @@ node_modules/
 # and the module notes go with it; docs/DB_SCHEMA.md stays the versioned spec.
 docs/SUPABASE_BOOTSTRAP.md
 infrastructure/supabase/README.md
+
+# Firebase project config — identifies a specific Firebase project, dropped in
+# locally by whoever is testing against it rather than committed.
+androidApp/google-services.json
+
+# Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
+# Regenerated on every build from the Gradle dependency graph; not a hand-authored
+# lockfile worth reviewing in a diff.
+.swiftpm-locks/

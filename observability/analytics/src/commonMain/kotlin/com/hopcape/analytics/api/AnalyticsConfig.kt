@@ -45,12 +45,30 @@ data class AnalyticsConfig(
     val flushInterval: Duration = DEFAULT_FLUSH_INTERVAL,
 
     /**
+     * Extra vendor destinations contributed by an outside module (e.g. Firebase),
+     * alongside the built-in PostHog destination. Each is wrapped in the same
+     * crash-isolating decorator as the built-ins, so a misbehaving sink can never
+     * take down delivery to the others.
+     */
+    val destinations: List<AnalyticsSink> = emptyList(),
+
+    /**
      * Diagnostics channel for the module's own lifecycle (duplicate init,
      * dropped events, schema violations, destination failures). Defaults to a
      * no-op; wire it to your logger in debug builds. Kept as a `String` sink so
      * no internal type leaks across the public boundary.
      */
     val onDiagnostic: (String) -> Unit = {},
+
+    /**
+     * A durable event queue, resolved lazily on first use — a **provider**, not an
+     * instance. `HAnalytics.init` runs before the DI graph starts in this app's
+     * bootstraps (Android and iOS both), so resolving eagerly here would mean
+     * building that graph, and the database behind it, during this call. Left
+     * null, an in-memory queue is used and buffered events do not survive
+     * process death — the default for tests and hosts that have not wired one.
+     */
+    val eventStore: (() -> AnalyticsEventStore)? = null,
 ) {
     companion object {
         const val DEFAULT_BATCH_SIZE: Int = 20

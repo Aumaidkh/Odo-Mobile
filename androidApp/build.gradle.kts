@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.odo.composeMultiplatform)
     // Application-level startKoin + androidContext (adds koin-android).
     alias(libs.plugins.odo.koin)
+    // Reads google-services.json (not committed — see .gitignore) and registers
+    // the app with Firebase at build time.
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -31,6 +34,11 @@ dependencies {
     implementation(projects.observability.logging)
     // Analytics — HAnalytics.init + consent gate configured here.
     implementation(projects.observability.analytics)
+    // FirebaseAnalyticsSink is constructed directly here (see AnalyticsSink KDoc):
+    // HAnalytics.init runs before the Koin graph starts.
+    implementation(projects.infrastructure.firebase.analytics)
+    // ProcessLifecycleOwner — flushes the analytics queue on every foreground.
+    implementation(libs.androidx.lifecycle.process)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
     // Crash reporting — CrashReporter.init needs the app's own crash directory.

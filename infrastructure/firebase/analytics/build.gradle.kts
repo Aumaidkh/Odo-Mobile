@@ -3,7 +3,6 @@ plugins {
     // Depends inward on :observability:analytics only; nothing in that module
     // knows this one exists.
     alias(libs.plugins.odo.kmpLibrary)
-    alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
 }

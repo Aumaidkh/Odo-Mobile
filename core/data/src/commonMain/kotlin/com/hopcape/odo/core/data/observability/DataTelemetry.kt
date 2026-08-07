@@ -133,5 +133,8 @@ class DataTelemetry(
         /** Custom reminders + dismissals — the stored half; the derived feed has no rows. */
         const val REMINDER = "reminder"
         const val SYNC = "sync"
+
+        /** The durable analytics event queue — SqlDelightAnalyticsEventStore. */
+        const val ANALYTICS_EVENT = "analyticsevent"
     }
 }

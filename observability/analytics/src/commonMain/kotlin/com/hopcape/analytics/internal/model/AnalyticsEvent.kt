@@ -10,8 +10,13 @@ import kotlin.uuid.Uuid
 // AnalyticsEvent — immutable, fully-resolved event ready for
 // dispatch. `eventId` is the delivery/dead-letter key inside the
 // store & dispatcher; `sequenceNumber` preserves ordering for
-// funnel-sensitive backends. Internal: it never crosses the public
-// boundary — callers only ever pass a name + properties map.
+// funnel-sensitive backends. `attemptCount` lives on the event
+// (not a side map in BatchDispatcher) so it round-trips through
+// whatever EventStore is configured — a durable store persists it,
+// so dead-lettering after RetryPolicy.maxAttempts survives a
+// process restart instead of resetting every launch. Internal: it
+// never crosses the public boundary — callers only ever pass a
+// name + properties map.
 // ─────────────────────────────────────────────────────────────
 internal data class AnalyticsEvent(
     val name: String,
@@ -20,4 +25,5 @@ internal data class AnalyticsEvent(
     val sequenceNumber: Long = 0L,
     val eventId: String = Uuid.random().toString(),
     val timestampMs: Long = Clock.System.now().toEpochMilliseconds(),
+    val attemptCount: Int = 0,
 )

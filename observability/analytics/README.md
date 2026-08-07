@@ -83,6 +83,8 @@ com.hopcape.analytics
 ├── api/                         ← PUBLIC. The only things callers may import.
 │   ├── AnalyticsTracker.kt          interface AnalyticsTracker  (the contract, ISP)
 │   ├── AnalyticsConfig.kt           data class + defaults        (startup config)
+│   ├── AnalyticsSink.kt             interface AnalyticsSink       (extra-destination port)
+│   ├── AnalyticsEventStore.kt       interface + StoredAnalyticsEvent/Context (durable-queue port)
 │   ├── HAnalytics.kt                object HAnalytics            (the Facade)
 │   ├── AnalyticsModule.kt           val analyticsModule          (Koin binding)
 │   ├── ConsentStatus.kt             enum UNKNOWN/GRANTED/DENIED
@@ -93,7 +95,7 @@ com.hopcape.analytics
     ├── AnalyticsFactory.kt          composition root: wires the pipeline (Factory)
     ├── AnalyticsTrackerImpl.kt      orchestrates consent→validate→dedup→enqueue (SRP)
     ├── model/
-    │   ├── AnalyticsEvent.kt         immutable, fully-resolved event
+    │   ├── AnalyticsEvent.kt         immutable, fully-resolved event (carries attemptCount)
     │   └── GlobalContext.kt          auto-attached "super properties"
     ├── validation/
     │   ├── EventRegistry.kt          immutable schema lookup + validation
@@ -102,19 +104,22 @@ com.hopcape.analytics
     │   └── Deduplicator.kt           bounded, lock-free double-fire guard
     ├── store/
     │   ├── EventStore.kt             persistence abstraction (DIP)
-    │   └── InMemoryEventStore.kt     lock-free copy-on-write default
+    │   ├── InMemoryEventStore.kt     lock-free copy-on-write default
+    │   └── PublicEventStoreAdapter.kt bridges a host's AnalyticsEventStore into EventStore
     ├── dispatch/
     │   ├── BatchDispatcher.kt        coroutine batch/retry engine
     │   └── RetryPolicy.kt            exponential backoff bounds
     └── destinations/
-        ├── AnalyticsDestination.kt   interface (Strategy)
+        ├── AnalyticsDestination.kt   interface (Strategy) — track() returns Boolean (delivered?)
         ├── SafeDestination.kt        exception-swallowing decorator (Decorator)
-        ├── PostHogDestination.kt     primary vendor adapter
-        ├── FirebaseDestination.kt    secondary vendor adapter
+        ├── SinkDestination.kt        adapts a host's AnalyticsSink into AnalyticsDestination
+        ├── PostHogDestination.kt     primary vendor adapter (stub)
         └── ConsoleDestination.kt     debug-only echo destination
 ```
 
 **Dependency rule:** `internal` may depend on `api` (a destination references `UserTraits`); `api` never depends on concrete `internal` types except at the two composition roots (`HAnalytics`, `AnalyticsFactory`) — which is the whole point of a composition root.
+
+**Firebase moved out.** What was `FirebaseDestination` here is now `FirebaseAnalyticsSink` in `:infrastructure:firebase:analytics`, registered via `AnalyticsConfig.destinations` — this module has no Firebase dependency at all. See that module for the sanitizer, the consent-gate decision, and the iOS bootstrap notes.
 
 ### 3.2 Component diagram
 
@@ -136,11 +141,11 @@ flowchart TD
         IMPL["AnalyticsTrackerImpl<br/>(pipeline orchestrator)"]
         REG["EventRegistry"]
         DED["Deduplicator"]
-        STORE["EventStore<br/>(InMemoryEventStore)"]
-        DISP["BatchDispatcher<br/>(coroutine loop + retry)"]
-        subgraph dests["Destinations (each wrapped in SafeDestination)"]
-            D1["PostHogDestination"]
-            D2["FirebaseDestination"]
+        STORE["EventStore<br/>(InMemoryEventStore, or<br/>PublicEventStoreAdapter over a<br/>host's AnalyticsEventStore)"]
+        DISP["BatchDispatcher<br/>(coroutine loop + retry,<br/>attempt count on the event)"]
+        subgraph dests["Destinations (each wrapped in SafeDestination — track() returns Boolean)"]
+            D1["PostHogDestination (stub)"]
+            D2["SinkDestination<br/>(adapts a host's AnalyticsSink,<br/>e.g. FirebaseAnalyticsSink)"]
             D3["ConsoleDestination (debug)"]
         end
     end
@@ -159,11 +164,11 @@ flowchart TD
     IMPL -- "isDuplicate" --> DED
     IMPL -- "enqueue" --> STORE
     IMPL -- "trigger" --> DISP
-    DISP -- "peek / remove" --> STORE
-    DISP -- "track(event)" --> D1 & D2 & D3
+    DISP -- "peek / remove /<br/>recordAttempt" --> STORE
+    DISP -- "track(event): Boolean" --> D1 & D2 & D3
 ```
 
-Each destination is wrapped: `SafeDestination( <real vendor adapter> )` — the inner adapter ships the event, the wrapper guarantees it can never throw into the dispatcher.
+Each destination is wrapped: `SafeDestination( <real vendor adapter> )` — the inner adapter ships the event and reports whether it was accepted, the wrapper guarantees a throw can never reach the dispatcher (it becomes `false` — a failed delivery — instead).
 
 ### 3.3 Track-call sequence
 
@@ -352,7 +357,9 @@ Immutable startup configuration. See [§5](#5-getting-started). Fields:
 | `events` | `List<EventSchema>` | `emptyList()` | The event taxonomy validated against. |
 | `batchSize` | `Int` | `20` | Deliver once this many events are queued (size trigger). |
 | `flushInterval` | `Duration` | `10.seconds` | Deliver at least this often (time trigger). |
-| `onDiagnostic` | `(String) -> Unit` | `{}` | Module self-diagnostics (dupes, drops, violations). Wire to your logger. |
+| `destinations` | `List<AnalyticsSink>` | `emptyList()` | Extra vendor destinations from outside this module (e.g. Firebase). Each wrapped in `SafeDestination` like the built-ins. |
+| `eventStore` | `(() -> AnalyticsEventStore)?` | `null` | A durable queue provider, resolved lazily on first use. `null` keeps the in-memory default — buffered events do not survive process death. |
+| `onDiagnostic` | `(String) -> Unit` | `{}` | Module self-diagnostics (dupes, drops, violations, storage failures). Wire to your logger. |
 
 ### `val analyticsModule: Module`
 Koin module binding `single<AnalyticsTracker> { HAnalytics.asTracker() }`.
@@ -370,6 +377,27 @@ UserTraits(userId: String, traits: Map<String, Any?> = emptyMap())
 EventSchema(eventName: String, requiredProperties: Map<String, PropertyType> = emptyMap())
 enum PropertyType { STRING, INT, LONG, DOUBLE, BOOLEAN, NUMBER, ANY }
 ```
+
+### `interface AnalyticsSink`
+The port an outside module implements to add a vendor destination without this module depending on that vendor's SDK (e.g. `FirebaseAnalyticsSink` in `:infrastructure:firebase:analytics`). Registered via `AnalyticsConfig.destinations`.
+```kotlin
+val name: String
+fun identify(traits: UserTraits)
+fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean  // delivered?
+fun flush()
+```
+`AnalyticsTracker.track()` itself is unchanged and stays `Unit` — callers never see a delivery result. The `Boolean` is purely between a sink and the dispatcher: `true` removes the event from the queue, `false` retries it. A sink also returns `true` for an event it has permanently rejected (e.g. an invalid name) — retrying can't fix that, so treating it as handled (not retried) is the correct call, the same distinction the sync engine draws between a transient failure and a permanent one.
+
+### `interface AnalyticsEventStore` + `data class StoredAnalyticsEvent` / `StoredAnalyticsContext`
+The port an outside module implements to back the queue with real storage. Suspend, matching every other local-write port in the app — a durable implementation's own I/O runs on whatever dispatcher its caller provides.
+```kotlin
+suspend fun enqueue(event: StoredAnalyticsEvent)
+suspend fun peekBatch(maxSize: Int): List<StoredAnalyticsEvent>
+suspend fun remove(eventIds: List<String>)
+suspend fun size(): Int
+suspend fun recordAttempt(eventId: String, attempt: Int)   // persists a failed delivery's retry count
+```
+No size/age limit in the contract — enforcing one is the implementation's job (e.g. `SqlDelightAnalyticsEventStore` in `:infrastructure:database` caps at 1000 rows / 7 days). The port only promises FIFO ordering and durability. `StoredAnalyticsEvent`/`StoredAnalyticsContext` mirror the internal event model field-for-field, kept as separate public types so a store never has to see internal pipeline types.
 
 ---
 
@@ -456,7 +484,7 @@ So an empty `events` list means "no enforcement" — everything is treated as `U
 
 - **Fail-closed gate.** `track` and `identify` are dropped unless consent is exactly `GRANTED`. The default state is `UNKNOWN` — so nothing leaks before the user has decided.
 - **Set it early.** Call `setConsent` from your consent screen; wire it to remote/stored preference on next launch.
-- **On `DENIED`** the gate stops all new events immediately. (A production store would additionally purge queued-but-undelivered events and disable collection in the vendor SDKs — see [roadmap](#16-known-limitations--roadmap).)
+- **On `DENIED`** the gate stops all new events immediately, but does not purge whatever is already queued — see [roadmap](#16-known-limitations--roadmap). That's a different lever from sign-out: Odo's own `AnalyticsEventStore` implementation is cleared as part of the sign-out wipe (queued events carry the outgoing user's id), independent of this module's consent state.
 - Context carries an `anonymousId` (random per install) and, only after `identify`, a `userId`.
 
 ---
@@ -465,11 +493,11 @@ So an empty `events` list means "no enforcement" — everything is treated as `U
 
 Unlike the logger's "best effort" sinks, analytics **guarantees delivery**:
 
-- **Store first.** Every accepted event is `enqueue`d into an `EventStore` *before* any network attempt. The store is the source of truth; the default `InMemoryEventStore` is swapped for a SQLDelight-backed queue in production so events survive process death.
-- **Two flush triggers.** `BatchDispatcher` delivers when the queue reaches `batchSize` (size trigger) **or** every `flushInterval` (time trigger, a coroutine loop on `Dispatchers.Default`).
-- **All-or-nothing per event.** An event is removed from the store only once **every** destination confirms delivery.
-- **Retry + dead-letter.** A failed event stays in the store and is retried on the next cycle. `RetryPolicy` bounds attempts (default 6); once exhausted the event is dead-lettered (`onDropped`) and removed so it can't wedge the queue.
-- **Dedup.** `Deduplicator` collapses accidental double-fires within a bounded recency window, keyed on a content signature (event name + sorted properties).
+- **Store first.** Every accepted event is `enqueue`d into an `EventStore` *before* any delivery attempt. The store is the source of truth. The default is in-memory (does not survive process death — fine for tests and hosts that haven't wired one); passing `AnalyticsConfig.eventStore` swaps in a durable, host-provided queue via `PublicEventStoreAdapter`. Odo's own bootstrap does this with a SQLDelight-backed store in `:infrastructure:database` (`analytics_events`, capped at 1000 rows / 7 days).
+- **Two flush triggers**, plus an explicit one. `BatchDispatcher` delivers when the queue reaches `batchSize` (size trigger) **or** every `flushInterval` (time trigger, a coroutine loop on `Dispatchers.Default`). A host also calls `HAnalytics.flush()` on app launch and on every foreground, so a durable queue drains promptly rather than waiting out the timer.
+- **All-or-nothing per event.** An event is removed from the store only once **every** destination's `track()` returns `true`.
+- **Retry + dead-letter, durably.** A failed event's attempt count lives on the event itself (`AnalyticsEvent.attemptCount`), persisted via `EventStore.recordAttempt` rather than kept in a side map — a durable store makes dead-lettering survive a process restart instead of resetting the count every launch. `RetryPolicy` bounds attempts (default 6); once exhausted the event is dead-lettered (`onDropped`) and removed so it can't wedge the queue.
+- **Dedup.** `Deduplicator` collapses accidental double-fires within a bounded recency window, keyed on a content signature (event name + sorted properties). In-memory only — this guard is about a double-tapped button, not something a durable store needs to know about.
 
 ---
 
@@ -480,8 +508,9 @@ Unlike the logger's "best effort" sinks, analytics **guarantees delivery**:
 - **Idempotent init.** `init()` is guarded by an `AtomicBoolean` CAS — a duplicate call (test setup, multi-process) is a no-op + diagnostic, not a re-wire.
 - **KMP-native concurrency, no `java.util.concurrent`.**
   - The dispatch timer is a **coroutine** loop, not a `ScheduledExecutorService`.
-  - The dispatch critical section is serialized by a coroutine `Mutex`, so retry bookkeeping uses a plain map.
-  - `EventStore` and `Deduplicator` are **lock-free copy-on-write** structures behind an `AtomicReference` with a CAS retry loop — correct under concurrent producer (caller thread) / consumer (dispatch coroutine) access.
+  - The dispatch critical section is serialized by a coroutine `Mutex`.
+  - `InMemoryEventStore` and `Deduplicator` are **lock-free copy-on-write** structures behind an `AtomicReference` with a CAS retry loop — correct under concurrent producer (caller thread) / consumer (dispatch coroutine) access.
+  - `PublicEventStoreAdapter` (a durable store) is asymmetric on purpose: `enqueue()`/`size()` never block the calling thread (fire-and-forget onto a shared `CoroutineScope`, and a local `AtomicInt` counter respectively), because `track()` is a public, synchronous, fire-and-forget call often made from the UI thread, and a durable store's first resolution can mean building a database. `peekBatch()`/`remove()`/`recordAttempt()` block instead — every caller is already `BatchDispatcher`'s own background coroutine, never the UI thread, so a bounded wait for a suspend call is the honest, simple choice over a second dispatch mechanism.
   - `GlobalContext` and the `delegate` are `@Volatile`, so an `init()`/`setSession()` on one thread is visible to trackers on others.
   - `consent` is an `AtomicReference<ConsentStatus>` — the gate reads a consistent value.
 
@@ -489,14 +518,33 @@ Unlike the logger's "best effort" sinks, analytics **guarantees delivery**:
 
 ## 12. Extending the pipeline
 
-**Add a new destination (e.g. Amplitude, a warehouse endpoint):**
+**Add a new destination, from outside this module (the common case — e.g. Firebase, a warehouse endpoint):**
+
+Implement `AnalyticsSink` and pass it via `AnalyticsConfig.destinations`. No changes to this module at all:
+```kotlin
+class AmplitudeSink : AnalyticsSink {
+    override val name = "amplitude"
+    override fun identify(traits: UserTraits) { /* Amplitude.setUserId(...) */ }
+    override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean {
+        return runCatching { Amplitude.logEvent(eventName, properties) }.isSuccess
+    }
+    override fun flush() { /* Amplitude.flush() */ }
+}
+// HAnalytics.init(AnalyticsConfig(..., destinations = listOf(AmplitudeSink())))
+```
+This is exactly how `:infrastructure:firebase:analytics`'s `FirebaseAnalyticsSink` is wired — see that module for a fuller example, including a sanitizer that normalizes values before handing them to the vendor SDK.
+
+**Add a built-in destination this module owns (rare — only for a vendor the module ships with, like PostHog):**
 
 1. Implement `AnalyticsDestination` in `internal/destinations/` (SRP — one vendor):
    ```kotlin
    internal class AmplitudeDestination : AnalyticsDestination {
        override val name = "amplitude"
        override fun identify(traits: UserTraits) { /* Amplitude.setUserId(...) */ }
-       override fun track(event: AnalyticsEvent) { /* Amplitude.logEvent(...) */ }
+       override fun track(event: AnalyticsEvent): Boolean {
+           /* Amplitude.logEvent(...) */
+           return true // did the vendor SDK accept it?
+       }
        override fun flush() { /* Amplitude.flush() */ }
    }
    ```
@@ -506,7 +554,7 @@ No changes to the dispatcher, orchestrator, or any call site — that's OCP + De
 
 **Add a new property type:** extend `PropertyType` and its `matches` `when`.
 
-**Back the store with persistence:** implement `EventStore` over SQLDelight and construct it in `AnalyticsFactory` instead of `InMemoryEventStore`.
+**Back the store with persistence:** implement `AnalyticsEventStore` and pass a provider via `AnalyticsConfig.eventStore`. Already done — see `SqlDelightAnalyticsEventStore` in `:infrastructure:database`.
 
 ---
 
@@ -514,7 +562,7 @@ No changes to the dispatcher, orchestrator, or any call site — that's OCP + De
 
 The rule is mechanical and enforced by package:
 
-- **`com.hopcape.analytics.api.*` → `public`** — the supported surface: `AnalyticsTracker`, `HAnalytics`, `AnalyticsConfig`, `analyticsModule`, `ConsentStatus`, `UserTraits`, `EventSchema` (+ `PropertyType`).
+- **`com.hopcape.analytics.api.*` → `public`** — the supported surface: `AnalyticsTracker`, `AnalyticsSink`, `AnalyticsEventStore` (+ `StoredAnalyticsEvent`/`StoredAnalyticsContext`), `HAnalytics`, `AnalyticsConfig`, `analyticsModule`, `ConsentStatus`, `UserTraits`, `EventSchema` (+ `PropertyType`).
 - **`com.hopcape.analytics.internal.*` → `internal`** — every implementation type (`AnalyticsFactory`, `AnalyticsTrackerImpl`, all destinations, store, dispatcher, dedup, registry, models). None are importable by consumers.
 
 If you need to expose a new capability, put its stable type in `api`; keep the machinery in `internal`.
@@ -552,17 +600,19 @@ fun vm_tracks_on_scan() {
 
 | Component | Responsibility |
 |---|---|
-| `AnalyticsFactory` | Composition root: assembles registry, destinations (each `SafeDestination`-wrapped), store, dispatcher, and the orchestrator from a `AnalyticsConfig`. |
+| `AnalyticsFactory` | Composition root: assembles registry, destinations (each `SafeDestination`-wrapped), store (in-memory or a `PublicEventStoreAdapter`), dispatcher, and the orchestrator from an `AnalyticsConfig`. |
 | `AnalyticsTrackerImpl` | Sequences the pipeline: consent gate → validate → build event → dedup → enqueue → trigger dispatch. Nothing else. |
-| `AnalyticsEvent` / `GlobalContext` | Immutable event + auto-attached super-properties (`kotlinx-datetime` timestamp, `Uuid` ids). |
+| `AnalyticsEvent` / `GlobalContext` | Immutable event + auto-attached super-properties (`kotlinx-datetime` timestamp, `Uuid` ids, retry `attemptCount`). |
 | `EventRegistry` | Immutable schema lookup; returns `Valid`/`Unregistered`/`Invalid`. |
 | `Deduplicator` | Bounded, lock-free copy-on-write double-fire guard keyed on a content signature. |
-| `EventStore` / `InMemoryEventStore` | Durable-by-design queue abstraction + a lock-free in-memory default. |
-| `BatchDispatcher` | Coroutine batch/retry engine; size + time triggers, retry, dead-lettering, sequence numbers. |
+| `EventStore` / `InMemoryEventStore` | Internal queue abstraction (sync) + a lock-free in-memory default that does not survive process death. |
+| `PublicEventStoreAdapter` | Bridges a host's suspend `AnalyticsEventStore` into the internal sync `EventStore` — fire-and-forget writes, blocking reads (always from the dispatcher's own background coroutine), and a local counter so `size()` never touches the store. |
+| `BatchDispatcher` | Coroutine batch/retry engine; size + time triggers, retry, durable dead-lettering (attempt count persisted via the store), sequence numbers. |
 | `RetryPolicy` | Exponential-backoff bounds + give-up decision. |
-| `AnalyticsDestination` | Strategy interface — one per vendor SDK. |
-| `SafeDestination` | Decorator — `try/catch`es a destination so it can't throw into the dispatcher. |
-| `PostHog` / `Firebase` / `ConsoleDestination` | Concrete adapters (PostHog primary, Firebase secondary, Console debug-only). |
+| `AnalyticsDestination` | Strategy interface — one per vendor SDK; `track()` returns whether the event was accepted. |
+| `SafeDestination` | Decorator — catches a throw and reports it, turning it into a `false` (failed delivery) rather than letting it reach the dispatcher. |
+| `SinkDestination` | Adapter from the public `AnalyticsSink` to the internal `AnalyticsDestination` shape. |
+| `PostHogDestination` / `ConsoleDestination` | Concrete built-in adapters (PostHog primary — stub; Console debug-only). Firebase is no longer built in — see `:infrastructure:firebase:analytics`. |
 
 ---
 
@@ -570,11 +620,11 @@ fun vm_tracks_on_scan() {
 
 Current state is honest about what's stubbed:
 
-- **Vendor adapters are stubs.** `PostHogDestination` and `FirebaseDestination` sketch the real SDK calls in comments but are no-ops until the SDKs are wired. Delivery, batching, retry, and dedup around them are real.
-- **`InMemoryEventStore` doesn't survive process death.** Swap for a SQLDelight-backed `EventStore` before relying on offline durability — the interface is ready for it.
+- **PostHog is a stub.** `PostHogDestination` sketches the real SDK calls in comments but is a no-op until the SDK is wired — it reports success unconditionally for now, on purpose, so a stubbed destination can't fill the durable queue with events it will never actually send. Delivery, batching, retry, and dedup around it are real. Firebase is real (`:infrastructure:firebase:analytics`).
 - **`RetryPolicy.delayForAttempt` isn't wired into scheduling yet.** Retries currently ride the fixed `flushInterval` rather than per-attempt backoff; the policy is present and used for `shouldGiveUp`.
-- **`setConsent(DENIED)` doesn't purge the queue yet.** It stops new events; a full implementation also clears queued events and disables vendor collection.
+- **`setConsent(DENIED)` doesn't purge the queue yet.** It stops new events; a full implementation also clears queued events and disables vendor collection. (Sign-out is a separate, already-solved case — see §9.)
 - **No per-destination filtering.** Every event goes to every destination; add per-destination allow/deny lists if a vendor should see a subset.
+- **A durable store's row/age caps are the implementation's job, not this module's.** `AnalyticsEventStore` promises FIFO + durability only; if you write a second implementation, remember to cap it yourself (see `SqlDelightAnalyticsEventStore`'s row/age eviction for the shape).
 
 None of these affect the public API — they are internal upgrades behind the existing contract.
 
