@@ -78,6 +78,9 @@ analytics = "3.0.0-alpha01"
 # BOM for the real com.google.firebase:* artifacts the gitlive wrapper depends on
 # with no version of its own (:infrastructure:firebase:analytics, androidMain).
 firebaseBom = "34.17.0"
+# Reads androidApp/google-services.json and registers the app with Firebase at
+# build time (:androidApp only).
+googleServices = "4.5.0"
 
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
@@ -196,6 +199,8 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 # module with DTOs today). Promote to an `odo.serialization` convention plugin when
 # :core:network lands and a second module needs it.
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Applied directly by :androidApp — no other module ships a Firebase config file.
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
 # Odo convention plugins (defined in build-logic, applied by feature/app modules)
 odo-kmpLibrary = { id = "odo.kmp.library" }

@@ -14,6 +14,7 @@ import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
+import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
@@ -143,6 +144,9 @@ class OdoApplication : Application() {
                 // Declared up front: debug builds drop anything unregistered, so an event
                 // missing from here is one that never reaches a dashboard.
                 events = odoAnalyticsEvents,
+                // Constructed directly rather than resolved from Koin — this runs before
+                // initKoin() below, and the sink has no dependency that needs the graph.
+                destinations = listOf(FirebaseAnalyticsSink(onDiagnostic = { Log.w("Analytics", it) })),
                 onDiagnostic = { Log.w("Analytics", it) },
             )
         )
