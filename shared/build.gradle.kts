@@ -71,6 +71,9 @@ kotlin {
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.
             implementation(projects.observability.analytics)
+            // FirebaseAnalyticsSink is constructed directly in MainViewController (iOS
+            // has no separate app module) — same reason :androidApp depends on it.
+            implementation(projects.infrastructure.firebase.analytics)
             // APM tracer (spans/traces) wired via performanceModule.
             implementation(projects.observability.performance)
             // CrashRecorder wired via crashReportingModule — :core:data's telemetry

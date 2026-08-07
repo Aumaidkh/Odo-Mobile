@@ -27,3 +27,8 @@ infrastructure/supabase/README.md
 # Firebase project config — identifies a specific Firebase project, dropped in
 # locally by whoever is testing against it rather than committed.
 androidApp/google-services.json
+
+# Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
+# Regenerated on every build from the Gradle dependency graph; not a hand-authored
+# lockfile worth reviewing in a diff.
+.swiftpm-locks/
