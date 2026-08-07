@@ -9,8 +9,6 @@ import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
-import com.hopcape.odo.core.data.owner.ProfileCityProvider
-import com.hopcape.odo.core.data.owner.SqlDelightProfileLocalDataSource
 import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
 import com.hopcape.odo.core.domain.fairness.model.FairnessConfidence
@@ -336,37 +334,4 @@ class FairnessAndOverchargeTest {
         assertTrue(db.overchargeReportQueries.selectByServiceLog("ghost").executeAsList().isEmpty())
     }
 
-    /* ------------------------- city ------------------------- */
-
-    @Test
-    fun cityIsNullUntilTheOwnerSetsOne() = runTest {
-        val db = newDb()
-        db.profileQueries.insertProfile(
-            id = "owner-1", fullName = "Rahul", onboardingGoal = null, onboardingCompletedAt = null,
-            city = null, email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
-        )
-
-        assertNull(cityProvider(db).currentCity())
-    }
-
-    @Test
-    fun cityIsReadBackOnceSet() = runTest {
-        val db = newDb()
-        db.profileQueries.insertProfile(
-            id = "owner-1", fullName = "Rahul", onboardingGoal = null, onboardingCompletedAt = null,
-            city = "Pune", email = null, avatarPath = null, now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
-        )
-
-        assertEquals("Pune", cityProvider(db).currentCity())
-    }
-
-    @Test
-    fun withNoProfileAtAll_cityIsNullRatherThanAFailure() = runTest {
-        assertNull(cityProvider(newDb()).currentCity())
-    }
-
-    private fun cityProvider(db: OdoDatabase) = ProfileCityProvider(
-        local = SqlDelightProfileLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined),
-        telemetry = telemetry,
-    )
 }
