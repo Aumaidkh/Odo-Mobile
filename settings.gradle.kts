@@ -63,5 +63,6 @@ include(":observability:performance")
 include(":observability:crashreporting")
 
 include(":infrastructure:ai")
+include(":infrastructure:database")
 include(":infrastructure:firebase:analytics")
 include(":infrastructure:supabase")
