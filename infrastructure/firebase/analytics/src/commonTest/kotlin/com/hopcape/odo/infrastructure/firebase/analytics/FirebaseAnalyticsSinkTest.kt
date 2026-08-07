@@ -8,13 +8,14 @@ import kotlin.test.assertTrue
 
 class FirebaseAnalyticsSinkTest {
 
-    private class FakeFirebaseAnalyticsGateway : FirebaseAnalyticsGateway {
+    private class FakeFirebaseAnalyticsGateway(private val deliveryResult: Boolean = true) : FirebaseAnalyticsGateway {
         val loggedEvents = mutableListOf<Pair<String, Map<String, Any>>>()
         var capturedUserId: String? = "unset"
         val userProperties = mutableMapOf<String, String>()
 
-        override fun logEvent(name: String, parameters: Map<String, Any>) {
+        override fun logEvent(name: String, parameters: Map<String, Any>): Boolean {
             loggedEvents += name to parameters
+            return deliveryResult
         }
 
         override fun setUserId(id: String?) {
@@ -40,6 +41,17 @@ class FirebaseAnalyticsSinkTest {
     }
 
     @Test
+    fun track_returnsTheGatewaysDeliveryResult() {
+        val delivered = FirebaseAnalyticsSink(gateway = FakeFirebaseAnalyticsGateway(deliveryResult = true))
+            .track("bill_scanned", emptyMap(), timestampMs = 0L)
+        val failed = FirebaseAnalyticsSink(gateway = FakeFirebaseAnalyticsGateway(deliveryResult = false))
+            .track("bill_scanned", emptyMap(), timestampMs = 0L)
+
+        assertEquals(true, delivered)
+        assertEquals(false, failed)
+    }
+
+    @Test
     fun track_withInvalidEventName_isDropped_gatewayNeverCalled() {
         val gateway = FakeFirebaseAnalyticsGateway()
         val sink = FirebaseAnalyticsSink(gateway = gateway)
@@ -47,6 +59,15 @@ class FirebaseAnalyticsSinkTest {
         sink.track("firebase_reserved", emptyMap(), timestampMs = 0L)
 
         assertTrue(gateway.loggedEvents.isEmpty())
+    }
+
+    @Test
+    fun track_withInvalidEventName_returnsTrue_soItIsNotRetriedForever() {
+        val sink = FirebaseAnalyticsSink(gateway = FakeFirebaseAnalyticsGateway())
+
+        val delivered = sink.track("firebase_reserved", emptyMap(), timestampMs = 0L)
+
+        assertEquals(true, delivered, "retrying an invalid name can never make it valid")
     }
 
     @Test

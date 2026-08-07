@@ -34,6 +34,22 @@ class LocalUserDataWipeTest {
     }
 
     @Test
+    fun queuedAnalyticsEventsAreCleared() = runTest {
+        // A queued-but-undelivered event carries the signed-out owner's user id in its
+        // stored context — surviving sign-out would deliver it under whoever signs in next.
+        val (db, driver) = seeded()
+        driver.exec(
+            "INSERT INTO analytics_events (event_id, name, properties_json, context_json, " +
+                "sequence_number, timestamp_ms, attempt_count) VALUES " +
+                "('evt-1', 'app_opened', '{}', '{}', 1, 0, 0)",
+        )
+
+        wipe(db).wipe()
+
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM analytics_events"))
+    }
+
+    @Test
     fun theDeletesAreHard_soSigningOutCannotDestroyTheBackup() = runTest {
         val (db, driver) = seeded()
 

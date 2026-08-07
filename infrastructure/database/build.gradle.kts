@@ -50,6 +50,8 @@ kotlin {
             implementation(projects.observability.logging)
             implementation(projects.observability.performance)
             implementation(projects.observability.crashreporting)
+            // The AnalyticsEventStore port SqlDelightAnalyticsEventStore implements.
+            implementation(projects.observability.analytics)
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)

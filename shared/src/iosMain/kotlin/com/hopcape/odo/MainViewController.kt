@@ -2,6 +2,7 @@ package com.hopcape.odo
 
 import androidx.compose.ui.window.ComposeUIViewController
 import com.hopcape.analytics.api.AnalyticsConfig
+import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.logging.api.HLogger
@@ -16,9 +17,12 @@ import com.hopcape.odo.infrastructure.firebase.analytics.configureFirebaseForIos
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.Platform
 import org.koin.dsl.module
+import org.koin.mp.KoinPlatform
 import platform.Foundation.NSBundle
 import platform.Foundation.NSLocale
+import platform.Foundation.NSNotificationCenter
 import platform.Foundation.preferredLanguages
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIDevice
 
 private var koinStarted = false
@@ -56,6 +60,20 @@ fun MainViewController() = ComposeUIViewController {
             },
         )
         koinStarted = true
+
+        // Catches up on whatever the durable queue is still holding from the last
+        // session — the periodic timer would get to it within flushInterval anyway, but
+        // there is no reason to wait once the graph (and the AnalyticsEventStore behind
+        // it) is up.
+        HAnalytics.flush()
+        // didBecomeActive, not willEnterForeground: the latter also fires while an app
+        // switcher or control-center overlay is shown, before the app is really usable
+        // again.
+        NSNotificationCenter.defaultCenter.addObserverForName(
+            name = UIApplicationDidBecomeActiveNotification,
+            `object` = null,
+            queue = null,
+        ) { HAnalytics.flush() }
     }
     App()
 }
@@ -83,6 +101,10 @@ private fun configureAnalytics(isDebugBuild: Boolean) {
             // Constructed directly rather than resolved from Koin — this runs before
             // initKoin() below, and the sink has no dependency that needs the graph.
             destinations = destinations,
+            // A provider, not an instance — resolved on first real use, well after
+            // initKoin() below has run. KoinPlatform.getKoin() rather than a captured
+            // Koin reference because none exists yet at this point in the bootstrap.
+            eventStore = { KoinPlatform.getKoin().get<AnalyticsEventStore>() },
             onDiagnostic = onFirebaseDiagnostic,
         )
     )

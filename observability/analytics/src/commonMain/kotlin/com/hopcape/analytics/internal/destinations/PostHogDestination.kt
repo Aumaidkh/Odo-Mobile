@@ -18,8 +18,11 @@ internal class PostHogDestination : AnalyticsDestination {
         // PostHog.identify(traits.userId, userProperties = traits.traits)
     }
 
-    override fun track(event: AnalyticsEvent) {
+    override fun track(event: AnalyticsEvent): Boolean {
         // PostHog.capture(event = event.name, properties = event.properties)
+        // Reports success until the real SDK is wired, so a stubbed destination
+        // cannot fill the durable queue with events it will never actually send.
+        return true
     }
 
     override fun flush() {

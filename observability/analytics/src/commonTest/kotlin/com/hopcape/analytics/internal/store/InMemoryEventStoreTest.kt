@@ -43,4 +43,19 @@ class InMemoryEventStoreTest {
     fun peekBatch_onEmptyStore_isEmpty() {
         assertTrue(InMemoryEventStore().peekBatch(10).isEmpty())
     }
+
+    @Test
+    fun recordAttempt_updatesOnlyTheMatchingEvent() {
+        val store = InMemoryEventStore()
+        val a = testEvent("a")
+        val b = testEvent("b")
+        store.enqueue(a)
+        store.enqueue(b)
+
+        store.recordAttempt(a.eventId, attempt = 2)
+
+        val byId = store.peekBatch(10).associateBy { it.eventId }
+        assertEquals(2, byId.getValue(a.eventId).attemptCount)
+        assertEquals(0, byId.getValue(b.eventId).attemptCount)
+    }
 }

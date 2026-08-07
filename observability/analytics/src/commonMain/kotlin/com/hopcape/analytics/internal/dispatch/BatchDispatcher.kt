@@ -30,8 +30,12 @@ import kotlin.time.Duration.Companion.seconds
 //
 // KMP-native: the periodic flush is a coroutine loop on
 // Dispatchers.Default (not a JVM ScheduledExecutorService), and the
-// critical section is serialized by a coroutine Mutex, so the retry
-// bookkeeping needs no concurrent collection.
+// critical section is serialized by a coroutine Mutex.
+//
+// Attempt counts live on the event itself (AnalyticsEvent.attemptCount),
+// persisted via EventStore.recordAttempt — not a side map here — so a
+// durable store makes dead-lettering survive a process restart instead
+// of resetting every launch.
 // ─────────────────────────────────────────────────────────────
 internal class BatchDispatcher(
     private val store: EventStore,
@@ -43,10 +47,6 @@ internal class BatchDispatcher(
     private val onDropped: (AnalyticsEvent, Throwable) -> Unit = { _, _ -> },
 ) {
     private val sequenceCounter = AtomicLong(0)
-
-    // Retry counts per event id. Only ever touched inside [dispatchMutex],
-    // so a plain map is safe — no concurrent collection required.
-    private val attemptCounts = mutableMapOf<String, Int>()
     private val dispatchMutex = Mutex()
     private var timerJob: Job? = null
 
@@ -81,28 +81,26 @@ internal class BatchDispatcher(
 
         val settledIds = mutableListOf<String>()
         for (event in batch) {
-            val allDelivered = destinations.all { destination ->
-                runCatching { destination.track(event) }.isSuccess
+            // No runCatching here: every destination this dispatcher is given is already
+            // SafeDestination-wrapped by AnalyticsFactory, so a throw never reaches this
+            // loop — track()'s Boolean result is the one, honest signal of delivery.
+            val allDelivered = destinations.all { destination -> destination.track(event) }
+
+            if (allDelivered) {
+                settledIds += event.eventId
+                continue
             }
 
-            when {
-                allDelivered -> {
-                    settledIds += event.eventId
-                    attemptCounts.remove(event.eventId)
-                }
-
-                else -> {
-                    val nextAttempt = (attemptCounts[event.eventId] ?: 0) + 1
-                    if (retryPolicy.shouldGiveUp(nextAttempt)) {
-                        // Dead-letter: surface it and remove so it can't wedge the queue.
-                        onDropped(event, IllegalStateException("Max retry attempts ($nextAttempt) exceeded"))
-                        settledIds += event.eventId
-                        attemptCounts.remove(event.eventId)
-                    } else {
-                        // Left in the store; retried on the next dispatch cycle.
-                        attemptCounts[event.eventId] = nextAttempt
-                    }
-                }
+            val nextAttempt = event.attemptCount + 1
+            if (retryPolicy.shouldGiveUp(nextAttempt)) {
+                // Dead-letter: surface it and remove so it can't wedge the queue.
+                onDropped(event, IllegalStateException("Max retry attempts ($nextAttempt) exceeded"))
+                settledIds += event.eventId
+            } else {
+                // Left in the store; retried on the next dispatch cycle. Persisted rather
+                // than kept only in memory, so a killed process doesn't reset the count
+                // and let a permanently-failing event retry forever.
+                store.recordAttempt(event.eventId, nextAttempt)
             }
         }
 

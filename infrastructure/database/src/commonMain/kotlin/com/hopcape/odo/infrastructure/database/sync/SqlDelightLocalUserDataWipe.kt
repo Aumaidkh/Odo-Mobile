@@ -23,6 +23,11 @@ import com.hopcape.odo.core.platform.file.PlatformFileStore
  *
  * Stored files go with the rows that named them. A blob whose row is gone is unreachable
  * bytes, and these are bill photos and insurance papers.
+ *
+ * **`analytics_events` is cleared too.** A queued-but-undelivered event carries the
+ * signed-out owner's user id and traits in its stored context — draining it after sign-out
+ * would deliver a previous owner's activity under whichever session happens to be running
+ * when the destination finally accepts it.
  */
 internal class SqlDelightLocalUserDataWipe(
     private val database: OdoDatabase,
@@ -49,6 +54,7 @@ internal class SqlDelightLocalUserDataWipe(
                     database.profileQueries.deleteAllRows()
                     // Without this the next sign-in's pull starts from a stale mark.
                     database.syncStateQueries.deleteAll()
+                    database.analyticsEventQueries.deleteAll()
                 }
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.SYNC, OP_WIPE, e)
