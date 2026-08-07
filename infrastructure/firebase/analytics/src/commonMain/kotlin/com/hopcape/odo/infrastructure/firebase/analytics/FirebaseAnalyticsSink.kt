@@ -19,14 +19,15 @@ import com.hopcape.analytics.api.UserTraits
 // the gateway/sanitizer seam stays internal for the module's own tests.
 // ─────────────────────────────────────────────────────────────
 class FirebaseAnalyticsSink internal constructor(
-    private val gateway: FirebaseAnalyticsGateway = RealFirebaseAnalyticsGateway(),
     private val onDiagnostic: (String) -> Unit = {},
+    private val gateway: FirebaseAnalyticsGateway = RealFirebaseAnalyticsGateway(onDiagnostic),
     private val sanitizer: FirebaseEventSanitizer = FirebaseEventSanitizer(onDiagnostic),
 ) : AnalyticsSink {
 
     constructor(onDiagnostic: (String) -> Unit = {}) : this(
-        gateway = RealFirebaseAnalyticsGateway(),
         onDiagnostic = onDiagnostic,
+        gateway = RealFirebaseAnalyticsGateway(onDiagnostic),
+        sanitizer = FirebaseEventSanitizer(onDiagnostic),
     )
 
     override val name: String = "firebase"
