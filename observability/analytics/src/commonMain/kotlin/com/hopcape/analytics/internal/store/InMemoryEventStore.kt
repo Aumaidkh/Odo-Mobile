@@ -33,6 +33,10 @@ internal class InMemoryEventStore : EventStore {
 
     override fun size(): Int = queue.load().size
 
+    override fun recordAttempt(eventId: String, attempt: Int) {
+        mutate { current -> current.map { if (it.eventId == eventId) it.copy(attemptCount = attempt) else it } }
+    }
+
     /** Atomically swaps the backing list; the CAS loop makes concurrent enqueue/remove safe. */
     private inline fun mutate(transform: (List<AnalyticsEvent>) -> List<AnalyticsEvent>) {
         while (true) {

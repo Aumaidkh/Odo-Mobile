@@ -18,8 +18,11 @@ class SinkDestinationTest {
             identified += traits
         }
 
-        override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long) {
+        var deliveryResult = true
+
+        override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean {
             tracked += Triple(eventName, properties, timestampMs)
+            return deliveryResult
         }
 
         override fun flush() {
@@ -45,6 +48,14 @@ class SinkDestinationTest {
     }
 
     @Test
+    fun track_forwardsTheSinksDeliveryResult() {
+        val sink = RecordingSink().apply { deliveryResult = false }
+        val destination = SinkDestination(sink)
+
+        assertEquals(false, destination.track(testEvent("e")))
+    }
+
+    @Test
     fun identify_andFlush_areForwarded() {
         val sink = RecordingSink()
         val destination = SinkDestination(sink)
@@ -61,7 +72,7 @@ class SinkDestinationTest {
         val destination = SinkDestination(object : AnalyticsSink {
             override val name = "boom"
             override fun identify(traits: UserTraits) = throw IllegalStateException("boom")
-            override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long) =
+            override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean =
                 throw IllegalStateException("boom")
 
             override fun flush() = throw IllegalStateException("boom")

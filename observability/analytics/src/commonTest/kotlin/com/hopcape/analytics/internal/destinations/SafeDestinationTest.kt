@@ -11,13 +11,14 @@ class SafeDestinationTest {
     @Test
     fun track_swallowsExceptions_andReportsThem() {
         val captured = mutableListOf<Pair<String, Throwable>>()
-        val safe = SafeDestination(RecordingDestination(name = "boom", failTimes = 1)) { name, error ->
+        val safe = SafeDestination(RecordingDestination(name = "boom", throwTimes = 1)) { name, error ->
             captured += name to error
         }
 
-        // Must not throw:
-        safe.track(testEvent("e"))
+        // Must not throw, and a throw counts as a failed delivery:
+        val delivered = safe.track(testEvent("e"))
 
+        assertEquals(false, delivered)
         assertEquals(1, captured.size)
         assertEquals("boom", captured.single().first)
     }
@@ -28,9 +29,10 @@ class SafeDestinationTest {
         val captured = mutableListOf<Throwable>()
         val safe = SafeDestination(downstream) { _, e -> captured += e }
 
-        safe.track(testEvent("e"))
+        val delivered = safe.track(testEvent("e"))
         safe.flush()
 
+        assertEquals(true, delivered)
         assertEquals(1, downstream.tracked.size)
         assertEquals(1, downstream.flushCount)
         assertTrue(captured.isEmpty())

@@ -10,8 +10,13 @@ import com.hopcape.analytics.internal.destinations.SafeDestination
 import com.hopcape.analytics.internal.destinations.SinkDestination
 import com.hopcape.analytics.internal.dispatch.BatchDispatcher
 import com.hopcape.analytics.internal.model.GlobalContext
+import com.hopcape.analytics.internal.store.EventStore
 import com.hopcape.analytics.internal.store.InMemoryEventStore
+import com.hopcape.analytics.internal.store.PublicEventStoreAdapter
 import com.hopcape.analytics.internal.validation.EventRegistry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 // ─────────────────────────────────────────────────────────────
 // AnalyticsFactory — Factory + composition root for the pipeline,
@@ -48,12 +53,19 @@ internal object AnalyticsFactory {
             }
         }
 
-        val store = InMemoryEventStore()
+        // Shared so a durable store's fire-and-forget writes and the dispatcher's own
+        // background work (timer loop, batch/flush dispatch) live on the one scope,
+        // torn down together if this pipeline is ever shut down.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val store: EventStore = config.eventStore?.let { provider ->
+            PublicEventStoreAdapter(provider = provider, scope = scope, onDiagnostic = config.onDiagnostic)
+        } ?: InMemoryEventStore()
         val dispatcher = BatchDispatcher(
             store = store,
             destinations = destinations,
             batchSize = config.batchSize,
             flushInterval = config.flushInterval,
+            scope = scope,
             onDropped = { event, error ->
                 config.onDiagnostic("dropped '${event.name}' after retries: ${error.message}")
             },

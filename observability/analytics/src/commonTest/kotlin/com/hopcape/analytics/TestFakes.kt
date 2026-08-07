@@ -48,14 +48,23 @@ internal class RecordingStore : EventStore {
     }
 
     override fun size(): Int = events.size
+
+    override fun recordAttempt(eventId: String, attempt: Int) {
+        val index = events.indexOfFirst { it.eventId == eventId }
+        if (index >= 0) events[index] = events[index].copy(attemptCount = attempt)
+    }
 }
 
 /**
- * An [AnalyticsDestination] that records everything it receives. [failTimes] makes
- * the first N `track` calls throw, so retry/dead-letter paths can be exercised.
+ * An [AnalyticsDestination] that records everything it receives. [throwTimes] makes the
+ * first N `track` calls throw (an unexpected crash, e.g. for [SafeDestination] tests);
+ * [failTimes] makes the first N calls honestly return `false` (an expected delivery
+ * failure, e.g. for [BatchDispatcher] retry/dead-letter tests) — these are deliberately
+ * different failure modes now that `track` reports its own outcome.
  */
 internal class RecordingDestination(
     override val name: String = "recording",
+    private var throwTimes: Int = 0,
     private var failTimes: Int = 0,
 ) : AnalyticsDestination {
 
@@ -68,12 +77,17 @@ internal class RecordingDestination(
         identified += traits
     }
 
-    override fun track(event: AnalyticsEvent) {
-        if (failTimes > 0) {
-            failTimes--
+    override fun track(event: AnalyticsEvent): Boolean {
+        if (throwTimes > 0) {
+            throwTimes--
             throw RuntimeException("destination boom")
         }
+        if (failTimes > 0) {
+            failTimes--
+            return false
+        }
         tracked += event
+        return true
     }
 
     override fun flush() {

@@ -17,8 +17,9 @@ class RealFirebaseAnalyticsGatewayTest {
     )
 
     @Test
-    fun logEvent_withUnconfiguredFirebase_doesNotThrow() {
-        gateway(mutableListOf()).logEvent("bill_scanned", mapOf("odometer" to 1L))
+    fun logEvent_withUnconfiguredFirebase_doesNotThrow_reportsUndelivered() {
+        val delivered = gateway(mutableListOf()).logEvent("bill_scanned", mapOf("odometer" to 1L))
+        assertEquals(false, delivered)
     }
 
     @Test

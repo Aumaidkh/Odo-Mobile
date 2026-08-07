@@ -37,6 +37,8 @@ dependencies {
     // FirebaseAnalyticsSink is constructed directly here (see AnalyticsSink KDoc):
     // HAnalytics.init runs before the Koin graph starts.
     implementation(projects.infrastructure.firebase.analytics)
+    // ProcessLifecycleOwner — flushes the analytics queue on every foreground.
+    implementation(libs.androidx.lifecycle.process)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
     // Crash reporting — CrashReporter.init needs the app's own crash directory.

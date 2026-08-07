@@ -12,7 +12,8 @@ import dev.gitlive.firebase.analytics.analytics
 // in a test — this is the fake-able boundary instead.
 // ─────────────────────────────────────────────────────────────
 internal interface FirebaseAnalyticsGateway {
-    fun logEvent(name: String, parameters: Map<String, Any>)
+    /** Returns whether the SDK actually took the call — false if unconfigured or it threw. */
+    fun logEvent(name: String, parameters: Map<String, Any>): Boolean
     fun setUserId(id: String?)
     fun setUserProperty(name: String, value: String)
 }
@@ -39,9 +40,13 @@ internal class RealFirebaseAnalyticsGateway(
             .getOrNull()
     }
 
-    override fun logEvent(name: String, parameters: Map<String, Any>) {
-        runCatching { analytics?.logEvent(name, parameters) }
+    override fun logEvent(name: String, parameters: Map<String, Any>): Boolean {
+        // No diagnostic here on a null instance — the lazy above already reported
+        // "unavailable" once at first access; repeating it per event would spam the channel.
+        val current = analytics ?: return false
+        return runCatching { current.logEvent(name, parameters) }
             .onFailure { onDiagnostic("firebase: logEvent failed — ${it::class.simpleName}") }
+            .isSuccess
     }
 
     override fun setUserId(id: String?) {

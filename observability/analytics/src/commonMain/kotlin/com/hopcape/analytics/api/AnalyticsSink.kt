@@ -15,6 +15,8 @@ package com.hopcape.analytics.api
 interface AnalyticsSink {
     val name: String
     fun identify(traits: UserTraits)
-    fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long)
+
+    /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
+    fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean
     fun flush()
 }

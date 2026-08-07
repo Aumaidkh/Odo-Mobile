@@ -13,4 +13,7 @@ internal interface EventStore {
     fun peekBatch(maxSize: Int): List<AnalyticsEvent>
     fun remove(eventIds: List<String>)
     fun size(): Int
+
+    /** Persists a failed delivery's new attempt count, so it survives past this process. */
+    fun recordAttempt(eventId: String, attempt: Int)
 }

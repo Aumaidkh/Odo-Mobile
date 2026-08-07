@@ -20,8 +20,9 @@ internal class ConsoleDestination(
         sink("[analytics] identify userId=${traits.userId} traits=${traits.traits}")
     }
 
-    override fun track(event: AnalyticsEvent) {
+    override fun track(event: AnalyticsEvent): Boolean {
         sink("[analytics] track ${event.name} seq=${event.sequenceNumber} props=${event.properties}")
+        return true
     }
 
     override fun flush() = Unit

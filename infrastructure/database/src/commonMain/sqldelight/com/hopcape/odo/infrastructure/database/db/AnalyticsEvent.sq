@@ -1,0 +1,77 @@
+-- The durable buffer between AnalyticsTracker.track() and a vendor SDK actually taking an
+-- event, so a killed process does not silently lose whatever was queued in the last
+-- flushInterval window. A row is removed once every configured destination accepts the
+-- event (AnalyticsSink.track() returning true) — this table is not an audit log, and a row
+-- surviving here past that point means delivery is still owed, not that it happened.
+--
+-- **Deliberately not a syncable table.** It mirrors nothing on the server: there is no
+-- `analytics_events` in DB_SCHEMA, and there should not be — Firebase and PostHog are
+-- themselves the systems of record for delivered events, and pushing raw event rows to
+-- Supabase on top would just be a second copy of someone else's data. The mandatory sync
+-- column set (SYNC_DESIGN §4.1) is absent here on purpose, the same as `app_settings`.
+--
+-- `properties_json`/`context_json` hold the event's payload and its "super properties"
+-- snapshot (app version, device, locale, user id at record time) as JSON — see
+-- AnalyticsEventJson.kt. Property values are normalized to String/Long/Double/Boolean/null
+-- at that boundary, the same primitive set every real destination (Firebase, PostHog)
+-- ultimately accepts.
+--
+-- `timestamp_ms` — not `sequence_number` — is what FIFO ordering and age-based eviction key
+-- on. `sequence_number` only orders events within one process's lifetime (it resets to zero
+-- every launch), so it cannot tell an old undelivered row from a new one across a restart;
+-- wall-clock time can.
+CREATE TABLE analytics_events (
+    event_id        TEXT NOT NULL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    properties_json TEXT NOT NULL,
+    context_json    TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    timestamp_ms    INTEGER NOT NULL,
+    attempt_count   INTEGER NOT NULL DEFAULT 0
+);
+
+insertEvent:
+INSERT INTO analytics_events (
+    event_id, name, properties_json, context_json, sequence_number, timestamp_ms, attempt_count
+) VALUES (
+    :eventId, :name, :propertiesJson, :contextJson, :sequenceNumber, :timestampMs, :attemptCount
+);
+
+selectBatch:
+SELECT *
+FROM analytics_events
+ORDER BY timestamp_ms ASC
+LIMIT :maxSize;
+
+deleteByIds:
+DELETE FROM analytics_events
+WHERE event_id IN :eventIds;
+
+selectCount:
+SELECT COUNT(*)
+FROM analytics_events;
+
+updateAttempt:
+UPDATE analytics_events
+SET attempt_count = :attempt
+WHERE event_id = :eventId;
+
+-- Row cap: a destination that never recovers must not grow this table forever. Keeps the
+-- newest :keep rows, oldest first to go — an event this old has likely already missed its
+-- window to matter to a dashboard anyway.
+evictBeyondRowCap:
+DELETE FROM analytics_events
+WHERE event_id NOT IN (
+    SELECT event_id FROM analytics_events ORDER BY timestamp_ms DESC LIMIT :keep
+);
+
+-- Age cap: an event nobody could deliver in this many days is not worth holding onto.
+evictOlderThan:
+DELETE FROM analytics_events
+WHERE timestamp_ms < :cutoffMs;
+
+-- Sign-out: queued events carry the signed-out owner's user id and traits in
+-- context_json, so leaving them would deliver a previous owner's activity under a new
+-- session. Used by SqlDelightLocalUserDataWipe.
+deleteAll:
+DELETE FROM analytics_events;

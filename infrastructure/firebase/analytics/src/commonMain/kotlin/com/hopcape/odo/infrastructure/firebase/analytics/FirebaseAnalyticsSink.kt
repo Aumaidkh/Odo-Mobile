@@ -48,10 +48,15 @@ class FirebaseAnalyticsSink internal constructor(
      * [timestampMs] is not forwarded. Firebase Analytics has no client-side way to
      * backdate an event, so a retried or delayed delivery is stamped at the moment
      * it actually reaches the SDK, not when it originally happened.
+     *
+     * An event the sanitizer rejects (invalid name) returns `true` — handled, not
+     * retried — because no amount of retrying makes an invalid name valid. Only a
+     * genuine delivery failure (unconfigured Firebase, the SDK throwing) returns
+     * `false` and asks the dispatcher to try again.
      */
-    override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long) {
-        val sanitized = sanitizer.sanitizeEvent(eventName, properties) ?: return
-        gateway.logEvent(sanitized.name, sanitized.parameters)
+    override fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean {
+        val sanitized = sanitizer.sanitizeEvent(eventName, properties) ?: return true
+        return gateway.logEvent(sanitized.name, sanitized.parameters)
     }
 
     override fun flush() {

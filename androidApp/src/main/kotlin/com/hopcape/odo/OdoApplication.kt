@@ -3,7 +3,11 @@ package com.hopcape.odo
 import android.app.Application
 import android.os.Build
 import android.util.Log
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.hopcape.analytics.api.AnalyticsConfig
+import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.crashreporting.api.CrashConfig
@@ -24,6 +28,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.logger.Level
 import org.koin.dsl.module
+import org.koin.mp.KoinPlatform
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -88,6 +93,19 @@ class OdoApplication : Application() {
         }
 
         HLogger.tag("APP_LIFECYCLE").i("process_created", mapOf("appSessionId" to appSessionId))
+
+        // Catches up on whatever the durable queue is still holding from the last session
+        // — the periodic timer would get to it within flushInterval anyway, but there is
+        // no reason to wait once the graph (and the AnalyticsEventStore behind it) is up.
+        HAnalytics.flush()
+        // ProcessLifecycleOwner, not an Activity callback: a rotation or a second Activity
+        // in the same task must not look like a foreground event, and this only fires on a
+        // genuine background -> foreground transition of the whole process.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) = HAnalytics.flush()
+            },
+        )
     }
 
     private fun configureLogging(isDebugBuild: Boolean) {
@@ -147,6 +165,12 @@ class OdoApplication : Application() {
                 // Constructed directly rather than resolved from Koin — this runs before
                 // initKoin() below, and the sink has no dependency that needs the graph.
                 destinations = listOf(FirebaseAnalyticsSink(onDiagnostic = { Log.w("Analytics", it) })),
+                // A provider, not an instance — resolved on first real use, well after
+                // initKoin() below has run. KoinPlatform.getKoin() rather than a captured
+                // Koin reference because none exists yet at this point in onCreate();
+                // initKoin() registers the graph this reads from, the same default
+                // instance OdoSyncWorker's KoinComponent resolves against elsewhere.
+                eventStore = { KoinPlatform.getKoin().get<AnalyticsEventStore>() },
                 onDiagnostic = { Log.w("Analytics", it) },
             )
         )
