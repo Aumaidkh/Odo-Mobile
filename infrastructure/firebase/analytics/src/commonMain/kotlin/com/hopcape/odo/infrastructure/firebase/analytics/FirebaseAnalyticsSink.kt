@@ -10,12 +10,24 @@ import com.hopcape.analytics.api.UserTraits
 // constraints first, so a malformed event is dropped and reported
 // through onDiagnostic rather than silently rejected deep inside the
 // vendor SDK.
+//
+// Public, unlike the rest of this module: HAnalytics.init(...) runs in
+// OdoApplication.onCreate before the Koin graph starts, so :androidApp
+// constructs this directly rather than resolving it through DI — the
+// same reason :infrastructure:database's DriverFactory is public. Only
+// the public constructor's onDiagnostic param is part of that surface;
+// the gateway/sanitizer seam stays internal for the module's own tests.
 // ─────────────────────────────────────────────────────────────
-internal class FirebaseAnalyticsSink(
+class FirebaseAnalyticsSink internal constructor(
     private val gateway: FirebaseAnalyticsGateway = RealFirebaseAnalyticsGateway(),
     private val onDiagnostic: (String) -> Unit = {},
     private val sanitizer: FirebaseEventSanitizer = FirebaseEventSanitizer(onDiagnostic),
 ) : AnalyticsSink {
+
+    constructor(onDiagnostic: (String) -> Unit = {}) : this(
+        gateway = RealFirebaseAnalyticsGateway(),
+        onDiagnostic = onDiagnostic,
+    )
 
     override val name: String = "firebase"
 
