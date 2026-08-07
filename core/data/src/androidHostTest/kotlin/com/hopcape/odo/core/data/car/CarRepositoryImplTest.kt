@@ -10,7 +10,9 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.db.OdoDatabase
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.sync.SyncRunner
 import com.hopcape.odo.core.data.sync.SyncStatus
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
@@ -103,13 +105,20 @@ class CarRepositoryImplTest {
 
     private fun repo(db: OdoDatabase, scheduler: SyncScheduler = RecordingScheduler()) =
         CarRepositoryImpl(
-            remote = FakeCarRemoteDataSource(),
-            syncTelemetry = silentSyncTelemetry(),
-            ownerId = { null },
-            database = db,
+            local = SqlDelightCarLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined),
             telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = NoopCrash),
             scheduler = scheduler,
-            dispatcher = Dispatchers.Unconfined,
+            runner = SyncRunner(
+                entity = SyncEntity.CARS,
+                table = CarSyncTable(
+                    database = db,
+                    remote = FakeCarRemoteDataSource(),
+                    telemetry = silentSyncTelemetry(),
+                    ownerId = { null },
+                ),
+                database = db,
+                telemetry = silentSyncTelemetry(),
+            ),
         )
 
     /** A service log for [carId], written straight to the table — the domain path is not what is under test. */

@@ -1,8 +1,11 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
+import com.hopcape.odo.core.data.car.CarSyncTable
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
+import com.hopcape.odo.core.data.car.SqlDelightCarLocalDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogImpl
@@ -46,6 +49,8 @@ import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
+import com.hopcape.odo.core.data.sync.SyncRunner
+import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.sync.SessionSyncGate
@@ -108,14 +113,26 @@ val coreDataModule = module {
     // Each repository is bound twice: once as the port features use, once as the Syncable
     // the engine collects. `bind`, not a second `single<Syncable>` — six definitions of the
     // same type would override one another and getAll() would return one entity.
+    single<CarLocalDataSource> { SqlDelightCarLocalDataSource(database = get()) }
     single {
         CarRepositoryImpl(
-            database = get(),
+            local = get(),
             telemetry = get(),
             scheduler = get(),
-            remote = get(),
-            syncTelemetry = get(),
-            ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+            // Built here, not inside the repository: the runner and its table are the only
+            // part of the car stack that still needs the raw database, and wiring them at
+            // the edge keeps the repository on the CarLocalDataSource port alone.
+            runner = SyncRunner(
+                entity = SyncEntity.CARS,
+                table = CarSyncTable(
+                    database = get(),
+                    remote = get(),
+                    telemetry = get(),
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
         )
     } bind Syncable::class
     single<CarRepository> { get<CarRepositoryImpl>() }
