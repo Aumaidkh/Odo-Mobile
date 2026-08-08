@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.hopcape.odo.core.triptracker.R
 
 /**
@@ -34,7 +36,9 @@ internal object TripTrackingNotification {
             .setContentTitle(context.getString(R.string.trip_tracking_notification_title))
             .setContentText(context.getString(R.string.trip_tracking_notification_text, formatDistance(context, distanceMeters), carName))
             .setSubText(context.getString(R.string.trip_tracking_notification_subtext, carName))
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_notification_trip)
+            .setLargeIcon(largeIcon(context))
+            .setColor(ContextCompat.getColor(context, R.color.trip_tracking_accent))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(pauseOrResumeAction(context, isPaused))
@@ -46,11 +50,16 @@ internal object TripTrackingNotification {
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.trip_tracking_channel_name))
             .setContentText(context.getString(R.string.trip_tracking_fallback_notification_text))
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_notification_trip)
+            .setColor(ContextCompat.getColor(context, R.color.trip_tracking_accent))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openAppIntent(context))
             .build()
+
+    /** The status-avatar bitmap [buildLive]'s large icon needs — vector, rasterized once per build. */
+    private fun largeIcon(context: Context) =
+        ContextCompat.getDrawable(context, R.drawable.ic_notification_trip_large)?.toBitmap()
 
     private fun pauseOrResumeAction(context: Context, isPaused: Boolean): NotificationCompat.Action {
         val action = if (isPaused) TripTrackingActions.ACTION_RESUME else TripTrackingActions.ACTION_PAUSE
