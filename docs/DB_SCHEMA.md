@@ -220,6 +220,8 @@ CREATE TYPE passport_status  AS ENUM ('generating', 'ready', 'expired', 'revoked
 CREATE TYPE fuel_payment_method AS ENUM ('upi', 'cash', 'card', 'unknown');
 CREATE TYPE affiliate_event_type AS ENUM ('impression', 'click', 'lead', 'conversion');
 CREATE TYPE message_role     AS ENUM ('user', 'assistant', 'system');
+CREATE TYPE trip_mode        AS ENUM ('bt_verified', 'gps_only');
+CREATE TYPE trip_status      AS ENUM ('recorded', 'needs_confirmation', 'confirmed', 'rejected');
 ```
 
 ---
@@ -706,6 +708,50 @@ CREATE INDEX idx_fuel_fills_car
 `owner_id` is stamped by the same `BEFORE INSERT` trigger every other user-owned table uses,
 and RLS checks the flat `owner_id = (SELECT auth.uid())`.
 
+### 9.13b `trips`
+
+Auto-detected drives (`docs/TRIPTRACKER_PLAN.md`) — the auto-odometer engine's output. One
+row per finished trip; `status` starts `RECORDED` or `NEEDS_CONFIRMATION` and can only ever
+move to `CONFIRMED` or `REJECTED` after that (the owner's one edit).
+
+`distance_m`/`estimated_m` are metres, not the odometer's whole-kilometre `current_odometer_km`
+— matches the local SQLDelight column exactly (`Trip.sq`), since a value moved between the two
+scales here would drift from what the client already computed. `start_lat`/`start_lon`/
+`end_lat`/`end_lon` are **deliberately absent** (TRIPTRACKER_PLAN D4): a trip's coordinates are
+device-local forever and must never reach this table, so there is nothing here for a future
+sync payload to leak.
+
+> **Client-side today, same posture as `fuel_fills`.** The local table ships the full sync
+> column set already, but no `TripSyncable`/`SyncEntity.TRIPS` exists yet (TRIPTRACKER_PLAN
+> D3) — this table is the prerequisite that unblocks writing one. Until then, rows sit
+> `PENDING` on the device and nothing pushes.
+
+```sql
+CREATE TABLE trips (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    car_id        uuid NOT NULL REFERENCES cars (id) ON DELETE CASCADE,
+    owner_id      uuid NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
+    started_at    timestamptz NOT NULL,
+    ended_at      timestamptz NOT NULL,
+    distance_m    integer NOT NULL CHECK (distance_m >= 0),
+    estimated_m   integer NOT NULL CHECK (estimated_m >= 0),
+    mode          trip_mode NOT NULL,
+    status        trip_status NOT NULL,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    deleted_at    timestamptz,
+    CONSTRAINT chk_trips_ended_after_started CHECK (ended_at >= started_at)
+);
+
+CREATE INDEX idx_trips_owner ON trips (owner_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_trips_car_started
+    ON trips (car_id, started_at DESC) WHERE deleted_at IS NULL;
+```
+
+`owner_id` is stamped by the same `stamp_owner_from_car()` trigger every other user-owned
+table uses (§10.2), and RLS checks the flat `owner_id = (SELECT auth.uid())` (§12) — identical
+posture to `fuel_fills`.
+
 ### 9.14 `subscriptions`
 
 ```sql
@@ -871,7 +917,7 @@ $$;
 CREATE TRIGGER trg_cars_updated
     BEFORE UPDATE ON cars
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
--- (repeat for service_logs, bills, documents, reminders, subscriptions, ...)
+-- (repeat for service_logs, bills, documents, reminders, subscriptions, trips, ...)
 ```
 
 ### 10.2 Stamp `owner_id` from parent car (anti-spoof)
@@ -891,7 +937,8 @@ $$;
 CREATE TRIGGER trg_service_logs_owner
     BEFORE INSERT ON service_logs
     FOR EACH ROW EXECUTE FUNCTION stamp_owner_from_car();
--- (repeat for bills, documents, reminders, health_scores, per_km_snapshots, ai_doctor_threads)
+-- (repeat for bills, documents, reminders, health_scores, per_km_snapshots, ai_doctor_threads,
+--  fuel_fills, trips)
 ```
 
 ### 10.3 Auto-create `profiles` on signup
@@ -1021,7 +1068,7 @@ CREATE POLICY owner_all ON service_logs
     WITH CHECK (owner_id = (SELECT auth.uid()));
 -- (same template for bills, bill_line_items, documents, reminders,
 --  health_scores, per_km_snapshots, device_tokens, ai_doctor_*, affiliate_events,
---  fleets, fleet_members, resale_passports)
+--  fleets, fleet_members, resale_passports, fuel_fills, trips)
 
 -- profiles: self only
 CREATE POLICY self_profile ON profiles
@@ -1135,6 +1182,7 @@ GRANT EXECUTE ON FUNCTION get_fairness_estimate(uuid, uuid, fuel_type) TO authen
 | Fuel price latest | `idx_fuel_prices_lookup` (… effective_date DESC) |
 | Passport public read | `idx_passports_token` (unique) |
 | Make/model & workshop fuzzy search | `pg_trgm` GIN indexes |
+| Trip history newest-first | `idx_trips_car_started` (partial, non-deleted) |
 
 > Partial indexes (`WHERE deleted_at IS NULL`, `WHERE status='scheduled'`) keep the index small and the planner honest — most queries only ever touch live rows.
 
