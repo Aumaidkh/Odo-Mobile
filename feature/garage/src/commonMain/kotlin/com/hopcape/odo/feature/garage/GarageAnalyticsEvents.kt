@@ -91,4 +91,6 @@ val garageAnalyticsEvents: List<EventSchema> = listOf(
         GarageTelemetry.Event.EXPORT_REQUESTED,
         mapOf(GarageTelemetry.Key.TARGET to PropertyType.STRING),
     ),
+    EventSchema(GarageTelemetry.Event.AUTO_ODO_CARD_SHOWN),
+    EventSchema(GarageTelemetry.Event.AUTO_ODO_CARD_TAPPED),
 )

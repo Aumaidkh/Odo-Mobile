@@ -20,6 +20,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -143,10 +144,12 @@ class ObserveGarageUseCaseTest {
         cars: CarRepository,
         documents: DocumentRepository,
         logs: ServiceLogRepository,
+        currentOdometer: FakeCurrentOdometerProvider,
     ) = ObserveGarageUseCase(
         cars = cars,
         documents = documents,
         logs = logs,
+        currentOdometer = currentOdometer,
         // Midday UTC on the day under test, read in UTC so the date cannot drift.
         clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
         timeZone = TimeZone.UTC,
@@ -161,6 +164,10 @@ class ObserveGarageUseCaseTest {
         cars = FakeCarRepository(car),
         documents = FakeDocumentRepository(documents),
         logs = FakeServiceLogRepository(entries, readings),
+        // No trips in play here — trip-aware aggregation is
+        // `CurrentOdometerProviderImplTest`'s job. This mirrors the pre-trip-aware
+        // behaviour: the latest manual reading, nothing summed on top.
+        currentOdometer = FakeCurrentOdometerProvider(readings.currentReading()?.odometer),
     ).invoke(carId).first()
 
     @Test
@@ -194,6 +201,20 @@ class ObserveGarageUseCaseTest {
     @Test
     fun withNoReadings_theCardFallsBackToTheCarsOwn() = runTest {
         assertEquals(48_500, snapshotOf().currentOdometer?.km)
+    }
+
+    @Test
+    fun theCardsReading_includesACountedAutoTripOnTopOfTheAnchor() = runTest {
+        // The provider already folds a trip on top of the last manual reading — the card
+        // must show that aggregate, not re-derive it from the raw readings.
+        val snapshot = useCase(
+            cars = FakeCarRepository(car()),
+            documents = FakeDocumentRepository(emptyList()),
+            logs = FakeServiceLogRepository(emptyList()),
+            currentOdometer = FakeCurrentOdometerProvider(km(52_505)),
+        ).invoke(carId).first()
+
+        assertEquals(52_505, snapshot.currentOdometer?.km)
     }
 
     @Test

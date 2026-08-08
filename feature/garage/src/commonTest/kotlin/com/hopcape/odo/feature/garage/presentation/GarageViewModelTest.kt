@@ -7,7 +7,12 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
+import com.hopcape.odo.feature.garage.domain.usecase.FakeTripRepository
+import com.hopcape.odo.feature.garage.domain.usecase.FakeTripTracker
+import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleBondStore
+import com.hopcape.odo.feature.garage.domain.usecase.currentOdometerFrom
 import com.hopcape.odo.feature.garage.domain.usecase.FixedClock
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveAutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.garage.domain.usecase.testCar
@@ -47,12 +52,24 @@ class GarageViewModelTest {
     private fun viewModel(
         carId: CarId? = TEST_CAR,
         cars: CarRepository = FakeCarRepository(testCar()),
+        logs: FakeServiceLogRepository = FakeServiceLogRepository(),
     ) = GarageViewModel(
         activeCar = FakeActiveCar(carId),
         observeGarage = ObserveGarageUseCase(
             cars = cars,
             documents = FakeDocumentRepository(),
-            logs = FakeServiceLogRepository(),
+            logs = logs,
+            currentOdometer = currentOdometerFrom(logs),
+            clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            timeZone = TimeZone.UTC,
+        ),
+        // Hidden by default (no readings, no bond) — the auto-odometer slot isn't what
+        // these tests are about.
+        observeAutoOdometerCard = ObserveAutoOdometerCardState(
+            serviceLogs = FakeServiceLogRepository(readings = emptyList()),
+            bonds = FakeVehicleBondStore(),
+            tracker = FakeTripTracker(enabled = false),
+            trips = FakeTripRepository(),
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
             timeZone = TimeZone.UTC,
         ),

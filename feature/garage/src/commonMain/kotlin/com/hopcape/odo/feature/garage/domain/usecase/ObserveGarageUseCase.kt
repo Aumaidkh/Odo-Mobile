@@ -5,9 +5,8 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
-import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
-import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
@@ -40,6 +39,7 @@ internal class ObserveGarageUseCase(
     private val cars: CarRepository,
     private val documents: DocumentRepository,
     private val logs: ServiceLogRepository,
+    private val currentOdometer: CurrentOdometerProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -47,21 +47,22 @@ internal class ObserveGarageUseCase(
         cars.observe(carId),
         documents.observe(carId),
         logs.observe(carId),
-        logs.observeOdometerReadings(carId),
-    ) { car, documents, entries, readings -> snapshotOf(car, documents, entries, readings) }
+        currentOdometer.observeCurrent(carId),
+    ) { car, documents, entries, odometer -> snapshotOf(car, documents, entries, odometer) }
 
     private fun snapshotOf(
         car: Car?,
         documents: List<Document>,
         entries: List<ServiceLogEntry>,
-        readings: List<OdometerReading>,
+        odometer: Distance?,
     ): GarageSnapshot {
         val today = clock.now().toLocalDateTime(timeZone).date
         return GarageSnapshot(
             car = car,
-            // The card shows the latest reading on the whole timeline: a service logged
-            // after onboarding moves it, even though the car's own stored reading stays put.
-            currentOdometer = readings.currentReading()?.odometer ?: car?.odometer,
+            // The card shows the latest reading on the whole timeline, trip-aware: a
+            // service logged after onboarding moves it, and so does a counted auto-trip on
+            // top of it — even though the car's own stored reading stays put.
+            currentOdometer = odometer ?: car?.odometer,
             documents = GarageDocument.rowsFor(documents, today),
             history = entries.map { it.toHistoryEntry() },
             today = today,

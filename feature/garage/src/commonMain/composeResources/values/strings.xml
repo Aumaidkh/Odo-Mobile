@@ -18,6 +18,18 @@
     <string name="gr_update">Update</string>
     <string name="gr_cd_more">Car options</string>
 
+    <!-- Auto-odometer card / status tile (F9, docs/AUTO_ODOMETER_PLAN.md §8) — ga_ prefix
+         keeps this pitch's copy distinct from the rest of the garage's gr_ strings. -->
+    <string name="ga_title">Auto odometer</string>
+    <string name="ga_chip_new">NEW</string>
+    <!-- %1$d = how many times the owner has typed a reading by hand. -->
+    <string name="ga_body">You’ve typed your reading in %1$d times. Let Odo keep it current instead.</string>
+    <string name="ga_hint">Works off your car’s Bluetooth — nothing to plug in.</string>
+    <string name="ga_cta">See how it works</string>
+    <!-- Status tile once set up. Copy owed to design (plan §1); a working string until then.
+         %1$d = kilometres tracked so far this calendar month. -->
+    <string name="ga_status_tile">Auto odometer on · %1$d km this month</string>
+
     <!-- Documents -->
     <string name="gr_documents">DOCUMENTS</string>
     <string name="gr_manage">Manage</string>

@@ -8,6 +8,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.AddCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleCatalog
+import com.hopcape.odo.feature.garage.domain.usecase.currentOdometerFrom
 import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleRegistryLookup
 import com.hopcape.odo.feature.garage.domain.usecase.FixedClock
 import com.hopcape.odo.feature.garage.domain.usecase.FixedIdGenerator
@@ -61,13 +62,17 @@ class CarScreensViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun garage(cars: FakeCarRepository) = ObserveGarageUseCase(
-        cars = cars,
-        documents = FakeDocumentRepository(),
-        logs = FakeServiceLogRepository(),
-        clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
-        timeZone = TimeZone.UTC,
-    )
+    private fun garage(cars: FakeCarRepository): ObserveGarageUseCase {
+        val logs = FakeServiceLogRepository()
+        return ObserveGarageUseCase(
+            cars = cars,
+            documents = FakeDocumentRepository(),
+            logs = logs,
+            currentOdometer = currentOdometerFrom(logs),
+            clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            timeZone = TimeZone.UTC,
+        )
+    }
 
     /* ------------------------------ Add car ------------------------------ */
 

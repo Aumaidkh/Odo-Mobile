@@ -29,6 +29,11 @@ kotlin {
             // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
             // Brings Arrow transitively via domain (Amount.of returns Either).
             implementation(projects.core.domain)
+            // The auto-odometer engine's public ports (TripTracker, VehicleBondStore) — the
+            // garage card/status tile (F9) reads them directly rather than importing
+            // :feature:auto-odometer, per the golden rule that features never import
+            // features. Core module, so this dependency is allowed.
+            implementation(projects.core.triptracker)
             // Observability: structured logging + product analytics, instrumented at the
             // presentation layer (domain stays pure). Interfaces injected; the single
             // config is owned by the app bootstrap.

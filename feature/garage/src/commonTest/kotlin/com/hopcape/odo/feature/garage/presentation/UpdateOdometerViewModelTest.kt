@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.GetOdometerContextUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.OdometerContext
 import com.hopcape.odo.feature.garage.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateOdometerUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.currentOdometerFrom
 import com.hopcape.odo.feature.garage.domain.usecase.testCar
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEvent
@@ -67,7 +68,7 @@ class UpdateOdometerViewModelTest {
         val logs = FakeServiceLogRepository(readings)
         return UpdateOdometerViewModel(
             activeCar = FakeActiveCar(carId),
-            getContext = GetOdometerContextUseCase(logs, clock, TimeZone.UTC),
+            getContext = GetOdometerContextUseCase(logs, currentOdometerFrom(logs), clock, TimeZone.UTC),
             updateOdometer = UpdateOdometerUseCase(cars, logs, clock, TimeZone.UTC),
             telemetry = testTelemetry(analytics),
         ) to analytics

@@ -6,6 +6,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.GetOdometerContextUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveAutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.RemoveCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateCarDetailsUseCase
@@ -37,10 +38,25 @@ val garageModule = module {
     } bind FeatureEntryProvider::class
 
     factory {
-        ObserveGarageUseCase(cars = get(), documents = get(), logs = get(), clock = get())
+        ObserveGarageUseCase(
+            cars = get(),
+            documents = get(),
+            logs = get(),
+            currentOdometer = get(),
+            clock = get(),
+        )
+    }
+    factory {
+        ObserveAutoOdometerCardState(
+            serviceLogs = get(),
+            bonds = get(),
+            tracker = get(),
+            trips = get(),
+            clock = get(),
+        )
     }
     factory { UpdateOdometerUseCase(cars = get(), logs = get(), clock = get()) }
-    factory { GetOdometerContextUseCase(logs = get(), clock = get()) }
+    factory { GetOdometerContextUseCase(logs = get(), currentOdometer = get(), clock = get()) }
     factory { AddCarUseCase(cars = get(), idGenerator = get(), owner = get()) }
     factory { UpdateCarDetailsUseCase(cars = get()) }
     factory { RemoveCarUseCase(cars = get()) }
@@ -52,7 +68,14 @@ val garageModule = module {
     // screen of that visit shares its flow id.
     factory { GarageTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
-    viewModel { GarageViewModel(activeCar = get(), observeGarage = get(), telemetry = get()) }
+    viewModel {
+        GarageViewModel(
+            activeCar = get(),
+            observeGarage = get(),
+            observeAutoOdometerCard = get(),
+            telemetry = get(),
+        )
+    }
     viewModel {
         UpdateOdometerViewModel(
             activeCar = get(),

@@ -117,6 +117,15 @@ internal fun GarageRoute(navigationManager: NavigationManager) {
             is GarageEffect.OpenService -> navigationManager.navigateTo(
                 OdoDestination.ServiceLog.Detail(logId = effect.logId.value, carId = effect.carId),
             )
+
+            GarageEffect.OpenAutoOdometerEducation -> navigationManager.navigateTo(
+                OdoDestination.AutoOdometer.Education(
+                    mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.STEREO,
+                ),
+            )
+
+            GarageEffect.OpenAutoOdometerSettings ->
+                navigationManager.navigateTo(OdoDestination.AutoOdometer.Settings)
         }
     }
 

@@ -59,11 +59,18 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.feature.garage.domain.model.AutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
+import com.hopcape.odo.feature.garage.resources.ga_body
+import com.hopcape.odo.feature.garage.resources.ga_chip_new
+import com.hopcape.odo.feature.garage.resources.ga_cta
+import com.hopcape.odo.feature.garage.resources.ga_hint
+import com.hopcape.odo.feature.garage.resources.ga_status_tile
+import com.hopcape.odo.feature.garage.resources.ga_title
 import com.hopcape.odo.feature.garage.resources.gr_add
 import com.hopcape.odo.feature.garage.resources.gr_add_car_subtitle
 import com.hopcape.odo.feature.garage.resources.gr_add_car_title
@@ -186,6 +193,11 @@ private fun PopulatedGarage(
             onUpdate = { onEvent(GarageEvent.UpdateOdometerTapped) },
             onMenu = { onEvent(GarageEvent.CarMenuTapped) },
         )
+        AutoOdometerSlot(
+            state = content.autoOdometerCard,
+            onCardClick = { onEvent(GarageEvent.AutoOdometerCardTapped) },
+            onTileClick = { onEvent(GarageEvent.AutoOdometerStatusTileTapped) },
+        )
         DocumentsSection(
             documents = content.documents,
             onManage = { onEvent(GarageEvent.ManageDocumentsTapped) },
@@ -246,6 +258,71 @@ private fun CarCard(car: Car, odometer: Distance, onUpdate: () -> Unit, onMenu: 
 @Composable
 private fun Car.plateOrPlaceholder(): String =
     registrationNumber?.let { formatRegistrationNumber(it.value) } ?: stringResource(Res.string.gr_no_plate)
+
+/**
+ * The auto-odometer slot: nothing, the "NEW" pitch card, or the compact status tile,
+ * depending on [state] (auto-odometer plan §1, F9). Both renderings share the card shell
+ * so the slot never jumps in size when it changes from one to the other.
+ */
+@Composable
+private fun AutoOdometerSlot(state: AutoOdometerCardState, onCardClick: () -> Unit, onTileClick: () -> Unit) {
+    when (state) {
+        AutoOdometerCardState.Hidden -> Unit
+        is AutoOdometerCardState.NotSetUp -> AutoOdometerPitchCard(readingCount = state.readingCount, onClick = onCardClick)
+        is AutoOdometerCardState.SetUp -> AutoOdometerStatusTile(monthlyKm = state.monthlyKm, onClick = onTileClick)
+    }
+}
+
+/** "Auto odometer — NEW" (M1). No dismiss affordance — it disappears by being replaced. */
+@Composable
+private fun AutoOdometerPitchCard(readingCount: Int, onClick: () -> Unit) {
+    OdoCard(onClick = onClick) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoText(stringResource(Res.string.ga_title), style = OdoTheme.typography.heading, modifier = Modifier.weight(1f))
+            OdoBadge(stringResource(Res.string.ga_chip_new), tone = OdoBadgeTone.Accent)
+        }
+        OdoText(
+            stringResource(Res.string.ga_body, readingCount),
+            style = OdoTheme.typography.bodySmall,
+            color = OdoTheme.colors.textDim,
+        )
+        OdoText(
+            stringResource(Res.string.ga_hint),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textMuted,
+        )
+        OdoButton(
+            stringResource(Res.string.ga_cta),
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            variant = OdoButtonVariant.Secondary,
+        )
+    }
+}
+
+/** "Auto odometer on · 842 km this month" (M7's entry point). Reuses the card shell. */
+@Composable
+private fun AutoOdometerStatusTile(monthlyKm: Long, onClick: () -> Unit) {
+    OdoCard(onClick = onClick) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconTile(IcCar, size = 40.dp)
+            OdoText(
+                stringResource(Res.string.ga_status_tile, monthlyKm),
+                style = OdoTheme.typography.heading,
+                modifier = Modifier.weight(1f),
+            )
+            OdoIcon(IcChevronRight, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.small)
+        }
+    }
+}
 
 @Composable
 private fun DocumentsSection(
