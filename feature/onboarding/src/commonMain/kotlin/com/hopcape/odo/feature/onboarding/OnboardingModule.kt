@@ -27,7 +27,7 @@ import org.koin.dsl.module
  * for the setup flow behind `OdoDestination.Onboarding`.
  */
 val onboardingModule = module {
-    factory { SaveCarUseCase(cars = get(), idGenerator = get()) }
+    factory { SaveCarUseCase(cars = get(), logs = get(), idGenerator = get(), clock = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
