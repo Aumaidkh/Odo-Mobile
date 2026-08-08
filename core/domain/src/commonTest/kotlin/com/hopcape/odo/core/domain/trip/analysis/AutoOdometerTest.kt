@@ -127,6 +127,82 @@ class AutoOdometerTest {
     }
 
     @Test
+    fun current_withNoReadingsAtAll_isNull() {
+        assertNull(AutoOdometer.current(emptyList(), emptyList()))
+    }
+
+    @Test
+    fun current_oneReadingAndNoTrips_returnsTheReadingUnchanged() {
+        val readings = listOf(reading(1, 500))
+
+        assertEquals(500, AutoOdometer.current(readings, emptyList())?.km)
+    }
+
+    @Test
+    fun current_oneReadingPlusACountedTripAfterIt_addsTheTripOnTop() {
+        // Only one manual reading, so calibration falls back to DEFAULT_K = 1.0 — the
+        // result is exactly the anchor plus the trip's raw distance.
+        val readings = listOf(reading(1, 500))
+        val trips = listOf(trip("t1", day = 2, km = 5.0))
+
+        assertEquals(505, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
+    fun current_reAnchorsOnANewerManualReadingAndDropsEarlierTrips() {
+        // 500 km on day 0, a 5 km trip on day 1, then a manual log of 510 km on day 2 —
+        // the day-1 trip is already absorbed into the 510 km reading. A day-3 trip must be
+        // the only thing added on top of the new anchor.
+        val readings = listOf(reading(1, 500), reading(3, 510))
+        val trips = listOf(
+            trip("absorbed", day = 2, km = 5.0),
+            trip("new", day = 4, km = 2.0),
+        )
+
+        assertEquals(512, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
+    fun current_includesATripOnTheSameDayAsTheAnchor() {
+        // OdometerReading has no time-of-day, so a same-day trip is deliberately counted —
+        // the common case is a fresh reading followed by a same-day drive.
+        val readings = listOf(reading(1, 500))
+        val trips = listOf(trip("same-day", day = 1, km = 20.0))
+
+        assertEquals(520, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
+    fun current_excludesARejectedTripAfterTheAnchor() {
+        val readings = listOf(reading(1, 500))
+        val trips = listOf(trip("rejected", day = 2, km = 20.0, status = TripStatus.REJECTED))
+
+        assertEquals(500, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
+    fun current_anchorsOnTheHighestKnownReading_notMerelyTheNewestDated() {
+        // Real service history at 45,000 km, then a mistaken newer-dated onboarding
+        // baseline of 500 km (e.g. a re-onboard, or a sync pull that landed after
+        // onboarding already ran locally). The anchor must stay 45,000 — the same floor
+        // OdometerTimeline.validate would enforce on a same-day service log entry — so a
+        // same-day trip adds on top of the real figure instead of the mistaken one.
+        val readings = listOf(reading(1, 45_000), reading(5, 500))
+        val trips = listOf(trip("t1", day = 5, km = 5.0))
+
+        assertEquals(45_005, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
+    fun current_aWellFormedHistoryStillPicksTheNewestReadingAsAnchor() {
+        // When km and date agree (the normal case), the two selection rules coincide.
+        val readings = listOf(reading(1, 500), reading(5, 510))
+        val trips = listOf(trip("t1", day = 6, km = 5.0))
+
+        assertEquals(515, AutoOdometer.current(readings, trips)?.km)
+    }
+
+    @Test
     fun drift_flagsWhenTheLatestPairDivergesFromTheSmoothedRatio() {
         val readings = listOf(reading(1, 0), reading(10, 100), reading(20, 200))
         val trips = listOf(

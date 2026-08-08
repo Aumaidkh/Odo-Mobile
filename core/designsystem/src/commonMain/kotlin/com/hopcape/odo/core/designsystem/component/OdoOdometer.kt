@@ -216,6 +216,55 @@ fun OdoOdometerEditor(
     )
 }
 
+/**
+ * The odometer shown as a **read-only** hero display — the drum and ruler strip with no
+ * click target, no editor sheet, no chevron. Used for a moment that only reports a reading
+ * rather than asking for one, like the trip-logged screen's "N km added" panel: it reuses
+ * [OdometerFrame]'s exact rendering (the accent-bordered panel, the split-flap digits, the
+ * ruler) instead of leaving [OdoOdometer]'s tap-to-edit chrome dimmed via `enabled = false`,
+ * which still shows the chevron-less-but-clearly-tappable-looking surface and forces the
+ * caller to pass throwaway editor labels (`saveLabel`, `onValueChange`, …) for a sheet that
+ * is never opened.
+ *
+ * [value] is already in the caller's display unit, the same convention [OdoOdometer]'s
+ * `value` uses — convert with `LocalOdoDistanceFormat.current.display(km)` first.
+ */
+@Composable
+fun OdoOdometerDisplay(
+    value: Long,
+    odometerLabel: String,
+    modifier: Modifier = Modifier,
+    unitLabel: String = LocalOdoDistanceFormat.current.suffix,
+    digits: Int = 6,
+) {
+    val colors = OdoTheme.colors
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(OdoTheme.shapes.card)
+            .border(1.5.dp, colors.accent, OdoTheme.shapes.card)
+            .padding(OdoTheme.spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+            OdoIcon(IcSpeedometer, contentDescription = null, tint = colors.textMuted, size = OdoTheme.iconSizes.small)
+            OdoText(odometerLabel, style = OdoTheme.typography.caption.copy(letterSpacing = 3.sp), color = colors.textMuted)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            DrumRow(reading = value, digits = digits, big = true)
+            OdoText(unitLabel, style = OdoTheme.typography.label, color = colors.textDim)
+        }
+        Ruler()
+    }
+}
+
+@OdoThemePreviews
+@Composable
+private fun OdoOdometerDisplayPreview() = OdoPreview {
+    OdoOdometerDisplay(value = 64231, odometerLabel = "ODOMETER")
+}
+
 /* ------------------------------ Collapsed surface ------------------------------ */
 
 @Composable

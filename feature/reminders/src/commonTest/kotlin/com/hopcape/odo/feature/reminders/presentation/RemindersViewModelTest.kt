@@ -12,6 +12,7 @@ import com.hopcape.odo.feature.reminders.RecordingScheduler
 import com.hopcape.odo.feature.reminders.TEST_CLOCK
 import com.hopcape.odo.feature.reminders.TEST_OWNER
 import com.hopcape.odo.feature.reminders.TEST_TODAY
+import com.hopcape.odo.feature.reminders.currentOdometerFrom
 import com.hopcape.odo.feature.reminders.customReminder
 import com.hopcape.odo.feature.reminders.document
 import com.hopcape.odo.feature.reminders.domain.usecase.CreateCustomReminderUseCase
@@ -62,10 +63,11 @@ class RemindersViewModelTest {
                 documents = documents,
                 serviceLogs = serviceLogs,
                 reminders = reminders,
+                currentOdometer = currentOdometerFrom(serviceLogs),
                 clock = TEST_CLOCK,
                 timeZone = TimeZone.UTC,
             ),
-            observeOdometer = ObserveCurrentOdometerUseCase(serviceLogs),
+            observeOdometer = ObserveCurrentOdometerUseCase(currentOdometerFrom(serviceLogs)),
             createReminder = CreateCustomReminderUseCase(
                 reminders = reminders,
                 scheduler = RecordingScheduler(),

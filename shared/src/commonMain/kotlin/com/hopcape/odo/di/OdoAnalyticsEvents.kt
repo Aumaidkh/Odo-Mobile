@@ -1,6 +1,7 @@
 package com.hopcape.odo.di
 
 import com.hopcape.analytics.api.EventSchema
+import com.hopcape.odo.feature.autoodometer.autoOdometerAnalyticsEvents
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
 import com.hopcape.odo.feature.dashboard.dashboardAnalyticsEvents
@@ -34,4 +35,5 @@ val odoAnalyticsEvents: List<EventSchema> =
         garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents +
         timelineAnalyticsEvents + dashboardAnalyticsEvents + fairnessCheckAnalyticsEvents +
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +
-        billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents
+        billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents +
+        autoOdometerAnalyticsEvents

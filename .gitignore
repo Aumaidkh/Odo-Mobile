@@ -28,6 +28,10 @@ infrastructure/supabase/README.md
 # locally by whoever is testing against it rather than committed.
 androidApp/google-services.json
 
+# Working notes for in-progress slices — kept local, not part of the versioned docs set.
+docs/TRIPTRACKER_PLAN.md
+docs/AUTO_ODOMETER_PLAN.md
+
 # Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
 # lockfile worth reviewing in a diff.

@@ -15,7 +15,9 @@ import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReport
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
@@ -30,6 +32,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.servicelog.domain.usecase.ResolveEntryFairnessUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlin.time.Clock
@@ -89,6 +92,22 @@ internal class FakeServiceLogRepository(
     override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
         entries.map { odometerReadings(carId).orEmpty() }
 }
+
+/** Emits a fixed [current] value for every car — a trip-aware "current odometer" double. */
+internal class FakeCurrentOdometerProvider(private val current: Distance?) : CurrentOdometerProvider {
+    override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(current)
+}
+
+/**
+ * A [CurrentOdometerProvider] over [logs]'s own readings, with no trips ever counted —
+ * mirrors the pre-trip-aware behaviour so a test that does not care about trips can keep
+ * asserting against [logs]'s latest reading.
+ */
+internal fun currentOdometerFrom(logs: FakeServiceLogRepository): CurrentOdometerProvider =
+    object : CurrentOdometerProvider {
+        override fun observeCurrent(carId: CarId): Flow<Distance?> =
+            logs.observeOdometerReadings(carId).map { it.currentReading()?.odometer }
+    }
 
 internal object NoopLogger : Logger {
     override fun log(level: LogLevel, tag: String, event: String, traceContext: TraceContext?, fields: Map<String, Any?>) {}

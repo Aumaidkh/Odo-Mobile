@@ -20,6 +20,7 @@ import com.hopcape.odo.feature.dashboard.FakeOwnerProfileRepository
 import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
 import com.hopcape.odo.feature.dashboard.FixedClock
 import com.hopcape.odo.feature.dashboard.TEST_CAR
+import com.hopcape.odo.feature.dashboard.currentOdometerFrom
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 import com.hopcape.odo.feature.dashboard.testDocument
@@ -249,6 +250,7 @@ class HomeViewModelTest {
             owners = FakeOwnerProfileRepository(),
             city = FakeCurrentCityProvider(),
             fuelPrices = FakeFuelPriceProvider(),
+            currentOdometer = currentOdometerFrom(logs),
             clock = FixedClock(),
             timeZone = TimeZone.UTC,
         ),

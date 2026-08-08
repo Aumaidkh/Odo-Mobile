@@ -48,7 +48,7 @@ val serviceLogModule = module {
     factory { ObserveEntryDetailUseCase(observeFeed = get()) }
     factory { ObserveShareableRecordUseCase(observeFeed = get(), cars = get()) }
     factory { GetServiceLogUseCase(logs = get()) }
-    factory { GetCurrentOdometerUseCase(logs = get()) }
+    factory { GetCurrentOdometerUseCase(currentOdometer = get()) }
     factory { AddServiceLogUseCase(logs = get(), idGenerator = get(), clock = get()) }
     factory { UpdateServiceLogUseCase(logs = get(), clock = get()) }
     factory { DeleteServiceLogUseCase(logs = get()) }

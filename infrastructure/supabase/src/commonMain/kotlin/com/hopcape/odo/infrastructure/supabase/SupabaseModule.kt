@@ -10,6 +10,7 @@ import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
+import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseOtpAuthGateway
@@ -22,6 +23,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseOverchargeRemote
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseReminderRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorage
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseTripRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClientEngine
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
@@ -104,6 +106,7 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<ProfileRemoteDataSource> { SupabaseProfileRemoteDataSource(postgrest = get()) }
         single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<ServiceLogRemoteDataSource> { SupabaseServiceLogRemoteDataSource(postgrest = get()) }
+        single<TripRemoteDataSource> { SupabaseTripRemoteDataSource(postgrest = get()) }
         single<HealthScoreRemoteDataSource> { SupabaseHealthScoreRemoteDataSource(postgrest = get()) }
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }

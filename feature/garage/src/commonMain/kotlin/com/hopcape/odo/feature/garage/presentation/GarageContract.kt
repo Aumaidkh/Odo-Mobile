@@ -18,6 +18,12 @@ internal sealed interface GarageEvent {
     data object AddDocumentTapped : GarageEvent
     data object AddServiceTapped : GarageEvent
     data class ServiceTapped(val id: ServiceLogId) : GarageEvent
+
+    /** The auto-odometer pitch card's CTA — heads to the education screen (M2). */
+    data object AutoOdometerCardTapped : GarageEvent
+
+    /** The auto-odometer status tile, once set up — heads to settings (M7). */
+    data object AutoOdometerStatusTileTapped : GarageEvent
 }
 
 /**
@@ -36,4 +42,10 @@ internal sealed interface GarageEffect {
 
     /** Opening one service needs the car it belongs to, which the key carries. */
     data class OpenService(val logId: ServiceLogId, val carId: String) : GarageEffect
+
+    /** "See how it works" on the pitch card — a `:core:navigation` route, not a feature import. */
+    data object OpenAutoOdometerEducation : GarageEffect
+
+    /** The status tile, once set up. */
+    data object OpenAutoOdometerSettings : GarageEffect
 }

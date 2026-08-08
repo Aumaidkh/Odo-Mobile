@@ -64,7 +64,7 @@ class AttentionPickerTest {
     /** A service two months ago at 50,000 km — comfortably inside the interval. */
     private fun freshService() = listOf(entry(LocalDate(2026, 6, 1), 50_000))
 
-    private fun freshReadings() = listOf(reading(LocalDate(2026, 7, 20), 51_000))
+    private fun freshCurrentOdometer() = reading(LocalDate(2026, 7, 20), 51_000).odometer
 
     /* ------------------------- nothing due ------------------------- */
 
@@ -73,7 +73,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = listOf(document("ins", DocumentType.INSURANCE, LocalDate(2027, 3, 1))),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -85,7 +85,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = emptyList(),
             entries = emptyList(),
-            readings = emptyList(),
+            currentOdometer = null,
             today = today,
         )
 
@@ -100,7 +100,7 @@ class AttentionPickerTest {
             documents = listOf(document("puc", DocumentType.PUC, LocalDate(2026, 7, 25))),
             // Overdue on time as well, so the lapsed paper has to beat it.
             entries = listOf(entry(LocalDate(2025, 1, 1), 40_000)),
-            readings = listOf(reading(LocalDate(2026, 7, 20), 60_000)),
+            currentOdometer = reading(LocalDate(2026, 7, 20), 60_000).odometer,
             today = today,
         )
 
@@ -118,7 +118,7 @@ class AttentionPickerTest {
                 document("ins", DocumentType.INSURANCE, LocalDate(2026, 7, 30)),
             ),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -134,7 +134,7 @@ class AttentionPickerTest {
                 document("ins-2026", DocumentType.INSURANCE, LocalDate(2027, 3, 1)),
             ),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -151,7 +151,7 @@ class AttentionPickerTest {
                 document("other", DocumentType.OTHER, LocalDate(2026, 3, 1)),
             ),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -163,7 +163,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = listOf(document("ins", DocumentType.INSURANCE, LocalDate(2026, 8, 20))),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -181,13 +181,13 @@ class AttentionPickerTest {
         val puc = AttentionPicker.pick(
             documents = listOf(document("puc", DocumentType.PUC, LocalDate(2026, 8, 21))),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
         val insurance = AttentionPicker.pick(
             documents = listOf(document("ins", DocumentType.INSURANCE, LocalDate(2026, 8, 21))),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -203,7 +203,7 @@ class AttentionPickerTest {
                 document("puc", DocumentType.PUC, LocalDate(2026, 8, 5)),
             ),
             entries = freshService(),
-            readings = freshReadings(),
+            currentOdometer = freshCurrentOdometer(),
             today = today,
         )
 
@@ -217,7 +217,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = listOf(document("ins", DocumentType.INSURANCE, LocalDate(2026, 8, 20))),
             entries = listOf(entry(LocalDate(2025, 6, 1), 40_000)),
-            readings = listOf(reading(LocalDate(2026, 7, 20), 45_000)),
+            currentOdometer = reading(LocalDate(2026, 7, 20), 45_000).odometer,
             today = today,
         )
 
@@ -230,7 +230,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = emptyList(),
             entries = listOf(entry(LocalDate(2026, 2, 10), 40_000)),
-            readings = listOf(reading(LocalDate(2026, 7, 20), 49_500)),
+            currentOdometer = reading(LocalDate(2026, 7, 20), 49_500).odometer,
             today = today,
         )
 
@@ -244,7 +244,7 @@ class AttentionPickerTest {
         val attention = AttentionPicker.pick(
             documents = emptyList(),
             entries = emptyList(),
-            readings = listOf(reading(LocalDate(2026, 7, 20), 80_000)),
+            currentOdometer = reading(LocalDate(2026, 7, 20), 80_000).odometer,
             today = today,
         )
 

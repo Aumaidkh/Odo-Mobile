@@ -4,9 +4,12 @@ import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.trip.model.ParkedLocation
 import com.hopcape.odo.core.domain.trip.repository.TripRepository
+import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.TrackingPreconditions
 import com.hopcape.odo.core.triptracker.TrackingReadiness
 import com.hopcape.odo.core.triptracker.TrackingStatus
+import com.hopcape.odo.core.triptracker.TriggerMode
+import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.core.triptracker.algorithm.DistanceIntegrator
 import com.hopcape.odo.core.triptracker.algorithm.MotionDebouncer
 import com.hopcape.odo.core.triptracker.config.TripTrackerConfig
@@ -46,6 +49,8 @@ internal class TripTrackerEngine(
     private val foregroundSession: TripForegroundSession,
     private val sessionStore: TripSessionStore,
     private val preconditions: TrackingPreconditions,
+    private val vehicleBondStore: VehicleBondStore,
+    private val bondedDeviceCatalog: BondedDeviceCatalog,
     private val carRepository: CarRepository,
     private val tripRepository: TripRepository,
     private val finalizer: TripFinalizer,
@@ -74,6 +79,16 @@ internal class TripTrackerEngine(
     private val _status = MutableStateFlow<TrackingStatus>(TrackingStatus.Disabled)
     val status: StateFlow<TrackingStatus> = _status.asStateFlow()
 
+    /**
+     * Live distance for the trip in progress, `0` otherwise — the rich FGS notification's
+     * only reason to exist (§6). Not part of [TrackingStatus]/the public [TripTracker][
+     * com.hopcape.odo.core.triptracker.TripTracker] surface: nothing outside this module
+     * needs it, only [com.hopcape.odo.core.triptracker.service.TripTrackingService] in the
+     * same module, which reads it directly off this engine instance.
+     */
+    private val _distanceMeters = MutableStateFlow(0L)
+    val distanceMeters: StateFlow<Long> = _distanceMeters.asStateFlow()
+
     /** Started once, regardless of the enabled flag — cheap, and attribution needs it live. */
     fun observeCar() {
         if (carJob?.isActive == true) return
@@ -89,17 +104,22 @@ internal class TripTrackerEngine(
 
     suspend fun setEnabled(enabled: Boolean) {
         if (enabled) {
-            motionJob = scope.launch {
-                safely(STAGE_MOTION_COLLECT) {
-                    motionSource.signals().collect { signal ->
-                        motionDebouncer.accept(signal)?.let { handle(TripEvent.Motion(it)) }
+            val armed = TriggerArming.compute(vehicleBondStore.bond()?.triggerMode, preconditions.status())
+            if (armed.motion) {
+                motionJob = scope.launch {
+                    safely(STAGE_MOTION_COLLECT) {
+                        motionSource.signals().collect { signal ->
+                            motionDebouncer.accept(signal)?.let { handle(TripEvent.Motion(it)) }
+                        }
                     }
                 }
             }
-            presenceJob = scope.launch {
-                safely(STAGE_PRESENCE_COLLECT) {
-                    presenceSource.presence().collect { presence ->
-                        handle(if (presence is VehiclePresence.Connected) TripEvent.PresenceConnected else TripEvent.PresenceLost)
+            if (armed.presence) {
+                presenceJob = scope.launch {
+                    safely(STAGE_PRESENCE_COLLECT) {
+                        presenceSource.presence().collect { presence ->
+                            handle(if (presence is VehiclePresence.Connected) TripEvent.PresenceConnected else TripEvent.PresenceLost)
+                        }
                     }
                 }
             }
@@ -147,6 +167,34 @@ internal class TripTrackerEngine(
         val readiness = preconditions.status()
         reportPreconditionLost(readiness)
         _status.value = phase.toTrackingStatus(readiness)
+        _distanceMeters.value = phase.sessionOrNull()?.distanceMeters ?: 0L
+    }
+
+    /** M5's Pause action — soft-pauses the active trip without ending it. No-op outside TRACKING. */
+    suspend fun pauseActiveTrip() = handle(TripEvent.PauseRequested)
+
+    /** M5's Resume action — resumes a soft-paused trip. No-op outside SOFT_PAUSED. */
+    suspend fun resumeActiveTrip() = handle(TripEvent.ResumeRequested)
+
+    /** M5's "Not driving" action — ends the active trip without recording it. No-op outside a live phase. */
+    suspend fun discardActiveTrip() = handle(TripEvent.DiscardRequested)
+
+    /**
+     * Post-enrollment immediate start (§1): if the bond is [TriggerMode.STEREO] and its
+     * device is connected right now, kicks the same [TripEvent.PresenceConnected] path a
+     * fresh connect broadcast would — the speed-gate confirm still applies. No-ops
+     * otherwise, including on a catalog failure.
+     */
+    suspend fun startIfConnected() {
+        val bond = vehicleBondStore.bond() ?: return
+        if (bond.triggerMode != TriggerMode.STEREO) return
+        val connectedNow = try {
+            bondedDeviceCatalog.devices().any { it.id == bond.bluetoothId && it.isConnectedNow }
+        } catch (e: Exception) {
+            telemetry.nonFatal(e, stage = STAGE_START_IF_CONNECTED)
+            false
+        }
+        if (connectedNow) handle(TripEvent.PresenceConnected)
     }
 
     /** Fires only on a true->false transition — nothing to report the first time readiness is read. */
@@ -290,7 +338,7 @@ internal class TripTrackerEngine(
         is TripPhase.Standby -> TrackingStatus.Standby(readiness)
         is TripPhase.Starting -> TrackingStatus.Tracking(since, mode)
         is TripPhase.Tracking -> TrackingStatus.Tracking(session.startedAt, session.mode)
-        is TripPhase.SoftPaused -> TrackingStatus.Tracking(session.startedAt, session.mode)
+        is TripPhase.SoftPaused -> TrackingStatus.Tracking(session.startedAt, session.mode, isPaused = true)
         is TripPhase.SignalLost -> TrackingStatus.Tracking(session.startedAt, session.mode)
         is TripPhase.PendingStop -> TrackingStatus.Tracking(session.startedAt, session.mode)
         is TripPhase.Finalizing -> TrackingStatus.Tracking(session.startedAt, session.mode)
@@ -306,5 +354,6 @@ internal class TripTrackerEngine(
         const val STAGE_PRESENCE_COLLECT = "presence_collect"
         const val STAGE_FIXES_COLLECT = "fixes_collect"
         const val STAGE_CAR_COLLECT = "car_collect"
+        const val STAGE_START_IF_CONNECTED = "start_if_connected"
     }
 }

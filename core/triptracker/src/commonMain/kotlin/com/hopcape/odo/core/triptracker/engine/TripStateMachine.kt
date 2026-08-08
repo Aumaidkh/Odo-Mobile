@@ -21,6 +21,8 @@ import kotlin.time.Instant
  */
 internal object TripStateMachine {
 
+    private const val MPS_TO_KMH = 3.6
+
     fun transition(
         state: TripPhase,
         event: TripEvent,
@@ -28,13 +30,15 @@ internal object TripStateMachine {
         now: Instant,
         parked: ParkedLocation?,
     ): Transition {
-        // Enable/disable/restore are cross-cutting: every phase answers them the same
-        // way, so they are resolved before the per-phase handlers see the event.
+        // Enable/disable/restore/discard are cross-cutting: every phase answers them the
+        // same way, so they are resolved before the per-phase handlers see the event.
         when (event) {
             TripEvent.Disabled -> return handleDisabled(state)
             TripEvent.Enabled -> if (state is TripPhase.Disabled) return Transition(TripPhase.Standby(), emptyList())
             is TripEvent.SessionRestored ->
                 if (state is TripPhase.Disabled || state is TripPhase.Standby) return handleSessionRestored(event, now)
+            TripEvent.DiscardRequested ->
+                if (state !is TripPhase.Disabled && state !is TripPhase.Standby) return handleDiscard()
             else -> Unit
         }
 
@@ -66,6 +70,23 @@ internal object TripStateMachine {
         return Transition(TripPhase.Disabled, effects)
     }
 
+    /**
+     * "Not driving" (M5) — ends whatever trip is in progress without recording it, same
+     * releases as [handleDisabled] minus the [TripEffect.Finalize] (auto-odometer plan §6).
+     * Tracking itself stays enabled; the machine returns to [TripPhase.Standby] to wait
+     * for the next trigger.
+     */
+    private fun handleDiscard(): Transition = Transition(
+        TripPhase.Standby(),
+        listOf(
+            TripEffect.StopForegroundSession,
+            TripEffect.StopFixes,
+            TripEffect.CancelTimer(TimerKind.IDLE),
+            TripEffect.CancelTimer(TimerKind.STITCH),
+            TripEffect.ClearSession,
+        ),
+    )
+
     /** Only reachable from DISABLED/STANDBY — a restore only matters right at cold start. */
     private fun handleSessionRestored(event: TripEvent.SessionRestored, now: Instant): Transition {
         val restored = SessionSnapshotMapper.fromSnapshot(event.snapshot)
@@ -92,14 +113,25 @@ internal object TripStateMachine {
         now: Instant,
         parked: ParkedLocation?,
     ): Transition = when (event) {
-        TripEvent.PresenceConnected ->
-            if (state.lastMotionKind == MotionKind.IN_VEHICLE) {
+        TripEvent.PresenceConnected -> when {
+            state.lastMotionKind == MotionKind.IN_VEHICLE ->
                 startTrip(TripMode.BT_VERIFIED, now, attributionConfident = true)
-            } else {
-                Transition(state.copy(presenceConnected = true), emptyList())
-            }
 
-        TripEvent.PresenceLost -> Transition(state.copy(presenceConnected = false), emptyList())
+            // Already awaiting the speed-gate confirm below — nothing new to arm.
+            state.presenceConnected -> Transition(state, emptyList())
+
+            // STEREO's start confirm (§1.1): connecting alone doesn't start a trip —
+            // fixes start flowing and the next handleStandbyFix calls decide, via the
+            // speed gate, whether this is actually a drive.
+            else -> Transition(state.copy(presenceConnected = true, speedGateAboveCount = 0), listOf(TripEffect.RequestFixes))
+        }
+
+        TripEvent.PresenceLost -> {
+            // Only release fixes if nothing else (the AR path) still needs them.
+            val stopFixes = state.presenceConnected && state.gpsMotionSince == null
+            val effects = if (stopFixes) listOf(TripEffect.StopFixes) else emptyList()
+            Transition(state.copy(presenceConnected = false, speedGateAboveCount = 0), effects)
+        }
 
         is TripEvent.Motion -> when {
             event.kind == MotionKind.IN_VEHICLE && state.presenceConnected ->
@@ -129,17 +161,48 @@ internal object TripStateMachine {
         now: Instant,
         parked: ParkedLocation?,
     ): Transition {
-        val since = state.gpsMotionSince ?: return Transition(state, emptyList())
-        if (now - since < config.gpsStartSustainedMotion) return Transition(state, emptyList())
+        val since = state.gpsMotionSince
+        if (since != null) {
+            if (now - since < config.gpsStartSustainedMotion) return Transition(state, emptyList())
 
-        val point = GeoPoint.of(event.sample.lat, event.sample.lon).getOrNull()
-            ?: return Transition(state.copy(gpsMotionSince = null), listOf(TripEffect.StopFixes))
+            val point = GeoPoint.of(event.sample.lat, event.sample.lon).getOrNull()
+                ?: return Transition(state.copy(gpsMotionSince = null), listOf(TripEffect.StopFixes))
 
-        val result = TripAttribution(config).evaluate(TripMode.GPS_ONLY, point, parked)
-        return if (result.allowed) {
-            startTrip(TripMode.GPS_ONLY, now, attributionConfident = result.confident)
+            val result = TripAttribution(config).evaluate(TripMode.GPS_ONLY, point, parked)
+            return if (result.allowed) {
+                startTrip(TripMode.GPS_ONLY, now, attributionConfident = result.confident)
+            } else {
+                Transition(state.copy(gpsMotionSince = null), listOf(TripEffect.StopFixes))
+            }
+        }
+
+        if (state.presenceConnected) return handleSpeedGateFix(state, event, config, now)
+
+        return Transition(state, emptyList())
+    }
+
+    /**
+     * STEREO's start confirm (§1.1/§6): the bonded stereo connecting alone isn't enough —
+     * the next [TripTrackerConfig.speedGateConfirmFixes] fixes must all read above
+     * [TripTrackerConfig.speedGateThresholdKmh] before the trip actually starts. A parked
+     * car (0 km/h fixes) never accumulates enough consecutive hits, however long the
+     * stereo stays connected — no separate timeout is needed to keep it from starting.
+     */
+    private fun handleSpeedGateFix(
+        state: TripPhase.Standby,
+        event: TripEvent.Fix,
+        config: TripTrackerConfig,
+        now: Instant,
+    ): Transition {
+        val speedKmh = (event.sample.speedMps?.toDouble() ?: 0.0) * MPS_TO_KMH
+        if (speedKmh <= config.speedGateThresholdKmh) {
+            return Transition(state.copy(speedGateAboveCount = 0), emptyList())
+        }
+        val hits = state.speedGateAboveCount + 1
+        return if (hits >= config.speedGateConfirmFixes) {
+            startTrip(TripMode.BT_VERIFIED, now, attributionConfident = true)
         } else {
-            Transition(state.copy(gpsMotionSince = null), listOf(TripEffect.StopFixes))
+            Transition(state.copy(speedGateAboveCount = hits), emptyList())
         }
     }
 
@@ -180,6 +243,13 @@ internal object TripStateMachine {
             }
 
             TripEvent.IdleTimeout -> Transition(TripPhase.SoftPaused(state.session), listOf(TripEffect.StopFixes))
+
+            // Owner-requested pause (M5) — same soft-paused state the idle timer already
+            // uses, so a resume works the same way regardless of how the pause happened.
+            TripEvent.PauseRequested -> Transition(
+                TripPhase.SoftPaused(state.session),
+                listOf(TripEffect.StopFixes, TripEffect.CancelTimer(TimerKind.IDLE)),
+            )
 
             is TripEvent.Motion -> handleTrackingMotion(state, event, config, now)
 
@@ -248,6 +318,8 @@ internal object TripStateMachine {
 
     private fun handleSoftPaused(state: TripPhase.SoftPaused, event: TripEvent): Transition = when (event) {
         TripEvent.PresenceConnected -> Transition(TripPhase.Tracking(state.session), listOf(TripEffect.RequestFixes))
+        // Owner-requested resume (M5) — same target state an automatic resume reaches.
+        TripEvent.ResumeRequested -> Transition(TripPhase.Tracking(state.session), listOf(TripEffect.RequestFixes))
         is TripEvent.Motion -> Transition(
             TripPhase.Tracking(state.session.copy(lastMotionKind = event.kind)),
             listOf(TripEffect.RequestFixes),

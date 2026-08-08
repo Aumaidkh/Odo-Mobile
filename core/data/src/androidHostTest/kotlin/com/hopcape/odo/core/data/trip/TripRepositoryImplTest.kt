@@ -123,6 +123,36 @@ class TripRepositoryImplTest {
         assertEquals(parked, repo(local).parkedLocation(carId))
     }
 
+    @Test
+    fun countedBetween_localFailure_returnsEmptyList() = runTest {
+        val local = FakeTripLocalDataSource(countedBetweenThrows = RuntimeException("boom"))
+        val crash = RecordingCrash()
+        val result = repo(local, crash = crash).countedBetween(
+            carId,
+            Instant.parse("2026-08-07T00:00:00Z"),
+            Instant.parse("2026-08-08T00:00:00Z"),
+        )
+        assertEquals(emptyList(), result)
+        assertEquals(1, crash.nonFatals.size)
+    }
+
+    @Test
+    fun deleteAllForCar_success_writesThroughLocal() = runTest {
+        val local = FakeTripLocalDataSource()
+        val result = repo(local).deleteAllForCar(carId)
+        assertTrue(result.isRight())
+        assertEquals(carId, local.deletedForCar)
+    }
+
+    @Test
+    fun deleteAllForCar_failure_isRecordedAsANonFatal() = runTest {
+        val local = FakeTripLocalDataSource(deleteAllForCarThrows = RuntimeException("disk full"))
+        val crash = RecordingCrash()
+        val result = repo(local, crash = crash).deleteAllForCar(carId)
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
+        assertEquals(1, crash.nonFatals.size)
+    }
+
     // ---- fakes ----
 
     private class FakeTripLocalDataSource(
@@ -130,11 +160,15 @@ class TripRepositoryImplTest {
         private val updateStatusResult: Boolean = true,
         private val byCarThrows: Throwable? = null,
         private val countedSinceThrows: Throwable? = null,
+        private val countedBetweenThrows: Throwable? = null,
         private val parkedLocationResult: ParkedLocation? = null,
+        private val deleteAllForCarThrows: Throwable? = null,
     ) : TripLocalDataSource {
         var inserted: Trip? = null
             private set
         var insertedWithParked: Pair<Trip, Trip?>? = null
+            private set
+        var deletedForCar: CarId? = null
             private set
 
         override suspend fun insert(trip: Trip) {
@@ -159,7 +193,17 @@ class TripRepositoryImplTest {
             return emptyList()
         }
 
+        override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> {
+            countedBetweenThrows?.let { throw it }
+            return emptyList()
+        }
+
         override suspend fun parkedLocation(carId: CarId): ParkedLocation? = parkedLocationResult
+
+        override suspend fun deleteAllForCar(carId: CarId) {
+            deleteAllForCarThrows?.let { throw it }
+            deletedForCar = carId
+        }
     }
 
     private object NoopLogger : Logger {

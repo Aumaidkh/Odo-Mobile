@@ -150,6 +150,112 @@ class SqlDelightTripLocalDataSourceTest {
     }
 
     @Test
+    fun countedBetween_bothBoundsInclusive_excludesOutsideValues() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(trip(id = "before", startedAt = "2026-08-07T07:00:00Z", endedAt = "2026-08-07T07:10:00Z"))
+        local.insert(trip(id = "at-from", startedAt = "2026-08-07T08:00:00Z", endedAt = "2026-08-07T08:10:00Z"))
+        local.insert(trip(id = "inside", startedAt = "2026-08-07T09:00:00Z", endedAt = "2026-08-07T09:10:00Z"))
+        local.insert(trip(id = "at-to", startedAt = "2026-08-07T10:00:00Z", endedAt = "2026-08-07T10:10:00Z"))
+        local.insert(trip(id = "after", startedAt = "2026-08-07T10:00:01Z", endedAt = "2026-08-07T10:10:02Z"))
+
+        val counted = local.countedBetween(carId, Instant.parse("2026-08-07T08:00:00Z"), Instant.parse("2026-08-07T10:00:00Z"))
+
+        assertEquals(setOf("at-from", "inside", "at-to"), counted.map { it.id.value }.toSet())
+    }
+
+    @Test
+    fun countedBetween_onlyRecordedAndConfirmed() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(trip(id = "confirmed", startedAt = "2026-08-07T08:30:00Z", endedAt = "2026-08-07T08:40:00Z", status = TripStatus.CONFIRMED))
+        local.insert(trip(id = "needs-confirmation", startedAt = "2026-08-07T08:31:00Z", endedAt = "2026-08-07T08:41:00Z", status = TripStatus.NEEDS_CONFIRMATION))
+        local.insert(trip(id = "rejected", startedAt = "2026-08-07T08:32:00Z", endedAt = "2026-08-07T08:42:00Z", status = TripStatus.REJECTED))
+
+        val counted = local.countedBetween(carId, Instant.parse("2026-08-07T08:00:00Z"), Instant.parse("2026-08-07T09:00:00Z"))
+
+        assertEquals(setOf("confirmed"), counted.map { it.id.value }.toSet())
+    }
+
+    @Test
+    fun deleteAllForCar_removesTripsParkedLocationAndSession_leavesOtherCarUntouched() = runTest {
+        val db = newDb()
+        val local = local(db)
+        val otherCarId = CarId("car-2")
+
+        local.insertWithParked(
+            trip = trip(id = "trip-1"),
+            gap = null,
+            parked = ParkedLocation(carId, point(19.0760, 72.8777), Instant.parse("2026-08-07T08:20:00Z")),
+        )
+        db.tripSessionQueries.insertSession(
+            phase = "TRACKING",
+            carId = carId.value,
+            mode = "BT_VERIFIED",
+            startedAt = "2026-08-07T08:00:00Z",
+            distanceM = 500,
+            estimatedM = 0,
+            lastFixLat = null,
+            lastFixLon = null,
+            lastFixAccuracyM = null,
+            lastFixSpeedMps = null,
+            lastFixAt = null,
+            stitchDeadline = null,
+        )
+
+        val otherTrip = Trip.create(
+            id = TripId("trip-other"),
+            carId = otherCarId,
+            ownerId = ownerId,
+            startedAt = Instant.parse("2026-08-07T08:00:00Z"),
+            endedAt = Instant.parse("2026-08-07T08:20:00Z"),
+            distance = TripDistance.of(2_000),
+            estimatedDistance = TripDistance.ZERO,
+            mode = TripMode.BT_VERIFIED,
+            status = TripStatus.RECORDED,
+        ).getOrNull()!!
+        local.insertWithParked(
+            trip = otherTrip,
+            gap = null,
+            parked = ParkedLocation(otherCarId, point(19.20, 73.0), Instant.parse("2026-08-07T08:20:00Z")),
+        )
+
+        local.deleteAllForCar(carId)
+
+        assertTrue(local.observeByCar(carId).first().isEmpty(), "car-1's trips must be gone")
+        assertNull(local.parkedLocation(carId), "car-1's parked location must be gone")
+        assertNull(db.tripSessionQueries.selectSession().executeAsOneOrNull(), "car-1's live session must be gone")
+
+        assertEquals(1, local.observeByCar(otherCarId).first().size, "car-2's trip must survive")
+        assertEquals(otherCarId, local.parkedLocation(otherCarId)?.carId, "car-2's parked location must survive")
+    }
+
+    @Test
+    fun deleteAllForCar_leavesAnotherCarsLiveSessionAlone() = runTest {
+        val db = newDb()
+        val local = local(db)
+        val otherCarId = CarId("car-2")
+        db.tripSessionQueries.insertSession(
+            phase = "TRACKING",
+            carId = otherCarId.value,
+            mode = "BT_VERIFIED",
+            startedAt = "2026-08-07T08:00:00Z",
+            distanceM = 500,
+            estimatedM = 0,
+            lastFixLat = null,
+            lastFixLon = null,
+            lastFixAccuracyM = null,
+            lastFixSpeedMps = null,
+            lastFixAt = null,
+            stitchDeadline = null,
+        )
+
+        local.deleteAllForCar(carId)
+
+        assertEquals(otherCarId.value, db.tripSessionQueries.selectSession().executeAsOneOrNull()?.car_id)
+    }
+
+    @Test
     fun updateStatus_missingTrip_answersFalse() = runTest {
         val db = newDb()
         assertTrue(!local(db).updateStatus(TripId("nope"), TripStatus.CONFIRMED))

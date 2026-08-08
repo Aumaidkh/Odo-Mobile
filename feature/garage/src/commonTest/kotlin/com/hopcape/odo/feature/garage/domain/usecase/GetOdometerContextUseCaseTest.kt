@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.garage.domain.usecase
 import arrow.core.getOrElse
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.test.runTest
@@ -23,8 +24,16 @@ class GetOdometerContextUseCaseTest {
     private fun reading(logId: String?, date: LocalDate, km: Int) =
         OdometerReading(logId = logId?.let(::ServiceLogId), date = date, odometer = km(km))
 
-    private fun useCase(readings: List<OdometerReading>?) = GetOdometerContextUseCase(
+    private fun useCase(
+        readings: List<OdometerReading>?,
+        // Mirrors the pre-trip-aware behaviour by default: the latest manual reading, no
+        // trips summed on top. `aggregateOverride` lets a test prove the trip-aware case.
+        aggregateOverride: Distance? = null,
+    ) = GetOdometerContextUseCase(
         logs = FakeServiceLogRepository(readings),
+        currentOdometer = FakeCurrentOdometerProvider(
+            aggregateOverride ?: readings?.currentReading()?.odometer,
+        ),
         clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
         timeZone = TimeZone.UTC,
     )
@@ -58,6 +67,21 @@ class GetOdometerContextUseCaseTest {
         val context = result.getOrNull()!!
         assertEquals(52_000, context.lastRecorded.odometer.km)
         assertEquals(LocalDate(2026, 6, 15), context.lastRecorded.date)
+    }
+
+    @Test
+    fun theSheetStartsFromTheTripAwareAggregate_notTheRawReading() = runTest {
+        // A counted auto-trip has moved the car past its last manual reading — the drum
+        // must start from that aggregate, while the date it measures the monthly rate
+        // against stays the manual reading's own day.
+        val result = useCase(
+            readings = listOf(reading(null, LocalDate(2026, 3, 2), 45_000)),
+            aggregateOverride = km(45_120),
+        )(TEST_CAR)
+
+        val context = result.getOrNull()!!
+        assertEquals(45_120, context.lastRecorded.odometer.km)
+        assertEquals(LocalDate(2026, 3, 2), context.lastRecorded.date)
     }
 
     @Test

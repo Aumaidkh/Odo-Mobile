@@ -64,6 +64,8 @@ import com.hopcape.odo.infrastructure.database.sync.SqlDelightSynchronizer
 import com.hopcape.odo.infrastructure.database.sync.SyncRunner
 import com.hopcape.odo.infrastructure.database.trip.SqlDelightTripLocalDataSource
 import com.hopcape.odo.infrastructure.database.trip.TripSessionStoreImpl
+import com.hopcape.odo.infrastructure.database.trip.TripSyncTable
+import com.hopcape.odo.infrastructure.database.trip.TripSyncable
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -254,10 +256,22 @@ val databaseInfrastructureModule = module {
         SqlDelightLocalUserDataWipe(database = get(), files = get(), telemetry = get())
     }
 
-    // Automatically-detected drives. No Syncable adapter yet — no SyncEntity.TRIPS until
-    // DB_SCHEMA defines a server table (TRIPTRACKER_PLAN D3); the rows carry the sync
-    // columns and wait as PENDING.
+    // Automatically-detected drives.
     single<TripLocalDataSource> { SqlDelightTripLocalDataSource(database = get()) }
+    single {
+        TripSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.TRIPS,
+                table = TripSyncTable(
+                    database = get(),
+                    remote = get(),
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
     // The crash-resume journal :core:triptracker's engine reads/writes through its own
     // TripSessionStore port.
     single<TripSessionStore> { TripSessionStoreImpl(database = get()) }

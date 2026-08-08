@@ -44,4 +44,11 @@ internal data class TripTrackerConfig(
     // Motion debouncer — not given explicit numbers by the v4 report; conservative defaults.
     val motionDebounceConsecutiveReadings: Int = 3,
     val motionDebounceMinConfidence: Int = 75,
+
+    // STEREO's start confirm (auto-odometer plan §1.1): the bonded stereo connecting alone
+    // never starts a trip — the next speedGateConfirmFixes fixes must all read above this
+    // speed before it does. Not given explicit numbers by either report; conservative
+    // implementer defaults, same posture as the motion debouncer constants above.
+    val speedGateThresholdKmh: Double = 8.0,
+    val speedGateConfirmFixes: Int = 3,
 )

@@ -45,6 +45,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 notifPush = notifications.push.toLong(),
                 notifWhatsapp = notifications.whatsapp.toLong(),
                 trackerEnabled = settings.trackerEnabled.toLong(),
+                autoOdoPausedUntil = settings.autoOdoPausedUntil?.toString(),
+                aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
                 updatedAt = now,
             )
             queries.updateSettings(
@@ -62,6 +64,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 notifPush = notifications.push.toLong(),
                 notifWhatsapp = notifications.whatsapp.toLong(),
                 trackerEnabled = settings.trackerEnabled.toLong(),
+                autoOdoPausedUntil = settings.autoOdoPausedUntil?.toString(),
+                aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
                 updatedAt = now,
             )
         }

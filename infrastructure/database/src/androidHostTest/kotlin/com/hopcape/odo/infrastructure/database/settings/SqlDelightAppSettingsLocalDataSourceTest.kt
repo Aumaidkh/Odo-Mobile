@@ -62,6 +62,21 @@ class SqlDelightAppSettingsLocalDataSourceTest {
     }
 
     @Test
+    fun save_thenObserve_roundTripsTheAutoOdometerFields() = runTest {
+        val local = local(newDb())
+        val settings = AppSettings(
+            autoOdoPausedUntil = kotlin.time.Instant.parse("2026-08-14T00:00:00Z"),
+            aoLastAckedTripEndedAt = kotlin.time.Instant.parse("2026-08-06T18:30:00Z"),
+        )
+
+        local.save(settings)
+
+        val stored = local.observe().first()
+        assertEquals(settings.autoOdoPausedUntil, stored?.autoOdoPausedUntil)
+        assertEquals(settings.aoLastAckedTripEndedAt, stored?.aoLastAckedTripEndedAt)
+    }
+
+    @Test
     fun save_twice_editsTheOneRowInsteadOfDuplicating() = runTest {
         val db = newDb()
         val local = local(db)
@@ -93,6 +108,8 @@ class SqlDelightAppSettingsLocalDataSourceTest {
             notifPush = 1,
             notifWhatsapp = 0,
             trackerEnabled = 0,
+            autoOdoPausedUntil = null,
+            aoLastAckedTripEndedAt = null,
             updatedAt = "2026-08-01T10:00:00Z",
         )
 

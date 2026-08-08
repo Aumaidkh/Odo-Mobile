@@ -110,6 +110,54 @@ sealed interface OdoDestination : NavKey {
         ) : Reminders
     }
 
+    /**
+     * Auto-odometer — background trip tracking that keeps the odometer current without
+     * manual entry, owned by `:feature:auto-odometer`. A sealed group: [Education] explains
+     * the feature and its privacy stance, [DevicePicker] pairs the car's stereo,
+     * [PermissionSetup] stages the location/notification (+ activity-recognition) asks,
+     * [TripLogged] surfaces the "N km added" moment after a drive, and [Settings] holds the
+     * tracking toggle, trigger device and privacy controls.
+     *
+     * `:core:triptracker` (docs/TRIPTRACKER_PLAN.md) owns the tracking engine and its own
+     * `TriggerMode` enum, but `:core:navigation` does not depend on that module just to type
+     * a route argument — [AutoOdometerFlowMode] is a small nav-local redeclaration, and the
+     * feature maps between the two at its ViewModel/screen boundary.
+     */
+    sealed interface AutoOdometer : OdoDestination {
+
+        /**
+         * Which enrollment path a flow is on — the escape hatch for cars without a
+         * Bluetooth stereo (docs/AUTO_ODOMETER_PLAN.md §1.1).
+         */
+        enum class AutoOdometerFlowMode { STEREO, NO_STEREO }
+
+        /**
+         * "Your reading stays current on its own" — the how-it-works + privacy explainer
+         * (M2). [mode] picks the STEREO copy or the no-Bluetooth variant.
+         */
+        data class Education(val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO) : AutoOdometer
+
+        /** "Which one is your car?" — pick the bonded stereo that triggers trips (M3). */
+        data object DevicePicker : AutoOdometer
+
+        /**
+         * "One last thing" — the staged permission checklist (location, notifications, and
+         * activity-recognition on the [mode] == NO_STEREO branch only) (M4).
+         */
+        data class PermissionSetup(val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO) : AutoOdometer
+
+        /**
+         * The trip-logged moment: odometer drum, stats and the service-due nudge (M6).
+         * Surfaced on next app open rather than a push notification (D4); [tripId] names
+         * the trip, as a `TripId` value's raw string — `:core:navigation` holds no domain
+         * types, so the feature maps it back at the boundary.
+         */
+        data class TripLogged(val tripId: String) : AutoOdometer
+
+        /** Tracking toggle, trigger device, monthly stats, privacy controls (M7). */
+        data object Settings : AutoOdometer
+    }
+
     // --- Nested / argument-carrying destinations ---
     data class CarDetail(val carId: String) : OdoDestination
 

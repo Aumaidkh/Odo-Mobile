@@ -32,3 +32,8 @@ WHERE car_id = :localId;
 
 deleteAllRows:
 DELETE FROM parked_locations;
+
+-- M7's "Delete all trip data" (auto-odometer plan §6) — same local-only posture as
+-- Trip.sq's deleteAllForCar.
+deleteForCar:
+DELETE FROM parked_locations WHERE car_id = :carId;

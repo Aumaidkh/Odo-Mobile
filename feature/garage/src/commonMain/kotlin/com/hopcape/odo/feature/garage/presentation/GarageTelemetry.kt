@@ -223,6 +223,23 @@ internal class GarageTelemetry(
         logger.info(TAG, Event.EXPORT_REQUESTED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /* ------------------------------ Auto odometer (F9) ------------------------------ */
+
+    /**
+     * The auto-odometer pitch card appeared on the home base — the funnel's first step,
+     * counted once per visit.
+     */
+    fun autoOdometerCardShown() {
+        analytics.track(Event.AUTO_ODO_CARD_SHOWN)
+        logger.debug(TAG, Event.AUTO_ODO_CARD_SHOWN, tc = flowTrace.toLog())
+    }
+
+    /** The card's "See how it works" CTA was tapped, headed to the education screen. */
+    fun autoOdometerCardTapped() {
+        analytics.track(Event.AUTO_ODO_CARD_TAPPED)
+        logger.debug(TAG, Event.AUTO_ODO_CARD_TAPPED, tc = flowTrace.toLog())
+    }
+
     /* ------------------------------ Plumbing ------------------------------ */
 
     /**
@@ -284,6 +301,8 @@ internal class GarageTelemetry(
         const val CAR_REMOVED = "garage_car_removed"
         const val CAR_REMOVE_FAILED = "garage_car_remove_failed"
         const val EXPORT_REQUESTED = "garage_export_requested"
+        const val AUTO_ODO_CARD_SHOWN = "garage_auto_odo_card_shown"
+        const val AUTO_ODO_CARD_TAPPED = "garage_auto_odo_card_tapped"
     }
 
     /** Span names for the feature's async operations. */

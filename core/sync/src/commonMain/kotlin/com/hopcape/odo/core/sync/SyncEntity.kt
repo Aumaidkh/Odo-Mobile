@@ -15,6 +15,12 @@ package com.hopcape.odo.core.sync
 enum class SyncEntity {
     PROFILES,
     CARS,
+
+    /**
+     * Automatically-detected drives (`docs/TRIPTRACKER_PLAN.md`). After [CARS] because a
+     * trip only FKs to a car, not to a service log — nothing else references it.
+     */
+    TRIPS,
     SERVICE_LOGS,
 
     /**

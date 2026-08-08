@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.reminders.RecordingScheduler
 import com.hopcape.odo.feature.reminders.TEST_CLOCK
 import com.hopcape.odo.feature.reminders.TEST_OWNER
 import com.hopcape.odo.feature.reminders.TEST_TODAY
+import com.hopcape.odo.feature.reminders.currentOdometerFrom
 import com.hopcape.odo.feature.reminders.customReminder
 import com.hopcape.odo.feature.reminders.domain.usecase.CreateCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.domain.usecase.ObserveCurrentOdometerUseCase
@@ -55,7 +56,7 @@ class NewReminderViewModelTest {
             args = NewReminderArgs(reminderId),
             activeCar = FakeActiveCarProvider(),
             owners = { TEST_OWNER },
-            observeOdometer = ObserveCurrentOdometerUseCase(serviceLogs),
+            observeOdometer = ObserveCurrentOdometerUseCase(currentOdometerFrom(serviceLogs)),
             observeReminder = ObserveCustomReminderUseCase(reminders),
             createReminder = CreateCustomReminderUseCase(
                 reminders = reminders,

@@ -67,6 +67,43 @@ object AutoOdometer {
         return Distance.of(flooredKm).getOrElse { error("AutoOdometer.derived produced a negative km: $flooredKm") }
     }
 
+    /**
+     * The car's current derived odometer: the highest known manual [OdometerReading] (the
+     * anchor) plus the calibrated distance of every counted trip since it. `null` when there
+     * are no manual readings yet — there is nothing to anchor from.
+     *
+     * The anchor is the reading with the **highest km**, not merely the most recently dated
+     * one (ties go to the later date) — the same floor [OdometerTimeline]
+     * [com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline.validate] already
+     * enforces when a new entry is logged (its `previous` is "the highest reading dated on
+     * or before the candidate", which for a same-day candidate is exactly this). Anchoring on
+     * a merely-newer-dated reading would let this figure regress below a value the app
+     * already knows is real — e.g. a car onboarded at a placeholder baseline while real
+     * service history already puts it higher, either from an earlier install or a sync pull.
+     * A regressed pair like that also cannot produce a calibration ratio ([calibration]'s
+     * `pairRawK` requires a positive manual delta), so it is silently ignored there too — the
+     * two functions already agree on what the anomaly means, this just makes the anchor agree
+     * as well.
+     *
+     * A trip is "since" the anchor by date, not by status — [derived] already filters to
+     * counted trips internally. A later manual reading at or above the anchor's km becomes
+     * the new anchor and everything before its day drops out of this sum on its own.
+     *
+     * [OdometerReading] only carries a date, not a time, so a trip on the **same** day as the
+     * anchor is deliberately still counted (`>=`, not `>`): the far more common same-day case
+     * is a fresh reading (an onboarding baseline, a just-typed log) followed by a same-day
+     * drive, where the owner expects to see the new distance immediately rather than wait
+     * until the next calendar day. The rarer inverse — a reading typed *after* already
+     * driving, on the same day — can double-count that day's trip; there is no way to tell
+     * the two apart without a reading timestamp this domain does not have.
+     */
+    fun current(readings: List<OdometerReading>, trips: List<Trip>): Distance? {
+        val anchor = readings.maxWithOrNull(compareBy({ it.odometer.km }, { it.date })) ?: return null
+        val anchorEpochDay = anchor.date.toEpochDays()
+        val sinceAnchor = trips.filter { it.startedAt.epochDay() >= anchorEpochDay }
+        return derived(anchor, sinceAnchor, calibration(readings, trips))
+    }
+
     fun drift(readings: List<OdometerReading>, trips: List<Trip>): OdometerDrift? {
         val sorted = readings.sortedBy { it.date }
         if (sorted.size < 2) return null

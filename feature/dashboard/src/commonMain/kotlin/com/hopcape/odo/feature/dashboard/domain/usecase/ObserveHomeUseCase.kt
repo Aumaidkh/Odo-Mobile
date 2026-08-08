@@ -17,15 +17,16 @@ import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.insight.analysis.InsightPicker
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
-import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.dashboard.domain.model.HomeSnapshot
 import com.hopcape.odo.feature.dashboard.domain.model.SetupProgress
 import kotlinx.coroutines.flow.Flow
@@ -63,6 +64,7 @@ internal class ObserveHomeUseCase(
     private val owners: OwnerProfileRepository,
     private val city: CurrentCityProvider,
     private val fuelPrices: FuelPriceProvider,
+    private val currentOdometer: CurrentOdometerProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -80,12 +82,22 @@ internal class ObserveHomeUseCase(
     private fun record(carId: CarId): Flow<CarRecord> = combine(
         cars.observe(carId),
         logs.observe(carId),
-        logs.observeOdometerReadings(carId),
+        readingsAndCurrent(carId),
         documents.observe(carId),
         scores.observeHistory(carId),
-    ) { car, entries, readings, documents, history ->
-        CarRecord(car, entries, readings, documents, history)
+    ) { car, entries, readingsAndCurrent, documents, history ->
+        CarRecord(car, entries, readingsAndCurrent.readings, readingsAndCurrent.current, documents, history)
     }
+
+    /**
+     * The raw odometer timeline (still needed for the history-consistency check) alongside
+     * the trip-aware aggregate — bundled into one flow because `combine` runs out of typed
+     * overloads at five and [record] already uses all five slots.
+     */
+    private fun readingsAndCurrent(carId: CarId): Flow<ReadingsAndCurrent> = combine(
+        logs.observeOdometerReadings(carId),
+        currentOdometer.observeCurrent(carId),
+    ) { readings, current -> ReadingsAndCurrent(readings, current) }
 
     private suspend fun snapshotOf(
         carId: CarId,
@@ -103,14 +115,16 @@ internal class ObserveHomeUseCase(
             entries = record.entries,
             documents = record.documents,
             readings = record.readings,
+            currentOdometer = record.currentOdometer,
         )
 
         return HomeSnapshot(
             ownerName = ownerName,
             car = record.car,
-            // The header's reading comes from the whole timeline: a service logged after
-            // onboarding moves it, even though the car's own stored reading stays put.
-            odometer = record.readings.currentReading()?.odometer ?: record.car?.odometer,
+            // The header's reading is the trip-aware aggregate: a service logged after
+            // onboarding moves it, and so does a counted auto-trip on top of it — even
+            // though the car's own stored reading stays put.
+            odometer = record.currentOdometer ?: record.car?.odometer,
             score = score,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,
@@ -119,7 +133,7 @@ internal class ObserveHomeUseCase(
             attention = AttentionPicker.pick(
                 documents = record.documents,
                 entries = record.entries,
-                readings = record.readings,
+                currentOdometer = record.currentOdometer,
                 today = today,
             ),
             insight = InsightPicker.pick(
@@ -175,9 +189,13 @@ internal class ObserveHomeUseCase(
         val car: Car?,
         val entries: List<ServiceLogEntry>,
         val readings: List<OdometerReading>,
+        val currentOdometer: Distance?,
         val documents: List<Document>,
         val history: List<HealthSnapshot>,
     )
+
+    /** [readingsAndCurrent]'s bundle — see its KDoc for why the two travel together. */
+    private data class ReadingsAndCurrent(val readings: List<OdometerReading>, val current: Distance?)
 
     /** A window and its predecessor, which exists only to produce the trend. */
     private data class CostPair(val current: RunningCost, val previous: RunningCost) {

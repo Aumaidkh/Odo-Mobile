@@ -29,6 +29,7 @@ internal class SqlDelightTripLocalDataSource(
 
     private val queries get() = database.tripQueries
     private val parkedQueries get() = database.parkedLocationQueries
+    private val sessionQueries get() = database.tripSessionQueries
 
     override suspend fun insert(trip: Trip) {
         insertTripRow(trip, clock.now().toString())
@@ -92,6 +93,17 @@ internal class SqlDelightTripLocalDataSource(
     override suspend fun countedSince(carId: CarId, after: Instant): List<Trip> =
         queries.selectCountedSince(carId.value, after.toString(), ::tripFromRow).executeAsList()
 
+    override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> =
+        queries.selectCountedBetween(carId.value, from.toString(), to.toString(), ::tripFromRow).executeAsList()
+
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? =
         parkedQueries.selectFor(carId.value, ::parkedLocationFromRow).executeAsOneOrNull()
+
+    override suspend fun deleteAllForCar(carId: CarId) {
+        database.transaction {
+            queries.deleteAllForCar(carId.value)
+            parkedQueries.deleteForCar(carId.value)
+            sessionQueries.clearSessionForCar(carId.value)
+        }
+    }
 }

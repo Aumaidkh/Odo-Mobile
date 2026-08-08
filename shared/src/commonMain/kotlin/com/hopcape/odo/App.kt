@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -18,12 +19,14 @@ import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.domain.trip.model.TripId
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.OdoNavHost
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.rememberNavigator
+import com.hopcape.odo.feature.autoodometer.PendingTripLoggedProvider
 import com.hopcape.odo.feature.dashboard.presentation.shell.OdoAppScaffold
 import com.hopcape.odo.units.DomainDistanceFormat
 import kotlinx.coroutines.Dispatchers
@@ -136,6 +139,24 @@ private fun OdoApp(startDestination: OdoDestination) {
 
     // The live top of the stack drives both the selected tab and whether the bar shows.
     val currentDestination = navigator.backStack.lastOrNull() as? OdoDestination
+
+    // D4's redirect: surface the trip-logged screen (M6) on the next top-level tab the
+    // owner lands on, rather than a push notification. `PendingTripLoggedProvider` is
+    // auto-odometer's one cross-feature contract (plan §4.4) — this is the only place
+    // `:shared` reaches into a feature's Koin graph directly, because the redirect is
+    // app-shell plumbing with no other natural home (`OdoAppScaffold` is chrome, not a
+    // navigation decision). `shouldRedirectToTripLogged` carries the actual guard so it
+    // stays unit-testable outside this composable.
+    val pendingTripLogged = koinInject<PendingTripLoggedProvider>()
+    val pendingTripId by produceState<TripId?>(initialValue = null, pendingTripLogged) {
+        pendingTripLogged.pending().collect { value = it }
+    }
+    LaunchedEffect(currentDestination, pendingTripId) {
+        val tripId = pendingTripId
+        if (shouldRedirectToTripLogged(currentDestination, tripId)) {
+            navigationManager.navigateTo(OdoDestination.AutoOdometer.TripLogged(tripId!!.value))
+        }
+    }
 
     OdoAppScaffold(
         currentDestination = currentDestination,

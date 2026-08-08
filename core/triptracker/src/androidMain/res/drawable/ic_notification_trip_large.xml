@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The trip-tracking notification's large icon — a status avatar: a circle in Odo's
+    "Elevated" surface tone (core:designsystem's OdoPalette.DarkSurfaceRaised) with a plain
+    white centre dot, mirroring a live-recording indicator. Colour, not a photo — there is
+    no car photo to show, and this reads the same way in both the notification shade and
+    its own dark theme.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M24,24m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0"
+        android:fillColor="#2B251E" />
+    <path
+        android:pathData="M24,24m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0"
+        android:fillColor="#FFFFFF" />
+</vector>

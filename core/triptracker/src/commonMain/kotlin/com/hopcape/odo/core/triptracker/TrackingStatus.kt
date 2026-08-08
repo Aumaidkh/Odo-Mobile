@@ -10,5 +10,6 @@ sealed interface TrackingStatus {
     /** Enabled and waiting for a trip trigger. [readiness] lists anything missing. */
     data class Standby(val readiness: TrackingReadiness) : TrackingStatus
 
-    data class Tracking(val startedAt: Instant, val mode: TripMode) : TrackingStatus
+    /** [isPaused] mirrors the engine's internal soft-paused state — only it ever sets this true. */
+    data class Tracking(val startedAt: Instant, val mode: TripMode, val isPaused: Boolean = false) : TrackingStatus
 }

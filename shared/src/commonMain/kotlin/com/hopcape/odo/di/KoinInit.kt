@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
+import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
@@ -83,6 +84,9 @@ fun initKoin(
         // modules that register them.
         coreSyncModule,
         coreTripTrackerModule,
+        // Depends transitively on coreDataModule + coreTripTrackerModule +
+        // databaseInfrastructureModule, so it must come after all three.
+        autoOdometerModule,
         authModule,
         onboardingModule,
         serviceLogModule,

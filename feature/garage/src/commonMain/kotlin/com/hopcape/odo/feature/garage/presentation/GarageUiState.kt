@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.feature.garage.domain.model.AutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
@@ -43,4 +44,6 @@ internal data class GarageContent(
     val odometer: Distance? = null,
     val documents: List<GarageDocument>,
     val history: List<ServiceHistoryEntry>,
+    /** The auto-odometer pitch card / status tile slot — [AutoOdometerCardState.Hidden] by default. */
+    val autoOdometerCard: AutoOdometerCardState = AutoOdometerCardState.Hidden,
 )

@@ -32,4 +32,13 @@ internal sealed interface TripEvent {
 
     /** Sent once at startup if [com.hopcape.odo.core.triptracker.port.TripSessionStore] held a snapshot. */
     data class SessionRestored(val snapshot: SessionSnapshot) : TripEvent
+
+    /** Owner tapped "Pause" on the live notification (M5) — soft-pauses without ending the trip. */
+    data object PauseRequested : TripEvent
+
+    /** Owner tapped "Resume" on the live notification (M5). */
+    data object ResumeRequested : TripEvent
+
+    /** Owner tapped "Not driving" (M5) — ends the active trip without recording it. */
+    data object DiscardRequested : TripEvent
 }
