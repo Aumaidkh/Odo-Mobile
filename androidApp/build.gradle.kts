@@ -4,8 +4,22 @@ plugins {
     // Application-level startKoin + androidContext (adds koin-android).
     alias(libs.plugins.odo.koin)
     // Reads google-services.json (not committed — see .gitignore) and registers
-    // the app with Firebase at build time.
-    alias(libs.plugins.google.services)
+    // the app with Firebase at build time. Declared here with `apply false` and
+    // applied conditionally below — unlike Supabase's local.properties, this plugin
+    // hard-fails the whole build the moment it's applied without the file, and CI /
+    // a fresh checkout never has it.
+    alias(libs.plugins.google.services) apply false
+}
+
+// google-services.json identifies a specific Firebase project, so it's gitignored and
+// only present for whoever has dropped their own copy in locally. Applying the plugin
+// unconditionally breaks every PR check on a clean checkout (processDebugGoogleServices
+// fails outright, taking the whole :androidApp task graph with it) — CI has no file to
+// give it and never should. Skipping the plugin here mirrors the runtime posture
+// OdoApplication.configureAnalytics/configureFirebaseForIos already have: no config
+// means FirebaseAnalyticsSink is simply left out of destinations, not a crash.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
 android {
