@@ -29,6 +29,7 @@ import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.data.odometer.CurrentOdometerProviderImpl
 import com.hopcape.odo.core.data.owner.FakeProfileRemoteDataSource
 import com.hopcape.odo.core.data.owner.ProfileCityProvider
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
@@ -43,6 +44,8 @@ import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.SessionSyncGate
+import com.hopcape.odo.core.data.trip.FakeTripRemoteDataSource
+import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRepositoryImpl
 import com.hopcape.odo.core.sync.SyncGate
 import com.hopcape.odo.core.sync.SyncScheduler
@@ -58,6 +61,7 @@ import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -86,9 +90,15 @@ val coreDataModule = module {
     // Device settings — theme, units, notification topics. Deliberately no scheduler:
     // `app_settings` mirrors no server table, so there is nothing to push.
     single<AppSettingsRepository> { AppSettingsRepositoryImpl(local = get(), telemetry = get()) }
-    // Automatically-detected drives. No scheduler: no SyncEntity.TRIPS/Syncable yet (D3) —
-    // the rows carry the sync columns and wait as PENDING with nothing to push them.
+    // Automatically-detected drives. TripSyncable (databaseInfrastructureModule) drains the
+    // outbox now, but this repository still has no scheduler — a write only requests a sync
+    // once something needs the result sooner than the next scheduled run, and nothing does
+    // yet.
     single<TripRepository> { TripRepositoryImpl(local = get(), telemetry = get()) }
+    // The trip-aware "current odometer" — the last manual reading plus every counted trip
+    // since it. A `single` for the same reason as `ActiveCarProvider`: combines two
+    // repositories already registered above, nothing new to fail.
+    single<CurrentOdometerProvider> { CurrentOdometerProviderImpl(serviceLogs = get(), trips = get()) }
 
     // Observability for the whole data layer, behind one facade. A `single`: it holds no
     // per-call state — the trace comes from the calling coroutine, not from this object.
@@ -146,6 +156,7 @@ val coreDataModule = module {
     single<CarRemoteDataSource> { FakeCarRemoteDataSource() }
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
     single<HealthScoreRemoteDataSource> { FakeHealthScoreRemoteDataSource() }
+    single<TripRemoteDataSource> { FakeTripRemoteDataSource() }
     // Development stub: it knows a couple of hardcoded plates so the "is this your
     // car?" path can be walked, and answers RegistrationNotFound for everything else.
     // MUST be swapped for a real adapter before launch — this one line is the swap.
