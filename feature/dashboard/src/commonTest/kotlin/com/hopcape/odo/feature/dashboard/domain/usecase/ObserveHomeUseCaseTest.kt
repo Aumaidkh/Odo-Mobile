@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.insight.model.CarInsight
 import com.hopcape.odo.feature.dashboard.FakeCarRepository
 import com.hopcape.odo.feature.dashboard.FakeCurrentCityProvider
+import com.hopcape.odo.feature.dashboard.FakeCurrentOdometerProvider
 import com.hopcape.odo.feature.dashboard.FakeDocumentRepository
 import com.hopcape.odo.feature.dashboard.FakeFuelPriceProvider
 import com.hopcape.odo.feature.dashboard.FakeHealthScoreRepository
@@ -19,6 +20,8 @@ import com.hopcape.odo.feature.dashboard.testDocument
 import com.hopcape.odo.feature.dashboard.testEntry
 import com.hopcape.odo.feature.dashboard.testFuelPrice
 import com.hopcape.odo.feature.dashboard.testProfile
+import com.hopcape.odo.feature.dashboard.currentOdometerFrom
+import com.hopcape.odo.feature.dashboard.km
 import com.hopcape.odo.feature.dashboard.testReading
 import com.hopcape.odo.feature.dashboard.testSnapshot
 import kotlinx.coroutines.flow.first
@@ -45,6 +48,9 @@ class ObserveHomeUseCaseTest {
         owners: FakeOwnerProfileRepository = FakeOwnerProfileRepository(),
         city: FakeCurrentCityProvider = FakeCurrentCityProvider(),
         fuelPrices: FakeFuelPriceProvider = FakeFuelPriceProvider(),
+        // No trips in play by default — mirrors the pre-trip-aware behaviour so existing
+        // assertions keep reading `logs`'s own timeline.
+        currentOdometer: FakeCurrentOdometerProvider? = null,
     ) = ObserveHomeUseCase(
         cars = cars,
         logs = logs,
@@ -53,6 +59,7 @@ class ObserveHomeUseCaseTest {
         owners = owners,
         city = city,
         fuelPrices = fuelPrices,
+        currentOdometer = currentOdometer ?: currentOdometerFrom(logs),
         clock = FixedClock(),
         timeZone = delhi,
     )
@@ -65,6 +72,23 @@ class ObserveHomeUseCaseTest {
 
         assertEquals("Rahul", snapshot.ownerName)
         assertEquals("Swift VXI", snapshot.car?.modelName?.removePrefix("Maruti Suzuki "))
+    }
+
+    @Test
+    fun odometer_isTheTripAwareAggregateNotJustTheRawReading() = runTest {
+        // A counted auto-trip has moved the car past its last manual log — the header must
+        // show that aggregate, and the score's maintenance factor must be measured against
+        // it too.
+        val logs = FakeServiceLogRepository(
+            entries = listOf(testEntry("l1", LocalDate(2026, 6, 1), odometerKm = 50_000)),
+            readings = listOf(testReading(LocalDate(2026, 6, 1), 50_000)),
+        )
+        val snapshot = useCase(
+            logs = logs,
+            currentOdometer = FakeCurrentOdometerProvider(km(50_120)),
+        ).invoke(TEST_CAR).first()
+
+        assertEquals(50_120, snapshot.odometer?.km)
     }
 
     @Test

@@ -38,11 +38,15 @@ class ObserveHealthScoreUseCaseTest {
         docs: FakeDocumentRepository = FakeDocumentRepository(documents),
         snapshots: FakeHealthScoreRepository = FakeHealthScoreRepository(),
         isPro: Boolean = true,
+        // No trips in play by default — mirrors the pre-trip-aware behaviour so existing
+        // assertions keep reading `logs`'s own timeline.
+        currentOdometer: FakeCurrentOdometerProvider? = null,
     ) = ObserveHealthScoreUseCase(
         logs = logs,
         documents = docs,
         snapshots = snapshots,
         entitlement = ProEntitlement { isPro },
+        currentOdometer = currentOdometer ?: currentOdometerFrom(logs),
         clock = FixedClock(now),
         timeZone = TimeZone.UTC,
     )
@@ -129,6 +133,19 @@ class ObserveHealthScoreUseCaseTest {
         scores += flow.first().score.total
 
         assertEquals(listOf(46, 76), scores)
+    }
+
+    @Test
+    fun theMaintenanceFactorReadsTheTripAwareAggregate_notJustTheRawReadings() = runTest {
+        // The provider already folds counted auto-trips on top of the manual timeline —
+        // this proves the maintenance factor is measured against that aggregate.
+        val summary = useCase(
+            currentOdometer = FakeCurrentOdometerProvider(reading(LocalDate(2026, 7, 30), 56_000).odometer),
+        ).invoke(TEST_CAR).first()
+
+        // Same 13,000 km-past-service outcome as `anOdometerUpdateFromTheGarageRescoresToo`,
+        // but driven entirely by the aggregate rather than by a new reading in the fake.
+        assertEquals(20, summary.score.factorFor(HealthFactorKind.MAINTENANCE)?.earned)
     }
 
     @Test

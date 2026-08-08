@@ -18,6 +18,7 @@ import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.UpdateServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.presentation.FakeServiceLogRepository
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
+import com.hopcape.odo.feature.servicelog.presentation.currentOdometerFrom
 import com.hopcape.odo.feature.servicelog.presentation.TEST_CAR
 import com.hopcape.odo.feature.servicelog.presentation.TEST_CLOCK
 import com.hopcape.odo.feature.servicelog.presentation.testEntry
@@ -170,7 +171,7 @@ class ServiceLogFormViewModelTest {
         addLog = AddServiceLogUseCase(logs = logs, idGenerator = SequentialIds(), clock = TEST_CLOCK),
         updateLog = UpdateServiceLogUseCase(logs = logs, clock = TEST_CLOCK),
         getLog = GetServiceLogUseCase(logs),
-        currentOdometer = GetCurrentOdometerUseCase(logs),
+        currentOdometer = GetCurrentOdometerUseCase(currentOdometerFrom(logs)),
         currentOwner = CurrentOwnerProvider { OwnerId("owner-1") },
         settings = DefaultSettings,
         telemetry = ServiceLogTelemetry(

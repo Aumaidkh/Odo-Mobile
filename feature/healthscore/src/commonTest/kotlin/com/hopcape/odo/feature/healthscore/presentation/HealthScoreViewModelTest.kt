@@ -20,6 +20,7 @@ import com.hopcape.odo.feature.healthscore.domain.usecase.FakeHealthScoreReposit
 import com.hopcape.odo.feature.healthscore.domain.usecase.FakeServiceLogRepository
 import com.hopcape.odo.feature.healthscore.domain.usecase.FixedClock
 import com.hopcape.odo.feature.healthscore.domain.usecase.ObserveHealthScoreUseCase
+import com.hopcape.odo.feature.healthscore.domain.usecase.currentOdometerFrom
 import com.hopcape.odo.feature.healthscore.domain.usecase.RecordHealthScoreUseCase
 import com.hopcape.odo.feature.healthscore.domain.usecase.SequentialIds
 import com.hopcape.odo.feature.healthscore.domain.usecase.TEST_CAR
@@ -266,6 +267,7 @@ class HealthScoreViewModelTest {
             documents = FakeDocumentRepository(documents),
             snapshots = history,
             entitlement = ProEntitlement { isPro },
+            currentOdometer = currentOdometerFrom(logs),
             clock = FixedClock(now),
             timeZone = TimeZone.UTC,
         ),

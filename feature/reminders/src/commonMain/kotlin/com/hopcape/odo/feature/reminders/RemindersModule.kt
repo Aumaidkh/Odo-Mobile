@@ -46,6 +46,7 @@ val remindersModule = module {
             documents = get(),
             serviceLogs = get(),
             reminders = get(),
+            currentOdometer = get(),
             clock = get(),
         )
     }
@@ -63,7 +64,7 @@ val remindersModule = module {
     factory { DismissReminderUseCase(reminders = get()) }
     factory { ObserveReminderSettingsUseCase(appSettings = get()) }
     factory { UpdateReminderSettingsUseCase(appSettings = get()) }
-    factory { ObserveCurrentOdometerUseCase(serviceLogs = get()) }
+    factory { ObserveCurrentOdometerUseCase(currentOdometer = get()) }
     factory { ObserveCustomReminderUseCase(reminders = get()) }
 
     // A `factory`, not a `single`: one instance covers one visit to reminders, and every

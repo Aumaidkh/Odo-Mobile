@@ -17,18 +17,21 @@ import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.model.HealthSnapshotId
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -134,6 +137,22 @@ internal class FakeServiceLogRepository(
         storedReadings.value = readings
     }
 }
+
+/** Emits a fixed [current] value for every car — a trip-aware "current odometer" double. */
+internal class FakeCurrentOdometerProvider(private val current: Distance?) : CurrentOdometerProvider {
+    override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(current)
+}
+
+/**
+ * A [CurrentOdometerProvider] over [logs]'s own readings, with no trips ever counted —
+ * mirrors the pre-trip-aware behaviour so a test that does not care about trips can keep
+ * asserting against [logs]'s latest reading.
+ */
+internal fun currentOdometerFrom(logs: FakeServiceLogRepository): CurrentOdometerProvider =
+    object : CurrentOdometerProvider {
+        override fun observeCurrent(carId: CarId): Flow<Distance?> =
+            logs.observeOdometerReadings(carId).map { it.currentReading()?.odometer }
+    }
 
 internal class FakeDocumentRepository(documents: List<Document> = emptyList()) : DocumentRepository {
     private val stored = MutableStateFlow(documents)

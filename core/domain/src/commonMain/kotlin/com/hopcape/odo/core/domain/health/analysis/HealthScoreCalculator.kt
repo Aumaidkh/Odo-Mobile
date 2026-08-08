@@ -15,6 +15,7 @@ import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceDueStatus
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceIntervalPolicy
+import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -98,16 +99,20 @@ object HealthScoreCalculator {
      * @param entries every non-deleted service log for the car.
      * @param documents every non-deleted document for the car.
      * @param readings every known odometer reading — the logs' plus the onboarding
-     *   baseline — which is what the consistency check and the service interval read.
+     *   baseline — which is what the consistency check reads.
+     * @param currentOdometer the car's odometer right now — the latest manual reading plus
+     *   any counted auto-trips since it (`CurrentOdometerProvider`) — which is what the
+     *   service interval is measured against. `null` when the car has no reading at all.
      */
     fun compute(
         today: LocalDate,
         entries: List<ServiceLogEntry>,
         documents: List<Document>,
         readings: List<OdometerReading>,
+        currentOdometer: Distance?,
     ): HealthScore = HealthScore(
         factors = listOf(
-            HealthFactor.of(HealthFactorKind.MAINTENANCE, maintenancePoints(entries, readings, today)),
+            HealthFactor.of(HealthFactorKind.MAINTENANCE, maintenancePoints(entries, currentOdometer, today)),
             HealthFactor.of(HealthFactorKind.DOCUMENTATION, documentationPoints(documents, today)),
             HealthFactor.of(HealthFactorKind.COST_EFFICIENCY, costEfficiencyPoints(entries)),
             HealthFactor.of(HealthFactorKind.HISTORY, historyPoints(entries, readings)),
@@ -128,11 +133,17 @@ object HealthScoreCalculator {
      */
     private fun maintenancePoints(
         entries: List<ServiceLogEntry>,
-        readings: List<OdometerReading>,
+        currentOdometer: Distance?,
         today: LocalDate,
     ): Int {
         if (entries.isEmpty()) return 0
-        val status = ServiceIntervalPolicy.statusFor(entries, readings, today)
+        val last = entries.maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
+        val status = ServiceIntervalPolicy.statusFor(
+            lastServiceDate = last?.serviceDate,
+            lastServiceOdometer = last?.odometer,
+            currentOdometer = currentOdometer,
+            today = today,
+        )
         return onTimePoints(status) + cadencePoints(entries, today)
     }
 

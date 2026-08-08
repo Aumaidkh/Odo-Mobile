@@ -32,6 +32,7 @@ val dashboardModule = module {
             owners = get(),
             city = get(),
             fuelPrices = get(),
+            currentOdometer = get(),
             clock = get(),
         )
     }

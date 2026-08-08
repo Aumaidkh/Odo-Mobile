@@ -20,6 +20,7 @@ import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.LocalDate
@@ -107,7 +108,8 @@ class HealthScoreCalculatorTest {
         entries: List<ServiceLogEntry> = emptyList(),
         documents: List<Document> = emptyList(),
         readings: List<OdometerReading> = emptyList(),
-    ) = HealthScoreCalculator.compute(today, entries, documents, readings)
+        currentOdometer: Distance? = readings.currentReading()?.odometer,
+    ) = HealthScoreCalculator.compute(today, entries, documents, readings, currentOdometer)
 
     private fun points(kind: HealthFactorKind, score: com.hopcape.odo.core.domain.health.model.HealthScore) =
         score.factorFor(kind)?.earned

@@ -6,9 +6,11 @@ import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.entitlement.ProEntitlement
 import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.healthscore.domain.model.HealthScoreSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -40,6 +42,7 @@ internal class ObserveHealthScoreUseCase(
     private val documents: DocumentRepository,
     private val snapshots: HealthScoreRepository,
     private val entitlement: ProEntitlement,
+    private val currentOdometer: CurrentOdometerProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -47,8 +50,9 @@ internal class ObserveHealthScoreUseCase(
         logs.observe(carId),
         documents.observe(carId),
         logs.observeOdometerReadings(carId),
-    ) { entries, documents, readings ->
-        summaryOf(carId, entries, documents, readings)
+        currentOdometer.observeCurrent(carId),
+    ) { entries, documents, readings, odometer ->
+        summaryOf(carId, entries, documents, readings, odometer)
     }
 
     private suspend fun summaryOf(
@@ -56,6 +60,7 @@ internal class ObserveHealthScoreUseCase(
         entries: List<ServiceLogEntry>,
         documents: List<Document>,
         readings: List<OdometerReading>,
+        currentOdometer: Distance?,
     ): HealthScoreSummary {
         // Resolved once per emission, so the score and the baseline are read on the same day.
         val now = clock.now()
@@ -64,6 +69,7 @@ internal class ObserveHealthScoreUseCase(
             entries = entries,
             documents = documents,
             readings = readings,
+            currentOdometer = currentOdometer,
         )
         val baseline = snapshots.latestOnOrBefore(carId, now - DELTA_WINDOW)
 

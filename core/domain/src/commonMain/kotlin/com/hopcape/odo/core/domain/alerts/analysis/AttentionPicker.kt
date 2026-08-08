@@ -6,10 +6,10 @@ import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.document.model.latestOfType
 import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
-import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceDueStatus
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceIntervalPolicy
+import com.hopcape.odo.core.domain.shared.Distance
 import kotlinx.datetime.LocalDate
 
 /**
@@ -44,17 +44,24 @@ object AttentionPicker {
      *
      * @param documents every non-deleted document for the car.
      * @param entries every non-deleted service log for the car.
-     * @param readings every known odometer reading — the logs' plus the onboarding
-     *   baseline — which is what the service interval measures distance against.
+     * @param currentOdometer the car's odometer right now — the latest manual reading plus
+     *   any counted auto-trips since it (`CurrentOdometerProvider`) — which is what the
+     *   service interval measures distance against. `null` when the car has no reading at all.
      */
     fun pick(
         documents: List<Document>,
         entries: List<ServiceLogEntry>,
-        readings: List<OdometerReading>,
+        currentOdometer: Distance?,
         today: LocalDate,
     ): CarAttention? {
         val papers = chasedDocuments(documents, today)
-        val service = ServiceIntervalPolicy.statusFor(entries, readings, today)
+        val last = entries.maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
+        val service = ServiceIntervalPolicy.statusFor(
+            lastServiceDate = last?.serviceDate,
+            lastServiceOdometer = last?.odometer,
+            currentOdometer = currentOdometer,
+            today = today,
+        )
 
         return papers.lapsed()
             ?: service.overdue()

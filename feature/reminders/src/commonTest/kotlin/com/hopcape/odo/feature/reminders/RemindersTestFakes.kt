@@ -10,6 +10,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.reminder.model.CustomReminder
 import com.hopcape.odo.core.domain.reminder.model.ReminderCadence
@@ -20,6 +21,7 @@ import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
@@ -28,6 +30,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -190,6 +193,22 @@ internal class FakeServiceLogRepository(
 
     override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = storedReadings
 }
+
+/** Emits a fixed [current] value for every car — a trip-aware "current odometer" double. */
+internal class FakeCurrentOdometerProvider(private val current: Distance?) : CurrentOdometerProvider {
+    override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(current)
+}
+
+/**
+ * A [CurrentOdometerProvider] over [logs]'s own readings, with no trips ever counted —
+ * mirrors the pre-trip-aware behaviour so a test that does not care about trips can keep
+ * asserting against [logs]'s latest reading.
+ */
+internal fun currentOdometerFrom(logs: FakeServiceLogRepository): CurrentOdometerProvider =
+    object : CurrentOdometerProvider {
+        override fun observeCurrent(carId: CarId): Flow<Distance?> =
+            logs.observeOdometerReadings(carId).map { it.currentReading()?.odometer }
+    }
 
 internal fun reading(km: Int, date: LocalDate = TEST_TODAY): OdometerReading = OdometerReading(
     logId = null,
