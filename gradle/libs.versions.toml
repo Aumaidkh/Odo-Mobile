@@ -84,6 +84,10 @@ firebaseBom = "34.17.0"
 # Reads androidApp/google-services.json and registers the app with Firebase at
 # build time (:androidApp only).
 googleServices = "4.5.0"
+# Injects the build ID resource Crashlytics' runtime SDK reads at startup — without
+# this plugin applied, FirebaseCrashlytics.init() throws during Firebase's own eager
+# ContentProvider init, before any app code runs (:androidApp only).
+firebaseCrashlyticsGradlePlugin = "3.0.7"
 
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
@@ -211,6 +215,8 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 # Applied directly by :androidApp — no other module ships a Firebase config file.
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+# Applied directly by :androidApp, alongside google-services — see firebaseCrashlyticsGradlePlugin above.
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradlePlugin" }
 
 # Odo convention plugins (defined in build-logic, applied by feature/app modules)
 odo-kmpLibrary = { id = "odo.kmp.library" }
