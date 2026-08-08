@@ -9,6 +9,13 @@ plugins {
     // hard-fails the whole build the moment it's applied without the file, and CI /
     // a fresh checkout never has it.
     alias(libs.plugins.google.services) apply false
+    // Injects the build ID resource FirebaseCrashlytics.init() reads at startup.
+    // Without it applied, the crashlytics runtime SDK on the classpath (pulled in by
+    // :infrastructure:firebase:crashlytics) still eagerly initializes via Firebase's
+    // own ContentProvider and crashes app launch with "The Crashlytics build ID is
+    // missing" — before any app code, including CrashConfig.isDebug/onDiagnostic,
+    // ever runs. Same conditional as google-services below: no config file, no plugin.
+    alias(libs.plugins.firebase.crashlytics) apply false
 }
 
 // google-services.json identifies a specific Firebase project, so it's gitignored and
@@ -20,6 +27,7 @@ plugins {
 // means FirebaseAnalyticsSink is simply left out of destinations, not a crash.
 if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
+    apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
 }
 
 android {
@@ -60,6 +68,9 @@ dependencies {
     implementation(projects.observability.performance)
     // Crash reporting — CrashReporter.init needs the app's own crash directory.
     implementation(projects.observability.crashreporting)
+    // FirebaseCrashlyticsSink is constructed directly here (see CrashSink KDoc):
+    // CrashReporter.init runs before the Koin graph starts.
+    implementation(projects.infrastructure.firebase.crashlytics)
 
     implementation(libs.androidx.activity.compose)
 

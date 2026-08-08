@@ -15,6 +15,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.observability.analytics)
+            // runCatchingCancellable — rethrows CancellationException instead of
+            // swallowing it, unlike stdlib's runCatching.
+            implementation(projects.core.common)
             implementation(libs.gitlive.firebase.analytics)
         }
         commonTest.dependencies {

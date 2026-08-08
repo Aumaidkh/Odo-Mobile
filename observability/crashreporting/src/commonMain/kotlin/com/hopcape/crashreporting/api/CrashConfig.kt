@@ -26,11 +26,19 @@ data class CrashConfig(
      */
     val crashDirPath: String = "",
 
-    /** Sentry DSN; when non-null a Sentry destination is added alongside Crashlytics. */
+    /** Sentry DSN; when non-null a Sentry destination is added alongside the sinks below. */
     val sentryDsn: String? = null,
 
     /** Debug builds additionally print each report to the console. */
     val isDebug: Boolean = false,
+
+    /**
+     * Extra vendor destinations contributed by an outside module (e.g. Firebase
+     * Crashlytics). Each is wrapped in the same Safe(Redacting(...)) decorator as
+     * every built-in destination, so a misbehaving sink can never take down
+     * delivery to the others.
+     */
+    val destinations: List<CrashSink> = emptyList(),
 
     /** Max breadcrumbs retained in the ring buffer; oldest are dropped past this. */
     val breadcrumbLimit: Int = DEFAULT_BREADCRUMB_LIMIT,
