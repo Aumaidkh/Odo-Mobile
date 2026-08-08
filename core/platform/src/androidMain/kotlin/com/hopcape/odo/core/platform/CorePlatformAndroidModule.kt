@@ -9,6 +9,8 @@ import com.hopcape.odo.core.platform.camera.DocumentCropper
 import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.AndroidFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
+import com.hopcape.odo.core.platform.logging.WorkManagerLogUploadScheduler
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
 import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -19,7 +21,10 @@ import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sync.WorkManagerSyncScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.platform.notification.SystemNotificationSettings
+import com.hopcape.logging.api.LogFileStore
+import com.hopcape.logging.api.LogUploadScheduler
 import org.koin.dsl.module
+import java.io.File
 
 /**
  * The Android-only platform bindings, registered by the `:app` bootstrap.
@@ -40,4 +45,21 @@ val corePlatformAndroidModule = module {
     single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }
     single<SmsAppSignature> { AndroidSmsAppSignature(context = get<Context>()) }
+    // The durable file sink's on-disk store (docs/LOGGING_PLAN.md). "logs" alongside
+    // AndroidFileStore's own subdirectories under filesDir — app-private, but NOT yet
+    // excluded from Android's Auto Backup: the manifest has no dataExtractionRules at all
+    // today (same gap applies to CrashReporter's "crash" dir). Owed as a follow-up; log
+    // lines already pass through PII redaction before they're written, so this is a
+    // defense-in-depth gap, not an unredacted-PII one.
+    //
+    // This is a SEPARATE instance from the one OdoApplication.configureLogging() builds and
+    // hands to HLogger.init() — that one has to exist before Koin starts (same reason
+    // FirebaseCrashlyticsSink is constructed directly there), so it can't be resolved from
+    // here. Both point at the same directory and agree via the filesystem, which is safe for
+    // every method except sealOrphans(): that one must only ever be called on the logger's
+    // own instance, at startup, before it writes anything — never on this one. Consumers
+    // resolved through Koin (the upload coordinator, "send diagnostics") only ever read,
+    // list, and delete sealed files, so they never touch that method.
+    single<LogFileStore> { AndroidLogFileStore(dir = File(get<Context>().filesDir, "logs")) }
+    single<LogUploadScheduler> { WorkManagerLogUploadScheduler(context = get<Context>()) }
 }

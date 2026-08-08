@@ -13,7 +13,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.datetime)
+            // AsyncSink's ring buffer and single writer coroutine (docs/LOGGING_PLAN.md §5).
+            implementation(libs.kotlinx.coroutines.core)
         }
-        // commonTest: kotlin-test comes from odo.kmp.test; koin-test from odo.koin.
+        commonTest.dependencies {
+            // kotlin-test comes from odo.kmp.test; koin-test from odo.koin.
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }

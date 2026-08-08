@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.support.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -44,6 +45,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
+    private val logUploadScheduler: LogUploadScheduler,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
@@ -64,7 +66,11 @@ internal class SupportFeatureEntryProvider(
                 onTerms = { nm.navigateTo(OdoDestination.Support.Terms) },
                 onPrivacy = { nm.navigateTo(OdoDestination.Support.Privacy) },
                 onLicences = { nm.navigateTo(OdoDestination.Support.Licences) },
-                onCopyDiagnostics = { /* TODO: copy the diagnostics blob to the clipboard. */ },
+                // "Send diagnostics" (docs/LOGGING_PLAN.md §9): queues an upload of whatever
+                // is logged so far, regardless of auto-upload consent — an explicit tap here
+                // is exactly what D3 (plan §1) means by "manual always available". Fire and
+                // forget: WorkManager owns the retry, and the row has nothing further to show.
+                onSendDiagnostics = { logUploadScheduler.requestUploadNow() },
             )
         }
 

@@ -14,6 +14,6 @@ import org.koin.dsl.module
  */
 val supportModule = module {
     single {
-        SupportFeatureEntryProvider(navigationManager = get())
+        SupportFeatureEntryProvider(navigationManager = get(), logUploadScheduler = get())
     } bind FeatureEntryProvider::class
 }

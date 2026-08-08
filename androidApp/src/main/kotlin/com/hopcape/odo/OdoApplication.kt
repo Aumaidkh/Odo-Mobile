@@ -12,11 +12,14 @@ import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.crashreporting.api.CrashConfig
 import com.hopcape.crashreporting.api.CrashReporter
+import com.hopcape.logging.api.FileLoggingConfig
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
+import com.hopcape.logging.api.LogUploadRunner
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
+import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
@@ -97,6 +100,14 @@ class OdoApplication : Application() {
 
         HLogger.tag("APP_LIFECYCLE").i("process_created", mapOf("appSessionId" to appSessionId))
 
+        // D3 (docs/LOGGING_PLAN.md §1): auto-upload is opt-in in release; debug/internal
+        // builds start granted so the periodic path can be exercised without a manual consent
+        // flow. "Send diagnostics" (:feature:support) bypasses this gate entirely by design —
+        // this only controls the periodic, non-manual path.
+        // TODO(consent): the real DPDP consent flow must own this gate before launch, same
+        //  as HAnalytics.setConsent below.
+        KoinPlatform.getKoin().get<LogUploadRunner>().setAutoUploadConsent(granted = BuildConfig.DEBUG)
+
         // Catches up on whatever the durable queue is still holding from the last session
         // — the periodic timer would get to it within flushInterval anyway, but there is
         // no reason to wait once the graph (and the AnalyticsEventStore behind it) is up.
@@ -107,18 +118,40 @@ class OdoApplication : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) = HAnalytics.flush()
+
+                // The app just became killable — one of AsyncSink's five flush triggers
+                // (docs/LOGGING_PLAN.md §5). A rotation still looks like onStop+onStart, but
+                // flushing early on a rotation is harmless: it just drains the buffer sooner.
+                override fun onStop(owner: LifecycleOwner) = HLogger.flush()
             },
         )
     }
 
+    /**
+     * `logFileStore` is a fresh [AndroidLogFileStore] rather than one resolved from Koin:
+     * this runs before [initKoin] (same reason [configureCrashReporting] constructs its sink
+     * directly), and it must be — the logger needs to be ready the moment Koin wiring itself
+     * wants to log. `corePlatformAndroidModule` binds a second instance over the same "logs"
+     * directory for everything downstream of Koin (the upload coordinator, "send
+     * diagnostics"); the two only ever disagree if something calls `sealOrphans()` on the
+     * Koin one, which nothing does (see that binding's comment).
+     */
     private fun configureLogging(isDebugBuild: Boolean) {
+        val logFileStore = AndroidLogFileStore(dir = File(filesDir, "logs"))
         HLogger.init(
             loggerConfig {
                 environment(if (isDebugBuild) LoggerConfig.Environment.DEBUG else LoggerConfig.Environment.PRODUCTION)
-                filePath("app_logs.log")
+                fileLogging(FileLoggingConfig(store = logFileStore))
                 remoteEndpoint(if (isDebugBuild) null.toString() else "https://logs.fourthfrontier.com/ingest")
                 minLevel(if (isDebugBuild) LogLevel.VERBOSE else LogLevel.INFO)
                 piiRedaction(true)
+                // The logger must not report its own failures through itself
+                // (docs/LOGGING_PLAN.md §8) — a sink that starts throwing (a full disk, a
+                // permission error) goes to Crashlytics as a non-fatal instead of vanishing.
+                // Safe to call before configureCrashReporting() runs below: CrashReporter's
+                // facade routes to its own pre-init no-op fallback until then, the same
+                // pattern HLogger itself uses.
+                onInternalError { t -> CrashReporter.recordNonFatal(t, mapOf("component" to "logging")) }
             }
         )
     }
