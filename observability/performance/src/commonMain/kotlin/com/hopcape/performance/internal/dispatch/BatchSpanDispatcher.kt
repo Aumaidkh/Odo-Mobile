@@ -44,6 +44,12 @@ internal class BatchSpanDispatcher(
     // Retry counts per span id. Only ever touched inside [dispatchMutex],
     // so a plain map is safe — no concurrent collection required.
     private val attemptCounts = mutableMapOf<String, Int>()
+
+    // Exporter names that have already accepted a given span. Without this, a span
+    // that one exporter keeps rejecting (e.g. a misconfigured vendor sink) would
+    // re-export to every OTHER exporter on every retry cycle too — duplicate output
+    // to exporters that already succeeded. Cleared alongside [attemptCounts].
+    private val deliveredTo = mutableMapOf<String, MutableSet<String>>()
     private val dispatchMutex = Mutex()
     private var timerJob: Job? = null
 
@@ -78,14 +84,20 @@ internal class BatchSpanDispatcher(
 
         val settledIds = mutableListOf<String>()
         for (span in batch) {
-            val allDelivered = exporters.all { exporter ->
-                runCatching { exporter.export(span) }.isSuccess
+            // Only exporters that haven't accepted this span yet are retried — one
+            // exporter repeatedly failing can never cause a duplicate delivery to
+            // another exporter that already succeeded.
+            val doneFor = deliveredTo.getOrPut(span.spanId) { mutableSetOf() }
+            exporters.filter { it.name !in doneFor }.forEach { exporter ->
+                if (runCatching { exporter.export(span) }.isSuccess) doneFor += exporter.name
             }
+            val allDelivered = doneFor.size == exporters.size
 
             when {
                 allDelivered -> {
                     settledIds += span.spanId
                     attemptCounts.remove(span.spanId)
+                    deliveredTo.remove(span.spanId)
                 }
 
                 else -> {
@@ -95,6 +107,7 @@ internal class BatchSpanDispatcher(
                         onDropped(span, IllegalStateException("Max retry attempts ($nextAttempt) exceeded"))
                         settledIds += span.spanId
                         attemptCounts.remove(span.spanId)
+                        deliveredTo.remove(span.spanId)
                     } else {
                         // Left in the store; retried on the next dispatch cycle.
                         attemptCounts[span.spanId] = nextAttempt

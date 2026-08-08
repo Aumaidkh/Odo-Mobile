@@ -48,6 +48,14 @@ data class PerformanceConfig(
     val flushInterval: Duration = DEFAULT_FLUSH_INTERVAL,
 
     /**
+     * Extra vendor backends (e.g. Firebase Performance) a platform module registers
+     * without this module depending on that vendor's SDK. Each is wrapped in the same
+     * crash-isolating decorator as the built-in exporters, so a misbehaving sink can
+     * never take down delivery to the others.
+     */
+    val destinations: List<SpanSink> = emptyList(),
+
+    /**
      * Diagnostics channel for the module's own lifecycle (duplicate init, dropped
      * spans, exporter failures). Defaults to a no-op; wire it to your logger in
      * debug builds. Kept as a `String` sink so no internal type leaks across the

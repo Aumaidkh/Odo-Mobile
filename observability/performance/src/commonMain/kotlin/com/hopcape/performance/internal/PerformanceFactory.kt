@@ -4,8 +4,8 @@ import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.internal.dispatch.BatchSpanDispatcher
 import com.hopcape.performance.internal.export.ConsoleSpanExporter
-import com.hopcape.performance.internal.export.RemoteSpanExporter
 import com.hopcape.performance.internal.export.SafeSpanExporter
+import com.hopcape.performance.internal.export.SinkSpanExporter
 import com.hopcape.performance.internal.export.SpanExporter
 import com.hopcape.performance.internal.model.SpanContext
 import com.hopcape.performance.internal.sampling.AdaptiveSampler
@@ -14,10 +14,10 @@ import com.hopcape.performance.internal.store.InMemorySpanStore
 // ─────────────────────────────────────────────────────────────
 // PerformanceFactory — Factory + composition root for the tracer,
 // mirroring the analytics AnalyticsFactory. This is the ONE place
-// that names concrete types (the remote/console exporters, the
-// in-memory store, the adaptive sampler, the dispatcher); everything
-// else depends only on interfaces (DIP). It is `internal`: the
-// public entry points are the APM facade and the performanceModule
+// that names concrete types (the sink adapter, the console exporter,
+// the in-memory store, the adaptive sampler, the dispatcher);
+// everything else depends only on interfaces (DIP). It is `internal`:
+// the public entry points are the APM facade and the performanceModule
 // Koin binding, both of which feed a PerformanceConfig through here.
 // ─────────────────────────────────────────────────────────────
 internal object PerformanceFactory {
@@ -29,7 +29,7 @@ internal object PerformanceFactory {
      */
     fun create(config: PerformanceConfig, contextProvider: () -> SpanContext): PerformanceTracer {
         val rawExporters = buildList {
-            add(RemoteSpanExporter())            // primary APM backend
+            addAll(config.destinations.map(::SinkSpanExporter))   // vendor backends (e.g. Firebase)
             if (config.isDebug) add(ConsoleSpanExporter())
         }
         // Every exporter is exception-isolated so one failing backend can never
