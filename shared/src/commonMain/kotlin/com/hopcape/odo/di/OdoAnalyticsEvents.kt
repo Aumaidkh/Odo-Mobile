@@ -12,6 +12,7 @@ import com.hopcape.odo.feature.profile.profileAnalyticsEvents
 import com.hopcape.odo.feature.reminders.remindersAnalyticsEvents
 import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
 import com.hopcape.odo.core.sync.observability.syncAnalyticsEvents
+import com.hopcape.odo.core.triptracker.observability.tripTrackerAnalyticsEvents
 import com.hopcape.odo.feature.auth.authAnalyticsEvents
 import com.hopcape.odo.feature.billscanner.billScannerAnalyticsEvents
 import com.hopcape.odo.feature.timeline.timelineAnalyticsEvents
@@ -33,4 +34,4 @@ val odoAnalyticsEvents: List<EventSchema> =
         garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents +
         timelineAnalyticsEvents + dashboardAnalyticsEvents + fairnessCheckAnalyticsEvents +
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +
-        billScannerAnalyticsEvents + remindersAnalyticsEvents
+        billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents

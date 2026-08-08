@@ -45,6 +45,7 @@ The sequenced build plan, milestones (M0→M6→LAUNCH), and exit criteria live 
 | [`docs/DB_SCHEMA.md`](docs/DB_SCHEMA.md) | **Authoritative** persistence layer: tables, enums, RLS, triggers, storage, migrations |
 | [`docs/SYNC_DESIGN.md`](docs/SYNC_DESIGN.md) | **Authoritative** offline-first sync engine: local sync columns, outbox push, delta pull, conflicts, scheduling (supersedes TDD §8) |
 | [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) | Git workflow: branching model, Conventional Commits, PR/squash-merge, tags & semver, secrets-never-committed (how code lands) |
+| [`docs/TRIPTRACKER_PLAN.md`](docs/TRIPTRACKER_PLAN.md) | **Authoritative** for `:core:triptracker`: the OdoSense v4 auto-trip-detection algorithm, its state machine, signal-source ports, persistence schema, and Android platform adapters |
 
 > **On the Git workflow:** follow [`docs/VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) — short-lived `<type>/<kebab-summary>` branches cut from `main`, Conventional Commit messages (`type(scope): subject`, imperative, ≤50 chars), squash-merge via PR, never commit secrets/keystores/`.env`.
 

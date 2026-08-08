@@ -11,6 +11,7 @@ import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
+import com.hopcape.odo.core.triptracker.coreTripTrackerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
@@ -81,6 +82,7 @@ fun initKoin(
         // The engine collects its Syncables with getAll(), so it must be listed after the
         // modules that register them.
         coreSyncModule,
+        coreTripTrackerModule,
         authModule,
         onboardingModule,
         serviceLogModule,

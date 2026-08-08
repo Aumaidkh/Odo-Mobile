@@ -92,6 +92,7 @@ class SqlDelightAppSettingsLocalDataSourceTest {
             notifPartner = 0,
             notifPush = 1,
             notifWhatsapp = 0,
+            trackerEnabled = 0,
             updatedAt = "2026-08-01T10:00:00Z",
         )
 

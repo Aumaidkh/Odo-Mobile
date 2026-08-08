@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trip_tracking_channel_name">Trip tracking</string>
+    <string name="trip_tracking_notification_title">Odo is tracking this drive</string>
+    <string name="trip_tracking_notification_text">We\'ll log it automatically when you park</string>
+</resources>

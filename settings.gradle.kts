@@ -40,6 +40,7 @@ include(":core:designsystem")
 include(":core:navigation")
 include(":core:platform")
 include(":core:sync")
+include(":core:triptracker")
 
 include(":feature:auth")
 include(":feature:billscanner")

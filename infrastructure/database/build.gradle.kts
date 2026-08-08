@@ -39,6 +39,8 @@ kotlin {
             // PlatformFileStore — the sign-out wipe deletes stored files
             // alongside the rows that named them.
             implementation(projects.core.platform)
+            // TripSessionStoreImpl implements the :core:triptracker TripSessionStore port.
+            implementation(projects.core.triptracker)
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines.extensions)
             implementation(libs.kotlinx.coroutines.core)

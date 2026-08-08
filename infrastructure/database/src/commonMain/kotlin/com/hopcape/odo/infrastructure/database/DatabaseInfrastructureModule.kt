@@ -12,6 +12,7 @@ import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
+import com.hopcape.odo.core.data.trip.TripLocalDataSource
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
@@ -20,6 +21,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
+import com.hopcape.odo.core.triptracker.port.TripSessionStore
 import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
@@ -60,6 +62,8 @@ import com.hopcape.odo.infrastructure.database.sync.SqlDelightOwnershipAdoption
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightSyncStatusProvider
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightSynchronizer
 import com.hopcape.odo.infrastructure.database.sync.SyncRunner
+import com.hopcape.odo.infrastructure.database.trip.SqlDelightTripLocalDataSource
+import com.hopcape.odo.infrastructure.database.trip.TripSessionStoreImpl
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -249,6 +253,14 @@ val databaseInfrastructureModule = module {
     single<LocalUserDataWipe> {
         SqlDelightLocalUserDataWipe(database = get(), files = get(), telemetry = get())
     }
+
+    // Automatically-detected drives. No Syncable adapter yet — no SyncEntity.TRIPS until
+    // DB_SCHEMA defines a server table (TRIPTRACKER_PLAN D3); the rows carry the sync
+    // columns and wait as PENDING.
+    single<TripLocalDataSource> { SqlDelightTripLocalDataSource(database = get()) }
+    // The crash-resume journal :core:triptracker's engine reads/writes through its own
+    // TripSessionStore port.
+    single<TripSessionStore> { TripSessionStoreImpl(database = get()) }
 
     // Moves rows created before sign-in onto the account that signed in (SYNC_DESIGN §9).
     single<OwnershipAdoption> {

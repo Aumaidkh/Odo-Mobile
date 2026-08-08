@@ -20,6 +20,23 @@
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
 
+    <!-- Trip tracking: GPS fixes while a trip is in progress, including while the app is
+         backgrounded (the owner is driving, not looking at the phone). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- ActivityRecognition Transition API: IN_VEHICLE/STILL/WALKING transitions gate when
+         GPS is worth turning on. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Bluetooth ACL connect/disconnect broadcasts from the bonded vehicle device. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- The trip-tracking foreground service and its location subtype (Android 14+ requires
+         the subtype permission alongside the base one). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- The persistent trip-tracking notification, required at runtime on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Android 11 hides installed apps from each other unless they are declared here. Without
          this, asking whether anything can take a UPI payment always answers "nothing", and the
          scan-to-pay flow would report no UPI app on a phone that has four. -->
