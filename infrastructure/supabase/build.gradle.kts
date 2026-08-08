@@ -25,6 +25,8 @@ kotlin {
             // this module changes when the adapters replace the fakes.
             implementation(projects.core.data)
             implementation(projects.core.domain)
+            // AppInfo.versionName for the log_uploads index row's app_version (docs/LOGGING_PLAN.md §7.3).
+            implementation(projects.core.platform)
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.serialization.json)
             // The fairness adapter fans one RPC call out per category concurrently.

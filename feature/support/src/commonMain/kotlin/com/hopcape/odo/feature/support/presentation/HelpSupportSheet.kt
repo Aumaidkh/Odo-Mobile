@@ -88,7 +88,7 @@ internal fun HelpSupportSheetContent(
     onTerms: () -> Unit,
     onPrivacy: () -> Unit,
     onLicences: () -> Unit,
-    onCopyDiagnostics: () -> Unit,
+    onSendDiagnostics: () -> Unit,
 ) {
     SupportSheet {
         Header(onClose = onClose)
@@ -171,7 +171,7 @@ internal fun HelpSupportSheetContent(
             OdoChip(stringResource(Res.string.sp_licences), onClick = onLicences)
         }
 
-        VersionFooter(onClick = onCopyDiagnostics)
+        VersionFooter(onClick = onSendDiagnostics)
     }
 }
 
@@ -228,7 +228,7 @@ private fun SearchBox(onClick: () -> Unit) {
     }
 }
 
-/** Version + build line; tapping it copies a diagnostics blob for a support ticket. */
+/** Version + build line; tapping it sends the current session's logs for a support ticket. */
 @Composable
 private fun VersionFooter(onClick: () -> Unit) {
     OdoText(

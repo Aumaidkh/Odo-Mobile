@@ -4,7 +4,6 @@ import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.internal.model.LogEvent
-import com.hopcape.logging.internal.sinks.FileSink
 import com.hopcape.logging.internal.sinks.LogcatSink
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -13,10 +12,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * JVM (android host) integration tests. The concrete sinks and the `HLogger`
- * facade emit through `println`, so these capture stdout to assert the real
- * end-to-end behaviour: level gating, formatting, PII redaction through the full
- * `LoggerFactory.create` pipeline, and runtime tag-level overrides.
+ * JVM (android host) integration tests. `LogcatSink` and the `HLogger` facade emit
+ * through `println`, so these capture stdout to assert the real end-to-end behaviour:
+ * level gating, formatting, PII redaction through the full `LoggerFactory.create`
+ * pipeline, and runtime tag-level overrides. `FileSink` writes through a `LogFileStore`
+ * instead — see `FileSinkTest` (commonTest) for its coverage.
  *
  * `HLogger` is a process singleton whose `init` is idempotent (first-wins), so
  * every facade test initialises with the same [SHARED_CONFIG] to stay
@@ -55,18 +55,6 @@ class LoggingOutputIntegrationTest {
     fun logcatSink_dropsEventsBelowMinLevel() {
         val out = capture { LogcatSink(minLevel = LogLevel.WARN).write(event(LogLevel.INFO)) }
         assertTrue(out.isBlank(), "sub-threshold event must be dropped, got: $out")
-    }
-
-    @Test
-    fun fileSink_gatesOnMinLevel() {
-        assertFalse(
-            capture { FileSink("test.log", minLevel = LogLevel.INFO).write(event(LogLevel.INFO)) }.isBlank(),
-            "an at-threshold event should reach the file sink",
-        )
-        assertTrue(
-            capture { FileSink("test.log", minLevel = LogLevel.INFO).write(event(LogLevel.DEBUG)) }.isBlank(),
-            "a sub-threshold event should be dropped by the file sink",
-        )
     }
 
     // ── HLogger facade end-to-end (through LoggerFactory.create) ─────

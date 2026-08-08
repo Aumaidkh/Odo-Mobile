@@ -11,12 +11,14 @@ import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
+import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseOtpAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLogUploader
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseProfileRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseOverchargeRemoteDataSource
@@ -117,6 +119,19 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
                 client = get(),
                 environment = get(),
                 tokens = get(),
+                telemetry = get(),
+            )
+        }
+        // Resolved by :observability:logging's loggingModule via getOrNull<LogUploadTarget>()
+        // — an unconfigured build binds none, same as every adapter above (plan §7.1).
+        single<LogUploadTarget> {
+            SupabaseLogUploader(
+                client = get(),
+                environment = get(),
+                tokens = get(),
+                owners = get(),
+                appInfo = get(),
+                postgrest = get(),
                 telemetry = get(),
             )
         }

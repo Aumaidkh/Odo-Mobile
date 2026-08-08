@@ -1,10 +1,16 @@
 package com.hopcape.logging
 
+import com.hopcape.logging.api.LogFileHandle
+import com.hopcape.logging.api.LogFileStore
 import com.hopcape.logging.api.LogLevel
+import com.hopcape.logging.api.LogUploadResult
+import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
+import com.hopcape.logging.internal.file.InMemoryLogFileStore
 import com.hopcape.logging.internal.model.LogEvent
 import com.hopcape.logging.internal.sinks.LogSink
+import com.hopcape.logging.internal.sinks.Sealable
 
 /**
  * Test doubles shared across the logging test suite. They implement the module's
@@ -24,6 +30,28 @@ internal class RecordingSink : LogSink {
 
     override fun flush() {
         flushCount++
+    }
+}
+
+/** A [LogSink] that also implements [Sealable] — verifies `AsyncSink` seals its delegate on
+ *  an explicit `flush()` and never on the automatic drain triggers. */
+internal class RecordingSealableSink : LogSink, Sealable {
+    val written = mutableListOf<LogEvent>()
+    var flushCount = 0
+        private set
+    var sealCount = 0
+        private set
+
+    override fun write(event: LogEvent) {
+        written += event
+    }
+
+    override fun flush() {
+        flushCount++
+    }
+
+    override fun sealCurrentFile() {
+        sealCount++
     }
 }
 
@@ -63,5 +91,34 @@ internal class RecordingLogger : Logger {
 
     override fun flush() {
         flushCount++
+    }
+}
+
+/** A [LogFileStore] that counts [sealOrphans] calls — everything else delegates to a real
+ *  [InMemoryLogFileStore]. Used to verify `LoggerFactory` seals orphans exactly once at
+ *  construction (docs/LOGGING_PLAN.md's "session rotation" — see `RotationPolicy`'s doc). */
+internal class RecordingLogFileStore(
+    private val delegate: LogFileStore = InMemoryLogFileStore(nowMs = { 0L }),
+) : LogFileStore by delegate {
+    var sealOrphansCallCount = 0
+        private set
+
+    override fun sealOrphans(): List<LogFileHandle> {
+        sealOrphansCallCount++
+        return delegate.sealOrphans()
+    }
+}
+
+/** A [LogUploadTarget] whose result per call is decided by [resultFor] — defaults to always
+ *  delivering. Records every file it was asked to upload, in call order. */
+internal class FakeLogUploadTarget(
+    private val resultFor: (LogFileHandle) -> LogUploadResult = { LogUploadResult.DELIVERED },
+) : LogUploadTarget {
+    override val name: String = "fake"
+    val uploaded = mutableListOf<LogFileHandle>()
+
+    override suspend fun upload(file: LogFileHandle, bytes: ByteArray): LogUploadResult {
+        uploaded += file
+        return resultFor(file)
     }
 }

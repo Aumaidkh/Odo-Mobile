@@ -35,6 +35,9 @@ kotlin {
             // permission dialog, and the trip to the app's settings page.
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.work.runtime)
+            // LogFileStore — this module supplies AndroidLogFileStore, the on-disk
+            // implementation (docs/LOGGING_PLAN.md §2).
+            implementation(projects.observability.logging)
             // SMS Retriever, so an OTP can be read without the READ_SMS permission.
             implementation(libs.playServices.auth)
             // The camera preview: PreviewView + LifecycleCameraController, on camera2.

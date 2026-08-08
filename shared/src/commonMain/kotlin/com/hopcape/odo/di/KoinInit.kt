@@ -3,6 +3,7 @@ package com.hopcape.odo.di
 import com.hopcape.analytics.api.analyticsModule
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.crashreporting.api.crashReportingModule
+import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.logging.api.loggingModule
 import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.common.coreCommonModule
@@ -134,6 +135,11 @@ fun initKoin(
             application.koin.get<CrashRecorder>().recordNonFatal(e, mapOf(STAGE to RESTORE))
         }
         application.koin.get<SyncScheduler>().scheduleStartupSync()
+        // Unconditional: LogUploadCoordinator gates on consent per run (D3, plan §1), so
+        // there is nothing to toggle here when consent changes — the next scheduled run
+        // just starts working once it is granted. KEEP-policy inside the scheduler makes a
+        // repeat call on every launch a no-op once the periodic job already exists.
+        application.koin.get<LogUploadScheduler>().schedulePeriodic()
     }
 }
 

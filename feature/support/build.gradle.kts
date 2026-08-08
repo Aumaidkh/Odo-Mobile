@@ -22,6 +22,8 @@ kotlin {
             implementation(projects.core.navigation)
             // Branded UI atoms (OdoCard, OdoBadge, OdoChip, OdoEmptyState…) + theme.
             implementation(projects.core.designsystem)
+            // LogUploadScheduler — "Send diagnostics" (docs/LOGGING_PLAN.md §9, L9).
+            implementation(projects.observability.logging)
         }
     }
 }
