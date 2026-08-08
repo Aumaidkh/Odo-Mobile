@@ -43,6 +43,7 @@ include(":core:sync")
 include(":core:triptracker")
 
 include(":feature:auth")
+include(":feature:auto-odometer")
 include(":feature:billscanner")
 include(":feature:healthscore")
 include(":feature:onboarding")

@@ -44,6 +44,7 @@ kotlin {
             // Brings coroutines + Arrow along via :core:domain's api dependencies.
             implementation(projects.core.domain)
             implementation(projects.feature.auth)
+            implementation(projects.feature.autoOdometer)
             implementation(projects.feature.onboarding)
             implementation(projects.feature.servicelog)
             implementation(projects.feature.billscanner)
