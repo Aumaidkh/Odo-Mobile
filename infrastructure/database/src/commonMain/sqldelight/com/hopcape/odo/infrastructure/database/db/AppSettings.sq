@@ -14,23 +14,29 @@
 -- tracker_enabled: whether automatic trip tracking is on (docs/TRIPTRACKER_PLAN.md).
 -- Device-local for the same reason as every other column here — it names a
 -- foreground-service/permission state specific to this phone, not the account.
+--
+-- auto_odo_paused_until / ao_last_acked_trip_ended_at: auto-odometer's (nullable, no
+-- default) "Pause for a week" deadline and trip-logged-screen last-acknowledged marker
+-- (docs/AUTO_ODOMETER_PLAN.md §6) — device-local for the same reason as tracker_enabled.
 CREATE TABLE app_settings (
-    id                   INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
-    theme                TEXT NOT NULL,
-    larger_text          INTEGER NOT NULL,
-    distance_unit        TEXT NOT NULL,
-    fuel_efficiency_unit TEXT NOT NULL,
-    notif_doc_expiry     INTEGER NOT NULL,
-    notif_service_due    INTEGER NOT NULL,
-    notif_custom         INTEGER NOT NULL,
-    notif_overcharge     INTEGER NOT NULL,
-    notif_monthly        INTEGER NOT NULL,
-    notif_health_drop    INTEGER NOT NULL,
-    notif_partner        INTEGER NOT NULL,
-    notif_push           INTEGER NOT NULL,
-    notif_whatsapp       INTEGER NOT NULL,
-    tracker_enabled      INTEGER NOT NULL DEFAULT 0,
-    updated_at           TEXT NOT NULL
+    id                          INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    theme                       TEXT NOT NULL,
+    larger_text                 INTEGER NOT NULL,
+    distance_unit               TEXT NOT NULL,
+    fuel_efficiency_unit        TEXT NOT NULL,
+    notif_doc_expiry            INTEGER NOT NULL,
+    notif_service_due           INTEGER NOT NULL,
+    notif_custom                INTEGER NOT NULL,
+    notif_overcharge            INTEGER NOT NULL,
+    notif_monthly               INTEGER NOT NULL,
+    notif_health_drop           INTEGER NOT NULL,
+    notif_partner                INTEGER NOT NULL,
+    notif_push                  INTEGER NOT NULL,
+    notif_whatsapp               INTEGER NOT NULL,
+    tracker_enabled              INTEGER NOT NULL DEFAULT 0,
+    auto_odo_paused_until        TEXT,
+    ao_last_acked_trip_ended_at  TEXT,
+    updated_at                  TEXT NOT NULL
 );
 
 -- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO
@@ -40,31 +46,33 @@ INSERT OR IGNORE INTO app_settings (
     id, theme, larger_text, distance_unit, fuel_efficiency_unit,
     notif_doc_expiry, notif_service_due, notif_custom, notif_overcharge,
     notif_monthly, notif_health_drop, notif_partner, notif_push, notif_whatsapp,
-    tracker_enabled, updated_at
+    tracker_enabled, auto_odo_paused_until, ao_last_acked_trip_ended_at, updated_at
 ) VALUES (
     1, :theme, :largerText, :distanceUnit, :fuelEfficiencyUnit,
     :notifDocExpiry, :notifServiceDue, :notifCustom, :notifOvercharge,
     :notifMonthly, :notifHealthDrop, :notifPartner, :notifPush, :notifWhatsapp,
-    :trackerEnabled, :updatedAt
+    :trackerEnabled, :autoOdoPausedUntil, :aoLastAckedTripEndedAt, :updatedAt
 );
 
 updateSettings:
 UPDATE app_settings
-SET theme                = :theme,
-    larger_text          = :largerText,
-    distance_unit        = :distanceUnit,
-    fuel_efficiency_unit = :fuelEfficiencyUnit,
-    notif_doc_expiry     = :notifDocExpiry,
-    notif_service_due    = :notifServiceDue,
-    notif_custom         = :notifCustom,
-    notif_overcharge     = :notifOvercharge,
-    notif_monthly        = :notifMonthly,
-    notif_health_drop    = :notifHealthDrop,
-    notif_partner        = :notifPartner,
-    notif_push           = :notifPush,
-    notif_whatsapp       = :notifWhatsapp,
-    tracker_enabled      = :trackerEnabled,
-    updated_at           = :updatedAt
+SET theme                       = :theme,
+    larger_text                 = :largerText,
+    distance_unit                = :distanceUnit,
+    fuel_efficiency_unit        = :fuelEfficiencyUnit,
+    notif_doc_expiry            = :notifDocExpiry,
+    notif_service_due           = :notifServiceDue,
+    notif_custom                 = :notifCustom,
+    notif_overcharge             = :notifOvercharge,
+    notif_monthly                = :notifMonthly,
+    notif_health_drop           = :notifHealthDrop,
+    notif_partner                = :notifPartner,
+    notif_push                   = :notifPush,
+    notif_whatsapp               = :notifWhatsapp,
+    tracker_enabled              = :trackerEnabled,
+    auto_odo_paused_until        = :autoOdoPausedUntil,
+    ao_last_acked_trip_ended_at  = :aoLastAckedTripEndedAt,
+    updated_at                   = :updatedAt
 WHERE id = 1;
 
 selectSettings:

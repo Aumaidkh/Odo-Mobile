@@ -50,4 +50,5 @@ val tripTrackerAnalyticsEvents: List<EventSchema> = listOf(
         TripTrackerTelemetry.EVENT_SESSION_RESTORED,
         mapOf(TripTrackerTelemetry.Key.OUTCOME to PropertyType.STRING),
     ),
+    EventSchema(TripTrackerTelemetry.EVENT_CATALOG_PERMISSION_MISSING, emptyMap()),
 )

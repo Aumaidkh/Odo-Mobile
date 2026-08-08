@@ -79,6 +79,16 @@ internal class TripRepositoryImpl(
             }
         }
 
+    override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> =
+        telemetry.span(DataTelemetry.TRIP, OP_COUNTED_BETWEEN, carId.value) {
+            try {
+                local.countedBetween(carId, from, to)
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.TRIP, OP_COUNTED_BETWEEN, e, carId.value)
+                emptyList()
+            }
+        }
+
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? =
         telemetry.span(DataTelemetry.TRIP, OP_PARKED_LOCATION, carId.value) {
             try {
@@ -86,6 +96,17 @@ internal class TripRepositoryImpl(
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.TRIP, OP_PARKED_LOCATION, e, carId.value)
                 null
+            }
+        }
+
+    override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> =
+        telemetry.span(DataTelemetry.TRIP, OP_DELETE_ALL_FOR_CAR, carId.value) {
+            try {
+                local.deleteAllForCar(carId)
+                Unit.right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.TRIP, OP_DELETE_ALL_FOR_CAR, e, carId.value)
+                DomainError.PersistenceFailure(e.message).left()
             }
         }
 
@@ -102,6 +123,8 @@ internal class TripRepositoryImpl(
         const val OP_OBSERVE_NEEDS_CONFIRMATION = "observeNeedingConfirmation"
         const val OP_SET_STATUS = "setStatus"
         const val OP_COUNTED_SINCE = "countedSince"
+        const val OP_COUNTED_BETWEEN = "countedBetween"
         const val OP_PARKED_LOCATION = "parkedLocation"
+        const val OP_DELETE_ALL_FOR_CAR = "deleteAllForCar"
     }
 }

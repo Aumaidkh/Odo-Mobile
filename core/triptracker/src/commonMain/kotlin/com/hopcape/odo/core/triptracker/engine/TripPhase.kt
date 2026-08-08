@@ -54,12 +54,16 @@ internal sealed interface TripPhase {
      * latest debounced signals, kept so a BT connect and an already-settled IN_VEHICLE
      * reading (or vice versa) don't have to arrive in the same instant to start a trip.
      * [gpsMotionSince] is non-null while a GPS-only candidate is sustaining toward the
-     * 45 s threshold (§4.2's GPS path).
+     * 45 s threshold (§4.2's GPS path). [speedGateAboveCount] is STEREO's parallel start
+     * confirm (auto-odometer plan §1.1/§6): consecutive fixes read above
+     * [com.hopcape.odo.core.triptracker.config.TripTrackerConfig.speedGateThresholdKmh]
+     * since the bonded stereo connected, reset by any fix at or below it.
      */
     data class Standby(
         val lastMotionKind: MotionKind? = null,
         val presenceConnected: Boolean = false,
         val gpsMotionSince: Instant? = null,
+        val speedGateAboveCount: Int = 0,
     ) : TripPhase
 
     /**

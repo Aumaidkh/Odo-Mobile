@@ -64,6 +64,9 @@ class TripTrackerTelemetry(
 
     fun preconditionLost(which: String) = analytics.track(EVENT_PRECONDITION_LOST, mapOf(Key.WHICH to which))
 
+    /** The device picker asked for bonded devices before `BLUETOOTH_CONNECT` was granted. */
+    fun catalogPermissionMissing() = analytics.track(EVENT_CATALOG_PERMISSION_MISSING)
+
     fun sessionRestored(outcome: String) = analytics.track(EVENT_SESSION_RESTORED, mapOf(Key.OUTCOME to outcome))
 
     /** A caught exception that means something in the tracking pipeline is broken. */
@@ -121,6 +124,7 @@ class TripTrackerTelemetry(
         const val EVENT_TRIP_STITCH_RESUMED = "trip_stitch_resumed"
         const val EVENT_PRECONDITION_LOST = "tracking_precondition_lost"
         const val EVENT_SESSION_RESTORED = "trip_session_restored"
+        const val EVENT_CATALOG_PERMISSION_MISSING = "bonded_catalog_permission_missing"
 
         /* discarded()'s fixed reason labels. */
         const val REASON_BELOW_FLOOR = "below_validation_floor"

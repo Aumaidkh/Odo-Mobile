@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
+import kotlin.time.Instant
 
 /**
  * DB row → domain. Domain never sees the row type.
@@ -30,6 +31,8 @@ internal fun App_settings.toDomain(): AppSettings = AppSettings(
         whatsapp = notif_whatsapp.toBoolean(),
     ),
     trackerEnabled = tracker_enabled.toBoolean(),
+    autoOdoPausedUntil = auto_odo_paused_until?.let { runCatching { Instant.parse(it) }.getOrNull() },
+    aoLastAckedTripEndedAt = ao_last_acked_trip_ended_at?.let { runCatching { Instant.parse(it) }.getOrNull() },
 )
 
 private inline fun <reified T : Enum<T>> String.toEnum(fallback: T): T =

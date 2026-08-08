@@ -2,6 +2,7 @@ package com.hopcape.odo.core.domain.settings.model
 
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.shared.DistanceUnit
+import kotlin.time.Instant
 
 /**
  * How the owner wants the app to look, measure and get in touch.
@@ -23,6 +24,10 @@ data class AppSettings(
     val notifications: NotificationPreferences = NotificationPreferences(),
     /** Automatic trip tracking (docs/TRIPTRACKER_PLAN.md) — off until the owner turns it on. */
     val trackerEnabled: Boolean = false,
+    /** Auto-odometer's "Pause for a week" (docs/AUTO_ODOMETER_PLAN.md M7) — tracking stays off until this instant passes. */
+    val autoOdoPausedUntil: Instant? = null,
+    /** Marks the newest counted trip the owner has already seen the trip-logged screen for (D4) — advances only on "Done". */
+    val aoLastAckedTripEndedAt: Instant? = null,
 ) {
     companion object {
         /** What a device has before anything is chosen. */
