@@ -56,6 +56,18 @@ WHERE car_id = :carId
   AND deleted_at IS NULL
 ORDER BY started_at ASC;
 
+-- Both bounds inclusive (unlike selectCountedSince's exclusive lower bound) — the
+-- monthly-stats window (auto-odometer plan §4.1) wants everything within [from, to].
+selectCountedBetween:
+SELECT *
+FROM trips
+WHERE car_id = :carId
+  AND status IN ('RECORDED', 'CONFIRMED')
+  AND started_at >= :from
+  AND started_at <= :to
+  AND deleted_at IS NULL
+ORDER BY started_at ASC;
+
 selectById:
 SELECT *
 FROM trips
@@ -147,6 +159,13 @@ WHERE owner_id = :placeholderOwnerId;
 -- later sign-in pushes, destroying the owner's data on the server.
 deleteAllRows:
 DELETE FROM trips;
+
+-- M7's "Delete all trip data" — local-only today, same hard-delete posture as
+-- deleteAllRows. Once trip sync lands (SyncEntity.TRIPS) this must become tombstoning
+-- (a soft delete synced as a deletion) instead of a real delete, so a push from another
+-- device doesn't resurrect these rows.
+deleteAllForCar:
+DELETE FROM trips WHERE car_id = :carId;
 
 repointCar:
 UPDATE trips

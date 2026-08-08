@@ -60,3 +60,9 @@ WHERE id = 1;
 
 clearSession:
 DELETE FROM trip_session WHERE id = 1;
+
+-- M7's "Delete all trip data" (auto-odometer plan §6) — only clears the single row if it
+-- actually belongs to the car being wiped, so deleting one car's data can never drop a
+-- live session belonging to another.
+clearSessionForCar:
+DELETE FROM trip_session WHERE id = 1 AND car_id = :carId;

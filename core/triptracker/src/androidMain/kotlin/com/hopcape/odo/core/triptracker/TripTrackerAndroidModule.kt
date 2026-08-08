@@ -2,6 +2,7 @@ package com.hopcape.odo.core.triptracker
 
 import android.content.Context
 import com.hopcape.odo.core.triptracker.bluetooth.AclVehiclePresenceSource
+import com.hopcape.odo.core.triptracker.bluetooth.AndroidBondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.bluetooth.PrefsVehicleBondStore
 import com.hopcape.odo.core.triptracker.location.FusedLocationProvider
 import com.hopcape.odo.core.triptracker.motion.TransitionMotionSource
@@ -32,4 +33,7 @@ val tripTrackerAndroidModule = module {
 
     single { PrefsVehicleBondStore(context = get<Context>()) }
     single<VehicleBondStore> { get<PrefsVehicleBondStore>() }
+
+    single { AndroidBondedDeviceCatalog(context = get<Context>(), telemetry = get()) }
+    single<BondedDeviceCatalog> { get<AndroidBondedDeviceCatalog>() }
 }

@@ -35,5 +35,11 @@ interface TripLocalDataSource {
     /** Trips [TripStatus.counted] that started after [after], oldest first. */
     suspend fun countedSince(carId: CarId, after: Instant): List<Trip>
 
+    /** Trips [TripStatus.counted] that started within [from]..[to], both bounds inclusive, oldest first. */
+    suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip>
+
     suspend fun parkedLocation(carId: CarId): ParkedLocation?
+
+    /** Hard-deletes every trip, the parked location, and any live session row for [carId] — one transaction. */
+    suspend fun deleteAllForCar(carId: CarId)
 }

@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.triptracker.internal
 
+import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
+import com.hopcape.odo.core.triptracker.BondedDevice
 import com.hopcape.odo.core.triptracker.TrackingPreconditions
 import com.hopcape.odo.core.triptracker.TrackingReadiness
 import com.hopcape.odo.core.triptracker.VehicleBond
@@ -49,4 +51,8 @@ internal class NoopVehicleBondStore : VehicleBondStore {
     override suspend fun bond(): VehicleBond? = null
     override suspend fun saveBond(bond: VehicleBond) = Unit
     override suspend fun clearBond() = Unit
+}
+
+internal class NoopBondedDeviceCatalog : BondedDeviceCatalog {
+    override suspend fun devices(): List<BondedDevice> = emptyList()
 }

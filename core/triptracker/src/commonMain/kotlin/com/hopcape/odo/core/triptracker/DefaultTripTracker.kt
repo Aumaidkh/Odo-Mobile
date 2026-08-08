@@ -28,4 +28,12 @@ internal class DefaultTripTracker(
     override val isEnabled: StateFlow<Boolean> get() = enabled
 
     override val status: Flow<TrackingStatus> get() = engine.status
+
+    override suspend fun pauseActiveTrip() = engine.pauseActiveTrip()
+
+    override suspend fun resumeActiveTrip() = engine.resumeActiveTrip()
+
+    override suspend fun discardActiveTrip() = engine.discardActiveTrip()
+
+    override suspend fun startIfConnected() = engine.startIfConnected()
 }

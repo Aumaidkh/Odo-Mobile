@@ -29,5 +29,19 @@ interface TripRepository {
     /** Trips the derived odometer counts ([TripStatus.counted]) that started after [after]. */
     suspend fun countedSince(carId: CarId, after: Instant): List<Trip>
 
+    /**
+     * Trips the derived odometer counts ([TripStatus.counted]) that started within
+     * [from]..[to], both bounds inclusive — the monthly-stats window (auto-odometer plan
+     * §4.1's `ObserveMonthlySummary`), which [countedSince] can't serve on its own.
+     */
+    suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip>
+
     suspend fun parkedLocation(carId: CarId): ParkedLocation?
+
+    /**
+     * Hard-deletes every trip and the parked location for [carId] (M7's "Delete all trip
+     * data") — local-only today. Once trip sync lands this must become tombstoning instead
+     * of a real delete, so a push doesn't resurrect the rows on another device.
+     */
+    suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit>
 }

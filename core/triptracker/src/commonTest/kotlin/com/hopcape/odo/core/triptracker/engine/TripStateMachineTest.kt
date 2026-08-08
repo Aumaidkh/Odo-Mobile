@@ -28,8 +28,10 @@ class TripStateMachineTest {
     @Test
     fun btStartHappyPath_connectsThenSettlesInVehicle_thenPromotesOnNextEvent() {
         val step1 = go(TripPhase.Standby(), TripEvent.PresenceConnected, t0)
+        // Connecting alone now also arms the speed-gate confirm path (§1.1) — fixes start
+        // flowing immediately, even though this test's happy path promotes on Motion instead.
         assertEquals(TripPhase.Standby(presenceConnected = true), step1.newState)
-        assertTrue(step1.effects.isEmpty())
+        assertEquals(listOf(TripEffect.RequestFixes), step1.effects)
 
         val step2 = go(step1.newState, TripEvent.Motion(MotionKind.IN_VEHICLE), t0)
         assertEquals(
@@ -268,6 +270,111 @@ class TripStateMachineTest {
         assertTrue(result.effects.isEmpty())
     }
 
+    // ---- STEREO speed-gate start confirm (auto-odometer plan §1.1) ----
+
+    @Test
+    fun speedGate_presenceConnects_carStaysParked_neverStarts() {
+        var state: TripPhase = TripPhase.Standby()
+        val connect = go(state, TripEvent.PresenceConnected, t0)
+        assertEquals(listOf(TripEffect.RequestFixes), connect.effects)
+        state = connect.newState
+
+        // The exact synthetic trace the plan's F1 verify step calls out: stereo connects,
+        // car stays parked ~10 minutes — every fix reads 0 km/h, so the confirm counter
+        // never advances no matter how long this goes on.
+        repeat(600) { tick ->
+            val fix = fixEvent(sample(t0 + (tick + 1).seconds, lat = 19.0, lon = 72.8), addedMeters = 0)
+            val result = go(state, fix, t0 + (tick + 1).seconds)
+            assertTrue(result.newState !is TripPhase.Starting, "started on a parked fix at tick=$tick")
+            state = result.newState
+        }
+        assertEquals(TripPhase.Standby(presenceConnected = true, speedGateAboveCount = 0), state)
+    }
+
+    @Test
+    fun speedGate_sustainedSpeedAboveThreshold_startsAfterConfirmFixes() {
+        var state: TripPhase = go(TripPhase.Standby(), TripEvent.PresenceConnected, t0).newState
+
+        // Below threshold — no progress.
+        val slow = go(state, fixEvent(sample(t0 + 1.seconds, speedMps = 2f)), t0 + 1.seconds)
+        assertIs<TripPhase.Standby>(slow.newState)
+        state = slow.newState
+
+        // config.speedGateConfirmFixes consecutive fixes above the threshold starts the trip.
+        var result: Transition? = null
+        for (i in 1..config.speedGateConfirmFixes) {
+            val at = t0 + (1 + i).seconds
+            result = go(state, fixEvent(sample(at, speedMps = 20f)), at)
+            state = result.newState
+        }
+        val starting = assertIs<TripPhase.Starting>(state)
+        assertEquals(TripMode.BT_VERIFIED, starting.mode)
+        assertEquals(
+            listOf(
+                TripEffect.StartForegroundSession,
+                TripEffect.RequestFixes,
+                TripEffect.Telemetry(TripTelemetryEvent.Started(TripMode.BT_VERIFIED)),
+            ),
+            result!!.effects,
+        )
+    }
+
+    @Test
+    fun speedGate_belowThresholdFixResetsTheCount() {
+        var state: TripPhase = go(TripPhase.Standby(), TripEvent.PresenceConnected, t0).newState
+        state = go(state, fixEvent(sample(t0 + 1.seconds, speedMps = 20f)), t0 + 1.seconds).newState
+        state = go(state, fixEvent(sample(t0 + 2.seconds, speedMps = 20f)), t0 + 2.seconds).newState
+        assertEquals(TripPhase.Standby(presenceConnected = true, speedGateAboveCount = 2), state)
+
+        // One slow fix resets the streak — the next speedGateConfirmFixes hits start over.
+        state = go(state, fixEvent(sample(t0 + 3.seconds, speedMps = 1f)), t0 + 3.seconds).newState
+        assertEquals(TripPhase.Standby(presenceConnected = true, speedGateAboveCount = 0), state)
+    }
+
+    // ---- pause / resume / discard (M5) ----
+
+    @Test
+    fun pauseRequested_whileTracking_softPausesAndReleasesFixes() {
+        val tracking = TripPhase.Tracking(session(distanceMeters = 500))
+        val result = go(tracking, TripEvent.PauseRequested, t0)
+        assertEquals(TripPhase.SoftPaused(tracking.session), result.newState)
+        assertEquals(listOf(TripEffect.StopFixes, TripEffect.CancelTimer(TimerKind.IDLE)), result.effects)
+    }
+
+    @Test
+    fun resumeRequested_whileSoftPaused_returnsToTrackingAndRequestsFixes() {
+        val paused = TripPhase.SoftPaused(session(distanceMeters = 500))
+        val result = go(paused, TripEvent.ResumeRequested, t0)
+        assertEquals(TripPhase.Tracking(paused.session), result.newState)
+        assertEquals(listOf(TripEffect.RequestFixes), result.effects)
+    }
+
+    @Test
+    fun discardRequested_whileTracking_releasesEverythingWithoutFinalizing() {
+        val tracking = TripPhase.Tracking(session(distanceMeters = 500))
+        val result = go(tracking, TripEvent.DiscardRequested, t0)
+        assertEquals(TripPhase.Standby(), result.newState)
+        assertEquals(
+            listOf(
+                TripEffect.StopForegroundSession,
+                TripEffect.StopFixes,
+                TripEffect.CancelTimer(TimerKind.IDLE),
+                TripEffect.CancelTimer(TimerKind.STITCH),
+                TripEffect.ClearSession,
+            ),
+            result.effects,
+        )
+        assertTrue(result.effects.none { it is TripEffect.Finalize }, "a discarded trip must never be finalized")
+    }
+
+    @Test
+    fun discardRequested_fromStandby_isANoop() {
+        val standby = TripPhase.Standby(presenceConnected = true)
+        val result = go(standby, TripEvent.DiscardRequested, t0)
+        assertEquals(standby, result.newState)
+        assertTrue(result.effects.isEmpty())
+    }
+
     // ---- helpers ----
 
     private fun go(
@@ -291,12 +398,13 @@ class TripStateMachineTest {
 
     private fun point(lat: Double, lon: Double): GeoPoint = GeoPoint.of(lat, lon).getOrNull()!!
 
-    private fun sample(at: Instant, lat: Double = 19.0, lon: Double = 72.8) = LocationSample(
+    private fun sample(at: Instant, lat: Double = 19.0, lon: Double = 72.8, speedMps: Float? = null) = LocationSample(
         at = at,
         elapsed = at - Instant.fromEpochSeconds(0),
         lat = lat,
         lon = lon,
         accuracyM = 10f,
+        speedMps = speedMps,
     )
 
     private fun fixEvent(

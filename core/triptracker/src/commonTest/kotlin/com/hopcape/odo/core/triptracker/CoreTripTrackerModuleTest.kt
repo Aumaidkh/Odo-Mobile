@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.triptracker
 
+import arrow.core.Either
+import arrow.core.right
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
@@ -22,10 +24,12 @@ import com.hopcape.odo.core.common.id.UuidIdGenerator
 import com.hopcape.odo.core.triptracker.config.TripTrackerConfig
 import com.hopcape.odo.core.triptracker.engine.TripFinalizer
 import com.hopcape.odo.core.triptracker.engine.TripTrackerEngine
+import com.hopcape.odo.core.triptracker.internal.NoopBondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.internal.NoopLocationProvider
 import com.hopcape.odo.core.triptracker.internal.NoopMotionActivitySource
 import com.hopcape.odo.core.triptracker.internal.NoopTrackingPreconditions
 import com.hopcape.odo.core.triptracker.internal.NoopTripForegroundSession
+import com.hopcape.odo.core.triptracker.internal.NoopVehicleBondStore
 import com.hopcape.odo.core.triptracker.internal.NoopVehiclePresenceSource
 import com.hopcape.odo.core.triptracker.observability.TripTrackerTelemetry
 import com.hopcape.odo.core.triptracker.port.LocationProvider
@@ -90,6 +94,8 @@ class CoreTripTrackerModuleTest {
                 single<MotionActivitySource> { NoopMotionActivitySource() }
                 single<VehiclePresenceSource> { NoopVehiclePresenceSource() }
                 single<TripForegroundSession> { NoopTripForegroundSession() }
+                single<VehicleBondStore> { NoopVehicleBondStore() }
+                single<BondedDeviceCatalog> { NoopBondedDeviceCatalog() }
                 single<TripSessionStore> { NoopTripSessionStore }
                 single<CarRepository> { NoopCarRepository }
                 single<TripRepository> { NoopTripRepository }
@@ -162,5 +168,7 @@ private object NoopTripRepository : TripRepository {
     override fun observeNeedingConfirmation(carId: CarId): Flow<List<Trip>> = flowOf(emptyList())
     override suspend fun setStatus(id: TripId, status: TripStatus): Nothing = throw NotImplementedError()
     override suspend fun countedSince(carId: CarId, after: Instant): List<Trip> = emptyList()
+    override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> = emptyList()
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? = null
+    override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = Unit.right()
 }

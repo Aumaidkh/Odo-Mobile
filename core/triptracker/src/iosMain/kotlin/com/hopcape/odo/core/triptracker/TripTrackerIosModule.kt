@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.triptracker
 
+import com.hopcape.odo.core.triptracker.internal.NoopBondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.internal.NoopLocationProvider
 import com.hopcape.odo.core.triptracker.internal.NoopMotionActivitySource
 import com.hopcape.odo.core.triptracker.internal.NoopTrackingPreconditions
@@ -20,4 +21,5 @@ val tripTrackerIosModule = module {
     single<TripForegroundSession> { NoopTripForegroundSession() }
     single<TrackingPreconditions> { NoopTrackingPreconditions() }
     single<VehicleBondStore> { NoopVehicleBondStore() }
+    single<BondedDeviceCatalog> { NoopBondedDeviceCatalog() }
 }
