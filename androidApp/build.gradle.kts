@@ -16,6 +16,10 @@ plugins {
     // missing" — before any app code, including CrashConfig.isDebug/onDiagnostic,
     // ever runs. Same conditional as google-services below: no config file, no plugin.
     alias(libs.plugins.firebase.crashlytics) apply false
+    // Bytecode-instruments app-start/network/screen-render traces automatically —
+    // custom spans (FirebasePerformanceSink) work without it. Same conditional as
+    // google-services/firebase-crashlytics: no config file, no plugin.
+    alias(libs.plugins.firebase.perf) apply false
 }
 
 // google-services.json identifies a specific Firebase project, so it's gitignored and
@@ -28,6 +32,7 @@ plugins {
 if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+    apply(plugin = libs.plugins.firebase.perf.get().pluginId)
 }
 
 android {
@@ -66,6 +71,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
+    // FirebasePerformanceSink is constructed directly in configureApm (see
+    // FirebasePerformanceSink KDoc): APM.init runs before initKoin.
+    implementation(projects.infrastructure.firebase.performance)
     // Crash reporting — CrashReporter.init needs the app's own crash directory.
     implementation(projects.observability.crashreporting)
     // FirebaseCrashlyticsSink is constructed directly here (see CrashSink KDoc):

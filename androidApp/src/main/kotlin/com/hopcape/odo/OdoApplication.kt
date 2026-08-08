@@ -24,6 +24,7 @@ import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.infrastructure.firebase.crashlytics.FirebaseCrashlyticsSink
+import com.hopcape.odo.infrastructure.firebase.performance.FirebasePerformanceSink
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
@@ -156,6 +157,13 @@ class OdoApplication : Application() {
         )
     }
 
+    /**
+     * Collection stays on in both debug and release (unlike analytics, this isn't
+     * gated behind DPDP consent — spans carry no direct user identity). The sink
+     * stamps `build_type` on every trace so the console can filter debug-session
+     * noise out of production data, since this app has no separate debug
+     * applicationId sharing the same Firebase project.
+     */
     private fun configureApm(isDebugBuild: Boolean) {
         APM.init(
             PerformanceConfig(
@@ -164,6 +172,14 @@ class OdoApplication : Application() {
                 osVersion = "Android ${Build.VERSION.RELEASE}",
                 locale = Locale.getDefault().toLanguageTag(),
                 isDebug = isDebugBuild,
+                // Constructed directly rather than resolved from Koin — this runs before
+                // initKoin() below, and the sink has no dependency that needs the graph.
+                destinations = listOf(
+                    FirebasePerformanceSink(
+                        onDiagnostic = { Log.w("APM", it) },
+                        buildType = if (isDebugBuild) "debug" else "release",
+                    )
+                ),
                 onDiagnostic = { Log.w("APM", it) },
             )
         )

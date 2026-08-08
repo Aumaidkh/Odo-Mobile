@@ -88,6 +88,10 @@ googleServices = "4.5.0"
 # this plugin applied, FirebaseCrashlytics.init() throws during Firebase's own eager
 # ContentProvider init, before any app code runs (:androidApp only).
 firebaseCrashlyticsGradlePlugin = "3.0.7"
+# Enables Firebase Performance's automatic instrumentation (app start, network calls)
+# via bytecode transform. Latest published version — AGP 9.0.1 compatibility is
+# unverified going in (:androidApp only, see the guarded apply site).
+firebasePerfGradlePlugin = "2.0.2"
 
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
@@ -102,6 +106,11 @@ gitlive-firebase-analytics = { module = "dev.gitlive:firebase-analytics", versio
 # firebase-kotlin-sdk module together, so it shares that version ref.
 gitlive-firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+# Native Android SDK, not gitlive — gitlive's firebase-perf caps at 2.1.0 while this
+# repo pins gitlive at 3.0.0-alpha01 for analytics/crashlytics, so mixing them would
+# conflict on firebase-common. Version comes from firebase-bom (:infrastructure:firebase:performance,
+# androidMain only — no gitlive KMP wrapper exists for Performance Monitoring).
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
 
 # Koin DI — wired into modules by the odo.koin convention plugin
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
@@ -217,6 +226,7 @@ kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", versio
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 # Applied directly by :androidApp, alongside google-services — see firebaseCrashlyticsGradlePlugin above.
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradlePlugin" }
+firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfGradlePlugin" }
 
 # Odo convention plugins (defined in build-logic, applied by feature/app modules)
 odo-kmpLibrary = { id = "odo.kmp.library" }

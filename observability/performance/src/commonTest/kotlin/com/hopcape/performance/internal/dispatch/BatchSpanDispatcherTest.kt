@@ -63,6 +63,26 @@ class BatchSpanDispatcherTest {
     }
 
     @Test
+    fun oneExporterFailing_doesNotReExportToExportersThatAlreadySucceeded() = runTest {
+        val store = InMemorySpanStore().apply { enqueue(testSpan("checkout", "1")) }
+        val succeeds = RecordingSpanExporter(name = "console")
+        val alwaysFails = RecordingSpanExporter(name = "vendor", failTimes = Int.MAX_VALUE)
+        val dispatcher = BatchSpanDispatcher(
+            store = store,
+            exporters = listOf(succeeds, alwaysFails),
+            retryPolicy = RetryPolicy(maxAttempts = 3),
+            scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        )
+
+        dispatcher.flushNow() // attempt 1: console succeeds, vendor fails
+        dispatcher.flushNow() // attempt 2: console must not be re-invoked
+        dispatcher.flushNow() // attempt 3: vendor dead-lettered
+
+        assertEquals(1, succeeds.exported.size, "an exporter that already accepted the span must not see it again")
+        assertEquals(0, store.size())
+    }
+
+    @Test
     fun flush_asksExportersToPersist() = runTest {
         val exporter = RecordingSpanExporter()
         val dispatcher = BatchSpanDispatcher(
