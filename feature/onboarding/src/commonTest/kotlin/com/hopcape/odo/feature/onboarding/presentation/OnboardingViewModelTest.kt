@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.onboarding.presentation
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.analytics.api.AnalyticsTracker
@@ -24,6 +25,11 @@ import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
+import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
@@ -48,6 +54,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -55,6 +63,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 // Driving virtual time (setMain / advanceUntilIdle) is still an experimental coroutines API.
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -507,6 +517,36 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingStep.CAR, viewModel.state.value.step)
     }
 
+    /**
+     * A car id can arrive at this flow with real history already on it — from a prior
+     * session, or pulled down by sync. Saving a lower baseline against it must surface a
+     * visible error rather than silently succeeding or crashing.
+     */
+    @Test
+    fun anOdometerRegression_surfacesAVisibleErrorRatherThanSilentlySucceeding() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository(
+            readings = listOf(
+                OdometerReading(
+                    logId = null,
+                    date = LocalDate(2026, 1, 1),
+                    odometer = Distance.of(45_000).getOrElse { error("bad km") },
+                ),
+            ),
+        )
+        val viewModel = viewModel(logs = logs)
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(500))
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // Refused, not silently applied: the step does not advance…
+        assertEquals(OnboardingStep.CAR, viewModel.state.value.step)
+        // …and the owner is told, rather than the failure being swallowed.
+        assertTrue(viewModel.effects.first() is OnboardingEffect.SaveFailed)
+    }
+
     @Test
     fun continuingTheProfileStep_storesACompletedProfile() = runTest(dispatcher) {
         val profiles = FakeProfileRepository()
@@ -601,6 +641,7 @@ class OnboardingViewModelTest {
         catalog: VehicleCatalog = FakeCatalog(),
         registry: VehicleRegistryLookup = FakeRegistry(),
         cars: FakeCarRepository = FakeCarRepository(),
+        logs: ServiceLogRepository = FakeServiceLogRepository(),
         profiles: FakeProfileRepository = FakeProfileRepository(),
         signedIn: Boolean = false,
         analytics: AnalyticsTracker = RecordingAnalytics(),
@@ -608,7 +649,13 @@ class OnboardingViewModelTest {
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
         lookupPlate = LookupPlateUseCase(registry),
-        saveCar = SaveCarUseCase(cars, IdGenerator { "car-1" }),
+        saveCar = SaveCarUseCase(
+            cars = cars,
+            logs = logs,
+            idGenerator = IdGenerator { "car-1" },
+            clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            timeZone = TimeZone.UTC,
+        ),
         completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
         currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
@@ -677,6 +724,24 @@ class OnboardingViewModelTest {
             added.removeAll { it.id == id }
             return Unit.right()
         }
+    }
+
+    private class FixedClock(private val instant: Instant) : Clock {
+        override fun now(): Instant = instant
+    }
+
+    /** Only the odometer timeline matters to this flow's tests, so the rest answers emptily. */
+    private class FakeServiceLogRepository(
+        private val readings: List<OdometerReading>? = null,
+    ) : ServiceLogRepository {
+        override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> = flowOf(emptyList())
+        override fun observe(id: ServiceLogId): Flow<ServiceLogEntry?> = flowOf(null)
+        override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
+        override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
+        override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
+            flowOf(readings.orEmpty())
     }
 
     private class FakeProfileRepository(var failing: Boolean = false) : OwnerProfileRepository {
