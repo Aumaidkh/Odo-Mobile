@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.firebase.analytics
 
+import com.hopcape.odo.core.common.runCatchingCancellable
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.analytics.FirebaseAnalytics
 import dev.gitlive.firebase.analytics.analytics
@@ -22,9 +23,11 @@ internal interface FirebaseAnalyticsGateway {
  * `Firebase.analytics` throws when no `FirebaseApp` has been configured — a missing or
  * not-yet-added `google-services.json`/`GoogleService-Info.plist` on Android/iOS, which
  * this repo's own config files currently are. Resolution is lazy (not a constructor
- * default) and every call is caught, so a misconfigured Firebase project degrades this
- * one destination — via [onDiagnostic] — instead of crashing app launch, matching the
- * "a vendor SDK can never crash the host" guarantee the rest of the pipeline holds.
+ * default) and every call is caught via [runCatchingCancellable] (not `runCatching` —
+ * that would also swallow a coroutine's cancellation), so a misconfigured Firebase
+ * project degrades this one destination — via [onDiagnostic] — instead of crashing app
+ * launch, matching the "a vendor SDK can never crash the host" guarantee the rest of
+ * the pipeline holds.
  *
  * [provider] exists only so a test can inject a throwing lookup without a real Firebase
  * project — production always uses the default.
@@ -35,7 +38,7 @@ internal class RealFirebaseAnalyticsGateway(
 ) : FirebaseAnalyticsGateway {
 
     private val analytics: FirebaseAnalytics? by lazy {
-        runCatching(provider)
+        runCatchingCancellable(provider)
             .onFailure { onDiagnostic("firebase: analytics unavailable — ${it::class.simpleName}") }
             .getOrNull()
     }
@@ -44,18 +47,18 @@ internal class RealFirebaseAnalyticsGateway(
         // No diagnostic here on a null instance — the lazy above already reported
         // "unavailable" once at first access; repeating it per event would spam the channel.
         val current = analytics ?: return false
-        return runCatching { current.logEvent(name, parameters) }
+        return runCatchingCancellable { current.logEvent(name, parameters) }
             .onFailure { onDiagnostic("firebase: logEvent failed — ${it::class.simpleName}") }
             .isSuccess
     }
 
     override fun setUserId(id: String?) {
-        runCatching { analytics?.setUserId(id) }
+        runCatchingCancellable { analytics?.setUserId(id) }
             .onFailure { onDiagnostic("firebase: setUserId failed — ${it::class.simpleName}") }
     }
 
     override fun setUserProperty(name: String, value: String) {
-        runCatching { analytics?.setUserProperty(name, value) }
+        runCatchingCancellable { analytics?.setUserProperty(name, value) }
             .onFailure { onDiagnostic("firebase: setUserProperty failed — ${it::class.simpleName}") }
     }
 }

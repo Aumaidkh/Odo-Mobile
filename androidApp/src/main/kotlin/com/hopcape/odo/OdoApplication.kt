@@ -20,6 +20,7 @@ import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
+import com.hopcape.odo.infrastructure.firebase.crashlytics.FirebaseCrashlyticsSink
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
@@ -148,6 +149,9 @@ class OdoApplication : Application() {
                 deviceModel = Build.MODEL,
                 crashDirPath = File(filesDir, "crash").absolutePath,
                 isDebug = isDebugBuild,
+                // Constructed directly rather than resolved from Koin — this runs before
+                // initKoin() below, and the sink has no dependency that needs the graph.
+                destinations = listOf(FirebaseCrashlyticsSink(onDiagnostic = { Log.w("Crash", it) })),
                 onDiagnostic = { Log.w("Crash", it) },
             )
         )

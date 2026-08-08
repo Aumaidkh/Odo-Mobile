@@ -60,6 +60,9 @@ dependencies {
     implementation(projects.observability.performance)
     // Crash reporting — CrashReporter.init needs the app's own crash directory.
     implementation(projects.observability.crashreporting)
+    // FirebaseCrashlyticsSink is constructed directly here (see CrashSink KDoc):
+    // CrashReporter.init runs before the Koin graph starts.
+    implementation(projects.infrastructure.firebase.crashlytics)
 
     implementation(libs.androidx.activity.compose)
 

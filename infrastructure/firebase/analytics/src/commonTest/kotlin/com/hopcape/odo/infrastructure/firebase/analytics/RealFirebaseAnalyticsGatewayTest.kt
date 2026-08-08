@@ -1,7 +1,9 @@
 package com.hopcape.odo.infrastructure.firebase.analytics
 
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -43,5 +45,15 @@ class RealFirebaseAnalyticsGatewayTest {
 
         assertEquals(1, diagnostics.size, "the failed lookup is cached, not retried per call")
         assertTrue(diagnostics.single().contains("analytics unavailable"))
+    }
+
+    @Test
+    fun cancellationException_isNotSwallowed_itPropagates() {
+        val sut = RealFirebaseAnalyticsGateway(
+            onDiagnostic = {},
+            provider = { throw CancellationException("coroutine cancelled") },
+        )
+
+        assertFailsWith<CancellationException> { sut.logEvent("bill_scanned", emptyMap()) }
     }
 }
