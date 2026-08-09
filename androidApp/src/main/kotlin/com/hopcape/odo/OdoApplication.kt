@@ -18,6 +18,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LogUploadRunner
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
+import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
@@ -31,6 +32,7 @@ import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
 import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.SpanSink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -172,11 +174,11 @@ class OdoApplication : Application() {
     }
 
     /**
-     * Collection stays on in both debug and release (unlike analytics, this isn't
-     * gated behind DPDP consent — spans carry no direct user identity). The sink
-     * stamps `build_type` on every trace so the console can filter debug-session
-     * noise out of production data, since this app has no separate debug
-     * applicationId sharing the same Firebase project.
+     * `APM.init` always runs, so spans exist and their own diagnostics still work on a
+     * debug build. Whether a span actually reaches Firebase is gated by
+     * [BuildInfo.isPerformanceReportingEnabled] (release only) — a debug device shouldn't
+     * add its noise to production traces, and this app has no separate debug
+     * applicationId sharing the same Firebase project to filter it out instead.
      */
     private fun configureApm(isDebugBuild: Boolean) {
         APM.init(
@@ -188,16 +190,23 @@ class OdoApplication : Application() {
                 isDebug = isDebugBuild,
                 // Constructed directly rather than resolved from Koin — this runs before
                 // initKoin() below, and the sink has no dependency that needs the graph.
-                destinations = listOf(
-                    FirebasePerformanceSink(
-                        onDiagnostic = { Log.w("APM", it) },
-                        buildType = if (isDebugBuild) "debug" else "release",
-                    )
-                ),
+                destinations = buildApmDestinations(isDebugBuild),
                 onDiagnostic = { Log.w("APM", it) },
             )
         )
     }
+
+    private fun buildApmDestinations(isDebugBuild: Boolean): List<SpanSink> =
+        if (BuildInfo.isPerformanceReportingEnabled) {
+            listOf(
+                FirebasePerformanceSink(
+                    onDiagnostic = { Log.w("APM", it) },
+                    buildType = if (isDebugBuild) "debug" else "release",
+                )
+            )
+        } else {
+            emptyList()
+        }
 
     /**
      * Fatal reports are written synchronously to [crashDir] before the process dies, so

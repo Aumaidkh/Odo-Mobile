@@ -26,6 +26,14 @@ object BuildInfo {
 
     /** Shorthand for `variant == BuildVariant.DEBUG` — the common case at a call site. */
     val isDebug: Boolean get() = variant == BuildVariant.DEBUG
+
+    /**
+     * Whether performance spans should be sent to a real vendor backend (Firebase
+     * Performance). Release only — a debug device shouldn't add its noise to production
+     * traces, and a build under active development shouldn't need a vendor console open to
+     * see whether tracing itself works.
+     */
+    val isPerformanceReportingEnabled: Boolean get() = variant == BuildVariant.RELEASE
 }
 
 /** The two build variants Odo ships — see [BuildInfo.variant]. */
