@@ -9,6 +9,7 @@ import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.common.coreCommonModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
+import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
@@ -31,6 +32,7 @@ import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
+import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -112,6 +114,9 @@ fun initKoin(
         // After coreDataModule for the same reason: its on-device BillExtractor binding
         // replaces that module's UnconfiguredBillExtractor stub.
         aiInfrastructureModule,
+        // Same reason again: its AppStatusSource binding replaces coreDataModule's
+        // AlwaysAvailableAppStatusSource, which blocks nothing.
+        firebaseRemoteConfigModule,
         platformModule,
     )
 }.also { application ->
@@ -140,6 +145,10 @@ fun initKoin(
         // just starts working once it is granted. KEEP-policy inside the scheduler makes a
         // repeat call on every launch a no-op once the periodic job already exists.
         application.koin.get<LogUploadScheduler>().schedulePeriodic()
+        // The app-status gate's first real answer (docs/APP_STATUS_PLAN.md §5.3). Never
+        // throws — every failure inside it already collapses to "keep the fail-open
+        // default" — so unlike SessionRestore above, no try/catch is needed here.
+        application.koin.get<AppStatusProvider>().refresh()
     }
 }
 

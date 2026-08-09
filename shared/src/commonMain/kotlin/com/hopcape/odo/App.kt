@@ -2,6 +2,7 @@ package com.hopcape.odo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -11,10 +12,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.core.designsystem.component.OdoBanner
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
+import com.hopcape.odo.core.domain.appstatus.AppAvailability
+import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -28,10 +34,14 @@ import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.rememberNavigator
 import com.hopcape.odo.feature.autoodometer.PendingTripLoggedProvider
 import com.hopcape.odo.feature.dashboard.presentation.shell.OdoAppScaffold
+import com.hopcape.odo.shared.resources.Res
+import com.hopcape.odo.shared.resources.as_maintenance_banner_default
 import com.hopcape.odo.units.DomainDistanceFormat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.getKoin
 import org.koin.core.Koin
 import org.koin.compose.koinInject
@@ -67,9 +77,29 @@ fun App() {
     // and the alternative is the same field on a dozen unrelated UI states.
     val distanceFormat = remember(settings.distanceUnit) { DomainDistanceFormat(settings.distanceUnit) }
 
+    // The app-status gate (docs/APP_STATUS_PLAN.md). Starts at Allowed (fail open), so
+    // nothing here changes until a refresh actually reports otherwise.
+    val appStatusProvider = koinInject<AppStatusProvider>()
+    val availability by appStatusProvider.availability.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
+
     OdoTheme(darkTheme = settings.theme.isDark(), largerText = settings.largerText) {
         CompositionLocalProvider(LocalOdoDistanceFormat provides distanceFormat) {
-            OdoAppContent(koin)
+            // Above the nav host, inside the theme: no route, deep link, or pending
+            // redirect can navigate past a block, because there is no destination to
+            // reach — and the block screen is still branded and honours dark/light.
+            val current = availability
+            if (shouldBlock(current)) {
+                AppBlockedScreen(
+                    blocked = current as AppAvailability.Blocked,
+                    onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
+                )
+            } else {
+                OdoAppContent(
+                    koin = koin,
+                    maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                )
+            }
         }
     }
 }
@@ -77,9 +107,13 @@ fun App() {
 /**
  * Where the app opens: a returning owner goes straight to [OdoDestination.Home], a new one
  * to the [OdoDestination.Welcome] intro.
+ *
+ * [maintenanceMessage] non-null means a [AppAvailability.DegradedByMaintenance] window is
+ * open — network work (sync, remote calls) stands down elsewhere, and this only shows the
+ * banner; the local app keeps working underneath it.
  */
 @Composable
-private fun OdoAppContent(koin: Koin) {
+private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
     // Read once, not observed. A Flow would re-fire mid-session — the first sync that
     // touches the profile would re-evaluate the gate and could yank someone out of what
     // they were doing back to Welcome. Where the app *opened* is a question with one
@@ -94,12 +128,21 @@ private fun OdoAppContent(koin: Koin) {
         }
     }
 
-    // Nothing is rendered until the answer is in. `rememberNavigator` captures its start
-    // destination in a `remember`, so guessing Welcome and correcting later would flash
-    // the intro at every returning owner before jumping to Home.
-    when (val start = startDestination) {
-        null -> StartupScreen()
-        else -> OdoApp(startDestination = start)
+    // Column + weighted Box regardless of whether the banner shows, so the tree shape
+    // never changes when maintenanceMessage flips — only its content does.
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (maintenanceMessage != null) {
+            OdoBanner(maintenanceMessage.ifBlank { stringResource(Res.string.as_maintenance_banner_default) })
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            // Nothing is rendered until the answer is in. `rememberNavigator` captures its
+            // start destination in a `remember`, so guessing Welcome and correcting later
+            // would flash the intro at every returning owner before jumping to Home.
+            when (val start = startDestination) {
+                null -> StartupScreen()
+                else -> OdoApp(startDestination = start)
+            }
+        }
     }
 }
 

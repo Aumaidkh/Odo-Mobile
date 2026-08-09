@@ -22,5 +22,8 @@ kotlin {
             // handling is a shared concern, not re-declared per module.
             api(libs.arrow.core)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }

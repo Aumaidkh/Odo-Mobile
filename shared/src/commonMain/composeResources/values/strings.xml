@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App-status gate (docs/APP_STATUS_PLAN.md) -->
+    <string name="as_update_title">Update required</string>
+    <string name="as_update_message">This version of Odo can no longer be used. Please update to continue.</string>
+    <string name="as_update_now">Update now</string>
+
+    <string name="as_maintenance_title">Under maintenance</string>
+    <string name="as_maintenance_message_default">We\'re making things better. Please check back shortly.</string>
+    <string name="as_maintenance_banner_default">Some features are temporarily unavailable for maintenance.</string>
+
+    <string name="as_retry">Try again</string>
+</resources>

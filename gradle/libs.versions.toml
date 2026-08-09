@@ -105,6 +105,9 @@ gitlive-firebase-analytics = { module = "dev.gitlive:firebase-analytics", versio
 # Same release train as firebase-analytics above — gitlive versions every
 # firebase-kotlin-sdk module together, so it shares that version ref.
 gitlive-firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "analytics" }
+# Same release train again (:infrastructure:firebase:remoteconfig) — the app-status
+# gate's remote source.
+gitlive-firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 # Native Android SDK, not gitlive — gitlive's firebase-perf caps at 2.1.0 while this
 # repo pins gitlive at 3.0.0-alpha01 for analytics/crashlytics, so mixing them would

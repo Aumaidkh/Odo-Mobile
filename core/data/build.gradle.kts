@@ -42,6 +42,10 @@ kotlin {
             implementation(projects.observability.logging)
             implementation(projects.observability.performance)
             implementation(projects.observability.crashreporting)
+            // AppStatusTelemetry's blocked/released events are a product outcome (how many
+            // installs a maintenance window stopped), the same reasoning :core:sync depends
+            // on it for SyncTelemetry.
+            implementation(projects.observability.analytics)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)

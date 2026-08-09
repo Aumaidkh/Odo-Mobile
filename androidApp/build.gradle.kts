@@ -55,6 +55,8 @@ dependencies {
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.infrastructure.database)
     implementation(projects.core.data)
+    // AppStatusProvider — resolved via Koin on every foreground (docs/APP_STATUS_PLAN.md §5.3).
+    implementation(projects.core.domain)
     // Same reason: the Android file store needs a Context to copy picked files into
     // private storage, so it is constructed in the Koin bootstrap here.
     implementation(projects.core.platform)

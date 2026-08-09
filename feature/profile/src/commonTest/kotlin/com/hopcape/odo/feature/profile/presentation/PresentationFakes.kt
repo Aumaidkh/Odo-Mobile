@@ -65,4 +65,7 @@ internal fun testTelemetry(analytics: AnalyticsTracker = RecordingAnalytics()) =
     ids = FixedIdGenerator(),
 )
 
-internal class FakeAppInfo(override val versionName: String = "1.4.0") : AppInfo
+internal class FakeAppInfo(
+    override val versionName: String = "1.4.0",
+    override val versionCode: Long = 1L,
+) : AppInfo
