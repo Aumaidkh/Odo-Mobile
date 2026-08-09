@@ -19,18 +19,22 @@ captures
 node_modules/
 /issues/
 
-# Supabase setup notes — kept local. The bootstrap script names a specific project
-# and the module notes go with it; docs/DB_SCHEMA.md stays the versioned spec.
-docs/SUPABASE_BOOTSTRAP.md
+# Markdown is local-only. Product specs, technical designs and slice plans are
+# working notes for whoever is building; they live on disk, not in the repo, so
+# nothing internal is published with the code. Two exceptions:
+#   - a module's README, which is the one doc a visitor to that module should see;
+#   - docs/VCS_CONVENTIONS.md, which describes how code lands and so has to travel
+#     with the repo.
+*.md
+!README.md
+!docs/VCS_CONVENTIONS.md
+
+# ...except the Supabase module's README, which names a specific project.
 infrastructure/supabase/README.md
 
 # Firebase project config — identifies a specific Firebase project, dropped in
 # locally by whoever is testing against it rather than committed.
 androidApp/google-services.json
-
-# Working notes for in-progress slices — kept local, not part of the versioned docs set.
-docs/TRIPTRACKER_PLAN.md
-docs/AUTO_ODOMETER_PLAN.md
 
 # Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
