@@ -34,8 +34,12 @@
     <string name="sp_privacy">Privacy</string>
     <string name="sp_licences">Licences</string>
 
-    <!-- Footer: %1$s is the app version + build, e.g. "v1.4.0 (build 412)" -->
-    <string name="sp_version">Odo %1$s · tap to copy diagnostics</string>
+    <!-- Footer. %1$s is the version name, %2$s the build number, e.g.
+         "Odo v1.0.0-beta01 (build 1) · tap to copy diagnostics".
+         The build number is shown on every build type here, unlike the profile footer: this
+         line is the one a support ticket quotes, and the version alone does not identify a
+         build. -->
+    <string name="sp_version">Odo v%1$s (build %2$s) · tap to copy diagnostics</string>
 
     <!-- Placeholder screens -->
     <string name="sp_soon">Coming soon</string>
