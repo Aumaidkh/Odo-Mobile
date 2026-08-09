@@ -18,6 +18,7 @@ kotlin {
             implementation(projects.core.domain)
             // runCatchingCancellable / runCatchingCancellableSuspend — rethrow
             // CancellationException instead of swallowing it, unlike stdlib's runCatching.
+            // BuildKonfig.BUILD_TYPE — picks the fetch interval (FirebaseRemoteConfigModule.kt).
             implementation(projects.core.common)
             implementation(libs.gitlive.firebase.config)
             // The gateway's onDiagnostic is wired to this in firebaseRemoteConfigModule, the
@@ -27,6 +28,11 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
+        }
+        androidMain.dependencies {
+            // Task.await() — bridges setDefaultsAsync's native Task<Void> to a suspend
+            // call (LocalRemoteConfigDefaults.android.kt).
+            implementation(libs.kotlinx.coroutines.play.services)
         }
     }
 }

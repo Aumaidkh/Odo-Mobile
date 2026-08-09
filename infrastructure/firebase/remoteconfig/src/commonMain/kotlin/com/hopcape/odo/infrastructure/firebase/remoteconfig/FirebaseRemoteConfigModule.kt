@@ -1,6 +1,7 @@
 package com.hopcape.odo.infrastructure.firebase.remoteconfig
 
 import com.hopcape.logging.api.Logger
+import com.hopcape.odo.core.common.BuildKonfig
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
 import org.koin.dsl.module
 
@@ -10,16 +11,14 @@ import org.koin.dsl.module
  * same later-definition-wins wiring `supabaseModule` and `aiInfrastructureModule` already
  * rely on — moving this earlier silently puts the always-available stub back.
  *
- * [MINIMUM_FETCH_INTERVAL_SECONDS] is one flat production-safe value rather than a
- * debug/release split: the Remote Config SDK only throttles fetches that follow a prior
- * *successful* one, so a fresh install or a cleared app — the state manual QA actually
- * runs from — is never throttled regardless of this value.
+ * The fetch interval is decided here, from [BuildKonfig.BUILD_TYPE] — the one global build
+ * identity every module reads, not a value baked into this module's own Gradle config.
  */
 val firebaseRemoteConfigModule = module {
     single<FirebaseRemoteConfigGateway> {
         val logger = get<Logger>()
         RealFirebaseRemoteConfigGateway(
-            minimumFetchIntervalSeconds = MINIMUM_FETCH_INTERVAL_SECONDS,
+            minimumFetchIntervalSeconds = minimumFetchIntervalSeconds(),
             defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS,
             // Every other Firebase gateway in this repo reports failures the same way — a
             // vendor SDK failure is visible in logs, never a silent no-op and never a throw.
@@ -29,5 +28,12 @@ val firebaseRemoteConfigModule = module {
     single<AppStatusSource> { RemoteConfigAppStatusSource(gateway = get()) }
 }
 
-private const val MINIMUM_FETCH_INTERVAL_SECONDS = 3_000L
+/**
+ * 1 minute on a debug build — a console change is visible on the next manual test. 1 hour
+ * otherwise, so a real install fleet never hammers Remote Config's servers. Anything other
+ * than `"debug"` (including a build type this module has never heard of) takes the
+ * conservative branch — fail toward the safe interval, not the aggressive one.
+ */
+private fun minimumFetchIntervalSeconds(): Long = if (BuildKonfig.BUILD_TYPE == "debug") 60L else 3_600L
+
 private const val TAG = "RemoteConfig"

@@ -42,19 +42,20 @@ Decided from convention:
 - **No new persistence.** Freshness comes from the Remote Config SDK's own last-fetch
   timestamp; there is no extra file, table, or DataStore.
 
-Two calls made during implementation, adjusted from the original design:
+One call made during implementation, adjusted from the original design:
 
-- **One flat `minimumFetchIntervalInSeconds` (3600s), not a debug/release split.** The SDK
-  only throttles a fetch that follows a prior *successful* one — a fresh install or a
-  cleared app is never throttled regardless of this value, so manual QA doesn't need a
-  code-level debug switch (see §10's testing note). Building Koin plumbing to pass
-  `BuildConfig.DEBUG` into a Firebase-specific interval had no precedent anywhere else in
-  the codebase and would have been the first; not worth it for a QA convenience.
 - **The session `SyncGate` is qualified in `coreDataModule` itself**, not in `supabaseModule`
   — the original plan assumed `supabaseModule` bound `SyncGate`; it never did. The only
   binding was `coreDataModule`'s own `SessionSyncGate`, so both the qualified session gate
   and the decorator that wraps it live in the same module, in order. No cross-module
   later-wins risk to manage.
+
+Revisited after first shipping a flat interval (D5 below reverses that call):
+
+| # | Decision | Consequence |
+|---|----------|-------------|
+| D5 | **`minimumFetchIntervalInSeconds` is 60s on debug builds, 3600s otherwise**, decided in Kotlin from one global `BuildKonfig.BUILD_TYPE`. | `:core:common` — the one module everything else already depends on — applies the `buildkonfig` Gradle plugin and generates a single public `BuildKonfig.BUILD_TYPE: String` (`"debug"` \| `"release"`, extensible to more). `firebaseRemoteConfigModule` reads it and branches in ordinary Kotlin; the *interval value itself* is never Gradle config, and no other module needs to repeat this setup to ask the same question. See §6. |
+| D6 | **Android reads its local (pre-fetch) defaults from `res/xml/remote_config_defaults.xml`**, not the Kotlin `REMOTE_DEFAULTS` map. | Firebase's own documented convention for "what a fresh install answers before its first fetch" — `FirebaseRemoteConfig.setDefaultsAsync(int)` against a checked-in XML resource, discoverable by any Android engineer without reading this module's Kotlin. `REMOTE_DEFAULTS` remains the source for every other platform (iOS, and documentation) and must be kept in sync by hand — both files say so at the top. |
 
 ---
 
@@ -67,6 +68,10 @@ Two calls made during implementation, adjusted from the original design:
   appstatus/AppStatusSource.kt        port — fetch one snapshot
   appstatus/AppStatusProvider.kt      port — observe the current verdict, refresh on demand
   appstatus/AppAvailabilityPolicy.kt  evaluateAvailability() — the one place rules live
+
+:core:common                     One global build-type identity, for every module (D5)
+  build.gradle.kts                    buildkonfig {} — BUILD_TYPE per flavor, heuristic below
+  (generated) BuildKonfig.BUILD_TYPE  "debug" | "release" — public, commonMain
 
 :core:platform                   AppInfo gains versionCode
   commonMain/app/AppInfo.kt           + val versionCode: Long
@@ -84,6 +89,10 @@ Two calls made during implementation, adjusted from the original design:
   FirebaseRemoteConfigGateway.kt       narrowed SDK seam + RealFirebaseRemoteConfigGateway
   RemoteConfigAppStatusSource.kt       the three keys → AppStatus
   FirebaseRemoteConfigModule.kt        firebaseRemoteConfigModule (public Koin val)
+  LocalRemoteConfigDefaults.kt         expect — applies the pre-fetch defaults (D6)
+    androidMain: .android.kt             actual — res/xml/remote_config_defaults.xml
+    iosMain: .ios.kt                     actual — REMOTE_DEFAULTS directly
+  androidMain/res/xml/remote_config_defaults.xml   Android's local defaults resource (D6)
 
 :core:designsystem
   component/OdoBanner.kt               the slim top strip DEGRADED renders
@@ -176,6 +185,36 @@ recent `fetchAndActivate()` call was throttled or served from cache. This is mor
 than stamping the local clock at call time, which would overstate freshness on a throttled
 call.
 
+**The fetch interval (D5).** `:core:common/build.gradle.kts` applies the `buildkonfig`
+plugin once, for the whole app, and generates one public `BuildKonfig.BUILD_TYPE: String`
+(`"release"` by default, `"debug"` on the `debug` flavor) — not a per-module value, and not
+the interval itself. `firebaseRemoteConfigModule` (`:infrastructure:firebase:remoteconfig`)
+is just a consumer: it reads `BuildKonfig.BUILD_TYPE` and picks `60L`/`3_600L` in ordinary
+Kotlin. Any other module that ever needs to know debug-vs-release asks the same one object,
+rather than repeating this Gradle setup.
+
+Nothing in `:core:common`'s own build has an Android build type to read directly
+(`com.android.kotlin.multiplatform.library` — the KMP androidLibrary target every module
+here uses — has no `buildTypes` block; only `:androidApp`, a classic
+`com.android.application` module, has a real debug/release distinction). Its build script
+picks the buildkonfig flavor with a **heuristic**, not a guarantee: if nothing was passed via
+`-Pbuildkonfig.flavor=…`, it checks whether any requested Gradle task name contains
+`"Debug"` (`assembleDebug`, `installDebug`, `testAndroidHostTest`'s siblings, …) and defaults
+to `debug` only then — anything else, including an unrecognised task name, falls to the safe
+direction: `release`. A pipeline that genuinely wants the debug flavor for something the
+heuristic doesn't catch must pass `-Pbuildkonfig.flavor=debug` explicitly.
+
+**Local defaults (D6).** On Android, `configured()` calls `applyLocalDefaults`, whose
+Android `actual` reaches through gitlive's `FirebaseRemoteConfig.android` escape hatch to
+the real SDK instance and calls `setDefaultsAsync(R.xml.remote_config_defaults)` — Firebase's
+own documented convention, and discoverable by anyone who knows Android's Remote Config docs
+without reading this module's Kotlin. The XML resource lives in *this* module's own
+`androidMain/res/xml/`, not `:androidApp`'s — `:androidApp` depends on
+`:infrastructure:firebase:remoteconfig`, never the reverse, so the resource has to live on
+the side that already owns the dependency direction. iOS (and anything else) falls back to
+`RemoteConfigAppStatusSource.REMOTE_DEFAULTS`, the same three values — kept in sync by hand,
+which both files say at the top of themselves.
+
 ---
 
 ## §7 Observability
@@ -238,10 +277,19 @@ three keys):
    invisible in production without this check).
 6. Remove `google-services.json`, clean build → app runs normally, one "remote config
    unavailable" diagnostic logged.
+7. `./gradlew :core:common:testAndroidHostTest` (no flavor flag), then check the generated
+   `core/common/build/generated/source/buildkonfig/commonMain/…/BuildKonfig.kt` reads
+   `BUILD_TYPE = "release"` (the heuristic's default). `./gradlew :androidApp:assembleDebug`
+   → regenerates to `"debug"`, and a fresh `assembleRelease` back to `"release"`. This
+   confirms D5's heuristic, not just its intent.
 
 Not covered by automated tests, by design: no instrumented E2E for the gate — it would need
 a live Remote Config value to drive it, coupling the test to a console someone can change.
-The on-device steps above are the check instead.
+Same reason `applyLocalDefaults`'s Android `actual` (D6) has no unit test either — it calls
+the real native SDK through gitlive's `.android` escape hatch, which needs a real
+`FirebaseApp`, the same thing that makes `RealFirebaseRemoteConfigGateway`'s "configured"
+success path untestable in isolation (§6's KDoc). The on-device steps above are the check
+for both.
 
 ---
 
@@ -276,7 +324,8 @@ no migration, no local state to undo, and no version of the app that needs reins
 `AppStatus.Unknown` (the fail-open default) is always one bad value away in the *safe*
 direction.
 
-**Manual QA note:** the Remote Config SDK only throttles a fetch that follows a prior
-*successful* one for the same install. A fresh install, or `adb shell pm clear
-com.hopcape.odo`, always gets an untouched fetch regardless of the 3600s interval — use that
-instead of touching code to test a change quickly.
+**Manual QA note:** a debug build already fetches every 60 seconds (D5) — foreground the app
+twice a minute apart and a console change is visible without touching code. If even that is
+too slow (e.g. scripted testing), remember the SDK only throttles a fetch that follows a
+prior *successful* one for the same install: a fresh install, or `adb shell pm clear
+com.hopcape.odo`, always gets an untouched fetch regardless of the interval.

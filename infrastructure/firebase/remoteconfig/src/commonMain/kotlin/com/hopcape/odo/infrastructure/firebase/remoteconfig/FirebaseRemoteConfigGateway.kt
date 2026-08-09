@@ -78,7 +78,7 @@ internal class RealFirebaseRemoteConfigGateway(
         if (configured) return config
         runCatchingCancellableSuspend {
             config.settings { minimumFetchIntervalInSeconds = minimumFetchIntervalSeconds }
-            config.setDefaults(*defaults.map { (key, value) -> key to value }.toTypedArray())
+            applyLocalDefaults(config, defaults)
         }.onFailure { onDiagnostic("remoteconfig: configure failed — ${it::class.simpleName}") }
         // Set regardless of the outcome above: a failed configure is not worth retrying on
         // every call, and fetchAndActivate below still degrades safely without defaults set.
