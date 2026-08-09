@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import arrow.core.getOrElse
+import kotlin.math.abs
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
@@ -35,9 +37,13 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.OdoThumbnail
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCheck
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
+import com.hopcape.odo.core.designsystem.icons.IcImage
+import com.hopcape.odo.core.designsystem.icons.IcPdf
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -47,15 +53,25 @@ import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.FairnessVerdict
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.core.platform.file.StoredFileKind
+import com.hopcape.odo.core.platform.file.StoredFileKinds
+import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
+import com.hopcape.odo.feature.servicelog.resources.sl_badge_pdf
+import com.hopcape.odo.feature.servicelog.resources.sl_cd_open_bill
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_attached
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_tap_hint
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_city_avg
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_discount
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_extras
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fair_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_basis
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_label
@@ -63,8 +79,6 @@ import com.hopcape.odo.feature.servicelog.resources.sl_detail_over_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_report
-import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
-import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_reported
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_resale_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_resale_title
@@ -144,13 +158,17 @@ internal fun ServiceLogDetailScreen(
                     OdoText(stringResource(Res.string.sl_not_found), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
                 }
 
-            is ServiceLogDetailUiState.Content.Loaded -> DetailContent(content.entry, padding)
+            is ServiceLogDetailUiState.Content.Loaded -> DetailContent(content.entry, padding, onEvent)
         }
     }
 }
 
 @Composable
-private fun DetailContent(entry: ServiceEntryDetailUiState, padding: androidx.compose.foundation.layout.PaddingValues) {
+private fun DetailContent(
+    entry: ServiceEntryDetailUiState,
+    padding: androidx.compose.foundation.layout.PaddingValues,
+    onEvent: (ServiceLogDetailEvent) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -161,6 +179,7 @@ private fun DetailContent(entry: ServiceEntryDetailUiState, padding: androidx.co
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         DetailHeader(entry)
+        entry.bill?.photoRef?.let { ref -> BillCard(photoRef = ref, onOpen = { onEvent(ServiceLogDetailEvent.BillTapped) }) }
         (entry.resale as? ResaleProofUiState.Verified)?.let { ResaleProofCard(it) }
         when (val fairness = entry.fairness) {
             is EntryFairnessUiState.Assessed -> {
@@ -168,6 +187,44 @@ private fun DetailContent(entry: ServiceEntryDetailUiState, padding: androidx.co
                 BreakdownCard(fairness.breakdown, entry.totalPaid)
             }
             EntryFairnessUiState.NotAssessed -> LineItemsCard(entry)
+        }
+    }
+}
+
+/**
+ * The bill behind the entry — a thumbnail, tappable, next to the line that says it is on file.
+ *
+ * Until now the photo was stored and never shown, which made "Verified" a claim the owner had
+ * no way to check. A PDF has no image to draw here, so it falls back to a PDF glyph.
+ */
+@Composable
+private fun BillCard(photoRef: String, onOpen: () -> Unit) {
+    val isPdf = StoredFileKinds.of(photoRef) == StoredFileKind.PDF
+    OdoCard(onClick = onOpen) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoThumbnail(
+                image = rememberStoredImage(photoRef),
+                contentDescription = stringResource(Res.string.sl_cd_open_bill),
+                placeholderIcon = if (isPdf) IcPdf else IcImage,
+                badge = if (isPdf) stringResource(Res.string.sl_badge_pdf) else null,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(stringResource(Res.string.sl_detail_bill_attached), style = OdoTheme.typography.heading)
+                OdoText(
+                    stringResource(Res.string.sl_detail_bill_tap_hint),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
         }
     }
 }
@@ -335,9 +392,44 @@ private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
                 OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
             }
         }
+        ExtrasRow(entry)
         CardFooter(
             leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
             trailing = { OdoText(entry.totalPaid.formatRupees(), style = OdoTheme.typography.title) },
+        )
+    }
+}
+
+/**
+ * Whatever the bill's total carries beyond its lines — tax, shop charges, or a discount.
+ *
+ * Derived, never read: no extractor produces a GST figure, and the parser drops CGST/SGST
+ * rows before the lines are built. What is certain is the arithmetic — the printed total
+ * minus what the lines add up to — so that is what is shown, under a label that does not
+ * claim to know which of those it was. Without it the card visibly fails to add up, and an
+ * owner checking Odo against their paper would conclude the app misread the bill.
+ *
+ * Drawn only when there are lines to add up and the two actually differ.
+ */
+@Composable
+private fun ExtrasRow(entry: ServiceEntryDetailUiState) {
+    if (entry.lineItems.isEmpty()) return
+    val lines = entry.lineItems.sumOf { it.amount.paise }
+    val difference = entry.totalPaid.paise - lines
+    if (difference == 0L) return
+
+    val label = if (difference > 0) Res.string.sl_detail_extras else Res.string.sl_detail_discount
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+        OdoText(
+            stringResource(label),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
+            modifier = Modifier.weight(1f),
+        )
+        OdoText(
+            Amount.of(abs(difference)).getOrElse { Amount.ZERO }.formatRupees(),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
         )
     }
 }

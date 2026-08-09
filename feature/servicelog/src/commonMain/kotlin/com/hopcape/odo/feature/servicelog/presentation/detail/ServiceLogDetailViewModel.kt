@@ -91,6 +91,7 @@ internal class ServiceLogDetailViewModel(
         ServiceLogDetailEvent.EditClicked -> emit(ServiceLogDetailEffect.OpenEditForm(logId))
         ServiceLogDetailEvent.AttachBillClicked -> emit(ServiceLogDetailEffect.PickBillPhoto)
         is ServiceLogDetailEvent.BillPicked -> attachBill(event.pickedRef)
+        ServiceLogDetailEvent.BillTapped -> previewBill()
         ServiceLogDetailEvent.CheckFairnessClicked -> openFairness()
         is ServiceLogDetailEvent.Delete -> onDeleteEvent(event)
         ServiceLogDetailEvent.BackClicked -> emit(ServiceLogDetailEffect.NavigateBack)
@@ -128,6 +129,13 @@ internal class ServiceLogDetailViewModel(
      * their verified bill rather than undoing it, which is why its result is not folded into
      * this screen's error state.
      */
+    /** Open the attached bill full screen. Nothing to open on an entry with no photo. */
+    private fun previewBill() {
+        val ref = entry?.billPhotoRef ?: return
+        telemetry.billViewed()
+        emit(ServiceLogDetailEffect.PreviewBill(ref))
+    }
+
     private fun attachBill(pickedRef: String) {
         if (attachJob?.isActive == true) return
         _state.update { it.copy(attach = AttachUiState.InFlight) }

@@ -52,6 +52,7 @@ class ServiceLogBillIdSyncTest {
             billId = SCAN,
             billPhotoPath = "scans/local.jpg",
             fairnessSnapshot = null,
+            lineItems = null,
             now = "2026-08-04T10:00:00Z",
             syncStatus = "PENDING",
         )
@@ -99,6 +100,55 @@ class ServiceLogBillIdSyncTest {
         assertEquals(SCAN, row.bill_id)
         assertEquals("scans/local.jpg", row.bill_photo_path)
     }
+
+    /**
+     * The regression that made a bill stop opening a few minutes after it was attached.
+     *
+     * The row this device pushed comes back carrying the path its photo was uploaded to
+     * inside the bucket. That is not a key this device can open — the bytes are at
+     * `scans/local.jpg` under app storage — so taking it would leave the entry pointing at a
+     * file that is not there, and the viewer saying the file is gone.
+     */
+    @Test
+    fun `a pulled row's bucket path never replaces the local photo key`() = runTest {
+        val (table, database) = table()
+        database.insertScannedLog()
+
+        table.applyRemote(remoteRow(billPhotoPath = "$OWNER/$CAR/$LOG.jpg"))
+
+        val row = database.serviceLogQueries.selectById(LOG).executeAsOne()
+        assertEquals("scans/local.jpg", row.bill_photo_path)
+    }
+
+    /** A row this device has never seen has no local key to keep, so the remote one stands. */
+    @Test
+    fun `a row that is new to this device takes the remote path`() = runTest {
+        val (table, database) = table()
+
+        table.applyRemote(remoteRow(billPhotoPath = "$OWNER/$CAR/$LOG.jpg"))
+
+        val row = database.serviceLogQueries.selectById(LOG).executeAsOne()
+        assertEquals("$OWNER/$CAR/$LOG.jpg", row.bill_photo_path)
+    }
+
+    private fun remoteRow(billPhotoPath: String?) = ServiceLogDto(
+        id = LOG,
+        carId = CAR,
+        ownerId = OWNER,
+        serviceDate = "2026-08-04",
+        odometerKm = 2400,
+        totalAmountPaise = 425000L,
+        workshopName = "Shree Vinayak",
+        notes = null,
+        source = "scanned",
+        billId = null,
+        billPhotoPath = billPhotoPath,
+        fairnessSnapshot = null,
+        categories = emptyList(),
+        createdAt = "2026-08-04T10:00:00Z",
+        updatedAt = "2026-08-04T10:05:00Z",
+        deletedAt = null,
+    )
 
     private companion object {
         const val LOG = "log-1"

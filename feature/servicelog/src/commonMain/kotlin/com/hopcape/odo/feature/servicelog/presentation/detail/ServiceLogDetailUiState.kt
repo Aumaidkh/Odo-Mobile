@@ -87,6 +87,14 @@ internal sealed interface ResaleProofUiState {
 internal data class BillAttachmentUiState(
     val scanned: Boolean,
     val verified: Boolean,
+    /**
+     * Where the bill photo is stored, so the card can draw it and open it.
+     *
+     * The rest of this state is booleans and ids on purpose, and a path here is the exception
+     * rather than a new habit: a thumbnail has to name the file it is drawing, and nothing
+     * else can do that for it. Null when the entry was verified before a photo was kept.
+     */
+    val photoRef: String?,
 )
 
 /**

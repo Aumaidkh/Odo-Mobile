@@ -73,6 +73,7 @@ val serviceLogAnalyticsEvents: List<EventSchema> = listOf(
     ),
 
     EventSchema(ServiceLogTelemetry.Event.BILL_ATTACHED),
+    EventSchema(ServiceLogTelemetry.Event.BILL_VIEWED),
     EventSchema(
         ServiceLogTelemetry.Event.ATTACH_FAILED,
         mapOf(

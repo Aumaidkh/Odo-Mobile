@@ -13,6 +13,13 @@
 --                         rather than recomputed so the figure the owner was shown
 --                         cannot drift as the city pool moves (DB_SCHEMA §5.5 makes
 --                         the same call for bill_line_items).
+--   * line_items        — the priced breakdown read off a bill, as JSON. A column
+--                         rather than a child table for the same reason the fairness
+--                         verdict is one: it is a frozen record of what the paper said,
+--                         never queried or aggregated on its own, and a label is free
+--                         text so it cannot ride in a GROUP_CONCAT beside a comma. The
+--                         server keys its `bill_line_items` on a `bills` row this client
+--                         does not create (DB_SCHEMA §9.6), so these do not sync yet.
 --   * categories        — see service_log_categories below.
 CREATE TABLE service_logs (
     id                 TEXT NOT NULL PRIMARY KEY,
@@ -27,6 +34,7 @@ CREATE TABLE service_logs (
     bill_id            TEXT,
     bill_photo_path    TEXT,
     fairness_snapshot  TEXT,
+    line_items         TEXT,
     created_at         TEXT NOT NULL,
     updated_at         TEXT NOT NULL,
     deleted_at         TEXT,
@@ -105,11 +113,11 @@ WHERE sl.car_id = :carId AND sl.deleted_at IS NULL;
 insertServiceLog:
 INSERT INTO service_logs (
     id, car_id, owner_id, service_date, odometer_km, total_amount_paise,
-    workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot,
+    workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, line_items,
     created_at, updated_at, deleted_at, remote_version, sync_status
 ) VALUES (
     :id, :carId, :ownerId, :serviceDate, :odometerKm, :totalAmountPaise,
-    :workshopName, :notes, :source, :billId, :billPhotoPath, :fairnessSnapshot,
+    :workshopName, :notes, :source, :billId, :billPhotoPath, :fairnessSnapshot, :lineItems,
     :now, :now, NULL, NULL, :syncStatus
 );
 
@@ -128,6 +136,7 @@ SET service_date       = :serviceDate,
     bill_id            = :billId,
     bill_photo_path    = :billPhotoPath,
     fairness_snapshot  = :fairnessSnapshot,
+    line_items         = :lineItems,
     updated_at         = :updatedAt,
     sync_status        = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
@@ -200,8 +209,8 @@ WHERE id = :id;
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
 insertFromRemote:
-INSERT OR IGNORE INTO service_logs (id, car_id, owner_id, service_date, odometer_km, total_amount_paise, workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, created_at, updated_at, deleted_at, remote_version, sync_status)
-VALUES (:id, :car_id, :owner_id, :service_date, :odometer_km, :total_amount_paise, :workshop_name, :notes, :source, :bill_id, :bill_photo_path, :fairness_snapshot, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+INSERT OR IGNORE INTO service_logs (id, car_id, owner_id, service_date, odometer_km, total_amount_paise, workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, line_items, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :service_date, :odometer_km, :total_amount_paise, :workshop_name, :notes, :source, :bill_id, :bill_photo_path, :fairness_snapshot, :line_items, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
 
 updateFromRemote:
 UPDATE service_logs
@@ -216,6 +225,7 @@ SET car_id = :car_id,
     bill_id = :bill_id,
     bill_photo_path = :bill_photo_path,
     fairness_snapshot = :fairness_snapshot,
+    line_items = :line_items,
     created_at = :created_at,
     updated_at = :updated_at,
     deleted_at = :deleted_at,
@@ -230,10 +240,11 @@ WHERE service_log_id = :serviceLogId
 ORDER BY category;
 
 -- The columns this device owns, read before a pulled row overwrites the entry. The photo is
--- a device path the server may not know about, and the bill id names an extraction the
--- server has no `bills` row for yet — a pull must not blank either.
+-- a device path the server may not know about, the bill id names an extraction the server
+-- has no `bills` row for yet, and the line items have nowhere on the server to come back
+-- from — a pull must not blank any of them.
 selectLocalOnly:
-SELECT bill_photo_path, bill_id
+SELECT bill_photo_path, bill_id, line_items
 FROM service_logs
 WHERE id = :id;
 

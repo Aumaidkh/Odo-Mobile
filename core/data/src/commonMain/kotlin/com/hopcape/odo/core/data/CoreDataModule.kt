@@ -46,6 +46,7 @@ import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
+import com.hopcape.odo.core.data.sync.BlobDownloader
 import com.hopcape.odo.core.data.sync.BlobUploader
 import com.hopcape.odo.core.data.sync.SessionSyncGate
 import com.hopcape.odo.core.data.trip.FakeTripRemoteDataSource
@@ -137,6 +138,10 @@ val coreDataModule = module {
     // Reads a stored file and puts it in a bucket. Only the two entities that name files
     // take one.
     single { BlobUploader(files = get(), storage = get(), telemetry = get()) }
+
+    // The other direction: puts a bucket object back on this device, for a file whose row
+    // synced here but whose bytes never did.
+    single { BlobDownloader(files = get(), storage = get(), telemetry = get()) }
 
     single { ServiceLogRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     single<ServiceLogRepository> { get<ServiceLogRepositoryImpl>() }

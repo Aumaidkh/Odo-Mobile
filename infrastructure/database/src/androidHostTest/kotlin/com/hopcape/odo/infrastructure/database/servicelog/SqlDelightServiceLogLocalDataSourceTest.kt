@@ -225,6 +225,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
             serviceDate = "2026-06-15", odometerKm = 50_000, totalAmountPaise = 330_000,
             workshopName = "Sharma Motors", notes = "front pads", source = "MANUAL",
             billId = null, billPhotoPath = null, fairnessSnapshot = null,
+            lineItems = null,
             updatedAt = "2026-07-29T00:00:00Z", syncStatus = SyncStatus.SYNCED.name, id = "log-1",
         )
 

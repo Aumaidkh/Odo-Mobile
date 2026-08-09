@@ -34,6 +34,7 @@ import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
+import com.hopcape.odo.preview.filePreviewModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,9 @@ fun initKoin(
         supportModule,
         timelineModule,
         paywallModule,
+        // The shared file viewer's entry. Not a feature module — it registers one destination
+        // that the vault, the service log and the scanner all navigate to.
+        filePreviewModule,
         // After every feature module, because its whole job is to replace things: the
         // offline remote-data-source fakes from coreDataModule, the always-signed-out
         // SessionStatusProvider from authModule, and coreDataModule's session-only SyncGate.

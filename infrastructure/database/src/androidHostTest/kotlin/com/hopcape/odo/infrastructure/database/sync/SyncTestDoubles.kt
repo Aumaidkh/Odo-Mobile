@@ -99,6 +99,9 @@ internal val noopBlobUploaderFileStore: PlatformFileStore = object : PlatformFil
     override suspend fun exists(storageKey: String) = false
     override suspend fun bytes(storageKey: String) =
         DomainError.PersistenceFailure("no files in tests").left()
+
+    override suspend fun write(storageKey: String, bytes: ByteArray) =
+        DomainError.PersistenceFailure("no files in tests").left()
 }
 
 /** A bucket that refuses everything. */

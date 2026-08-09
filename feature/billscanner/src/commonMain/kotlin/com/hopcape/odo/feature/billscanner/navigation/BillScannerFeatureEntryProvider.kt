@@ -193,6 +193,10 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
         onSave = { viewModel.onEvent(BillReviewEvent.SaveTapped) },
         onRetake = { viewModel.onEvent(BillReviewEvent.RetakeTapped) },
         onBack = { viewModel.onEvent(BillReviewEvent.BackTapped) },
+        // Straight to the viewer rather than through the ViewModel: enlarging the photo the
+        // screen is already showing is a way of looking at it, not a decision the review flow
+        // makes. Nothing about the extraction changes, and there is nothing to count.
+        onOpenPhoto = { state.photoKey?.let { navigationManager.navigateTo(OdoDestination.FilePreview(it)) } },
     )
 }
 
@@ -226,7 +230,11 @@ internal fun DocumentReviewRoute(
         }
     }
 
-    DocumentReviewScreen(state = state, onEvent = viewModel::onEvent)
+    DocumentReviewScreen(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onOpenPhoto = { navigationManager.navigateTo(OdoDestination.FilePreview(photoKey)) },
+    )
 }
 
 /**

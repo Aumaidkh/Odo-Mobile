@@ -35,6 +35,7 @@ class SqlDelightOverchargeReportLocalDataSourceTest {
             id = id, carId = "car-1", ownerId = ownerId, serviceDate = "2026-06-15",
             odometerKm = 50_000, totalAmountPaise = 330_000, workshopName = null, notes = null,
             source = "MANUAL", billId = null, billPhotoPath = null, fairnessSnapshot = null,
+            lineItems = null,
             now = "2026-07-30T10:00:00Z", syncStatus = SyncStatus.PENDING.name,
         )
     }

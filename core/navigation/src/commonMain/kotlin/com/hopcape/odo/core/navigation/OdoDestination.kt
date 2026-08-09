@@ -349,6 +349,44 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
+     * Full-screen reader for a file the app stored, named by its [storageKey] — a scanned
+     * bill, an insurance PDF, a photographed RC.
+     *
+     * Top level rather than part of [Documents], because a service log's bill and a scan
+     * being reviewed are not vault documents and would have no business reaching a key in
+     * that group. Keyed on the stored file rather than on the row that owns it, so a feature
+     * opens the viewer without the viewer having to know that feature's ids.
+     *
+     * [title] is what the top bar shows; pass what the owner called the thing they tapped.
+     * The entry is registered by `:shared`, which is the one module that already has the file
+     * reader, the design system and the navigation host.
+     *
+     * [remoteBucket] names the storage bucket to fall back to when the file is not on this
+     * device — the case on a second phone, which syncs the row that names a bill but not the
+     * bytes behind it. It is the bucket's *name* rather than the type, so this module stays
+     * free of data-layer imports. Leave it null for a file that is always local, such as a
+     * scan the owner has just taken.
+     */
+    data class FilePreview(
+        val storageKey: String,
+        val title: String? = null,
+        val remoteBucket: String? = null,
+    ) : OdoDestination {
+        /**
+         * The buckets a preview can fall back to, by name.
+         *
+         * Named here rather than taking the storage layer's own type, because a `:feature:*`
+         * module does not depend on `:core:data` and this key must stay primitives-only.
+         * `:shared` maps a name back to that type when it resolves the file, and a test there
+         * — the one place that sees both — holds these to the enum they stand for.
+         */
+        companion object {
+            const val BUCKET_DOCUMENTS = "DOCUMENTS"
+            const val BUCKET_BILL_PHOTOS = "BILL_PHOTOS"
+        }
+    }
+
+    /**
      * Help & support — owned by `:feature:support`. [Help] is the hub, presented as a
      * bottom-sheet destination from Profile's "Help & support" row; every other key here is
      * one of that sheet's rows.

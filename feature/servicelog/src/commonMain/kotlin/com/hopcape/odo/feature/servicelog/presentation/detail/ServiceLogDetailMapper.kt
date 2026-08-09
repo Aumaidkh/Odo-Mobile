@@ -85,5 +85,9 @@ private fun ServiceLogEntry.toBillUiState(): BillAttachmentUiState? =
     if (verification != VerificationStatus.VERIFIED) {
         null
     } else {
-        BillAttachmentUiState(scanned = source == LogSource.SCANNED, verified = true)
+        BillAttachmentUiState(
+            scanned = source == LogSource.SCANNED,
+            verified = true,
+            photoRef = billPhotoRef,
+        )
     }

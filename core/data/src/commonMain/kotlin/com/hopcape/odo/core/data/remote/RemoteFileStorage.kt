@@ -84,6 +84,28 @@ object RemoteStoragePath {
     /** `{ownerId}/{carId}/{recordId}.{ext}` — the convention both private buckets use. */
     fun of(ownerId: String, carId: String, recordId: String, extension: String): String =
         "$ownerId/$carId/$recordId.${extension.removePrefix(".").lowercase()}"
+
+    /**
+     * Where a copy of the object at [path] is kept once it has been fetched onto a device,
+     * or null if [path] is not a shape worth writing anywhere.
+     *
+     * Its own root, deliberately, rather than the key the feature that owns the record would
+     * have used: nothing reads this file by name — the only caller already knows the key it
+     * asked for — so putting it beside files that *were* added here would mean two different
+     * things living under one naming scheme. The bucket is part of the key so two records
+     * that share an id in different buckets cannot collide.
+     *
+     * A path containing `..` is refused. It should be impossible — these come from Odo's own
+     * server — but the result is used to build a filename, and that is not a place to find
+     * out one's assumptions were wrong.
+     */
+    fun localCacheKeyFor(bucket: RemoteBucket, path: String): String? {
+        if (path.isBlank() || path.contains("..")) return null
+        return "$CACHE_ROOT/${bucket.bucketName}/${path.trim('/')}"
+    }
+
+    /** Everything fetched back from a bucket lives under here. */
+    const val CACHE_ROOT = "restored"
 }
 
 /**

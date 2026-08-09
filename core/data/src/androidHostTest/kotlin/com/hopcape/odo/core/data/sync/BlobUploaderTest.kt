@@ -115,6 +115,8 @@ class BlobUploaderTest {
         override suspend fun exists(storageKey: String) = bytes != null
         override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
             bytes?.right() ?: DomainError.PersistenceFailure("gone").left()
+
+        override suspend fun write(storageKey: String, bytes: ByteArray) = storageKey.right()
     }
 
     private class RecordingStorage : RemoteFileStorage {

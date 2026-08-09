@@ -46,6 +46,7 @@ internal class SqlDelightServiceLogLocalDataSource(
                 billId = entry.billId?.value,
                 billPhotoPath = entry.billPhotoRef,
                 fairnessSnapshot = entry.fairness?.toJson(),
+                lineItems = entry.lineItems.toJson(),
                 now = now,
                 syncStatus = SyncStatus.PENDING.name,
             )
@@ -69,6 +70,7 @@ internal class SqlDelightServiceLogLocalDataSource(
                 billId = entry.billId?.value,
                 billPhotoPath = entry.billPhotoRef,
                 fairnessSnapshot = entry.fairness?.toJson(),
+                lineItems = entry.lineItems.toJson(),
                 updatedAt = now,
                 // An edited row has to reach the server again.
                 syncStatus = SyncStatus.PENDING.name,

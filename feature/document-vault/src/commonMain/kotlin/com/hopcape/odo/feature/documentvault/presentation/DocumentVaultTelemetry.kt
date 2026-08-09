@@ -88,6 +88,19 @@ internal class DocumentVaultTelemetry(
         logger.debug(TAG, Event.DOCUMENT_OPENED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /**
+     * The owner opened the stored file itself, not just the row describing it.
+     *
+     * Worth counting separately from [documentOpened]: filing a document and ever looking at
+     * it again are different behaviours, and only the second one says the vault is being used
+     * the way it was sold — pull the paper up at a traffic stop.
+     */
+    fun documentPreviewed(type: DocumentType) {
+        val fields = mapOf(Key.TYPE to type.name)
+        analytics.track(Event.DOCUMENT_PREVIEWED, fields)
+        logger.debug(TAG, Event.DOCUMENT_PREVIEWED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /** The detail screen was opened for a document that is no longer there. */
     fun documentMissing(id: DocumentId) {
         logger.warn(TAG, Event.DOCUMENT_MISSING, tc = flowTrace.toLog(), fields = mapOf(Key.DOCUMENT_ID to id.value))
@@ -284,6 +297,7 @@ internal class DocumentVaultTelemetry(
         const val VAULT_OPENED = "documents_vault_opened"
         const val READ_FAILED = "documents_read_failed"
         const val DOCUMENT_OPENED = "documents_document_opened"
+        const val DOCUMENT_PREVIEWED = "documents_document_previewed"
         const val DOCUMENT_MISSING = "documents_document_missing"
         const val FILE_MISSING = "documents_file_missing"
         const val ADD_OPENED = "documents_add_opened"

@@ -27,6 +27,8 @@ import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEff
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentSheetContent
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentViewModel
+import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
+import com.hopcape.odo.feature.documentvault.presentation.vault.docName
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessScreen
 import com.hopcape.odo.feature.documentvault.presentation.success.AddSuccessViewModel
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEffect
@@ -140,6 +142,9 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
         parametersOf(DocumentId(key.documentId))
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Resolved here rather than inside the effect handler, which is not a composable and so
+    // cannot read a string resource.
+    val previewTitle = (state.content as? Loadable.Ready)?.value?.let { it.title ?: docName(it.type) }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
@@ -149,8 +154,17 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
             is DocumentDetailEffect.OpenAdd ->
                 navigationManager.navigateTo(OdoDestination.Documents.Add(prefillType = effect.prefillType.name))
 
-            // TODO(files): hand the stored file to a platform viewer / the downloads folder.
-            is DocumentDetailEffect.OpenFile -> Unit
+            is DocumentDetailEffect.OpenFile -> navigationManager.navigateTo(
+                OdoDestination.FilePreview(
+                    storageKey = effect.storagePath,
+                    title = previewTitle,
+                    // A document filed on another phone syncs its row here but not its file.
+                    remoteBucket = OdoDestination.FilePreview.BUCKET_DOCUMENTS,
+                ),
+            )
+
+            // TODO(M5): save a copy where the owner can find it — needs the FileProvider that
+            // sharing will bring with it.
             is DocumentDetailEffect.DownloadFile -> Unit
 
             DocumentDetailEffect.NavigateBack -> navigationManager.back()

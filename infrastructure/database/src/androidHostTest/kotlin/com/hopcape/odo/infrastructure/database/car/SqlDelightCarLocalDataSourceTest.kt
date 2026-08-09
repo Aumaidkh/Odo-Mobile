@@ -64,6 +64,7 @@ class SqlDelightCarLocalDataSourceTest {
         billId = null,
         billPhotoPath = null,
         fairnessSnapshot = null,
+            lineItems = null,
         now = "2026-03-02T10:00:00Z",
         syncStatus = SyncStatus.SYNCED.name,
     )

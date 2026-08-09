@@ -41,6 +41,7 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoOdometerField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.OdoThumbnail
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcPencil
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -100,6 +101,7 @@ internal fun BillReviewScreen(
     onSave: () -> Unit,
     onRetake: () -> Unit,
     onBack: () -> Unit,
+    onOpenPhoto: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
@@ -134,7 +136,7 @@ internal fun BillReviewScreen(
                 .padding(vertical = OdoTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
-            CapturedPhoto(storageKey = state.photoKey)
+            CapturedPhoto(storageKey = state.photoKey, onOpen = onOpenPhoto)
 
             ExtractedBanner(confidence = state.confidence, high = !state.flagged)
 
@@ -251,20 +253,18 @@ private fun DateField(date: LocalDate?, onDateChange: (LocalDate) -> Unit) {
  * The photo the fields below were read from.
  *
  * Shown so the owner is checking the extraction against the bill rather than against memory.
- * Draws nothing at all when there is no photo or it cannot be read, because the fields are
- * still reviewable without it.
+ * Tappable, because at this height a thermal bill's line items are not readable and checking
+ * them is the whole job of this screen. Draws nothing at all when there is no photo or it
+ * cannot be read, because the fields are still reviewable without it.
  */
 @Composable
-private fun CapturedPhoto(storageKey: String?) {
+private fun CapturedPhoto(storageKey: String?, onOpen: () -> Unit) {
     val photo = rememberStoredImage(storageKey) ?: return
-    Image(
-        bitmap = photo,
+    OdoThumbnail(
+        image = photo,
         contentDescription = stringResource(Res.string.bs_cd_captured_bill),
-        contentScale = ContentScale.Crop,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(PHOTO_HEIGHT)
-            .clip(OdoTheme.shapes.card),
+        modifier = Modifier.fillMaxWidth().height(PHOTO_HEIGHT),
+        onClick = onOpen,
     )
 }
 
@@ -434,6 +434,7 @@ private fun BillReviewScreenPreview() = OdoPreview(padded = false) {
         onSave = {},
         onRetake = {},
         onBack = {},
+        onOpenPhoto = {},
     )
 }
 
@@ -448,5 +449,6 @@ private fun BillReviewLowConfidencePreview() = OdoPreview(padded = false) {
         onSave = {},
         onRetake = {},
         onBack = {},
+        onOpenPhoto = {},
     )
 }

@@ -19,6 +19,9 @@ internal sealed interface ServiceLogDetailEvent {
     /** The picker came back with a file. [pickedRef] is a borrowed handle, not a stored one. */
     data class BillPicked(val pickedRef: String) : ServiceLogDetailEvent
 
+    /** The attached bill was tapped — open it full screen. */
+    data object BillTapped : ServiceLogDetailEvent
+
     /** "Check fairness" — benchmark this entry's lines against the city. */
     data object CheckFairnessClicked : ServiceLogDetailEvent
 
@@ -43,6 +46,12 @@ internal sealed interface ServiceLogDetailEffect {
 
     /** Open the platform picker; the file comes back as [ServiceLogDetailEvent.BillPicked]. */
     data object PickBillPhoto : ServiceLogDetailEffect
+
+    /**
+     * Show the attached bill full screen. This is what makes the entry's "Verified" badge
+     * mean something: whoever it is shown to can check the paper behind it.
+     */
+    data class PreviewBill(val storageKey: String) : ServiceLogDetailEffect
 
     /**
      * Open the shared fairness report for this entry's lines. The lines travel because the
