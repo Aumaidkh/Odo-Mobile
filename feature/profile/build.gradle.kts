@@ -19,6 +19,10 @@ kotlin {
         commonMain.dependencies {
             // Nav3 command bus + entry-provider registration. Profile reaches the
             // Paywall through the shared OdoDestination keys, never by importing it.
+            // BuildInfo — decides whether the profile footer shows the build number.
+            // Reachable through :core:domain's `api`, but declared because this module
+            // uses it directly.
+            implementation(projects.core.common)
             implementation(projects.core.navigation)
             // Branded UI atoms (OdoScreen, OdoCard, OdoSwitch, OdoInputField…) + theme.
             implementation(projects.core.designsystem)

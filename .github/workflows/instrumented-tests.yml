@@ -3,13 +3,14 @@ name: Instrumented tests
 # The on-device end-to-end tests (androidApp/src/androidTest) drive the real
 # app — real Koin graph, real SQLite, real navigation — on an emulator. That
 # costs 15-20 minutes, so they are kept off the per-PR path and run:
-#   * on a PR that carries the `run-e2e` label (add it when a change is risky),
+#   * on a PR that carries the `run-e2e` label (add it when a change is risky) —
+#     including PRs into a release branch, where risk is highest,
 #   * nightly on the default branch,
 #   * on demand from the Actions tab.
 on:
   pull_request:
     types: [labeled, synchronize, reopened]
-    branches: [master, develop]
+    branches: [master, develop, 'releases/**']
   schedule:
     # 18:30 UTC = 00:00 IST. Scheduled runs always use the repo's DEFAULT
     # branch — use workflow_dispatch to point them at another one.

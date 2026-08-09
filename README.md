@@ -96,6 +96,9 @@ All commands use the Gradle wrapper.
 # Build the Android debug APK
 ./gradlew :androidApp:assembleDebug
 
+# Build the stage APK — production-shaped, for QA
+./gradlew :androidApp:assembleStage
+
 # Install on a connected device / emulator
 ./gradlew :androidApp:installDebug
 
@@ -105,6 +108,25 @@ All commands use the Gradle wrapper.
 # Run shared multiplatform unit tests
 ./gradlew :shared:allTests
 ```
+
+### Build types
+
+| Type | Application ID | Version name | Notes |
+| --- | --- | --- | --- |
+| `debug` | `com.hopcape.odo.debug` | `1.0.0-beta01-debug` | Debuggable, debug-signed |
+| `stage` | `com.hopcape.odo.stage` | `1.0.0-beta01-stage` | Not debuggable, debug-signed so QA can install it without the release keystore |
+| `release` | `com.hopcape.odo` | `1.0.0-beta01` | What reaches the store |
+
+All three carry the same `versionCode` and install side by side. The version, the build
+number and the application ID come from the `odo-*` entries in
+`gradle/libs.versions.toml` — change them there and both the APK and
+`BuildInfo` (`:core:common`, readable from any module and from iOS) follow. The profile
+screen shows the build number next to the version on debug and stage only.
+
+Because each build type has its own application ID, a local `androidApp/google-services.json`
+must register all three in the Firebase console. Without the `.debug` and `.stage` clients
+the build fails with *"No matching client found for package name"*. CI has no
+`google-services.json` at all, so it is unaffected.
 
 **iOS:** open `iosApp/` in Xcode and run from there (the KMP build produces a `Shared` framework consumed by the Xcode project). *iOS is Phase 2 — the MVP validates on Android first.*
 

@@ -29,6 +29,12 @@ plugins {
 // give it and never should. Skipping the plugin here mirrors the runtime posture
 // OdoApplication.configureAnalytics/configureFirebaseForIos already have: no config
 // means FirebaseAnalyticsSink is simply left out of destinations, not a crash.
+//
+// A local google-services.json has to list all three application IDs — com.hopcape.odo,
+// com.hopcape.odo.debug and com.hopcape.odo.stage — because each build type installs
+// under its own. Register the two extra Android apps in the Firebase console and
+// download the file again; without them the build fails with "No matching client found
+// for package name 'com.hopcape.odo.debug'" before anything is compiled.
 if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
@@ -36,13 +42,13 @@ if (file("google-services.json").exists()) {
 }
 
 android {
-    // Only this module's identity lives here; SDK levels, version name/code,
-    // JVM target, packaging and build types all come from the
-    // odo.android.application convention plugin.
+    // Only the Kotlin/resource package lives here; applicationId, SDK levels,
+    // version name/code, JVM target, packaging and the debug/stage/release build
+    // types all come from the odo.android.application convention plugin, which
+    // reads them from the version catalog.
     namespace = "com.hopcape.odo"
 
     defaultConfig {
-        applicationId = "com.hopcape.odo"
         // On-device (instrumented) tests. The end-to-end onboarding test drives the real
         // app — real Koin graph, real SQLite, real navigation — so it has to run here
         // rather than on the JVM.

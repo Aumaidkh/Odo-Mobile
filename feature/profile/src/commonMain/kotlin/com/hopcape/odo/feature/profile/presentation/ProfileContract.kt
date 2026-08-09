@@ -48,8 +48,15 @@ internal data class ProfileContent(
 @Immutable
 internal data class ProfileUiState(
     val content: Loadable<ProfileContent> = Loadable.Loading,
-    /** The app's version, as the platform reports it. */
+    /** The app's version, as the platform reports it — includes the build type's suffix. */
     val version: String = "",
+    /**
+     * The build number behind [version], shown next to it on debug and stage builds and
+     * `null` on release. A tester quoting "1.0.0-beta01-stage" says nothing about which
+     * build they are on; an owner on the store has one build per version and does not
+     * need the number.
+     */
+    val buildNumber: Long? = null,
     /** Where background sync has got to. See [SyncStatus]. */
     val sync: SyncStatus = SyncStatus(),
 )
