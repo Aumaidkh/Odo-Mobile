@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.trip.model.TripId
 import com.hopcape.odo.core.navigation.OdoDestination
 import kotlin.test.Test
@@ -18,8 +19,17 @@ class PendingTripRedirectTest {
 
     @Test
     fun pendingTrip_onATopLevelTab_redirects() {
+        if (!FeatureFlags.AUTO_ODOMETER_ENABLED) return
         assertTrue(shouldRedirectToTripLogged(OdoDestination.Home, tripId))
         assertTrue(shouldRedirectToTripLogged(OdoDestination.Garage.Home, tripId))
+    }
+
+    /** The 1.0 twin: the one case that would redirect stays put while the feature is off. */
+    @Test
+    fun whileTheFeatureIsOff_evenATopLevelTabNeverRedirects() {
+        if (FeatureFlags.AUTO_ODOMETER_ENABLED) return
+        assertFalse(shouldRedirectToTripLogged(OdoDestination.Home, tripId))
+        assertFalse(shouldRedirectToTripLogged(OdoDestination.Garage.Home, tripId))
     }
 
     @Test
