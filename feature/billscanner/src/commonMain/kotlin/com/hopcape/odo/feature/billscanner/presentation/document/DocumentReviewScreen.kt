@@ -34,6 +34,7 @@ import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.OdoThumbnail
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
@@ -74,6 +75,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun DocumentReviewScreen(
     state: DocumentReviewUiState,
     onEvent: (DocumentReviewEvent) -> Unit,
+    onOpenPhoto: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
@@ -133,12 +135,14 @@ internal fun DocumentReviewScreen(
                 .padding(vertical = OdoTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
+            // Tappable: at this height the expiry date on a policy is not readable, and
+            // confirming it is what this screen is for.
             rememberStoredImage(state.photoKey)?.let { photo ->
-                Image(
-                    bitmap = photo,
+                OdoThumbnail(
+                    image = photo,
                     contentDescription = stringResource(Res.string.bs_cd_captured_bill),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(PHOTO_HEIGHT).clip(OdoTheme.shapes.card),
+                    modifier = Modifier.fillMaxWidth().height(PHOTO_HEIGHT),
+                    onClick = onOpenPhoto,
                 )
             }
 
@@ -260,5 +264,6 @@ private fun DocumentReviewScreenPreview() = OdoPreview(padded = false) {
             expiresOn = LocalDate(2027, 3, 14),
         ),
         onEvent = {},
+        onOpenPhoto = {},
     )
 }

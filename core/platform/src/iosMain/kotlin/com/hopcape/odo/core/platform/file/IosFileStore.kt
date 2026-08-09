@@ -65,4 +65,20 @@ internal class IosFileStore : PlatformFileStore {
                 data.toByteArray()
             }.mapLeft { DomainError.PersistenceFailure(it.message) }
         }
+
+    override suspend fun write(
+        storageKey: String,
+        bytes: ByteArray,
+    ): Either<DomainError, String> = withContext(Dispatchers.Default) {
+        Either.catch {
+            // Refused rather than written: an empty file is indistinguishable from a good one
+            // to every reader, so it would look like a restore that worked.
+            if (bytes.isEmpty()) error("refusing to write an empty file")
+            if (!ensureParentDirectory(storageKey)) error("storage directory could not be created")
+            if (!bytes.toNSData().writeToFile(absolutePathFor(storageKey), atomically = true)) {
+                error("file could not be written")
+            }
+            storageKey
+        }.mapLeft { DomainError.PersistenceFailure(it.message) }
+    }
 }

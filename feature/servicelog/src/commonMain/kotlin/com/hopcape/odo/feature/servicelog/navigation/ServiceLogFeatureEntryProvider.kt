@@ -16,6 +16,8 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.file.rememberFilePicker
+import com.hopcape.odo.feature.servicelog.resources.Res
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_attached
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEffect
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEvent
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailScreen
@@ -32,6 +34,7 @@ import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeVi
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordEffect
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetContent
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -117,10 +120,22 @@ internal fun ServiceLogDetailRoute(
     val launchBillPicker = rememberFilePicker { pickedRef ->
         pickedRef?.let { viewModel.onEvent(ServiceLogDetailEvent.BillPicked(it)) }
     }
+    // Read here rather than in the effect handler, which is not a composable and so cannot
+    // reach a string resource.
+    val billTitle = stringResource(Res.string.sl_detail_bill_attached)
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             ServiceLogDetailEffect.PickBillPhoto -> launchBillPicker()
+
+            is ServiceLogDetailEffect.PreviewBill -> navigationManager.navigateTo(
+                OdoDestination.FilePreview(
+                    storageKey = effect.storageKey,
+                    title = billTitle,
+                    // A bill attached on another phone syncs its row here but not its photo.
+                    remoteBucket = OdoDestination.FilePreview.BUCKET_BILL_PHOTOS,
+                ),
+            )
 
             is ServiceLogDetailEffect.OpenFairness ->
                 navigationManager.navigateTo(

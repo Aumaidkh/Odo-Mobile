@@ -86,8 +86,19 @@ internal class ServiceLogSyncTable(
         // never carried either must not blank the copies already here. Blanking the photo
         // would turn a Verified entry into a self-reported one on a pull.
         val localOnly = queries.selectLocalOnly(dto.id).executeAsOneOrNull()
-        val keptBillPhoto = dto.billPhotoPath ?: localOnly?.bill_photo_path
+        // The local key wins, and the remote path is only the fallback for a row this device
+        // has never seen. The two are not the same kind of string: locally the photo is
+        // `bills/{carId}/{logId}.jpg` under app storage, while the row on the server carries
+        // the path it was uploaded to inside the `bill-photos` bucket ([uploadBlobs] swaps one
+        // for the other on the way out). Taking the remote value here overwrote a key that
+        // opens with one that does not, so an entry's bill stopped opening the moment its own
+        // upload came back round — see [DocumentSyncTable.applyRemote], which does this too.
+        val keptBillPhoto = localOnly?.bill_photo_path ?: dto.billPhotoPath
         val keptBillId = dto.billId ?: localOnly?.bill_id
+        // The breakdown has nowhere on the server to come back from: `ServiceLogDto` carries
+        // no lines, and the server keys its own on a `bills` row this client never creates.
+        // A pull that dropped them would empty the card the owner scanned the bill for.
+        val keptLineItems = localOnly?.line_items
 
         queries.insertFromRemote(
             id = dto.id,
@@ -102,6 +113,7 @@ internal class ServiceLogSyncTable(
             bill_id = keptBillId,
             bill_photo_path = keptBillPhoto,
             fairness_snapshot = dto.fairnessSnapshot,
+            line_items = keptLineItems,
             created_at = dto.createdAt,
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,
@@ -121,6 +133,7 @@ internal class ServiceLogSyncTable(
             // must not blank the copy this device already holds.
             bill_photo_path = keptBillPhoto,
             fairness_snapshot = dto.fairnessSnapshot,
+            line_items = keptLineItems,
             created_at = dto.createdAt,
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,

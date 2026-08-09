@@ -52,4 +52,16 @@ interface PlatformFileStore {
      * replace a good object on the server with an empty one.
      */
     suspend fun bytes(storageKey: String): Either<DomainError, ByteArray>
+
+    /**
+     * Put [bytes] at [storageKey], creating whatever directories it names and replacing
+     * anything already there.
+     *
+     * The counterpart to [bytes], and what lets a file come *back* from the server: a second
+     * device syncs the row that names a bill or a document, but not the file itself, so the
+     * bytes have to be fetched and put where the rest of the app already looks. The caller
+     * names the key rather than a directory and filename, because it is restoring a file to
+     * where it used to be, not filing a new one.
+     */
+    suspend fun write(storageKey: String, bytes: ByteArray): Either<DomainError, String>
 }

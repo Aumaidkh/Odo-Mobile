@@ -41,11 +41,14 @@ import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.OdoThumbnail
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcDotsVertical
+import com.hopcape.odo.core.designsystem.icons.IcDownload
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
+import com.hopcape.odo.core.designsystem.icons.IcImage
 import com.hopcape.odo.core.designsystem.icons.IcPdf
 import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcShare
@@ -57,10 +60,15 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.platform.file.StoredFileKind
+import com.hopcape.odo.core.platform.file.StoredFileKinds
+import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.presentation.vault.docName
 import com.hopcape.odo.feature.documentvault.resources.Res
+import com.hopcape.odo.feature.documentvault.resources.dv_badge_pdf
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_more
+import com.hopcape.odo.feature.documentvault.resources.dv_cd_preview_file
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_days_suffix
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expired_for
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expires_in
@@ -154,7 +162,7 @@ private fun RowScope.DocumentMenu(onReplace: () -> Unit, onShare: () -> Unit, on
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MenuItem(stringResource(Res.string.dv_menu_replace), IcRefresh) { expanded = false; onReplace() }
             MenuItem(stringResource(Res.string.dv_menu_share), IcShare) { expanded = false; onShare() }
-            MenuItem(stringResource(Res.string.dv_menu_download), IcPdf) { expanded = false; onDownload() }
+            MenuItem(stringResource(Res.string.dv_menu_download), IcDownload) { expanded = false; onDownload() }
             HorizontalDivider(color = OdoTheme.colors.border)
             MenuItem(stringResource(Res.string.dv_menu_delete), IcTrash, tint = OdoTheme.colors.danger) { expanded = false; onDelete() }
         }
@@ -179,7 +187,11 @@ private fun HeroCard(content: DocumentDetailContent, onView: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.Top) {
-            IconChip(IcShieldFilled, OdoTheme.colors.accent)
+            if (content.isFileAvailable && content.storagePath != null) {
+                DocumentPreviewTile(storagePath = content.storagePath, onView = onView)
+            } else {
+                IconChip(IcShieldFilled, OdoTheme.colors.accent)
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(content.title ?: docName(content.type), style = OdoTheme.typography.heading)
                 content.issuedOn?.let {
@@ -282,6 +294,29 @@ private fun ValidityCard(content: DocumentDetailContent) {
         }
     }
 }
+
+/**
+ * The document itself, shown small and tappable, in place of the generic shield.
+ *
+ * The point of a vault is being able to see the paper, and a thumbnail is what turns "a row
+ * that says Insurance" into "my policy". A PDF has no image to draw here, so it falls back to
+ * a PDF glyph and a badge saying which of the two it is.
+ */
+@Composable
+private fun DocumentPreviewTile(storagePath: String, onView: () -> Unit) {
+    val isPdf = StoredFileKinds.of(storagePath) == StoredFileKind.PDF
+    OdoThumbnail(
+        image = rememberStoredImage(storagePath),
+        contentDescription = stringResource(Res.string.dv_cd_preview_file),
+        modifier = Modifier.size(PREVIEW_TILE_SIZE),
+        placeholderIcon = if (isPdf) IcPdf else IcImage,
+        badge = if (isPdf) stringResource(Res.string.dv_badge_pdf) else null,
+        onClick = onView,
+    )
+}
+
+/** Big enough to recognise the document, small enough to leave the title room. */
+private val PREVIEW_TILE_SIZE = 64.dp
 
 @Composable
 private fun IconChip(icon: ImageVector, tone: Color) {

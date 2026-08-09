@@ -64,6 +64,21 @@ internal class AndroidFileStore(private val context: Context) : PlatformFileStor
             }.mapLeft { DomainError.PersistenceFailure(it.message) }
         }
 
+    override suspend fun write(
+        storageKey: String,
+        bytes: ByteArray,
+    ): Either<DomainError, String> = withContext(Dispatchers.IO) {
+        Either.catch {
+            // Refused rather than written: an empty file is indistinguishable from a good one
+            // to every reader, so it would look like a restore that worked.
+            if (bytes.isEmpty()) error("refusing to write an empty file")
+            val target = context.storedFile(storageKey)
+            target.parentFile?.mkdirs()
+            target.writeBytes(bytes)
+            storageKey
+        }.mapLeft { DomainError.PersistenceFailure(it.message) }
+    }
+
     /**
      * The file's extension, preferring what the content resolver says the bytes *are* over
      * what the URI is called — a `content://` URI from the picker often has no filename at

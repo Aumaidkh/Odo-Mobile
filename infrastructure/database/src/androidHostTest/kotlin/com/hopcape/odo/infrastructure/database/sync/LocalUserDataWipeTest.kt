@@ -148,6 +148,8 @@ class LocalUserDataWipeTest {
         override suspend fun delete(storageKey: String) { deleted += storageKey }
         override suspend fun exists(storageKey: String) = true
         override suspend fun bytes(storageKey: String) = DomainError.PersistenceFailure("unused").left()
+        override suspend fun write(storageKey: String, bytes: ByteArray) =
+            DomainError.PersistenceFailure("unused").left()
     }
 
     private fun JdbcSqliteDriver.exec(sql: String) = execute(null, sql, 0)

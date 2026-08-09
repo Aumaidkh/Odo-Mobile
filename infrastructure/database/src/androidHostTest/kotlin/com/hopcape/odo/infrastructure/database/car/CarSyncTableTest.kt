@@ -238,6 +238,7 @@ class CarSyncTableTest {
             billId = null,
             billPhotoPath = null,
             fairnessSnapshot = null,
+            lineItems = null,
             now = now,
             syncStatus = "PENDING",
         )

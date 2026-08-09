@@ -193,6 +193,8 @@ class ServiceLogDetailViewModelTest {
         override suspend fun delete(storageKey: String) = Unit
         override suspend fun exists(storageKey: String) = true
         override suspend fun bytes(storageKey: String) = ByteArray(0).right()
+
+        override suspend fun write(storageKey: String, bytes: ByteArray) = storageKey.right()
     }
 
     private object RefusingFileStore : PlatformFileStore {
@@ -202,6 +204,9 @@ class ServiceLogDetailViewModelTest {
         override suspend fun delete(storageKey: String) = Unit
         override suspend fun exists(storageKey: String) = false
         override suspend fun bytes(storageKey: String) =
+            DomainError.PersistenceFailure("no bytes").left()
+
+        override suspend fun write(storageKey: String, bytes: ByteArray) =
             DomainError.PersistenceFailure("no bytes").left()
     }
 

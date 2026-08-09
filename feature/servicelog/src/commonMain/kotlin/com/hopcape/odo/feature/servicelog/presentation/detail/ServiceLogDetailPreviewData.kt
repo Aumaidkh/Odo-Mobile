@@ -55,7 +55,7 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
         ),
     ),
     resale = ResaleProofUiState.Verified(scoreUplift = 4, fairPriceChecked = true),
-    bill = BillAttachmentUiState(scanned = true, verified = true),
+    bill = BillAttachmentUiState(scanned = true, verified = true, photoRef = "bills/c1/l1.jpg"),
 )
 
 /** Sample state (stands in for the ViewModel until the route is wired to it). */

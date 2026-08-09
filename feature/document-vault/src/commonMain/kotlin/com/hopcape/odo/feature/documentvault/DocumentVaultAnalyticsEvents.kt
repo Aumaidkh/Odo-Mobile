@@ -38,6 +38,10 @@ val documentVaultAnalyticsEvents: List<EventSchema> = listOf(
             DocumentVaultTelemetry.Key.VERIFIED to PropertyType.BOOLEAN,
         ),
     ),
+    EventSchema(
+        DocumentVaultTelemetry.Event.DOCUMENT_PREVIEWED,
+        mapOf(DocumentVaultTelemetry.Key.TYPE to PropertyType.STRING),
+    ),
 
     EventSchema(
         DocumentVaultTelemetry.Event.ADD_OPENED,

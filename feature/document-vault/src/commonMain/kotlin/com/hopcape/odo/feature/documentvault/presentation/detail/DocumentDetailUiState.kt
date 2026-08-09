@@ -43,6 +43,14 @@ internal data class DocumentDetailContent(
     val isVerified: Boolean,
     /** False when the stored file has gone missing; the screen then hides "View". */
     val isFileAvailable: Boolean,
+    /**
+     * Where the file is kept.
+     *
+     * The rest of this state is booleans and ids on purpose, and a path in UI state is the
+     * exception rather than a new habit: drawing the document's own thumbnail means the
+     * composable has to name the file it is drawing, and nothing else can do that for it.
+     */
+    val storagePath: String?,
 )
 
 // --- Samples for previews ---------------------------------------------------------
@@ -59,6 +67,7 @@ internal fun sampleDocumentDetail() = DocumentDetailUiState(
             reminderDaysBefore = 7,
             isVerified = true,
             isFileAvailable = true,
+            storagePath = "documents/c1/d1.pdf",
         ),
     ),
 )
@@ -75,6 +84,7 @@ internal fun sampleLifetimeDocumentDetail() = DocumentDetailUiState(
             reminderDaysBefore = null,
             isVerified = false,
             isFileAvailable = true,
+            storagePath = "documents/c1/d2.jpg",
         ),
     ),
 )

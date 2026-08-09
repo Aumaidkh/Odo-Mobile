@@ -8,6 +8,7 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
+import platform.Foundation.create
 import platform.posix.memcpy
 
 /**
@@ -57,4 +58,13 @@ internal fun NSData.toByteArray(): ByteArray {
     return ByteArray(size).apply {
         usePinned { pinned -> memcpy(pinned.addressOf(0), bytes, length) }
     }
+}
+
+/**
+ * Copy a Kotlin [ByteArray] into an `NSData`, for the same reason as [toByteArray] and with
+ * the same pinning — this one reads from the pinned array instead of writing to it.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal fun ByteArray.toNSData(): NSData = usePinned { pinned ->
+    NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
 }

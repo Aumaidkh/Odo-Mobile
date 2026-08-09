@@ -49,8 +49,6 @@ internal class DocumentDetailViewModel(
     private val _effects = Channel<DocumentDetailEffect>(Channel.BUFFERED)
     val effects: Flow<DocumentDetailEffect> = _effects.receiveAsFlow()
 
-    /** The storage path of what is on screen, for the actions that act on the file. */
-    private var storagePath: String? = null
     private var reportedOpen = false
 
     /**
@@ -85,11 +83,25 @@ internal class DocumentDetailViewModel(
     }
 
     private fun onFileEvent(event: DocumentDetailEvent.File) = when (event) {
-        DocumentDetailEvent.File.View -> storagePath?.let { emit(DocumentDetailEffect.OpenFile(it)) } ?: Unit
-        DocumentDetailEvent.File.Download -> storagePath?.let { emit(DocumentDetailEffect.DownloadFile(it)) } ?: Unit
+        DocumentDetailEvent.File.View -> view()
+        DocumentDetailEvent.File.Download -> current()?.storagePath?.let {
+            emit(DocumentDetailEffect.DownloadFile(it))
+        } ?: Unit
+
         is DocumentDetailEvent.File.Replace -> replace(event.pickedRef)
         DocumentDetailEvent.File.Delete -> delete()
     }
+
+    /** Open the stored file in the shared viewer. Nothing to open until the document loads. */
+    private fun view() {
+        val content = current() ?: return
+        val path = content.storagePath ?: return
+        telemetry.documentPreviewed(content.type)
+        emit(DocumentDetailEffect.OpenFile(path))
+    }
+
+    /** The document on screen, or null while it is still loading. */
+    private fun current(): DocumentDetailContent? = (state.value.content as? Loadable.Ready)?.value
 
     private fun onOpenEvent(event: DocumentDetailEvent.Open) = when (event) {
         DocumentDetailEvent.Open.Share -> emit(DocumentDetailEffect.OpenShare(documentId))
@@ -129,7 +141,7 @@ internal class DocumentDetailViewModel(
     }
 
     private fun renew() {
-        val type = (state.value.content as? Loadable.Ready)?.value?.type ?: return
+        val type = current()?.type ?: return
         emit(DocumentDetailEffect.OpenAdd(type))
     }
 
@@ -145,7 +157,7 @@ internal class DocumentDetailViewModel(
         Unit
     }
 
-    /** Keep the file path and report the open, both from the same emission. */
+    /** Report the open, once, from the first emission that carries a document. */
     private fun remember(content: Loadable<DocumentDetailContent>) {
         val detail = (content as? Loadable.Ready)?.value ?: return
         if (reportedOpen) return
@@ -160,7 +172,6 @@ internal class DocumentDetailViewModel(
             leave()
             return Loadable.Loading
         }
-        storagePath = detail.document.storagePath
         return Loadable.Ready(
             DocumentDetailContent(
                 id = detail.document.id,
@@ -172,6 +183,7 @@ internal class DocumentDetailViewModel(
                 reminderDaysBefore = detail.nextReminder?.daysBefore,
                 isVerified = detail.isVerified,
                 isFileAvailable = detail.isFileAvailable,
+                storagePath = detail.document.storagePath,
             ),
         )
     }

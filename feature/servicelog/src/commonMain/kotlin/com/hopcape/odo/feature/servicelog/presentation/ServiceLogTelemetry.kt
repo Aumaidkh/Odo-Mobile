@@ -249,6 +249,18 @@ internal class ServiceLogTelemetry(
 
     /* ------------------------------ Share ------------------------------ */
 
+    /**
+     * The owner opened the attached bill itself.
+     *
+     * The counterpart to [billAttach]: attaching is what verifies an entry, and this is
+     * whether anyone ever looks at the proof again. A bill that is filed and never opened is
+     * a bill the resale passport is the only reader of.
+     */
+    fun billViewed() {
+        analytics.track(Event.BILL_VIEWED)
+        logger.debug(TAG, Event.BILL_VIEWED, tc = flowTrace.toLog())
+    }
+
     fun shareOpened() {
         analytics.track(Event.SHARE_OPENED)
         logger.debug(TAG, Event.SHARE_OPENED, tc = flowTrace.toLog())
@@ -332,6 +344,7 @@ internal class ServiceLogTelemetry(
         const val DELETE_FAILED = "servicelog_delete_failed"
 
         const val BILL_ATTACHED = "servicelog_bill_attached"
+        const val BILL_VIEWED = "servicelog_bill_viewed"
         const val ATTACH_FAILED = "servicelog_attach_failed"
         const val FAIRNESS_RECORDED = "servicelog_fairness_recorded"
         const val FAIRNESS_FAILED = "servicelog_fairness_failed"

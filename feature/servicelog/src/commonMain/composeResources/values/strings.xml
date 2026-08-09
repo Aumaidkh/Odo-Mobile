@@ -63,7 +63,11 @@
 
     <!-- Detail -->
     <string name="sl_detail_total_paid">Total paid</string>
+    <string name="sl_detail_extras">Taxes &amp; charges</string>
+    <string name="sl_detail_discount">Discount</string>
     <string name="sl_detail_bill_attached">Bill attached</string>
+    <string name="sl_detail_bill_tap_hint">Tap to see the bill</string>
+    <string name="sl_badge_pdf">PDF</string>
     <string name="sl_detail_add_bill_hint">Self-reported — add a bill to verify</string>
     <string name="sl_detail_resale_title">Counts as resale proof</string>
     <string name="sl_detail_resale_subtitle">Verified from bill · +%1$d to record</string>
@@ -166,5 +170,6 @@
     <string name="sl_cd_edit">Edit service</string>
     <string name="sl_cd_delete">Delete service</string>
     <string name="sl_cd_share">Share record</string>
+    <string name="sl_cd_open_bill">Open the attached bill</string>
     <string name="sl_cd_filter">Filter</string>
 </resources>

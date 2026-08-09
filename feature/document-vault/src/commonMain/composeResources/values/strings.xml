@@ -62,6 +62,8 @@
     <string name="dv_add_privacy">Your documents are stored privately and only used to track renewals.</string>
     <string name="dv_cd_close">Close</string>
     <string name="dv_cd_back">Back</string>
+    <string name="dv_cd_preview_file">Open the stored file</string>
+    <string name="dv_badge_pdf">PDF</string>
 
     <!-- Document detail screen -->
     <string name="dv_detail_verified">Verified</string>

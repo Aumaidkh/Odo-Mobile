@@ -40,3 +40,4 @@ androidApp/google-services.json
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
 # lockfile worth reviewing in a diff.
 .swiftpm-locks/
+/docs/PlayConsole-Readiness-Report.pdf

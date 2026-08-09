@@ -10,4 +10,13 @@
     <string name="as_maintenance_banner_default">Some features are temporarily unavailable for maintenance.</string>
 
     <string name="as_retry">Try again</string>
+
+    <!-- File preview — the shared viewer for a stored bill, policy or scan -->
+    <string name="fp_title_fallback">Document</string>
+    <string name="fp_cd_close">Close</string>
+    <string name="fp_page_failed">This page could not be shown.</string>
+    <string name="fp_missing_title">File not found</string>
+    <string name="fp_missing_message">This file is no longer on this device. Add it again to keep a copy.</string>
+    <string name="fp_unsupported_title">Can\'t open this file</string>
+    <string name="fp_unsupported_message">Odo can show photos and PDFs. This file is neither.</string>
 </resources>

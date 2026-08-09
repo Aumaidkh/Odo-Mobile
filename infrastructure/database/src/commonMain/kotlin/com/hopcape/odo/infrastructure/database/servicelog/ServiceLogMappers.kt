@@ -39,6 +39,7 @@ internal fun serviceLogFromRow(
     billId: String?,
     billPhotoPath: String?,
     fairnessSnapshot: String?,
+    lineItems: String?,
     createdAt: String,
     updatedAt: String,
     deletedAt: String?,
@@ -61,6 +62,7 @@ internal fun serviceLogFromRow(
     categories = categories.toCategories(),
     billPhotoRef = billPhotoPath,
     fairness = fairnessSnapshot.toFairnessSnapshot(),
+    lineItems = lineItems.toLineItems(),
 )
 
 /**
