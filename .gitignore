@@ -40,6 +40,13 @@ infrastructure/supabase/README.md
 androidApp/google-services.json
 androidApp/src/*/google-services.json
 
+# Signing keys. The upload key for Play App Signing lives here; its passwords are in
+# local.properties, which is already ignored above. Losing it is recoverable — Play can
+# reset an upload key — but it still never belongs in the repo.
+keystore/
+*.jks
+*.keystore
+
 # Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
 # lockfile worth reviewing in a diff.

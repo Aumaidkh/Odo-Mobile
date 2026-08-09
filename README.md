@@ -113,9 +113,9 @@ All commands use the Gradle wrapper.
 
 | Type | Application ID | Version name | Notes |
 | --- | --- | --- | --- |
-| `debug` | `com.hopcape.odo.debug` | `1.0.0-beta01-debug` | Debuggable, debug-signed |
-| `stage` | `com.hopcape.odo.stage` | `1.0.0-beta01-stage` | Not debuggable, debug-signed so QA can install it without the release keystore |
-| `release` | `com.hopcape.odo` | `1.0.0-beta01` | What reaches the store |
+| `debug` | `com.hopcape.odo.debug` | `1.0.0-beta01-debug` | Debuggable, debug-signed, not minified |
+| `stage` | `com.hopcape.odo.stage` | `1.0.0-beta01-stage` | Not debuggable, debug-signed so QA can install it without a keystore, not minified |
+| `release` | `com.hopcape.odo` | `1.0.0-beta01` | R8 + resource shrinking, signed with the upload key |
 
 All three carry the same `versionCode` and install side by side. The version, the build
 number and the application ID come from the `odo-*` entries in
@@ -123,10 +123,46 @@ number and the application ID come from the `odo-*` entries in
 `BuildInfo` (`:core:common`, readable from any module and from iOS) follow. The profile
 screen shows the build number next to the version on debug and stage only.
 
-Because each build type has its own application ID, a local `androidApp/google-services.json`
-must register all three in the Firebase console. Without the `.debug` and `.stage` clients
-the build fails with *"No matching client found for package name"*. CI has no
-`google-services.json` at all, so it is unaffected.
+Only one build type can be asked for per Gradle invocation. `BuildInfo` is generated once
+per build, so `./gradlew assembleDebug assembleRelease` would give one of the two APKs the
+other's constants; the build fails with an explanation instead.
+
+Because each build type has its own application ID, each needs its own Firebase client.
+The Google Services plugin reads `androidApp/src/<buildType>/google-services.json` before
+`androidApp/google-services.json`, so register all three application IDs in the Firebase
+console and put the debug and stage configs in `androidApp/src/debug/` and
+`androidApp/src/stage/`. Without them the build fails with *"No matching client found for
+package name"*. CI has no config at all, so it is unaffected.
+
+### Release build
+
+```bash
+# App bundle — this is what is uploaded to Play
+./gradlew :androidApp:bundleRelease
+
+# APK, for smoke-testing the shrunk build on a device
+./gradlew :androidApp:assembleRelease
+```
+
+**Signing.** The app uses Play App Signing: Google holds the key installed apps are signed
+with, and the key here is only the *upload* key, which Play can reset if it is ever lost.
+The build looks for it in `local.properties` first and the environment second, and produces
+an unsigned APK when it finds neither — so a fresh clone and CI both still build.
+
+| `local.properties` | Environment |
+| --- | --- |
+| `odo.upload.storeFile` | `ODO_UPLOAD_STORE_FILE` |
+| `odo.upload.storePassword` | `ODO_UPLOAD_STORE_PASSWORD` |
+| `odo.upload.keyAlias` | `ODO_UPLOAD_KEY_ALIAS` |
+| `odo.upload.keyPassword` | `ODO_UPLOAD_KEY_PASSWORD` (defaults to the store password) |
+
+A relative `storeFile` is resolved from the repo root. Keystores are gitignored.
+
+**Shrinking.** R8 runs in full mode with resource shrinking; the keep rules are in
+`androidApp/proguard-rules.pro`. Stage is deliberately *not* minified, which means R8 first
+runs on the build that goes to the store — so smoke-test a release APK on a device before
+uploading, rather than only building it. R8 has already been caught removing a constructor
+Room reaches by reflection, which crashed the app before any of its own code ran.
 
 **iOS:** open `iosApp/` in Xcode and run from there (the KMP build produces a `Shared` framework consumed by the Xcode project). *iOS is Phase 2 — the MVP validates on Android first.*
 

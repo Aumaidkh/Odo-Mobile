@@ -44,6 +44,23 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 buildConfig = true
             }
 
+            // The upload key, when this machine has one. Declared before buildTypes so the
+            // release type below can pick it up. Absent — a fresh clone, or CI without the
+            // secrets — leaves the config uncreated and the release APK unsigned, which is
+            // enough for the compile gate CI actually runs.
+            val uploadSigning = readUploadSigningMaterial()
+            if (uploadSigning != null) {
+                signingConfigs.create("upload") {
+                    it.storeFile = uploadSigning.storeFile
+                    it.storePassword = uploadSigning.storePassword
+                    it.keyAlias = uploadSigning.keyAlias
+                    it.keyPassword = uploadSigning.keyPassword
+                    // Signing scheme versions are left to AGP, which picks them from minSdk.
+                    // At 26 that is v2 alone: v1 (JAR signing) only matters below API 24, and
+                    // Play re-signs the artifact with its own key anyway.
+                }
+            }
+
             // Three build types, all installable side by side because each carries its own
             // applicationId suffix. The same suffixes are baked into BuildInfo from the
             // version catalog (core/common/build.gradle.kts), so what the app reports about
@@ -75,7 +92,26 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     it.matchingFallbacks.add("release")
                 }
 
-                getByName("release") { it.isMinifyEnabled = false }
+                // R8 in full mode (AGP's default), plus resource shrinking. The keep rules
+                // live in androidApp/proguard-rules.pro; `proguard-android-optimize.txt` is
+                // the platform's own baseline, which the stack's libraries extend through
+                // the consumer rules they ship.
+                //
+                // Stage stays unminified on purpose, so R8 first runs on the build that goes
+                // to the store. That is a deliberate trade — see the build types table in
+                // README.md — and it is why a release APK is worth smoke-testing on a device
+                // before it is uploaded, not just built.
+                getByName("release") {
+                    it.isMinifyEnabled = true
+                    it.isShrinkResources = true
+                    it.proguardFiles(
+                        getDefaultProguardFile("proguard-android-optimize.txt"),
+                        "proguard-rules.pro",
+                    )
+                    if (uploadSigning != null) {
+                        it.signingConfig = signingConfigs.getByName("upload")
+                    }
+                }
             }
 
             // Lint runs from this module on CI. The app module is a thin shell,

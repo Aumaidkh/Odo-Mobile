@@ -44,16 +44,27 @@ kotlin {
 // genuinely wants another flavor for something the heuristic doesn't catch must ask for it
 // explicitly with -Pbuildkonfig.flavor=stage.
 //
-// "Stage" is checked first: a task name can only carry one build type here, but checking the
-// narrower name first keeps the answer stable if that ever stops being true.
+// One flavor is generated for the whole invocation, so asking for two build types at once
+// ("assembleDebug assembleRelease") has no correct answer — one of the two APKs would carry
+// BuildInfo for the other. That is exactly the mistake worth failing on rather than
+// shipping: a release APK that reports itself as debug turns off performance reporting and
+// shortens the Remote Config fetch interval in production. Ask for them in separate
+// invocations, or pass -Pbuildkonfig.flavor= to say which one the constants should describe.
 if (!project.hasProperty("buildkonfig.flavor")) {
     val taskNames = gradle.startParameter.taskNames
-    val flavor = when {
-        taskNames.any { it.contains("Stage") } -> "stage"
-        taskNames.any { it.contains("Debug") } -> "debug"
-        else -> "release"
+    val requested = buildList {
+        if (taskNames.any { it.contains("Stage") }) add("stage")
+        if (taskNames.any { it.contains("Debug") }) add("debug")
+        if (taskNames.any { it.contains("Release") }) add("release")
     }
-    project.extensions.extraProperties.set("buildkonfig.flavor", flavor)
+    check(requested.size <= 1) {
+        "This build asks for more than one build type at once (${requested.joinToString()}), " +
+            "but BuildInfo constants are generated once per invocation. Run the tasks separately, " +
+            "or pass -Pbuildkonfig.flavor=<${requested.joinToString("|")}> to choose."
+    }
+    // Nothing recognisable — a bare `test`, `lint`, an IDE sync — falls to "release", the
+    // conservative default: it turns nothing debug-only on.
+    project.extensions.extraProperties.set("buildkonfig.flavor", requested.singleOrNull() ?: "release")
 }
 
 buildkonfig {
