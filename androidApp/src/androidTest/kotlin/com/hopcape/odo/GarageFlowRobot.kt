@@ -120,6 +120,9 @@ internal object GarageCopy {
     /* Export sheet. */
     const val EXPORT_TITLE = "Export car record"
     const val EXPORT_PRO_NOTE = "Exporting your record is part of Odo Pro."
+
+    /** What the export actions say while nothing sells Pro. */
+    const val EXPORT_COMING_SOON = "COMING SOON"
     const val EXPORT_PDF = "PDF"
     const val EXPORT_SHARE = "Share"
     const val EXPORT_SERVICE = "Service history"

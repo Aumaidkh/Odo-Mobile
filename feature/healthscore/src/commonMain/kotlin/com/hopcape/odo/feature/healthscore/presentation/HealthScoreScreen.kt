@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
@@ -149,7 +150,9 @@ private fun ScoreContent(content: HealthScoreContent, onEvent: (HealthScoreEvent
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         SectionLabel(stringResource(Res.string.hs_breakdown_label))
-        if (content.isPro) {
+        // Nothing is locked while nothing can sell Pro: the lock's only button opens a
+        // paywall that cannot take money. The locked view returns with the flag.
+        if (content.isPro || !FeatureFlags.PAYWALL_ENABLED) {
             content.factors.forEach { FactorCard(it) }
             content.opportunity?.let { OpportunityCard(it) }
         } else {

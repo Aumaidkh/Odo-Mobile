@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
@@ -51,8 +52,15 @@ internal data class BillScanUiState(
     val frameAnalysis: CameraFrameAnalysis
         get() = if (target == ScanTarget.PaymentQr) CameraFrameAnalysis.Qr else CameraFrameAnalysis.DocumentEdges
 
-    /** Whether the quota pill has anything true to say. */
-    val showQuota: Boolean get() = freeTotal > 0 && target != ScanTarget.PaymentQr
+    /**
+     * Whether the quota pill has anything true to say.
+     *
+     * It is off entirely while `FeatureFlags.PAYWALL_ENABLED` is false. "2 of 3 free" tells
+     * the owner they are on a free plan and that a paid one exists, and there is no paid one
+     * to move to yet. The count itself is unchanged and the pill returns with the flag.
+     */
+    val showQuota: Boolean
+        get() = FeatureFlags.PAYWALL_ENABLED && freeTotal > 0 && target != ScanTarget.PaymentQr
 }
 
 /** Sample state for previews. */
