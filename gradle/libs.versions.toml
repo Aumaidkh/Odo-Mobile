@@ -92,6 +92,10 @@ firebaseCrashlyticsGradlePlugin = "3.0.7"
 # via bytecode transform. Latest published version — AGP 9.0.1 compatibility is
 # unverified going in (:androidApp only, see the guarded apply site).
 firebasePerfGradlePlugin = "2.0.2"
+# Generates BuildKonfig.BUILD_TYPE in :core:common's commonMain — the one place every
+# module reads whether this is a debug/release build. KMP library modules have no Android
+# BuildConfig of their own (only :androidApp does), so this stands in for it.
+buildKonfig = "0.22.0"
 
 [libraries]
 # Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
@@ -105,6 +109,9 @@ gitlive-firebase-analytics = { module = "dev.gitlive:firebase-analytics", versio
 # Same release train as firebase-analytics above — gitlive versions every
 # firebase-kotlin-sdk module together, so it shares that version ref.
 gitlive-firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "analytics" }
+# Same release train again (:infrastructure:firebase:remoteconfig) — the app-status
+# gate's remote source.
+gitlive-firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 # Native Android SDK, not gitlive — gitlive's firebase-perf caps at 2.1.0 while this
 # repo pins gitlive at 3.0.0-alpha01 for analytics/crashlytics, so mixing them would
@@ -227,6 +234,8 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 # Applied directly by :androidApp, alongside google-services — see firebaseCrashlyticsGradlePlugin above.
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradlePlugin" }
 firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfGradlePlugin" }
+# Applied directly by :core:common only — every other module reads its BuildKonfig object.
+buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildKonfig" }
 
 # Odo convention plugins (defined in build-logic, applied by feature/app modules)
 odo-kmpLibrary = { id = "odo.kmp.library" }

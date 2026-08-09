@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Android-native local defaults resource — Firebase's own documented convention for
+  "what a fresh install answers before its first network fetch" (loaded via the real SDK's
+  FirebaseRemoteConfig.setDefaultsAsync(int), see LocalRemoteConfigDefaults.android.kt).
+
+  Kept in sync by hand with RemoteConfigAppStatusSource's key/value contract
+  (docs/APP_STATUS_PLAN.md §3) and with REMOTE_DEFAULTS, the Kotlin map used on every
+  other platform. Change one, change both.
+-->
+<defaultsMap>
+    <entry>
+        <key>min_supported_version_code</key>
+        <value>0</value>
+    </entry>
+    <entry>
+        <key>maintenance_mode</key>
+        <value>off</value>
+    </entry>
+    <entry>
+        <key>maintenance_message</key>
+        <value></value>
+    </entry>
+</defaultsMap>

@@ -78,6 +78,12 @@ kotlin {
             // FirebaseAnalyticsSink is constructed directly in MainViewController (iOS
             // has no separate app module) — same reason :androidApp depends on it.
             implementation(projects.infrastructure.firebase.analytics)
+            // firebaseRemoteConfigModule — the app-status gate's real AppStatusSource,
+            // replacing coreDataModule's AlwaysAvailableAppStatusSource. Same
+            // composition-root reasoning as :infrastructure.supabase/:infrastructure.ai
+            // below: resolved through Koin, not constructed directly, so only :shared
+            // (which calls initKoin) needs this dependency.
+            implementation(projects.infrastructure.firebase.remoteconfig)
             // APM tracer (spans/traces) wired via performanceModule.
             implementation(projects.observability.performance)
             // CrashRecorder wired via crashReportingModule — :core:data's telemetry
@@ -87,4 +93,12 @@ kotlin {
             implementation(libs.koin.composeViewmodel)
         }
     }
+}
+
+// Compose Multiplatform string resources for the app shell — the app-status gate's
+// blocked-screen copy (AppGate.kt). No feature owns this; it is app-shell chrome.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.shared.resources"
+    generateResClass = always
 }

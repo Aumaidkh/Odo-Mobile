@@ -18,6 +18,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LogUploadRunner
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
+import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
@@ -30,6 +31,10 @@ import com.hopcape.odo.di.odoAnalyticsEvents
 import com.hopcape.performance.api.APM
 import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.Span
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.logger.Level
@@ -118,7 +123,16 @@ class OdoApplication : Application() {
         // genuine background -> foreground transition of the whole process.
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
-                override fun onStart(owner: LifecycleOwner) = HAnalytics.flush()
+                override fun onStart(owner: LifecycleOwner) {
+                    HAnalytics.flush()
+                    // Catches a maintenance window that opened or closed while the app was
+                    // backgrounded (docs/APP_STATUS_PLAN.md §5.3). A short-lived scope, same
+                    // shape as the one KoinInit's own startup coroutine uses — refresh()
+                    // never throws, so there is nothing here for a crash to come from.
+                    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                        KoinPlatform.getKoin().get<AppStatusProvider>().refresh()
+                    }
+                }
 
                 // The app just became killable — one of AsyncSink's five flush triggers
                 // (docs/LOGGING_PLAN.md §5). A rotation still looks like onStop+onStart, but

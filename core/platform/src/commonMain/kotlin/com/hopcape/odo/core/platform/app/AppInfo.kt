@@ -11,4 +11,11 @@ interface AppInfo {
 
     /** The user-facing version, e.g. `1.4.0`. */
     val versionName: String
+
+    /**
+     * The monotonically increasing build number (Android `versionCode`, iOS
+     * `CFBundleVersion`), used to compare this build against a remote minimum. `0` when it
+     * cannot be read, which never satisfies a real minimum and so never blocks anything.
+     */
+    val versionCode: Long
 }

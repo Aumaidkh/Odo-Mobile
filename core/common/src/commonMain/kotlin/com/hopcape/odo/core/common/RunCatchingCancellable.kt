@@ -19,3 +19,18 @@ inline fun <R> runCatchingCancellable(block: () -> R): Result<R> =
     } catch (e: Throwable) {
         Result.failure(e)
     }
+
+/**
+ * [runCatchingCancellable] for a `suspend` [block] — a vendor SDK call that suspends.
+ *
+ * A distinct name rather than an overload: a lambda with no suspend call inside it is a
+ * valid argument for *either* signature, which the compiler cannot resolve on its own.
+ */
+suspend inline fun <R> runCatchingCancellableSuspend(block: suspend () -> R): Result<R> =
+    try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }

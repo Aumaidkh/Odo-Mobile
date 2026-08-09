@@ -24,6 +24,7 @@ class SupabaseLogUploaderTest {
 
     private val fakeAppInfo = object : AppInfo {
         override val versionName: String = "1.4.0"
+        override val versionCode: Long = 1L
     }
 
     private fun owners(id: OwnerId) = CurrentOwnerProvider { id }

@@ -1,5 +1,9 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
+import com.hopcape.odo.core.data.appstatus.DefaultAppStatusProvider
+import com.hopcape.odo.core.data.appstatus.MaintenanceAwareSyncGate
+import com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
@@ -68,7 +72,13 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.trip.repository.TripRepository
+import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
+import com.hopcape.odo.core.domain.appstatus.AppStatusSource
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
+
+/** Names [SessionSyncGate] so [MaintenanceAwareSyncGate] can wrap it without resolving itself. */
+private const val QUALIFIER_SESSION_SYNC_GATE = "session"
 
 /**
  * DI graph for the data layer's ports and repositories.
@@ -111,7 +121,18 @@ val coreDataModule = module {
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the
     // way past, so a run never starts with one that dies mid-push.
-    single<SyncGate> { SessionSyncGate(tokens = get(), owners = get(), adoption = get()) }
+    //
+    // Qualified rather than the plain SyncGate: MaintenanceAwareSyncGate below wraps this
+    // one, and a second unqualified single<SyncGate> would resolve *itself* instead —
+    // this qualifier is what lets it name the thing it decorates.
+    single<SyncGate>(named(QUALIFIER_SESSION_SYNC_GATE)) {
+        SessionSyncGate(tokens = get(), owners = get(), adoption = get())
+    }
+    // The engine's actual SyncGate: closes for a maintenance window before the session
+    // gate's own check (and its adoption side effect) ever runs.
+    single<SyncGate> {
+        MaintenanceAwareSyncGate(session = get(named(QUALIFIER_SESSION_SYNC_GATE)), appStatus = get())
+    }
 
     // Reads a stored file and puts it in a bucket. Only the two entities that name files
     // take one.
@@ -188,4 +209,14 @@ val coreDataModule = module {
     // content behind a paywall that cannot take money yet. MUST be swapped before launch —
     // this one line is the swap.
     single<ProEntitlement> { AlwaysProEntitlement() }
+
+    // Blocks nothing until a real remote is configured. Swapped for
+    // RemoteConfigAppStatusSource by :infrastructure:firebase:remoteconfig's Koin module,
+    // which is registered after this one in initKoin — same later-definition-wins wiring
+    // supabaseModule already relies on.
+    single<AppStatusSource> { AlwaysAvailableAppStatusSource() }
+    single { AppStatusTelemetry(logger = get(), analytics = get(), tracer = get()) }
+    single<AppStatusProvider> {
+        DefaultAppStatusProvider(source = get(), appInfo = get(), clock = get(), telemetry = get())
+    }
 }
