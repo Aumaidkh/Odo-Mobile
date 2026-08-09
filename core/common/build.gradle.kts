@@ -55,6 +55,11 @@ buildkonfig {
     exposeObjectWithName = "BuildKonfig"
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "BUILD_TYPE", "release")
+        // Same `odo-versionName`/`odo-versionCode` catalog entries the app module's
+        // versionName/versionCode come from (AndroidApplicationConventionPlugin) — one
+        // source of truth, just baked into every module instead of only :androidApp.
+        buildConfigField(FieldSpec.Type.STRING, "VERSION_NAME", libs.versions.odo.versionName.get())
+        buildConfigField(FieldSpec.Type.LONG, "VERSION_CODE", libs.versions.odo.versionCode.get())
     }
     defaultConfigs("debug") {
         buildConfigField(FieldSpec.Type.STRING, "BUILD_TYPE", "debug")

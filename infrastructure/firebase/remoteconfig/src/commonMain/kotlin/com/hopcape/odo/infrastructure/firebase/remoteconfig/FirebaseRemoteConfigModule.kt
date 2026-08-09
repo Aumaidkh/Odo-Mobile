@@ -1,7 +1,7 @@
 package com.hopcape.odo.infrastructure.firebase.remoteconfig
 
 import com.hopcape.logging.api.Logger
-import com.hopcape.odo.core.common.BuildKonfig
+import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
 import org.koin.dsl.module
 
@@ -11,7 +11,7 @@ import org.koin.dsl.module
  * same later-definition-wins wiring `supabaseModule` and `aiInfrastructureModule` already
  * rely on — moving this earlier silently puts the always-available stub back.
  *
- * The fetch interval is decided here, from [BuildKonfig.BUILD_TYPE] — the one global build
+ * The fetch interval is decided here, from [BuildInfo.isDebug] — the one global build
  * identity every module reads, not a value baked into this module's own Gradle config.
  */
 val firebaseRemoteConfigModule = module {
@@ -30,10 +30,8 @@ val firebaseRemoteConfigModule = module {
 
 /**
  * 1 minute on a debug build — a console change is visible on the next manual test. 1 hour
- * otherwise, so a real install fleet never hammers Remote Config's servers. Anything other
- * than `"debug"` (including a build type this module has never heard of) takes the
- * conservative branch — fail toward the safe interval, not the aggressive one.
+ * otherwise, so a real install fleet never hammers Remote Config's servers.
  */
-private fun minimumFetchIntervalSeconds(): Long = if (BuildKonfig.BUILD_TYPE == "debug") 60L else 3_600L
+private fun minimumFetchIntervalSeconds(): Long = if (BuildInfo.isDebug) 60L else 3_600L
 
 private const val TAG = "RemoteConfig"
