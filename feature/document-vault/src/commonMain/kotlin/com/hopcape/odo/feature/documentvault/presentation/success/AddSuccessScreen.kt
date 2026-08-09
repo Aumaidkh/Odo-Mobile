@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -35,6 +36,8 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.platform.permission.PermissionStatus
+import com.hopcape.odo.core.platform.permission.isGranted
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_success_add_another
 import com.hopcape.odo.feature.documentvault.resources.dv_success_back
@@ -44,6 +47,10 @@ import com.hopcape.odo.feature.documentvault.resources.dv_success_body_before
 import com.hopcape.odo.feature.documentvault.resources.dv_success_body_no_reminder
 import com.hopcape.odo.feature.documentvault.resources.dv_success_card_body
 import com.hopcape.odo.feature.documentvault.resources.dv_success_card_title
+import com.hopcape.odo.feature.documentvault.resources.dv_success_notify_allow
+import com.hopcape.odo.feature.documentvault.resources.dv_success_notify_body
+import com.hopcape.odo.feature.documentvault.resources.dv_success_notify_settings
+import com.hopcape.odo.feature.documentvault.resources.dv_success_notify_title
 import com.hopcape.odo.feature.documentvault.resources.dv_success_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -51,6 +58,10 @@ import org.jetbrains.compose.resources.stringResource
  * Terminal success after a document is saved to the vault — confirms it's stored and
  * that Odo will remind the owner before it expires, with the Health Score bump the
  * complete documentation earned. Full-screen (no top bar).
+ *
+ * [notificationPermission] is asked for here rather than at launch, because this is the one
+ * moment the request explains itself: a reminder date has just been promised on screen, and
+ * without the permission that promise cannot be kept.
  */
 @Composable
 internal fun AddSuccessScreen(
@@ -58,6 +69,8 @@ internal fun AddSuccessScreen(
     onBackToDocuments: () -> Unit,
     onAddAnother: () -> Unit,
     modifier: Modifier = Modifier,
+    notificationPermission: PermissionStatus = PermissionStatus.Granted,
+    onEnableNotifications: () -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
@@ -83,6 +96,15 @@ internal fun AddSuccessScreen(
             Spacer(Modifier.height(OdoTheme.spacing.sm))
             SuccessBody(state.reminder)
             Spacer(Modifier.height(OdoTheme.spacing.xl))
+            // Only when there is a nudge to deliver: a document that never expires has
+            // nothing to ask permission for.
+            if (state.reminder != null && !notificationPermission.isGranted) {
+                NotificationPrompt(
+                    blocked = notificationPermission == PermissionStatus.Blocked,
+                    onEnable = onEnableNotifications,
+                )
+                Spacer(Modifier.height(OdoTheme.spacing.md))
+            }
             OdoCard(color = OdoTheme.colors.surface) {
                 Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -130,6 +152,32 @@ private fun SuccessBody(reminder: ReminderPromise?) {
     )
 }
 
+/**
+ * The ask that keeps the promise above honest. A blocked permission sends the owner to the
+ * settings page instead, because the system will not show its dialog a second time.
+ */
+@Composable
+private fun NotificationPrompt(blocked: Boolean, onEnable: () -> Unit) {
+    OdoCard(color = OdoTheme.colors.surface) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoText(stringResource(Res.string.dv_success_notify_title), style = OdoTheme.typography.heading)
+            OdoText(
+                stringResource(Res.string.dv_success_notify_body),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+            OdoButton(
+                text = stringResource(
+                    if (blocked) Res.string.dv_success_notify_settings else Res.string.dv_success_notify_allow,
+                ),
+                onClick = onEnable,
+                variant = OdoButtonVariant.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
 @Composable
 private fun GlowBadge() {
     val tone = OdoTheme.colors.success
@@ -174,6 +222,17 @@ private fun SuccessActions(onBackToDocuments: () -> Unit, onAddAnother: () -> Un
 @Composable
 private fun AddSuccessScreenPreview() = OdoPreview(padded = false) {
     AddSuccessScreen(state = sampleAddSuccess(), onBackToDocuments = {}, onAddAnother = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun AddSuccessNotificationsOffPreview() = OdoPreview(padded = false) {
+    AddSuccessScreen(
+        state = sampleAddSuccess(),
+        onBackToDocuments = {},
+        onAddAnother = {},
+        notificationPermission = PermissionStatus.Askable,
+    )
 }
 
 @OdoThemePreviews

@@ -2,7 +2,6 @@ package com.hopcape.odo.feature.documentvault.presentation
 
 import arrow.core.Either
 import arrow.core.EitherNel
-import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
@@ -148,28 +147,56 @@ internal class DocumentVaultTelemetry(
     /* ------------------------------ Async ops ------------------------------ */
 
     /**
-     * Times the add and records the outcome. The file copy runs inside the same span,
-     * because from the owner's side the wait is one thing: the document being saved.
+     * Times the copy of an uploaded file into app storage, and records the outcome.
+     *
+     * This is a funnel step, not the add: the row is written by the confirm step that follows,
+     * which emits the document-added event for both ways in. What this measures is how often a
+     * picked file gets as far as being readable — a copy that fails is an add that never had a
+     * chance.
      */
-    suspend fun documentSave(
+    suspend fun documentStage(
         type: DocumentType,
-        write: suspend () -> EitherNel<DomainError, Document>,
-    ): EitherNel<DomainError, Document> = traced(Trace.SAVE_DOCUMENT, Key.TYPE to type.name) { span ->
+        write: suspend () -> Either<DomainError, String>,
+    ): Either<DomainError, String> = traced(Trace.STAGE_FILE, Key.TYPE to type.name) { span ->
         val result = write()
+        result.fold(
+            ifLeft = { error ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                stageFailed(type, error)
+            },
+            ifRight = {
+                val fields = mapOf(Key.TYPE to type.name, Key.METHOD to CaptureMethod.UPLOAD)
+                analytics.track(Event.FILE_STAGED, fields)
+                logger.info(TAG, Event.FILE_STAGED, tc = currentTraceContext().toLog(), fields = fields)
+            },
+        )
+        result
+    }
+
+    /**
+     * Times an edit of a document's dates, and records whether it ended with an expiry.
+     *
+     * [hasExpiry] is the number worth watching: this sheet exists so a document filed without
+     * a date can get one, and an edit that still leaves it blank means the owner could not
+     * find the date or gave up.
+     */
+    suspend fun <T> datesEdited(
+        type: DocumentType,
+        hasExpiry: Boolean,
+        write: suspend () -> EitherNel<DomainError, T>,
+    ): EitherNel<DomainError, T> = traced(Trace.EDIT_DATES, Key.TYPE to type.name) { span ->
+        val result = write()
+        val fields = mapOf(Key.TYPE to type.name, Key.HAS_EXPIRY to hasExpiry)
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                saveFailed(type, errors)
+                val failure = fields + (Key.ERRORS to errors.joinToString(",") { it.typeName() })
+                analytics.track(Event.SAVE_FAILED, failure)
+                logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = failure)
             },
-            ifRight = { document ->
-                span.setAttribute(Key.DOCUMENT_ID, document.id.value)
-                val fields = mapOf(
-                    Key.TYPE to type.name,
-                    Key.SOURCE to document.source.name,
-                    Key.HAS_EXPIRY to (document.expiresOn != null),
-                )
-                analytics.track(Event.DOCUMENT_ADDED, fields)
-                logger.info(TAG, Event.DOCUMENT_ADDED, tc = currentTraceContext().toLog(), fields = fields)
+            ifRight = {
+                analytics.track(Event.DATES_EDITED, fields)
+                logger.info(TAG, Event.DATES_EDITED, tc = currentTraceContext().toLog(), fields = fields)
             },
         )
         result
@@ -255,19 +282,18 @@ internal class DocumentVaultTelemetry(
     }
 
     /**
-     * A failed save, named by the *types* of the errors that caused it, never by the values
-     * that failed validation. A limit failure is tracked as its own event: it is a pricing
-     * signal, not a bug.
+     * A failed add, named by the *type* of the error that caused it, never by the value that
+     * failed validation. A limit failure is tracked as its own event: it is a pricing signal,
+     * not a bug.
      */
-    private fun saveFailed(type: DocumentType, errors: NonEmptyList<DomainError>) {
-        val limit = errors.filterIsInstance<DomainError.DocumentLimitReached>().firstOrNull()
-        if (limit != null) {
-            val fields = mapOf(Key.TYPE to type.name, Key.LIMIT to limit.limit)
+    private fun stageFailed(type: DocumentType, error: DomainError) {
+        if (error is DomainError.DocumentLimitReached) {
+            val fields = mapOf(Key.TYPE to type.name, Key.LIMIT to error.limit)
             analytics.track(Event.LIMIT_REACHED, fields)
             logger.info(TAG, Event.LIMIT_REACHED, tc = flowTrace.toLog(), fields = fields)
             return
         }
-        val fields = mapOf(Key.TYPE to type.name, Key.ERRORS to errors.typeNames())
+        val fields = mapOf(Key.TYPE to type.name, Key.ERRORS to error.typeName())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -277,8 +303,6 @@ internal class DocumentVaultTelemetry(
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
     private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
-
-    private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
 
     private companion object {
         const val TAG = "DOCUMENTS"
@@ -304,7 +328,8 @@ internal class DocumentVaultTelemetry(
         const val TYPE_SELECTED = "documents_type_selected"
         const val CAPTURE_STARTED = "documents_capture_started"
         const val CAPTURE_UNAVAILABLE = "documents_capture_unavailable"
-        const val DOCUMENT_ADDED = "documents_document_added"
+        const val FILE_STAGED = "documents_file_staged"
+        const val DATES_EDITED = "documents_dates_edited"
         const val SAVE_FAILED = "documents_save_failed"
         const val LIMIT_REACHED = "documents_limit_reached"
         const val FILE_REPLACED = "documents_file_replaced"
@@ -317,7 +342,8 @@ internal class DocumentVaultTelemetry(
 
     /** Span names for the feature's async operations. */
     object Trace {
-        const val SAVE_DOCUMENT = "documents_save"
+        const val STAGE_FILE = "documents_stage_file"
+        const val EDIT_DATES = "documents_edit_dates"
         const val REPLACE_FILE = "documents_replace_file"
         const val DELETE_DOCUMENT = "documents_delete"
     }
@@ -352,6 +378,7 @@ internal class DocumentVaultTelemetry(
         const val DETAIL = "detail"
         const val SHARE = "share"
         const val SUCCESS = "success"
+        const val EDIT_DATES = "edit_dates"
     }
 
     /** Values for [Key.METHOD]. */

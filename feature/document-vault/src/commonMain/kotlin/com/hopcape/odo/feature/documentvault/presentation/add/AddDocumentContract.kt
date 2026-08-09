@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.documentvault.presentation.add
 
-import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 
 /** What the owner did on the add screen, as data. */
@@ -27,8 +26,14 @@ internal sealed interface AddDocumentEvent {
 /** One-shot handoffs the route host performs. */
 internal sealed interface AddDocumentEffect {
 
-    /** The document was saved; the flow moves to its confirmation. */
-    data class OpenSuccess(val id: DocumentId) : AddDocumentEffect
+    /**
+     * The picked file is in app storage under [storageKey]; confirm its dates before filing.
+     *
+     * An upload goes to the same confirm step a scan does. The dates on an uploaded policy
+     * are as worth reading as the ones on a photographed one, and a document filed without
+     * them produces no reminder.
+     */
+    data class OpenReview(val storageKey: String, val type: DocumentType) : AddDocumentEffect
 
     /**
      * Hand over to the scanner, pointed at a paper of [type].

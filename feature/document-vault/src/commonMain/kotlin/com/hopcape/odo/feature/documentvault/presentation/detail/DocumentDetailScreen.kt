@@ -80,6 +80,7 @@ import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_verified
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_view
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_delete
+import com.hopcape.odo.feature.documentvault.resources.dv_menu_edit_dates
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_download
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_replace
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_share
@@ -101,6 +102,7 @@ internal fun DocumentDetailScreen(
     state: DocumentDetailUiState,
     onView: () -> Unit,
     onRenew: () -> Unit,
+    onEditDates: () -> Unit,
     onReplace: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
@@ -116,7 +118,13 @@ internal fun DocumentDetailScreen(
         backContentDescription = stringResource(Res.string.dv_cd_back),
         actions = {
             if (content != null) {
-                DocumentMenu(onReplace = onReplace, onShare = onShare, onDownload = onDownload, onDelete = onDelete)
+                DocumentMenu(
+                    onEditDates = onEditDates,
+                    onReplace = onReplace,
+                    onShare = onShare,
+                    onDownload = onDownload,
+                    onDelete = onDelete,
+                )
             }
         },
         bottomBar = { if (content?.validity?.needsAttention == true) RenewBar(onRenew) },
@@ -155,11 +163,20 @@ internal fun DocumentDetailScreen(
 }
 
 @Composable
-private fun RowScope.DocumentMenu(onReplace: () -> Unit, onShare: () -> Unit, onDownload: () -> Unit, onDelete: () -> Unit) {
+private fun RowScope.DocumentMenu(
+    onEditDates: () -> Unit,
+    onReplace: () -> Unit,
+    onShare: () -> Unit,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OdoIconButton(IcDotsVertical, contentDescription = stringResource(Res.string.dv_cd_more), onClick = { expanded = true })
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            // First in the list: a document with no expiry produces no reminder, and this is
+            // the only way to give it one.
+            MenuItem(stringResource(Res.string.dv_menu_edit_dates), IcClock) { expanded = false; onEditDates() }
             MenuItem(stringResource(Res.string.dv_menu_replace), IcRefresh) { expanded = false; onReplace() }
             MenuItem(stringResource(Res.string.dv_menu_share), IcShare) { expanded = false; onShare() }
             MenuItem(stringResource(Res.string.dv_menu_download), IcDownload) { expanded = false; onDownload() }
@@ -376,11 +393,11 @@ private fun daysCounter(validity: DocumentValidity): Int? = when (validity) {
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailPreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailLifetimePreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
 }

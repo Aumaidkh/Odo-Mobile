@@ -8,6 +8,10 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.CollectEffects
+import com.hopcape.odo.core.platform.permission.PermissionStatus
+import com.hopcape.odo.core.platform.permission.PlatformPermission
+import com.hopcape.odo.core.platform.permission.rememberPermissionController
+import com.hopcape.odo.core.navigation.DocumentOrigin
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -22,6 +26,9 @@ import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentViewMod
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailEffect
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailEvent
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailScreen
+import com.hopcape.odo.feature.documentvault.presentation.dates.EditDatesEffect
+import com.hopcape.odo.feature.documentvault.presentation.dates.EditDatesSheetContent
+import com.hopcape.odo.feature.documentvault.presentation.dates.EditDatesViewModel
 import com.hopcape.odo.feature.documentvault.presentation.detail.DocumentDetailViewModel
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.share.ShareDocumentEvent
@@ -53,6 +60,9 @@ internal class DocumentVaultFeatureEntryProvider(
         entry<OdoDestination.Documents.AddSuccess> { key -> AddSuccessRoute(navigationManager, key) }
         entry<OdoDestination.Documents.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
             ShareDocumentRoute(key)
+        }
+        entry<OdoDestination.Documents.EditDates>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
+            EditDatesRoute(navigationManager, key)
         }
     }
 }
@@ -108,11 +118,18 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDest
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            is AddDocumentEffect.OpenSuccess ->
-                navigationManager.navigateTo(OdoDestination.Documents.AddSuccess(documentId = effect.id.value))
+            // Both capture paths leave the add screen behind: the confirm step files the
+            // document, and coming back here afterwards would offer to file it twice.
+            is AddDocumentEffect.OpenReview -> navigationManager.navigateTo(
+                OdoDestination.BillScanner.DocumentReview(
+                    photoKey = effect.storageKey,
+                    documentType = effect.type.name,
+                    origin = DocumentOrigin.Uploaded,
+                ),
+                popUpTo = key,
+                inclusive = true,
+            )
 
-            // The scanner files the document itself, so this leaves the add screen behind:
-            // coming back to it after a paper was already filed would offer to file it twice.
             is AddDocumentEffect.OpenScanner -> navigationManager.navigateTo(
                 OdoDestination.BillScanner.Capture(
                     target = ScanTarget.Document,
@@ -148,6 +165,9 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            is DocumentDetailEffect.OpenEditDates ->
+                navigationManager.navigateTo(OdoDestination.Documents.EditDates(documentId = effect.id.value))
+
             is DocumentDetailEffect.OpenShare ->
                 navigationManager.navigateTo(OdoDestination.Documents.Share(documentId = effect.id.value))
 
@@ -175,6 +195,7 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
         state = state,
         onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
         onRenew = { viewModel.onEvent(DocumentDetailEvent.Open.Renew) },
+        onEditDates = { viewModel.onEvent(DocumentDetailEvent.Open.EditDates) },
         // TODO(files): open the picker, then send File.Replace with what it returns.
         onReplace = { },
         onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
@@ -191,13 +212,44 @@ internal fun AddSuccessRoute(navigationManager: NavigationManager, key: OdoDesti
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // Asking here, not at launch: the screen has just named the day it will remind on, which
+    // is the only context that makes the system's dialog answerable.
+    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
     state?.let { success ->
         AddSuccessScreen(
             state = success,
             onBackToDocuments = { navigationManager.backToDocuments() },
             onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
+            notificationPermission = notifications.status,
+            onEnableNotifications = {
+                // A blocked permission gets no dialog from the system, so the only way left
+                // is the app's settings page.
+                if (notifications.status == PermissionStatus.Blocked) {
+                    notifications.openAppSettings()
+                } else {
+                    notifications.request()
+                }
+            },
         )
     }
+}
+
+/** The edit-dates sheet host — saves through the vault's update use case, then closes. */
+@Composable
+internal fun EditDatesRoute(navigationManager: NavigationManager, key: OdoDestination.Documents.EditDates) {
+    val viewModel = koinViewModel<EditDatesViewModel> {
+        parametersOf(DocumentId(key.documentId))
+    }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            EditDatesEffect.Dismiss -> navigationManager.back()
+        }
+    }
+
+    EditDatesSheetContent(state = state, onEvent = viewModel::onEvent)
 }
 
 @Composable

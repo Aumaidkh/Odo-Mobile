@@ -11,6 +11,7 @@ import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.auth.SessionRestore
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
@@ -144,6 +145,10 @@ fun initKoin(
             application.koin.get<CrashRecorder>().recordNonFatal(e, mapOf(STAGE to RESTORE))
         }
         application.koin.get<SyncScheduler>().scheduleStartupSync()
+        // Rebuild the document-expiry notifications. Scheduled jobs survive a reboot but not
+        // a reinstall or a restore-from-backup, and a document filed before this existed has
+        // no job at all — so every launch re-derives the whole schedule from the database.
+        application.koin.get<DocumentReminderScheduler>().refresh()
         // Unconditional: LogUploadCoordinator gates on consent per run (D3, plan §1), so
         // there is nothing to toggle here when consent changes — the next scheduled run
         // just starts working once it is granted. KEEP-policy inside the scheduler makes a

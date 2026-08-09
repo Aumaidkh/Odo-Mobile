@@ -133,6 +133,8 @@
     <string name="bs_cd_gallery">Choose from gallery</string>
     <string name="bs_cd_capture">Capture bill</string>
     <string name="bs_cd_captured_bill">The bill you photographed</string>
+    <string name="bs_cd_document_file">The document you added</string>
+    <string name="bs_badge_pdf">PDF</string>
     <string name="bs_cd_torch_on">Turn the light on</string>
     <string name="bs_cd_torch_off">Turn the light off</string>
     <string name="bs_cd_edit">Edit</string>

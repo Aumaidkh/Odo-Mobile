@@ -70,7 +70,10 @@ val billScannerAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(
         BillScannerTelemetry.Event.DOCUMENT_SAVED,
-        mapOf(BillScannerTelemetry.Key.TYPE to PropertyType.STRING),
+        mapOf(
+            BillScannerTelemetry.Key.TYPE to PropertyType.STRING,
+            BillScannerTelemetry.Key.ORIGIN to PropertyType.STRING,
+        ),
     ),
     EventSchema(
         BillScannerTelemetry.Event.SAVE_FAILED,

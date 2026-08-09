@@ -25,6 +25,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             // SyncScheduler + SyncEngine — this module supplies the platform scheduler.
             implementation(projects.core.sync)
+            // LocalDate arithmetic behind the document-reminder schedule.
+            implementation(libs.kotlinx.datetime)
         }
         commonTest.dependencies {
             // runTest + the virtual clock the scheduler's debounce is tested against.
@@ -35,6 +37,8 @@ kotlin {
             // permission dialog, and the trip to the app's settings page.
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.work.runtime)
+            // NotificationCompat + NotificationManagerCompat — the document-expiry reminders.
+            implementation(libs.androidx.core.ktx)
             // LogFileStore — this module supplies AndroidLogFileStore, the on-disk
             // implementation (docs/LOGGING_PLAN.md §2).
             implementation(projects.observability.logging)

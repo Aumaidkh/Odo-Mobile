@@ -68,6 +68,11 @@ internal object VaultCopy {
     const val WRITE_FAILED = "Something went wrong. Please try again."
     const val LIMIT_REACHED = "Your free plan stores 3 documents. Delete one to add another."
 
+    /* Confirm step — owned by the scanner, reached by both ways of adding a document. */
+    const val REVIEW_TITLE = "Check the document"
+    const val REVIEW_SAVE = "Save to vault"
+    const val REVIEW_EXPIRY_REQUIRED = "Add the expiry date so Odo can remind you."
+
     /* Success screen. */
     const val SUCCESS_NO_REMINDER = "Safely stored in your vault."
     const val SUCCESS_BACK = "Back to Documents"
@@ -84,10 +89,18 @@ internal object VaultCopy {
     const val MENU_LABEL = "More"
     const val CLOSE_LABEL = "Close"
     const val BACK_LABEL = "Back"
+    const val MENU_EDIT_DATES = "Edit dates"
     const val MENU_REPLACE = "Replace file"
     const val MENU_SHARE = "Share"
     const val MENU_DOWNLOAD = "Download PDF"
     const val MENU_DELETE = "Delete document"
+
+    /* Edit dates sheet. */
+    const val DATES_TITLE = "Edit dates"
+    const val DATES_EXPIRY = "Expires on"
+    const val DATES_NOT_SET = "Not set"
+    const val DATES_REQUIRED = "Add the expiry date so Odo can remind you."
+    const val DATES_SAVE = "Save dates"
 
     /* Share sheet. */
     const val SHARE_WHATSAPP = "WhatsApp"
@@ -380,11 +393,27 @@ internal fun VaultTestRule.openDocumentMenu() {
  *
  * Waits for the card first: the add screen animates in, and tapping mid-transition lands on
  * whatever the previous screen had there.
+ *
+ * This no longer files anything on its own — an upload lands on the confirm step, where the
+ * dates are read off the paper. Use [fileAnUploadedDocument] to go all the way through.
  */
 internal fun VaultTestRule.uploadAFile() {
     stubPickedFile()
     awaitText(VaultCopy.CAPTURE_UPLOAD)
     onNodeWithText(VaultCopy.CAPTURE_UPLOAD).performClick()
+}
+
+/**
+ * Upload a file and confirm it, for a paper that never expires.
+ *
+ * Only for those: a document that renews cannot be saved without an expiry date, and the
+ * stub file has no readable date on it, so there would be nothing to save. Driving the date
+ * picker is left to the tests that are about the date itself.
+ */
+internal fun VaultTestRule.fileAnUploadedDocument() {
+    uploadAFile()
+    awaitText(VaultCopy.REVIEW_TITLE)
+    onNodeWithText(VaultCopy.REVIEW_SAVE).performClick()
 }
 
 /** The document name the vault and the success screen use for a type. */

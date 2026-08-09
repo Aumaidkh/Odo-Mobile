@@ -2,6 +2,7 @@ package com.hopcape.odo
 
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -30,19 +31,22 @@ import org.junit.runner.RunWith
  * arguments in a way Koin could not build, and the local database had no `documents` table at
  * all; every unit test stayed green through both.
  *
- * **What is seeded and why.** Documents are written straight to the database, because the add
- * flow can only produce one shape today: an uploaded file, no expiry, no issue date. Every
- * status the vault exists to show — valid, expiring, lapsed — needs an expiry the UI has no
- * field for, and the Verified badge needs a DigiLocker copy there is no importer for. The
- * add, delete, renew and share flows are all driven by tapping.
+ * **What is seeded and why.** Documents are written straight to the database when the test is
+ * about a *status* — valid, expiring, lapsed — because producing those through the UI means
+ * driving a date picker to a date chosen for the status, and the Verified badge needs a
+ * DigiLocker copy there is no importer for. The add, delete, renew and share flows are all
+ * driven by tapping.
+ *
+ * An upload now ends at the confirm step, where the dates are read off the paper before it is
+ * filed. The stub file has no readable date on it, so the flows that go all the way through
+ * use an RC — the one kind of paper that never renews and so saves without one.
  *
  * Expiry dates are seeded relative to today for the same reason the app resolves them that
  * way: a fixed date would eventually mean a different status than the test was written for.
  *
  * **What is deliberately not covered**, because the product has no affordance for it yet:
- * replacing a file (the menu item opens no picker — `TODO(files)` in the route), viewing or
- * downloading the file (both effects are still stubs), and editing a document's details
- * (no screen collects them).
+ * replacing a file (the menu item opens no picker — `TODO(files)` in the route), and viewing
+ * or downloading the file (both effects are still stubs).
  */
 @RunWith(AndroidJUnit4::class)
 class DocumentVaultEndToEndTest {
@@ -147,7 +151,7 @@ class DocumentVaultEndToEndTest {
         rule.onNodeWithText(VaultCopy.ADD_CHIP_RC).assertIsSelected()
         rule.onNodeWithText(VaultCopy.ADD_CHIP_INSURANCE).assertIsNotSelected()
 
-        rule.uploadAFile()
+        rule.fileAnUploadedDocument()
 
         // The success screen reads the document back rather than repeating what was sent.
         rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
@@ -174,24 +178,45 @@ class DocumentVaultEndToEndTest {
         rule.onNodeWithText(VaultCopy.ADD_CHIP_PUC).assertIsSelected()
         rule.onNodeWithText(VaultCopy.ADD_CHIP_INSURANCE).assertIsNotSelected()
 
+        // A PUC renews, so the upload stops at the confirm step until it has an expiry.
         rule.uploadAFile()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_PUC))
+        rule.awaitText(VaultCopy.REVIEW_TITLE)
+        rule.onNodeWithText(VaultCopy.REVIEW_EXPIRY_REQUIRED).assertIsDisplayed()
+    }
+
+    /**
+     * The gap this feature closed. An uploaded document used to be filed on the spot with no
+     * dates on it, which meant it produced no reminder — the one thing the vault is for.
+     */
+    @Test
+    fun anUploadedDocumentIsReadForItsDatesBeforeItIsFiled() {
+        rule.openVault()
+        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
+        rule.addFromRow(DocumentType.INSURANCE)
+
+        rule.uploadAFile()
+
+        // The confirm step, not a success screen: nothing is in the vault yet.
+        rule.awaitText(VaultCopy.REVIEW_TITLE)
+        rule.onNodeWithText(VaultCopy.REVIEW_EXPIRY_REQUIRED).assertIsDisplayed()
+        rule.onNodeWithText(VaultCopy.REVIEW_SAVE).performClick()
+        rule.onNodeWithText(VaultCopy.REVIEW_TITLE).assertIsDisplayed()
     }
 
     @Test
     fun anAddedDocumentKeepsACopyOfTheFileInsideTheApp() {
         rule.openVault()
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-        rule.uploadAFile()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_INSURANCE))
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
         rule.onNodeWithText(VaultCopy.SUCCESS_BACK).performClick()
 
         // The picked URI stops resolving once the picker's permission lapses, so the bytes
         // have to be the app's own copy — the document opens whether or not that URI still
         // works. The id is the app's, so the file is found by the row that points at it.
         rule.awaitText(VaultCopy.PILL_VALID)
-        rule.openDocument(DocumentType.INSURANCE)
+        rule.openDocument(DocumentType.RC)
         rule.onNodeWithText(VaultCopy.DETAIL_VIEW).assertIsDisplayed()
         rule.onNodeWithText(VaultCopy.DETAIL_FILE_MISSING).assertDoesNotExist()
     }
@@ -200,9 +225,9 @@ class DocumentVaultEndToEndTest {
     fun addAnotherGoesBackForTheNextDocument() {
         rule.openVault()
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-        rule.uploadAFile()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_INSURANCE))
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
 
         rule.onNodeWithText(VaultCopy.SUCCESS_ADD_ANOTHER).performClick()
 
@@ -365,6 +390,26 @@ class DocumentVaultEndToEndTest {
         rule.awaitGone(VaultFixtures.INSURANCE_TITLE)
     }
 
+    /**
+     * A document filed before the app read dates has no expiry, so it produces no reminder.
+     * The sheet is how it gets one without deleting and re-adding the paper.
+     */
+    @Test
+    fun aDocumentWithNoExpiryCanBeGivenOneFromItsDetail() {
+        seedDocument(id = VaultFixtures.INSURANCE_ID, type = DocumentType.INSURANCE, expiresOn = null)
+        rule.openVault()
+        rule.awaitText(VaultCopy.DOC_INSURANCE)
+        rule.openDocument(DocumentType.INSURANCE)
+
+        rule.openDocumentMenu()
+        rule.onNodeWithText(VaultCopy.MENU_EDIT_DATES).performClick()
+
+        // Its own destination, opened on what the document already has — which is nothing.
+        rule.awaitText(VaultCopy.DATES_TITLE)
+        rule.onNodeWithText(VaultCopy.DATES_REQUIRED).assertIsDisplayed()
+        rule.onNodeWithText(VaultCopy.DATES_SAVE).assertIsNotEnabled()
+    }
+
     /* ------------------------------ Sharing ------------------------------ */
 
     @Test
@@ -391,13 +436,13 @@ class DocumentVaultEndToEndTest {
     fun deletingADocumentTakesItsFileWithIt() {
         rule.openVault()
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-        rule.uploadAFile()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_INSURANCE))
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
         rule.onNodeWithText(VaultCopy.SUCCESS_BACK).performClick()
         rule.awaitText(VaultCopy.PILL_VALID)
 
-        rule.openDocument(DocumentType.INSURANCE)
+        rule.openDocument(DocumentType.RC)
         rule.openDocumentMenu()
         rule.onNodeWithText(VaultCopy.MENU_DELETE).performClick()
         rule.awaitText(VaultCopy.TITLE)

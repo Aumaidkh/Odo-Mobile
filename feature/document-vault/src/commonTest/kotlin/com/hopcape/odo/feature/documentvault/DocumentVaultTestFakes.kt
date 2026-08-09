@@ -18,6 +18,7 @@ import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId as CarIdAlias
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.domain.file.DocumentFileStore
@@ -56,6 +57,7 @@ internal fun document(
     carId: CarId = TEST_CAR,
     storagePath: String = "documents/${carId.value}/$id.pdf",
     addedOn: LocalDate? = null,
+    title: String? = null,
 ): Document = Document.reconstitute(
     id = DocumentId(id),
     ownerId = TEST_OWNER,
@@ -63,6 +65,7 @@ internal fun document(
     type = type,
     storagePath = storagePath,
     source = source,
+    title = title,
     issuedOn = issuedOn,
     expiresOn = expiresOn,
     addedOn = addedOn,
@@ -175,3 +178,17 @@ internal class FakeActiveCarProvider(carId: CarIdAlias? = TEST_CAR) : ActiveCarP
 }
 
 internal val TEST_OWNER_PROVIDER = CurrentOwnerProvider { TEST_OWNER }
+
+/**
+ * Counts refreshes. What the tests assert is that a write asked for one at all — which day
+ * each reminder lands on is [com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy]'s
+ * business, and it is tested on its own.
+ */
+internal class RecordingReminderScheduler : DocumentReminderScheduler {
+    var refreshes: Int = 0
+        private set
+
+    override suspend fun refresh() {
+        refreshes++
+    }
+}

@@ -31,6 +31,9 @@ internal sealed interface DocumentDetailEvent {
         /** "Renew now" — a renewal is a new document of the same type. */
         data object Renew : Open
 
+        /** Correct the dates on this document — where a missing expiry gets filled in. */
+        data object EditDates : Open
+
         data object Back : Open
     }
 }
@@ -42,6 +45,9 @@ internal sealed interface DocumentDetailEffect {
 
     /** Open the add flow on this document's type, which is what a renewal is. */
     data class OpenAdd(val prefillType: DocumentType) : DocumentDetailEffect
+
+    /** Open the sheet that corrects this document's dates. */
+    data class OpenEditDates(val id: DocumentId) : DocumentDetailEffect
 
     /** Hand the stored file to a platform viewer. */
     data class OpenFile(val storagePath: String) : DocumentDetailEffect

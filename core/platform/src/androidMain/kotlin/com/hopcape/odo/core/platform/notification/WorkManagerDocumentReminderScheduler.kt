@@ -1,0 +1,133 @@
+package com.hopcape.odo.core.platform.notification
+
+import android.content.Context
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.hopcape.logging.api.Logger
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.document.model.Document
+import com.hopcape.odo.core.domain.document.policy.DocumentReminder
+import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
+import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atTime
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import java.util.concurrent.TimeUnit
+import kotlin.time.Clock
+import kotlin.time.Instant
+
+/**
+ * Android's scheduler, on WorkManager.
+ *
+ * WorkManager rather than `AlarmManager`: a document reminder is a nudge whose day matters and
+ * whose minute does not, so it needs neither an exact alarm nor the permission Android 12+
+ * demands for one. WorkManager also survives a reboot, which an owner who set a reminder in
+ * March and reboots in April very much depends on.
+ *
+ * Every refresh cancels the whole tag and re-enqueues from the database. That looks wasteful
+ * and is the point: there is no bookkeeping to get wrong, so a renewed policy or a deleted
+ * document cannot leave a notification waiting to fire about a paper that no longer exists.
+ *
+ * Nothing here throws. A scheduler that took a screen down over an unwritable job queue would
+ * be worse than one that silently misses a nudge, and the failure is logged either way.
+ */
+internal class WorkManagerDocumentReminderScheduler(
+    context: Context,
+    private val documents: DocumentRepository,
+    private val activeCar: ActiveCarProvider,
+    private val clock: Clock,
+    private val logger: Logger,
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+) : DocumentReminderScheduler {
+
+    private val workManager = WorkManager.getInstance(context.applicationContext)
+
+    override suspend fun refresh() {
+        runCatching {
+            // Waited for, not read: the active car resolves from the database a moment after
+            // the app starts, and a launch-time refresh that read `null` would cancel every
+            // reminder the owner has. A garage that is genuinely empty times out instead.
+            val carId = withTimeoutOrNull(CAR_RESOLVE_TIMEOUT_MILLIS) {
+                activeCar.activeCarId.filterNotNull().first()
+            }
+            // Rebuilt from scratch every time, so nothing scheduled earlier can survive a
+            // renewal or a delete. With no car there is nothing to chase, which is also the
+            // state after the owner's data is wiped.
+            workManager.cancelAllWorkByTag(TAG)
+            if (carId == null) {
+                logger.info(TAG_LOG, "document_reminders_no_car")
+                return
+            }
+
+            val today = clock.now().toLocalDateTime(timeZone).date
+            val now = clock.now()
+            val onFile = documents.observe(carId).first()
+            var scheduled = 0
+            onFile.forEach { document ->
+                DocumentReminderPolicy.scheduleFor(document, today).forEach { reminder ->
+                    enqueue(document, reminder, now)
+                    scheduled++
+                }
+            }
+            logger.info(
+                TAG_LOG,
+                "document_reminders_scheduled",
+                fields = mapOf("documents" to onFile.size, "reminders" to scheduled),
+            )
+        }.onFailure { cause ->
+            logger.error(
+                TAG_LOG,
+                "document_reminders_schedule_failed",
+                fields = mapOf("reason" to (cause::class.simpleName ?: "Unknown")),
+            )
+        }
+    }
+
+    private fun enqueue(document: Document, reminder: DocumentReminder, now: Instant) {
+        val expiresOn = document.expiresOn ?: return
+        val fireAt = reminder.on.atTime(NOTIFY_HOUR, 0).toInstant(timeZone)
+        // A nudge whose hour has already passed today still fires: the owner added the
+        // document this afternoon, and telling them tomorrow about "expires tomorrow" is late.
+        val delay = (fireAt - now).inWholeMilliseconds.coerceAtLeast(0)
+
+        val request = OneTimeWorkRequestBuilder<DocumentReminderWorker>()
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .addTag(TAG)
+            .setInputData(
+                workDataOf(
+                    DocumentReminderWorker.KEY_DOCUMENT_ID to document.id.value,
+                    DocumentReminderWorker.KEY_TYPE to document.type.name,
+                    DocumentReminderWorker.KEY_DAYS_BEFORE to reminder.daysBefore,
+                    DocumentReminderWorker.KEY_EXPIRES_ON to expiresOn.toString(),
+                ),
+            )
+            .build()
+
+        workManager.enqueueUniqueWork(
+            workNameFor(document, reminder),
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
+    /** One job per document and lead, so re-running a refresh replaces rather than doubles. */
+    private fun workNameFor(document: Document, reminder: DocumentReminder): String =
+        "$TAG:${document.id.value}:${reminder.daysBefore}"
+
+    private companion object {
+        const val TAG = "OdoDocumentReminder"
+        const val TAG_LOG = "REMINDERS"
+
+        /** Morning, local time — early enough to act on, late enough not to wake anyone. */
+        const val NOTIFY_HOUR = 9
+
+        /** How long to wait for the active car before deciding there is none. */
+        const val CAR_RESOLVE_TIMEOUT_MILLIS = 5_000L
+    }
+}
