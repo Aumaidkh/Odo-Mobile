@@ -33,8 +33,12 @@ node_modules/
 infrastructure/supabase/README.md
 
 # Firebase project config — identifies a specific Firebase project, dropped in
-# locally by whoever is testing against it rather than committed.
+# locally by whoever is testing against it rather than committed. One per build
+# type, because each installs under its own application ID: the Google Services
+# plugin reads src/<buildType>/ first and falls back to the module root, so the
+# root file serves release and the two below serve debug and stage.
 androidApp/google-services.json
+androidApp/src/*/google-services.json
 
 # Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
