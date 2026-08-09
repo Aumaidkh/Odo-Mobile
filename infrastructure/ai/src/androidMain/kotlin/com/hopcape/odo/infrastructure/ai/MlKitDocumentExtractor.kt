@@ -14,6 +14,9 @@ import com.hopcape.odo.core.domain.scan.model.ExtractedDocument
 import com.hopcape.odo.core.domain.scan.model.ScannedImage
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.core.platform.file.StoredFileKind
+import com.hopcape.odo.core.platform.file.StoredFileKinds
+import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.infrastructure.ai.observability.AiTelemetry
 import com.hopcape.odo.infrastructure.ai.parsing.DocumentTextParser
 import com.hopcape.odo.infrastructure.ai.parsing.OcrLine
@@ -30,12 +33,16 @@ import kotlinx.coroutines.tasks.await
  * whose columns OCR reports as separate runs, so composing runs back into printed rows is
  * the whole trick. [OcrRowComposer] already does that.
  *
- * Failures split the way they do everywhere: bytes the device lost or an image that will not
- * decode are [DomainError.ScanUnreadable] (retake), the recogniser itself failing is
- * [DomainError.ScanUnavailable] (retaking will not help).
+ * Uploaded PDFs go through the same reader: a policy emailed as a PDF has its first page
+ * drawn into an image first ([StoredPageRenderer]), and everything after that is identical.
+ *
+ * Failures split the way they do everywhere: bytes the device lost, a PDF that will not
+ * render, or an image that will not decode are [DomainError.ScanUnreadable] (retake), the
+ * recogniser itself failing is [DomainError.ScanUnavailable] (retaking will not help).
  */
 internal class MlKitDocumentExtractor(
     private val files: PlatformFileStore,
+    private val pages: StoredPageRenderer,
     private val parser: DocumentTextParser,
     private val telemetry: AiTelemetry,
 ) : DocumentExtractor {
@@ -50,9 +57,17 @@ internal class MlKitDocumentExtractor(
     override suspend fun extract(image: ScannedImage): Either<DomainError, ExtractedDocument> =
         telemetry.span(AiTelemetry.DOCUMENT) {
             either {
-                val bytes = files.bytes(image.storageKey)
-                    .mapLeft { DomainError.ScanUnreadable }
-                    .bind()
+                // A PDF holds no pixels to recognise, so its first page is drawn into some.
+                // Owners upload policies far more often than they photograph them, so this
+                // is the ordinary path for insurance, not a fallback.
+                val bytes = when (StoredFileKinds.of(image.storageKey)) {
+                    StoredFileKind.PDF -> pages.firstPageAsPng(image.storageKey)
+                        ?: raise(DomainError.ScanUnreadable)
+
+                    else -> files.bytes(image.storageKey)
+                        .mapLeft { DomainError.ScanUnreadable }
+                        .bind()
+                }
                 ensure(bytes.isNotEmpty()) { DomainError.ScanUnreadable }
 
                 val decoded = decodeBounded(bytes)

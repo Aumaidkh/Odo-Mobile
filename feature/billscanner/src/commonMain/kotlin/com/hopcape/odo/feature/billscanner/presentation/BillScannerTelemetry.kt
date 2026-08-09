@@ -242,19 +242,21 @@ internal class BillScannerTelemetry(
     /** Times the write of a scanned document into the vault. */
     suspend fun <T> documentSave(
         type: String,
+        origin: String,
         write: suspend () -> EitherNel<DomainError, T>,
     ): EitherNel<DomainError, T> = traced(Trace.SAVE_DOCUMENT, Key.TYPE to type) { span ->
         val result = write()
+        val fields = mapOf(Key.TYPE to type, Key.ORIGIN to origin)
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.TYPE to type, Key.ERRORS to errors.typeNames())
-                analytics.track(Event.SAVE_FAILED, fields)
-                logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
+                val failure = fields + (Key.ERRORS to errors.typeNames())
+                analytics.track(Event.SAVE_FAILED, failure)
+                logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = failure)
             },
             ifRight = {
-                analytics.track(Event.DOCUMENT_SAVED, mapOf(Key.TYPE to type))
-                logger.info(TAG, Event.DOCUMENT_SAVED, tc = currentTraceContext().toLog(), fields = mapOf(Key.TYPE to type))
+                analytics.track(Event.DOCUMENT_SAVED, fields)
+                logger.info(TAG, Event.DOCUMENT_SAVED, tc = currentTraceContext().toLog(), fields = fields)
             },
         )
         result
@@ -423,6 +425,7 @@ internal class BillScannerTelemetry(
         const val HAS_EXPIRY = "has_expiry"
         const val EDITED = "edited"
         const val TYPE = "type"
+        const val ORIGIN = "origin"
         const val QR_HAS_AMOUNT = "qr_has_amount"
         const val TXN_REF = "txn_ref"
     }

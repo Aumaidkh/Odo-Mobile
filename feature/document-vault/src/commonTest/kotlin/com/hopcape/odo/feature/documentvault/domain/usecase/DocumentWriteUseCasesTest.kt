@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.FakeDocumentFileStore
 import com.hopcape.odo.feature.documentvault.FakeDocumentRepository
+import com.hopcape.odo.feature.documentvault.RecordingReminderScheduler
 import com.hopcape.odo.feature.documentvault.TEST_CAR
 import com.hopcape.odo.feature.documentvault.TEST_CLOCK
 import com.hopcape.odo.feature.documentvault.document
@@ -36,8 +37,14 @@ class DocumentWriteUseCasesTest {
     private fun repository(vararg documents: Document, failure: DomainError? = null) =
         FakeDocumentRepository(documents.toList(), failWith = failure)
 
-    private fun update(documents: FakeDocumentRepository) =
-        UpdateDocumentUseCase(documents = documents, clock = TEST_CLOCK, timeZone = TimeZone.UTC)
+    private val reminders = RecordingReminderScheduler()
+
+    private fun update(documents: FakeDocumentRepository) = UpdateDocumentUseCase(
+        documents = documents,
+        reminders = reminders,
+        clock = TEST_CLOCK,
+        timeZone = TimeZone.UTC,
+    )
 
     // --- edit details ---------------------------------------------------------------
 
@@ -57,6 +64,7 @@ class DocumentWriteUseCasesTest {
 
         assertEquals("SafeDrive 2026", edited.title?.value)
         assertEquals(LocalDate(2027, 8, 4), edited.expiresOn)
+        assertEquals(1, reminders.refreshes, "a new expiry means a new reminder day")
         assertEquals(stored.id, edited.id)
         assertEquals(stored.storagePath, edited.storagePath)
         assertEquals(DocumentSource.DIGILOCKER, edited.source, "an edit does not change where the file came from")
@@ -195,11 +203,12 @@ class DocumentWriteUseCasesTest {
         val documents = repository(stored)
         val files = FakeDocumentFileStore(stored = setOf(stored.storagePath))
 
-        assertTrue(DeleteDocumentUseCase(documents, files)(stored.id).isRight())
+        assertTrue(DeleteDocumentUseCase(documents, files, reminders)(stored.id).isRight())
 
         assertNull(documents.observe(stored.id).first())
         assertEquals(listOf(stored.storagePath), files.deleted)
         assertTrue(files.saved.isEmpty())
+        assertEquals(1, reminders.refreshes, "a deleted document must stop nudging")
     }
 
     @Test
@@ -207,7 +216,7 @@ class DocumentWriteUseCasesTest {
         val documents = repository(stored, failure = DomainError.PersistenceFailure("locked"))
         val files = FakeDocumentFileStore(stored = setOf(stored.storagePath))
 
-        val error = DeleteDocumentUseCase(documents, files)(stored.id).leftOrNull()!!
+        val error = DeleteDocumentUseCase(documents, files, reminders)(stored.id).leftOrNull()!!
 
         assertIs<DomainError.PersistenceFailure>(error)
         assertTrue(files.deleted.isEmpty(), "the row is still there, so the file must be too")
@@ -219,7 +228,7 @@ class DocumentWriteUseCasesTest {
 
         assertEquals(
             DomainError.DocumentNotFound,
-            DeleteDocumentUseCase(repository(), files)(DocumentId("gone")).leftOrNull(),
+            DeleteDocumentUseCase(repository(), files, reminders)(DocumentId("gone")).leftOrNull(),
         )
     }
 }

@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -19,9 +20,13 @@ import kotlin.time.Clock
  * The edited document is rebuilt through `Document.create` with the same id, file and
  * source, so an edit is checked by exactly the same rules as an add. There is no separate
  * validation path that could drift from it.
+ *
+ * A successful edit rebuilds the notification schedule. Changing an expiry date is exactly
+ * the case where a stale reminder would otherwise fire on the old day.
  */
 internal class UpdateDocumentUseCase(
     private val documents: DocumentRepository,
+    private val reminders: DocumentReminderScheduler,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -45,6 +50,9 @@ internal class UpdateDocumentUseCase(
             expiresOn = command.expiresOn,
         ).bind()
 
-        documents.update(edited).mapLeft { nonEmptyListOf(it) }.bind()
+        documents.update(edited)
+            .mapLeft { nonEmptyListOf(it) }
+            .onRight { reminders.refresh() }
+            .bind()
     }
 }

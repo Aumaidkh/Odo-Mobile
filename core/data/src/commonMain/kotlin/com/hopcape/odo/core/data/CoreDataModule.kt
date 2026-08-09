@@ -45,6 +45,7 @@ import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
+import com.hopcape.odo.core.data.notification.NoopDocumentReminderScheduler
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobDownloader
 import com.hopcape.odo.core.data.sync.BlobUploader
@@ -53,6 +54,7 @@ import com.hopcape.odo.core.data.trip.FakeTripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRepositoryImpl
 import com.hopcape.odo.core.sync.SyncGate
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
@@ -118,6 +120,10 @@ val coreDataModule = module {
     // The platform scheduler is a no-op until the platform module binds a real one. THIS
     // ONE LINE is the swap: the repositories already ask for a sync after every write.
     single<SyncScheduler> { NoopSyncScheduler() }
+
+    // Same shape for document reminders: the writers already ask for a refresh after every
+    // change, and the platform module binds the scheduler that delivers them.
+    single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the

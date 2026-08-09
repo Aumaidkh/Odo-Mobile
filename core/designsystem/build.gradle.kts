@@ -15,7 +15,15 @@ kotlin {
         namespace = "com.hopcape.odo.core.designsystem"
     }
 
-    // No source-set dependencies: the Compose UI surface
+    sourceSets {
+        commonMain.dependencies {
+            // LocalDate — what OdoDateField hands back. A value type, not domain: the
+            // alternative is every caller converting epoch millis at the call site.
+            implementation(libs.kotlinx.datetime)
+        }
+    }
+
+    // Otherwise no source-set dependencies: the Compose UI surface
     // (runtime/foundation/ui/material3/resources) and the tooling preview
     // (@Preview annotations + the Android renderer) both come from the
     // odo.compose.multiplatform convention plugin. Consumers get this module's

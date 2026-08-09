@@ -6,6 +6,7 @@ import arrow.core.raise.ensureNotNull
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.feature.documentvault.domain.file.DocumentFileStore
 import kotlinx.coroutines.flow.first
 
@@ -19,10 +20,14 @@ import kotlinx.coroutines.flow.first
  * The row goes first. If that fails, the file is still there and nothing is lost. If the
  * file delete fails afterwards, an unreferenced file is left behind, which wastes space but
  * breaks nothing.
+ *
+ * The notification schedule is rebuilt afterwards, so a deleted document cannot go on
+ * nudging the owner about a renewal they no longer have a paper for.
  */
 internal class DeleteDocumentUseCase(
     private val documents: DocumentRepository,
     private val files: DocumentFileStore,
+    private val reminders: DocumentReminderScheduler,
 ) {
     suspend operator fun invoke(id: DocumentId): Either<DomainError, Unit> = either {
         val existing = documents.observe(id).first()
@@ -30,5 +35,6 @@ internal class DeleteDocumentUseCase(
 
         documents.softDelete(id).bind()
         files.delete(existing.storagePath)
+        reminders.refresh()
     }
 }

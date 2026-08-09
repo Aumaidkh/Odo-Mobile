@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.scan.model.ExtractedDocument
+import com.hopcape.odo.feature.billscanner.domain.usecase.CaptureOrigin
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedDocumentCommand
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedDocumentUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.ScanDocumentUseCase
@@ -27,14 +28,19 @@ import kotlinx.coroutines.launch
 /**
  * State holder for the scanned-document confirm step.
  *
- * Same shape as the bill review: the photo is read here, keyed by its storage key, and what
- * the owner confirms is what gets filed. The difference is what the screen insists on — a
- * document with no expiry date is not saveable, because the reminder it exists to produce
- * would never fire.
+ * Same shape as the bill review: the file is read here, keyed by its storage key, and what
+ * the owner confirms is what gets filed. The difference is what the screen insists on — for
+ * a paper that renews, a document with no expiry date is not saveable, because the reminder
+ * it exists to produce would never fire.
+ *
+ * Both ways of adding a document end here. A photographed paper arrives from the camera and
+ * an uploaded one from the vault's file picker; [origin] is the only difference, and it only
+ * decides what the row records about where the file came from.
  */
 internal class DocumentReviewViewModel(
     private val photoKey: String?,
     private val initialType: DocumentType?,
+    private val origin: CaptureOrigin,
     private val scanDocument: ScanDocumentUseCase,
     private val saveDocument: SaveScannedDocumentUseCase,
     private val activeCar: ActiveCarProvider,
@@ -119,11 +125,12 @@ internal class DocumentReviewViewModel(
             val command = SaveScannedDocumentCommand(
                 type = current.type,
                 photoStorageKey = key,
+                origin = origin,
                 title = current.title.ifBlank { null },
                 issuedOn = current.issuedOn,
                 expiresOn = current.expiresOn,
             )
-            telemetry.documentSave(current.type.name) {
+            telemetry.documentSave(current.type.name, origin.name) {
                 saveDocument(command, carId, currentOwner.currentOwnerId())
             }.fold(
                 ifLeft = { errors ->

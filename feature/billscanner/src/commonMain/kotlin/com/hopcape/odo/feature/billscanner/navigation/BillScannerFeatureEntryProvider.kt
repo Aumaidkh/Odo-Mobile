@@ -8,6 +8,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.CollectEffects
+import com.hopcape.odo.core.navigation.DocumentOrigin
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
@@ -22,6 +23,7 @@ import com.hopcape.odo.core.platform.payment.UpiLaunchResult
 import com.hopcape.odo.core.platform.payment.rememberUpiPaymentLauncher
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.core.platform.permission.rememberCameraPermissionController
+import com.hopcape.odo.feature.billscanner.domain.usecase.CaptureOrigin
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewEffect
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewEvent
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewScreen
@@ -65,7 +67,12 @@ internal class BillScannerFeatureEntryProvider(
             BillReviewRoute(navigationManager, photoKey = key.photoKey)
         }
         entry<OdoDestination.BillScanner.DocumentReview> { key ->
-            DocumentReviewRoute(navigationManager, photoKey = key.photoKey, documentType = key.documentType)
+            DocumentReviewRoute(
+                navigationManager,
+                photoKey = key.photoKey,
+                documentType = key.documentType,
+                origin = key.origin.toCaptureOrigin(),
+            )
         }
         entry<OdoDestination.BillScanner.PayAtPump> { key ->
             PayAtPumpRoute(navigationManager, payload = key.payload)
@@ -209,15 +216,25 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
 private fun String?.toDocumentType(): DocumentType? =
     this?.let { name -> DocumentType.entries.firstOrNull { it.name == name } }
 
+/**
+ * The navigation key's origin as the feature's own. Two enums rather than one shared type,
+ * so the confirm step's use cases stay free of navigation types.
+ */
+private fun DocumentOrigin.toCaptureOrigin(): CaptureOrigin = when (this) {
+    DocumentOrigin.Scanned -> CaptureOrigin.Scanned
+    DocumentOrigin.Uploaded -> CaptureOrigin.Uploaded
+}
+
 /** The scanned-document confirm host — files the paper in the vault, then opens it there. */
 @Composable
 internal fun DocumentReviewRoute(
     navigationManager: NavigationManager,
     photoKey: String,
     documentType: String? = null,
+    origin: CaptureOrigin = CaptureOrigin.Scanned,
 ) {
     val viewModel: DocumentReviewViewModel = koinViewModel {
-        parametersOf(photoKey, documentType.toDocumentType())
+        parametersOf(photoKey, documentType.toDocumentType(), origin)
     }
     val state by viewModel.state.collectAsState()
 

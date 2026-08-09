@@ -9,10 +9,9 @@ import com.hopcape.odo.feature.documentvault.FakeDocumentRepository
 import com.hopcape.odo.feature.documentvault.FixedIdGenerator
 import com.hopcape.odo.feature.documentvault.RecordingAnalytics
 import com.hopcape.odo.feature.documentvault.TEST_CAR
-import com.hopcape.odo.feature.documentvault.TEST_CLOCK
 import com.hopcape.odo.feature.documentvault.TEST_OWNER_PROVIDER
 import com.hopcape.odo.feature.documentvault.document
-import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentUseCase
+import com.hopcape.odo.feature.documentvault.domain.usecase.StageUploadedDocumentUseCase
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentViewModel
@@ -28,7 +27,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -58,13 +56,11 @@ class AddDocumentViewModelTest {
         files: FakeDocumentFileStore = FakeDocumentFileStore(),
     ) = AddDocumentViewModel(
         prefillType = prefillType,
-        addDocument = AddDocumentUseCase(
+        stageDocument = StageUploadedDocumentUseCase(
             documents = repository,
             files = files,
             allowance = DocumentAllowance { limit },
             idGenerator = FixedIdGenerator("doc-new"),
-            clock = TEST_CLOCK,
-            timeZone = TimeZone.UTC,
         ),
         activeCar = FakeActiveCarProvider(if (hasCar) TEST_CAR else null),
         currentOwner = TEST_OWNER_PROVIDER,
@@ -82,7 +78,7 @@ class AddDocumentViewModelTest {
     }
 
     @Test
-    fun pickingAFile_savesTheDocumentAndMovesOn() = runTest(dispatcher) {
+    fun pickingAFile_copiesItIntoAppStorageAndMovesOn() = runTest(dispatcher) {
         val repository = FakeDocumentRepository()
         val files = FakeDocumentFileStore()
         val viewModel = viewModel(prefillType = DocumentType.RC, repository = repository, files = files)
@@ -90,22 +86,23 @@ class AddDocumentViewModelTest {
         viewModel.onEvent(AddDocumentEvent.Capture.FilePicked("content://downloads/rc.pdf"))
         advanceUntilIdle()
 
-        val stored = repository.observe(TEST_CAR).first().single()
-        assertEquals(DocumentType.RC, stored.type)
-        assertEquals("documents/car-1/doc-new.pdf", stored.storagePath)
-        assertTrue(files.saved.contains(stored.storagePath))
-        assertEquals(Submission.Succeeded, viewModel.state.value.submission)
+        assertTrue(files.saved.contains("documents/car-1/doc-new.pdf"))
+        assertTrue(
+            repository.observe(TEST_CAR).first().isEmpty(),
+            "nothing is filed until the dates are confirmed",
+        )
     }
 
     @Test
-    fun aSavedDocument_opensItsConfirmation() = runTest(dispatcher) {
-        val viewModel = viewModel()
+    fun anUploadedFile_goesToTheConfirmStepWithItsType() = runTest(dispatcher) {
+        val viewModel = viewModel(prefillType = DocumentType.INSURANCE)
 
         viewModel.onEvent(AddDocumentEvent.Capture.FilePicked("content://downloads/policy.pdf"))
         advanceUntilIdle()
 
-        val effect = assertIs<AddDocumentEffect.OpenSuccess>(viewModel.effects.first())
-        assertEquals("doc-new", effect.id.value)
+        val effect = assertIs<AddDocumentEffect.OpenReview>(viewModel.effects.first())
+        assertEquals("documents/car-1/doc-new.pdf", effect.storageKey)
+        assertEquals(DocumentType.INSURANCE, effect.type)
     }
 
     @Test
@@ -192,17 +189,19 @@ class AddDocumentViewModelTest {
         assertEquals(DocumentType.LOAN, viewModel.state.value.selectedType)
     }
 
+    /**
+     * The whole point of routing an upload through the confirm step: a document is never
+     * filed from this screen, so it can never be filed without its dates being read.
+     */
     @Test
-    fun documentsAddedWithoutAnExpiry_areStoredAsSuch() = runTest(dispatcher) {
-        // The screen has no date fields yet, so nothing may invent one.
+    fun anUpload_neverFilesADocumentFromThisScreen() = runTest(dispatcher) {
         val repository = FakeDocumentRepository()
         val viewModel = viewModel(repository = repository)
 
         viewModel.onEvent(AddDocumentEvent.Capture.FilePicked("content://downloads/policy.pdf"))
         advanceUntilIdle()
 
-        val stored = repository.observe(TEST_CAR).first().single()
-        assertEquals(null, stored.expiresOn)
-        assertEquals(null, stored.issuedOn)
+        assertTrue(repository.observe(TEST_CAR).first().isEmpty())
+        assertEquals(Submission.Idle, viewModel.state.value.submission)
     }
 }

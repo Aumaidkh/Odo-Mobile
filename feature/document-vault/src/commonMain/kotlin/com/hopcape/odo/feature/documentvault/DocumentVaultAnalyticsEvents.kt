@@ -57,10 +57,16 @@ val documentVaultAnalyticsEvents: List<EventSchema> = listOf(
     ),
 
     EventSchema(
-        DocumentVaultTelemetry.Event.DOCUMENT_ADDED,
+        DocumentVaultTelemetry.Event.FILE_STAGED,
         mapOf(
             DocumentVaultTelemetry.Key.TYPE to PropertyType.STRING,
-            DocumentVaultTelemetry.Key.SOURCE to PropertyType.STRING,
+            DocumentVaultTelemetry.Key.METHOD to PropertyType.STRING,
+        ),
+    ),
+    EventSchema(
+        DocumentVaultTelemetry.Event.DATES_EDITED,
+        mapOf(
+            DocumentVaultTelemetry.Key.TYPE to PropertyType.STRING,
             DocumentVaultTelemetry.Key.HAS_EXPIRY to PropertyType.BOOLEAN,
         ),
     ),

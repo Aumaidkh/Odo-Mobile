@@ -4,15 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
-import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
-import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentCommand
-import com.hopcape.odo.feature.documentvault.domain.usecase.AddDocumentUseCase
+import com.hopcape.odo.feature.documentvault.domain.usecase.StageUploadedDocumentUseCase
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTelemetry
 import com.hopcape.odo.feature.documentvault.presentation.state.Submission
 import com.hopcape.odo.feature.documentvault.resources.Res
-import arrow.core.NonEmptyList
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.resources.dv_error_capture_unavailable
 import com.hopcape.odo.feature.documentvault.resources.dv_error_limit_reached
@@ -34,13 +31,14 @@ import kotlinx.coroutines.launch
  * "Add" and a document's "Renew now" both land here with their type already chosen; opening
  * the flow with no type at all is also allowed, and starts on insurance.
  *
- * Only the upload path saves anything today. Scanning and DigiLocker have no capture behind
- * them, so they say so instead of walking the owner to a success screen for a document that
- * was never written.
+ * Neither capture path files anything here. Both the camera and the file picker end at the
+ * confirm step, which reads the paper's dates and writes the row — a document filed without
+ * an expiry produces no reminder, which is most of what the vault is for. DigiLocker has no
+ * capture behind it, so it says so rather than pretending.
  */
 internal class AddDocumentViewModel(
     private val prefillType: DocumentType?,
-    private val addDocument: AddDocumentUseCase,
+    private val stageDocument: StageUploadedDocumentUseCase,
     private val activeCar: ActiveCarProvider,
     private val currentOwner: CurrentOwnerProvider,
     private val telemetry: DocumentVaultTelemetry,
@@ -73,7 +71,7 @@ internal class AddDocumentViewModel(
         AddDocumentEvent.Capture.Scan -> scan()
         AddDocumentEvent.Capture.DigiLocker -> captureUnavailable(DocumentVaultTelemetry.CaptureMethod.DIGILOCKER)
         // A cancelled picker is not a failure; the screen stays as it was.
-        is AddDocumentEvent.Capture.FilePicked -> event.pickedRef?.let(::save) ?: Unit
+        is AddDocumentEvent.Capture.FilePicked -> event.pickedRef?.let(::stage) ?: Unit
     }
 
     /**
@@ -94,13 +92,13 @@ internal class AddDocumentViewModel(
     }
 
     /**
-     * Save the picked file as a document of the selected type.
+     * Copy the picked file into app storage, then hand it to the confirm step.
      *
-     * Dates are not collected here: this screen has no fields for them. Until a
-     * review-and-confirm step exists, a document is stored with what is actually known —
-     * its type and its file — and the expiry stays absent rather than guessed.
+     * Nothing is filed here. The copy is what makes the file readable at all — a picker's
+     * handle stops working once the process dies — and the step after it reads the dates off
+     * the paper and writes the row.
      */
-    private fun save(pickedRef: String) {
+    private fun stage(pickedRef: String) {
         val carId = activeCar.activeCarId.value
         if (carId == null) {
             _state.update { it.copy(submission = Submission.Failed(UiText(Res.string.dv_error_no_car))) }
@@ -109,22 +107,18 @@ internal class AddDocumentViewModel(
 
         val type = _state.value.selectedType
         _state.update { it.copy(submission = Submission.InFlight) }
-        viewModelScope.launch(telemetry.op(DocumentVaultTelemetry.Trace.SAVE_DOCUMENT)) {
-            telemetry.documentSave(type) {
-                addDocument(
-                    command = AddDocumentCommand(
-                        type = type,
-                        pickedRef = pickedRef,
-                        source = DocumentSource.UPLOADED,
-                    ),
+        viewModelScope.launch(telemetry.op(DocumentVaultTelemetry.Trace.STAGE_FILE)) {
+            telemetry.documentStage(type) {
+                stageDocument(
+                    pickedRef = pickedRef,
                     carId = carId,
                     ownerId = currentOwner.currentOwnerId(),
                 )
             }.fold(
-                ifLeft = { errors -> _state.update { it.copy(submission = Submission.Failed(errors.toMessage())) } },
-                ifRight = { document ->
-                    _state.update { it.copy(submission = Submission.Succeeded) }
-                    emit(AddDocumentEffect.OpenSuccess(document.id))
+                ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
+                ifRight = { storageKey ->
+                    _state.update { it.copy(submission = Submission.Idle) }
+                    emit(AddDocumentEffect.OpenReview(storageKey = storageKey, type = type))
                 },
             )
         }
@@ -142,8 +136,6 @@ internal class AddDocumentViewModel(
  * generic "something went wrong" read as a broken app, and hid the owner's next step.
  * Every other failure stays generic: the owner cannot act on a storage error's details.
  */
-private fun NonEmptyList<DomainError>.toMessage(): UiText {
-    val limit = filterIsInstance<DomainError.DocumentLimitReached>().firstOrNull()
-    return if (limit != null) UiText(Res.string.dv_error_limit_reached, listOf(limit.limit))
+private fun DomainError.toMessage(): UiText =
+    if (this is DomainError.DocumentLimitReached) UiText(Res.string.dv_error_limit_reached, listOf(limit))
     else UiText(Res.string.dv_error_write_failed)
-}

@@ -106,6 +106,7 @@ internal class DocumentDetailViewModel(
     private fun onOpenEvent(event: DocumentDetailEvent.Open) = when (event) {
         DocumentDetailEvent.Open.Share -> emit(DocumentDetailEffect.OpenShare(documentId))
         DocumentDetailEvent.Open.Renew -> renew()
+        DocumentDetailEvent.Open.EditDates -> emit(DocumentDetailEffect.OpenEditDates(documentId))
         DocumentDetailEvent.Open.Back -> leave()
     }
 

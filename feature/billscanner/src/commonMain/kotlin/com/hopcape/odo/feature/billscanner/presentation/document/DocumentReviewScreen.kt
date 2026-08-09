@@ -1,7 +1,6 @@
 package com.hopcape.odo.feature.billscanner.presentation.document
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,24 +11,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoChip
+import com.hopcape.odo.core.designsystem.component.OdoDateField
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -41,12 +32,17 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.designsystem.icons.IcImage
+import com.hopcape.odo.core.designsystem.icons.IcPdf
+import com.hopcape.odo.core.platform.file.StoredFileKind
+import com.hopcape.odo.core.platform.file.StoredFileKinds
 import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTestTags
 import com.hopcape.odo.feature.billscanner.presentation.state.Submission
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_cancel
-import com.hopcape.odo.feature.billscanner.resources.bs_cd_captured_bill
+import com.hopcape.odo.feature.billscanner.resources.bs_badge_pdf
+import com.hopcape.odo.feature.billscanner.resources.bs_cd_document_file
 import com.hopcape.odo.feature.billscanner.resources.bs_doc_expiry
 import com.hopcape.odo.feature.billscanner.resources.bs_doc_expiry_required
 import com.hopcape.odo.feature.billscanner.resources.bs_doc_issued
@@ -58,10 +54,6 @@ import com.hopcape.odo.feature.billscanner.resources.bs_doc_type
 import com.hopcape.odo.feature.billscanner.resources.bs_ok
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_reading
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Instant
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -99,7 +91,7 @@ internal fun DocumentReviewScreen(
                         color = OdoTheme.colors.danger,
                     )
                 }
-                if (state.expiresOn == null && !state.isReading) {
+                if (state.needsExpiry && state.expiresOn == null && !state.isReading) {
                     OdoText(
                         text = stringResource(Res.string.bs_doc_expiry_required),
                         style = OdoTheme.typography.bodySmall,
@@ -136,12 +128,16 @@ internal fun DocumentReviewScreen(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
             // Tappable: at this height the expiry date on a policy is not readable, and
-            // confirming it is what this screen is for.
-            rememberStoredImage(state.photoKey)?.let { photo ->
+            // confirming it is what this screen is for. An uploaded PDF has no image to draw,
+            // so it shows a glyph that still opens the file.
+            state.photoKey?.let { key ->
+                val isPdf = StoredFileKinds.of(key) == StoredFileKind.PDF
                 OdoThumbnail(
-                    image = photo,
-                    contentDescription = stringResource(Res.string.bs_cd_captured_bill),
+                    image = rememberStoredImage(key),
+                    contentDescription = stringResource(Res.string.bs_cd_document_file),
                     modifier = Modifier.fillMaxWidth().height(PHOTO_HEIGHT),
+                    placeholderIcon = if (isPdf) IcPdf else IcImage,
+                    badge = if (isPdf) stringResource(Res.string.bs_badge_pdf) else null,
                     onClick = onOpenPhoto,
                 )
             }
@@ -198,54 +194,22 @@ private fun Labelled(label: String, content: @Composable () -> Unit) {
     }
 }
 
-/** A read-only field that opens a date picker. Empty when nothing was read and nothing typed. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** The design system's date field, with this screen's own labels. */
 @Composable
 private fun DateField(
     date: LocalDate?,
     onDateChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showPicker by remember { mutableStateOf(false) }
-    Box(modifier) {
-        OdoInputField(
-            value = date?.let { formatDate(it) } ?: stringResource(Res.string.bs_doc_not_set),
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // A read-only field can't focus, so an overlay captures the tap.
-        Box(Modifier.matchParentSize().clip(OdoTheme.shapes.field).clickable { showPicker = true })
-    }
-    if (showPicker) {
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = date?.atStartOfDayIn(TimeZone.UTC)?.toEpochMilliseconds(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { showPicker = false },
-            confirmButton = {
-                OdoButton(
-                    text = stringResource(Res.string.bs_ok),
-                    onClick = {
-                        pickerState.selectedDateMillis?.let { millis ->
-                            onDateChange(Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date)
-                        }
-                        showPicker = false
-                    },
-                    variant = OdoButtonVariant.Tertiary,
-                )
-            },
-            dismissButton = {
-                OdoButton(
-                    text = stringResource(Res.string.bs_cancel),
-                    onClick = { showPicker = false },
-                    variant = OdoButtonVariant.Tertiary,
-                )
-            },
-        ) {
-            DatePicker(state = pickerState)
-        }
-    }
+    OdoDateField(
+        date = date,
+        formatted = date?.let { formatDate(it) }.orEmpty(),
+        placeholder = stringResource(Res.string.bs_doc_not_set),
+        confirmLabel = stringResource(Res.string.bs_ok),
+        cancelLabel = stringResource(Res.string.bs_cancel),
+        onDateChange = onDateChange,
+        modifier = modifier,
+    )
 }
 
 private val PHOTO_HEIGHT = 180.dp

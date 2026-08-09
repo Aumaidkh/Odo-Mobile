@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.FakeDocumentFileStore
 import com.hopcape.odo.feature.documentvault.FakeDocumentRepository
+import com.hopcape.odo.feature.documentvault.RecordingReminderScheduler
 import com.hopcape.odo.feature.documentvault.RecordingAnalytics
 import com.hopcape.odo.feature.documentvault.TEST_CAR
 import com.hopcape.odo.feature.documentvault.TEST_CLOCK
@@ -69,7 +70,7 @@ class DocumentDetailViewModelTest {
         return DocumentDetailViewModel(
             documentId = DocumentId(documentId),
             observeDetail = observeDetail,
-            deleteDocument = DeleteDocumentUseCase(repository, files),
+            deleteDocument = DeleteDocumentUseCase(repository, files, RecordingReminderScheduler()),
             replaceFile = ReplaceDocumentFileUseCase(repository, files),
             telemetry = testTelemetry(analytics),
         )

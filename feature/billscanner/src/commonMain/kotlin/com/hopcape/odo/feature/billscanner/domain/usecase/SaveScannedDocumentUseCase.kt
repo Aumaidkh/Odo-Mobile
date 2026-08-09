@@ -14,6 +14,7 @@ import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -31,12 +32,14 @@ import kotlin.time.Clock
  * The free-tier cap is checked for the same reason the vault checks it: the limit is sold per
  * owner, and a document added through the scanner counts exactly as much as one uploaded.
  *
- * [DocumentSource.SCANNED] is stamped rather than passed in. A photograph is the owner's own
- * copy, so it can never earn the Verified badge, and making that a parameter would be leaving
- * a way to claim otherwise.
+ * The command says whether the file was photographed or uploaded, because both ways in end
+ * here. It cannot say [DocumentSource.DIGILOCKER]: [CaptureOrigin] has two cases, neither of
+ * which earns the Verified badge, so nothing filed through this screen can claim to be an
+ * official copy.
  */
 internal class SaveScannedDocumentUseCase(
     private val documents: DocumentRepository,
+    private val reminders: DocumentReminderScheduler,
     private val allowance: DocumentAllowance,
     private val ids: IdGenerator,
     private val clock: Clock,
@@ -59,14 +62,19 @@ internal class SaveScannedDocumentUseCase(
             carId = carId,
             type = command.type,
             storagePath = command.photoStorageKey,
-            source = DocumentSource.SCANNED,
+            source = command.origin.toSource(),
             today = clock.now().toLocalDateTime(timeZone).date,
             title = command.title,
             issuedOn = command.issuedOn,
             expiresOn = command.expiresOn,
         ).bind()
 
-        documents.add(document).mapLeft { nonEmptyListOf(it) }.bind()
+        documents.add(document)
+            .mapLeft { nonEmptyListOf(it) }
+            // The whole reason the dates were confirmed: the expiry becomes notifications
+            // the owner gets without opening the app.
+            .onRight { reminders.refresh() }
+            .bind()
     }
 }
 
@@ -80,7 +88,29 @@ internal class SaveScannedDocumentUseCase(
 internal data class SaveScannedDocumentCommand(
     val type: DocumentType,
     val photoStorageKey: String,
+    val origin: CaptureOrigin = CaptureOrigin.Scanned,
     val title: String? = null,
     val issuedOn: LocalDate? = null,
     val expiresOn: LocalDate? = null,
 )
+
+/**
+ * How the file being confirmed reached the app.
+ *
+ * Two cases on purpose. DigiLocker is missing because an official copy is never confirmed on
+ * this screen, and leaving it out is what makes the Verified badge impossible to claim from
+ * here.
+ */
+internal enum class CaptureOrigin {
+
+    /** Photographed in the app. */
+    Scanned,
+
+    /** A PDF or image the owner picked from the device. */
+    Uploaded,
+}
+
+private fun CaptureOrigin.toSource(): DocumentSource = when (this) {
+    CaptureOrigin.Scanned -> DocumentSource.SCANNED
+    CaptureOrigin.Uploaded -> DocumentSource.UPLOADED
+}

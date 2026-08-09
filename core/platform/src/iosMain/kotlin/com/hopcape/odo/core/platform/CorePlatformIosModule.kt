@@ -6,6 +6,8 @@ import com.hopcape.odo.core.platform.camera.DocumentCropper
 import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.IosFileStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.core.platform.file.StoredPageRenderer
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -31,6 +33,9 @@ import org.koin.dsl.module
  */
 val corePlatformIosModule = module {
     single<PlatformFileStore> { IosFileStore() }
+    // No PDF rasterizer on iOS yet. Answering "no page" leaves the reader's own
+    // "we could not read this" message doing the explaining, as it does for a bad photo.
+    single<StoredPageRenderer> { StoredPageRenderer { null } }
     // No edge detection on iOS yet, so there is never a quad to crop to — the photo
     // passes through untouched.
     single<DocumentCropper> { DocumentCropper { storageKey, _ -> storageKey } }
@@ -39,6 +44,9 @@ val corePlatformIosModule = module {
     single<QrImageDecoder> { QrImageDecoder { null } }
     single<AppInfo> { IosAppInfo() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
+    // No local notification scheduling on iOS yet; the reminders screen still derives and
+    // shows every expiry, so nothing is lost beyond the push itself.
+    single<DocumentReminderScheduler> { DocumentReminderScheduler { } }
     // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }

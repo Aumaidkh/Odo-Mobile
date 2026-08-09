@@ -5,6 +5,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.feature.billscanner.domain.usecase.LogFuelFillUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedBillUseCase
+import com.hopcape.odo.feature.billscanner.domain.usecase.CaptureOrigin
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedDocumentUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.ScanBillUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.ScanDocumentUseCase
@@ -42,6 +43,7 @@ val billScannerModule = module {
     factory {
         SaveScannedDocumentUseCase(
             documents = get(),
+            reminders = get(),
             allowance = get(),
             ids = get(),
             clock = get(),
@@ -84,6 +86,9 @@ val billScannerModule = module {
             // What the caller already knew the paper was — the vault's RC row says RC.
             // Absent when nobody said, and then the read's own guess is used.
             initialType = params.getOrNull<DocumentType>(),
+            // How the file got here. Defaulted rather than required, because the camera
+            // path — the older of the two — passes nothing.
+            origin = params.getOrNull<CaptureOrigin>() ?: CaptureOrigin.Scanned,
             scanDocument = get(),
             saveDocument = get(),
             activeCar = get(),

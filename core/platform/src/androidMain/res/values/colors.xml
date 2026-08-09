@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Mirrors core:designsystem's OdoPalette.DarkAccent ("odometer-orange") as a raw hex: an
+    Android resource cannot reference a Compose Color constant in another module. Used only
+    to tint the document-reminder notification.
+-->
+<resources>
+    <color name="document_reminder_accent">#E8743B</color>
+</resources>

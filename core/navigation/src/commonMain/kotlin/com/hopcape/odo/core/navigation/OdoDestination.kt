@@ -228,9 +228,16 @@ sealed interface OdoDestination : NavKey {
          *
          * [documentType] carries what the caller already knew, the same way [Capture] does.
          */
+        /**
+         * [origin] says how the file reached the app, because the row records that and the
+         * two ways in end at the same screen. An enum of exactly two cases rather than the
+         * source's name as a string: neither case earns the Verified badge, so no caller can
+         * claim a document came from DigiLocker by naming it.
+         */
         data class DocumentReview(
             val photoKey: String,
             val documentType: String? = null,
+            val origin: DocumentOrigin = DocumentOrigin.Scanned,
         ) : BillScanner
 
         /**
@@ -346,6 +353,14 @@ sealed interface OdoDestination : NavKey {
 
         /** Share a document — shown as a bottom-sheet destination. */
         data class Share(val documentId: String) : Documents
+
+        /**
+         * Correct a document's issue and expiry dates — a bottom-sheet destination.
+         *
+         * Its own key rather than a mode of [Detail], because it is where a document filed
+         * with no expiry gets one, and that is what turns it into a reminder.
+         */
+        data class EditDates(val documentId: String) : Documents
     }
 
     /**
@@ -482,6 +497,22 @@ sealed interface OdoDestination : NavKey {
          */
         val topLevel: List<TopLevel> = listOf(Home, Timeline.List, CostTracker.Home, Garage.Home)
     }
+}
+
+/**
+ * How the file being confirmed reached the app.
+ *
+ * Both cases are the owner's own copy, so neither is treated as verified. DigiLocker is
+ * deliberately absent: an official copy is never confirmed on this screen, and leaving it out
+ * means a navigation key cannot be used to claim one.
+ */
+enum class DocumentOrigin {
+
+    /** Photographed in the app. */
+    Scanned,
+
+    /** A PDF or image picked from the device. */
+    Uploaded,
 }
 
 /**
