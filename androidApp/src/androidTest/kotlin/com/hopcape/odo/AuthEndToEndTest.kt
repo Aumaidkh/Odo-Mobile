@@ -13,6 +13,7 @@ import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -71,6 +72,17 @@ class AuthEndToEndTest {
         seedOnboardedOwner()
         rule.activityRule.scenario.recreate()
     }
+
+    /**
+     * Leave the device signed out, whatever the test did to it.
+     *
+     * Not covered by [startSignedOutOnASetUpDevice], which only protects this class. Most of
+     * these tests finish signed in, and the session outlives the class — the next one to run
+     * then starts with a session it never asked for, which is enough to make the profile show
+     * "Sign out" where a test expects "Sign in".
+     */
+    @After
+    fun endSignedOut() = clearSession()
 
     /* ------------------------------ Getting in and out ------------------------------ */
 
@@ -219,11 +231,13 @@ class AuthEndToEndTest {
     fun aCodeArrivingBySms_signsInWithoutAnythingBeingTyped() {
         installSmsReader(SmsCodeStatus.Received(AuthFixtures.CODE))
 
-        rule.reachTheCodeScreen()
+        // Stops at the request, rather than waiting for the code screen: the reader hands the
+        // code over on that screen's first frame, so "Enter the code" is already on its way
+        // out and a wait for it is a race.
+        rule.requestTheCode()
 
-        // The card's "filled" state is deliberately not asserted: the code verifies the
-        // instant it lands, so that frame races the hand-off. What matters is that nothing
-        // was typed and the owner is signed in.
+        // The card's "filled" state is deliberately not asserted either, for the same reason.
+        // What matters is that nothing was typed and the owner is signed in.
         rule.awaitText(AuthCopy.VERIFIED_TITLE, timeoutMillis = AUTH_HANDOFF_TIMEOUT_MILLIS)
         assertEquals(AuthFixtures.ACCESS_TOKEN, storedAccessToken())
     }

@@ -235,10 +235,23 @@ internal fun AuthTestRule.openSignIn() {
 
 /** Number → code screen, which is the precondition for every code-entry test. */
 internal fun AuthTestRule.reachTheCodeScreen(number: String = AuthFixtures.TYPED_NUMBER) {
+    requestTheCode(number)
+    awaitText(AuthCopy.OTP_TITLE)
+}
+
+/**
+ * Ask for a code and stop there, without waiting for the code screen.
+ *
+ * Split out of [reachTheCodeScreen] for the auto-read case. A reader that is already holding
+ * a code hands it over on the OTP ViewModel's first collection, which fills the field and
+ * verifies it on the same frame, so "Enter the code" can be gone before a wait for it runs.
+ * Tests that assert on the code screen still want that wait; the one that expects to be
+ * carried straight past it must not have it.
+ */
+internal fun AuthTestRule.requestTheCode(number: String = AuthFixtures.TYPED_NUMBER) {
     openSignIn()
     enterPhoneNumber(number)
     tapSendCode()
-    awaitText(AuthCopy.OTP_TITLE)
 }
 
 /* ------------------------------ Actions ------------------------------ */
