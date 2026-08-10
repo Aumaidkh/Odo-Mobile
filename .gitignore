@@ -53,10 +53,23 @@ keystore/
 .swiftpm-locks/
 /docs/PlayConsole-Readiness-Report.pdf
 
-# The Supabase CLI project at the repo root: the Edge Function, its migrations and
-# config.toml. Kept local. The leading slash matters — a bare `supabase/` would also
-# match the `infrastructure/supabase` Gradle module.
-/supabase/
+# The Supabase CLI project at the repo root. The CLI's own scratch (.branches, .temp) is
+# local; the hand-authored source travels, because `web/build.ts` imports the legal pages
+# directly and a clone without them cannot build or deploy the site at all.
+#
+# `/supabase/*` rather than `/supabase/` — git will not descend into an excluded directory,
+# so a negation inside one never fires. Excluding the children instead is what makes the
+# `!` lines below work. The leading slash still matters: a bare `supabase/` would also match
+# the `infrastructure/supabase` Gradle module.
+/supabase/*
+!/supabase/functions/
+!/supabase/migrations/
+!/supabase/README.md
+!/supabase/config.toml
+!/supabase/check-legal.sh
+# `deno bundle` regenerates this from functions/legal on demand. A build output, and the
+# README says so — the seven files are the source of truth, not the pasted copy.
+/supabase/legal.bundle.js
 
 # Firebase Hosting: CLI cache, and the pages `web/build.ts` renders.
 .firebase/
