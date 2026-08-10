@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.designsystem.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
@@ -8,17 +9,31 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.hopcape.odo.core.designsystem.resources.Res
+import com.hopcape.odo.core.designsystem.resources.dm_sans_bold
+import com.hopcape.odo.core.designsystem.resources.dm_sans_extra_bold
+import com.hopcape.odo.core.designsystem.resources.dm_sans_light
+import com.hopcape.odo.core.designsystem.resources.dm_sans_medium
+import com.hopcape.odo.core.designsystem.resources.dm_sans_regular
+import com.hopcape.odo.core.designsystem.resources.dm_sans_semi_bold
+import org.jetbrains.compose.resources.Font
 
 /**
- * Odo's typeface. The spec is **Inter** across the board. Until the Inter `.ttf`
- * files are added to `commonMain/composeResources/font/`, this resolves to the
- * platform default so the module builds and the *scale* is already correct.
- *
- * To switch on Inter: drop the weights in, then replace the body with a
- * `FontFamily(Font(Res.font.inter_regular, FontWeight.Normal), …)` builder.
- * Nothing else changes — every style below reads from this one constant.
+ * Odo's typeface: **DM Sans**, loaded from the `.ttf` weights (300–800) in
+ * `commonMain/composeResources/font/`. A `@Composable` getter because Compose
+ * Multiplatform's `Font(FontResource, …)` must resolve inside a composition;
+ * [OdoTheme] reads it once and every style flows from there.
  */
-val OdoFontFamily: FontFamily = FontFamily.Default
+val OdoFontFamily: FontFamily
+    @Composable
+    get() = FontFamily(
+        Font(Res.font.dm_sans_light, FontWeight.W300),
+        Font(Res.font.dm_sans_regular, FontWeight.W400),
+        Font(Res.font.dm_sans_medium, FontWeight.W500),
+        Font(Res.font.dm_sans_semi_bold, FontWeight.W600),
+        Font(Res.font.dm_sans_bold, FontWeight.W700),
+        Font(Res.font.dm_sans_extra_bold, FontWeight.W800),
+    )
 
 /**
  * Odo's type scale — the named roles from the design spec. Screens read these
@@ -46,60 +61,67 @@ data class OdoTypography(
     val caption: TextStyle,
 )
 
-val OdoDefaultTypography: OdoTypography = OdoTypography(
+/**
+ * The Odo scale built on [fontFamily]. [OdoTheme] calls this with [OdoFontFamily]
+ * (DM Sans); [OdoDefaultTypography] calls it with the platform default so the
+ * CompositionLocal has a resource-free fallback outside the theme.
+ */
+fun odoTypography(fontFamily: FontFamily): OdoTypography = OdoTypography(
     display = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Bold, // 700
         fontSize = 52.sp,
         lineHeight = 52.sp, // 1.0
         letterSpacing = (-0.015).em, // -1.5%
     ),
     title = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Bold, // 700
         fontSize = 24.sp,
         lineHeight = 26.4.sp, // 1.1
         letterSpacing = (-0.01).em, // -1%
     ),
     heading = TextStyle(
-        fontFamily = OdoFontFamily,
-        fontWeight = FontWeight.SemiBold, // 600
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Normal, // 600
         fontSize = 18.sp,
         lineHeight = 21.6.sp, // 1.2
     ),
     numeric = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold, // 600
         fontSize = 20.sp, // base of the 16–28 range; `.copy(fontSize = …)` per use
         lineHeight = 24.sp,
         fontFeatureSettings = "tnum", // tabular figures so columns of money/km align
     ),
     body = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Normal, // 400
         fontSize = 16.sp,
         lineHeight = 24.sp, // 1.5
     ),
     bodySmall = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Normal, // 400
         fontSize = 14.sp,
         lineHeight = 21.sp, // 1.5
     ),
     label = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Medium, // 500
         fontSize = 14.sp,
         lineHeight = 20.sp,
     ),
     caption = TextStyle(
-        fontFamily = OdoFontFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold, // 600
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.12.em, // +.12em tracked caps
     ),
 )
+
+val OdoDefaultTypography: OdoTypography = odoTypography(FontFamily.Default)
 
 internal val LocalOdoTypography = staticCompositionLocalOf { OdoDefaultTypography }
 
