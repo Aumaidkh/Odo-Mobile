@@ -104,6 +104,11 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
+  // Which of the four round trips below is in flight, for the log line in the catch. The
+  // failures here are mostly Supabase's own, and its messages do not say which call produced
+  // them — "Database error creating new user" could as easily have come from the lookup.
+  let step = 'lookup'
+
   try {
     // ---- 2. Find the account, or make one ----
     //
@@ -117,12 +122,14 @@ Deno.serve(async (req) => {
     let userId: string
     if (existingId) {
       userId = existingId
+      step = 'read-existing'
       // An account that predates this function — or one created by any other path — may have
       // no email, and `generateLink` below needs one. Backfilling is cheaper than a second
       // sign-in mechanism for those users.
       const { data: existing, error: readError } = await admin.auth.admin.getUserById(userId)
       if (readError) throw readError
       if (!existing.user?.email) {
+        step = 'backfill-email'
         const { error: patchError } = await admin.auth.admin.updateUserById(userId, {
           email,
           email_confirm: true,
@@ -130,6 +137,7 @@ Deno.serve(async (req) => {
         if (patchError) throw patchError
       }
     } else {
+      step = 'create-user'
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         phone,
         phone_confirm: true,
@@ -149,6 +157,7 @@ Deno.serve(async (req) => {
     // produces a single-use token hash without sending anything, and `verify` trades it for a
     // session through GoTrue's normal path — so what the client gets is an ordinary session
     // that refreshes and revokes like any other, not something special-cased.
+    step = 'generate-link'
     const { data: link, error: linkError } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email,
@@ -158,6 +167,7 @@ Deno.serve(async (req) => {
     const anon = createClient(SUPABASE_URL, ANON_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
+    step = 'verify-token'
     const { data: verified, error: verifyError } = await anon.auth.verifyOtp({
       token_hash: link.properties.hashed_token,
       type: 'email',
@@ -175,7 +185,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     // The message can quote the phone number or the email derived from it, so it goes to the
     // function's own logs and never into the response.
-    console.error('firebase-session failed:', error instanceof Error ? error.message : error)
+    console.error(`firebase-session failed at ${step}:`, error instanceof Error ? error.message : error)
     return fail(500, 'session_mint_failed')
   }
 })
