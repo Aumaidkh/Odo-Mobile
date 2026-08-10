@@ -22,6 +22,9 @@ kotlin {
             implementation(projects.core.navigation)
             // Branded UI atoms (OdoCard, OdoBadge, OdoChip, OdoEmptyState…) + theme.
             implementation(projects.core.designsystem)
+            // AppInfo — the version and build number the help sheet's footer shows, read
+            // from the installed package rather than baked in at compile time.
+            implementation(projects.core.platform)
             // LogUploadScheduler — "Send diagnostics" (docs/LOGGING_PLAN.md §9, L9).
             implementation(projects.observability.logging)
         }

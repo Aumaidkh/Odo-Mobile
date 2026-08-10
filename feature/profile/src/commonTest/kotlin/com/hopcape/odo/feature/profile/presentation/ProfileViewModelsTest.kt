@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.profile.presentation
 
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.flowOf
+import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
@@ -80,7 +81,7 @@ class ProfileViewModelsTest {
         val viewModel = ProfileViewModel(
             observeProfile = observeProfile(settings = settings, isPro = true),
             syncStatus = idleSync(),
-            appInfo = FakeAppInfo("2.0.0"),
+            appInfo = FakeAppInfo("2.0.0", versionCode = 7L),
             telemetry = testTelemetry(),
         )
 
@@ -92,6 +93,10 @@ class ProfileViewModelsTest {
         // Four defaults plus the custom reminders this test switched on.
         assertEquals(5, content.notificationTopicsOn)
         assertEquals("2.0.0", viewModel.state.value.version)
+        // The build number is a debug/stage detail, so what is expected depends on the
+        // flavor these tests were compiled as rather than on anything the test set up.
+        val expectedBuildNumber = if (BuildInfo.isRelease) null else 7L
+        assertEquals(expectedBuildNumber, viewModel.state.value.buildNumber)
     }
 
     @Test

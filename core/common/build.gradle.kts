@@ -36,16 +36,35 @@ kotlin {
 
 // Picks the BuildKonfig flavor when nothing was passed explicitly (`-Pbuildkonfig.flavor=…`).
 // A *heuristic*, not a guarantee: KMP androidLibrary modules (com.android.kotlin.multiplatform
-// .library, what every module here uses) have no debug/release build types of their own to
-// read from directly — only :androidApp, a classic com.android.application module, has a
-// real one. This infers intent from the requested task names — "assembleDebug",
-// "installDebug", "testAndroidHostTest", … name their own build type; anything else
-// (a release build, or a task this heuristic doesn't recognise) falls to "release", the
-// conservative default. A build that genuinely wants "debug" for something the heuristic
-// doesn't catch must ask for it explicitly with -Pbuildkonfig.flavor=debug.
+// .library, what every module here uses) have no debug/stage/release build types of their own
+// to read from directly — only :androidApp, a classic com.android.application module, has a
+// real one. This infers intent from the requested task names — "assembleStage", "assembleDebug",
+// "installDebug", … name their own build type; anything else (a release build, or a task this
+// heuristic doesn't recognise) falls to "release", the conservative default. A build that
+// genuinely wants another flavor for something the heuristic doesn't catch must ask for it
+// explicitly with -Pbuildkonfig.flavor=stage.
+//
+// One flavor is generated for the whole invocation, so asking for two build types at once
+// ("assembleDebug assembleRelease") has no correct answer — one of the two APKs would carry
+// BuildInfo for the other. That is exactly the mistake worth failing on rather than
+// shipping: a release APK that reports itself as debug turns off performance reporting and
+// shortens the Remote Config fetch interval in production. Ask for them in separate
+// invocations, or pass -Pbuildkonfig.flavor= to say which one the constants should describe.
 if (!project.hasProperty("buildkonfig.flavor")) {
-    val looksLikeDebugBuild = gradle.startParameter.taskNames.any { it.contains("Debug") }
-    project.extensions.extraProperties.set("buildkonfig.flavor", if (looksLikeDebugBuild) "debug" else "release")
+    val taskNames = gradle.startParameter.taskNames
+    val requested = buildList {
+        if (taskNames.any { it.contains("Stage") }) add("stage")
+        if (taskNames.any { it.contains("Debug") }) add("debug")
+        if (taskNames.any { it.contains("Release") }) add("release")
+    }
+    check(requested.size <= 1) {
+        "This build asks for more than one build type at once (${requested.joinToString()}), " +
+            "but BuildInfo constants are generated once per invocation. Run the tasks separately, " +
+            "or pass -Pbuildkonfig.flavor=<${requested.joinToString("|")}> to choose."
+    }
+    // Nothing recognisable — a bare `test`, `lint`, an IDE sync — falls to "release", the
+    // conservative default: it turns nothing debug-only on.
+    project.extensions.extraProperties.set("buildkonfig.flavor", requested.singleOrNull() ?: "release")
 }
 
 buildkonfig {
@@ -53,15 +72,28 @@ buildkonfig {
     // internal by default (Minimal public surface) would make this invisible to every
     // other module — the entire point here is that any module can read it.
     exposeObjectWithName = "BuildKonfig"
+    // Release is the base config; the debug and stage blocks below override only what
+    // differs, exactly as the build types do in AndroidApplicationConventionPlugin.
+    // Both read the same catalog entries, so BuildInfo can never describe a build that
+    // Gradle did not produce.
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "BUILD_TYPE", "release")
-        // Same `odo-versionName`/`odo-versionCode` catalog entries the app module's
-        // versionName/versionCode come from (AndroidApplicationConventionPlugin) — one
-        // source of truth, just baked into every module instead of only :androidApp.
+        buildConfigField(FieldSpec.Type.STRING, "APPLICATION_ID", libs.versions.odo.applicationId.get())
+        // Release adds nothing to either. An empty string, not a null: a suffix that is
+        // absent is still a suffix, and callers concatenate it unconditionally.
+        buildConfigField(FieldSpec.Type.STRING, "APPLICATION_ID_SUFFIX", "")
         buildConfigField(FieldSpec.Type.STRING, "VERSION_NAME", libs.versions.odo.versionName.get())
+        buildConfigField(FieldSpec.Type.STRING, "VERSION_NAME_SUFFIX", "")
         buildConfigField(FieldSpec.Type.LONG, "VERSION_CODE", libs.versions.odo.versionCode.get())
     }
     defaultConfigs("debug") {
         buildConfigField(FieldSpec.Type.STRING, "BUILD_TYPE", "debug")
+        buildConfigField(FieldSpec.Type.STRING, "APPLICATION_ID_SUFFIX", libs.versions.odo.debugApplicationIdSuffix.get())
+        buildConfigField(FieldSpec.Type.STRING, "VERSION_NAME_SUFFIX", libs.versions.odo.debugVersionNameSuffix.get())
+    }
+    defaultConfigs("stage") {
+        buildConfigField(FieldSpec.Type.STRING, "BUILD_TYPE", "stage")
+        buildConfigField(FieldSpec.Type.STRING, "APPLICATION_ID_SUFFIX", libs.versions.odo.stageApplicationIdSuffix.get())
+        buildConfigField(FieldSpec.Type.STRING, "VERSION_NAME_SUFFIX", libs.versions.odo.stageVersionNameSuffix.get())
     }
 }

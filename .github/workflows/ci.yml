@@ -1,16 +1,23 @@
 name: CI
 
-# The gate every pull request has to pass before it can be squash-merged.
+# The gate every pull request has to pass before it can be squash-merged, and the
+# gate every push to a release branch has to pass after it has landed.
 # Everything here is JVM-only and finishes in minutes; the on-device tests live
 # in instrumented-tests.yml because they are too slow to sit on every PR.
 on:
   pull_request:
-    branches: [master, develop]
+    branches: [master, develop, 'releases/**']
+  # Release branches are also gated on push. Fixes land on them directly during a
+  # stabilisation window, and a broken release branch is found late otherwise —
+  # nothing else builds it until the merge back to master.
+  push:
+    branches: ['releases/**']
 
 # A new push to the same PR makes the in-flight run obsolete — cancel it rather
-# than paying for a result nobody will read.
+# than paying for a result nobody will read. On a push there is no PR number, so
+# the branch ref groups the runs instead.
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -30,6 +37,9 @@ jobs:
   pr-title:
     name: PR title
     runs-on: ubuntu-latest
+    # A push has no PR title to check. Without this the job fails on every push to a
+    # release branch rather than being skipped.
+    if: github.event_name == 'pull_request'
     permissions:
       pull-requests: read
     steps:
@@ -96,7 +106,8 @@ jobs:
         with:
           check_name: Unit test results
           files: '**/build/test-results/testAndroidHostTest/*.xml'
-          comment_mode: always
+          # A push has nothing to comment on; the check run alone carries the result.
+          comment_mode: ${{ github.event_name == 'pull_request' && 'always' || 'off' }}
 
       - name: Upload test reports
         uses: actions/upload-artifact@v7.0.1
