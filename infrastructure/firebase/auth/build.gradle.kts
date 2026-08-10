@@ -36,6 +36,12 @@ kotlin {
             // Task.await() — bridges signInWithCredential's Task<AuthResult> and
             // getIdToken's Task<GetTokenResult> to suspend calls.
             implementation(libs.kotlinx.coroutines.play.services)
+            // suspendCancellableCoroutine — verifyPhoneNumber answers through a callback
+            // object, not a Task, so there is nothing to await().
+            implementation(libs.kotlinx.coroutines.core)
+            // CurrentActivity. verifyPhoneNumber has no Activity-free overload: Play
+            // Integrity and the reCAPTCHA fallback both attach to a window.
+            implementation(projects.core.platform)
         }
     }
 }
