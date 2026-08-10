@@ -1,4 +1,5 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec
+import com.hopcape.odo.buildlogic.resolvedBuildFlavor
 
 plugins {
     // Pure utilities module (Either re-export, ID generation, Clock).
@@ -35,36 +36,19 @@ kotlin {
 }
 
 // Picks the BuildKonfig flavor when nothing was passed explicitly (`-Pbuildkonfig.flavor=…`).
-// A *heuristic*, not a guarantee: KMP androidLibrary modules (com.android.kotlin.multiplatform
-// .library, what every module here uses) have no debug/stage/release build types of their own
-// to read from directly — only :androidApp, a classic com.android.application module, has a
-// real one. This infers intent from the requested task names — "assembleStage", "assembleDebug",
-// "installDebug", … name their own build type; anything else (a release build, or a task this
-// heuristic doesn't recognise) falls to "release", the conservative default. A build that
-// genuinely wants another flavor for something the heuristic doesn't catch must ask for it
-// explicitly with -Pbuildkonfig.flavor=stage.
+//
+// The inference itself lives in `resolvedBuildFlavor()` (build-logic), because a second caller
+// now needs the same answer: :infrastructure:supabase picks its project by build type, and a
+// release APK that reported itself as debug while talking to the production database — or the
+// reverse — is precisely the disagreement one shared function rules out.
 //
 // One flavor is generated for the whole invocation, so asking for two build types at once
 // ("assembleDebug assembleRelease") has no correct answer — one of the two APKs would carry
-// BuildInfo for the other. That is exactly the mistake worth failing on rather than
-// shipping: a release APK that reports itself as debug turns off performance reporting and
-// shortens the Remote Config fetch interval in production. Ask for them in separate
-// invocations, or pass -Pbuildkonfig.flavor= to say which one the constants should describe.
+// BuildInfo for the other. resolvedBuildFlavor() fails on that rather than shipping it: a
+// release APK that reports itself as debug turns off performance reporting and shortens the
+// Remote Config fetch interval in production.
 if (!project.hasProperty("buildkonfig.flavor")) {
-    val taskNames = gradle.startParameter.taskNames
-    val requested = buildList {
-        if (taskNames.any { it.contains("Stage") }) add("stage")
-        if (taskNames.any { it.contains("Debug") }) add("debug")
-        if (taskNames.any { it.contains("Release") }) add("release")
-    }
-    check(requested.size <= 1) {
-        "This build asks for more than one build type at once (${requested.joinToString()}), " +
-            "but BuildInfo constants are generated once per invocation. Run the tasks separately, " +
-            "or pass -Pbuildkonfig.flavor=<${requested.joinToString("|")}> to choose."
-    }
-    // Nothing recognisable — a bare `test`, `lint`, an IDE sync — falls to "release", the
-    // conservative default: it turns nothing debug-only on.
-    project.extensions.extraProperties.set("buildkonfig.flavor", requested.singleOrNull() ?: "release")
+    project.extensions.extraProperties.set("buildkonfig.flavor", resolvedBuildFlavor())
 }
 
 buildkonfig {
