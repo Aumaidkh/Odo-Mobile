@@ -38,6 +38,9 @@
     <string name="pf_sign_in">Sign in to back up your data</string>
     <!-- App version, e.g. "Odo v1.4.0 · Made in India". -->
     <string name="pf_version">Odo v%1$s · Made in India</string>
+    <!-- App version on a debug or stage build, where the build number is worth showing
+         too, e.g. "Odo v1.0.0-beta01-stage (1) · Made in India". -->
+    <string name="pf_version_build">Odo v%1$s (%2$s) · Made in India</string>
     <string name="pf_name_missing">Add your name</string>
     <string name="pf_city_missing">Set your city for price checks</string>
     <!-- How many notification topics are switched on, e.g. "4 on". -->

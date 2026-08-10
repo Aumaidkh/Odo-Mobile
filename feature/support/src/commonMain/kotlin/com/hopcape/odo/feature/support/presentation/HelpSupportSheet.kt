@@ -69,12 +69,14 @@ import org.jetbrains.compose.resources.stringResource
  * makes no decision; each callback pushes the row's own destination. The sheet chrome
  * (drag handle, scrim, swipe-to-dismiss) comes from the navigation layer.
  *
- * The chat availability, the open-ticket count and the version line are **sample values**
- * until the support backend and `BuildConfig` are wired: they are rendered so the layout
- * is real, not because the data is.
+ * The chat availability and the open-ticket count are still **sample values** until the
+ * support backend is wired: they are rendered so the layout is real, not because the data
+ * is. The version line is not — it is the installed build, passed in by the caller.
  */
 @Composable
 internal fun HelpSupportSheetContent(
+    versionName: String,
+    versionCode: Long,
     onClose: () -> Unit,
     onSearch: () -> Unit,
     onChat: () -> Unit,
@@ -171,7 +173,7 @@ internal fun HelpSupportSheetContent(
             OdoChip(stringResource(Res.string.sp_licences), onClick = onLicences)
         }
 
-        VersionFooter(onClick = onSendDiagnostics)
+        VersionFooter(versionName = versionName, versionCode = versionCode, onClick = onSendDiagnostics)
     }
 }
 
@@ -228,12 +230,17 @@ private fun SearchBox(onClick: () -> Unit) {
     }
 }
 
-/** Version + build line; tapping it sends the current session's logs for a support ticket. */
+/**
+ * Version + build line; tapping it sends the current session's logs for a support ticket.
+ *
+ * The build number is shown on every build type, which is the one place Odo does that. It
+ * sits directly above the diagnostics tap, and an agent reading a ticket needs to know
+ * which build produced the logs — the version name alone does not say.
+ */
 @Composable
-private fun VersionFooter(onClick: () -> Unit) {
+private fun VersionFooter(versionName: String, versionCode: Long, onClick: () -> Unit) {
     OdoText(
-        // Sample build stamp — replaced by the real version once it is passed in.
-        stringResource(Res.string.sp_version, SAMPLE_VERSION),
+        stringResource(Res.string.sp_version, versionName, versionCode.toString()),
         style = OdoTheme.typography.caption,
         color = OdoTheme.colors.textMuted,
         textAlign = TextAlign.Center,
@@ -244,5 +251,4 @@ private fun VersionFooter(onClick: () -> Unit) {
     )
 }
 
-private const val SAMPLE_VERSION = "v1.4.0 (build 412)"
 private const val SAMPLE_OPEN_TICKETS = "1"

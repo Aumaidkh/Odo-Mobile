@@ -86,6 +86,7 @@ import com.hopcape.odo.feature.profile.resources.pf_sync_never
 import com.hopcape.odo.feature.profile.resources.pf_sync_blocked
 import com.hopcape.odo.feature.profile.resources.pf_sync_last
 import com.hopcape.odo.feature.profile.resources.pf_version
+import com.hopcape.odo.feature.profile.resources.pf_version_build
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -139,6 +140,7 @@ internal fun ProfileScreen(
             is Loadable.Ready -> ProfileContentColumn(
                 content = content.value,
                 version = state.version,
+                buildNumber = state.buildNumber,
                 sync = state.sync,
                 padding = padding,
                 onEdit = onEdit,
@@ -160,6 +162,7 @@ internal fun ProfileScreen(
 private fun ProfileContentColumn(
     content: ProfileContent,
     version: String,
+    buildNumber: Long?,
     sync: SyncStatus,
     padding: PaddingValues,
     onEdit: () -> Unit,
@@ -249,7 +252,13 @@ private fun ProfileContentColumn(
         SyncDebugRow(sync)
 
         OdoText(
-            stringResource(Res.string.pf_version, version),
+            // The build number only shows where it helps: a tester on a stage build has
+            // several builds of the same version, an owner on the store has one.
+            if (buildNumber == null) {
+                stringResource(Res.string.pf_version, version)
+            } else {
+                stringResource(Res.string.pf_version_build, version, buildNumber.toString())
+            },
             style = OdoTheme.typography.caption,
             color = OdoTheme.colors.textMuted,
             textAlign = TextAlign.Center,

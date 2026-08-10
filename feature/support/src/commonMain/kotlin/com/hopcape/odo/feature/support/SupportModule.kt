@@ -14,6 +14,11 @@ import org.koin.dsl.module
  */
 val supportModule = module {
     single {
-        SupportFeatureEntryProvider(navigationManager = get(), logUploadScheduler = get())
+        SupportFeatureEntryProvider(
+            navigationManager = get(),
+            logUploadScheduler = get(),
+            // AppInfo comes from corePlatformModule — the version shown on the help sheet.
+            appInfo = get(),
+        )
     } bind FeatureEntryProvider::class
 }

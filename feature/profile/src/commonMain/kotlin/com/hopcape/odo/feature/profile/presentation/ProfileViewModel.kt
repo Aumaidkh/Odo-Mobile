@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.platform.app.AppInfo
@@ -30,7 +31,15 @@ internal class ProfileViewModel(
     private val telemetry: ProfileTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ProfileUiState(version = appInfo.versionName))
+    // The version string comes from the installed package (AppInfo), not from BuildInfo, so
+    // it is what was actually shipped. BuildInfo only decides whether the build number is
+    // worth showing — that is a compile-time fact, not something to inject.
+    private val _state = MutableStateFlow(
+        ProfileUiState(
+            version = appInfo.versionName,
+            buildNumber = appInfo.versionCode.takeUnless { BuildInfo.isRelease },
+        ),
+    )
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
     /** The opened event is worth one per visit, not one per emission of the profile flow. */

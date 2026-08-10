@@ -10,6 +10,7 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.resources.Res
@@ -46,6 +47,7 @@ import org.jetbrains.compose.resources.stringResource
 internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
     private val logUploadScheduler: LogUploadScheduler,
+    private val appInfo: AppInfo,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
@@ -53,6 +55,11 @@ internal class SupportFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Support.Help>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
             HelpSupportSheetContent(
+                // Read from the installed package rather than from BuildInfo's compile-time
+                // constants: this line ends up in a support ticket, so it should say what the
+                // owner actually has installed.
+                versionName = appInfo.versionName,
+                versionCode = appInfo.versionCode,
                 onClose = { nm.back() },
                 onSearch = { nm.navigateTo(OdoDestination.Support.Search) },
                 onChat = { nm.navigateTo(OdoDestination.Support.Chat) },
