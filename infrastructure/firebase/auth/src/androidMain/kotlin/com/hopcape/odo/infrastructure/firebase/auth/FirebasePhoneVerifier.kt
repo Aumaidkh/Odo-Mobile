@@ -50,13 +50,17 @@ internal class FirebasePhoneVerifier(
     private var verificationId: String? = null
 
     /**
-     * The credential from auto-retrieval, when the SDK reads the SMS itself.
+     * The credential from a verification the SDK completed by itself.
      *
-     * Kept as a fallback rather than acted on: acting on it would mean signing in while the
-     * owner is still looking at the code screen, and telling them so needs a channel
-     * `AuthGateway` does not have. Using it only if [submitCode] arrives with no
-     * [verificationId] costs nothing and closes the one gap where there would otherwise be
-     * no way to finish.
+     * Not acted on when it arrives: signing in while the owner is still looking at the code
+     * screen needs a way to tell them so, and `AuthGateway` has no channel for it. Held, and
+     * used by [submitCode] only when there is no [verificationId] to pair a typed code with.
+     *
+     * That case is instant verification, where no SMS is sent at all. This is the only thing
+     * that makes it finishable — but the owner is still sitting on a code screen waiting for
+     * a message that is not coming, and has to type six digits that are then ignored. Fixing
+     * that properly means giving the port a way to say "already verified", which is a change
+     * to `:feature:auth`.
      */
     @Volatile
     private var autoRetrieved: PhoneAuthCredential? = null
@@ -80,10 +84,14 @@ internal class FirebasePhoneVerifier(
                     }
 
                     /**
-                     * Reached only if the SDK reads the SMS on this device. [requireSmsValidation]
-                     * below rules out the other case — instant verification, where no message is
-                     * sent at all and `onCodeSent` never fires, which would leave this coroutine
-                     * waiting for a callback that is not coming.
+                     * The SDK verified the number itself — either by reading the SMS on this
+                     * device, or instantly, without one ever being sent.
+                     *
+                     * **Resuming here is what stops the instant case hanging.** No SMS means
+                     * `onCodeSent` never fires, so this is the only callback that arrives, and
+                     * a coroutine waiting for the other one would wait forever. The SDK offers
+                     * no way to turn instant verification off for first-factor sign-in —
+                     * `requireSmsValidation(true)` is multi-factor only and throws here.
                      */
                     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                         autoRetrieved = credential
@@ -110,10 +118,11 @@ internal class FirebasePhoneVerifier(
                         .setTimeout(AUTO_RETRIEVAL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                         .setActivity(activity)
                         .setCallbacks(callbacks)
-                        // Forces a real SMS and a typed code. Without it Firebase may verify
-                        // the number silently and never call onCodeSent, which both hangs the
-                        // callback above and signs someone in without them typing anything.
-                        .requireSmsValidation(true)
+                        // No requireSmsValidation(true), however much it looks like what this
+                        // wants. The SDK rejects it for first-factor sign-in: `build()` throws
+                        // IllegalArgumentException, "You cannot require sms validation without
+                        // setting a multi-factor session". Instant verification is handled in
+                        // onVerificationCompleted instead.
                         .build()
                 )
             }
@@ -212,12 +221,21 @@ internal fun Throwable.toVerifyFailure(): DomainError = when {
 }
 
 /**
- * Firebase's own error code plus the exception type, and never the message.
+ * Enough to act on, without quoting the number.
  *
- * The message can carry the number that was being verified, and a log line is a bug-report
- * line (TDD §12).
+ * A [FirebaseException] gets its type and error code only. Its message routinely echoes the
+ * number being verified, and a log line is a bug-report line (TDD §12).
+ *
+ * Anything else gets its message too. Those come from the SDK arguing with its own arguments
+ * — a builder precondition, a bad timeout — and carry no identifiers. Suppressing them was a
+ * mistake worth not repeating: it turned "you cannot require sms validation without setting a
+ * multi-factor session" into a bare `IllegalArgumentException` and cost an afternoon.
  */
-private fun Throwable.diagnostic(): String {
-    val code = (this as? FirebaseAuthException)?.errorCode
-    return if (code != null) "${this::class.simpleName}/$code" else this::class.simpleName.orEmpty()
+internal fun Throwable.diagnostic(): String {
+    val type = this::class.simpleName.orEmpty()
+    return when {
+        this is FirebaseAuthException -> "$type/$errorCode"
+        this is FirebaseException -> type
+        else -> listOfNotNull(type, message).joinToString(": ")
+    }
 }

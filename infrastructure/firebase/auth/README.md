@@ -52,9 +52,17 @@ security.
 
 ## Things that will bite
 
-- **`requireSmsValidation(true)` is load-bearing.** Without it Firebase can verify a number
-  silently on the same device: `onCodeSent` never fires, so the coroutine waits for a callback
-  that is not coming, and someone gets signed in without typing anything.
+- **Do not add `requireSmsValidation(true)`.** It reads exactly like the switch that forces a
+  real SMS, and it is multi-factor only: for first-factor sign-in `PhoneAuthOptions.build()`
+  throws `IllegalArgumentException`, "You cannot require sms validation without setting a
+  multi-factor session", before anything is sent.
+- **Instant verification is a real path, not a defensive one.** Firebase may verify a number
+  on the same device with no SMS at all, in which case `onCodeSent` never fires and
+  `onVerificationCompleted` is the only callback that arrives. `FirebasePhoneVerifier` resumes
+  on it so nothing hangs, and `submitCode` falls back to the credential it carries. The owner
+  still waits on a code screen for a message that is not coming, then types six digits that
+  are ignored. Fixing that means giving `PhoneVerifier` a way to say "already verified", which
+  is a change to `:feature:auth`.
 - **A number Firebase rejects and a wrong code are different answers.** The mapping in
   `FirebasePhoneVerifier` keeps `InvalidOtp` (retype) apart from `OtpExpired` (resend), because
   the screen offers a different action for each.

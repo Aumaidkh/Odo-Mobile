@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 /**
  * The mapping is where every decision in this adapter lives. Which `DomainError` comes back
@@ -71,5 +72,38 @@ class FirebaseErrorMappingTest {
     @Test
     fun `anything else is not reported as a wrong code`() {
         assertEquals(DomainError.OtpRequestFailed, IOException("offline").toVerifyFailure())
+    }
+
+    /* ---- what reaches the log ---- */
+
+    /**
+     * A Firebase message routinely quotes the number being verified, so only the type and
+     * error code go out (TDD §12).
+     */
+    @Test
+    fun `a Firebase failure is logged without its message`() {
+        val error = FirebaseAuthException("ERROR_INVALID_PHONE_NUMBER", "bad number +919812345678")
+
+        val line = error.diagnostic()
+
+        assertEquals("FirebaseAuthException/ERROR_INVALID_PHONE_NUMBER", line)
+        assertFalse(line.contains("9812345678"), "The number reached a log line")
+    }
+
+    /**
+     * Everything else keeps its message. These come from the SDK arguing with its own
+     * arguments and carry no identifiers — and dropping them once already turned a builder
+     * precondition into a bare `IllegalArgumentException` with nothing to go on.
+     */
+    @Test
+    fun `a plain failure keeps its message, because that is the whole diagnosis`() {
+        val error = IllegalArgumentException(
+            "You cannot require sms validation without setting a multi-factor session."
+        )
+
+        assertEquals(
+            "IllegalArgumentException: You cannot require sms validation without setting a multi-factor session.",
+            error.diagnostic(),
+        )
     }
 }
