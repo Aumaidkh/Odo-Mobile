@@ -42,44 +42,44 @@ data class OdoColors(
     val isDark: Boolean,
 )
 
-internal val DarkOdoColors = OdoColors(
-    bg = OdoPalette.DarkBg,
-    surface = OdoPalette.DarkSurface,
-    surfaceRaised = OdoPalette.DarkSurfaceRaised,
-    border = OdoPalette.DarkBorder,
-    text = OdoPalette.DarkText,
-    textDim = OdoPalette.DarkTextDim,
-    textMuted = OdoPalette.DarkTextMuted,
-    accent = OdoPalette.DarkAccent,
-    onAccent = OdoPalette.OnAccent,
-    success = OdoPalette.DarkSuccess,
-    warning = OdoPalette.DarkWarning,
-    danger = OdoPalette.DarkDanger,
-    isDark = true,
-)
-
-internal val LightOdoColors = OdoColors(
-    bg = OdoPalette.LightBg,
-    surface = OdoPalette.LightSurface,
-    surfaceRaised = OdoPalette.LightSurfaceRaised,
-    border = OdoPalette.LightBorder,
-    text = OdoPalette.LightText,
-    textDim = OdoPalette.LightTextDim,
-    textMuted = OdoPalette.LightTextMuted,
-    accent = OdoPalette.LightAccent,
-    onAccent = OdoPalette.OnAccent,
-    success = OdoPalette.LightSuccess,
-    warning = OdoPalette.LightWarning,
-    danger = OdoPalette.LightDanger,
-    isDark = false,
-)
+//internal val DarkOdoColors = OdoColors(
+//    bg = OdoPalette.DarkBg,
+//    surface = OdoPalette.DarkSurface,
+//    surfaceRaised = OdoPalette.DarkSurfaceRaised,
+//    border = OdoPalette.DarkBorder,
+//    text = OdoPalette.DarkText,
+//    textDim = OdoPalette.DarkTextDim,
+//    textMuted = OdoPalette.DarkTextMuted,
+//    accent = OdoPalette.DarkAccent,
+//    onAccent = OdoPalette.OnAccent,
+//    success = OdoPalette.DarkSuccess,
+//    warning = OdoPalette.DarkWarning,
+//    danger = OdoPalette.DarkDanger,
+//    isDark = true,
+//)
+//
+//internal val LightOdoColors = OdoColors(
+//    bg = OdoPalette.LightBg,
+//    surface = OdoPalette.LightSurface,
+//    surfaceRaised = OdoPalette.LightSurfaceRaised,
+//    border = OdoPalette.LightBorder,
+//    text = OdoPalette.LightText,
+//    textDim = OdoPalette.LightTextDim,
+//    textMuted = OdoPalette.LightTextMuted,
+//    accent = OdoPalette.LightAccent,
+//    onAccent = OdoPalette.OnAccent,
+//    success = OdoPalette.LightSuccess,
+//    warning = OdoPalette.LightWarning,
+//    danger = OdoPalette.LightDanger,
+//    isDark = false,
+//)
 
 /**
  * Active [OdoColors] for the tree. `static` because the value only changes on a
  * full theme swap, not per recomposition. Defaults to the dark set — Odo's
  * brand-default appearance — so a read outside [OdoTheme] still renders on-brand.
  */
-internal val LocalOdoColors = staticCompositionLocalOf { DarkOdoColors }
+internal val LocalOdoColors = staticCompositionLocalOf { TeslaDarkOdoColors }
 
 /**
  * Maps an Odo Health Score (0–100) onto a status colour, on the PRD §5.4 band
