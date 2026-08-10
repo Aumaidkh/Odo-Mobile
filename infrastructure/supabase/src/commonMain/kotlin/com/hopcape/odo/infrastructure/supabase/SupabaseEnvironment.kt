@@ -36,6 +36,15 @@ internal data class SupabaseEnvironment(
     /** GoTrue base — sign-in and token refresh hang off this. */
     val authUrl: String get() = "$normalizedUrl/auth/v1"
 
+    /**
+     * Edge Functions base.
+     *
+     * One function hangs off this: `firebase-session`, which trades a verified phone number
+     * for a session. It is not part of GoTrue, so it does not live under [authUrl] even
+     * though signing in is the only thing it is used for.
+     */
+    val functionsUrl: String get() = "$normalizedUrl/functions/v1"
+
     /** A trailing slash in the configured URL would produce `//rest/v1`, which 404s. */
     private val normalizedUrl: String get() = url.trimEnd('/')
 
