@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
@@ -52,8 +50,12 @@ enum class OdoButtonVariant { Primary, Secondary, Tertiary, Danger }
  * Width follows the [modifier] — pass `Modifier.fillMaxWidth()` for a full-bleed
  * mobile CTA, or leave it to hug its content.
  *
- * @param loading shows a spinner in place of the label and blocks clicks (the
- *   button stays visually enabled, so a submit doesn't look disabled mid-flight).
+ * @param loading shows a spinner and blocks clicks (the button stays visually
+ *   enabled, so a submit doesn't look disabled mid-flight).
+ * @param loadingText what to say while [loading] — shown beside the spinner in
+ *   place of [text]. Pass it whenever the wait is long enough to wonder about: a
+ *   spinner says something is happening, "Sending code…" says what. Left null the
+ *   spinner stands alone, which is right for a button too narrow for both.
  * @param enabled greys the button out and blocks clicks.
  * @param leadingIcon optional icon drawn before the label; inherits the content
  *   colour via [LocalContentColor], so pass an icon that respects it.
@@ -66,6 +68,7 @@ fun OdoButton(
     variant: OdoButtonVariant = OdoButtonVariant.Primary,
     enabled: Boolean = true,
     loading: Boolean = false,
+    loadingText: String? = null,
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     val shape = OdoTheme.shapes.pill
@@ -74,7 +77,7 @@ fun OdoButton(
     val clickable = enabled && !loading
     val sizing = modifier.heightIn(min = OdoTheme.spacing.minTouchTarget)
 
-    val content: @Composable () -> Unit = { OdoButtonContent(text, loading, leadingIcon) }
+    val content: @Composable () -> Unit = { OdoButtonContent(text, loading, loadingText, leadingIcon) }
 
     when (variant) {
         OdoButtonVariant.Primary -> Button(
@@ -129,22 +132,38 @@ fun OdoButton(
 private fun OdoButtonContent(
     text: String,
     loading: Boolean,
+    loadingText: String?,
     leadingIcon: (@Composable () -> Unit)?,
 ) {
-    if (loading) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(OdoTheme.iconSizes.medium),
+    // Spinner alone. Still the default, so every caller that predates `loadingText` looks
+    // exactly as it did.
+    if (loading && loadingText == null) {
+        OdoLoadingIndicator(
+            size = OdoTheme.iconSizes.medium,
+            // Inherit the button's ink, so the arc reads on every variant's fill.
             color = LocalContentColor.current,
-            strokeWidth = 2.dp,
         )
-    } else {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        return
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The spinner takes the leading slot rather than sitting beside the icon: both
+        // answer the same "what is this button doing" question, and while a request is in
+        // flight the spinner is the one that answers it.
+        if (loading) {
+            OdoLoadingIndicator(
+                size = OdoTheme.iconSizes.small,
+                color = LocalContentColor.current,
+            )
+        } else {
             leadingIcon?.invoke()
-            OdoText(text, style = OdoTheme.typography.label)
         }
+        // The early return above already covers loading-with-no-loadingText, so this only
+        // falls back to `text` when nothing is in flight.
+        OdoText(loadingText.takeIf { loading } ?: text, style = OdoTheme.typography.label)
     }
 }
 
@@ -183,7 +202,16 @@ private fun OdoButtonPreview() = OdoPreview {
         OdoButton("Scan bill", onClick = {}, modifier = Modifier.fillMaxWidth())
         OdoButton("Cancel", onClick = {}, variant = OdoButtonVariant.Secondary)
         OdoButton("Learn more", onClick = {}, variant = OdoButtonVariant.Tertiary)
-        OdoButton("Saving…", onClick = {}, loading = true, modifier = Modifier.fillMaxWidth())
+        // Spinner alone — the label is not drawn, so what it says does not matter.
+        OdoButton("Save", onClick = {}, loading = true, modifier = Modifier.fillMaxWidth())
+        // Spinner plus a label that says which wait this is.
+        OdoButton(
+            "Send code",
+            onClick = {},
+            loading = true,
+            loadingText = "Sending code…",
+            modifier = Modifier.fillMaxWidth(),
+        )
         OdoButton("Disabled", onClick = {}, enabled = false)
     }
 }

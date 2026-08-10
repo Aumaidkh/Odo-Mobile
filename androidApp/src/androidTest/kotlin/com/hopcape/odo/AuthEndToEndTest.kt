@@ -82,6 +82,50 @@ class AuthEndToEndTest {
         rule.onNodeWithText(AuthCopy.PHONE_LABEL).assertIsDisplayed()
     }
 
+    /* ------------------------------ Saying what is happening ------------------------------ */
+
+    /**
+     * Sending is not instant — Firebase runs app verification before the SMS is even asked
+     * for, which on a cold Play Services can take seconds. A button that only greyed out read
+     * as "not now" rather than "working", which is what this replaces.
+     */
+    @Test
+    fun whileTheCodeIsBeingSent_theButtonSaysSo() {
+        rule.openSignIn()
+        rule.enterPhoneNumber(AuthFixtures.TYPED_NUMBER)
+        gateway.holdRequests()
+
+        rule.tapSendCode()
+
+        rule.awaitText(AuthCopy.SENDING_CODE)
+        // The idle label is gone, not merely covered — otherwise the screen would be offering
+        // an action it is already performing.
+        rule.onNodeWithText(AuthCopy.SEND_CODE).assertDoesNotExist()
+
+        gateway.release()
+        rule.awaitText(AuthCopy.OTP_TITLE)
+    }
+
+    /**
+     * The code screen has no Verify button — the last digit submits by itself, so a code that
+     * arrives by SMS signs in with nothing tapped. That leaves nowhere to put a spinner, so
+     * the wait is reported where the auto-read card and the countdown were.
+     */
+    @Test
+    fun whileTheCodeIsBeingVerified_theScreenSaysSo() {
+        rule.reachTheCodeScreen()
+        gateway.holdRequests()
+
+        rule.enterCode(AuthFixtures.CODE)
+
+        rule.awaitText(AuthCopy.VERIFYING_CODE)
+        // The card claims to be watching for a code that has already been typed and sent.
+        rule.onNodeWithText(AuthCopy.AUTO_READ_LISTENING).assertDoesNotExist()
+
+        gateway.release()
+        rule.awaitText(AuthCopy.VERIFIED_TITLE)
+    }
+
     @Test
     fun skippingFromTheNumberScreen_returnsWhereItCameFrom_stillSignedOut() {
         rule.openSignIn()
