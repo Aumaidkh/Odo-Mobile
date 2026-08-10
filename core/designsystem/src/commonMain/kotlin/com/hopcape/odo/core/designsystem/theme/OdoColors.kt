@@ -42,7 +42,7 @@ data class OdoColors(
     val isDark: Boolean,
 )
 
-internal val DarkOdoColors = OdoColors(
+ internal val DarkOdoColors = OdoColors(
     bg = OdoPalette.DarkBg,
     surface = OdoPalette.DarkSurface,
     surfaceRaised = OdoPalette.DarkSurfaceRaised,
@@ -79,7 +79,7 @@ internal val LightOdoColors = OdoColors(
  * full theme swap, not per recomposition. Defaults to the dark set — Odo's
  * brand-default appearance — so a read outside [OdoTheme] still renders on-brand.
  */
-internal val LocalOdoColors = staticCompositionLocalOf { DarkOdoColors }
+internal val LocalOdoColors = staticCompositionLocalOf { TeslaDarkOdoColors }
 
 /**
  * Maps an Odo Health Score (0–100) onto a status colour, on the PRD §5.4 band

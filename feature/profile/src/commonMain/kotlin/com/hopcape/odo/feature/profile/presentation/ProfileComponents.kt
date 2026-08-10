@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoCard
@@ -37,6 +38,7 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_cd_avatar
+import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.stringResource
 
 /** A rounded, tinted tile holding a single glyph. */

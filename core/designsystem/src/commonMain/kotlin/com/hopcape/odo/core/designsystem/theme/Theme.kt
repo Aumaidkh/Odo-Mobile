@@ -32,9 +32,9 @@ fun OdoTheme(
     largerText: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val odoColors = if (darkTheme) DarkOdoColors else LightOdoColors
-    val materialScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    val typography = OdoDefaultTypography.scaledBy(if (largerText) OdoLargerTextScale else 1f)
+    val odoColors = if (darkTheme) TeslaDarkOdoColors else TeslaLightOdoColors
+    val materialScheme = if (darkTheme) TeslaDarkColorScheme else TeslaLightColorScheme
+    val typography = odoTypography(OdoFontFamily).scaledBy(if (largerText) OdoLargerTextScale else 1f)
 
     CompositionLocalProvider(
         LocalOdoColors provides odoColors,
