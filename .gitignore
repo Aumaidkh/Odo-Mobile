@@ -57,3 +57,7 @@ keystore/
 # config.toml. Kept local. The leading slash matters — a bare `supabase/` would also
 # match the `infrastructure/supabase` Gradle module.
 /supabase/
+
+# Firebase Hosting: CLI cache, and the pages `web/build.ts` renders.
+.firebase/
+web/public/

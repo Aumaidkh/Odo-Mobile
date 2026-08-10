@@ -1,0 +1,70 @@
+{
+  "hosting": {
+    "public": "web/public",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": ["**/.*"],
+    "redirects": [
+      { "source": "/terms-of-use", "destination": "/terms", "type": 301 },
+      { "source": "/terms-and-conditions", "destination": "/terms", "type": 301 },
+      { "source": "/tos", "destination": "/terms", "type": 301 },
+      { "source": "/tnc", "destination": "/terms", "type": 301 },
+      { "source": "/privacy-policy", "destination": "/privacy", "type": 301 },
+      { "source": "/delete", "destination": "/delete-account", "type": 301 },
+      { "source": "/delete-my-account", "destination": "/delete-account", "type": 301 },
+      { "source": "/account-deletion", "destination": "/delete-account", "type": 301 },
+      { "source": "/data-deletion", "destination": "/delete-account", "type": 301 }
+    ],
+    "//": "One entry per path, repetitive on purpose. Sources must not overlap: a '**' rule alongside the '/delete-account' one wins over it whichever order they are in, which silently put the documents' script-less policy on the one page that runs scripts and broke it. Alternation ('@(/|/privacy|...)') was tried instead and matched nothing at all, so each path is listed on its own. The 404 page answers at any path, so it gets no entry — it carries no script and nothing to protect.",
+    "headers": [
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          { "key": "Cache-Control", "value": "public, max-age=300" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "no-referrer" }
+        ]
+      },
+      {
+        "source": "/privacy",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          { "key": "Cache-Control", "value": "public, max-age=300" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "no-referrer" }
+        ]
+      },
+      {
+        "source": "/terms",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          { "key": "Cache-Control", "value": "public, max-age=300" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "no-referrer" }
+        ]
+      },
+      {
+        "source": "/delete-account",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'unsafe-inline' https://*.gstatic.com https://*.google.com https://*.googleapis.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.google.com https://*.gstatic.com; frame-src https://*.google.com https://*.firebaseapp.com; style-src 'unsafe-inline'; img-src data: https://*.gstatic.com https://*.google.com; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          { "key": "Cache-Control", "value": "no-store" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "no-referrer" }
+        ]
+      }
+    ]
+  }
+}
