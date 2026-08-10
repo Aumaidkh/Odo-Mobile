@@ -52,3 +52,8 @@ keystore/
 # lockfile worth reviewing in a diff.
 .swiftpm-locks/
 /docs/PlayConsole-Readiness-Report.pdf
+
+# The Supabase CLI project at the repo root: the Edge Function, its migrations and
+# config.toml. Kept local. The leading slash matters — a bare `supabase/` would also
+# match the `infrastructure/supabase` Gradle module.
+/supabase/
