@@ -36,19 +36,34 @@ security.
 1. **Blaze plan.** SMS verification has needed a billing account since September 2024; it is
    not available on Spark. Roughly $0.01 per verification in India, first 10 a day free.
 2. **Authentication → Sign-in method → Phone → Enable.**
-3. **SHA fingerprints.** Project settings → Your apps → add the SHA-1 *and* SHA-256 of every
-   signing config: `debug`, `stage` and `release`. Without them Play Integrity fails and every
-   send drops to a reCAPTCHA web view — it still works, but it is a visibly worse flow and the
-   first sign that this step was skipped.
+3. **Authentication → Settings → SMS region policy → Allow → select India.** New projects
+   start with an allowlist that India is not on, as an anti-SMS-pumping default. Until it is,
+   every send fails with `ERROR_OPERATION_NOT_ALLOWED` and status 17006, "SMS unable to be
+   sent until this region enabled by the app developer" — which the generic part of Firebase's
+   own message misreports as the Phone provider being disabled, so step 2 looks like the
+   problem when it is not.
+4. **SHA fingerprints.** Project settings → Your apps → add the SHA-1 *and* SHA-256 of every
+   signing config: `debug`, `stage` and `release`. Missing ones push app verification onto the
+   reCAPTCHA fallback instead of Play Integrity — it still works, but it is a visibly worse
+   flow, and with no reCAPTCHA Enterprise site key configured either there is nothing left to
+   fall back to.
    ```bash
    ./gradlew :androidApp:signingReport
    ```
-   Re-download `google-services.json` afterwards.
-4. **Test numbers.** Authentication → Sign-in method → Phone → Phone numbers for testing. Add
+   Re-download `google-services.json` afterwards. Note the debug build points at a **different
+   Firebase project** (`odo-mobile-dev`, package `com.hopcape.odo.debug`) via
+   `androidApp/src/debug/google-services.json` — every step here has to be done in both.
+5. **Test numbers.** Authentication → Sign-in method → Phone → Phone numbers for testing. Add
    one with a fixed code. The instrumented suite uses it, so CI never sends a real SMS and
    never spends anything.
-5. **The Edge Function and its SQL** — `supabase/README.md`.
-6. `supabase.phoneAuth=true` in `local.properties`, then rebuild.
+6. **The Edge Function and its SQL** — `supabase/README.md`.
+7. `supabase.phoneAuth=true` in `local.properties`, then rebuild.
+
+Whether app verification is working is visible in logcat: `IntegrityService :
+requestIntegrityToken` followed by `onRequestIntegrityToken` means Play Integrity answered. A
+`Failed to initialize reCAPTCHA config: No Recaptcha Enterprise siteKey configured` line on its
+own is not a problem — it is the fallback reporting that it is unavailable, which only matters
+if Play Integrity did not answer.
 
 ## Things that will bite
 
