@@ -25,10 +25,14 @@ import org.junit.runner.RunWith
  * **Why the gateway is faked and nothing else is.** The shipped gateway is one of two things,
  * and neither can be driven: with `supabase.phoneAuth = false` it is the development password
  * account, which makes a real round trip and ignores the code entirely, so no wrong-code path
- * exists to test; with it true it is the real OTP gateway, which needs an SMS provider and a
- * DLT-registered template. [FakeAuthGateway] fills in the seam the app already has, and
- * everything above it — the screens, the ViewModels, the session manager, the secure store,
- * the navigation — is the real thing.
+ * exists to test; with it true it sends a real SMS through Firebase and spends real money to
+ * do it. [FakeAuthGateway] fills in the seam the app already has, and everything above it —
+ * the screens, the ViewModels, the session manager, the secure store, the navigation — is the
+ * real thing.
+ *
+ * What that leaves uncovered is the gateway itself. [PhoneAuthSeamTest] checks the wiring
+ * underneath it; the Firebase round trip needs a console-configured test number and is not
+ * exercised here.
  *
  * The SMS reader is faked for the same kind of reason: Play Services only delivers a message
  * carrying this build's signature hash, so on an emulator the real reader reports nothing for

@@ -102,9 +102,9 @@ private typealias AuthTestRule = AndroidComposeTestRule<ActivityScenarioRule<Mai
  * A sign-in server that answers instantly and never leaves the device.
  *
  * The shipped gateway is either the development password account (a real round trip to
- * Supabase that ignores the code, so no wrong-code path exists) or the real OTP gateway
- * (which needs an SMS provider). Neither can drive a test, and both would make the suite
- * depend on a network. This one is the seam the app already has, filled in.
+ * Supabase that ignores the code, so no wrong-code path exists) or the Firebase bridge, which
+ * sends a real SMS and charges for it. Neither can drive a test, and both would make the
+ * suite depend on a network. This one is the seam the app already has, filled in.
  */
 internal class FakeAuthGateway : AuthGateway {
 
