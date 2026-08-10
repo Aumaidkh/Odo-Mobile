@@ -84,6 +84,10 @@ kotlin {
             // below: resolved through Koin, not constructed directly, so only :shared
             // (which calls initKoin) needs this dependency.
             implementation(projects.infrastructure.firebase.remoteconfig)
+            // firebaseAuthModule — the PhoneVerifier that proves a number before
+            // :infrastructure:supabase's bridge trades it for a session. Listed before
+            // supabaseModule in initKoin, because the bridge resolves this port.
+            implementation(projects.infrastructure.firebase.auth)
             // APM tracer (spans/traces) wired via performanceModule.
             implementation(projects.observability.performance)
             // CrashRecorder wired via crashReportingModule — :core:data's telemetry
