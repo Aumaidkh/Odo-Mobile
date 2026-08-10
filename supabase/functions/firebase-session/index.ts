@@ -16,7 +16,24 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { createRemoteJWKSet, jwtVerify } from 'npm:jose@5'
 
-const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID')!
+/**
+ * Every Firebase project whose tokens this function accepts, comma-separated.
+ *
+ * More than one because the app's build variants do not share a Firebase project — the debug
+ * build authenticates against `odo-mobile-dev` and release against the production project,
+ * while both talk to the same Supabase project. A single id here would 401 every debug
+ * sign-in, which is not obvious from the app's side: the phone verifies, Firebase signs in,
+ * and only the exchange fails.
+ *
+ * It is still a closed list, not a wildcard. Anyone can mint a valid Firebase token for a
+ * project of their own, so "issued by Firebase" proves nothing on its own — "issued by one of
+ * *our* projects" is the check that matters.
+ */
+const FIREBASE_PROJECT_IDS = Deno.env.get('FIREBASE_PROJECT_ID')!
+  .split(',')
+  .map((id) => id.trim())
+  .filter((id) => id.length > 0)
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -54,8 +71,8 @@ Deno.serve(async (req) => {
   let firebaseUid: string
   try {
     const { payload } = await jwtVerify(idToken, FIREBASE_JWKS, {
-      issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
-      audience: FIREBASE_PROJECT_ID,
+      issuer: FIREBASE_PROJECT_IDS.map((id) => `https://securetoken.google.com/${id}`),
+      audience: FIREBASE_PROJECT_IDS,
       algorithms: ['RS256'],
     })
 

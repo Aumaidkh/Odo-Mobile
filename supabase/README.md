@@ -36,7 +36,12 @@ supabase db push
 
 # The one secret that is not injected automatically. SUPABASE_URL,
 # SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY already are.
-supabase secrets set FIREBASE_PROJECT_ID=<firebase-project-id>
+#
+# Comma-separated, and it must list EVERY Firebase project the app signs in
+# against — the debug build uses odo-mobile-dev and release uses the production
+# project, while both talk to this one Supabase project. Miss one and that
+# variant gets a 401 from here after Firebase has already verified the number.
+supabase secrets set FIREBASE_PROJECT_ID=odo-mobile-dev,odo-mobile-ba9aa
 
 supabase functions deploy firebase-session
 ```
