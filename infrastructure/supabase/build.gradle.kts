@@ -79,8 +79,10 @@ val generateSupabaseConfig by tasks.registering {
     val url = (properties.getProperty("supabase.url") ?: System.getenv("SUPABASE_URL")).orEmpty()
     val anonKey =
         (properties.getProperty("supabase.anonKey") ?: System.getenv("SUPABASE_ANON_KEY")).orEmpty()
-    // Off unless asked for. Real phone OTP needs a configured SMS provider and, in India,
-    // TRAI DLT registration — until both exist, turning this on means nobody can sign in.
+    // Off unless asked for. On, sign-in goes through Firebase phone auth and the
+    // firebase-session Edge Function; off, it uses the fixed development account. Turning it
+    // on before the Firebase side is set up (Blaze plan, Phone provider, this build's SHA-256
+    // registered) means nobody can sign in — see infrastructure/firebase/auth/README.md.
     val phoneAuth =
         (properties.getProperty("supabase.phoneAuth") ?: System.getenv("SUPABASE_PHONE_AUTH")) == "true"
 
@@ -113,12 +115,15 @@ val generateSupabaseConfig by tasks.registering {
                 const val ANON_KEY: String = "${anonKey.escaped()}"
 
                 /**
-                 * Whether to sign in with real phone OTP.
+                 * Whether to sign in with a real phone number.
                  *
-                 * False means the development account is used instead, so the whole flow —
-                 * and everything downstream of it — can be exercised while DLT registration
-                 * is pending. Flip `supabase.phoneAuth=true` in local.properties once the
-                 * SMS provider and DLT template are live; no code changes.
+                 * True routes sign-in through Firebase phone auth and the firebase-session
+                 * Edge Function. False uses the fixed development account instead, so the
+                 * whole flow — and everything downstream of it — can be exercised on a
+                 * checkout with no Firebase billing set up.
+                 *
+                 * Flip `supabase.phoneAuth=true` in local.properties once the Firebase side
+                 * is ready (infrastructure/firebase/auth/README.md); no code changes.
                  */
                 const val PHONE_AUTH: Boolean = $phoneAuth
             }
