@@ -1,0 +1,13 @@
+# Supabase CLI project config.
+#
+# Only what this repo actually relies on. Everything else keeps the CLI's defaults — a config
+# that restates them drifts from them silently on the next CLI upgrade.
+#
+# `project_id` is the local Docker stack's name, not the hosted project ref.
+project_id = "odo"
+
+[functions.firebase-session]
+# The caller is signing in and has no Supabase token yet, so there is nothing to verify. The
+# function does its own authentication instead: it will not act on anything that is not a
+# valid, unexpired Firebase ID token for this project, carrying a phone claim.
+verify_jwt = false
