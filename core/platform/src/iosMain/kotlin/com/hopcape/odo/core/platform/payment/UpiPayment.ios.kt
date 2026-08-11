@@ -22,7 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 @Composable
 actual fun rememberUpiPaymentLauncher(
     onResult: (UpiLaunchResult) -> Unit,
-): (String) -> Unit {
+): (List<String>) -> Unit {
     val currentOnResult by rememberUpdatedState(onResult)
     return remember { { currentOnResult(UpiLaunchResult.Unsupported) } }
 }

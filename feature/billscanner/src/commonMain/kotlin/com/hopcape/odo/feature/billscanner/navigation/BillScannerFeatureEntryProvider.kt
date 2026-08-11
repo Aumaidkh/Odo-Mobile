@@ -280,7 +280,7 @@ internal fun PayAtPumpRoute(navigationManager: NavigationManager, payload: Strin
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            is PayAtPumpEffect.LaunchUpi -> launchUpi(effect.link)
+            is PayAtPumpEffect.LaunchUpi -> launchUpi(effect.links)
             // The fill is written, so the errand is over; going back to the viewfinder would
             // invite a second payment for the same tank.
             PayAtPumpEffect.FillSaved -> navigationManager.back()

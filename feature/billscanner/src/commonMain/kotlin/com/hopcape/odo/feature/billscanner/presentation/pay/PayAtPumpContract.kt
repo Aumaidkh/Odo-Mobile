@@ -92,8 +92,14 @@ internal sealed interface PayAtPumpEvent {
 /** One-shot handoffs the route host performs. */
 internal sealed interface PayAtPumpEffect {
 
-    /** Open a UPI app with this `upi://pay?…` link. */
-    data class LaunchUpi(val link: String) : PayAtPumpEffect
+    /**
+     * Open a UPI app with this payment.
+     *
+     * Every link is the same payment written for a different scheme, best first — see
+     * [com.hopcape.odo.core.domain.payment.UpiDeepLink.candidates]. The host offers whichever
+     * ones the phone can actually answer.
+     */
+    data class LaunchUpi(val links: List<String>) : PayAtPumpEffect
 
     /** The fill was written; the flow is done. */
     data object FillSaved : PayAtPumpEffect
