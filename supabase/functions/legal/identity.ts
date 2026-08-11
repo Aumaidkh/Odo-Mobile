@@ -39,7 +39,7 @@ export const IDENTITY = {
    * unrelated redeploy, which is exactly the signal a reader uses to decide whether the
    * terms they agreed to still apply.
    */
-  lastUpdated: '10 August 2026',
+  lastUpdated: '11 August 2026',
 } as const
 
 /** "Odo Technologies Pvt Ltd ("Odo")" when the entity is known, otherwise just "Odo". */
