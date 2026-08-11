@@ -287,21 +287,25 @@ internal class BillScannerTelemetry(
     /**
      * The owner was handed off to a UPI app.
      *
-     * Every payment state transition is logged with its reference and never with the amount
-     * on its own — a figure with nothing to tie it to is untraceable, and the two together
-     * are what makes a disputed fill checkable.
+     * Counted without the amount, the payee or any reference. What the dashboard needs is how
+     * many hand-offs happen and how they end; the details of a single payment are the owner's
+     * and stay on the device.
      */
     fun paymentInitiated() {
         analytics.track(Event.PAYMENT_INITIATED)
         logger.info(TAG, Event.PAYMENT_INITIATED, tc = flowTrace.toLog())
     }
 
-    /** How the payment ended, by status and (when there is one) its bank reference. */
-    fun paymentSettled(status: String, reference: String?) {
-        val fields = buildMap {
-            put(Key.STATUS, status)
-            reference?.let { put(Key.TXN_REF, it) }
-        }
+    /**
+     * How the payment ended, by status only.
+     *
+     * The bank reference is deliberately left out. It identifies a real payment on a real
+     * account, so it belongs in the fill record on the owner's device and nowhere else. The
+     * trace context already ties this event to the rest of the flow, which is what a dashboard
+     * needs; anyone diagnosing one owner's payment has the reference on the fill itself.
+     */
+    fun paymentSettled(status: String) {
+        val fields = mapOf(Key.STATUS to status)
         analytics.track(Event.PAYMENT_SETTLED, fields)
         logger.info(TAG, Event.PAYMENT_SETTLED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -427,7 +431,6 @@ internal class BillScannerTelemetry(
         const val TYPE = "type"
         const val ORIGIN = "origin"
         const val QR_HAS_AMOUNT = "qr_has_amount"
-        const val TXN_REF = "txn_ref"
     }
 
     /** Values for [Key.SOURCE] when it names what was being read. */
