@@ -39,7 +39,7 @@ internal object TeslaPalette {
     val LightBg = Color(0xFFF9FAFF)
     val LightSurface = Color(0xFFFFFFFF)
     val LightSurfaceRaised = Color(0xFFF4F4F4) // "Inset"
-    val LightBorder = Color(0xFFE5E7EB)
+    val LightBorder = Color(0xFFE5E7EB).copy(alpha = 0.8f)
     val LightText = Color(0xFF000000)
     val LightTextDim = Color(0xFF374151)
     val LightTextMuted = Color(0xFF6B7280)
@@ -48,7 +48,7 @@ internal object TeslaPalette {
     val DarkBg = Color(0xFF000000)
     val DarkSurface = Color(0xFF111111)
     val DarkSurfaceRaised = Color(0xFF1C1C1C) // "Elevated"
-    val DarkBorder = Color(0xFF2E2E2E)
+    val DarkBorder = Color(0xFF2E2E2E).copy(alpha = 0.8f)
     val DarkText = Color(0xFFFFFFFF)
     val DarkTextDim = Color(0xFFD1D5DB)
     val DarkTextMuted = Color(0xFF9CA3AF)
