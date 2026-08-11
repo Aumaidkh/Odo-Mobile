@@ -171,3 +171,17 @@ repointCar:
 UPDATE trips
 SET car_id = :serverId
 WHERE car_id = :localId;
+
+-- "Keep trip routes" turned off. Nulls the four coordinates on every row and leaves
+-- everything else, so the trips and their distances survive with nothing left to place
+-- them (docs/PRIVACY_PERMISSIONS_PLAN.md S5).
+--
+-- `updated_at` and `sync_status` are deliberately untouched: these columns never travel
+-- (D4 — TripDto has no coordinate fields), so erasing them changes nothing the server has
+-- and marking the rows PENDING would queue a pointless push of unchanged data.
+forgetRoutes:
+UPDATE trips
+SET start_lat = NULL,
+    start_lon = NULL,
+    end_lat   = NULL,
+    end_lon   = NULL;

@@ -73,4 +73,13 @@ val profileAnalyticsEvents: List<EventSchema> = listOf(
         ProfileTelemetry.Event.DELETE_FAILED,
         mapOf(ProfileTelemetry.Key.ERRORS to PropertyType.STRING),
     ),
+    EventSchema(
+        ProfileTelemetry.Event.ACCOUNT_DELETION_STARTED,
+        mapOf(ProfileTelemetry.Key.HAS_ACCOUNT to PropertyType.BOOLEAN),
+    ),
+    EventSchema(ProfileTelemetry.Event.ACCOUNT_ERASED),
+    EventSchema(
+        ProfileTelemetry.Event.ACCOUNT_ERASE_FAILED,
+        mapOf(ProfileTelemetry.Key.ERRORS to PropertyType.STRING),
+    ),
 )

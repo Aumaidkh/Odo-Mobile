@@ -110,6 +110,17 @@ internal class TripRepositoryImpl(
             }
         }
 
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> =
+        telemetry.span(DataTelemetry.TRIP, OP_FORGET_ROUTES) {
+            try {
+                local.forgetRoutes()
+                Unit.right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.TRIP, OP_FORGET_ROUTES, e)
+                DomainError.PersistenceFailure(e.message).left()
+            }
+        }
+
     private fun Flow<List<Trip>>.reportingFailures(operation: String, id: String): Flow<List<Trip>> =
         catch { cause ->
             telemetry.crashed(DataTelemetry.TRIP, operation, cause, id)
@@ -126,5 +137,6 @@ internal class TripRepositoryImpl(
         const val OP_COUNTED_BETWEEN = "countedBetween"
         const val OP_PARKED_LOCATION = "parkedLocation"
         const val OP_DELETE_ALL_FOR_CAR = "deleteAllForCar"
+        const val OP_FORGET_ROUTES = "forgetRoutes"
     }
 }

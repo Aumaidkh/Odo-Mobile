@@ -39,6 +39,22 @@ sealed interface OdoDestination : NavKey {
         data object Edit : Profile
         /** Notification-settings full screen. */
         data object Notifications : Profile
+        /**
+         * Privacy & permissions full screen — what Odo can reach, and what it keeps.
+         *
+         * Distinct from [Support.Privacy], which is the policy document. This one is
+         * settings the owner changes; that one is text they read. The screen links to it.
+         */
+        data object Privacy : Profile
+        /**
+         * "Delete my account & data" — the whole erase, confirm through to done.
+         *
+         * One destination rather than a confirmation plus a verification screen. The two
+         * steps share the state that matters (the proof of the number, and how far the erase
+         * got), and splitting them across Nav3 entries would mean each getting its own
+         * ViewModel and neither owning the outcome.
+         */
+        data object DeleteAccount : Profile
         /** Units-&-currency sheet. */
         data object Units : Profile
         /** Appearance (theme + text size) sheet. */

@@ -340,6 +340,7 @@ internal class OnboardingViewModel(
         OnboardingStep.FIRST_SCAN -> true
     }
 
+
     /**
      * Save the car, remembering its id so a later pass over this step edits that car rather
      * than adding another. Which of the two it is, is [SaveCarUseCase]'s business.

@@ -22,6 +22,11 @@ import com.hopcape.odo.feature.profile.presentation.ProfileEvent
 import com.hopcape.odo.feature.profile.presentation.ProfileScreen
 import com.hopcape.odo.feature.profile.presentation.ProfileTelemetry
 import com.hopcape.odo.feature.profile.presentation.ProfileViewModel
+import com.hopcape.odo.feature.profile.presentation.privacy.DeleteAccountEffect
+import com.hopcape.odo.feature.profile.presentation.privacy.DeleteAccountScreen
+import com.hopcape.odo.feature.profile.presentation.privacy.DeleteAccountViewModel
+import com.hopcape.odo.feature.profile.presentation.privacy.PrivacyScreen
+import com.hopcape.odo.feature.profile.presentation.privacy.PrivacyViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceSheetContent
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceViewModel
 import com.hopcape.odo.feature.profile.presentation.sheets.ExportDataSheetContent
@@ -50,6 +55,8 @@ internal class ProfileFeatureEntryProvider(
         entry<OdoDestination.Profile.Root> { ProfileRoute(nm) }
         entry<OdoDestination.Profile.Edit> { EditProfileRoute(nm) }
         entry<OdoDestination.Profile.Notifications> { NotificationsRoute(nm) }
+        entry<OdoDestination.Profile.Privacy> { PrivacyRoute(nm) }
+        entry<OdoDestination.Profile.DeleteAccount> { DeleteAccountRoute(nm) }
 
         val sheet = ModalBottomSheetSceneStrategy.bottomSheet()
         entry<OdoDestination.Profile.Units>(metadata = sheet) { UnitsRoute(nm) }
@@ -76,7 +83,7 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onUnits = { navigationManager.navigateTo(OdoDestination.Profile.Units) },
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
-        onPrivacy = { navigationManager.navigateTo(OdoDestination.Support.Privacy) },
+        onPrivacy = { navigationManager.navigateTo(OdoDestination.Profile.Privacy) },
         onHelp = { navigationManager.navigateTo(OdoDestination.Support.Help) },
         onSignIn = {
             viewModel.onEvent(ProfileEvent.SignInStarted)
@@ -124,6 +131,58 @@ private fun NotificationsRoute(navigationManager: NavigationManager) {
         systemNotificationsEnabled = systemSettings.areEnabled(),
         onBack = { navigationManager.back() },
         onDeviceSettings = { systemSettings.open() },
+    )
+}
+
+/**
+ * Privacy & permissions.
+ *
+ * "Privacy policy" goes to support's own key rather than a screen of profile's — the policy
+ * is a document, shared with the Help sheet, and profile never imports another feature.
+ */
+@Composable
+private fun PrivacyRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<PrivacyViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    PrivacyScreen(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = { navigationManager.back() },
+        onPrivacyPolicy = { navigationManager.navigateTo(OdoDestination.Support.Privacy) },
+        onDeleteAccount = { navigationManager.navigateTo(OdoDestination.Profile.DeleteAccount) },
+    )
+}
+
+/**
+ * The account erase.
+ *
+ * Moves on the ViewModel's effect, never on the tap — the same rule the sign-out sheet
+ * learned the hard way. Navigating first would tear the screen down mid-erase, and here that
+ * would abandon an irreversible operation with nothing left to report its outcome to.
+ */
+@Composable
+private fun DeleteAccountRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<DeleteAccountViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            // Nothing of the owner's is left anywhere, so the app is back to first run. The
+            // whole in-app stack goes with it: every screen behind this one is about data
+            // that no longer exists, and back must not be able to re-enter it.
+            DeleteAccountEffect.Deleted -> navigationManager.navigateTo(
+                OdoDestination.Welcome,
+                popUpTo = OdoDestination.Home,
+                inclusive = true,
+            )
+        }
+    }
+
+    DeleteAccountScreen(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onCancel = { navigationManager.back() },
     )
 }
 

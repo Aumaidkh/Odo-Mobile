@@ -284,6 +284,39 @@ sealed interface DomainError {
      */
     data object SessionExpired : DomainError
 
+    /* ---- Account deletion ---- */
+
+    /**
+     * There is no provider account behind this session, so nothing can be re-verified and
+     * nothing can be deleted server-side. Reached on a device that only ever held a local
+     * profile, where the honest outcome is the local wipe on its own.
+     */
+    data object NoVerifiedAccount : DomainError
+
+    /**
+     * The number has to be proved again before the account can go. Not a failure of the
+     * owner's — the erase endpoint refuses any proof older than ten minutes, on purpose,
+     * because an hour-old token is not enough to authorise something irreversible.
+     */
+    data object ReVerificationRequired : DomainError
+
+    /**
+     * The server refused or could not complete the erase. [code] is its own reason string
+     * when it gave one, kept as-is: this ends up in a support conversation about an account
+     * that is still there, and a paraphrase would lose the only clue.
+     */
+    data class AccountEraseFailed(val code: String? = null) : DomainError
+
+    /**
+     * The account is gone from the server but this device still holds a copy — the local
+     * wipe failed after the point of no return.
+     *
+     * Its own case because it is the one outcome that must not be reported as either success
+     * or plain failure: nothing can be recovered by retrying the erase, and the only useful
+     * offer is to retry the wipe.
+     */
+    data object LocalDataSurvivedErase : DomainError
+
     /* ---- Trips ---- */
 
     /** No live trip has this id — it was never written, or has been deleted. */

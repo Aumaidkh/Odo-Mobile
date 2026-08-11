@@ -5,6 +5,7 @@ import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +78,32 @@ class SqlDelightAppSettingsLocalDataSourceTest {
     }
 
     @Test
+    fun save_thenObserve_roundTripsThePrivacySwitches() = runTest {
+        val local = local(newDb())
+        // Both moved away from their defaults, so a column written to the wrong place (or
+        // not written at all) reads back as the default and fails here.
+        val settings = AppSettings(
+            privacy = PrivacyPreferences(keepTripRoutes = true, usageAnalytics = false),
+        )
+
+        local.save(settings)
+
+        assertEquals(settings.privacy, local.observe().first()?.privacy)
+    }
+
+    @Test
+    fun save_twice_keepsThePrivacySwitchesTheSecondWriteCarries() = runTest {
+        val local = local(newDb())
+
+        local.save(AppSettings(privacy = PrivacyPreferences(usageAnalytics = true)))
+        local.save(AppSettings(privacy = PrivacyPreferences(usageAnalytics = false)))
+
+        // The insert is ignored on the second save, so only the UPDATE writes — a privacy
+        // column missing from that statement would leave the owner opted back in.
+        assertEquals(false, local.observe().first()?.privacy?.usageAnalytics)
+    }
+
+    @Test
     fun save_twice_editsTheOneRowInsteadOfDuplicating() = runTest {
         val db = newDb()
         val local = local(db)
@@ -110,6 +137,8 @@ class SqlDelightAppSettingsLocalDataSourceTest {
             trackerEnabled = 0,
             autoOdoPausedUntil = null,
             aoLastAckedTripEndedAt = null,
+            privacyKeepTripRoutes = 0,
+            privacyUsageAnalytics = 1,
             updatedAt = "2026-08-01T10:00:00Z",
         )
 

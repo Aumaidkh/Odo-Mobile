@@ -65,6 +65,7 @@ internal class ProfileSyncTable(
             city = null,
             email = dto.email,
             avatar_path = dto.avatarPath,
+            shares_prices = dto.sharesPrices.toDbLong(),
             created_at = dto.createdAt,
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,
@@ -76,6 +77,9 @@ internal class ProfileSyncTable(
             onboarding_completed_at = dto.onboardingCompletedAt,
             email = dto.email,
             avatar_path = dto.avatarPath,
+            // Unlike the city, this one *is* pulled: the switch belongs to the account, so
+            // a device that syncs must learn that another one turned it off.
+            shares_prices = dto.sharesPrices.toDbLong(),
             created_at = dto.createdAt,
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,
@@ -92,6 +96,7 @@ private fun Profiles.toDto() = ProfileDto(
     onboardingCompletedAt = onboarding_completed_at,
     email = email,
     avatarPath = avatar_path,
+    sharesPrices = shares_prices != 0L,
     createdAt = created_at,
     updatedAt = updated_at,
     deletedAt = deleted_at,

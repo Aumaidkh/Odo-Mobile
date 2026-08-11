@@ -41,6 +41,35 @@
          build. -->
     <string name="sp_version">Odo v%1$s (build %2$s) · tap to copy diagnostics</string>
 
+    <!-- ===================== Privacy policy ===================== -->
+    <!-- The in-app summary. Deliberately short and native rather than a web view: this has
+         to render offline, in the app's own theme, at the owner's text size. The full
+         document is one tap away and is the authoritative one.
+
+         Every claim below must match supabase/functions/legal/pages/privacy.ts. Two are
+         load-bearing and worth re-checking before each release: bill text is read on the
+         device, and trip coordinates never leave the phone. -->
+    <string name="sp_pp_title">Privacy policy</string>
+    <!-- %1$s is the date the hosted documents last changed, %2$s the app-facing revision. -->
+    <string name="sp_pp_revision">Last updated %1$s · %2$s</string>
+
+    <string name="sp_pp_short">The short version</string>
+    <string name="sp_pp_lede">Your bills, documents and car records belong to you. We store them so the app works, and we don\'t sell them or hand them to advertisers.</string>
+
+    <string name="sp_pp_collect">WHAT WE COLLECT</string>
+    <string name="sp_pp_collect_body">Your mobile number, the car details you enter, and anything you scan or upload — bills, insurance, PUC, RC.</string>
+
+    <string name="sp_pp_why">WHY WE COLLECT IT</string>
+    <string name="sp_pp_why_body">To read your bills, check prices against your city, track running costs and remind you before documents expire.</string>
+
+    <string name="sp_pp_share">WHAT WE SHARE</string>
+    <string name="sp_pp_share_body">Only anonymised prices, and only if you left that on — never your name, number, workshop or documents.</string>
+
+    <string name="sp_pp_read_full">Read the full policy</string>
+    <string name="sp_pp_terms">Terms of use</string>
+    <string name="sp_pp_cd_share">Share the privacy policy</string>
+    <string name="sp_pp_cd_opens_browser">Opens in your browser</string>
+
     <!-- Placeholder screens -->
     <string name="sp_soon">Coming soon</string>
     <string name="sp_soon_message">This screen is a placeholder while the support flow is built.</string>

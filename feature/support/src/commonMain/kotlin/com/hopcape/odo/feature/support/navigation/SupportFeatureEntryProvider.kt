@@ -1,9 +1,11 @@
 package com.hopcape.odo.feature.support.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.logging.api.LogUploadScheduler
+import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -11,7 +13,9 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
+import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
 import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_chat
@@ -48,6 +52,7 @@ internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
     private val logUploadScheduler: LogUploadScheduler,
     private val appInfo: AppInfo,
+    private val legalLinks: LegalLinks,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
@@ -91,7 +96,7 @@ internal class SupportFeatureEntryProvider(
         entry<OdoDestination.Support.Rate> { Placeholder(Res.string.sp_rate) }
         entry<OdoDestination.Support.Faqs> { Placeholder(Res.string.sp_faqs) }
         entry<OdoDestination.Support.Terms> { Placeholder(Res.string.sp_terms) }
-        entry<OdoDestination.Support.Privacy> { Placeholder(Res.string.sp_privacy) }
+        entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
         entry<OdoDestination.Support.Licences> { Placeholder(Res.string.sp_licences) }
     }
 
@@ -99,5 +104,36 @@ internal class SupportFeatureEntryProvider(
     @Composable
     private fun Placeholder(title: StringResource) {
         SupportPlaceholderScreen(title = stringResource(title), onBack = { nm.back() })
+    }
+
+    /**
+     * The privacy policy: a native summary, with the full documents a tap away.
+     *
+     * The two outbound rows and the share action are wired to the platform's own link opener
+     * and share sheet rather than to a destination — they leave the app, and pretending
+     * otherwise with an in-app browser would hide the address of a document whose whole point
+     * is being verifiable.
+     *
+     * All three are null on a build with no backend configured, and the screen then leaves
+     * them out. A row that opens nothing is worse on this screen than on any other.
+     */
+    @Composable
+    private fun PrivacyPolicyRoute() {
+        val uriHandler = LocalUriHandler.current
+        val share = rememberTextSharer()
+
+        val privacyUrl: String? = legalLinks.privacyPolicy.takeIf { it.isNotBlank() }
+        val termsUrl: String? = legalLinks.termsOfUse.takeIf { it.isNotBlank() }
+
+        val onShare: (() -> Unit)? = privacyUrl?.let { url -> { share(url) } }
+        val onOpenPrivacy: (() -> Unit)? = privacyUrl?.let { url -> { uriHandler.openUri(url) } }
+        val onOpenTerms: (() -> Unit)? = termsUrl?.let { url -> { uriHandler.openUri(url) } }
+
+        PrivacyPolicyScreen(
+            onBack = { nm.back() },
+            onShare = onShare,
+            onOpenPrivacy = onOpenPrivacy,
+            onOpenTerms = onOpenTerms,
+        )
     }
 }

@@ -5,8 +5,8 @@
   FirebaseRemoteConfig.setDefaultsAsync(int), see LocalRemoteConfigDefaults.android.kt).
 
   Kept in sync by hand with RemoteConfigAppStatusSource's key/value contract
-  (docs/APP_STATUS_PLAN.md §3) and with REMOTE_DEFAULTS, the Kotlin map used on every
-  other platform. Change one, change both.
+  (docs/APP_STATUS_PLAN.md §3), RemoteConfigLegalLinks's, and with the REMOTE_DEFAULTS maps
+  those two declare — the Kotlin copies used on every other platform. Change one, change both.
 -->
 <defaultsMap>
     <entry>
@@ -19,6 +19,28 @@
     </entry>
     <entry>
         <key>maintenance_message</key>
+        <value></value>
+    </entry>
+
+    <!--
+      The published legal pages (docs/PRIVACY_PERMISSIONS_PLAN.md). Set these in the Firebase
+      console to repoint the in-app links — a move to a custom domain, or a correction to a
+      URL that turns out to be wrong, then needs no release.
+
+      Empty here on purpose, and NOT a placeholder to fill in. Empty means "no override", and
+      RemoteConfigLegalLinks then uses the address the build derives from its own Supabase
+      project. Putting a URL here would freeze one project's address into every build.
+    -->
+    <entry>
+        <key>legal_privacy_policy_url</key>
+        <value></value>
+    </entry>
+    <entry>
+        <key>legal_terms_url</key>
+        <value></value>
+    </entry>
+    <entry>
+        <key>legal_delete_account_url</key>
         <value></value>
     </entry>
 </defaultsMap>

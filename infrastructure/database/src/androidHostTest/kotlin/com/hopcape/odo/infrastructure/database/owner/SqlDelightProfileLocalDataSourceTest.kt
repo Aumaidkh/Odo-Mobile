@@ -138,6 +138,7 @@ class SqlDelightProfileLocalDataSourceTest {
             city = null,
             email = null,
             avatarPath = null,
+            sharesPrices = 1,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
         )
@@ -161,6 +162,7 @@ class SqlDelightProfileLocalDataSourceTest {
             city = null,
             email = null,
             avatarPath = null,
+            sharesPrices = 1,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
         )
@@ -187,6 +189,20 @@ class SqlDelightProfileLocalDataSourceTest {
         assertEquals("rahul@example.com", stored?.email?.value)
         assertEquals("Pune", stored?.city)
         assertEquals("avatars/owner-1.jpg", stored?.avatarPath)
+    }
+
+    @Test
+    fun save_persistsPriceSharingOnBothWrites() = runTest {
+        val db = newDb()
+        val local = local(db)
+
+        // The first save inserts, the second updates — the switch has to survive both, and
+        // only the second is what an owner turning it off actually runs.
+        local.save(profile().withPriceSharing(false))
+        assertEquals(false, local.observe().first()?.sharesPricesAnonymously)
+
+        local.save(profile().withPriceSharing(true))
+        assertEquals(true, local.observe().first()?.sharesPricesAnonymously)
     }
 
     @Test
