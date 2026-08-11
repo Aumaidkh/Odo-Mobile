@@ -2,9 +2,12 @@ package com.hopcape.odo.feature.onboarding.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -33,9 +36,10 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 internal class OnboardingFeatureEntryProvider(
     private val navigationManager: NavigationManager,
+    private val legalLinks: LegalLinks,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager) }
+        entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager, legalLinks) }
         entry<OdoDestination.Onboarding> { OnboardingRoute(navigationManager) }
     }
 }
@@ -44,21 +48,31 @@ internal class OnboardingFeatureEntryProvider(
  * The Welcome route. Continue goes straight into car setup — no sign-in first. Odo is
  * offline-first, so first run has to reach a working car without an account; auth is
  * offered *after* setup, and only if there's no session (see [OnboardingEffect.Finish]).
+ *
+ * The two legal taps open the hosted pages in the platform browser, the same hand-off the
+ * privacy screen in `:feature:support` makes. They leave the app on purpose: an in-app
+ * browser would hide the address of a document whose whole point is being verifiable.
  */
 @Composable
-internal fun WelcomeRoute(navigationManager: NavigationManager) {
+internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: LegalLinks) {
     val viewModel = koinViewModel<WelcomeViewModel>()
+    val uriHandler = LocalUriHandler.current
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
-            // TODO(legal): open the hosted Terms / Privacy pages. There is no in-app browser
-            //  capability yet, so the taps are collected and deliberately go nowhere rather
-            //  than opening a blank screen.
-            WelcomeEffect.OpenTerms -> Unit
-            WelcomeEffect.OpenPrivacy -> Unit
+            // A build with no backend configured gets blank URLs, and the tap then does
+            // nothing. The sentence around the links is a legal statement, so unlike the
+            // support screen's rows it has to render either way — there is nothing to hide.
+            WelcomeEffect.OpenTerms -> legalLinks.termsOfUse.openIfSet(uriHandler)
+            WelcomeEffect.OpenPrivacy -> legalLinks.privacyPolicy.openIfSet(uriHandler)
         }
     }
     WelcomeScreen(onEvent = viewModel::onEvent)
+}
+
+/** Opens this URL, or does nothing when the build has no legal pages configured. */
+private fun String.openIfSet(uriHandler: UriHandler) {
+    if (isNotBlank()) uriHandler.openUri(this)
 }
 
 /**

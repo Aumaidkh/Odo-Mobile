@@ -56,5 +56,13 @@ val onboardingModule = module {
         )
     }
 
-    single { OnboardingFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
+    single {
+        OnboardingFeatureEntryProvider(
+            navigationManager = get(),
+            // Where the hosted Terms and Privacy Policy live, for the two links in the
+            // welcome footer. Bound by `supabaseModule` from the configured project URL and
+            // overridable from Remote Config; a build with no backend gets blanks.
+            legalLinks = get(),
+        )
+    } bind FeatureEntryProvider::class
 }
