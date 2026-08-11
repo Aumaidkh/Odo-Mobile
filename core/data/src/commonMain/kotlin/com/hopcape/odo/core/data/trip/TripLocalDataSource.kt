@@ -42,4 +42,12 @@ interface TripLocalDataSource {
 
     /** Hard-deletes every trip, the parked location, and any live session row for [carId] — one transaction. */
     suspend fun deleteAllForCar(carId: CarId)
+
+    /**
+     * Null every stored coordinate and clear the parked locations, leaving the trips.
+     *
+     * Not scoped to a car: "Keep trip routes" is a device switch, so it means every
+     * coordinate on this phone, including any belonging to a car that has since gone.
+     */
+    suspend fun forgetRoutes()
 }

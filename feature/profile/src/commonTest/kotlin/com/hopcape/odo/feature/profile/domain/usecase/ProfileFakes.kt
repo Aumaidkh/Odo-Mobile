@@ -17,10 +17,16 @@ import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.trip.model.ParkedLocation
+import com.hopcape.odo.core.domain.trip.model.Trip
+import com.hopcape.odo.core.domain.trip.model.TripId
+import com.hopcape.odo.core.domain.trip.model.TripStatus
+import com.hopcape.odo.core.domain.trip.repository.TripRepository
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlin.time.Instant
 
 internal val TEST_OWNER = OwnerId("owner-1")
 
@@ -46,6 +52,14 @@ internal fun testCar(id: String = "car-1"): Car = Car.create(
 internal class FakeProfileRepository(
     profile: OwnerProfile? = testProfile(),
     var failing: Boolean = false,
+    /**
+     * Fails [delete] specifically.
+     *
+     * Separate from [failing], which only covers writes: the account-deletion flow needs a
+     * wipe that fails *after* the server erase has already succeeded, and a repository that
+     * refuses to save would never get that far.
+     */
+    var deleteFailing: Boolean = false,
 ) : OwnerProfileRepository {
     val stored = MutableStateFlow(profile)
     var deleteCount = 0
@@ -62,6 +76,7 @@ internal class FakeProfileRepository(
 
     override suspend fun delete(): Either<DomainError, Unit> {
         deleteCount++
+        if (deleteFailing) return DomainError.PersistenceFailure("disk full").left()
         stored.value = null
         return Unit.right()
     }
@@ -127,6 +142,36 @@ internal class FakeFileStore(var failing: Boolean = false) : PlatformFileStore {
         saved += storageKey
         return storageKey.right()
     }
+}
+
+/**
+ * Only what [UpdatePrivacyUseCase] reaches for: the route purge, counted.
+ *
+ * Everything else throws rather than returning a benign default — this fake exists to prove
+ * exactly one call happens or does not, and a silent no-op elsewhere would hide a use case
+ * that started reading trips for some other reason.
+ */
+internal class FakeTripRepository(var failing: Boolean = false) : TripRepository {
+    var forgetCount = 0
+        private set
+
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> {
+        forgetCount++
+        return if (failing) DomainError.PersistenceFailure("disk full").left() else Unit.right()
+    }
+
+    override suspend fun add(trip: Trip): Either<DomainError, Trip> = throw NotImplementedError()
+    override suspend fun addWithParked(trip: Trip, gap: Trip?, parked: ParkedLocation): Either<DomainError, Trip> =
+        throw NotImplementedError()
+    override fun observe(carId: CarId): Flow<List<Trip>> = throw NotImplementedError()
+    override fun observeNeedingConfirmation(carId: CarId): Flow<List<Trip>> = throw NotImplementedError()
+    override suspend fun setStatus(id: TripId, status: TripStatus): Either<DomainError, Unit> =
+        throw NotImplementedError()
+    override suspend fun countedSince(carId: CarId, after: Instant): List<Trip> = throw NotImplementedError()
+    override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> =
+        throw NotImplementedError()
+    override suspend fun parkedLocation(carId: CarId): ParkedLocation? = throw NotImplementedError()
+    override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = throw NotImplementedError()
 }
 
 internal fun entitlement(isPro: Boolean) = ProEntitlement { isPro }

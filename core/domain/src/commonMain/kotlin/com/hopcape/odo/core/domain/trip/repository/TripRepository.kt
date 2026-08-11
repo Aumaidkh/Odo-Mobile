@@ -44,4 +44,21 @@ interface TripRepository {
      * of a real delete, so a push doesn't resurrect the rows on another device.
      */
     suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit>
+
+    /**
+     * Drop every stored coordinate, keeping the trips themselves.
+     *
+     * What "Keep trip routes" turning off has to do to the past, not only the future. The
+     * switch's line reads "only distance is stored", and that has to be true of trips
+     * already recorded or it is not a privacy control — it is a promise about tomorrow.
+     *
+     * Distances survive untouched: they were integrated during the trip, not recomputed
+     * from the points being erased, so nothing the owner sees changes.
+     *
+     * Parked locations go too. They are a coordinate the app kept, which is what the switch
+     * is about. The cost is that GPS-only trips lose their attribution anchor and land as
+     * `NEEDS_CONFIRMATION` until the owner leaves the car somewhere with the switch back on
+     * — the honest trade for asking the app to forget where the car is.
+     */
+    suspend fun forgetRoutes(): Either<DomainError, Unit>
 }

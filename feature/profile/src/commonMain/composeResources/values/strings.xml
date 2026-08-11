@@ -142,4 +142,85 @@
     <string name="pf_sync_never">Never synced on this device</string>
     <string name="pf_sync_last">Last synced %1$s</string>
     <string name="pf_sync_blocked">stuck: %1$s</string>
+
+    <!-- ===================== Privacy & permissions ===================== -->
+    <string name="pf_pv_title">Privacy &amp; permissions</string>
+
+    <!-- Device access. Read-only: Android owns these, and the footnote says so rather than
+         offering a switch that would be a lie. -->
+    <string name="pf_pv_device_access">DEVICE ACCESS</string>
+    <string name="pf_pv_device_lede">What Odo can reach. Everything here is off unless you turned it on.</string>
+    <string name="pf_pv_camera">Camera</string>
+    <string name="pf_pv_camera_sub">Bills, documents, pump QR</string>
+    <string name="pf_pv_location">Location</string>
+    <string name="pf_pv_location_sub">Auto Odometer · while driving</string>
+    <string name="pf_pv_notifications">Notifications</string>
+    <string name="pf_pv_notifications_sub">Renewals and alerts</string>
+    <string name="pf_pv_files">Files</string>
+    <string name="pf_pv_files_sub">Only when you upload one</string>
+    <string name="pf_pv_managed">Managed by Android. Change these in system settings.</string>
+
+    <!-- Permission states. "Asked each time" is the Files row and never changes: the picker
+         asks per document and holds no permission. -->
+    <string name="pf_pv_allowed">Allowed</string>
+    <string name="pf_pv_while_using">While using</string>
+    <string name="pf_pv_always">Always</string>
+    <string name="pf_pv_not_allowed">Not allowed</string>
+    <string name="pf_pv_blocked">Blocked</string>
+    <string name="pf_pv_each_time">Asked each time</string>
+
+    <!-- The three switches. The analytics line deliberately does not mention crash reports:
+         this switch does not control them, and Crashlytics keeps its own gate. -->
+    <string name="pf_pv_usage">HOW YOUR DATA IS USED</string>
+    <string name="pf_pv_share_prices">Share prices anonymously</string>
+    <string name="pf_pv_share_prices_sub">Powers the city benchmark for everyone</string>
+    <string name="pf_pv_routes">Keep trip routes</string>
+    <string name="pf_pv_routes_on">On — start and end points are stored on this phone</string>
+    <string name="pf_pv_routes_off">Off — only distance is stored</string>
+    <string name="pf_pv_analytics">Usage analytics</string>
+    <string name="pf_pv_analytics_sub">Which screens and features you use</string>
+
+    <string name="pf_pv_policy">Privacy policy</string>
+    <string name="pf_pv_delete_account">Delete my account &amp; data</string>
+
+    <!-- ===================== Delete account ===================== -->
+    <string name="pf_da_title">Delete my account &amp; data</string>
+
+    <!-- The confirmation. Says what goes, and that none of it can come back — an owner
+         reaching this screen is about to do the one thing the app cannot undo. -->
+    <string name="pf_da_confirm_heading">This cannot be undone</string>
+    <string name="pf_da_confirm_body">Your car, its full service history, every document you uploaded and your profile will be deleted from this phone and from our servers. Nothing is kept, and nothing can be restored.</string>
+    <!-- Shown only when signed in. %1$s is the masked number, e.g. "•••• 10". -->
+    <string name="pf_da_confirm_code_note">We\'ll text a code to %1$s first, to make sure it\'s you.</string>
+    <string name="pf_da_confirm_local_note">This phone was never signed in, so there is nothing on our servers to delete.</string>
+    <!-- %1$s is the phrase that has to be typed, held in code (DeleteAccountUiState) rather
+         than here: the string the owner types and the string the app compares must be the
+         same one, or a translation would lock out everyone who reads it. -->
+    <string name="pf_da_confirm_phrase_label">Type “%1$s” to confirm</string>
+    <string name="pf_da_confirm_action">Delete everything</string>
+    <string name="pf_da_cancel">Cancel</string>
+
+    <!-- The code step. -->
+    <string name="pf_da_verify_heading">Enter the code</string>
+    <!-- %1$s is the masked number. -->
+    <string name="pf_da_verify_body">Sent to %1$s. Entering it deletes your account straight away.</string>
+    <string name="pf_da_verify_action">Confirm deletion</string>
+    <string name="pf_da_resend">Send it again</string>
+
+    <string name="pf_da_working">Deleting…</string>
+
+    <!-- The account is gone and this phone kept its copy. Neither success nor failure. -->
+    <string name="pf_da_local_failed_heading">Your account is deleted</string>
+    <string name="pf_da_local_failed_body">This phone still has a copy that we couldn\'t remove. Nothing is left on our servers. You can try again, or uninstall Odo to be sure.</string>
+    <string name="pf_da_local_failed_action">Remove it from this phone</string>
+
+    <!-- Errors. Each one says what state the account is actually in, because that is what
+         decides what the owner does next. -->
+    <string name="pf_da_error_code_wrong">That code isn\'t right. Check it and try again.</string>
+    <string name="pf_da_error_code_expired">That code has expired. Ask for a new one.</string>
+    <string name="pf_da_error_no_code">We couldn\'t send the code. Check your connection and try again.</string>
+    <string name="pf_da_error_throttled">Too many codes requested. Wait a moment and try again.</string>
+    <string name="pf_da_error_reverify">We need you to confirm your number again before deleting.</string>
+    <string name="pf_da_error_local_survived">Your account is deleted, but this phone still has a copy.</string>
+    <string name="pf_da_error_failed">We couldn\'t delete your account. Nothing has been removed — please try again.</string>
 </resources>

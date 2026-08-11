@@ -3,6 +3,7 @@ package com.hopcape.odo.infrastructure.firebase.auth
 import com.google.firebase.auth.FirebaseAuth
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
+import com.hopcape.odo.core.domain.auth.VerifiedAccount
 import org.koin.dsl.module
 
 /**
@@ -23,6 +24,17 @@ val firebaseAuthAndroidModule = module {
         FirebasePhoneVerifier(
             auth = FirebaseAuth.getInstance(),
             activities = get(),
+            onDiagnostic = { message -> logger.warn(TAG, message) },
+        )
+    }
+
+    // The account behind that sign-in — read for its number, deleted when the owner erases
+    // their account. Bound here rather than in the shared graph so it replaces the
+    // unavailable one for the same reason the verifier above does.
+    single<VerifiedAccount> {
+        val logger = get<Logger>()
+        FirebaseVerifiedAccount(
+            auth = FirebaseAuth.getInstance(),
             onDiagnostic = { message -> logger.warn(TAG, message) },
         )
     }

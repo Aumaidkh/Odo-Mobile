@@ -223,7 +223,12 @@ private fun ProfileContentColumn(
         SettingsGroup {
             SettingsRow(IcShare, stringResource(Res.string.pf_export), onExport)
             RowDivider()
-            SettingsRow(IcLockFilled, stringResource(Res.string.pf_privacy), onPrivacy)
+            SettingsRow(
+                icon = IcLockFilled,
+                title = stringResource(Res.string.pf_privacy),
+                onClick = onPrivacy,
+                testTag = ProfileTestTags.PRIVACY_ROW,
+            )
         }
 
         Spacer(Modifier.height(OdoTheme.spacing.md))

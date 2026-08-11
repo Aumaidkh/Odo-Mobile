@@ -228,6 +228,9 @@ internal class FakeTripRepository(initial: List<Trip> = emptyList()) : TripRepos
         trips.value.filter { it.status.counted && it.startedAt >= from && it.startedAt <= to }
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? = null
     override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = Unit.right()
+
+    /** "Keep trip routes" turning off. Nothing in the garage reaches for it. */
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> = Unit.right()
 }
 
 internal class FakeVehicleBondStore(initial: VehicleBond? = null) : VehicleBondStore {

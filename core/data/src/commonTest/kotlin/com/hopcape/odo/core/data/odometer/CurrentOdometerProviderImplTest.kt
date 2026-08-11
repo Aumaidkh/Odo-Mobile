@@ -87,6 +87,7 @@ class CurrentOdometerProviderImplTest {
             throw NotImplementedError()
         override suspend fun parkedLocation(carId: CarId): ParkedLocation? = null
         override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = throw NotImplementedError()
+        override suspend fun forgetRoutes(): Either<DomainError, Unit> = throw NotImplementedError()
 
         fun emit(trips: List<Trip>) {
             stored.value = trips

@@ -123,6 +123,8 @@ internal class FakeTripRepository(
     val statusChanges = mutableListOf<Pair<TripId, TripStatus>>()
     val deleteAllCalls = mutableListOf<CarId>()
     var deleteAllResult: Either<DomainError, Unit> = Unit.right()
+    var forgetRoutesCalls = 0
+        private set
 
     override suspend fun add(trip: Trip): Either<DomainError, Trip> {
         trips.update { it + trip }
@@ -156,6 +158,19 @@ internal class FakeTripRepository(
         deleteAllCalls += carId
         if (deleteAllResult.isRight()) trips.value = emptyList()
         return deleteAllResult
+    }
+
+    /**
+     * "Keep trip routes" turning off. Counted rather than no-op'd so a use case here that
+     * starts erasing routes has to say so in a test — nothing in this feature calls it today,
+     * and it should not begin to by accident.
+     *
+     * The trips themselves stay: this drops coordinates, not history. The fake holds no
+     * coordinates to drop, which is why there is nothing else to do.
+     */
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> {
+        forgetRoutesCalls++
+        return Unit.right()
     }
 }
 
