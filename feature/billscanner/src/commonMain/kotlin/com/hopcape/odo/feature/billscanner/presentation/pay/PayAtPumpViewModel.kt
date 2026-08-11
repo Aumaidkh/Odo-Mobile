@@ -123,7 +123,7 @@ internal class PayAtPumpViewModel(
      */
     private fun paymentReturned(response: String?) {
         val result = UpiDeepLink.parseResponse(response)
-        telemetry.paymentSettled(result.status.name, result.transactionRef ?: result.transactionId)
+        telemetry.paymentSettled(result.status.name)
 
         when (result.status) {
             UpiPaymentStatus.Success -> {
