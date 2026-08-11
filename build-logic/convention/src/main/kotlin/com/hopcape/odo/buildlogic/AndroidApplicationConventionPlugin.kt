@@ -111,6 +111,22 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     if (uploadSigning != null) {
                         it.signingConfig = signingConfigs.getByName("upload")
                     }
+                    // Asks AGP to put a native symbol file in the bundle, which is what Play
+                    // wants when it warns "this App Bundle contains native code, and you've
+                    // not uploaded debug symbols".
+                    //
+                    // It produces nothing today, and the warning stays. Odo has no C/C++ of
+                    // its own; all six .so files come from prebuilt dependencies (ML Kit OCR,
+                    // CameraX, androidx graphics and datastore) and every one of them is
+                    // already stripped when it arrives from the AAR, so there is no debug
+                    // info left to extract. Checked at both levels — FULL and SYMBOL_TABLE
+                    // each leave the output directory empty, and the bundle gets no
+                    // BUNDLE-METADATA symbol entry either way. Nothing in the build can
+                    // change that; the symbols would have to come from Google.
+                    //
+                    // Kept because the day this app does ship native code, symbol upload is
+                    // already wired and nobody has to remember it.
+                    it.ndk.debugSymbolLevel = "FULL"
                 }
             }
 
