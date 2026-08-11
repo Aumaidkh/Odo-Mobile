@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Supabase sync, storage uploads and the Edge Functions behind the AI features. Odo
          works fully offline, so nothing here is required for the app to start. -->
@@ -36,6 +37,32 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- The persistent trip-tracking notification, required at runtime on Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Firebase Analytics brings these three in transitively and nothing here asks for them:
+         AD_ID from play-services-measurement-impl, the two ADSERVICES ones from
+         play-services-measurement-api. Odo shows no ads and runs no ad campaigns, so an app
+         that declares them is an app whose Data safety form has to answer "yes, we collect
+         the Advertising ID" — which is the opposite of what the privacy policy says.
+
+         Removing the permission stops Play seeing the declaration. It does not stop the SDK
+         reading the ID on a device where some other app holds the permission, so the two
+         meta-data flags in <application> below turn the collection itself off. Both halves
+         are needed; neither is enough alone.
+
+         The cost is Google Ads attribution and Google Signals (age, gender, interests in the
+         Analytics console). Events, funnels, audiences and every Crashlytics and Performance
+         feature keep working — they run on the App Instance ID, not the Advertising ID. Put
+         all five lines back if Odo ever runs a paid campaign, and update the Data safety form
+         and the privacy policy in the same change. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove" />
 
     <!-- Android 11 hides installed apps from each other unless they are declared here. Without
          this, asking whether anything can take a UPI payment always answers "nothing", and the
@@ -92,6 +119,19 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!-- The runtime half of the AD_ID removal above. The first flag stops Analytics
+             reading the Advertising ID at all; the second stops it marking the events it does
+             send as usable for ad personalisation. Read by the Firebase SDK at startup, so
+             they apply to the automatic events the SDK collects on its own, not only to the
+             ones Odo logs through HAnalytics. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+
         <activity
             android:exported="true"
             android:name=".MainActivity">
