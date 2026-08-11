@@ -11,6 +11,13 @@
 -- benchmarks, so until it is filled the app shows no verdicts at all — which is
 -- the honest outcome, not a degraded one.
 --
+-- `shares_prices` is the "Share prices anonymously" switch
+-- (docs/PRIVACY_PERMISSIONS_PLAN.md). It sits here rather than in `app_settings`
+-- with the other two privacy switches because the server is what has to honour
+-- it: the city benchmark is aggregated there, from rows belonging to this
+-- account, so the answer has to travel with the account rather than sit on one
+-- phone. Defaults to 1 — on, and announced on onboarding's consent card.
+--
 -- Sync columns are the mandatory set from SYNC_DESIGN §4.1; the engine that
 -- reads them lands in M5, but the columns ship with the first migration so
 -- there is nothing to retrofit.
@@ -22,6 +29,7 @@ CREATE TABLE profiles (
     city                    TEXT,
     email                   TEXT,
     avatar_path             TEXT,
+    shares_prices           INTEGER NOT NULL DEFAULT 1,
     created_at              TEXT NOT NULL,
     updated_at              TEXT NOT NULL,
     deleted_at              TEXT,
@@ -40,10 +48,10 @@ CREATE TABLE profiles (
 insertProfile:
 INSERT OR IGNORE INTO profiles (
     id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path,
-    created_at, updated_at, deleted_at, remote_version, sync_status
+    shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status
 ) VALUES (
     :id, :fullName, :onboardingGoal, :onboardingCompletedAt, :city, :email, :avatarPath,
-    :now, :now, NULL, NULL, :syncStatus
+    :sharesPrices, :now, :now, NULL, NULL, :syncStatus
 );
 
 -- `created_at` and `remote_version` are absent on purpose: the first write owns
@@ -57,6 +65,7 @@ SET full_name               = :fullName,
     city                    = :city,
     email                   = :email,
     avatar_path             = :avatarPath,
+    shares_prices           = :sharesPrices,
     updated_at              = :updatedAt,
     sync_status             = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
@@ -124,8 +133,8 @@ WHERE id = :id;
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
 insertFromRemote:
-INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, created_at, updated_at, deleted_at, remote_version, sync_status)
-VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
 
 updateFromRemote:
 UPDATE profiles
@@ -134,6 +143,7 @@ SET full_name = :full_name,
     onboarding_completed_at = :onboarding_completed_at,
     email = :email,
     avatar_path = :avatar_path,
+    shares_prices = :shares_prices,
     created_at = :created_at,
     updated_at = :updated_at,
     deleted_at = :deleted_at,

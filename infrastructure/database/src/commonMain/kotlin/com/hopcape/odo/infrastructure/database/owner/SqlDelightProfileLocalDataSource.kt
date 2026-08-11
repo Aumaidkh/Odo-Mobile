@@ -47,6 +47,7 @@ internal class SqlDelightProfileLocalDataSource(
                 city = profile.city,
                 email = email,
                 avatarPath = profile.avatarPath,
+                sharesPrices = profile.sharesPricesAnonymously.toDbLong(),
                 now = now,
                 syncStatus = SyncStatus.PENDING.name,
             )
@@ -57,6 +58,7 @@ internal class SqlDelightProfileLocalDataSource(
                 city = profile.city,
                 email = email,
                 avatarPath = profile.avatarPath,
+                sharesPrices = profile.sharesPricesAnonymously.toDbLong(),
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING.name,
                 id = profile.id.value,

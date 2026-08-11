@@ -83,6 +83,9 @@ expect fun rememberPermissionController(permission: String): PermissionControlle
  */
 object PlatformPermission {
 
+    /** The camera — bills, documents and the pump's UPI QR. */
+    const val CAMERA: String = "android.permission.CAMERA"
+
     /** Lets the app read the phone's bonded Bluetooth devices (auto-odometer's device picker). */
     const val BLUETOOTH_CONNECT: String = "android.permission.BLUETOOTH_CONNECT"
 

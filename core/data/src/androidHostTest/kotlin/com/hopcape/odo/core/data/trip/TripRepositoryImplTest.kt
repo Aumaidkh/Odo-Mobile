@@ -153,6 +153,25 @@ class TripRepositoryImplTest {
         assertEquals(1, crash.nonFatals.size)
     }
 
+    @Test
+    fun forgetRoutes_success_writesThroughLocal() = runTest {
+        val local = FakeTripLocalDataSource()
+        val result = repo(local).forgetRoutes()
+        assertTrue(result.isRight())
+        assertTrue(local.routesForgotten)
+    }
+
+    @Test
+    fun forgetRoutes_failure_isRecordedAsANonFatal() = runTest {
+        // An owner who turned the switch off and was told nothing would be left holding a
+        // phone that still has their routes on it, so this one has to be loud.
+        val local = FakeTripLocalDataSource(forgetRoutesThrows = RuntimeException("disk full"))
+        val crash = RecordingCrash()
+        val result = repo(local, crash = crash).forgetRoutes()
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
+        assertEquals(1, crash.nonFatals.size)
+    }
+
     // ---- fakes ----
 
     private class FakeTripLocalDataSource(
@@ -163,6 +182,7 @@ class TripRepositoryImplTest {
         private val countedBetweenThrows: Throwable? = null,
         private val parkedLocationResult: ParkedLocation? = null,
         private val deleteAllForCarThrows: Throwable? = null,
+        private val forgetRoutesThrows: Throwable? = null,
     ) : TripLocalDataSource {
         var inserted: Trip? = null
             private set
@@ -203,6 +223,14 @@ class TripRepositoryImplTest {
         override suspend fun deleteAllForCar(carId: CarId) {
             deleteAllForCarThrows?.let { throw it }
             deletedForCar = carId
+        }
+
+        var routesForgotten = false
+            private set
+
+        override suspend fun forgetRoutes() {
+            forgetRoutesThrows?.let { throw it }
+            routesForgotten = true
         }
     }
 

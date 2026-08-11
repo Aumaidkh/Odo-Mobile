@@ -26,17 +26,34 @@ class OwnerProfile private constructor(
     val city: String?,
     val email: OwnerEmail?,
     val avatarPath: String?,
+    val sharesPricesAnonymously: Boolean,
 ) {
     /**
      * Rename the owner. Takes an already-validated [OwnerName], so there is nothing left
      * to check here — the same split as [new].
      */
     fun withName(name: OwnerName): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously)
 
     /** Set or clear the contact email. Null clears it; Odo never requires an address. */
     fun withEmail(email: OwnerEmail?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously)
+
+    /**
+     * Whether the prices on this owner's service logs may feed the city benchmark.
+     *
+     * On the profile rather than in
+     * [AppSettings][com.hopcape.odo.core.domain.settings.model.AppSettings] because it is
+     * the *server* that has to honour it: the benchmark is aggregated there, from rows that
+     * belong to the account, so the answer has to travel with the account rather than sit
+     * on one phone. A device with no account still reads it, from the local placeholder row.
+     *
+     * Turning it off does not withdraw prices already aggregated into a published benchmark
+     * — those are anonymous averages with nothing left to trace back — so the copy on the
+     * switch promises what happens next, not what has already happened.
+     */
+    fun withPriceSharing(shares: Boolean): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, shares)
 
     /**
      * Point at the owner's profile photo, or clear it with null.
@@ -46,7 +63,7 @@ class OwnerProfile private constructor(
      * (`:core:platform`), because the domain does not touch files.
      */
     fun withAvatar(avatarPath: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null })
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null }, sharesPricesAnonymously)
 
     /**
      * Set the owner's home city — the key every fairness benchmark is looked up by
@@ -58,7 +75,7 @@ class OwnerProfile private constructor(
      * the benchmark RPC take end to end; wrapping it here would only unwrap it there.
      */
     fun withCity(city: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath, sharesPricesAnonymously)
 
     /**
      * Whether first-run setup is finished. Stored as a timestamp rather than a boolean
@@ -76,7 +93,7 @@ class OwnerProfile private constructor(
      * call can't rewrite history.
      */
     fun completeOnboarding(at: Instant): OwnerProfile =
-        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath)
+        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath, sharesPricesAnonymously)
 
     companion object {
         /**
@@ -92,6 +109,8 @@ class OwnerProfile private constructor(
             city = null,
             email = null,
             avatarPath = null,
+            // On by default, and onboarding's consent card says so before this is reached.
+            sharesPricesAnonymously = true,
         )
 
         /**
@@ -112,6 +131,7 @@ class OwnerProfile private constructor(
             city: String? = null,
             email: String? = null,
             avatarPath: String? = null,
+            sharesPricesAnonymously: Boolean = true,
         ): OwnerProfile = OwnerProfile(
             id = id,
             name = name?.let {
@@ -122,6 +142,7 @@ class OwnerProfile private constructor(
             city = city,
             email = OwnerEmail.of(email).getOrElse { error("corrupt profile.email for ${id.value}") },
             avatarPath = avatarPath,
+            sharesPricesAnonymously = sharesPricesAnonymously,
         )
     }
 }

@@ -758,6 +758,7 @@ class OnboardingViewModelTest {
         override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { saved.clear() }
     }
 
+
     /** Get the car step to [OnboardingUiState.canContinue] the short way. */
     private fun OnboardingViewModel.answerCarStep() {
         onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))

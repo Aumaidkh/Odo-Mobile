@@ -37,4 +37,33 @@ object ProfileTestTags {
     const val SIGN_OUT_CONFIRM: String = "profile_sign_out_confirm"
     /** The sync diagnostics line under the version. */
     const val SYNC_ROW = "profile_sync_row"
+
+    /** The "Privacy & permissions" row on the profile home. */
+    const val PRIVACY_ROW: String = "profile_privacy_row"
+
+    /*
+     * The four device-access rows. Tagged rather than found by name because their trailing
+     * state is what a test asserts, and "Allowed" appears on three of them at once.
+     */
+    const val PRIVACY_CAMERA_ROW: String = "privacy_camera_row"
+    const val PRIVACY_LOCATION_ROW: String = "privacy_location_row"
+    const val PRIVACY_NOTIFICATIONS_ROW: String = "privacy_notifications_row"
+    const val PRIVACY_FILES_ROW: String = "privacy_files_row"
+
+    /*
+     * The three privacy switches. A switch has no words of its own — the label is a sibling
+     * node — so a test toggling one has nothing else to find it by.
+     */
+    const val PRIVACY_SHARE_PRICES: String = "privacy_share_prices"
+    const val PRIVACY_KEEP_ROUTES: String = "privacy_keep_routes"
+    const val PRIVACY_USAGE_ANALYTICS: String = "privacy_usage_analytics"
+
+    /** The danger row that starts the account erase. */
+    const val PRIVACY_DELETE_ACCOUNT: String = "privacy_delete_account"
+
+    /** The field the confirmation phrase is typed into. */
+    const val DELETE_ACCOUNT_PHRASE: String = "delete_account_phrase"
+
+    /** The confirm button in the delete-account sheet. */
+    const val DELETE_ACCOUNT_CONFIRM: String = "delete_account_confirm"
 }
