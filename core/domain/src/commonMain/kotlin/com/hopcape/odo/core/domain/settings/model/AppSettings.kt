@@ -22,6 +22,8 @@ data class AppSettings(
     val distanceUnit: DistanceUnit = DistanceUnit.Default,
     val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.Default,
     val notifications: NotificationPreferences = NotificationPreferences(),
+    /** What this device may keep and count — see [PrivacyPreferences]. */
+    val privacy: PrivacyPreferences = PrivacyPreferences(),
     /** Automatic trip tracking (docs/TRIPTRACKER_PLAN.md) — off until the owner turns it on. */
     val trackerEnabled: Boolean = false,
     /** Auto-odometer's "Pause for a week" (docs/AUTO_ODOMETER_PLAN.md M7) — tracking stays off until this instant passes. */

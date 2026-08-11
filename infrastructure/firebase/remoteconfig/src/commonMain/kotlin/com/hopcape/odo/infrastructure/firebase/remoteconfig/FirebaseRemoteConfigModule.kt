@@ -3,6 +3,8 @@ package com.hopcape.odo.infrastructure.firebase.remoteconfig
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
+import com.hopcape.odo.core.domain.legal.LegalLinks
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
@@ -19,13 +21,24 @@ val firebaseRemoteConfigModule = module {
         val logger = get<Logger>()
         RealFirebaseRemoteConfigGateway(
             minimumFetchIntervalSeconds = minimumFetchIntervalSeconds(),
-            defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS,
+            // Both consumers' keys, in one call — the SDK takes defaults once per process.
+            // On Android none of this map is read: `remote_config_defaults.xml` is the
+            // canonical copy there (see LocalRemoteConfigDefaults.android.kt).
+            defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS + RemoteConfigLegalLinks.REMOTE_DEFAULTS,
             // Every other Firebase gateway in this repo reports failures the same way — a
             // vendor SDK failure is visible in logs, never a silent no-op and never a throw.
             onDiagnostic = { message -> logger.warn(TAG, message) },
         )
     }
     single<AppStatusSource> { RemoteConfigAppStatusSource(gateway = get()) }
+
+    // Replaces supabaseModule's build-time links, and resolves that one as its fallback —
+    // hence the qualifier. Same later-wins wiring as the AppStatusSource above, with one
+    // difference worth knowing: this decorates rather than discards, so a device that never
+    // reaches Firebase keeps working links instead of losing the privacy policy entirely.
+    single<LegalLinks> {
+        RemoteConfigLegalLinks(gateway = get(), builtIn = get(named(LegalLinks.BUILT_IN)))
+    }
 }
 
 /**

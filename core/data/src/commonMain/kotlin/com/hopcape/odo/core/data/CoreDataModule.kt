@@ -6,6 +6,7 @@ import com.hopcape.odo.core.data.appstatus.MaintenanceAwareSyncGate
 import com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
+import com.hopcape.odo.core.data.auth.OfflineAccountEraser
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
@@ -60,6 +61,7 @@ import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
@@ -189,6 +191,9 @@ val coreDataModule = module {
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
     single<HealthScoreRemoteDataSource> { FakeHealthScoreRemoteDataSource() }
     single<TripRemoteDataSource> { FakeTripRemoteDataSource() }
+    // Not a data source, but the same swap and the same reason: a build with no credentials
+    // has no server account, so erasing one is a no-op rather than a failure.
+    single<AccountEraser> { OfflineAccountEraser() }
     // Development stub: it knows a couple of hardcoded plates so the "is this your
     // car?" path can be walked, and answers RegistrationNotFound for everything else.
     // MUST be swapped for a real adapter before launch — this one line is the swap.

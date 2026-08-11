@@ -27,6 +27,9 @@ kotlin {
             implementation(projects.core.platform)
             // LogUploadScheduler — "Send diagnostics" (docs/LOGGING_PLAN.md §9, L9).
             implementation(projects.observability.logging)
+            // LegalLinks — where the full Privacy Policy and Terms are published. The
+            // in-app summary is native; these are the authoritative documents it links to.
+            implementation(projects.core.domain)
         }
     }
 }

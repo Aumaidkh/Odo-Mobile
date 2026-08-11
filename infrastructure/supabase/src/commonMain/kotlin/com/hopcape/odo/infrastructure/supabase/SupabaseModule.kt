@@ -1,6 +1,7 @@
 package com.hopcape.odo.infrastructure.supabase
 
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
+import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
@@ -11,10 +12,13 @@ import com.hopcape.odo.core.data.reminder.ReminderRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
+import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.logging.api.LogUploadTarget
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
-import com.hopcape.odo.infrastructure.supabase.auth.SupabaseOtpAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -31,6 +35,7 @@ import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClientEngine
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import io.ktor.client.HttpClient
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
@@ -65,18 +70,40 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     // state — the trace comes from the calling coroutine, not from this object.
     single { SupabaseTelemetry(logger = get(), tracer = get(), crash = get()) }
 
+    // Outside the isConfigured branch below, unlike every other binding here: these are
+    // three strings built from the project URL, with no client and nothing to call. An
+    // unconfigured build gets blanks, which is what the screens check before offering a row.
+    //
+    // Bound twice on purpose. The qualified one is what `firebaseRemoteConfigModule` resolves
+    // as the fallback behind the console-configured links; the unqualified one is what a
+    // build without that module (or with Firebase unreachable at wiring time) still answers
+    // with. Koin's later-wins override replaces only the second.
+    single<LegalLinks>(named(LegalLinks.BUILT_IN)) { SupabaseLegalLinks(environment = get()) }
+    single<LegalLinks> { get(named(LegalLinks.BUILT_IN)) }
+
     // The session itself lives in :feature:auth behind AccessTokenProvider. Only minting
     // one is a Supabase concern, and that is this:
     //
     // Which way in. Driven by `supabase.phoneAuth` in local.properties rather than a code
-    // branch, so the day TRAI DLT registration and the SMS provider are live is a config
-    // edit. Until then the development account signs in, which still produces a real JWT
-    // under real row-level security — everything downstream is verified for real.
+    // branch, so turning real sign-in on is a config edit and not a commit. With it off the
+    // development account signs in, which still produces a real JWT under real row-level
+    // security — everything downstream is verified for real.
+    //
+    // The real branch needs a PhoneVerifier, which firebaseAuthModule publishes earlier in
+    // initKoin. Resolved lazily inside the single, so the Android bootstrap's override (bound
+    // last, in the platform module) is the one that wins.
     if (environment.isConfigured) {
+        // Erasing the account server-side. Inside the configured branch because it is a real
+        // HTTP call — an unconfigured build has no account to erase, and the deletion flow
+        // reads DomainError.NoVerifiedAccount and does the local wipe alone.
+        single<AccountEraser> {
+            SupabaseAccountEraser(client = get(), environment = get(), telemetry = get())
+        }
+
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
         single<AuthGateway> {
             if (environment.usePhoneAuth) {
-                SupabaseOtpAuthGateway(endpoint = get())
+                FirebaseBridgeAuthGateway(verifier = get(), endpoint = get())
             } else {
                 DevPasswordAuthGateway(endpoint = get())
             }

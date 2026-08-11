@@ -1,5 +1,10 @@
 package com.hopcape.odo.infrastructure.supabase.auth
 
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import com.hopcape.odo.core.domain.auth.PhoneVerifier
+import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -11,91 +16,120 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * The two ways into a session, against a scripted GoTrue.
+ * The two ways into a session, against a scripted server.
  *
- * The error mapping is the part worth pinning. Three failures look alike over HTTP and mean
- * completely different things to whoever is staring at the code screen: retype it, ask for a
- * new one, or wait.
+ * The bridge gateway is the one that matters. Firebase proves the number and Supabase issues
+ * the session, so a sign-in crosses two systems, and what the code screen shows depends on
+ * which of them said no — retype it, ask for a new one, or wait.
  */
 class SupabaseAuthGatewayTest {
 
     private val phone = PhoneNumber.of("9812345678").getOrNull()!!
 
-    /* ---- phone OTP ---- */
+    /* ---- asking for a code ---- */
 
     @Test
-    fun requestingACodePostsTheNumberInE164() = runTest {
+    fun askingForACodeGoesToTheVerifier_notToSupabase() = runTest {
         val harness = SupabaseTestHarness { MockResponse("{}") }
-        otpGateway(harness).requestOtp(phone)
+        val verifier = FakeVerifier()
 
-        val request = harness.onlyRequest()
-        assertEquals("/auth/v1/otp", request.url.encodedPath)
-        assertContains(request.bodyText(), "+919812345678")
+        val result = bridge(harness, verifier).requestOtp(phone)
+
+        assertTrue(result.isRight())
+        assertEquals(phone, verifier.startedWith)
+        // Supabase has no part in sending the code. A request here would mean the old
+        // GoTrue OTP path had crept back in, which needs DLT registration and does not work.
+        assertTrue(harness.requests.isEmpty())
     }
 
     @Test
-    fun verifyingACodeYieldsASession() = runTest {
-        val harness = SupabaseTestHarness { MockResponse(tokenJson()) }
+    fun aVerifierThatCannotSendIsReportedAsIs() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("{}") }
+        val verifier = FakeVerifier(startResult = DomainError.TooManyOtpRequests(30).left())
 
-        val session = otpGateway(harness).verifyOtp(phone, "123456").getOrNull()
+        assertEquals(
+            DomainError.TooManyOtpRequests(30),
+            bridge(harness, verifier).requestOtp(phone).leftOrNull(),
+        )
+    }
+
+    /* ---- trading a verified number for a session ---- */
+
+    @Test
+    fun aVerifiedNumberIsTradedForARealSession() = runTest {
+        val harness = SupabaseTestHarness { MockResponse(tokenJson()) }
+        val verifier = FakeVerifier(submitResult = VerifiedPhoneToken("firebase-id-token").right())
+
+        val session = bridge(harness, verifier).verifyOtp(phone, "123456").getOrNull()
 
         assertEquals("access-1", session?.accessToken)
+        // A Supabase user id, not the Firebase UID — this is the whole point of the exchange.
         assertEquals(OwnerId("user-1"), session?.ownerId)
-        assertEquals("/auth/v1/verify", harness.onlyRequest().url.encodedPath)
-        // GoTrue needs to be told which kind of code this is.
-        assertContains(harness.onlyRequest().bodyText(), "\"sms\"")
+
+        val request = harness.onlyRequest()
+        assertEquals("/functions/v1/firebase-session", request.url.encodedPath)
+        assertContains(request.bodyText(), "firebase-id-token")
+        assertEquals("123456", verifier.submittedCode)
     }
 
     @Test
-    fun aWrongCodeAndAnExpiredCodeAreDifferentAnswers() = runTest {
-        // Retype vs resend — the screen cannot offer the right one if these collapse.
-        val wrong = SupabaseTestHarness {
-            MockResponse("""{"error_code":"invalid_grant","msg":"Token has expired or is invalid"}""", HttpStatusCode.Forbidden)
-        }
-        assertIs<DomainError.InvalidOtp>(otpGateway(wrong).verifyOtp(phone, "000000").leftOrNull())
+    fun aWrongCodeNeverReachesSupabase() = runTest {
+        val harness = SupabaseTestHarness { MockResponse(tokenJson()) }
+        val verifier = FakeVerifier(submitResult = DomainError.InvalidOtp.left())
 
-        val expired = SupabaseTestHarness {
-            MockResponse("""{"error_code":"otp_expired","msg":"Token has expired"}""", HttpStatusCode.Forbidden)
-        }
-        assertIs<DomainError.OtpExpired>(otpGateway(expired).verifyOtp(phone, "123456").leftOrNull())
+        val error = bridge(harness, verifier).verifyOtp(phone, "000000").leftOrNull()
+
+        assertIs<DomainError.InvalidOtp>(error)
+        // Nothing was proved, so there is nothing to trade. Calling anyway would burn a
+        // round trip on every mistyped digit.
+        assertTrue(harness.requests.isEmpty())
     }
 
+    /**
+     * The ID token expired between the code screen and the exchange, or was minted for
+     * another Firebase project. Either way the proof is gone and a retyped code cannot bring
+     * it back — the owner needs a new one.
+     */
     @Test
-    fun rateLimitingCarriesHowLongToWait() = runTest {
+    fun aRefusedProofReadsAsExpired_soTheOwnerResends() = runTest {
         val harness = SupabaseTestHarness {
-            MockResponse("""{"msg":"too many requests"}""", HttpStatusCode.TooManyRequests, headers = mapOf("Retry-After" to "45"))
+            MockResponse("""{"error_code":"invalid_token"}""", HttpStatusCode.Unauthorized)
         }
+        val verifier = FakeVerifier(submitResult = VerifiedPhoneToken("stale").right())
 
-        val error = otpGateway(harness).requestOtp(phone).leftOrNull()
-
-        // The screen counts down instead of guessing.
-        assertEquals(DomainError.TooManyOtpRequests(45), error)
+        assertIs<DomainError.OtpExpired>(bridge(harness, verifier).verifyOtp(phone, "123456").leftOrNull())
     }
 
     @Test
-    fun aRateLimitWithNoHeaderStillGivesTheScreenANumber() = runTest {
+    fun aFunctionThatFailsIsNotReportedAsAWrongCode() = runTest {
         val harness = SupabaseTestHarness {
-            MockResponse("""{"msg":"too many requests"}""", HttpStatusCode.TooManyRequests)
+            MockResponse("""{"error_code":"session_mint_failed"}""", HttpStatusCode.InternalServerError)
         }
+        val verifier = FakeVerifier(submitResult = VerifiedPhoneToken("good").right())
 
-        assertIs<DomainError.TooManyOtpRequests>(otpGateway(harness).requestOtp(phone).leftOrNull())
-    }
-
-    @Test
-    fun anUnsentCodeIsItsOwnFailure() = runTest {
-        // No SMS provider configured is what this looks like until DLT registration clears.
-        val harness = SupabaseTestHarness {
-            MockResponse("""{"msg":"Error sending sms"}""", HttpStatusCode.InternalServerError)
-        }
-
-        assertIs<DomainError.OtpRequestFailed>(otpGateway(harness).requestOtp(phone).leftOrNull())
+        // Telling someone their code was wrong when the server broke sends them round a loop
+        // that cannot end.
+        assertIs<DomainError.OtpRequestFailed>(bridge(harness, verifier).verifyOtp(phone, "123456").leftOrNull())
     }
 
     /* ---- refresh + sign-out ---- */
+
+    @Test
+    fun refreshIsPureSupabase_theVerifierIsNotInvolved() = runTest {
+        val harness = SupabaseTestHarness { MockResponse(tokenJson()) }
+        val verifier = FakeVerifier()
+
+        val session = bridge(harness, verifier).refresh("refresh-0").getOrNull()
+
+        assertEquals("access-1", session?.accessToken)
+        assertEquals("refresh_token", harness.onlyRequest().url.parameters["grant_type"])
+        assertFalse(verifier.forgotten)
+    }
 
     @Test
     fun aRejectedRefreshIsTerminal() = runTest {
@@ -105,17 +139,36 @@ class SupabaseAuthGatewayTest {
 
         // Not retryable: the token is revoked or past renewal, so the caller goes offline
         // rather than looping.
-        assertIs<DomainError.SessionExpired>(otpGateway(harness).refresh("revoked").leftOrNull())
+        assertIs<DomainError.SessionExpired>(bridge(harness, FakeVerifier()).refresh("revoked").leftOrNull())
     }
 
     @Test
-    fun signOutSendsTheTokenItIsRevoking() = runTest {
+    fun signOutRevokesTheSessionAndDropsTheFirebaseUser() = runTest {
         val harness = SupabaseTestHarness { MockResponse("{}", HttpStatusCode.NoContent) }
+        val verifier = FakeVerifier()
 
-        otpGateway(harness).signOut("access-1")
+        bridge(harness, verifier).signOut("access-1")
 
         assertEquals("/auth/v1/logout", harness.onlyRequest().url.encodedPath)
         assertEquals("Bearer access-1", harness.onlyRequest().headers["Authorization"])
+        assertTrue(verifier.forgotten)
+    }
+
+    /**
+     * Firebase keeps its own signed-in user, independently of Odo's session. Leaving one
+     * behind because the server was unreachable means the next person to open the app on this
+     * device is already verified as the last one.
+     */
+    @Test
+    fun theFirebaseUserIsDroppedEvenWhenTheServerRefuses() = runTest {
+        val harness = SupabaseTestHarness {
+            MockResponse("{}", HttpStatusCode.InternalServerError)
+        }
+        val verifier = FakeVerifier()
+
+        bridge(harness, verifier).signOut("access-1")
+
+        assertTrue(verifier.forgotten)
     }
 
     /* ---- the development gateway ---- */
@@ -145,7 +198,8 @@ class SupabaseAuthGatewayTest {
 
     /* ---- scaffolding ---- */
 
-    private fun otpGateway(harness: SupabaseTestHarness) = SupabaseOtpAuthGateway(endpoint(harness))
+    private fun bridge(harness: SupabaseTestHarness, verifier: PhoneVerifier) =
+        FirebaseBridgeAuthGateway(verifier = verifier, endpoint = endpoint(harness))
 
     private fun devGateway(harness: SupabaseTestHarness) = DevPasswordAuthGateway(endpoint(harness))
 
@@ -159,4 +213,32 @@ class SupabaseAuthGatewayTest {
         {"access_token":"access-1","refresh_token":"refresh-1","expires_in":3600,
          "user":{"id":"user-1"}}
     """.trimIndent()
+
+    private class FakeVerifier(
+        private val startResult: Either<DomainError, Unit> = Unit.right(),
+        private val submitResult: Either<DomainError, VerifiedPhoneToken> =
+            VerifiedPhoneToken("token").right(),
+    ) : PhoneVerifier {
+
+        var startedWith: PhoneNumber? = null
+            private set
+        var submittedCode: String? = null
+            private set
+        var forgotten: Boolean = false
+            private set
+
+        override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit> {
+            startedWith = phone
+            return startResult
+        }
+
+        override suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken> {
+            submittedCode = code
+            return submitResult
+        }
+
+        override suspend fun forget() {
+            forgotten = true
+        }
+    }
 }

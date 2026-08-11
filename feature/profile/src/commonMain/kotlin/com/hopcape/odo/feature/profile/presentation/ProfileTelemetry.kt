@@ -201,6 +201,48 @@ internal class ProfileTelemetry(
         result
     }
 
+    /**
+     * The owner committed to erasing their account.
+     *
+     * Counted at the confirmation rather than at the end, because the gap between this and
+     * [Event.ACCOUNT_ERASED] is the number worth watching: someone who starts a deletion and
+     * never finishes it hit something, and the OTP round trip is the likeliest place.
+     *
+     * [hasAccount] separates the two shapes of the flow — a server erase plus a wipe, or a
+     * wipe alone.
+     */
+    fun accountDeletionStarted(hasAccount: Boolean) {
+        val fields = mapOf(Key.HAS_ACCOUNT to hasAccount)
+        analytics.track(Event.ACCOUNT_DELETION_STARTED, fields)
+        logger.warn(TAG, Event.ACCOUNT_DELETION_STARTED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /**
+     * Times the erase and records the outcome.
+     *
+     * The most destructive thing the app can do, and unlike the local wipe it reaches a
+     * server, so both outcomes are logged at warn or error — this is the trail someone reads
+     * when an owner says their account is still there.
+     */
+    suspend fun <T> accountErase(
+        write: suspend () -> Either<DomainError, T>,
+    ): Either<DomainError, T> = traced(Trace.DELETE_ACCOUNT) { span ->
+        val result = write()
+        result.fold(
+            ifLeft = { error ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                val fields = mapOf(Key.ERRORS to error.typeName())
+                analytics.track(Event.ACCOUNT_ERASE_FAILED, fields)
+                logger.error(TAG, Event.ACCOUNT_ERASE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
+            },
+            ifRight = {
+                analytics.track(Event.ACCOUNT_ERASED)
+                logger.warn(TAG, Event.ACCOUNT_ERASED, tc = currentTraceContext().toLog())
+            },
+        )
+        result
+    }
+
     /* ------------------------------ Plumbing ------------------------------ */
 
     /**
@@ -259,6 +301,9 @@ internal class ProfileTelemetry(
         const val SIGNED_OUT = "profile_signed_out"
         const val DATA_DELETED = "profile_data_deleted"
         const val DELETE_FAILED = "profile_delete_failed"
+        const val ACCOUNT_DELETION_STARTED = "profile_account_deletion_started"
+        const val ACCOUNT_ERASED = "profile_account_erased"
+        const val ACCOUNT_ERASE_FAILED = "profile_account_erase_failed"
     }
 
     /** Span names for the feature's async operations. */
@@ -267,6 +312,7 @@ internal class ProfileTelemetry(
         const val SAVE_AVATAR = "profile_save_avatar"
         const val SAVE_SETTING = "profile_save_setting"
         const val DELETE_DATA = "profile_delete_data"
+        const val DELETE_ACCOUNT = "profile_delete_account"
         const val SIGN_OUT = "profile_sign_out"
     }
 
@@ -283,6 +329,9 @@ internal class ProfileTelemetry(
         const val SETTING = "setting"
         const val VALUE = "value"
         const val TARGET = "target"
+
+        /** Whether a deletion has a server account behind it, or is a local wipe alone. */
+        const val HAS_ACCOUNT = "has_account"
     }
 
     /** Values for [Key.OUTCOME]. */
@@ -298,6 +347,8 @@ internal class ProfileTelemetry(
         const val UNITS = "units"
         const val APPEARANCE = "appearance"
         const val SIGN_OUT = "sign_out"
+        const val PRIVACY = "privacy"
+        const val DELETE_ACCOUNT = "delete_account"
     }
 
     /** Values for [Key.SETTING] — which slice of the settings a write touched. */
@@ -307,6 +358,17 @@ internal class ProfileTelemetry(
         const val DISTANCE_UNIT = "distance_unit"
         const val FUEL_EFFICIENCY_UNIT = "fuel_efficiency_unit"
         const val NOTIFICATIONS = "notifications"
+
+        /*
+         * The three privacy switches. Worth counting separately rather than as one
+         * "privacy" slice: how many owners keep price sharing on decides whether the city
+         * benchmark has enough behind it to be worth showing at all, and an analytics
+         * opt-out rate is the number that says whether the rest of the dashboard can be
+         * trusted as a sample.
+         */
+        const val SHARE_PRICES = "share_prices"
+        const val KEEP_TRIP_ROUTES = "keep_trip_routes"
+        const val USAGE_ANALYTICS = "usage_analytics"
     }
 
     /** Values for [Key.TARGET] on an export request. */

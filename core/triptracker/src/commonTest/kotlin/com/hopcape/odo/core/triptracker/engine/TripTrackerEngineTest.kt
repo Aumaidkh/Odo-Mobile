@@ -15,6 +15,9 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.settings.model.AppSettings
+import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.trip.model.GeoPoint
 import com.hopcape.odo.core.domain.trip.model.ParkedLocation
@@ -51,6 +54,7 @@ import com.hopcape.performance.api.Span
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -331,6 +335,9 @@ class TripTrackerEngineTest {
                 routeEstimator = CurvatureFactorRouteEstimator(config),
                 config = config,
                 telemetry = telemetry,
+                // On, so these tests keep exercising the coordinate-carrying path they
+                // were written for. The off path has its own test in TripFinalizerTest.
+                settings = FakeSettings(keepTripRoutes = true),
             ),
             telemetry = telemetry,
             config = config,
@@ -481,6 +488,19 @@ private class FakeTripRepository(var parked: ParkedLocation?) : TripRepository {
     override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> = emptyList()
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? = parked
     override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = Unit.right()
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> = Unit.right()
+}
+
+/** Settings holding just the one flag the finalizer reads. */
+private class FakeSettings(keepTripRoutes: Boolean = true) : AppSettingsRepository {
+    private val stored = MutableStateFlow(
+        AppSettings.Default.copy(privacy = PrivacyPreferences(keepTripRoutes = keepTripRoutes)),
+    )
+    override fun observe(): Flow<AppSettings> = stored
+    override suspend fun save(settings: AppSettings): Either<DomainError, AppSettings> {
+        stored.value = settings
+        return settings.right()
+    }
 }
 
 private object FakeIdGenerator : IdGenerator {

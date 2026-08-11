@@ -10,6 +10,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformIosModule
 import com.hopcape.odo.core.triptracker.tripTrackerIosModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
@@ -17,6 +18,11 @@ import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.infrastructure.firebase.analytics.configureFirebaseForIos
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.Platform
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatform
 import platform.Foundation.NSBundle
@@ -110,10 +116,21 @@ private fun configureAnalytics(isDebugBuild: Boolean) {
             onDiagnostic = onFirebaseDiagnostic,
         )
     )
-    // TODO(consent): the real DPDP consent flow must own this gate. Granting here so the
-    //  acquisition funnel is observable during development; before launch, drive
-    //  setConsent() from the user's recorded consent decision.
-    HAnalytics.setConsent(ConsentStatus.GRANTED)
+    // The gate starts closed (UNKNOWN tracks nothing) and is opened from the owner's stored
+    // answer, the same `AppSettings.privacy.usageAnalytics` the privacy screen writes.
+    //
+    // A one-shot read rather than the Android side's live collection: this bootstrap has no
+    // long-lived scope to hang a collector on, and the privacy screen applies the change
+    // directly when the switch moves, so the only gap is a second app entry point turning it
+    // off — which iOS does not have.
+    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+        val granted = KoinPlatform.getKoin().get<AppSettingsRepository>()
+            .observe()
+            .first()
+            .privacy
+            .usageAnalytics
+        HAnalytics.setConsent(if (granted) ConsentStatus.GRANTED else ConsentStatus.DENIED)
+    }
 }
 
 private const val UNKNOWN_APP_VERSION = "—"

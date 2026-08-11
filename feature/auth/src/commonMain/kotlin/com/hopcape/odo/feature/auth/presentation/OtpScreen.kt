@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +27,7 @@ import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoOtpField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -44,6 +46,7 @@ import com.hopcape.odo.feature.auth.resources.au_resend_exhausted
 import com.hopcape.odo.feature.auth.resources.au_resend_in
 import com.hopcape.odo.feature.auth.resources.au_skip
 import com.hopcape.odo.feature.auth.resources.au_still_not
+import com.hopcape.odo.feature.auth.resources.au_verifying_code
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -69,6 +72,7 @@ internal fun OtpScreen(
     val phone = state.maskedPhone
     val isError = state.isError
     val code = state.code
+    val isVerifying = state.submission.isInFlight
 
     OdoScreen {
         Column(
@@ -114,7 +118,25 @@ internal fun OtpScreen(
             )
             Spacer(Modifier.height(OdoTheme.spacing.lg))
 
-            if (isError) {
+            if (isVerifying) {
+                // There is no Verify button to put a spinner on — the last digit submits by
+                // itself, so the code can arrive by SMS without anything being tapped. This
+                // takes the slot the auto-read card and the resend countdown share, both of
+                // which are answering a question that has already moved on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OdoLoadingIndicator(size = OdoTheme.iconSizes.small)
+                    Spacer(Modifier.width(OdoTheme.spacing.sm))
+                    OdoText(
+                        stringResource(Res.string.au_verifying_code),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+            } else if (isError) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,

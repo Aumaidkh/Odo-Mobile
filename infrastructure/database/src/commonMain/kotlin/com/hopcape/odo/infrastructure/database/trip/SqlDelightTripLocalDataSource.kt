@@ -106,4 +106,13 @@ internal class SqlDelightTripLocalDataSource(
             sessionQueries.clearSessionForCar(carId.value)
         }
     }
+
+    override suspend fun forgetRoutes() {
+        // One transaction: an owner who turns the switch off and force-quits mid-write must
+        // not be left with the trips wiped and the parked location still on disk.
+        database.transaction {
+            queries.forgetRoutes()
+            parkedQueries.deleteAllRows()
+        }
+    }
 }

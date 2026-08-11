@@ -13,6 +13,7 @@ import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -25,10 +26,14 @@ import org.junit.runner.RunWith
  * **Why the gateway is faked and nothing else is.** The shipped gateway is one of two things,
  * and neither can be driven: with `supabase.phoneAuth = false` it is the development password
  * account, which makes a real round trip and ignores the code entirely, so no wrong-code path
- * exists to test; with it true it is the real OTP gateway, which needs an SMS provider and a
- * DLT-registered template. [FakeAuthGateway] fills in the seam the app already has, and
- * everything above it — the screens, the ViewModels, the session manager, the secure store,
- * the navigation — is the real thing.
+ * exists to test; with it true it sends a real SMS through Firebase and spends real money to
+ * do it. [FakeAuthGateway] fills in the seam the app already has, and everything above it —
+ * the screens, the ViewModels, the session manager, the secure store, the navigation — is the
+ * real thing.
+ *
+ * What that leaves uncovered is the gateway itself. [PhoneAuthSeamTest] checks the wiring
+ * underneath it; the Firebase round trip needs a console-configured test number and is not
+ * exercised here.
  *
  * The SMS reader is faked for the same kind of reason: Play Services only delivers a message
  * carrying this build's signature hash, so on an emulator the real reader reports nothing for
@@ -68,6 +73,17 @@ class AuthEndToEndTest {
         rule.activityRule.scenario.recreate()
     }
 
+    /**
+     * Leave the device signed out, whatever the test did to it.
+     *
+     * Not covered by [startSignedOutOnASetUpDevice], which only protects this class. Most of
+     * these tests finish signed in, and the session outlives the class — the next one to run
+     * then starts with a session it never asked for, which is enough to make the profile show
+     * "Sign out" where a test expects "Sign in".
+     */
+    @After
+    fun endSignedOut() = clearSession()
+
     /* ------------------------------ Getting in and out ------------------------------ */
 
     @Test
@@ -76,6 +92,50 @@ class AuthEndToEndTest {
 
         rule.onNodeWithText(AuthCopy.PHONE_TITLE).assertIsDisplayed()
         rule.onNodeWithText(AuthCopy.PHONE_LABEL).assertIsDisplayed()
+    }
+
+    /* ------------------------------ Saying what is happening ------------------------------ */
+
+    /**
+     * Sending is not instant — Firebase runs app verification before the SMS is even asked
+     * for, which on a cold Play Services can take seconds. A button that only greyed out read
+     * as "not now" rather than "working", which is what this replaces.
+     */
+    @Test
+    fun whileTheCodeIsBeingSent_theButtonSaysSo() {
+        rule.openSignIn()
+        rule.enterPhoneNumber(AuthFixtures.TYPED_NUMBER)
+        gateway.holdRequests()
+
+        rule.tapSendCode()
+
+        rule.awaitText(AuthCopy.SENDING_CODE)
+        // The idle label is gone, not merely covered — otherwise the screen would be offering
+        // an action it is already performing.
+        rule.onNodeWithText(AuthCopy.SEND_CODE).assertDoesNotExist()
+
+        gateway.release()
+        rule.awaitText(AuthCopy.OTP_TITLE)
+    }
+
+    /**
+     * The code screen has no Verify button — the last digit submits by itself, so a code that
+     * arrives by SMS signs in with nothing tapped. That leaves nowhere to put a spinner, so
+     * the wait is reported where the auto-read card and the countdown were.
+     */
+    @Test
+    fun whileTheCodeIsBeingVerified_theScreenSaysSo() {
+        rule.reachTheCodeScreen()
+        gateway.holdRequests()
+
+        rule.enterCode(AuthFixtures.CODE)
+
+        rule.awaitText(AuthCopy.VERIFYING_CODE)
+        // The card claims to be watching for a code that has already been typed and sent.
+        rule.onNodeWithText(AuthCopy.AUTO_READ_LISTENING).assertDoesNotExist()
+
+        gateway.release()
+        rule.awaitText(AuthCopy.VERIFIED_TITLE)
     }
 
     @Test
@@ -171,11 +231,13 @@ class AuthEndToEndTest {
     fun aCodeArrivingBySms_signsInWithoutAnythingBeingTyped() {
         installSmsReader(SmsCodeStatus.Received(AuthFixtures.CODE))
 
-        rule.reachTheCodeScreen()
+        // Stops at the request, rather than waiting for the code screen: the reader hands the
+        // code over on that screen's first frame, so "Enter the code" is already on its way
+        // out and a wait for it is a race.
+        rule.requestTheCode()
 
-        // The card's "filled" state is deliberately not asserted: the code verifies the
-        // instant it lands, so that frame races the hand-off. What matters is that nothing
-        // was typed and the owner is signed in.
+        // The card's "filled" state is deliberately not asserted either, for the same reason.
+        // What matters is that nothing was typed and the owner is signed in.
         rule.awaitText(AuthCopy.VERIFIED_TITLE, timeoutMillis = AUTH_HANDOFF_TIMEOUT_MILLIS)
         assertEquals(AuthFixtures.ACCESS_TOKEN, storedAccessToken())
     }

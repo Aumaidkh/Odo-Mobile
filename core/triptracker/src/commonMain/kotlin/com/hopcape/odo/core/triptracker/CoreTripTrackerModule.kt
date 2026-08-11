@@ -42,6 +42,9 @@ val coreTripTrackerModule = module {
             routeEstimator = get(),
             config = get(),
             telemetry = get(),
+            // "Keep trip routes" — read per trip, so turning it off applies to the drive
+            // already underway rather than only the next one.
+            settings = get(),
         )
     }
 

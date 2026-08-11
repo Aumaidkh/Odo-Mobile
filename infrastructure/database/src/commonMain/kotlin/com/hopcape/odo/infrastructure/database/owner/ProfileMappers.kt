@@ -22,4 +22,8 @@ internal fun Profiles.toDomain(): OwnerProfile = OwnerProfile.reconstitute(
     city = city,
     email = email,
     avatarPath = avatar_path,
+    sharesPricesAnonymously = shares_prices != 0L,
 )
+
+/** SQLite has no boolean type; the column is a 0/1 integer. */
+internal fun Boolean.toDbLong(): Long = if (this) 1L else 0L
