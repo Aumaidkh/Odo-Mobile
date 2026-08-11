@@ -85,12 +85,34 @@ class BillScannerEndToEndTest {
         rule.openScanner()
 
         rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
-        rule.onNodeWithText(ScanCopy.ALIGN_BILL).assertIsDisplayed()
-        // All three targets are offered, and the fallback to typing it in is always there.
+        // Same race as the document mode: the edge detector may already have replaced the
+        // align copy by the time this runs, and that is the app working, not failing.
+        rule.awaitGuidance(ScanCopy.ALIGN_BILL, ScanCopy.EDGES_DETECTED, ScanCopy.EDGES_PINNED)
+        // The two paper modes are always offered, and the fallback to typing it in is
+        // always there. Whether Pay QR joins them is the flag's business, below.
         rule.onNodeWithText(ScanCopy.MODE_BILL).assertIsDisplayed()
         rule.onNodeWithText(ScanCopy.MODE_DOCUMENT).assertIsDisplayed()
-        rule.onNodeWithText(ScanCopy.MODE_QR).assertIsDisplayed()
         rule.onNodeWithText(ScanCopy.MANUAL).assertIsDisplayed()
+    }
+
+    @Test
+    fun theScannerOffersPayQrWhenPaymentsAreOn() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
+        rule.openScanner()
+        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
+
+        rule.onNodeWithText(ScanCopy.MODE_QR).assertIsDisplayed()
+    }
+
+    @Test
+    fun theScannerHasNoPayQrModeWhilePaymentsAreOff() {
+        assumeFalse(FeatureFlags.PAY_VIA_QR_ENABLED)
+        rule.openScanner()
+        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
+
+        // The chip is the only way into the payment mode, so its absence is the whole
+        // feature being off — no QR is read, and nothing can reach the pay screen.
+        assertEquals(0, rule.textCount(ScanCopy.MODE_QR))
     }
 
     @Test
@@ -121,11 +143,16 @@ class BillScannerEndToEndTest {
 
         rule.selectScanMode(ScanCopy.MODE_DOCUMENT)
         rule.awaitText(ScanCopy.SCAN_TITLE_DOCUMENT)
-        rule.onNodeWithText(ScanCopy.ALIGN_DOCUMENT).assertIsDisplayed()
+        // Either the align copy or what the edge detector replaced it with — both are this
+        // mode's guidance, and which one is up races a live camera. See awaitGuidance.
+        rule.awaitGuidance(ScanCopy.ALIGN_DOCUMENT, ScanCopy.EDGES_DETECTED, ScanCopy.EDGES_PINNED)
+
+        if (!FeatureFlags.PAY_VIA_QR_ENABLED) return
 
         rule.selectScanMode(ScanCopy.MODE_QR)
         rule.awaitText(ScanCopy.SCAN_TITLE_QR)
-        rule.onNodeWithText(ScanCopy.ALIGN_QR).assertIsDisplayed()
+        // No edge detection in the payment mode, so this one has a single right answer.
+        rule.awaitGuidance(ScanCopy.ALIGN_QR)
         // A payment code spends no scan, so the quota pill has nothing true to say.
         rule.awaitGone(ScanCopy.quota(remaining = 3, total = 3))
     }
@@ -264,6 +291,7 @@ class BillScannerEndToEndTest {
     /** A payment code is a payload, not a paper — the picture is read here, not passed on. */
     @Test
     fun aPickedPaymentCodeOpensThePayScreen() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         installQrImageDecoder(ScanFixtures.QR_WITH_AMOUNT)
         stubPickedImage()
         rule.openScanner()
@@ -278,6 +306,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aPictureWithNoCodeInItSaysSoAndStaysPut() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         installQrImageDecoder(null)
         stubPickedImage()
         rule.openScanner()
@@ -326,6 +355,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aPaymentCodeShowsWhoIsBeingPaidAndTheAddressItGoesTo() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         rule.openScanner()
         rule.openPayAtPump(ScanFixtures.QR_WITH_AMOUNT)
 
@@ -340,6 +370,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aCodeThatNamesNoSumWaitsForOneBeforeItCanPay() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         // Most fuel pumps leave the amount to the payer.
         rule.openScanner()
         rule.openPayAtPump(ScanFixtures.QR_NO_AMOUNT)
@@ -353,6 +384,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aCodeThatIsNotAUpiLinkIsRefusedRatherThanGuessedAt() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         // An EMVCo/Bharat QR encodes a payment in a different grammar; misreading one would
         // send money somewhere else.
         rule.openScanner()
@@ -364,6 +396,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aSettledPaymentRecordsTheFillTheOwnerConfirms() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         stubUpiPayment(ScanFixtures.UPI_SUCCESS)
         rule.openScanner()
         rule.openPayAtPump(ScanFixtures.QR_WITH_AMOUNT)
@@ -388,6 +421,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aPendingPaymentRecordsNothingAndSaysWhy() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         // The money may still move. A fill written here would be a fabricated entry in a
         // history the app promises is trustworthy.
         stubUpiPayment(ScanFixtures.UPI_PENDING)
@@ -404,6 +438,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aCancelledPaymentRecordsNothingAndSaysNothingWasCharged() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         stubCancelledUpiPayment()
         rule.openScanner()
         rule.openPayAtPump(ScanFixtures.QR_WITH_AMOUNT)
@@ -417,6 +452,7 @@ class BillScannerEndToEndTest {
 
     @Test
     fun aFillWithNoOdometerCannotBeSaved() {
+        assumeTrue(FeatureFlags.PAY_VIA_QR_ENABLED)
         // Odometer is mandatory on every entry Odo keeps: two readings are what turn fills
         // into a measured mileage, and one without is only a receipt.
         stubUpiPayment(ScanFixtures.UPI_SUCCESS)

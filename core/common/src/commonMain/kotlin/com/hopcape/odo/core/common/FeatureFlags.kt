@@ -95,4 +95,42 @@ object FeatureFlags {
      *   listening for. Both files carry a comment pointing back here.
      */
     const val AUTO_ODOMETER_ENABLED = false
+
+    /**
+     * Whether the scanner can read a payment QR and hand it to a UPI app.
+     *
+     * False for 1.0. The flow is written and tested end to end — read the code, parse the
+     * `upi://pay` grammar, launch a chooser, read the response back, log the fuel fill it
+     * bought — but it moves the owner's money, and 1.0 is not the release to ask them to
+     * trust that with. It ships in the next one.
+     *
+     * While this is false the scanner offers two modes instead of three. `ScanTarget.PaymentQr`
+     * is unreachable, and that single fact turns the whole feature off: the frame analyser
+     * stays on document edges rather than QR codes, so no code is ever read; the gallery path
+     * never decodes one; and `BillScanEffect.OpenPayment` — the only thing that navigates to
+     * `OdoDestination.BillScanner.PayAtPump` — is never emitted. The route stays registered
+     * and the Koin graph stays wired: unreachable, not removed.
+     *
+     * Flip it to true when payments are ready. Nothing here is rewritten.
+     *
+     * **Finding every site.** A project-wide search for `PAY_VIA_QR_ENABLED` lists them, and
+     * deleting this constant fails the build at each one:
+     *
+     * - `scanTargets` (`BillScanUiState.kt`) — the one choke point. The mode chips are built
+     *   from it, and `BillScanViewModel` checks every target against it, both on the way in
+     *   (a deep link carrying `ScanTarget.PaymentQr` lands on `Bill`) and on every switch.
+     * - `BillScannerEndToEndTest` — the QR and pay-at-pump tests are skipped by `assumeTrue`,
+     *   with an `assumeFalse` twin asserting the chip is absent. Both compile either way.
+     *
+     * **One thing the search does not find**, because it is not Kotlin:
+     * `androidApp/src/main/AndroidManifest.xml` — the `<queries>` block declaring the
+     * `upi:` VIEW intent was removed. It is Android 11+ package visibility, not a permission,
+     * but it exists only so this feature can ask "can anything here take a payment", and a
+     * manifest that still asks is a manifest that still describes a feature the app does not
+     * have. Put it back with the flag; without it `resolveActivity` answers null on a phone
+     * with four UPI apps installed. The file carries a comment pointing here.
+     *
+     * **Not touched:** `CAMERA`. Bills and documents need it, and it was never QR's alone.
+     */
+    const val PAY_VIA_QR_ENABLED = false
 }

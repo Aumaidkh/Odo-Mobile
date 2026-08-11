@@ -29,15 +29,21 @@
          FOREGROUND_SERVICE and FOREGROUND_SERVICE_LOCATION were all removed here. Put them
          back alongside :core:triptracker's own manifest when the flag goes true. -->
 
-    <!-- Android 11 hides installed apps from each other unless they are declared here. Without
-         this, asking whether anything can take a UPI payment always answers "nothing", and the
-         scan-to-pay flow would report no UPI app on a phone that has four. -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="upi" />
-        </intent>
-    </queries>
+    <!-- Pay via QR is off for 1.0 (FeatureFlags.PAY_VIA_QR_ENABLED), so the <queries> block
+         that declared the `upi:` VIEW intent was removed from here. It is Android 11+ package
+         visibility rather than a permission, but it exists only so the scan-to-pay flow can
+         ask "can anything on this phone take a payment" — and a manifest that still asks is a
+         manifest that still describes a feature the app does not ship.
+
+         Put it back with the flag. Without it `resolveActivity` answers null on a phone with
+         four UPI apps installed, so the flow would report "no UPI app" for everyone:
+
+             <queries>
+                 <intent>
+                     <action android:name="android.intent.action.VIEW" />
+                     <data android:scheme="upi" />
+                 </intent>
+             </queries> -->
 
     <application
         android:name=".OdoApplication"
