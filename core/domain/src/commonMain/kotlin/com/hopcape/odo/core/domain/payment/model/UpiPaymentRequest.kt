@@ -55,6 +55,19 @@ data class UpiPaymentRequest(
     val merchantCode: String? = null,
     /** The merchant's own reference for this collection, echoed back in the response. */
     val transactionRef: String? = null,
+    /**
+     * Every other parameter the code carried, in the order it carried them.
+     *
+     * Kept because a QR is a payment instruction, not a form with six fields, and the parts
+     * this app does not model are still the payee's. Google Pay's codes carry `aid`, merchant
+     * codes carry `mode`, `purpose`, `orgid` and a `sign` that the whole payment is validated
+     * against. Rebuilding a link from only the recognised fields quietly drops all of it, and
+     * the apps do not report that as a malformed link — they report it as the bank refusing.
+     *
+     * So they are carried through untouched rather than understood. Anything genuinely
+     * meaningless is meaningless to the receiving app too, which ignores it.
+     */
+    val extras: Map<String, String> = emptyMap(),
 ) {
     /** True when the code named a sum, so the owner is confirming rather than typing one. */
     val hasAmount: Boolean get() = amount != null

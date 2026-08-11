@@ -39,11 +39,48 @@
 
     <!-- Android 11 hides installed apps from each other unless they are declared here. Without
          this, asking whether anything can take a UPI payment always answers "nothing", and the
-         scan-to-pay flow would report no UPI app on a phone that has four. -->
+         scan-to-pay flow reports no UPI app on a phone that has four. It did exactly that.
+
+         **Name the authority.** A <queries> declaration is matched against the other app's
+         intent filter by the same rules as an intent, and a filter that names an authority
+         only matches a query that names one too. Google Pay declares `upi` with
+         `Authority: "pay"`, so a scheme-only entry never saw it — nor PhonePe, Paytm or BHIM,
+         which all declare the same shape. The reverse is not a problem: an entry that names an
+         authority still matches a filter that declares none, since a filter without one
+         accepts any. So one entry per scheme, always with the authority, is both necessary
+         and sufficient. Verified on device, both directions.
+
+         The three after `upi` are the payment apps' own schemes. They are here because an app
+         keeps its `upi:` activity disabled until UPI is set up inside it, and on such a phone
+         only its own scheme answers. Why that fallback exists at all is written up in
+         UpiDeepLink.candidates; this list must stay in step with the one there.
+
+         Note there is no QUERY_ALL_PACKAGES. These narrow entries do the same job, need no
+         Play declaration form, and cannot be used to inventory the phone. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="upi" />
+            <data
+                android:host="pay"
+                android:scheme="upi" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data
+                android:host="upi"
+                android:scheme="tez" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data
+                android:host="pay"
+                android:scheme="phonepe" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data
+                android:host="pay"
+                android:scheme="paytmmp" />
         </intent>
     </queries>
 

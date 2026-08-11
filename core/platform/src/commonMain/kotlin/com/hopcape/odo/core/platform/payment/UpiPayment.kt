@@ -26,18 +26,25 @@ sealed interface UpiLaunchResult {
 }
 
 /**
- * Hands a `upi://pay?…` link to whichever app on the device can pay it, and reports back.
+ * Hands a payment to whichever app on the device can take it, and reports back.
  *
  * A composable, like the camera and the file picker, because launching for a result needs
- * the thing hosting the UI. Returns a function to call with the link.
+ * the thing hosting the UI. Returns a function to call with the links.
  *
- * On Android this opens a chooser across every installed UPI app — Odo never picks one, since
- * which app someone pays with is theirs to decide and the list changes constantly. On iOS
- * there is no equivalent: UPI apps there register private URL schemes and none of them accept
- * the standard link, so the iOS side answers [UpiLaunchResult.Unsupported] and the QR flow
- * stops at showing the owner the payment address.
+ * **Links, plural, best first.** The caller passes every link that would pay this one
+ * payment — the standard `upi://pay` one and the payment apps' own schemes behind it. The
+ * platform tries them in order and offers everything that answers; it does not know or care
+ * what the difference between them is, which is the point. Building them is the domain's job
+ * ([com.hopcape.odo.core.domain.payment.UpiDeepLink.candidates]), and the reason there is
+ * more than one is documented there.
+ *
+ * On Android this opens a chooser — Odo never picks the app, since which app someone pays
+ * with is theirs to decide and the list changes constantly. On iOS there is no equivalent:
+ * the apps there register private URL schemes, none accepts the standard link, and none hands
+ * a result back, so the iOS side answers [UpiLaunchResult.Unsupported] and the QR flow stops
+ * at showing the owner the payment address.
  */
 @Composable
 expect fun rememberUpiPaymentLauncher(
     onResult: (UpiLaunchResult) -> Unit,
-): (String) -> Unit
+): (List<String>) -> Unit
