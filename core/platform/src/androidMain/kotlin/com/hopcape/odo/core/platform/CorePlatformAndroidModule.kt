@@ -1,8 +1,11 @@
 package com.hopcape.odo.core.platform
 
+import android.app.Application
 import android.content.Context
+import com.hopcape.odo.core.platform.app.ActivityTracker
 import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.CurrentActivity
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
 import com.hopcape.odo.core.platform.camera.AndroidQrImageDecoder
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -44,6 +47,12 @@ val corePlatformAndroidModule = module {
     single<DocumentCropper> { AndroidDocumentCropper(context = get<Context>()) }
     single<QrImageDecoder> { AndroidQrImageDecoder(context = get<Context>()) }
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
+    // createdAtStart, because it starts watching in its constructor: resolved on first use it
+    // would begin listening after the Activity it is being asked about already resumed. See
+    // ActivityTracker's comment.
+    single<CurrentActivity>(createdAtStart = true) {
+        ActivityTracker(application = get<Context>().applicationContext as Application)
+    }
     single<SystemNotificationSettings> { AndroidSystemNotificationSettings(context = get<Context>()) }
     // Turns a document's expiry into notifications the OS delivers. Replaces :core:data's
     // no-op binding — the one line that makes a saved expiry actually reach the owner.

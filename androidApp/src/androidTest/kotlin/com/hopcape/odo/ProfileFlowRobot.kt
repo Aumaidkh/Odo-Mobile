@@ -170,8 +170,15 @@ internal fun seedAppSettings(
 
 /* ------------------------------ Navigation ------------------------------ */
 
-/** The first frame waits on the start-destination read, and on a cold start on the seed. */
-private const val PROFILE_START_UP_TIMEOUT_MILLIS = 20_000L
+/**
+ * The first frame waits on the start-destination read, and on a cold start on the seed.
+ *
+ * Generous because this is the first wait every suite makes, so when it is too short nothing
+ * else gets a chance to run: a loaded machine once took a passing auth suite from under four
+ * minutes to over nine, and every one of its tests failed here rather than on what it was
+ * testing. A launch that is genuinely broken still fails, only later.
+ */
+private const val PROFILE_START_UP_TIMEOUT_MILLIS = 45_000L
 
 /** Open the profile from Home's avatar, which is the only way in. */
 internal fun ProfileTestRule.openProfile() {

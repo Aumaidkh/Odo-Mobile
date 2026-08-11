@@ -30,3 +30,13 @@ kotlin {
     // tokens/composables, and — because they apply the same Compose convention —
     // can write Odo multipreviews (@OdoThemePreviews) without any extra deps.
 }
+
+// Compose Multiplatform resources for the brand fonts (DM Sans .ttf weights in
+// commonMain/composeResources/font/). Explicit package so the generated Res
+// class has a stable, readable import; internal because only this module's
+// theme reads the font resources.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.core.designsystem.resources"
+    generateResClass = always
+}

@@ -28,16 +28,20 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * GoTrue's HTTP surface, in one place.
+ * Everything that mints or ends a session, in one place.
  *
- * Both gateways sit on this — the difference between phone OTP and the development password
- * account is two endpoints, not two clients. Everything shared lives here: turning a token
- * response into an [AuthSession], and turning GoTrue's error shapes into `DomainError`s the
- * screens can act on.
+ * Both gateways sit on this — the difference between real phone sign-in and the development
+ * password account is which endpoint they call, not which client. What is shared lives here:
+ * turning a token response into an [AuthSession], and turning a failure into a `DomainError`
+ * the screens can act on.
  *
- * **Error bodies are read but never logged.** GoTrue echoes the phone number or email that
- * failed, and TDD §12 puts OTPs and identifiers in the same bucket as tokens. The
- * `error_code` is extracted, the rest is dropped.
+ * Mostly GoTrue, with one exception. `firebase-session` is an Edge Function rather than part
+ * of GoTrue, because trading a Firebase ID token for a Supabase session is this project's own
+ * arrangement and not something GoTrue offers. It answers in GoTrue's token shape, so it
+ * shares everything below anyway.
+ *
+ * **Error bodies are never logged.** GoTrue echoes the phone number or email that failed, and
+ * TDD §12 puts identifiers in the same bucket as tokens — only the status is read.
  */
 internal class SupabaseTokenEndpoint(
     private val client: HttpClient,
@@ -46,26 +50,29 @@ internal class SupabaseTokenEndpoint(
     private val clock: Clock = Clock.System,
 ) {
 
-    /** `POST /auth/v1/otp` — ask GoTrue to send a code. */
-    suspend fun sendOtp(phone: String): Either<DomainError, Unit> =
-        attempt(OP_OTP_SEND, DomainError.OtpRequestFailed) {
-            val response = post("otp", JsonObject(mapOf("phone" to JsonPrimitive(phone))))
-            if (response.status.isSuccess()) Unit.right() else response.toOtpError().left()
-        }
-
-    /** `POST /auth/v1/verify` — exchange a code for a session. */
-    suspend fun verifyOtp(phone: String, code: String): Either<DomainError, AuthSession> =
-        attempt(OP_OTP_VERIFY, DomainError.OtpRequestFailed) {
+    /**
+     * `POST /functions/v1/firebase-session` — a verified phone number for a session.
+     *
+     * The one call here that is not GoTrue. Firebase proves the number but cannot issue the
+     * session, because `owner_id` is a `uuid` referencing `auth.users(id)` and a Firebase UID
+     * is not one; the function finds or creates the matching user and mints an ordinary
+     * session for it. It answers in GoTrue's own token shape, which is why [toSession] reads
+     * it unchanged.
+     *
+     * A 401 means the proof is no longer good — the ID token expired between the code screen
+     * and here, or it was issued for another project. The answer is a new code, not a
+     * retyped one, so it maps to [DomainError.OtpExpired].
+     */
+    suspend fun exchangeFirebaseToken(idToken: String): Either<DomainError, AuthSession> =
+        attempt(OP_FIREBASE_EXCHANGE, DomainError.OtpRequestFailed) {
             post(
-                "verify",
-                JsonObject(
-                    mapOf(
-                        "type" to JsonPrimitive(SMS_TYPE),
-                        "phone" to JsonPrimitive(phone),
-                        "token" to JsonPrimitive(code),
-                    ),
-                ),
-            ).toSession { it.toOtpError() }
+                "firebase-session",
+                JsonObject(mapOf("idToken" to JsonPrimitive(idToken))),
+                base = environment.functionsUrl,
+            ).toSession { response ->
+                if (response.status.value == UNAUTHORIZED) DomainError.OtpExpired
+                else DomainError.OtpRequestFailed
+            }
         }
 
     /** `POST /auth/v1/token?grant_type=password` — the development account's way in. */
@@ -122,8 +129,17 @@ internal class SupabaseTokenEndpoint(
         }
     }
 
-    private suspend fun post(path: String, body: JsonObject, bearer: String? = null): HttpResponse =
-        client.post("${environment.authUrl}/$path") {
+    /**
+     * [base] defaults to GoTrue, which every call here but one uses. The exception is the
+     * Firebase exchange, which is an Edge Function and lives under a different path.
+     */
+    private suspend fun post(
+        path: String,
+        body: JsonObject,
+        bearer: String? = null,
+        base: String = environment.authUrl,
+    ): HttpResponse =
+        client.post("$base/$path") {
             contentType(ContentType.Application.Json)
             bearer?.let { header(HttpHeaders.Authorization, "Bearer $it") }
             setBody(SupabaseJson.encodeToString(JsonObject.serializer(), body))
@@ -149,47 +165,15 @@ internal class SupabaseTokenEndpoint(
         ).right()
     }
 
-    /**
-     * GoTrue's failure, as something the OTP screen can act on.
-     *
-     * The three that matter are told apart because the answer differs: retype the code,
-     * ask for a new one, or wait. Everything else is "it did not work".
-     */
-    private suspend fun HttpResponse.toOtpError(): DomainError {
-        telemetry.rejected(OP_TOKEN, RESOURCE, status.value)
-        if (status.value == TOO_MANY_REQUESTS) {
-            val retryAfter = headers[HttpHeaders.RetryAfter]?.toLongOrNull() ?: DEFAULT_RETRY_SECONDS
-            return DomainError.TooManyOtpRequests(retryAfter)
-        }
-        return when (errorCode()) {
-            CODE_OTP_EXPIRED -> DomainError.OtpExpired
-            CODE_OTP_INVALID, CODE_BAD_GRANT -> DomainError.InvalidOtp
-            else -> DomainError.OtpRequestFailed
-        }
-    }
-
-    /** Only the machine-readable code. The rest of the body quotes the phone number. */
-    private suspend fun HttpResponse.errorCode(): String? =
-        runCatching {
-            SupabaseJson.decodeFromString(ErrorResponse.serializer(), bodyAsText()).errorCode
-        }.getOrNull()
-
     private companion object {
         const val RESOURCE = "auth"
-        const val OP_OTP_SEND = "auth.otp.send"
-        const val OP_OTP_VERIFY = "auth.otp.verify"
         const val OP_PASSWORD = "auth.password"
+        const val OP_FIREBASE_EXCHANGE = "auth.firebase.exchange"
         const val OP_REFRESH = "auth.refresh"
         const val OP_SIGN_OUT = "auth.signOut"
         const val OP_TOKEN = "auth.token"
 
-        const val SMS_TYPE = "sms"
-        const val TOO_MANY_REQUESTS = 429
-        const val DEFAULT_RETRY_SECONDS = 60L
-
-        const val CODE_OTP_EXPIRED = "otp_expired"
-        const val CODE_OTP_INVALID = "otp_disabled"
-        const val CODE_BAD_GRANT = "invalid_grant"
+        const val UNAUTHORIZED = 401
     }
 }
 
@@ -203,6 +187,3 @@ private data class TokenResponse(
 
 @Serializable
 private data class TokenUser(@SerialName("id") val id: String)
-
-@Serializable
-private data class ErrorResponse(@SerialName("error_code") val errorCode: String? = null)

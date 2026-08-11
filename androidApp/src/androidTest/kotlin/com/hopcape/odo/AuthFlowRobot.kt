@@ -26,6 +26,7 @@ import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsCodeStatus
 import com.hopcape.odo.feature.auth.presentation.AuthTestTags
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
@@ -48,9 +49,11 @@ internal object AuthCopy {
     const val PHONE_TITLE = "What’s your number?"
     const val PHONE_LABEL = "Mobile number"
     const val SEND_CODE = "Send code"
+    const val SENDING_CODE = "Sending code..."
     const val SKIP = "Skip for now"
 
     const val OTP_TITLE = "Enter the code"
+    const val VERIFYING_CODE = "Verifying code..."
     const val CHANGE = "Change"
     const val RESEND = "Resend code"
     const val RESEND_COUNTDOWN = "Resend code in"
@@ -99,12 +102,12 @@ private typealias AuthTestRule = AndroidComposeTestRule<ActivityScenarioRule<Mai
 /* ------------------------------ The fakes ------------------------------ */
 
 /**
- * A sign-in server that answers instantly and never leaves the device.
+ * A sign-in server that answers on the spot and never leaves the device.
  *
  * The shipped gateway is either the development password account (a real round trip to
- * Supabase that ignores the code, so no wrong-code path exists) or the real OTP gateway
- * (which needs an SMS provider). Neither can drive a test, and both would make the suite
- * depend on a network. This one is the seam the app already has, filled in.
+ * Supabase that ignores the code, so no wrong-code path exists) or the Firebase bridge, which
+ * sends a real SMS and charges for it. Neither can drive a test, and both would make the
+ * suite depend on a network. This one is the seam the app already has, filled in.
  */
 internal class FakeAuthGateway : AuthGateway {
 
@@ -125,14 +128,37 @@ internal class FakeAuthGateway : AuthGateway {
     var lastPhone: String? = null
         private set
 
+    /**
+     * Held open, so a test can look at the screen mid-request.
+     *
+     * The in-flight state is otherwise unobservable here: this gateway answers on the same
+     * frame it is called, and by the time the test can assert anything the screen has already
+     * moved on. Closed by default, so every other test is unaffected.
+     */
+    private var gate: CompletableDeferred<Unit>? = null
+
+    /** Make the next request hang until [release]. */
+    fun holdRequests() {
+        gate = CompletableDeferred()
+    }
+
+    /** Let a held request finish. */
+    fun release() {
+        gate?.complete(Unit)
+        gate = null
+    }
+
     override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> {
         lastPhone = phone.value
+        gate?.await()
         return sendResult.onRight { codesSent++ }
     }
 
-    override suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =
-        verifyRefusal?.left()
+    override suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> {
+        gate?.await()
+        return verifyRefusal?.left()
             ?: if (code == acceptedCode) session().right() else DomainError.InvalidOtp.left()
+    }
 
     override suspend fun refresh(refreshToken: String): Either<DomainError, AuthSession> = session().right()
 
@@ -209,10 +235,23 @@ internal fun AuthTestRule.openSignIn() {
 
 /** Number → code screen, which is the precondition for every code-entry test. */
 internal fun AuthTestRule.reachTheCodeScreen(number: String = AuthFixtures.TYPED_NUMBER) {
+    requestTheCode(number)
+    awaitText(AuthCopy.OTP_TITLE)
+}
+
+/**
+ * Ask for a code and stop there, without waiting for the code screen.
+ *
+ * Split out of [reachTheCodeScreen] for the auto-read case. A reader that is already holding
+ * a code hands it over on the OTP ViewModel's first collection, which fills the field and
+ * verifies it on the same frame, so "Enter the code" can be gone before a wait for it runs.
+ * Tests that assert on the code screen still want that wait; the one that expects to be
+ * carried straight past it must not have it.
+ */
+internal fun AuthTestRule.requestTheCode(number: String = AuthFixtures.TYPED_NUMBER) {
     openSignIn()
     enterPhoneNumber(number)
     tapSendCode()
-    awaitText(AuthCopy.OTP_TITLE)
 }
 
 /* ------------------------------ Actions ------------------------------ */

@@ -49,6 +49,20 @@ class KotlinMultiplatformLibraryConventionPlugin : Plugin<Project> {
                 android.androidResources.enable = true
                 android.withHostTest {
                     isIncludeAndroidResources = true
+                    // A host test runs against the stub android.jar, where every method
+                    // throws "not mocked" rather than doing anything. That is fine until a
+                    // test has to construct a vendor SDK type whose constructor happens to
+                    // call one — Firebase's auth exceptions validate their error code
+                    // through android.text.TextUtils, which makes the error mapping in
+                    // :infrastructure:firebase:auth untestable without this.
+                    //
+                    // Set here rather than per module because AGP's KMP DSL allows exactly
+                    // one withHostTest block and this plugin owns it. It can only turn a
+                    // call that currently throws into one that returns a default, so no
+                    // passing test can start failing because of it; the cost is that a test
+                    // which *should* have noticed it was touching the Android framework now
+                    // quietly gets a zero.
+                    isReturnDefaultValues = true
                 }
             }
         }

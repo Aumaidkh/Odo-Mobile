@@ -33,6 +33,7 @@ import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
+import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import com.hopcape.odo.preview.filePreviewModule
@@ -110,6 +111,10 @@ fun initKoin(
         // The shared file viewer's entry. Not a feature module — it registers one destination
         // that the vault, the service log and the scanner all navigate to.
         filePreviewModule,
+        // Before supabaseModule, not after — this one replaces nothing. It publishes the
+        // PhoneVerifier that supabaseModule's bridge gateway resolves when it is built, so
+        // it has to already be in the graph by then.
+        firebaseAuthModule,
         // After every feature module, because its whole job is to replace things: the
         // offline remote-data-source fakes from coreDataModule, the always-signed-out
         // SessionStatusProvider from authModule, and coreDataModule's session-only SyncGate.

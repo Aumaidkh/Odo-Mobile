@@ -21,12 +21,12 @@ import androidx.compose.ui.graphics.Color
  * leans on constantly — health score, fairness verdicts, verified badges.
  */
 internal object OdoPalette {
-    // ── Accent / brand (primary actions, FAB, brand) ────────────────────────
+     //── Accent / brand (primary actions, FAB, brand) ────────────────────────
     val DarkAccent = Color(0xFFE8743B)
     val LightAccent = Color(0xFFD35F28) // darkened for AA contrast on white text
     val OnAccent = Color(0xFFFFFFFF)
 
-    // ── Status — Verified·savings·good / Overpay·expiring·low-conf / Safety·expired·score<50
+     //── Status — Verified·savings·good / Overpay·expiring·low-conf / Safety·expired·score<50
     val DarkSuccess = Color(0xFF16C784)
     val DarkWarning = Color(0xFFF5B301)
     val DarkDanger = Color(0xFFEF5A43)
@@ -52,14 +52,14 @@ internal object OdoPalette {
     val LightTextDim = Color(0xFF6F6457)
     val LightTextMuted = Color(0xFFA99D8C)
 }
-
-/**
- * Material 3 scheme mapped from Odo tokens, so stock Material components (Button,
- * Card, TextField…) render on-brand. Brand-bespoke surfaces should prefer the
- * named [OdoColors] tokens; this exists so nothing ever falls back to Material's
- * default purple. `secondary`/`tertiary` carry the success/warning roles since
- * the brand has no separate secondary hue.
- */
+//
+///**
+// * Material 3 scheme mapped from Odo tokens, so stock Material components (Button,
+// * Card, TextField…) render on-brand. Brand-bespoke surfaces should prefer the
+// * named [OdoColors] tokens; this exists so nothing ever falls back to Material's
+// * default purple. `secondary`/`tertiary` carry the success/warning roles since
+// * the brand has no separate secondary hue.
+// */
 internal val DarkColorScheme = darkColorScheme(
     primary = OdoPalette.DarkAccent,
     onPrimary = OdoPalette.OnAccent,

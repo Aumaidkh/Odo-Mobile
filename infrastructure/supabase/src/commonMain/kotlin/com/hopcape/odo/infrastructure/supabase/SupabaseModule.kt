@@ -14,7 +14,7 @@ import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
-import com.hopcape.odo.infrastructure.supabase.auth.SupabaseOtpAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -69,14 +69,18 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     // one is a Supabase concern, and that is this:
     //
     // Which way in. Driven by `supabase.phoneAuth` in local.properties rather than a code
-    // branch, so the day TRAI DLT registration and the SMS provider are live is a config
-    // edit. Until then the development account signs in, which still produces a real JWT
-    // under real row-level security — everything downstream is verified for real.
+    // branch, so turning real sign-in on is a config edit and not a commit. With it off the
+    // development account signs in, which still produces a real JWT under real row-level
+    // security — everything downstream is verified for real.
+    //
+    // The real branch needs a PhoneVerifier, which firebaseAuthModule publishes earlier in
+    // initKoin. Resolved lazily inside the single, so the Android bootstrap's override (bound
+    // last, in the platform module) is the one that wins.
     if (environment.isConfigured) {
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
         single<AuthGateway> {
             if (environment.usePhoneAuth) {
-                SupabaseOtpAuthGateway(endpoint = get())
+                FirebaseBridgeAuthGateway(verifier = get(), endpoint = get())
             } else {
                 DevPasswordAuthGateway(endpoint = get())
             }

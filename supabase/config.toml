@@ -1,0 +1,20 @@
+# Supabase CLI project config.
+#
+# Only what this repo actually relies on. Everything else keeps the CLI's defaults — a config
+# that restates them drifts from them silently on the next CLI upgrade.
+#
+# `project_id` is the local Docker stack's name, not the hosted project ref.
+project_id = "odo"
+
+[functions.legal]
+# The Terms, the Privacy Policy and the account-deletion page. All three have to be readable
+# by anyone with the link — a Play reviewer, or somebody who has already uninstalled the app —
+# so there is no Supabase token to verify. The one endpoint that acts on anything, the POST
+# behind the deletion button, authenticates its own caller with a Firebase ID token.
+verify_jwt = false
+
+[functions.firebase-session]
+# The caller is signing in and has no Supabase token yet, so there is nothing to verify. The
+# function does its own authentication instead: it will not act on anything that is not a
+# valid, unexpired Firebase ID token for this project, carrying a phone claim.
+verify_jwt = false
