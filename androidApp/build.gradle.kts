@@ -56,6 +56,21 @@ android {
     }
 }
 
+// play-services-ads-identifier is AdvertisingIdClient, the class that actually reads the
+// Advertising ID. Firebase Analytics pulls it in transitively; nothing in Odo calls it.
+// Dropping it means the code path does not exist, which is a stronger guarantee than the
+// AD_ID permission removal and the google_analytics_adid_collection_enabled flag in
+// AndroidManifest.xml — those say "do not", this says "cannot". Firebase supports the
+// exclusion and degrades to not collecting the ID rather than failing.
+//
+// Declared here rather than in :infrastructure:firebase:analytics, which is where the
+// dependency is written, because an exclude only applies to the configuration it is
+// declared on and the ones extending it. The APK classpath is resolved in this project, so
+// this is the only place that covers every path the library can arrive by.
+configurations.configureEach {
+    exclude(group = "com.google.android.gms", module = "play-services-ads-identifier")
+}
+
 dependencies {
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.

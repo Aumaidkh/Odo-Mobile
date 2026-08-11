@@ -281,6 +281,7 @@ fun OdoPermissionNudge(
                 contentDescription = null,
                 tint = OdoTheme.colors.accent,
                 size = OdoTheme.iconSizes.medium,
+                modifier = Modifier.padding(start = OdoTheme.spacing.xs),
             )
             OdoText(
                 text = message,

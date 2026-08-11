@@ -16,6 +16,9 @@ import androidx.core.content.ContextCompat
 import android.net.Uri
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
+import androidx.test.espresso.intent.matcher.UriMatchers.hasScheme
+import org.hamcrest.CoreMatchers.allOf
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.sqldelight.db.SqlDriver
@@ -365,28 +368,36 @@ internal val DEFAULT_SCAN_TARGET = ScanTarget.Bill
 /* ------------------------------ The UPI hand-off ------------------------------ */
 
 /**
- * Answer the UPI chooser with [response] instead of opening an app.
+ * Answer the UPI hand-off with [response] instead of opening an app.
  *
  * A payment app is another app's activity, so the only way to test what Odo does *with* a
- * settled payment is to answer the intent. `ACTION_CHOOSER` is what is matched because the
- * launcher wraps the payment intent in one — Odo never picks which UPI app is used.
+ * settled payment is to answer the intent. The launcher sends the payment as a bare `VIEW`
+ * of a `upi:` link — deliberately unwrapped, because the payment apps judge who is asking
+ * and a chooser in the middle hides the asker — so that is what is matched here.
  *
- * The androidTest manifest declares an activity handling `upi://` so the launcher's
- * "is there anything that can pay this?" check finds something. That check is real code and
- * worth exercising: without the `<queries>` element in the app manifest it answers no on
- * Android 11+, and the whole flow would dead-end on a phone with four UPI apps installed.
+ * The androidTest manifest declares an activity handling `upi://pay` so the launcher's "is
+ * there anything that can pay this?" check finds something. It does not test the `<queries>`
+ * element that check depends on: the platform makes an instrumented pair visible to each
+ * other automatically, so the stub is found whether or not that element is declared — which
+ * is how these tests stayed green while every real phone answered no. The manifest says the
+ * same, at length.
  */
 internal fun stubUpiPayment(response: String?) {
     val data = Intent().apply { response?.let { putExtra("response", it) } }
-    intending(hasAction(Intent.ACTION_CHOOSER))
+    intending(upiHandOff())
         .respondWith(ActivityResult(Activity.RESULT_OK, data))
 }
 
-/** Answer the chooser as a cancelled payment: the owner backed out, nothing was charged. */
+/** Answer the hand-off as a cancelled payment: the owner backed out, nothing was charged. */
 internal fun stubCancelledUpiPayment() {
-    intending(hasAction(Intent.ACTION_CHOOSER))
+    intending(upiHandOff())
         .respondWith(ActivityResult(Activity.RESULT_CANCELED, null))
 }
+
+private fun upiHandOff() = allOf(
+    hasAction(Intent.ACTION_VIEW),
+    hasData(hasScheme("upi")),
+)
 
 /* ------------------------------ Database ------------------------------ */
 

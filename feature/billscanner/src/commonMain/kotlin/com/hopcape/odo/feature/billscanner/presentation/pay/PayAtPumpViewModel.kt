@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 /**
  * State holder for scan-to-pay: parse the code, pay it, then record what it bought.
@@ -110,7 +111,7 @@ internal class PayAtPumpViewModel(
 
         telemetry.paymentInitiated()
         _state.update { it.copy(submission = Submission.InFlight) }
-        emit(PayAtPumpEffect.LaunchUpi(UpiDeepLink.build(request, amount)))
+        emit(PayAtPumpEffect.LaunchUpi(UpiDeepLink.candidates(request, amount, reference())))
     }
 
     /**
@@ -122,7 +123,7 @@ internal class PayAtPumpViewModel(
      */
     private fun paymentReturned(response: String?) {
         val result = UpiDeepLink.parseResponse(response)
-        telemetry.paymentSettled(result.status.name, result.transactionRef ?: result.transactionId)
+        telemetry.paymentSettled(result.status.name)
 
         when (result.status) {
             UpiPaymentStatus.Success -> {
@@ -190,6 +191,16 @@ internal class PayAtPumpViewModel(
      */
     private suspend fun fuelUnit(carId: CarId): FuelUnit =
         cars.observe(carId).first()?.let { car: Car -> FuelUnit.of(car.fuelType) } ?: FuelUnit.LITRE
+
+    /**
+     * A reference for this attempt, unique because the clock has moved.
+     *
+     * Read straight from the clock rather than injected: it is not a decision the app makes,
+     * nothing branches on it, and the only property that matters — that tapping Pay twice
+     * produces two different values — holds for any two taps a human can perform. A reused
+     * reference reads to the payment network as a duplicate and is refused.
+     */
+    private fun reference(): String = "ODO${Clock.System.now().toEpochMilliseconds()}"
 
     private fun rupees(amount: Amount): String {
         val whole = amount.paise / 100

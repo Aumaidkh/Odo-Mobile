@@ -122,8 +122,8 @@ export const privacyPage = (): string =>
       <td>Your phone; our servers only if you send a report</td>
     </tr>
     <tr>
-      <td><strong>Crash reports and usage events</strong> — screens opened, features used, app version, device model, OS version</td>
-      <td>To find crashes and see which parts of the app are worth improving. Not tied to your name or number.</td>
+      <td><strong>Crash reports and usage events</strong> — screens opened, features used, app version, device model, OS version, and an app-instance identifier Firebase generates for this installation</td>
+      <td>To find crashes and see which parts of the app are worth improving. Not tied to your name or number, and the identifier is replaced if you reinstall the app or clear its data. Firebase also sees the IP address a report arrives from, which places you in roughly the right city; ${IDENTITY.product} does not store or use that.</td>
       <td>Google Firebase</td>
     </tr>
   </tbody>
@@ -133,7 +133,9 @@ export const privacyPage = (): string =>
 <ul>
   <li>Your contacts, call logs, SMS messages or photo library.</li>
   <li>Your chassis or engine number.</li>
-  <li>Any advertising identifier. ${IDENTITY.product} carries no ad SDK and no tracking pixel.</li>
+  <li>Any advertising identifier. ${IDENTITY.product} carries no ad SDK and no tracking pixel. The
+      app removes the Android Advertising ID permission that its analytics library would otherwise
+      declare, and switches that library's ad-ID collection off.</li>
 </ul>
 
 <h2>Permissions the app asks for</h2>

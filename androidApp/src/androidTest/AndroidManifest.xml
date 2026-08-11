@@ -10,10 +10,17 @@
              path. Espresso answers the intent before this activity is ever started — it exists
              to be found, not to run.
 
-             It also makes that check real: package visibility on Android 11+ hides other apps
-             unless the app manifest declares a matching <queries> element, so if that
-             declaration were dropped this activity would become invisible and the test would
-             fail — which is exactly what would happen to an owner.
+             What this stub does NOT do is test package visibility, though it claimed to. A
+             test APK instruments the app it targets, and the platform makes an instrumented
+             pair visible to each other automatically — `dumpsys package queries` lists this
+             activity under "queries via package name", never as an intent match. So the app's
+             <queries> element is not what finds it here, and dropping that element entirely
+             leaves these tests green. That is how the scan-to-pay flow came to answer "no UPI
+             app on this phone" on every real device while this suite stayed green. Only a
+             separately installed app can exercise it.
+
+             The filter still names `host="pay"`, because every real UPI app does and a stub
+             worth having looks like one. It is documentation, not coverage.
 
              **Which is the state right now.** Pay via QR is off for 1.0
              (FeatureFlags.PAY_VIA_QR_ENABLED) and the app manifest's <queries> block went with
@@ -30,7 +37,9 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
 
-                <data android:scheme="upi" />
+                <data
+                    android:host="pay"
+                    android:scheme="upi" />
             </intent-filter>
         </activity>
     </application>

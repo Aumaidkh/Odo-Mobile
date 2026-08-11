@@ -31,6 +31,35 @@ object UpiQrParser {
     private const val MERCHANT_CODE = "mc"
     private const val TRANSACTION_REF = "tr"
 
+    /**
+     * The parameters this app has a field for. Everything else is either forwarded or dropped.
+     *
+     * The currency is here but has no field: it is always INR, and it is rebuilt rather than
+     * echoed so a code claiming anything else cannot carry that claim through.
+     */
+    private val MODELLED = setOf(PAYEE_ADDRESS, PAYEE_NAME, AMOUNT, NOTE, MERCHANT_CODE, TRANSACTION_REF, "cu")
+
+    /**
+     * The rest of the NPCI deep-link grammar — carried through untouched, and nothing else.
+     *
+     * An allowed list rather than a blocked one, and that distinction is the whole point. A
+     * merchant QR is validated as a unit: drop its `sign` and the payment it authorises is no
+     * longer the payment being made, so these have to survive. But a QR may also carry fields
+     * belonging to the app that printed it — Google Pay's codes carry `aid`, an attribution
+     * token meaning something only inside Google Pay — and handing one of those back from a
+     * different app is a foreign app replaying a token it was never issued. Payment apps check
+     * for exactly that, and they do not report it as a bad link: Google Pay says the bank
+     * refused for exceeding a limit, on a payment of one rupee.
+     *
+     * So: everything the spec defines is forwarded, anything an app invented for itself is
+     * left behind. A field added to the spec later needs adding here, and until then it is
+     * dropped — which is the safe direction, because the payment still describes itself
+     * completely without it.
+     */
+    private val FORWARDABLE = setOf(
+        "tid", "mam", "url", "mode", "purpose", "orgid", "sign", "msid", "mtid", "refurl",
+    )
+
     /** Parse [payload] — whatever the scanner read out of the code. */
     fun parse(payload: String?): Either<DomainError, UpiPaymentRequest> {
         val raw = payload?.trim().orEmpty()
@@ -46,6 +75,9 @@ object UpiQrParser {
                 transactionNote = params[NOTE]?.takeIf { it.isNotBlank() },
                 merchantCode = params[MERCHANT_CODE]?.takeIf { it.isNotBlank() },
                 transactionRef = params[TRANSACTION_REF]?.takeIf { it.isNotBlank() },
+                extras = params
+                    .filterKeys { it !in MODELLED && it in FORWARDABLE }
+                    .filterValues { it.isNotBlank() },
             )
         }
     }
@@ -55,6 +87,9 @@ object UpiQrParser {
      *
      * Later duplicates lose to earlier ones. A code carrying two `pa` values is malformed,
      * and taking the first keeps the answer stable rather than depending on ordering.
+     *
+     * The code's own ordering is preserved, because the unmodelled parameters are handed back
+     * to a payment app as they were found and there is no reason to shuffle them.
      */
     private fun queryParameters(uri: String): Map<String, String> =
         uri.substringAfter('?', missingDelimiterValue = "")
@@ -65,8 +100,9 @@ object UpiQrParser {
                 val value = pair.substringAfter('=', missingDelimiterValue = "")
                 if (key.isEmpty()) null else key to percentDecode(value)
             }
-            .reversed()
-            .toMap()
+            .fold(LinkedHashMap<String, String>()) { seen, (key, value) ->
+                seen.also { if (key !in it) it[key] = value }
+            }
 
     /**
      * Rupees as printed in the code (`"104.50"`) to integer paise.
