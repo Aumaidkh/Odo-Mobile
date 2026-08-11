@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import arrow.core.right
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
@@ -7,7 +8,13 @@ import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
+import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.domain.auth.PhoneVerifier
+import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseOverchargeRemoteDataSource
@@ -16,6 +23,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemote
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import com.hopcape.performance.api.PerformanceTracer
 import org.koin.core.context.stopKoin
+import org.koin.core.module.Module
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import kotlin.test.AfterTest
@@ -58,6 +66,31 @@ class SupabaseModuleTest {
         assertNull(koin.getOrNull<RemoteFileStorage>())
     }
 
+    /**
+     * The one binding here that reaches outside this module. With phone auth on, the gateway
+     * needs a `PhoneVerifier`, which `firebaseAuthModule` publishes earlier in `initKoin` —
+     * so a wiring mistake shows up as a missing definition on the sign-in screen and nowhere
+     * before it.
+     */
+    @Test
+    fun `with phone auth on, the gateway is the Firebase bridge`() {
+        val koin = graph(
+            SupabaseEnvironment(url = "https://project.supabase.co", anonKey = "anon-key", usePhoneAuth = true),
+            module { single<PhoneVerifier> { StubVerifier } },
+        )
+
+        assertIs<FirebaseBridgeAuthGateway>(koin.get<AuthGateway>())
+    }
+
+    @Test
+    fun `with phone auth off, the development account signs in and no verifier is needed`() {
+        val koin = graph(SupabaseEnvironment(url = "https://project.supabase.co", anonKey = "anon-key"))
+
+        // No PhoneVerifier in this graph at all. Resolving proves the dev branch does not
+        // reach for one — a build with no Firebase set up still signs in.
+        assertIs<DevPasswordAuthGateway>(koin.get<AuthGateway>())
+    }
+
     @Test
     fun `the protocol clients are always available, configured or not`() {
         // They are lazy singles, so an unconfigured build defines them without ever building
@@ -65,18 +98,30 @@ class SupabaseModuleTest {
         assertNotNull(graph(SupabaseEnvironment("", "")).get<PostgrestClient>())
     }
 
-    /** `supabaseModule` plus the observability doubles its telemetry facade needs. */
-    private fun graph(environment: SupabaseEnvironment) = koinApplication {
+    /**
+     * `supabaseModule` plus the observability doubles its telemetry facade needs. [extra]
+     * stands in for what other modules publish into the real graph.
+     */
+    private fun graph(environment: SupabaseEnvironment, extra: Module? = null) = koinApplication {
         modules(
-            module {
-                single<Logger> { RecordingLogger }
-                single<PerformanceTracer> { NoopTracer }
-                single<CrashRecorder> { RecordingCrashRecorder }
-                // The session lives in :feature:auth now; this module only consumes the
-                // token through the domain port.
-                single<AccessTokenProvider> { AccessTokenProvider { null } }
-            },
-            supabaseModule(environment),
+            listOfNotNull(
+                module {
+                    single<Logger> { RecordingLogger }
+                    single<PerformanceTracer> { NoopTracer }
+                    single<CrashRecorder> { RecordingCrashRecorder }
+                    // The session lives in :feature:auth now; this module only consumes the
+                    // token through the domain port.
+                    single<AccessTokenProvider> { AccessTokenProvider { null } }
+                },
+                extra,
+                supabaseModule(environment),
+            )
         )
     }.koin
+
+    private object StubVerifier : PhoneVerifier {
+        override suspend fun startVerification(phone: PhoneNumber) = Unit.right()
+        override suspend fun submitCode(code: String) = VerifiedPhoneToken("token").right()
+        override suspend fun forget() = Unit
+    }
 }

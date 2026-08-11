@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "odo-mobile-ba9aa",
+    "prod": "odo-mobile-ba9aa",
+    "dev": "odo-mobile-dev"
+  }
+}

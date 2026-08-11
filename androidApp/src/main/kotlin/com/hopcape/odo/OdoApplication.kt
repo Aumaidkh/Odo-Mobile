@@ -25,6 +25,7 @@ import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
+import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthAndroidModule
 import com.hopcape.odo.infrastructure.firebase.crashlytics.FirebaseCrashlyticsSink
 import com.hopcape.odo.infrastructure.firebase.performance.FirebasePerformanceSink
 import com.hopcape.odo.di.initKoin
@@ -100,6 +101,11 @@ class OdoApplication : Application() {
                 // bound by the platform module rather than in common code.
                 includes(corePlatformAndroidModule)
                 includes(tripTrackerAndroidModule)
+                // Sending an SMS needs an Activity, which only this bootstrap can supply,
+                // so the real PhoneVerifier is bound here rather than in the shared graph.
+                // Replaces firebaseAuthModule's unavailable one — the platform module is
+                // last in initKoin, so this wins.
+                includes(firebaseAuthAndroidModule)
             },
         ) {
             androidLogger(Level.INFO)

@@ -41,6 +41,7 @@ import com.hopcape.odo.feature.auth.resources.au_phone_note
 import com.hopcape.odo.feature.auth.resources.au_phone_subtitle
 import com.hopcape.odo.feature.auth.resources.au_phone_title
 import com.hopcape.odo.feature.auth.resources.au_send_code
+import com.hopcape.odo.feature.auth.resources.au_sending_code
 import com.hopcape.odo.feature.auth.resources.au_skip
 import com.hopcape.odo.feature.auth.resources.au_skip_hint
 import org.jetbrains.compose.resources.stringResource
@@ -63,6 +64,7 @@ internal fun PhoneScreen(
 ) {
     val phone = state.phone
     val isComplete = state.canSubmit
+    val isSending = state.submission.isInFlight
 
     OdoScreen {
         Column(
@@ -122,7 +124,15 @@ internal fun PhoneScreen(
             OdoButton(
                 stringResource(Res.string.au_send_code),
                 onClick = { onEvent(PhoneEvent.SendCodeClicked) },
-                enabled = isComplete,
+                // Sending can take a few seconds — Firebase runs app verification before the
+                // SMS is even requested. A button that only greys out says "not now"; this
+                // says what it is doing.
+                loading = isSending,
+                loadingText = stringResource(Res.string.au_sending_code),
+                // `canSubmit` is false while a request is in flight, which on its own would
+                // grey the button out and hide the spinner behind a disabled look. `loading`
+                // is what blocks the second tap.
+                enabled = isComplete || isSending,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(OdoTheme.spacing.sm))

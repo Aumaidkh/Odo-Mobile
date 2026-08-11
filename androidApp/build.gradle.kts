@@ -87,6 +87,9 @@ dependencies {
     // FirebaseCrashlyticsSink is constructed directly here (see CrashSink KDoc):
     // CrashReporter.init runs before the Koin graph starts.
     implementation(projects.infrastructure.firebase.crashlytics)
+    // firebaseAuthAndroidModule — the real PhoneVerifier, bound from the platform module
+    // because verifyPhoneNumber needs an Activity and only this bootstrap can supply one.
+    implementation(projects.infrastructure.firebase.auth)
 
     implementation(libs.androidx.activity.compose)
 
