@@ -4,6 +4,7 @@ import com.hopcape.odo.infrastructure.database.db.App_settings
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import kotlin.time.Instant
@@ -29,6 +30,10 @@ internal fun App_settings.toDomain(): AppSettings = AppSettings(
         partnerOffers = notif_partner.toBoolean(),
         push = notif_push.toBoolean(),
         whatsapp = notif_whatsapp.toBoolean(),
+    ),
+    privacy = PrivacyPreferences(
+        keepTripRoutes = privacy_keep_trip_routes.toBoolean(),
+        usageAnalytics = privacy_usage_analytics.toBoolean(),
     ),
     trackerEnabled = tracker_enabled.toBoolean(),
     autoOdoPausedUntil = auto_odo_paused_until?.let { runCatching { Instant.parse(it) }.getOrNull() },

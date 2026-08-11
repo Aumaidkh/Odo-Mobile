@@ -20,6 +20,7 @@ import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
@@ -37,6 +38,8 @@ import com.hopcape.performance.api.SpanSink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -118,9 +121,12 @@ class OdoApplication : Application() {
         // builds start granted so the periodic path can be exercised without a manual consent
         // flow. "Send diagnostics" (:feature:support) bypasses this gate entirely by design —
         // this only controls the periodic, non-manual path.
-        // TODO(consent): the real DPDP consent flow must own this gate before launch, same
-        //  as HAnalytics.setConsent below.
+        // TODO(consent): the diagnostic-log gate is still not owned by the privacy screen.
+        //  Deliberately out of scope there: "Usage analytics" governs product analytics only,
+        //  so claiming this one under it would make the switch's copy false.
         KoinPlatform.getKoin().get<LogUploadRunner>().setAutoUploadConsent(granted = BuildConfig.DEBUG)
+
+        applyAnalyticsConsent()
 
         // Catches up on whatever the durable queue is still holding from the last session
         // — the periodic timer would get to it within flushInterval anyway, but there is
@@ -148,6 +154,37 @@ class OdoApplication : Application() {
                 override fun onStop(owner: LifecycleOwner) = HLogger.flush()
             },
         )
+    }
+
+    /**
+     * Open the analytics gate only as far as the owner has agreed to.
+     *
+     * The gate starts closed — `ConsentStatus.UNKNOWN` tracks nothing — so this has to run on
+     * every launch, not only when the answer is no. It reads the same
+     * `AppSettings.privacy.usageAnalytics` the privacy screen writes, which is what makes an
+     * opt-out survive a restart rather than lasting one session.
+     *
+     * A short-lived coroutine because the read is a `Flow` and the graph is only up now, the
+     * same shape as the `AppStatusProvider.refresh()` call above. The window before it lands
+     * is a few milliseconds of a closed gate, which is the safe direction to be wrong in: an
+     * event lost is better than an event nobody agreed to.
+     */
+    private fun applyAnalyticsConsent() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            val settings = KoinPlatform.getKoin().get<AppSettingsRepository>()
+            // Not `first()` — the switch can move later in the session, and a one-shot read
+            // would leave analytics running until the next launch after an opt-out. The
+            // privacy screen also applies it directly for immediacy; this is what keeps the
+            // two agreeing if a write lands from anywhere else.
+            settings.observe()
+                .map { it.privacy.usageAnalytics }
+                .distinctUntilChanged()
+                .collect { granted ->
+                    HAnalytics.setConsent(
+                        if (granted) ConsentStatus.GRANTED else ConsentStatus.DENIED,
+                    )
+                }
+        }
     }
 
     /**

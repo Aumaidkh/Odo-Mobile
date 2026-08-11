@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.firebase.auth
 
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
+import com.hopcape.odo.core.domain.auth.VerifiedAccount
 import org.koin.dsl.module
 
 /**
@@ -28,6 +29,12 @@ val firebaseAuthModule = module {
         // The same "a vendor SDK failure is visible in logs, never a silent no-op and never
         // a throw" contract every other Firebase gateway in this repo holds.
         UnavailablePhoneVerifier(onDiagnostic = { message -> logger.warn(TAG, message) })
+    }
+
+    // Same split, same reason: Android's real one is bound by firebaseAuthAndroidModule.
+    single<VerifiedAccount> {
+        val logger = get<Logger>()
+        UnavailableVerifiedAccount(onDiagnostic = { message -> logger.warn(TAG, message) })
     }
 }
 

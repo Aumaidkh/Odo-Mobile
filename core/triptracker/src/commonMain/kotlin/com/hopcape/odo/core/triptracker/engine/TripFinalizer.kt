@@ -3,6 +3,7 @@ package com.hopcape.odo.core.triptracker.engine
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.trip.model.GeoPoint
 import com.hopcape.odo.core.domain.trip.model.ParkedLocation
 import com.hopcape.odo.core.domain.trip.model.Trip
@@ -16,6 +17,7 @@ import com.hopcape.odo.core.triptracker.algorithm.haversineMeters
 import com.hopcape.odo.core.triptracker.config.TripTrackerConfig
 import com.hopcape.odo.core.triptracker.observability.TripTrackerTelemetry
 import com.hopcape.odo.core.triptracker.port.RouteDistanceEstimator
+import kotlinx.coroutines.flow.first
 import kotlin.time.Instant
 
 /**
@@ -30,6 +32,7 @@ internal class TripFinalizer(
     private val routeEstimator: RouteDistanceEstimator,
     private val config: TripTrackerConfig,
     private val telemetry: TripTrackerTelemetry,
+    private val settings: AppSettingsRepository,
 ) {
     private val validator = TripValidator(config)
 
@@ -46,8 +49,17 @@ internal class TripFinalizer(
             return
         }
 
-        val startPoint = session.firstFix?.let { GeoPoint.of(it.lat, it.lon).getOrNull() }
-        val endPoint = session.lastGoodFix?.let { GeoPoint.of(it.lat, it.lon).getOrNull() }
+        // The privacy switch, read at the moment of writing rather than when the trip
+        // started: a drive that began before the owner turned routes off must not leave
+        // coordinates behind because it was already in flight.
+        val keepRoutes = settings.observe().first().privacy.keepTripRoutes
+
+        val startPoint = session.firstFix
+            ?.takeIf { keepRoutes }
+            ?.let { GeoPoint.of(it.lat, it.lon).getOrNull() }
+        val endPoint = session.lastGoodFix
+            ?.takeIf { keepRoutes }
+            ?.let { GeoPoint.of(it.lat, it.lon).getOrNull() }
 
         val trip = Trip.create(
             id = TripId.new(ids),

@@ -45,6 +45,15 @@ data class ProfileDto(
     @SerialName("onboarding_completed_at") val onboardingCompletedAt: String? = null,
     @SerialName("email") val email: String? = null,
     @SerialName("avatar_path") val avatarPath: String? = null,
+    /**
+     * Whether this owner's prices may feed the city benchmark.
+     *
+     * Non-null with a default, so it is always present in the payload — a field omitted
+     * from a PostgREST batch is what makes a cleared value never sync. The default is `true`
+     * only so a row pulled from a server that predates the column reads as opted in, which
+     * is the same answer a new profile gets.
+     */
+    @SerialName("shares_prices") val sharesPrices: Boolean = true,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("deleted_at") val deletedAt: String? = null,

@@ -12,6 +12,8 @@ import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.settings.model.AppSettings
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.trip.model.ParkedLocation
 import com.hopcape.odo.core.domain.trip.model.Trip
@@ -99,12 +101,20 @@ class CoreTripTrackerModuleTest {
                 single<TripSessionStore> { NoopTripSessionStore }
                 single<CarRepository> { NoopCarRepository }
                 single<TripRepository> { NoopTripRepository }
+                // The finalizer reads "Keep trip routes" from here. Bound by
+                // `coreDataModule` in the real graph, same as the two repositories above.
+                single<AppSettingsRepository> { NoopSettingsRepository }
                 single { UuidIdGenerator() }
                 single<IdGenerator> { get<UuidIdGenerator>() }
             },
             coreTripTrackerModule,
         )
     }
+}
+
+private object NoopSettingsRepository : AppSettingsRepository {
+    override fun observe(): Flow<AppSettings> = flowOf(AppSettings.Default)
+    override suspend fun save(settings: AppSettings): Either<DomainError, AppSettings> = settings.right()
 }
 
 private object NoopLogger : Logger {
@@ -171,4 +181,5 @@ private object NoopTripRepository : TripRepository {
     override suspend fun countedBetween(carId: CarId, from: Instant, to: Instant): List<Trip> = emptyList()
     override suspend fun parkedLocation(carId: CarId): ParkedLocation? = null
     override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = Unit.right()
+    override suspend fun forgetRoutes(): Either<DomainError, Unit> = Unit.right()
 }

@@ -47,6 +47,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 trackerEnabled = settings.trackerEnabled.toLong(),
                 autoOdoPausedUntil = settings.autoOdoPausedUntil?.toString(),
                 aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
+                privacyKeepTripRoutes = settings.privacy.keepTripRoutes.toLong(),
+                privacyUsageAnalytics = settings.privacy.usageAnalytics.toLong(),
                 updatedAt = now,
             )
             queries.updateSettings(
@@ -66,6 +68,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 trackerEnabled = settings.trackerEnabled.toLong(),
                 autoOdoPausedUntil = settings.autoOdoPausedUntil?.toString(),
                 aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
+                privacyKeepTripRoutes = settings.privacy.keepTripRoutes.toLong(),
+                privacyUsageAnalytics = settings.privacy.usageAnalytics.toLong(),
                 updatedAt = now,
             )
         }

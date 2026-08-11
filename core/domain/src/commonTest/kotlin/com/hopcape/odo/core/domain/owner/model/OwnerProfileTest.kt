@@ -91,4 +91,52 @@ class OwnerProfileTest {
         assertEquals(OnboardingGoal.NEVER_MISS_RENEWAL, profile.goal)
         assertTrue(profile.hasCompletedOnboarding)
     }
+
+    @Test
+    fun priceSharing_startsOnForANewProfile() {
+        val profile = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+
+        assertTrue(profile.sharesPricesAnonymously)
+    }
+
+    @Test
+    fun withPriceSharing_turnsItOffAndLeavesEverythingElseAlone() {
+        val profile = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+            .withCity("Pune")
+            .completeOnboarding(completedAt)
+
+        val optedOut = profile.withPriceSharing(false)
+
+        assertFalse(optedOut.sharesPricesAnonymously)
+        assertEquals("Rahul", optedOut.name?.value)
+        assertEquals("Pune", optedOut.city)
+        assertEquals(OnboardingGoal.TRACK_COSTS, optedOut.goal)
+        assertTrue(optedOut.hasCompletedOnboarding)
+    }
+
+    @Test
+    fun priceSharing_survivesEveryOtherEdit() {
+        // Each `with*` rebuilds the whole aggregate positionally, so a new field is easy to
+        // drop from one of them. An opted-out owner must not be opted back in by renaming.
+        val optedOut = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+            .withPriceSharing(false)
+
+        assertFalse(optedOut.withName(name("Rahul Sharma")).sharesPricesAnonymously)
+        assertFalse(optedOut.withCity("Pune").sharesPricesAnonymously)
+        assertFalse(optedOut.withAvatar("avatar.jpg").sharesPricesAnonymously)
+        assertFalse(optedOut.withEmail(null).sharesPricesAnonymously)
+        assertFalse(optedOut.completeOnboarding(completedAt).sharesPricesAnonymously)
+    }
+
+    @Test
+    fun reconstitute_defaultsPriceSharingOnForRowsWrittenBeforeTheColumnExisted() {
+        val profile = OwnerProfile.reconstitute(
+            id = ownerId,
+            name = "Rahul",
+            goal = null,
+            onboardingCompletedAt = null,
+        )
+
+        assertTrue(profile.sharesPricesAnonymously)
+    }
 }
