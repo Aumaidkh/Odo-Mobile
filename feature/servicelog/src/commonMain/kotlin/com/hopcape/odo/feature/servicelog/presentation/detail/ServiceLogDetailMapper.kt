@@ -6,7 +6,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.feature.servicelog.domain.usecase.ServiceEntryDetail
-import com.hopcape.odo.feature.servicelog.presentation.state.workDone
 
 /**
  * An entry (and its record context) → what the detail screen renders. A pure function kept
@@ -18,7 +17,6 @@ internal fun ServiceEntryDetail.toUiState(): ServiceEntryDetailUiState = Service
     workshopName = entry.workshopName?.value,
     serviceDate = entry.serviceDate,
     odometer = entry.odometer,
-    workDone = entry.workDone(),
     verification = entry.verification,
     totalPaid = entry.totalAmount,
     lineItems = entry.billedLines(),

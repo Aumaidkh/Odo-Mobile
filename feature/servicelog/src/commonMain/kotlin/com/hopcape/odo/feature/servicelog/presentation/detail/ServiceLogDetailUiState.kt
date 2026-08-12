@@ -9,7 +9,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
-import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
 /**
@@ -125,7 +124,6 @@ internal data class ServiceEntryDetailUiState(
     val workshopName: String?,
     val serviceDate: LocalDate,
     val odometer: Distance,
-    val workDone: WorkDone,
     val verification: VerificationStatus,
     val totalPaid: Amount,
     val lineItems: List<ServiceLineItemUiState>,

@@ -12,7 +12,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
-import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
 private fun rupees(paise: Long): Amount = Amount.of(paise).getOrElse { Amount.ZERO }
@@ -24,7 +23,6 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
     workshopName = "AutoCare Pune",
     serviceDate = LocalDate(2026, 3, 2),
     odometer = km(48_500),
-    workDone = WorkDone.Described(listOf("Front brake pads")),
     verification = VerificationStatus.VERIFIED,
     totalPaid = rupees(480_000),
     lineItems = listOf(
@@ -62,7 +60,6 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
 private val sampleUnitemisedEntry = sampleDetailEntry.copy(
     id = ServiceLogId("3"),
     workshopName = "Sai Motor Works",
-    workDone = WorkDone.Described(listOf("Oil change", "AC", "Suspension")),
     totalPaid = rupees(8_142_000),
     lineItems = emptyList(),
     fairness = EntryFairnessUiState.NotAssessed,

@@ -62,7 +62,6 @@ import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
-import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_badge_pdf
@@ -227,17 +226,14 @@ private fun BillCard(photoRef: String, onOpen: () -> Unit) {
 
 @Composable
 private fun DetailHeader(entry: ServiceEntryDetailUiState) {
-    // Workshop name lives in the collapsing top bar; the header carries the trust
-    // badge + the "date · km · work" line.
+    // Workshop name lives in the collapsing top bar; the header carries the trust badge and
+    // the "date · km" line. What was done is not summarised here — the billed items below
+    // are the same list, and printing both left the header running to four lines.
     val distance = LocalOdoDistanceFormat.current
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
         VerificationBadge(entry.verification)
         OdoText(
-            text = buildString {
-                append(formatDate(entry.serviceDate))
-                append(" · ").append(distance.format(entry.odometer.km))
-                entry.workDone.asString()?.let { append(" · ").append(it) }
-            },
+            text = "${formatDate(entry.serviceDate)} · ${distance.format(entry.odometer.km)}",
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
         )
