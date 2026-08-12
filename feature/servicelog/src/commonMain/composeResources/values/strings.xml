@@ -105,12 +105,12 @@
 
     <!-- Share verified record sheet -->
     <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
-    <string name="sl_share_copy">Copy</string>
-    <string name="sl_share_copied">Copied</string>
     <string name="sl_share_whatsapp">WhatsApp</string>
     <string name="sl_share_email">Email</string>
     <string name="sl_share_more">More</string>
     <string name="sl_share_download_pdf">Download as PDF</string>
+    <string name="sl_share_preparing">Preparing record…</string>
+    <string name="sl_share_failed">The record could not be prepared. Please try again.</string>
 
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
