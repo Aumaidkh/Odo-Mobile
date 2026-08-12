@@ -199,8 +199,12 @@ sealed interface OdoDestination : NavKey {
         data class AddEdit(override val carId: String, val editLogId: String? = null) : ServiceLog
         /** Report an overcharge on a specific (flagged) entry — reached from its detail. */
         data class ReportOvercharge(val logId: String, override val carId: String) : ServiceLog
-        /** Share the car's verified record — shown as a bottom-sheet destination. */
-        data class Share(override val carId: String) : ServiceLog
+        /**
+         * Share as a PDF — shown as a bottom-sheet destination. With [logId] null the
+         * document is the car's whole verified record; with it set, the document is that
+         * one entry's bill, items and all.
+         */
+        data class Share(override val carId: String, val logId: String? = null) : ServiceLog
     }
 
     /**

@@ -4,11 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.record.model.ServiceRecord
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StorageKey
 import com.hopcape.odo.core.platform.share.EXPORT_DIRECTORY
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceRecordUseCase
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceBillDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocument
 import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocumentFactory
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +21,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -27,6 +34,11 @@ import kotlinx.coroutines.launch
  * written, and whether it can be sent. The host does the two things that need a UI to exist:
  * running the platform's renderer, and opening the system share sheet.
  *
+ * Two documents can come out of it, decided by [logId]. Opened without one (the list, the
+ * Timeline) the document is the car's whole verified record; opened with one (an entry's
+ * detail) it is that entry's bill — its items, its workshop, its total — because the owner
+ * standing on one bill is sharing that bill, not the car's life story.
+ *
  * **Rendered once per sheet.** The first target the owner taps produces the file; every
  * target after that sends the same one. A record does not change while a sheet is open over
  * it, and laying out forty entries twice to send the same document twice is time the owner
@@ -34,8 +46,11 @@ import kotlinx.coroutines.launch
  */
 internal class ShareRecordViewModel(
     private val carId: CarId,
+    private val logId: ServiceLogId?,
     private val observeRecord: ObserveServiceRecordUseCase,
+    private val observeDetail: ObserveEntryDetailUseCase,
     private val documents: ServiceRecordDocumentFactory,
+    private val bills: ServiceBillDocumentFactory,
     private val files: PlatformFileStore,
     private val telemetry: ServiceLogTelemetry,
 ) : ViewModel() {
@@ -49,6 +64,9 @@ internal class ShareRecordViewModel(
     /** The record as last read. Null until the first emission, which is why sharing waits. */
     private var record: ServiceRecord? = null
 
+    /** The entry being shared as a bill. Stays null for a whole-record sheet. */
+    private var entry: ServiceLogEntry? = null
+
     /** The document, once written. Reused by every later target. */
     private var writtenKey: String? = null
 
@@ -58,12 +76,25 @@ internal class ShareRecordViewModel(
     init {
         telemetry.shareOpened()
         viewModelScope.launch(telemetry.op(ServiceLogTelemetry.Trace.SHARE_LOAD)) {
-            observeRecord(carId)
+            observed()
                 // Reported rather than thrown: an unhandled failure in a `collect` cancels
                 // the ViewModel's scope, and the sheet showing no counts is better than the
                 // sheet taking the screen behind it down.
                 .catch { cause -> telemetry.readFailed(ServiceLogTelemetry.Source.SHARE, cause) }
-                .collect(::show)
+                .collect { (record, entry) -> show(record, entry) }
+        }
+    }
+
+    /**
+     * What the sheet watches: the record alone, or — for a bill — the record and the entry
+     * together. The record rides along either way because even the bill document opens with
+     * the car's identity, which no single entry carries.
+     */
+    private fun observed(): Flow<Pair<ServiceRecord, ServiceLogEntry?>> {
+        val records = observeRecord(carId)
+        val logId = logId ?: return records.map { record -> record to null }
+        return combine(records, observeDetail(carId, logId)) { record, detail ->
+            record to detail?.entry
         }
     }
 
@@ -81,6 +112,8 @@ internal class ShareRecordViewModel(
     private fun share(target: ShareTarget) {
         if (_state.value.isBusy) return
         val record = record ?: return
+        // A bill sheet with no entry yet (or no entry any more) has nothing to print.
+        if (logId != null && entry == null) return
 
         writtenKey?.let { key ->
             telemetry.recordShared(target.name)
@@ -92,7 +125,7 @@ internal class ShareRecordViewModel(
         // Traced: laying out a long history is the slowest thing the sheet does, and it is
         // the number to look at when an owner says sharing takes too long.
         viewModelScope.launch(telemetry.op(ServiceLogTelemetry.Trace.RECORD_EXPORT)) {
-            val document = documents.create(record)
+            val document = buildDocument(record)
             documentTitle = document.name
             emit(
                 ShareRecordEffect.RenderDocument(
@@ -102,6 +135,12 @@ internal class ShareRecordViewModel(
                 ),
             )
         }
+    }
+
+    /** The whole record, or — when the sheet was opened on one entry — that entry's bill. */
+    private suspend fun buildDocument(record: ServiceRecord): ServiceRecordDocument {
+        val entry = entry ?: return documents.create(record)
+        return bills.create(record, entry)
     }
 
     /** Write what the host rendered, then send it. */
@@ -114,7 +153,7 @@ internal class ShareRecordViewModel(
         viewModelScope.launch {
             val key = StorageKey.of(
                 directory = "$EXPORT_DIRECTORY/${carId.value}",
-                fileName = FILE_NAME,
+                fileName = if (logId == null) RECORD_FILE_NAME else BILL_FILE_NAME,
                 rawExtension = PDF_EXTENSION,
             )
             files.write(key, bytes).fold(
@@ -137,18 +176,32 @@ internal class ShareRecordViewModel(
         _state.update { it.copy(export = ExportUiState.Failed) }
     }
 
-    private fun show(record: ServiceRecord) {
+    private fun show(record: ServiceRecord, entry: ServiceLogEntry?) {
         this.record = record
+        this.entry = entry
         // A record that has changed invalidates the file written from the older one, so the
         // next target renders again rather than sending a document that is already stale.
         writtenKey = null
+        val carName = record.carName.takeIf { name -> name.isNotBlank() }
         _state.update {
             it.copy(
-                content = ShareRecordUiState.Content.Loaded(
-                    carName = record.carName.takeIf { name -> name.isNotBlank() },
-                    verifiedCount = record.verifiedCount,
-                    serviceCount = record.entryCount,
-                ),
+                content = if (logId == null) {
+                    ShareRecordUiState.Content.Loaded(
+                        carName = carName,
+                        verifiedCount = record.verifiedCount,
+                        serviceCount = record.entryCount,
+                    )
+                } else if (entry == null) {
+                    // The entry is gone — never written, or deleted under the open sheet.
+                    // The sheet keeps loading rather than describing a bill it cannot print.
+                    ShareRecordUiState.Content.Loading
+                } else {
+                    ShareRecordUiState.Content.LoadedBill(
+                        carName = carName,
+                        serviceDate = entry.serviceDate,
+                        amount = entry.totalAmount,
+                    )
+                },
             )
         }
     }
@@ -159,11 +212,12 @@ internal class ShareRecordViewModel(
 
     private companion object {
         /**
-         * One file per car, overwritten on every export. The export directory is what the
-         * share sheet reads from, and a name carrying a date would leave a copy of every
-         * record the owner ever sent sitting in it.
+         * One file of each kind per car, overwritten on every export. The export directory
+         * is what the share sheet reads from, and a name carrying a date or an id would
+         * leave a copy of every document the owner ever sent sitting in it.
          */
-        const val FILE_NAME = "service-record"
+        const val RECORD_FILE_NAME = "service-record"
+        const val BILL_FILE_NAME = "service-bill"
         const val PDF_EXTENSION = "pdf"
     }
 }

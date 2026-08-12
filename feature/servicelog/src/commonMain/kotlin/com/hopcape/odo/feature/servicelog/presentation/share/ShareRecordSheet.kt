@@ -28,8 +28,11 @@ import com.hopcape.odo.core.designsystem.icons.IcPdf
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_share
+import com.hopcape.odo.feature.servicelog.resources.sl_share_bill_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_share_download_pdf
 import com.hopcape.odo.feature.servicelog.resources.sl_share_email
 import com.hopcape.odo.feature.servicelog.resources.sl_share_failed
@@ -128,13 +131,27 @@ private fun Header(content: ShareRecordUiState.Content) {
         }
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(stringResource(Res.string.sl_detail_share), style = OdoTheme.typography.heading)
-            if (content is ShareRecordUiState.Content.Loaded) {
-                OdoText(
+            when (content) {
+                ShareRecordUiState.Content.Loading -> Unit
+
+                is ShareRecordUiState.Content.Loaded -> OdoText(
                     stringResource(
                         Res.string.sl_share_subtitle,
                         content.carName ?: EMPTY_FIELD,
                         content.verifiedCount,
                         content.serviceCount,
+                    ),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+
+                // One bill going out, so the line names the bill: car, day, amount.
+                is ShareRecordUiState.Content.LoadedBill -> OdoText(
+                    stringResource(
+                        Res.string.sl_share_bill_subtitle,
+                        content.carName ?: EMPTY_FIELD,
+                        formatDate(content.serviceDate),
+                        content.amount.formatRupees(),
                     ),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,

@@ -3,8 +3,11 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceLogFeedUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceRecordUseCase
 import com.hopcape.odo.feature.servicelog.presentation.FakeCarRepository
 import com.hopcape.odo.feature.servicelog.presentation.FakeDocumentRepository
@@ -90,8 +93,10 @@ class ShareRecordViewModelTest {
             listOf(testEntry("a", km = 54_000, paise = 320_000, verified = true, date = LocalDate(2026, 7, 12))),
         ),
         files: PlatformFileStore = RecordingFileStore(),
+        logId: ServiceLogId? = null,
     ) = ShareRecordViewModel(
         carId = TEST_CAR,
+        logId = logId,
         observeRecord = ObserveServiceRecordUseCase(
             cars = FakeCarRepository(testCar()),
             logs = logs,
@@ -101,7 +106,9 @@ class ShareRecordViewModelTest {
             clock = TEST_CLOCK,
             timeZone = TimeZone.UTC,
         ),
+        observeDetail = ObserveEntryDetailUseCase(observeFeed = ObserveServiceLogFeedUseCase(logs = logs)),
         documents = { record -> ServiceRecordDocument(html = "<!doctype html>${record.carName}", name = "${record.carName} service record") },
+        bills = { record, entry -> ServiceRecordDocument(html = "<!doctype html>bill:${entry.id.value}", name = "${record.carName} service bill") },
         files = files,
         telemetry = telemetry(),
     )
@@ -271,6 +278,62 @@ class ShareRecordViewModelTest {
             2,
             effects.filterIsInstance<ShareRecordEffect.RenderDocument>().size,
             "the file written from the older record would be missing the new entry",
+        )
+    }
+
+    /* ------------------------- the bill share ------------------------- */
+
+    @Test
+    fun `opened on one entry, the sheet describes that bill rather than the record`() = runTest {
+        val viewModel = viewModel(logId = ServiceLogId("a"))
+        advanceUntilIdle()
+
+        val content = viewModel.state.value.content
+        assertTrue(content is ShareRecordUiState.Content.LoadedBill)
+        assertEquals("Maruti Swift VXI", content.carName)
+        assertEquals(LocalDate(2026, 7, 12), content.serviceDate)
+        assertEquals(320_000, content.amount.paise)
+    }
+
+    @Test
+    fun `opened on one entry, the document rendered is the bill, not the record`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, logId = ServiceLogId("a"))
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+        advanceUntilIdle()
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        val render = effects.filterIsInstance<ShareRecordEffect.RenderDocument>().single()
+        assertEquals("<!doctype html>bill:a", render.html, "the single entry's bill is what goes out")
+
+        viewModel.onEvent(ShareRecordEvent.Rendered(renderedBytes, ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        val share = effects.filterIsInstance<ShareRecordEffect.ShareFile>().single()
+        assertEquals(
+            "exports/${TEST_CAR.value}/service-bill.pdf",
+            share.storageKey,
+            "the bill is written beside the record, never over it",
+        )
+    }
+
+    @Test
+    fun `an entry that does not exist shares nothing`() = runTest {
+        val viewModel = viewModel(logId = ServiceLogId("missing"))
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+        advanceUntilIdle()
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.WHATSAPP))
+        advanceUntilIdle()
+
+        assertEquals(ShareRecordUiState.Content.Loading, viewModel.state.value.content)
+        assertTrue(
+            effects.none { it is ShareRecordEffect.RenderDocument },
+            "there is no bill to print",
         )
     }
 
