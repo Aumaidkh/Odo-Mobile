@@ -33,6 +33,7 @@ import kotlin.math.abs
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -334,7 +335,10 @@ private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
 @Composable
 private fun BreakdownCard(rows: List<FairnessBreakdownRow>, total: com.hopcape.odo.core.domain.shared.Amount) {
     OdoCard {
-        rows.forEach { row -> BreakdownRow(row) }
+        rows.forEachIndexed { index, row ->
+            if (index > 0) ItemDivider()
+            BreakdownRow(row)
+        }
         CardFooter(
             leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
             trailing = { OdoText(total.formatRupees(), style = OdoTheme.typography.title) },
@@ -386,7 +390,8 @@ private fun VerdictLabel(verdict: FairnessVerdict) {
 @Composable
 private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
     OdoCard {
-        entry.lineItems.forEach { item ->
+        entry.lineItems.forEachIndexed { index, item ->
+            if (index > 0) ItemDivider()
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 OdoText(item.label ?: categoryLabel(item.category), style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
                 OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
@@ -419,6 +424,7 @@ private fun ExtrasRow(entry: ServiceEntryDetailUiState) {
     if (difference == 0L) return
 
     val label = if (difference > 0) Res.string.sl_detail_extras else Res.string.sl_detail_discount
+    ItemDivider()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         OdoText(
             stringResource(label),
@@ -432,6 +438,13 @@ private fun ExtrasRow(entry: ServiceEntryDetailUiState) {
             color = OdoTheme.colors.textDim,
         )
     }
+}
+
+/** The hairline between bill lines — dimmer than [CardFooter]'s rule so the strong line
+ *  stays reserved for the total, and the items merely read as separated. */
+@Composable
+private fun ItemDivider() {
+    OdoDivider(color = OdoTheme.colors.border.copy(alpha = 0.6f))
 }
 
 /** Bottom-pinned actions: Share (verified) + Report (when the entry is over the average). */
