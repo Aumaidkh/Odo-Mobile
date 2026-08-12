@@ -1,0 +1,93 @@
+-- Device settings — theme, text size, the units figures are shown in, and which
+-- notifications the owner agreed to.
+--
+-- **Deliberately not a syncable table.** It mirrors nothing on the server: there
+-- is no `app_settings` in DB_SCHEMA, and there should not be. A theme belongs to
+-- the phone it is read on, not to the account, so the mandatory sync column set
+-- (SYNC_DESIGN §4.1) is absent here on purpose rather than by oversight. If the
+-- notification topics ever have to follow an owner between devices they move
+-- onto `profiles`, which already syncs.
+--
+-- One row, pinned to id 1. A key-value shape would store the same seven flags
+-- with no type checking and a join for every read; the columns are the schema.
+--
+-- tracker_enabled: whether automatic trip tracking is on (docs/TRIPTRACKER_PLAN.md).
+-- Device-local for the same reason as every other column here — it names a
+-- foreground-service/permission state specific to this phone, not the account.
+--
+-- auto_odo_paused_until / ao_last_acked_trip_ended_at: auto-odometer's (nullable, no
+-- default) "Pause for a week" deadline and trip-logged-screen last-acknowledged marker
+-- (docs/AUTO_ODOMETER_PLAN.md §6) — device-local for the same reason as tracker_enabled.
+--
+-- privacy_keep_trip_routes / privacy_usage_analytics: two of the three switches on the
+-- Privacy & permissions screen (docs/PRIVACY_PERMISSIONS_PLAN.md). The third — sharing
+-- prices with the city benchmark — is deliberately NOT here: the server is what has to
+-- honour it, so it lives on `profiles`, which syncs. The defaults below are the ones the
+-- onboarding consent card announces, and changing one means changing that copy too.
+CREATE TABLE app_settings (
+    id                          INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    theme                       TEXT NOT NULL,
+    larger_text                 INTEGER NOT NULL,
+    distance_unit               TEXT NOT NULL,
+    fuel_efficiency_unit        TEXT NOT NULL,
+    notif_doc_expiry            INTEGER NOT NULL,
+    notif_service_due           INTEGER NOT NULL,
+    notif_custom                INTEGER NOT NULL,
+    notif_overcharge            INTEGER NOT NULL,
+    notif_monthly               INTEGER NOT NULL,
+    notif_health_drop           INTEGER NOT NULL,
+    notif_partner                INTEGER NOT NULL,
+    notif_push                  INTEGER NOT NULL,
+    notif_whatsapp               INTEGER NOT NULL,
+    tracker_enabled              INTEGER NOT NULL DEFAULT 0,
+    auto_odo_paused_until        TEXT,
+    ao_last_acked_trip_ended_at  TEXT,
+    privacy_keep_trip_routes     INTEGER NOT NULL DEFAULT 0,
+    privacy_usage_analytics      INTEGER NOT NULL DEFAULT 1,
+    updated_at                  TEXT NOT NULL
+);
+
+-- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO
+-- UPDATE` needs SQLite 3.24 and minSdk 26 ships 3.18.
+insertSettings:
+INSERT OR IGNORE INTO app_settings (
+    id, theme, larger_text, distance_unit, fuel_efficiency_unit,
+    notif_doc_expiry, notif_service_due, notif_custom, notif_overcharge,
+    notif_monthly, notif_health_drop, notif_partner, notif_push, notif_whatsapp,
+    tracker_enabled, auto_odo_paused_until, ao_last_acked_trip_ended_at,
+    privacy_keep_trip_routes, privacy_usage_analytics, updated_at
+) VALUES (
+    1, :theme, :largerText, :distanceUnit, :fuelEfficiencyUnit,
+    :notifDocExpiry, :notifServiceDue, :notifCustom, :notifOvercharge,
+    :notifMonthly, :notifHealthDrop, :notifPartner, :notifPush, :notifWhatsapp,
+    :trackerEnabled, :autoOdoPausedUntil, :aoLastAckedTripEndedAt,
+    :privacyKeepTripRoutes, :privacyUsageAnalytics, :updatedAt
+);
+
+updateSettings:
+UPDATE app_settings
+SET theme                       = :theme,
+    larger_text                 = :largerText,
+    distance_unit                = :distanceUnit,
+    fuel_efficiency_unit        = :fuelEfficiencyUnit,
+    notif_doc_expiry            = :notifDocExpiry,
+    notif_service_due           = :notifServiceDue,
+    notif_custom                 = :notifCustom,
+    notif_overcharge             = :notifOvercharge,
+    notif_monthly                = :notifMonthly,
+    notif_health_drop           = :notifHealthDrop,
+    notif_partner                = :notifPartner,
+    notif_push                   = :notifPush,
+    notif_whatsapp               = :notifWhatsapp,
+    tracker_enabled              = :trackerEnabled,
+    auto_odo_paused_until        = :autoOdoPausedUntil,
+    ao_last_acked_trip_ended_at  = :aoLastAckedTripEndedAt,
+    privacy_keep_trip_routes     = :privacyKeepTripRoutes,
+    privacy_usage_analytics      = :privacyUsageAnalytics,
+    updated_at                   = :updatedAt
+WHERE id = 1;
+
+selectSettings:
+SELECT *
+FROM app_settings
+WHERE id = 1;

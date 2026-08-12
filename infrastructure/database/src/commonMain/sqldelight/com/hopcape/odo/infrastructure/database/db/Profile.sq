@@ -1,0 +1,176 @@
+-- Local profiles table — the owner's own record, mirroring DB_SCHEMA §5.1
+-- (Postgres types mapped to SQLite). One row per signed-in owner; on a device
+-- with no account it holds the single local placeholder owner.
+--
+-- `full_name` and `onboarding_goal` are nullable to match the server, where the
+-- row is created by trigger at signup — before onboarding has asked anything.
+-- A pull can therefore legitimately bring back a nameless profile.
+--
+-- `city` is nullable and stays null until the owner sets it on their profile
+-- screen; onboarding deliberately does not ask. It is the key for fairness
+-- benchmarks, so until it is filled the app shows no verdicts at all — which is
+-- the honest outcome, not a degraded one.
+--
+-- `shares_prices` is the "Share prices anonymously" switch
+-- (docs/PRIVACY_PERMISSIONS_PLAN.md). It sits here rather than in `app_settings`
+-- with the other two privacy switches because the server is what has to honour
+-- it: the city benchmark is aggregated there, from rows belonging to this
+-- account, so the answer has to travel with the account rather than sit on one
+-- phone. Defaults to 1 — on, and announced on onboarding's consent card.
+--
+-- Sync columns are the mandatory set from SYNC_DESIGN §4.1; the engine that
+-- reads them lands in M5, but the columns ship with the first migration so
+-- there is nothing to retrofit.
+CREATE TABLE profiles (
+    id                      TEXT NOT NULL PRIMARY KEY,
+    full_name               TEXT,
+    onboarding_goal         TEXT,
+    onboarding_completed_at TEXT,
+    city                    TEXT,
+    email                   TEXT,
+    avatar_path             TEXT,
+    shares_prices           INTEGER NOT NULL DEFAULT 1,
+    created_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL,
+    deleted_at              TEXT,
+    remote_version          TEXT,
+    sync_status             TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- Saving a profile is insert-or-update, but it is deliberately NOT written as an
+-- UPSERT (`ON CONFLICT ... DO UPDATE`): that syntax needs SQLite 3.24, and Odo's
+-- minSdk 26 ships SQLite 3.18, so it would fail on a real Android 8 device. The
+-- repository runs these two statements in one transaction instead — insert if
+-- absent, then update — which is equivalent and portable.
+
+-- No-op when the row already exists, which is what protects `created_at`: the
+-- first write owns the creation time.
+insertProfile:
+INSERT OR IGNORE INTO profiles (
+    id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path,
+    shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :fullName, :onboardingGoal, :onboardingCompletedAt, :city, :email, :avatarPath,
+    :sharesPrices, :now, :now, NULL, NULL, :syncStatus
+);
+
+-- `created_at` and `remote_version` are absent on purpose: the first write owns
+-- the creation time, and the last sync owns the remote version — an edit must
+-- reset neither.
+updateProfile:
+UPDATE profiles
+SET full_name               = :fullName,
+    onboarding_goal         = :onboardingGoal,
+    onboarding_completed_at = :onboardingCompletedAt,
+    city                    = :city,
+    email                   = :email,
+    avatar_path             = :avatarPath,
+    shares_prices           = :sharesPrices,
+    updated_at              = :updatedAt,
+    sync_status             = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- "Delete my data": the row stops being readable while the tombstone stays for
+-- the sync engine to push. Every live profile goes, since one device holds one
+-- owner and the caller is erasing all of them, not one by id.
+softDeleteProfiles:
+UPDATE profiles
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE deleted_at IS NULL;
+
+-- The device's profile. One signed-in owner per device, so no id is needed --
+-- the same assumption selectPrimaryCar makes.
+selectProfile:
+SELECT *
+FROM profiles
+WHERE deleted_at IS NULL
+LIMIT 1;
+
+selectProfileById:
+SELECT *
+FROM profiles
+WHERE id = ? AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM profiles
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM profiles
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE profiles
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE profiles
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE profiles
+SET full_name = :full_name,
+    onboarding_goal = :onboarding_goal,
+    onboarding_completed_at = :onboarding_completed_at,
+    email = :email,
+    avatar_path = :avatar_path,
+    shares_prices = :shares_prices,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM profiles
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9). Unlike every other table, a profile's primary key IS
+-- the owner id — the server's `profiles.id` is `auth.users.id` — so the row is re-keyed,
+-- not re-stamped. INSERT OR IGNORE first, in case the signed-in account already has a row
+-- pulled from the server; then the placeholder row is dropped either way.
+adoptProfileId:
+UPDATE OR IGNORE profiles
+SET id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE id = :placeholderOwnerId;
+
+deleteProfile:
+DELETE FROM profiles WHERE id = :id;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM profiles;

@@ -1,0 +1,150 @@
+package com.hopcape.odo.infrastructure.database.settings
+
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.hopcape.odo.infrastructure.database.db.OdoDatabase
+import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
+import com.hopcape.odo.core.domain.settings.model.AppSettings
+import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
+import com.hopcape.odo.core.domain.settings.model.ThemePreference
+import com.hopcape.odo.core.domain.shared.DistanceUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+/**
+ * SQL behaviour for [SqlDelightAppSettingsLocalDataSource] — the insert-then-update upsert
+ * idiom and the per-field enum fallback a row from a newer build reads back with. The
+ * missing-row -> [AppSettings.Default] policy lives in [AppSettingsRepositoryImplTest]
+ * instead, against a fake port.
+ */
+class SqlDelightAppSettingsLocalDataSourceTest {
+
+    private fun newDb(): OdoDatabase {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        OdoDatabase.Schema.create(driver)
+        return OdoDatabase(driver)
+    }
+
+    private fun local(db: OdoDatabase) = SqlDelightAppSettingsLocalDataSource(database = db, dispatcher = Dispatchers.Unconfined)
+
+    @Test
+    fun observe_beforeAnythingIsStored_emitsNull() = runTest {
+        assertNull(local(newDb()).observe().first())
+    }
+
+    @Test
+    fun save_thenObserve_readsEverythingBack() = runTest {
+        val local = local(newDb())
+        val settings = AppSettings(
+            theme = ThemePreference.DARK,
+            largerText = true,
+            distanceUnit = DistanceUnit.MILE,
+            fuelEfficiencyUnit = FuelEfficiencyUnit.UNITS_PER_100KM,
+            notifications = NotificationPreferences(
+                documentExpiry = false,
+                serviceDue = true,
+                customReminders = true,
+                overchargeAlerts = false,
+                monthlySummary = false,
+                healthScoreDrops = true,
+                partnerOffers = true,
+                push = false,
+                whatsapp = true,
+            ),
+        )
+
+        local.save(settings)
+
+        assertEquals(settings, local.observe().first())
+    }
+
+    @Test
+    fun save_thenObserve_roundTripsTheAutoOdometerFields() = runTest {
+        val local = local(newDb())
+        val settings = AppSettings(
+            autoOdoPausedUntil = kotlin.time.Instant.parse("2026-08-14T00:00:00Z"),
+            aoLastAckedTripEndedAt = kotlin.time.Instant.parse("2026-08-06T18:30:00Z"),
+        )
+
+        local.save(settings)
+
+        val stored = local.observe().first()
+        assertEquals(settings.autoOdoPausedUntil, stored?.autoOdoPausedUntil)
+        assertEquals(settings.aoLastAckedTripEndedAt, stored?.aoLastAckedTripEndedAt)
+    }
+
+    @Test
+    fun save_thenObserve_roundTripsThePrivacySwitches() = runTest {
+        val local = local(newDb())
+        // Both moved away from their defaults, so a column written to the wrong place (or
+        // not written at all) reads back as the default and fails here.
+        val settings = AppSettings(
+            privacy = PrivacyPreferences(keepTripRoutes = true, usageAnalytics = false),
+        )
+
+        local.save(settings)
+
+        assertEquals(settings.privacy, local.observe().first()?.privacy)
+    }
+
+    @Test
+    fun save_twice_keepsThePrivacySwitchesTheSecondWriteCarries() = runTest {
+        val local = local(newDb())
+
+        local.save(AppSettings(privacy = PrivacyPreferences(usageAnalytics = true)))
+        local.save(AppSettings(privacy = PrivacyPreferences(usageAnalytics = false)))
+
+        // The insert is ignored on the second save, so only the UPDATE writes — a privacy
+        // column missing from that statement would leave the owner opted back in.
+        assertEquals(false, local.observe().first()?.privacy?.usageAnalytics)
+    }
+
+    @Test
+    fun save_twice_editsTheOneRowInsteadOfDuplicating() = runTest {
+        val db = newDb()
+        val local = local(db)
+
+        local.save(AppSettings(theme = ThemePreference.LIGHT))
+        local.save(AppSettings(theme = ThemePreference.DARK))
+
+        assertEquals(ThemePreference.DARK, local.observe().first()?.theme)
+        assertEquals(1, db.appSettingsQueries.selectSettings().executeAsList().size)
+    }
+
+    @Test
+    fun observe_unreadableStoredValues_readAsDefaultsRatherThanCrashing() = runTest {
+        val db = newDb()
+        // A row written by a newer build. Settings are a preference: the app has to
+        // start, so an unknown value reads as the default.
+        db.appSettingsQueries.insertSettings(
+            theme = "NEON",
+            largerText = 0,
+            distanceUnit = "FURLONG",
+            fuelEfficiencyUnit = "MPG",
+            notifDocExpiry = 1,
+            notifServiceDue = 1,
+            notifCustom = 0,
+            notifOvercharge = 1,
+            notifMonthly = 1,
+            notifHealthDrop = 0,
+            notifPartner = 0,
+            notifPush = 1,
+            notifWhatsapp = 0,
+            trackerEnabled = 0,
+            autoOdoPausedUntil = null,
+            aoLastAckedTripEndedAt = null,
+            privacyKeepTripRoutes = 0,
+            privacyUsageAnalytics = 1,
+            updatedAt = "2026-08-01T10:00:00Z",
+        )
+
+        val stored = local(db).observe().first()
+        assertEquals(ThemePreference.SYSTEM, stored?.theme)
+        assertEquals(DistanceUnit.KILOMETRE, stored?.distanceUnit)
+        assertEquals(FuelEfficiencyUnit.DISTANCE_PER_UNIT, stored?.fuelEfficiencyUnit)
+    }
+}

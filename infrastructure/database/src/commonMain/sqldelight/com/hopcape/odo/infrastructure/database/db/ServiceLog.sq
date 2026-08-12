@@ -1,0 +1,288 @@
+-- Local service logs — the offline-first source of truth, mirroring DB_SCHEMA §9.4
+-- (Postgres types mapped to SQLite). Dates and timestamps are ISO-8601 TEXT;
+-- money is integer paise, never a float.
+--
+-- Sync columns are the mandatory set from SYNC_DESIGN §4.1. Three columns are
+-- local-only extensions the server schema does not have yet and that DB_SCHEMA
+-- still needs written up:
+--   * bill_photo_path   — the M1 manual bill attachment. A `bills` row is M2's
+--                         shape and carries scanner-only fields (extraction_json,
+--                         confidence, is_handwritten), so a manual photo does not
+--                         belong there.
+--   * fairness_snapshot — the verdict frozen when it was taken, as JSON. Stored
+--                         rather than recomputed so the figure the owner was shown
+--                         cannot drift as the city pool moves (DB_SCHEMA §5.5 makes
+--                         the same call for bill_line_items).
+--   * line_items        — the priced breakdown read off a bill, as JSON. A column
+--                         rather than a child table for the same reason the fairness
+--                         verdict is one: it is a frozen record of what the paper said,
+--                         never queried or aggregated on its own, and a label is free
+--                         text so it cannot ride in a GROUP_CONCAT beside a comma. The
+--                         server keys its `bill_line_items` on a `bills` row this client
+--                         does not create (DB_SCHEMA §9.6), so these do not sync yet.
+--   * categories        — see service_log_categories below.
+CREATE TABLE service_logs (
+    id                 TEXT NOT NULL PRIMARY KEY,
+    car_id             TEXT NOT NULL,
+    owner_id           TEXT NOT NULL,
+    service_date       TEXT NOT NULL,
+    odometer_km        INTEGER NOT NULL CHECK (odometer_km >= 0),
+    total_amount_paise INTEGER NOT NULL DEFAULT 0 CHECK (total_amount_paise >= 0),
+    workshop_name      TEXT,
+    notes              TEXT,
+    source             TEXT NOT NULL DEFAULT 'MANUAL',
+    bill_id            TEXT,
+    bill_photo_path    TEXT,
+    fairness_snapshot  TEXT,
+    line_items         TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
+    deleted_at         TEXT,
+    remote_version     TEXT,
+    sync_status        TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- The list's query shape: a car's live logs, newest service first.
+CREATE INDEX idx_service_logs_car_date
+    ON service_logs (car_id, service_date DESC) WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_service_logs_owner
+    ON service_logs (owner_id) WHERE deleted_at IS NULL;
+
+-- The "what was done" tags. A junction rather than a column because the domain's
+-- `categories` is a Set and the form offers multi-select chips.
+--
+-- Deliberately WITHOUT the sync column set: these rows are a projection of their
+-- parent, not a syncable table of their own. They have no independent identity or
+-- lifecycle, so they get no `SyncEntity` slot and no cursor — they travel inside
+-- the parent's payload and are rewritten wholesale when it syncs. The consequence
+-- that matters: a category-only edit must still dirty the parent row, which the
+-- repository guarantees by always writing the parent in the same transaction.
+CREATE TABLE service_log_categories (
+    service_log_id TEXT NOT NULL,
+    category       TEXT NOT NULL,
+    PRIMARY KEY (service_log_id, category)
+);
+
+-- Rows come back with their categories already gathered into one comma-separated
+-- column, so a twenty-entry list is one query rather than one-plus-twenty. Category
+-- names are enum constants (OIL_CHANGE, …) so a comma can never appear inside one.
+--
+-- COALESCE to '' is load-bearing, not tidiness: GROUP_CONCAT over no rows yields NULL,
+-- but SQLDelight types the aggregate as non-null, so an untagged entry would throw while
+-- being read — and an untagged entry is the *common* case for a manually logged service.
+-- Empty string maps to an empty set; the row still comes back.
+selectByCar:
+SELECT sl.*,
+       COALESCE((SELECT GROUP_CONCAT(c.category)
+                 FROM service_log_categories c
+                 WHERE c.service_log_id = sl.id), '') AS categories
+FROM service_logs sl
+WHERE sl.car_id = :carId AND sl.deleted_at IS NULL
+ORDER BY sl.service_date DESC, sl.created_at DESC;
+
+selectById:
+SELECT sl.*,
+       COALESCE((SELECT GROUP_CONCAT(c.category)
+                 FROM service_log_categories c
+                 WHERE c.service_log_id = sl.id), '') AS categories
+FROM service_logs sl
+WHERE sl.id = :id AND sl.deleted_at IS NULL;
+
+-- Every known odometer reading for a car: its live logs plus the car's own current
+-- reading, dated from when that reading was last written down. The domain's
+-- OdometerTimeline needs the whole timeline, not just the highest value, because
+-- the ordering rule is date-relative.
+--
+-- The car's reading falls back to `created_at` — onboarding wrote it, and it has
+-- not been updated since. Both columns are full instants while `service_date` is a
+-- date, so the baseline is truncated to its date half and the two mean the same
+-- thing. An empty result means the car does not exist (a live car always
+-- contributes its own reading).
+selectOdometerReadings:
+SELECT NULL AS log_id,
+       substr(COALESCE(c.odometer_updated_at, c.created_at), 1, 10) AS reading_date,
+       c.current_odometer_km AS odometer_km
+FROM cars c
+WHERE c.id = :carId AND c.deleted_at IS NULL
+UNION ALL
+SELECT sl.id, sl.service_date, sl.odometer_km
+FROM service_logs sl
+WHERE sl.car_id = :carId AND sl.deleted_at IS NULL;
+
+insertServiceLog:
+INSERT INTO service_logs (
+    id, car_id, owner_id, service_date, odometer_km, total_amount_paise,
+    workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, line_items,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, :serviceDate, :odometerKm, :totalAmountPaise,
+    :workshopName, :notes, :source, :billId, :billPhotoPath, :fairnessSnapshot, :lineItems,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- `car_id`, `owner_id`, `created_at` and `remote_version` are absent on purpose:
+-- an entry does not change car or owner by being edited, the first write owns the
+-- creation time, and the last sync owns the remote version. `sync_status` returns
+-- to PENDING because an edited row has to reach the server again.
+updateServiceLog:
+UPDATE service_logs
+SET service_date       = :serviceDate,
+    odometer_km        = :odometerKm,
+    total_amount_paise = :totalAmountPaise,
+    workshop_name      = :workshopName,
+    notes              = :notes,
+    source             = :source,
+    bill_id            = :billId,
+    bill_photo_path    = :billPhotoPath,
+    fairness_snapshot  = :fairnessSnapshot,
+    line_items         = :lineItems,
+    updated_at         = :updatedAt,
+    sync_status        = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Soft delete: the row stays as a tombstone so the deletion itself can sync and
+-- history/audit survives. It goes back to PENDING for exactly that reason.
+softDeleteServiceLog:
+UPDATE service_logs
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Every live entry of one car, tombstoned together. Used when the car itself is
+-- removed: an entry is only reachable through its car, so it goes with it.
+--
+-- The category rows are left alone. They hang off the entry, not the car, and the
+-- entry is still there as a tombstone that has to sync with its categories intact.
+softDeleteServiceLogsForCar:
+UPDATE service_logs
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
+
+insertCategory:
+INSERT OR IGNORE INTO service_log_categories (service_log_id, category)
+VALUES (:serviceLogId, :category);
+
+deleteCategoriesFor:
+DELETE FROM service_log_categories WHERE service_log_id = :serviceLogId;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM service_logs
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM service_logs
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE service_logs
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE service_logs
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO service_logs (id, car_id, owner_id, service_date, odometer_km, total_amount_paise, workshop_name, notes, source, bill_id, bill_photo_path, fairness_snapshot, line_items, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :service_date, :odometer_km, :total_amount_paise, :workshop_name, :notes, :source, :bill_id, :bill_photo_path, :fairness_snapshot, :line_items, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE service_logs
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    service_date = :service_date,
+    odometer_km = :odometer_km,
+    total_amount_paise = :total_amount_paise,
+    workshop_name = :workshop_name,
+    notes = :notes,
+    source = :source,
+    bill_id = :bill_id,
+    bill_photo_path = :bill_photo_path,
+    fairness_snapshot = :fairness_snapshot,
+    line_items = :line_items,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- The tags on one entry, for the outbox payload.
+selectCategoriesFor:
+SELECT category
+FROM service_log_categories
+WHERE service_log_id = :serviceLogId
+ORDER BY category;
+
+-- The columns this device owns, read before a pulled row overwrites the entry. The photo is
+-- a device path the server may not know about, the bill id names an extraction the server
+-- has no `bills` row for yet, and the line items have nowhere on the server to come back
+-- from — a pull must not blank any of them.
+selectLocalOnly:
+SELECT bill_photo_path, bill_id, line_items
+FROM service_logs
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM service_logs
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE service_logs
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM service_logs;
+
+deleteAllCategories:
+DELETE FROM service_log_categories;
+
+-- Every bill photo on the device, for the same reason.
+selectAllBillPhotoPaths:
+SELECT bill_photo_path FROM service_logs WHERE bill_photo_path IS NOT NULL;
+
+-- Follow a car that took on the server's id (Car.sq `adoptServerIdentity`). `car_id` is a
+-- plain column here — the local schema declares no foreign keys — so the children have to
+-- be moved by hand, and they are, inside the same transaction as the car itself.
+--
+-- Deliberately not filtered on `deleted_at` or `sync_status`: a tombstone still has to
+-- name a car the server knows, or the delete can never be pushed.
+repointCar:
+UPDATE service_logs
+SET car_id = :serverId
+WHERE car_id = :localId;

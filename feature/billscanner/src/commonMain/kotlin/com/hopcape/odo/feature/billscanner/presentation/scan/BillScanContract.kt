@@ -1,0 +1,72 @@
+package com.hopcape.odo.feature.billscanner.presentation.scan
+
+import com.hopcape.odo.core.navigation.ScanTarget
+import com.hopcape.odo.core.platform.camera.CameraFailure
+import com.hopcape.odo.core.platform.camera.DetectedQuad
+import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
+
+/** What happened on the scan screen, as data. */
+internal sealed interface BillScanEvent {
+
+    /** A mode chip was tapped. */
+    data class TargetSelected(val target: ScanTarget) : BillScanEvent
+
+    /** The permission changed — answered, or re-read when the screen came back. */
+    data class PermissionChanged(val status: CameraPermissionStatus) : BillScanEvent
+
+    /** The owner chose "Not now" on the rationale. */
+    data object PermissionDeclined : BillScanEvent
+
+    /** The shutter produced a file at this storage key. */
+    data class PhotoCaptured(val storageKey: String) : BillScanEvent
+
+    /**
+     * A picture was chosen from the gallery, or the picker was cancelled (`null`).
+     *
+     * Carries the picker's own reference, not a storage key: the file still has to be
+     * copied into app storage before anything can keep it.
+     */
+    data class GalleryPicked(val pickedRef: String?) : BillScanEvent
+
+    /** A QR came into frame. Fires repeatedly while it stays there. */
+    data class QrDetected(val payload: String) : BillScanEvent
+
+    /** The live frames found a paper's outline, or lost it (null). */
+    data class EdgesDetected(val quad: DetectedQuad?) : BillScanEvent
+
+    /** The owner tapped the viewfinder — pin the detected outline, or release it. */
+    data object EdgeLockToggled : BillScanEvent
+
+    /** The camera is live. */
+    data object CameraReady : BillScanEvent
+
+    /** The camera could not be used. */
+    data class CameraFailed(val failure: CameraFailure) : BillScanEvent
+
+    data object GalleryTapped : BillScanEvent
+
+    data object ManualTapped : BillScanEvent
+
+    data object CloseTapped : BillScanEvent
+}
+
+/** One-shot handoffs the route host performs. */
+internal sealed interface BillScanEffect {
+
+    /** A bill was photographed; the review screen reads it. */
+    data class OpenBillReview(val photoKey: String) : BillScanEffect
+
+    /** A paper was photographed; its confirm step reads it. */
+    data class OpenDocumentReview(val photoKey: String) : BillScanEffect
+
+    /** A payment code was read; the pay-at-pump flow takes over. */
+    data class OpenPayment(val payload: String) : BillScanEffect
+
+    /** Ask the platform for a picture from the gallery. */
+    data object PickFromGallery : BillScanEffect
+
+    /** Fall back to typing the entry by hand. */
+    data object OpenManualEntry : BillScanEffect
+
+    data object NavigateBack : BillScanEffect
+}

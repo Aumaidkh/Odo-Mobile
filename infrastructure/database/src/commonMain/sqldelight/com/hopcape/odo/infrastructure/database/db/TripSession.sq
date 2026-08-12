@@ -1,0 +1,68 @@
+-- The crash-resume journal for the trip currently in progress. One row, pinned to id 1 —
+-- a live trip carries no history the way `trips` does; this is state the engine restores
+-- exactly once, on the next process start (docs/TRIPTRACKER_PLAN.md §5.2).
+--
+-- Deliberately NOT a syncable table: this is device runtime state that never mirrors a
+-- server table, same justification as app_settings. The last-fix coordinates are
+-- device-local forever regardless (D4).
+--
+-- Written on distance milestones (~250 m) and on every state change, not on every fix —
+-- a 1 Hz write rate is too hot; worst-case loss on a kill is that last unwritten ~250 m.
+CREATE TABLE trip_session (
+    id                   INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    phase                TEXT NOT NULL,
+    car_id               TEXT,
+    mode                 TEXT,
+    started_at           TEXT,
+    distance_m           INTEGER NOT NULL,
+    estimated_m          INTEGER NOT NULL,
+    last_fix_lat         REAL,
+    last_fix_lon         REAL,
+    last_fix_accuracy_m  REAL,
+    last_fix_speed_mps   REAL,
+    last_fix_at          TEXT,
+    stitch_deadline      TEXT
+);
+
+selectSession:
+SELECT *
+FROM trip_session
+WHERE id = 1;
+
+-- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO UPDATE` needs
+-- SQLite 3.24 and minSdk 26 ships 3.18 (same reason as app_settings).
+insertSession:
+INSERT OR IGNORE INTO trip_session (
+    id, phase, car_id, mode, started_at, distance_m, estimated_m,
+    last_fix_lat, last_fix_lon, last_fix_accuracy_m, last_fix_speed_mps, last_fix_at,
+    stitch_deadline
+) VALUES (
+    1, :phase, :carId, :mode, :startedAt, :distanceM, :estimatedM,
+    :lastFixLat, :lastFixLon, :lastFixAccuracyM, :lastFixSpeedMps, :lastFixAt,
+    :stitchDeadline
+);
+
+updateSession:
+UPDATE trip_session
+SET phase               = :phase,
+    car_id              = :carId,
+    mode                = :mode,
+    started_at          = :startedAt,
+    distance_m          = :distanceM,
+    estimated_m         = :estimatedM,
+    last_fix_lat        = :lastFixLat,
+    last_fix_lon        = :lastFixLon,
+    last_fix_accuracy_m = :lastFixAccuracyM,
+    last_fix_speed_mps  = :lastFixSpeedMps,
+    last_fix_at         = :lastFixAt,
+    stitch_deadline     = :stitchDeadline
+WHERE id = 1;
+
+clearSession:
+DELETE FROM trip_session WHERE id = 1;
+
+-- M7's "Delete all trip data" (auto-odometer plan §6) — only clears the single row if it
+-- actually belongs to the car being wiped, so deleting one car's data can never drop a
+-- live session belonging to another.
+clearSessionForCar:
+DELETE FROM trip_session WHERE id = 1 AND car_id = :carId;

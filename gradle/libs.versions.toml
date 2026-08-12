@@ -5,31 +5,230 @@ android-minSdk = "26"
 android-targetSdk = "36"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
-androidx-core = "1.19.0"
+androidx-core = "1.13.1"
 androidx-espresso = "3.7.0"
+androidx-testRunner = "1.7.0"
+androidx-testRules = "1.7.0"
+# Must track the androidx Compose that Compose Multiplatform maps to on Android
+# (see `./gradlew :androidApp:dependencies` — ui-test-junit4 resolves to this).
+androidx-composeUi = "1.11.2"
 androidx-lifecycle = "2.11.0-beta01"
 androidx-testExt = "1.3.0"
+# WorkManager — the Android sync scheduler. Background survival, a connectivity
+# constraint and backoff are all things an in-process coroutine cannot promise.
+androidx-work = "2.10.5"
+# SMS Retriever — reads one OTP message without the READ_SMS permission.
+playServicesAuth = "21.4.0"
+# FusedLocationProviderClient + the ActivityRecognition Transition API — both ship from
+# this one artifact.
+playServicesLocation = "21.3.0"
+# CameraX — the Android camera preview + still capture behind :core:platform's camera seam.
+camerax = "1.6.1"
+# ML Kit barcode scanning — reads a payment QR off the live preview, on the device.
+# The bundled artifact, not the Play-Services one: a fuel pump forecourt is exactly where a
+# model that still has to be downloaded would fail.
+mlkitBarcode = "17.3.0"
 composeMultiplatform = "1.11.1"
 junit = "4.13.2"
 kotlin = "2.4.0"
 material3 = "1.11.0-alpha07"
 
+# App identity / build config — single source of truth shared by every module.
+# AndroidApplicationConventionPlugin bakes these into the APK; :core:common bakes the
+# same values into BuildKonfig so every module (and iOS) can read them without a Context.
+odo-applicationId = "com.hopcape.odo"
+# Carries the pre-release qualifier too. It is not a separate catalog entry because
+# Gradle rejects an empty version string, so a `odo-versionQualifier` could never be
+# cleared for a final release. Drop the "-beta01" here when 1.0.0 ships.
+odo-versionName = "1.0.0-beta01"
+odo-versionCode = "1"
+# Per-build-type suffixes. Read twice — once to build the APK, once to bake into
+# BuildInfo — so a build can never report an applicationId or version it does not have.
+# Release carries no suffix, which is why it has no entry: a version catalog cannot
+# hold an empty string.
+odo-debugApplicationIdSuffix = ".debug"
+odo-debugVersionNameSuffix = "-debug"
+odo-stageApplicationIdSuffix = ".stage"
+odo-stageVersionNameSuffix = "-stage"
+jvmTarget = "11"
+
+# Dependency injection + functional core
+koin = "4.2.2"
+arrow = "2.2.3"
+
+# Navigation 3 (JetBrains Compose Multiplatform port — user-owned back stack)
+nav3 = "1.1.1"
+# Coroutines — SharedFlow command bus in :core:navigation
+kotlinxCoroutines = "1.10.2"
+
+# Local-first persistence (:core:data) — SQLDelight is the source of truth.
+sqldelight = "2.0.2"
+# Client-stamped offline timestamps (created_at/updated_at) in :core:data.
+kotlinxDatetime = "0.7.1"
+# JSON for the data layer's DTOs — the sync payload shape and the columns that
+# hold a structured value (e.g. a stored fairness verdict). Never applied to
+# :core:domain: the shared kernel stays free of framework annotations.
+kotlinxSerialization = "1.9.0"
+
+# Ktor — the HTTP client :infrastructure:supabase uses to talk to PostgREST and
+# Storage. Deliberately plain Ktor rather than supabase-kt: every supabase-kt
+# release up to 3.2.0 compiles against kotlinx-datetime 0.6.2, and 0.7.0 removed
+# the `kotlinx.datetime.Instant`/`Clock` classes that its auth and storage modules
+# reference (auth-kt alone has 57 such references). This project is on 0.7.1 and
+# cannot go back — ~18 files use the 0.7-only `kotlin.time.Instant` extensions.
+# Ktor has no kotlinx-datetime dependency at all, so there is nothing to clash.
+#
+# Not 3.2.0: that release ships a class whose SimpleName contains spaces, which D8 rejects
+# below DEX version 040 ("Space characters in SimpleName 'use streaming syntax' are not
+# allowed"). Odo's minSdk is 26, so the app would not dex at all.
+ktor = "3.5.2"
+
+# ML Kit on-device text recognition — the interim bill-scanner OCR
+# (:infrastructure:ai, androidMain). The bundled artifact, not the Play-Services
+# one: ~4MB more APK, but OCR works offline on first run, which is the point of
+# an on-device path for this market.
+mlkitTextRecognition = "16.0.1"
+# ExifInterface — CameraX writes rotation into EXIF, not pixels; ML Kit needs
+# the bitmap upright.
+androidxExifInterface = "1.3.7"
+analytics = "3.0.0-alpha01"
+# BOM for the real com.google.firebase:* artifacts the gitlive wrapper depends on
+# with no version of its own (:infrastructure:firebase:analytics, androidMain).
+firebaseBom = "34.17.0"
+# Reads androidApp/google-services.json and registers the app with Firebase at
+# build time (:androidApp only).
+googleServices = "4.5.0"
+# Injects the build ID resource Crashlytics' runtime SDK reads at startup — without
+# this plugin applied, FirebaseCrashlytics.init() throws during Firebase's own eager
+# ContentProvider init, before any app code runs (:androidApp only).
+firebaseCrashlyticsGradlePlugin = "3.0.7"
+# Enables Firebase Performance's automatic instrumentation (app start, network calls)
+# via bytecode transform. Latest published version — AGP 9.0.1 compatibility is
+# unverified going in (:androidApp only, see the guarded apply site).
+firebasePerfGradlePlugin = "2.0.2"
+# Generates BuildKonfig.BUILD_TYPE in :core:common's commonMain — the one place every
+# module reads whether this is a debug/release build. KMP library modules have no Android
+# BuildConfig of their own (only :androidApp does), so this stands in for it.
+buildKonfig = "0.22.0"
+
 [libraries]
+# Gradle plugin artifacts — consumed (compileOnly) by the build-logic convention plugins
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+composeMultiplatform-gradlePlugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "composeMultiplatform" }
+composeCompiler-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
+# Firebase
+gitlive-firebase-analytics = { module = "dev.gitlive:firebase-analytics", version.ref = "analytics" }
+# Same release train as firebase-analytics above — gitlive versions every
+# firebase-kotlin-sdk module together, so it shares that version ref.
+gitlive-firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "analytics" }
+# Same release train again (:infrastructure:firebase:remoteconfig) — the app-status
+# gate's remote source.
+gitlive-firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "analytics" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+# Native Android SDK, not gitlive — gitlive's firebase-perf caps at 2.1.0 while this
+# repo pins gitlive at 3.0.0-alpha01 for analytics/crashlytics, so mixing them would
+# conflict on firebase-common. Version comes from firebase-bom (:infrastructure:firebase:performance,
+# androidMain only — no gitlive KMP wrapper exists for Performance Monitoring).
+firebase-perf = { module = "com.google.firebase:firebase-perf" }
+# Native Android SDK, not gitlive (:infrastructure:firebase:auth, androidMain only) —
+# gitlive's firebase-auth does not expose PhoneAuthProvider in commonMain, and phone
+# verification needs the Activity-bound Android API regardless. Version from firebase-bom.
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+
+# Koin DI — wired into modules by the odo.koin convention plugin
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
+# Koin + Compose Multiplatform — koinViewModel()/koinInject() for feature route hosts.
+# koin-compose-viewmodel brings koin-compose transitively.
+koin-composeViewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
+# Arrow — Either<DomainError, T> at boundaries (functional error handling)
+arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+
+# Navigation 3 — the JetBrains Compose Multiplatform port publishes a single
+# `navigation3-ui` artifact that transitively brings the runtime/common types
+# (NavKey, the back stack, entryProvider) plus NavDisplay. Exposed as `api` from
+# :core:navigation so features/app get the Nav3 types through that one module.
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "nav3" }
+# Gives each NavEntry its own ViewModelStore. Without it `LocalViewModelStoreOwner`
+# falls back to the Activity, every koinViewModel() in the app is one process-wide
+# instance, and a screen's state survives its own destination being popped.
+androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }
+# Coroutines core — the command bus (MutableSharedFlow) is multiplatform.
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+# Coroutines test — runTest for suspend use-case tests (commonTest).
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+
+# SQLDelight — local DB for :core:data (offline-first source of truth). The
+# runtime + coroutines extensions are multiplatform (commonMain); each platform
+# adds its own driver (android/native), and the JVM sqlite-driver backs the
+# host tests with an in-memory database.
+sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
+sqldelight-coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
+sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
+sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
+# kotlinx-datetime — Clock.System for client-stamped offline timestamps.
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+# kotlinx-serialization — JSON for :core:data DTOs and structured columns.
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Ktor client — :infrastructure:supabase only. `ktor-client-core` carries the
+# HttpTimeout and HttpRequestRetry plugins, so no extra artifact is needed for
+# either. ContentNegotiation is deliberately absent: the Supabase adapters encode
+# and decode with an explicit kotlinx-serialization `Json` so a non-2xx body is
+# inspected before anything tries to parse it as the success shape.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# MockEngine — drives the adapter tests without a network or a Supabase project.
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+
+# ML Kit OCR + the Task.await() bridge + EXIF — :infrastructure:ai androidMain only.
+mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitTextRecognition" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifInterface" }
+
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-testExt" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso" }
+androidx-espresso-intents = { module = "androidx.test.espresso:espresso-intents", version.ref = "androidx-espresso" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-testRunner" }
+# GrantPermissionRule — the camera flows need the permission decided per test class.
+androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidx-testRules" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
+playServices-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
+playServices-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+# CameraX — camera-view carries PreviewView + LifecycleCameraController, which is the whole
+# Android side of the camera seam; camera2 is the backing implementation it binds to.
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+mlkit-barcodeScanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcode" }
+# WorkManagerTestInitHelper — drives the worker on the host JVM with a synchronous executor.
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "androidx-work" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
+compose-uiTestJunit4 = { module = "org.jetbrains.compose.ui:ui-test-junit4", version.ref = "composeMultiplatform" }
+# androidx-only: JetBrains publishes no ui-test-manifest, and the rule needs the empty
+# activity this artifact contributes to the debug manifest.
+androidx-compose-uiTestManifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "androidx-composeUi" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+# ProcessLifecycleOwner — the real androidx artifact (not the JetBrains KMP one above),
+# since there is no common ProcessLifecycleOwner to target. Flushes analytics on foreground.
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidx-lifecycle" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+compose-uiBackhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 
@@ -39,3 +238,26 @@ androidMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library",
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+# Used only to compile build-logic with a Kotlin version that matches the
+# Kotlin Gradle plugin (newer than the one embedded in Gradle's kotlin-dsl).
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# SQLDelight Gradle plugin — generates the typed DB API for :core:data.
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
+# kotlinx-serialization compiler plugin — applied directly by :core:data (the only
+# module with DTOs today). Promote to an `odo.serialization` convention plugin when
+# :core:network lands and a second module needs it.
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Applied directly by :androidApp — no other module ships a Firebase config file.
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+# Applied directly by :androidApp, alongside google-services — see firebaseCrashlyticsGradlePlugin above.
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradlePlugin" }
+firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfGradlePlugin" }
+# Applied directly by :core:common only — every other module reads its BuildKonfig object.
+buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildKonfig" }
+
+# Odo convention plugins (defined in build-logic, applied by feature/app modules)
+odo-kmpLibrary = { id = "odo.kmp.library" }
+odo-androidApplication = { id = "odo.android.application" }
+odo-composeMultiplatform = { id = "odo.compose.multiplatform" }
+odo-koin = { id = "odo.koin" }
+odo-kmpTest = { id = "odo.kmp.test" }

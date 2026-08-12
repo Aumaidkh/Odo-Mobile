@@ -1,24 +1,196 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+<div align="center">
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+# 🚗 Odo
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+### *Your car's AI best friend*
 
-### Running the apps
+An AI-powered companion for car owners in India — catch mechanic overcharging, never miss insurance / PUC / service deadlines, and prove your maintenance history at resale time.
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+[![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/docs/multiplatform.html)
+[![Compose Multiplatform](https://img.shields.io/badge/UI-Compose%20Multiplatform-4285F4?logo=jetpackcompose&logoColor=white)](https://www.jetbrains.com/compose-multiplatform/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20(MVP)%20%C2%B7%20iOS%20(Phase%202)-3DDC84?logo=android&logoColor=white)](#)
+[![Backend](https://img.shields.io/badge/Backend-Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![AI](https://img.shields.io/badge/AI-Claude-D97757?logo=anthropic&logoColor=white)](https://www.anthropic.com/)
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+</div>
 
 ---
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+## Why "Odo"?
+
+The name comes from **odometer** — the one number that ties the whole product together. Every service log entry requires an odometer reading, because it powers per-km cost tracking, the health score, and km-anomaly checks. Odometer is a mandatory, first-class field everywhere in Odo.
+
+## The problem
+
+Car owners in India routinely:
+
+- 💸 **Overpay** mechanics with no way to know the fair price.
+- 📅 **Miss deadlines** for insurance, PUC, and scheduled service.
+- 📂 **Lose their service history**, which kills resale value and trust.
+
+Odo fixes all three with an offline-first app and a Claude-powered AI core.
+
+## Core features (MVP)
+
+| Feature | What it does |
+| --- | --- |
+| 📷 **AI Bill Scanner** | The primary hook. Snap a service bill — Claude Vision extracts date, odometer, line items, costs, total, and workshop into structured data. |
+| 🧾 **Manual Service Log** | Log every service with a mandatory odometer reading. |
+| ⚖️ **Bill Fairness Check** | Compare what you paid against city averages, always with an honest confidence score (never false precision). |
+| 🔔 **Smart Reminders** | Server-scheduled push for insurance, PUC, and service due dates. |
+| 🗄️ **Document Vault** | Keep RC, insurance, PUC, and bills in one secure place. |
+| 💯 **AI Health Score** | A deterministic, rule-based 0–100 score (maintenance / docs / cost / history). |
+| ⛽ **Per-km Cost Tracker** | Know exactly what your car costs you per kilometre. |
+
+**Phase 2+:** AI Doctor (Hinglish chat diagnosis), Resale Passport (shareable verified PDF/web report), multi-car, and a fleet dashboard.
+
+> **Language:** Odo speaks **Hinglish** — the natural language of its target users (urban owners, 25–45). e.g. *"Service due kab hai?"*
+
+## Tech stack
+
+| Concern | Technology |
+| --- | --- |
+| UI & app logic | **Kotlin + Compose Multiplatform** (shared UI) |
+| Backend · DB · Auth · Storage | **Supabase** (Postgres) |
+| AI — Bill Scanner (OCR + reasoning) | **Claude Vision** (`claude-sonnet-4-6`) via forced tool-use |
+| AI — Doctor chat (Phase 2) | **Claude Haiku** (`claude-haiku-4-5`) |
+| AI — Health Score | Rule-based, deterministic (no API) |
+| Push | Firebase Cloud Messaging |
+| Payments | **Razorpay** (UPI-first) |
+| Analytics | **PostHog** |
+| DI · Local DB · Networking | **Koin** · **SQLDelight** · **Ktor + supabase-kt** |
+
+> 🔒 **AI keys never ship in the app.** All Claude calls and quota/entitlement enforcement run server-side in Supabase Edge Functions; the client only mirrors entitlements read-only.
+
+## Architecture
+
+Odo targets a **clean, feature-sliced Kotlin Multiplatform** layout following **Ports & Adapters (Hexagonal)**. Dependencies point **inward only**, and `:feature:*` modules never import each other — they share only through `:core:domain`.
+
+```
+:app                 Android entrypoint — DI, nav host, theme. No business logic.
+:core
+  :common            Pure utilities (Result, Clock, money/units).
+  :domain            Entities, use cases, repository interfaces, DomainError. No framework types.
+  :data              Repository impls, SQLDelight DB (source of truth), mappers, SyncEngine.
+  :platform          expect/actual for camera, secure storage, notifications, file IO.
+  :network           Supabase client + Edge Function callers.
+  :navigation        Navigation 3 wrapper.
+:feature
+  :onboarding  :servicelog  :billscanner  :fairness
+  :reminders   :documents   :healthscore  :costtracker  :paywall
+functions/           Supabase Edge Functions (Deno/TypeScript) — separate deploy unit.
+```
+
+**Principles:**
+- **Offline-first** — the local SQLDelight DB is the source of truth; the server is a sync target.
+- **Money is always integer paise** (`*_paise`, `BIGINT`) — never floats — converted to rupees only in the UI.
+- **AI behind a port** with a fake, so the app is fully unit-testable without spending tokens.
+
+> ⚠️ **Project status:** the repo is being built out from a KMP + Compose template toward the MVP architecture above. Module scaffolding is landing milestone by milestone — most feature modules are not implemented yet.
+
+## Getting started
+
+All commands use the Gradle wrapper.
+
+```bash
+# Build the Android debug APK
+./gradlew :androidApp:assembleDebug
+
+# Build the stage APK — production-shaped, for QA
+./gradlew :androidApp:assembleStage
+
+# Install on a connected device / emulator
+./gradlew :androidApp:installDebug
+
+# Build the shared module
+./gradlew :shared:build
+
+# Run shared multiplatform unit tests
+./gradlew :shared:allTests
+```
+
+### Build types
+
+| Type | Application ID | Version name | Notes |
+| --- | --- | --- | --- |
+| `debug` | `com.hopcape.odo.debug` | `1.0.0-beta01-debug` | Debuggable, debug-signed, not minified |
+| `stage` | `com.hopcape.odo.stage` | `1.0.0-beta01-stage` | Not debuggable, debug-signed so QA can install it without a keystore, not minified |
+| `release` | `com.hopcape.odo` | `1.0.0-beta01` | R8 + resource shrinking, signed with the upload key |
+
+All three carry the same `versionCode` and install side by side. The version, the build
+number and the application ID come from the `odo-*` entries in
+`gradle/libs.versions.toml` — change them there and both the APK and
+`BuildInfo` (`:core:common`, readable from any module and from iOS) follow. The profile
+screen shows the build number next to the version on debug and stage only.
+
+Only one build type can be asked for per Gradle invocation. `BuildInfo` is generated once
+per build, so `./gradlew assembleDebug assembleRelease` would give one of the two APKs the
+other's constants; the build fails with an explanation instead.
+
+Because each build type has its own application ID, each needs its own Firebase client.
+The Google Services plugin reads `androidApp/src/<buildType>/google-services.json` before
+`androidApp/google-services.json`, so register all three application IDs in the Firebase
+console and put the debug and stage configs in `androidApp/src/debug/` and
+`androidApp/src/stage/`. Without them the build fails with *"No matching client found for
+package name"*. CI has no config at all, so it is unaffected.
+
+### Release build
+
+```bash
+# App bundle — this is what is uploaded to Play
+./gradlew :androidApp:bundleRelease
+
+# APK, for smoke-testing the shrunk build on a device
+./gradlew :androidApp:assembleRelease
+```
+
+**Signing.** The app uses Play App Signing: Google holds the key installed apps are signed
+with, and the key here is only the *upload* key, which Play can reset if it is ever lost.
+The build looks for it in `local.properties` first and the environment second, and produces
+an unsigned APK when it finds neither — so a fresh clone and CI both still build.
+
+| `local.properties` | Environment |
+| --- | --- |
+| `odo.upload.storeFile` | `ODO_UPLOAD_STORE_FILE` |
+| `odo.upload.storePassword` | `ODO_UPLOAD_STORE_PASSWORD` |
+| `odo.upload.keyAlias` | `ODO_UPLOAD_KEY_ALIAS` |
+| `odo.upload.keyPassword` | `ODO_UPLOAD_KEY_PASSWORD` (defaults to the store password) |
+
+A relative `storeFile` is resolved from the repo root. Keystores are gitignored.
+
+**Shrinking.** R8 runs in full mode with resource shrinking; the keep rules are in
+`androidApp/proguard-rules.pro`. Stage is deliberately *not* minified, which means R8 first
+runs on the build that goes to the store — so smoke-test a release APK on a device before
+uploading, rather than only building it. R8 has already been caught removing a constructor
+Room reaches by reflection, which crashed the app before any of its own code ran.
+
+**iOS:** open `iosApp/` in Xcode and run from there (the KMP build produces a `Shared` framework consumed by the Xcode project). *iOS is Phase 2 — the MVP validates on Android first.*
+
+**Requirements:** JDK 11+, Android `minSdk` 26 / `compileSdk` 36, and Android Studio (latest stable) with the Kotlin Multiplatform plugin.
+
+## Documentation
+
+The source-of-truth engineering docs live in [`docs/`](docs/). Read the relevant one before building a feature:
+
+| Doc | Source of truth for |
+| --- | --- |
+| [`PRD.md`](docs/PRD.md) | Product — features, personas, pricing, metrics, scope |
+| [`ROADMAP.md`](docs/ROADMAP.md) | Milestones, exit criteria, module map |
+| [`TDD.md`](docs/TDD.md) | Technical design — architecture, ports, AI subsystem, sync, payments |
+| [`DB_SCHEMA.md`](docs/DB_SCHEMA.md) | Authoritative persistence layer — tables, enums, RLS, storage |
+| [`VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md) | Git workflow — branching, Conventional Commits, PR/squash-merge |
+
+## Contributing
+
+This project follows the conventions in [`VCS_CONVENTIONS.md`](docs/VCS_CONVENTIONS.md):
+
+- Short-lived `<type>/<kebab-summary>` branches cut from `main`.
+- **Conventional Commits** (`type(scope): subject`, imperative, ≤50 chars).
+- Squash-merge via PR.
+- **Never** commit secrets, keystores, or `.env` files.
+
+---
+
+<div align="center">
+<sub>Built with Kotlin Multiplatform · Compose · Supabase · Claude</sub>
+</div>

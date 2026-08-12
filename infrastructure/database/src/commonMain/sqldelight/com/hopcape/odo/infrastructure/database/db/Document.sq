@@ -1,0 +1,222 @@
+-- Local documents table — the offline-first source of truth, mirroring
+-- DB_SCHEMA §9.7 (Postgres types mapped to SQLite). Dates are ISO-8601 TEXT.
+--
+-- `remote_version` and `sync_status` (PENDING|SYNCED|CONFLICT) are the client-only
+-- sync columns from SYNC_DESIGN §4.1, and `documents` already holds a SyncEntity slot
+-- for the engine that lands in M5. They are never surfaced to the domain.
+--
+-- `storage_path` is NOT NULL like the server column: a vault row without a file is a
+-- reminder, not a document. It holds the relative key the file store minted
+-- (`documents/{carId}/{documentId}.{ext}`), never an absolute path — the app's private
+-- directory moves between OS versions and restores.
+--
+-- `doc_source` is what the Verified badge reads, so it is stored rather than inferred:
+-- every document has a file, so having one could never mean verified.
+CREATE TABLE documents (
+    id             TEXT NOT NULL PRIMARY KEY,
+    car_id         TEXT NOT NULL,
+    owner_id       TEXT NOT NULL,
+    doc_type       TEXT NOT NULL,
+    title          TEXT,
+    storage_path   TEXT NOT NULL,
+    doc_source     TEXT NOT NULL DEFAULT 'UPLOADED',
+    issued_date    TEXT,
+    expiry_date    TEXT,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- The vault's and the garage's query: one car's live documents.
+CREATE INDEX idx_documents_car ON documents (car_id) WHERE deleted_at IS NULL;
+
+-- The free tier's cap check, which counts per owner rather than per car.
+CREATE INDEX idx_documents_owner ON documents (owner_id) WHERE deleted_at IS NULL;
+
+-- DB_SCHEMA §9.7 also indexes `expiry_date` for the server's reminder sweep. There is
+-- deliberately no local equivalent: nothing on the device queries by expiry — the vault
+-- reads a car's documents and works out validity in memory. The index arrives with the
+-- M4 reminder engine, which is the first thing that would use it.
+
+-- Newest first. The order matters for one thing: the vault shows the document with the
+-- latest expiry per type, and when two share an expiry date the most recently added is
+-- the one to show.
+selectByCar:
+SELECT *
+FROM documents
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+selectById:
+SELECT *
+FROM documents
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Existence check for an update, without building a whole document to throw it away.
+selectLiveId:
+SELECT id
+FROM documents
+WHERE id = :id AND deleted_at IS NULL;
+
+-- How many live documents the owner holds, across every car — the entitlement is sold
+-- to a person, so a second car must not multiply the allowance.
+countLiveForOwner:
+SELECT COUNT(*)
+FROM documents
+WHERE owner_id = :ownerId AND deleted_at IS NULL;
+
+insertDocument:
+INSERT INTO documents (
+    id, car_id, owner_id, doc_type, title, storage_path, doc_source,
+    issued_date, expiry_date,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, :docType, :title, :storagePath, :docSource,
+    :issuedDate, :expiryDate,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- `car_id`, `owner_id`, `created_at` and `remote_version` are absent on purpose: a
+-- document does not change car or owner by being edited, the first write owns the
+-- creation time, and the last sync owns the remote version. `sync_status` returns to
+-- PENDING because an edited row has to reach the server again.
+--
+-- `storage_path` and `doc_source` are here because "replace file" is an edit like any
+-- other, and the source travels with the bytes: replacing a DigiLocker copy with a
+-- phone photo has to lose the Verified badge.
+updateDocument:
+UPDATE documents
+SET doc_type     = :docType,
+    title        = :title,
+    storage_path = :storagePath,
+    doc_source   = :docSource,
+    issued_date  = :issuedDate,
+    expiry_date  = :expiryDate,
+    updated_at   = :updatedAt,
+    sync_status  = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Soft delete: the row stays as a tombstone so the deletion itself can sync. The file
+-- behind it is removed separately, by the use case that owns the file store.
+softDeleteDocument:
+UPDATE documents
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- Every live document of one car, tombstoned together. Used when the car itself is
+-- removed: a document is only reachable through its car, and one left behind would
+-- still count against the owner's free-tier allowance.
+softDeleteDocumentsForCar:
+UPDATE documents
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = :syncStatus
+WHERE car_id = :carId AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These four are the outbox and the delta-pull's writes.
+-- They deliberately ignore `deleted_at`: a tombstone is a row the server still
+-- has to hear about, and one the server sends so other devices hear about it.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM documents
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs. A plain SELECT * would drag the
+-- whole row through for a decision that only reads these.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM documents
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the
+-- sync columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE documents
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- The server refused this row and will refuse it again — a duplicate key, a value the
+-- schema rejects, a policy that says no. It leaves the outbox so one bad row cannot hold
+-- up every other table's sync, and stays out until a local edit puts it back to PENDING.
+markConflict:
+UPDATE documents
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18
+-- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
+-- the pull's transaction.
+insertFromRemote:
+INSERT OR IGNORE INTO documents (id, car_id, owner_id, doc_type, title, storage_path, doc_source, issued_date, expiry_date, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :doc_type, :title, :storage_path, :doc_source, :issued_date, :expiry_date, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE documents
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    doc_type = :doc_type,
+    title = :title,
+    storage_path = :storage_path,
+    doc_source = :doc_source,
+    issued_date = :issued_date,
+    expiry_date = :expiry_date,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version, sync_status = 'SYNCED'
+WHERE id = :id;
+
+-- The stored file key, read before a pulled row overwrites the document. Locally this is a
+-- key into app storage; on the server it is a path inside the bucket. They are different
+-- values for the same file, so a pull must not copy one over the other.
+selectStoragePath:
+SELECT storage_path
+FROM documents
+WHERE id = :id;
+
+-- How much is still waiting to reach the server. Drives the "not backed up yet" chip.
+countPending:
+SELECT COUNT(*)
+FROM documents
+WHERE sync_status = 'PENDING';
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
+-- the account that just signed in, and put them in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE documents
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. **Hard** delete, deliberately not the soft delete used everywhere else: a
+-- soft delete sets `deleted_at` and leaves the row PENDING, so the next sign-in would push
+-- tombstones and destroy the owner's data on the server. Signing out must never be able to
+-- delete a backup.
+deleteAllRows:
+DELETE FROM documents;
+
+-- Every stored file the vault points at, read before a sign-out wipe removes the rows.
+-- Not filtered on `deleted_at`: a soft-deleted row's bytes are still on disk.
+selectAllStoragePaths:
+SELECT storage_path FROM documents;
+
+-- Follow a car that took on the server's id (Car.sq `adoptServerIdentity`). `car_id` is a
+-- plain column here — the local schema declares no foreign keys — so the children have to
+-- be moved by hand, and they are, inside the same transaction as the car itself.
+--
+-- Deliberately not filtered on `deleted_at` or `sync_status`: a tombstone still has to
+-- name a car the server knows, or the delete can never be pushed.
+repointCar:
+UPDATE documents
+SET car_id = :serverId
+WHERE car_id = :localId;

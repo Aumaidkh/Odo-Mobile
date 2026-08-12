@@ -1,0 +1,187 @@
+-- Local automatically-detected trips (docs/TRIPTRACKER_PLAN.md). Distance is metres, not
+-- the odometer's whole-kilometre Distance — the validation ladder discriminates at 100 m
+-- and the calibration ratio compounds rounding.
+--
+-- The sync columns are the mandatory set from SYNC_DESIGN §4.1, present from this first
+-- migration per house rule (TRIPTRACKER_PLAN D3): nothing pushes them yet — there is no
+-- SyncEntity.TRIPS or TripSyncable until DB_SCHEMA defines a server table. Rows sit
+-- PENDING, same posture as fuel_fills.
+--
+-- start_lat/start_lon/end_lat/end_lon are device-local only, forever (D4, owner decision
+-- 2026-08-07): a trip's coordinates never sync, never appear in logs, analytics, or crash
+-- reports. The future TripSyncable's payload must exclude these four columns — a pulled
+-- row's insert/update below never touches them, on purpose.
+CREATE TABLE trips (
+    id             TEXT NOT NULL PRIMARY KEY,
+    car_id         TEXT NOT NULL,
+    owner_id       TEXT NOT NULL,
+    started_at     TEXT NOT NULL,
+    ended_at       TEXT NOT NULL,
+    distance_m     INTEGER NOT NULL CHECK (distance_m >= 0),
+    estimated_m    INTEGER NOT NULL CHECK (estimated_m >= 0),
+    mode           TEXT NOT NULL,
+    status         TEXT NOT NULL,
+    start_lat      REAL,
+    start_lon      REAL,
+    end_lat        REAL,
+    end_lon        REAL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX idx_trips_car_started
+    ON trips (car_id, started_at DESC) WHERE deleted_at IS NULL;
+
+selectByCar:
+SELECT *
+FROM trips
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY started_at DESC;
+
+selectNeedingConfirmation:
+SELECT *
+FROM trips
+WHERE car_id = :carId AND status = 'NEEDS_CONFIRMATION' AND deleted_at IS NULL
+ORDER BY started_at DESC;
+
+selectCountedSince:
+SELECT *
+FROM trips
+WHERE car_id = :carId
+  AND status IN ('RECORDED', 'CONFIRMED')
+  AND started_at > :after
+  AND deleted_at IS NULL
+ORDER BY started_at ASC;
+
+-- Both bounds inclusive (unlike selectCountedSince's exclusive lower bound) — the
+-- monthly-stats window (auto-odometer plan §4.1) wants everything within [from, to].
+selectCountedBetween:
+SELECT *
+FROM trips
+WHERE car_id = :carId
+  AND status IN ('RECORDED', 'CONFIRMED')
+  AND started_at >= :from
+  AND started_at <= :to
+  AND deleted_at IS NULL
+ORDER BY started_at ASC;
+
+selectById:
+SELECT *
+FROM trips
+WHERE id = :id AND deleted_at IS NULL;
+
+insertTrip:
+INSERT INTO trips (
+    id, car_id, owner_id, started_at, ended_at, distance_m, estimated_m, mode, status,
+    start_lat, start_lon, end_lat, end_lon,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :carId, :ownerId, :startedAt, :endedAt, :distanceM, :estimatedM, :mode, :status,
+    :startLat, :startLon, :endLat, :endLon,
+    :now, :now, NULL, NULL, :syncStatus
+);
+
+-- The owner confirming/rejecting a NEEDS_CONFIRMATION trip is the only edit a trip ever
+-- gets — everything else about a finalized trip is fixed the moment it is saved.
+updateStatus:
+UPDATE trips
+SET status      = :status,
+    updated_at  = :updatedAt,
+    sync_status = :syncStatus
+WHERE id = :id AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Housekeeping shared with every syncable table (SYNC_DESIGN §6). Sync columns are
+-- present from this first migration (D3) so the schema is ready the moment
+-- SyncEntity.TRIPS exists, but nothing pushes these rows yet.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectPending:
+SELECT *
+FROM trips
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM trips
+WHERE id = :id;
+
+markSynced:
+UPDATE trips
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markConflict:
+UPDATE trips
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Coordinates are deliberately absent (D4) — the server
+-- never had them to send.
+insertFromRemote:
+INSERT OR IGNORE INTO trips (id, car_id, owner_id, started_at, ended_at, distance_m, estimated_m, mode, status, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :started_at, :ended_at, :distance_m, :estimated_m, :mode, :status, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+-- Coordinates are absent from the SET list too — a pull must never blank a device-local
+-- value it was never sent in the first place (D4).
+updateFromRemote:
+UPDATE trips
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    started_at = :started_at,
+    ended_at = :ended_at,
+    distance_m = :distance_m,
+    estimated_m = :estimated_m,
+    mode = :mode,
+    status = :status,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version,
+    sync_status = 'SYNCED'
+WHERE id = :id;
+
+countPending:
+SELECT COUNT(*)
+FROM trips
+WHERE sync_status = 'PENDING';
+
+adoptOwnership:
+UPDATE trips
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Hard delete, like every other sign-out wipe: a soft delete would leave tombstones that a
+-- later sign-in pushes, destroying the owner's data on the server.
+deleteAllRows:
+DELETE FROM trips;
+
+-- M7's "Delete all trip data" — local-only today, same hard-delete posture as
+-- deleteAllRows. Once trip sync lands (SyncEntity.TRIPS) this must become tombstoning
+-- (a soft delete synced as a deletion) instead of a real delete, so a push from another
+-- device doesn't resurrect these rows.
+deleteAllForCar:
+DELETE FROM trips WHERE car_id = :carId;
+
+repointCar:
+UPDATE trips
+SET car_id = :serverId
+WHERE car_id = :localId;
+
+-- "Keep trip routes" turned off. Nulls the four coordinates on every row and leaves
+-- everything else, so the trips and their distances survive with nothing left to place
+-- them (docs/PRIVACY_PERMISSIONS_PLAN.md S5).
+--
+-- `updated_at` and `sync_status` are deliberately untouched: these columns never travel
+-- (D4 — TripDto has no coordinate fields), so erasing them changes nothing the server has
+-- and marking the rows PENDING would queue a pointless push of unchanged data.
+forgetRoutes:
+UPDATE trips
+SET start_lat = NULL,
+    start_lon = NULL,
+    end_lat   = NULL,
+    end_lon   = NULL;

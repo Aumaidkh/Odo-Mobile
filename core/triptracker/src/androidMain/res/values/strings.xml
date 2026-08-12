@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trip_tracking_channel_name">Trip tracking</string>
+    <string name="trip_tracking_notification_title">Trip in progress</string>
+    <string name="trip_tracking_notification_text">%1$s so far · %2$s</string>
+    <string name="trip_tracking_notification_subtext">Location in use — stops when %1$s disconnects.</string>
+    <string name="trip_tracking_notification_distance_km">%1$.1f km</string>
+    <string name="trip_tracking_notification_car_fallback">your car</string>
+    <string name="trip_tracking_notification_action_pause">Pause</string>
+    <string name="trip_tracking_notification_action_resume">Resume</string>
+    <string name="trip_tracking_notification_action_not_driving">Not driving</string>
+    <string name="trip_tracking_fallback_notification_text">Trip starting? Open Odo to track it.</string>
+</resources>

@@ -1,0 +1,87 @@
+-- Where each entity's sync got to. One row per SyncEntity, keyed on its enum name.
+--
+-- A SQLDelight table rather than DataStore, and that is the whole reason it exists here:
+-- the cursor has to move in the *same transaction* as the rows it describes. A pull that
+-- writes twenty rows and then dies before saving the cursor would re-apply those rows next
+-- run — harmless — but a cursor saved before the rows would skip them forever. DataStore
+-- cannot join a SQLDelight transaction, so it cannot give that guarantee.
+--
+-- `last_pulled_at` is the server's `updated_at` high-water mark, not a local clock reading.
+-- It is compared against server timestamps, so a device with a skewed clock must never be
+-- the one writing it.
+--
+-- `last_pushed_at` and `last_error` are diagnostics only — nothing branches on them. They
+-- back the debug row in Profile, which is the first thing anyone asks for when a user says
+-- their data is missing.
+--
+-- No sync columns of its own: this table describes syncing, it is not synced. It is local
+-- to the install, like `app_settings`.
+--
+-- Design: docs/SYNC_DESIGN.md §4.2.
+CREATE TABLE sync_state (
+    entity         TEXT NOT NULL PRIMARY KEY,
+    last_pulled_at TEXT,
+    last_pushed_at TEXT,
+    last_error     TEXT
+);
+
+selectByEntity:
+SELECT *
+FROM sync_state
+WHERE entity = :entity;
+
+-- Every entity's state at once — the debug row reads this.
+selectAll:
+SELECT *
+FROM sync_state
+ORDER BY entity;
+
+-- The newest successful pull across every entity. Null until one has succeeded, which is
+-- what `lastSyncedAt` reports on a fresh install.
+selectNewestPull:
+SELECT MAX(last_pulled_at)
+FROM sync_state;
+
+-- Insert-or-update in two statements, wrapped in a transaction by the caller. SQLite 3.18
+-- ships with minSdk 26 and has no UPSERT, so `INSERT OR IGNORE` then `UPDATE` is the
+-- portable form.
+insertIgnore:
+INSERT OR IGNORE INTO sync_state (entity)
+VALUES (:entity);
+
+update:
+UPDATE sync_state
+SET last_pulled_at = :lastPulledAt,
+    last_pushed_at = :lastPushedAt,
+    last_error     = :lastError
+WHERE entity = :entity;
+
+-- Whatever failure is currently recorded, for the debug row. Any one of them is enough to
+-- answer "why is nothing being backed up" — the engine stops at the first refusal, so there
+-- is normally only one.
+selectAnyError:
+SELECT last_error
+FROM sync_state
+WHERE last_error IS NOT NULL
+ORDER BY entity
+LIMIT 1;
+
+-- Used by the tests and by account deletion; a cleared cursor makes the next run a full
+-- re-pull, which is always safe because applying a row is idempotent.
+deleteAll:
+DELETE FROM sync_state;
+
+-- How much of the owner's data has not reached the server yet, across every syncable table.
+-- One query rather than six, because it backs a Flow that re-runs on any of them changing.
+--
+-- `<> 'SYNCED'`, not `= 'PENDING'`: a CONFLICT row is one the server refused, so it is not
+-- backed up either. Counting only PENDING would clear the "not backed up yet" chip for
+-- exactly the rows that will never reach the server on their own.
+countAllPending:
+SELECT
+    (SELECT COUNT(*) FROM profiles           WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM cars               WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM service_logs       WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM overcharge_reports WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM documents          WHERE sync_status <> 'SYNCED') +
+    (SELECT COUNT(*) FROM health_scores      WHERE sync_status <> 'SYNCED') AS pending;

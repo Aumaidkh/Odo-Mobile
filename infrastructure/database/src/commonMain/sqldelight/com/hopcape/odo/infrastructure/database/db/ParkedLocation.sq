@@ -1,0 +1,39 @@
+-- Where each car was last left — the anchor a new GPS-only trip's start is checked
+-- against before it is attributed to the car (docs/TRIPTRACKER_PLAN.md §4.5).
+--
+-- Deliberately NOT a syncable table: this is device-runtime state, not the user content
+-- the house sync-column rule targets, and its coordinates are device-local forever
+-- regardless (D4, owner decision 2026-08-07) — never synced, never logged. One row per
+-- car, hard-updated in place; no history is kept.
+CREATE TABLE parked_locations (
+    car_id      TEXT NOT NULL PRIMARY KEY,
+    lat         REAL NOT NULL,
+    lon         REAL NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+selectFor:
+SELECT *
+FROM parked_locations
+WHERE car_id = :carId;
+
+-- Insert-or-replace, not insert-then-update: unlike app_settings there is no CHECK
+-- constraint protecting a singleton row, so SQLite's REPLACE is safe here.
+upsert:
+INSERT OR REPLACE INTO parked_locations (car_id, lat, lon, recorded_at)
+VALUES (:carId, :lat, :lon, :recordedAt);
+
+-- Follows a car that took on the server's id (Car.sq adoptServerIdentity), same as every
+-- other table keyed by car_id.
+repointCar:
+UPDATE parked_locations
+SET car_id = :serverId
+WHERE car_id = :localId;
+
+deleteAllRows:
+DELETE FROM parked_locations;
+
+-- M7's "Delete all trip data" (auto-odometer plan §6) — same local-only posture as
+-- Trip.sq's deleteAllForCar.
+deleteForCar:
+DELETE FROM parked_locations WHERE car_id = :carId;

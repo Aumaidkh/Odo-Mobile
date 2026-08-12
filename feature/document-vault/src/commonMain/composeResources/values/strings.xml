@@ -1,0 +1,123 @@
+<resources>
+    <string name="dv_title">Documents</string>
+
+    <!-- Header summary card (tone depends on overall status) -->
+    <string name="dv_header_add_title">Add your documents</string>
+    <string name="dv_header_add_body">Store them once — Odo tracks every renewal for you.</string>
+    <string name="dv_header_covered_title">You’re fully covered</string>
+    <string name="dv_header_covered_body">All %1$d documents are valid and safely on file.</string>
+    <string name="dv_header_attention_title_one">%1$d document needs attention</string>
+    <string name="dv_header_attention_title_many">%1$d documents need attention</string>
+    <string name="dv_header_attention_body">Renew your %1$s before it lapses to avoid a fine.</string>
+
+    <!-- Document names -->
+    <string name="dv_doc_insurance">Insurance</string>
+    <string name="dv_doc_puc">Pollution (PUC)</string>
+    <string name="dv_doc_rc">Registration (RC)</string>
+    <string name="dv_doc_licence">Driving licence</string>
+    <string name="dv_doc_loan">Loan papers</string>
+    <string name="dv_doc_other">Document</string>
+
+    <!-- Row subtitles -->
+    <string name="dv_status_not_added">Not added yet</string>
+    <string name="dv_status_valid_till">Valid till %1$s</string>
+    <string name="dv_status_lifetime">Lifetime · on file</string>
+    <string name="dv_status_expires_in">Expires in %1$d days · %2$s</string>
+    <string name="dv_status_expired">Expired · %1$s</string>
+
+    <!-- Status pills -->
+    <string name="dv_pill_not_added">Not added</string>
+    <string name="dv_pill_valid">Valid</string>
+    <string name="dv_pill_expires_soon">Expires soon</string>
+    <string name="dv_pill_expired">Expired</string>
+
+    <!-- Actions -->
+    <string name="dv_action_add">Add</string>
+    <string name="dv_action_renew">Renew</string>
+    <string name="dv_reminder">We’ll remind you %1$d days before it expires</string>
+    <string name="dv_add_document">Add a document</string>
+    <string name="dv_error_load_failed">Could not read your documents. Pull down to try again.</string>
+    <string name="dv_error_write_failed">Something went wrong. Please try again.</string>
+    <!-- FeatureFlags.PAYWALL_ENABLED: says the cap without naming a plan, because there is
+         no paid plan to move to yet. Restore "Your free plan stores %1$d documents. Delete
+         one to add another." when the flag goes true. -->
+    <string name="dv_error_limit_reached">Odo stores up to %1$d documents. Delete one to add another.</string>
+    <string name="dv_error_no_car">Add your car first — documents are stored against it.</string>
+    <string name="dv_error_capture_unavailable">This way of adding a document is coming soon. Upload a file for now.</string>
+
+    <!-- Add document screen -->
+    <string name="dv_add_title">Add document</string>
+    <string name="dv_add_type_label">Document type</string>
+    <string name="dv_add_kind_insurance">Insurance</string>
+    <string name="dv_add_kind_puc">PUC</string>
+    <string name="dv_add_kind_rc">RC</string>
+    <string name="dv_add_kind_licence">Licence</string>
+    <string name="dv_add_kind_loan">Loan</string>
+    <string name="dv_add_kind_other">Other</string>
+    <string name="dv_add_method_label">How would you like to add it?</string>
+    <string name="dv_add_camera_title">Scan with camera</string>
+    <string name="dv_add_camera_body">Odo reads the expiry date for you.</string>
+    <string name="dv_add_fastest">FASTEST</string>
+    <string name="dv_add_upload_title">Upload a file</string>
+    <string name="dv_add_upload_body">PDF or photo from your phone — Odo reads the dates off it.</string>
+    <string name="dv_add_digilocker_title">Import from DigiLocker</string>
+    <string name="dv_add_digilocker_body">Pull the official copy in seconds.</string>
+    <string name="dv_add_privacy">Your documents are stored privately and only used to track renewals.</string>
+    <string name="dv_cd_close">Close</string>
+    <string name="dv_cd_back">Back</string>
+    <string name="dv_cd_preview_file">Open the stored file</string>
+    <string name="dv_badge_pdf">PDF</string>
+
+    <!-- Document detail screen -->
+    <string name="dv_detail_verified">Verified</string>
+    <string name="dv_detail_view">View</string>
+    <string name="dv_detail_expires_in">Expires in %1$d days</string>
+    <string name="dv_detail_days_suffix">d</string>
+    <string name="dv_detail_expired_for">Expired %1$d days ago</string>
+    <string name="dv_detail_lifetime">Never expires</string>
+    <string name="dv_detail_issued_on">Issued %1$s</string>
+    <string name="dv_detail_file_missing">The stored file is missing. Replace it to view or share this document.</string>
+    <string name="dv_detail_renew">Renew now</string>
+
+    <!-- Overflow menu -->
+    <string name="dv_cd_more">More</string>
+    <string name="dv_menu_edit_dates">Edit dates</string>
+    <string name="dv_menu_replace">Replace file</string>
+    <string name="dv_menu_share">Share</string>
+    <string name="dv_menu_download">Download PDF</string>
+    <string name="dv_menu_delete">Delete document</string>
+
+    <!-- Add success screen -->
+    <string name="dv_success_title">%1$s added</string>
+    <string name="dv_success_body_before">Safely stored in your vault. We’ll remind you on </string>
+    <string name="dv_success_body_after"> — %1$d days before it expires.</string>
+    <string name="dv_success_body_no_reminder">Safely stored in your vault.</string>
+    <string name="dv_success_card_title">Health Score +4</string>
+    <string name="dv_success_card_body">Documentation is now complete</string>
+    <string name="dv_success_notify_title">Turn on notifications</string>
+    <string name="dv_success_notify_body">Odo can only send this reminder if notifications are allowed.</string>
+    <string name="dv_success_notify_allow">Allow notifications</string>
+    <string name="dv_success_notify_settings">Open settings</string>
+    <string name="dv_success_back">Back to Documents</string>
+    <string name="dv_success_add_another">Add another</string>
+
+    <!-- Edit dates sheet -->
+    <string name="dv_dates_title">Edit dates</string>
+    <string name="dv_dates_subtitle">Odo reminds you before your %1$s expires.</string>
+    <string name="dv_dates_issued">Issued on</string>
+    <string name="dv_dates_expiry">Expires on</string>
+    <string name="dv_dates_not_set">Not set</string>
+    <string name="dv_dates_expiry_required">Add the expiry date so Odo can remind you.</string>
+    <string name="dv_dates_save">Save dates</string>
+    <string name="dv_dates_ok">OK</string>
+    <string name="dv_dates_cancel">Cancel</string>
+
+    <!-- Share document sheet -->
+    <string name="dv_share_title">Share %1$s</string>
+    <string name="dv_share_subtitle">Valid till %1$s</string>
+    <string name="dv_share_whatsapp">WhatsApp</string>
+    <string name="dv_share_email">Email</string>
+    <string name="dv_share_copy">Copy link</string>
+    <string name="dv_share_more">More</string>
+    <string name="dv_share_download">Download PDF</string>
+</resources>

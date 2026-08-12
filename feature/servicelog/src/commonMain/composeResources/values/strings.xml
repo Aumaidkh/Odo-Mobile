@@ -1,0 +1,175 @@
+<resources>
+    <!-- Screen titles -->
+    <string name="sl_list_title">Service Log</string>
+    <string name="sl_detail_title">Service details</string>
+    <string name="sl_form_title_add">Log a service</string>
+    <string name="sl_form_title_edit">Edit service</string>
+
+    <!-- List: stats + filters -->
+    <string name="sl_stat_total_spent">Total spent</string>
+    <string name="sl_filter_all">All</string>
+    <string name="sl_filter_verified">Verified</string>
+    <string name="sl_filter_self_reported">Self-reported</string>
+
+    <!-- Trust badges -->
+    <string name="sl_badge_verified">Verified</string>
+    <string name="sl_badge_self_reported">Self-reported</string>
+
+    <!-- Empty state -->
+    <string name="sl_empty_title">No services logged yet</string>
+    <string name="sl_empty_body">Add your first service and Odo starts building a verified record — proof that pays off at resale.</string>
+
+    <!-- Actions -->
+    <string name="sl_action_scan">Scan a bill</string>
+    <string name="sl_action_enter_manually">Enter manually</string>
+    <string name="sl_action_edit">Edit</string>
+    <string name="sl_action_delete">Delete</string>
+    <string name="sl_save">Save to log</string>
+    <string name="sl_coming_soon">Coming soon</string>
+
+    <!-- Form: scan CTA + fields -->
+    <string name="sl_scan_cta_title">Scan the bill instead</string>
+    <string name="sl_scan_cta_fastest">FASTEST</string>
+    <string name="sl_scan_cta_subtitle">Odo fills every field &amp; auto-verifies.</string>
+    <string name="sl_divider_or_details">or enter details</string>
+    <string name="sl_field_workshop">Workshop</string>
+    <string name="sl_field_workshop_hint">e.g. Sharma Motors</string>
+    <string name="sl_field_date">Date</string>
+    <string name="sl_field_date_hint">Select date</string>
+    <string name="sl_field_odometer">Odometer</string>
+    <string name="sl_field_odometer_hint">54,000</string>
+    <string name="sl_field_notes">What was done</string>
+    <string name="sl_field_notes_hint">e.g. Oil change + oil filter</string>
+    <string name="sl_field_other_hint">Describe exactly what was done</string>
+    <string name="sl_field_amount">Amount paid</string>
+    <string name="sl_field_amount_hint">0</string>
+    <string name="sl_amount_currency">₹</string>
+    <string name="sl_unit_km">Km</string>
+    <string name="sl_unit_miles">Miles</string>
+
+    <!-- Form: "what was done" category chips + attach-bill slot -->
+    <string name="sl_cat_oil_change">Oil change</string>
+    <string name="sl_cat_brakes">Brakes</string>
+    <string name="sl_cat_tyres">Tyres</string>
+    <string name="sl_cat_ac">AC</string>
+    <string name="sl_cat_battery">Battery</string>
+    <string name="sl_cat_suspension">Suspension</string>
+    <string name="sl_cat_electrical">Electrical</string>
+    <string name="sl_cat_general_service">General service</string>
+    <string name="sl_cat_other">Other</string>
+    <string name="sl_cat_add">+ Add</string>
+    <string name="sl_attach_bill">Attach bill to verify this entry</string>
+    <string name="sl_optional">(optional)</string>
+
+    <!-- Detail -->
+    <string name="sl_detail_total_paid">Total paid</string>
+    <string name="sl_detail_extras">Taxes &amp; charges</string>
+    <string name="sl_detail_discount">Discount</string>
+    <string name="sl_detail_bill_attached">Bill attached</string>
+    <string name="sl_detail_bill_tap_hint">Tap to see the bill</string>
+    <string name="sl_badge_pdf">PDF</string>
+    <string name="sl_detail_add_bill_hint">Self-reported — add a bill to verify</string>
+    <string name="sl_detail_resale_title">Counts as resale proof</string>
+    <string name="sl_detail_resale_subtitle">Verified from bill · +%1$d to record</string>
+    <string name="sl_detail_fairness_label">Fairness check</string>
+    <string name="sl_detail_over_headline">%1$s over the city average</string>
+    <string name="sl_detail_fair_headline">Fair price vs the city average</string>
+    <string name="sl_detail_fairness_basis">%1$s average is %2$s — based on %3$d verified bills.</string>
+    <!-- Too few bills in the city pool to call the price either way. -->
+    <string name="sl_detail_thin_headline">Not enough data to judge this price</string>
+    <string name="sl_detail_thin_basis">Only %1$d bills for this job in %2$s so far.</string>
+    <string name="sl_detail_thin_range">Most owners paid between %1$s and %2$s.</string>
+    <!-- Turning a self-reported entry into a verified one, and checking its price. -->
+    <string name="sl_detail_attach_bill">Add a bill to verify</string>
+    <string name="sl_detail_check_fairness">Check fairness</string>
+    <string name="sl_error_attach_failed">The bill couldn’t be attached. Try again.</string>
+    <string name="sl_detail_city_avg">city avg %1$s</string>
+    <string name="sl_detail_share">Share verified record</string>
+    <string name="sl_detail_report">Report this overcharge</string>
+    <string name="sl_detail_reported">Overcharge reported</string>
+
+    <!-- Report overcharge flow -->
+    <string name="sl_report_title">Report overcharge</string>
+    <string name="sl_report_intro">Help other owners — tell us what happened. Odo keeps your report anonymous to the workshop.</string>
+    <string name="sl_report_question">What went wrong?</string>
+    <string name="sl_report_reason_above_market">Charged above market rate</string>
+    <string name="sl_report_reason_work_not_done">Billed for work not done</string>
+    <string name="sl_report_reason_unnecessary_parts">Unnecessary parts replaced</string>
+    <string name="sl_report_note_label">Add a note</string>
+    <string name="sl_report_note_hint">They quoted higher than three other garages nearby…</string>
+    <string name="sl_report_submit">Submit report</string>
+    <string name="sl_report_success_title">Report submitted</string>
+    <string name="sl_report_success_body">Thanks — your anonymous report helps other owners avoid overcharging at this workshop.</string>
+    <string name="sl_report_done">Done</string>
+    <string name="sl_report_not_flagged">This service wasn’t flagged as an overcharge, so there’s nothing to report.</string>
+
+    <!-- Share verified record sheet -->
+    <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
+    <string name="sl_share_copy">Copy</string>
+    <string name="sl_share_copied">Copied</string>
+    <string name="sl_share_whatsapp">WhatsApp</string>
+    <string name="sl_share_email">Email</string>
+    <string name="sl_share_more">More</string>
+    <string name="sl_share_download_pdf">Download as PDF</string>
+
+    <!-- Delete confirmation -->
+    <string name="sl_delete_confirm_title">Delete this service?</string>
+    <string name="sl_delete_confirm_body">This removes it from your record and can’t be undone.</string>
+    <string name="sl_cancel">Cancel</string>
+    <string name="sl_ok">OK</string>
+    <string name="sl_not_found">This service is no longer available.</string>
+
+    <!-- Field / submit errors -->
+    <string name="sl_error_odometer_required">Odometer reading is required</string>
+    <string name="sl_error_odometer_negative">Odometer can’t be negative</string>
+    <!-- %1$s is the conflicting reading in the owner's unit, e.g. "54,000 km". -->
+    <string name="sl_error_odometer_regression">Odometer can’t be below the last reading (%1$s)</string>
+    <string name="sl_error_odometer_ahead">Odometer can’t be above a later reading (%1$s)</string>
+    <string name="sl_error_amount_negative">Amount can’t be negative</string>
+    <string name="sl_error_date_required">Service date is required</string>
+    <string name="sl_error_date_future">Service date can’t be in the future</string>
+    <string name="sl_error_workshop_too_long">Workshop name is too long</string>
+    <string name="sl_error_notes_too_long">Notes are too long</string>
+    <string name="sl_error_save_failed">Couldn’t save — please try again</string>
+    <string name="sl_error_load_failed">Couldn’t load your service record — please try again</string>
+    <string name="sl_error_delete_failed">Couldn’t delete this service — please try again</string>
+    <string name="sl_error_report_failed">Couldn’t submit your report — please try again</string>
+
+    <!-- List: ledger (1a) stats + fairness verdicts -->
+    <string name="sl_stat_saved">Saved</string>
+    <string name="sl_filter_flagged">Flagged</string>
+    <string name="sl_verdict_fair">Fair price</string>
+    <string name="sl_verdict_over">%1$s over</string>
+    <string name="sl_verdict_add_bill">Add bill to verify</string>
+    <string name="sl_verdict_checking">Checking price…</string>
+    <!-- PRD guardrail: under 5 data points we show no verdict, only how thin the sample is. -->
+    <string name="sl_verdict_low_confidence">Not enough data yet</string>
+
+    <!-- List: record header (shown in both views) -->
+    <string name="sl_record_line">Record: %1$s</string>
+    <string name="sl_record_verified_ratio">%1$d of %2$d verified</string>
+    <string name="sl_record_resale_hint">Adds up to %1$s at resale.</string>
+    <string name="sl_strength_strong">Strong</string>
+    <string name="sl_strength_fair">Fair</string>
+    <string name="sl_strength_weak">Weak</string>
+    <string name="sl_strength_empty">Getting started</string>
+
+    <!-- Empty state (timeline 1b) -->
+    <string name="sl_empty_title_record">Start your car’s record</string>
+    <string name="sl_empty_body_record">Every logged service builds a verified timeline — the proof that gets you a better resale price.</string>
+    <string name="sl_empty_action_log_first">Log your first service</string>
+
+    <!-- Direction toggle — segmented control switching the list below the shared header. -->
+    <string name="sl_direction_ledger">Ledger</string>
+    <string name="sl_direction_timeline">Timeline</string>
+
+    <!-- Content descriptions -->
+    <string name="sl_cd_back">Back</string>
+    <string name="sl_cd_close">Close</string>
+    <string name="sl_cd_add">Add service</string>
+    <string name="sl_cd_edit">Edit service</string>
+    <string name="sl_cd_delete">Delete service</string>
+    <string name="sl_cd_share">Share record</string>
+    <string name="sl_cd_open_bill">Open the attached bill</string>
+    <string name="sl_cd_filter">Filter</string>
+</resources>

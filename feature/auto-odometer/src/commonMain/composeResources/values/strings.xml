@@ -1,0 +1,128 @@
+<resources>
+    <!--
+      Auto-odometer copy (docs/AUTO_ODOMETER_PLAN.md §8). English-only, house rule — every
+      screen's text lives here even though F2's placeholder screens do not reference most of
+      it yet, so F4-F8 only ever reference existing keys instead of adding hardcoded strings.
+      The garage card is `ga_`-prefixed and lives in :feature:garage (F9) — not here.
+    -->
+
+    <!-- Education (M2) -->
+    <string name="ao_cd_close">Close</string>
+    <string name="ao_education_title">Your reading stays current on its own</string>
+    <string name="ao_education_step1_title_stereo">You start the car</string>
+    <string name="ao_education_step1_body_stereo">Odo notices your car’s stereo connect.</string>
+    <string name="ao_education_step1_title_no_stereo">You start driving — Odo notices the motion</string>
+    <string name="ao_education_step1_body_no_stereo">Odo notices your phone moving like a car, not a walk or a train.</string>
+    <string name="ao_education_step2_title">Odo measures the distance</string>
+    <string name="ao_education_step2_body">GPS tracks the drive in the background — only while you’re on the move.</string>
+    <string name="ao_education_step3_title">Your odometer ticks up</string>
+    <string name="ao_education_step3_body">The distance is added the moment you park, no typing needed.</string>
+    <string name="ao_education_privacy_header">WHAT WE DO AND DON’T KEEP</string>
+    <string name="ao_education_privacy_kept">Kept: the distance and time of each drive.</string>
+    <string name="ao_education_privacy_never_kept">Never kept: the route you took.</string>
+    <string name="ao_education_privacy_never_tracked_stereo">Never tracked: anything when your car’s stereo isn’t connected.</string>
+    <string name="ao_education_privacy_never_tracked_no_stereo">Never tracked: anything unless you’re driving your car.</string>
+    <string name="ao_education_cta_stereo">Pair my car</string>
+    <string name="ao_education_cta_no_stereo">Turn it on</string>
+
+    <!-- Device picker (M3) -->
+    <string name="ao_cd_back">Back</string>
+    <string name="ao_picker_title">Which one is your car?</string>
+    <string name="ao_picker_body">Pick the stereo that starts a trip when it connects.</string>
+    <string name="ao_picker_section_connected">CONNECTED NOW</string>
+    <string name="ao_picker_section_other">OTHER PAIRED DEVICES</string>
+    <string name="ao_picker_category_car_audio">Car stereo</string>
+    <string name="ao_picker_category_headset">Earbuds</string>
+    <string name="ao_picker_category_wearable">Watch</string>
+    <string name="ao_picker_category_other">Other device</string>
+    <string name="ao_picker_not_connected">%1$s · not connected</string>
+    <string name="ao_picker_hint">Don’t see it? Start your car so the stereo connects, then come back.</string>
+    <string name="ao_picker_no_bluetooth">My car has no Bluetooth</string>
+    <string name="ao_picker_cta">Use %1$s</string>
+    <string name="ao_picker_permission_title">Odo needs Bluetooth</string>
+    <string name="ao_picker_permission_rationale">Odo needs Bluetooth to see your paired devices, so it can tell which one is your car.</string>
+    <string name="ao_picker_permission_blocked">Bluetooth access is off for Odo — open settings to pick your car.</string>
+    <string name="ao_picker_permission_allow">Allow Bluetooth access</string>
+    <string name="ao_picker_permission_dismiss">Not now</string>
+
+    <!-- Permission setup (M4) -->
+    <string name="ao_permissions_title">One last thing</string>
+    <string name="ao_permissions_step_progress">Step %1$d of %2$d</string>
+    <string name="ao_permissions_notifications_title">Notifications</string>
+    <string name="ao_permissions_notifications_body">You’ll see a quiet card while driving, so you always know Odo is tracking.</string>
+    <string name="ao_permissions_location_title">Location</string>
+    <string name="ao_permissions_location_body">Odo needs your location while the app is open to measure the drive — only during your first trip.</string>
+    <string name="ao_permissions_activity_title">Activity access</string>
+    <string name="ao_permissions_activity_body">Odo needs to notice when you’re driving, not just walking or on a train.</string>
+    <string name="ao_permissions_denied_row">%1$s was denied — turn it on in Settings to finish setup.</string>
+    <string name="ao_permissions_open_settings">Open settings</string>
+    <string name="ao_permissions_skip">Skip for now</string>
+    <string name="ao_permissions_cta">Finish setup</string>
+
+    <!-- Trip logged (M6) -->
+    <string name="ao_trip_logged_odometer_label">ODOMETER</string>
+    <string name="ao_trip_logged_previous">was %1$s before this drive</string>
+    <string name="ao_trip_logged_title">Trip logged</string>
+    <string name="ao_trip_logged_subtitle">%1$s added. You didn’t have to type a thing.</string>
+    <string name="ao_trip_logged_row_distance">Distance</string>
+    <string name="ao_trip_logged_row_duration">Duration</string>
+    <string name="ao_trip_logged_row_route">Route</string>
+    <string name="ao_trip_logged_row_route_value">Not recorded</string>
+    <string name="ao_trip_logged_duration_minutes">%1$d min</string>
+    <string name="ao_trip_logged_duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="ao_trip_logged_nudge_header">SERVICE DUE</string>
+    <string name="ao_trip_logged_nudge_due_km">Oil change in about %1$s</string>
+    <string name="ao_trip_logged_nudge_due_days">Oil change in about %1$d days</string>
+    <string name="ao_trip_logged_nudge_overdue_km">Oil change overdue by %1$s</string>
+    <string name="ao_trip_logged_nudge_overdue_days">Oil change overdue by %1$d days</string>
+    <string name="ao_trip_logged_cta_done">Done</string>
+    <string name="ao_trip_logged_cta_reject">That wasn’t me driving</string>
+    <string name="ao_trip_logged_reject_confirm_title">Not your drive?</string>
+    <string name="ao_trip_logged_reject_confirm_body">This removes the trip and its distance from your odometer.</string>
+    <string name="ao_trip_logged_reject_confirm_cta">Remove trip</string>
+    <string name="ao_trip_logged_reject_confirm_cancel">Cancel</string>
+    <string name="ao_trip_logged_upgrade_title">Make it fully automatic</string>
+    <string name="ao_trip_logged_upgrade_body">You’ve seen it work — allow all-the-time location so every drive after this logs itself.</string>
+    <string name="ao_trip_logged_upgrade_cta">Allow all the time</string>
+    <string name="ao_trip_logged_upgrade_dismiss">Not now</string>
+
+    <!-- Settings (M7) -->
+    <string name="ao_settings_title">Auto odometer</string>
+    <string name="ao_settings_tracking_on">Tracking is on</string>
+    <string name="ao_settings_tracking_off">Tracking is off</string>
+    <!--
+      ao_settings_waiting_for (%1$s) is F2's original guess at the M7 mockup's "Waiting for
+      Swift Audio" line, substituting a real device name. VehicleBond (:core:triptracker)
+      only stores the bonded Bluetooth id, not a name, so F8 renders three fully-composed
+      generic lines below instead of resolving a name through the device catalog. Left
+      defined, unused, for whenever a name becomes available to fill it.
+    -->
+    <string name="ao_settings_waiting_for">Waiting for %1$s</string>
+    <string name="ao_settings_waiting_stereo">Waiting for your car’s stereo to connect</string>
+    <string name="ao_settings_waiting_no_stereo">Waiting for you to start driving</string>
+    <string name="ao_settings_waiting_generic">Waiting for setup to finish</string>
+    <string name="ao_settings_trip_in_progress">Trip in progress</string>
+    <string name="ao_settings_trip_paused">Trip paused</string>
+    <string name="ao_settings_paused_until">Paused until %1$s</string>
+    <string name="ao_settings_resume">Resume tracking</string>
+    <string name="ao_settings_section_trigger_device">TRIGGER DEVICE</string>
+    <string name="ao_settings_section_tracked_month">TRACKED THIS MONTH</string>
+    <string name="ao_settings_section_privacy">PRIVACY</string>
+    <string name="ao_settings_logs_to">Logs to</string>
+    <string name="ao_settings_logs_to_stereo">Your car’s stereo connecting</string>
+    <string name="ao_settings_logs_to_no_stereo">Motion when you start driving</string>
+    <string name="ao_settings_change">Change</string>
+    <string name="ao_settings_trips_count">%1$d trips</string>
+    <string name="ao_settings_all_auto_logged">All auto-logged</string>
+    <string name="ao_settings_no_manual_entries">No manual entries needed</string>
+    <string name="ao_settings_pause_week">Pause for a week</string>
+    <string name="ao_settings_delete_all">Delete all trip data</string>
+    <string name="ao_settings_delete_confirm_title">Delete all trip data?</string>
+    <string name="ao_settings_delete_confirm_body">This removes every auto-logged trip for this car. Readings you’ve already logged are not affected.</string>
+    <string name="ao_settings_delete_confirm_cta">Delete</string>
+    <string name="ao_settings_delete_confirm_cancel">Cancel</string>
+    <string name="ao_settings_footer">Turning this off never deletes readings you’ve already logged.</string>
+    <string name="ao_settings_fix_it_row">%1$s needs your attention — tap to fix it.</string>
+    <string name="ao_settings_fix_it_background_location">Background location</string>
+    <string name="ao_settings_fix_it_bluetooth">Bluetooth</string>
+</resources>

@@ -17,3 +17,60 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+/issues/
+
+# Markdown is local-only. Product specs, technical designs and slice plans are
+# working notes for whoever is building; they live on disk, not in the repo, so
+# nothing internal is published with the code. Two exceptions:
+#   - a module's README, which is the one doc a visitor to that module should see;
+#   - docs/VCS_CONVENTIONS.md, which describes how code lands and so has to travel
+#     with the repo.
+*.md
+!README.md
+!docs/VCS_CONVENTIONS.md
+
+# ...except the Supabase module's README, which names a specific project.
+infrastructure/supabase/README.md
+
+# Firebase project config — identifies a specific Firebase project, dropped in
+# locally by whoever is testing against it rather than committed. One per build
+# type, because each installs under its own application ID: the Google Services
+# plugin reads src/<buildType>/ first and falls back to the module root, so the
+# root file serves release and the two below serve debug and stage.
+androidApp/google-services.json
+androidApp/src/*/google-services.json
+
+# Signing keys. The upload key for Play App Signing lives here; its passwords are in
+# local.properties, which is already ignored above. Losing it is recoverable — Play can
+# reset an upload key — but it still never belongs in the repo.
+keystore/
+*.jks
+*.keystore
+
+# Kotlin's generated SwiftPM linkage for iOS native dependencies (Firebase's SDK).
+# Regenerated on every build from the Gradle dependency graph; not a hand-authored
+# lockfile worth reviewing in a diff.
+.swiftpm-locks/
+/docs/PlayConsole-Readiness-Report.pdf
+
+# The Supabase CLI project at the repo root. The CLI's own scratch (.branches, .temp) is
+# local; the hand-authored source travels, because `web/build.ts` imports the legal pages
+# directly and a clone without them cannot build or deploy the site at all.
+#
+# `/supabase/*` rather than `/supabase/` — git will not descend into an excluded directory,
+# so a negation inside one never fires. Excluding the children instead is what makes the
+# `!` lines below work. The leading slash still matters: a bare `supabase/` would also match
+# the `infrastructure/supabase` Gradle module.
+/supabase/*
+!/supabase/functions/
+!/supabase/migrations/
+!/supabase/README.md
+!/supabase/config.toml
+!/supabase/check-legal.sh
+# `deno bundle` regenerates this from functions/legal on demand. A build output, and the
+# README says so — the seven files are the source of truth, not the pasted copy.
+/supabase/legal.bundle.js
+
+# Firebase Hosting: CLI cache, and the pages `web/build.ts` renders.
+.firebase/
+web/public/

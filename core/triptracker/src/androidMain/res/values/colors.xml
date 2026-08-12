@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Mirrors core:designsystem's OdoPalette.DarkAccent (#E8743B, "odometer-orange") — a raw
+    hex, not a reference, since this Android resource can't depend on a Compose Color
+    constant across module boundaries. Used only for the trip-tracking notification's
+    setColor() tint; every other surface in the app reads OdoTheme.colors instead.
+-->
+<resources>
+    <color name="trip_tracking_accent">#E8743B</color>
+</resources>

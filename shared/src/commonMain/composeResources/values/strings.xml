@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App-status gate (docs/APP_STATUS_PLAN.md) -->
+    <string name="as_update_title">Update required</string>
+    <string name="as_update_message">This version of Odo can no longer be used. Please update to continue.</string>
+    <string name="as_update_now">Update now</string>
+
+    <string name="as_maintenance_title">Under maintenance</string>
+    <string name="as_maintenance_message_default">We\'re making things better. Please check back shortly.</string>
+    <string name="as_maintenance_banner_default">Some features are temporarily unavailable for maintenance.</string>
+
+    <string name="as_retry">Try again</string>
+
+    <!-- File preview — the shared viewer for a stored bill, policy or scan -->
+    <string name="fp_title_fallback">Document</string>
+    <string name="fp_cd_close">Close</string>
+    <string name="fp_page_failed">This page could not be shown.</string>
+    <string name="fp_missing_title">File not found</string>
+    <string name="fp_missing_message">This file is no longer on this device. Add it again to keep a copy.</string>
+    <string name="fp_unsupported_title">Can\'t open this file</string>
+    <string name="fp_unsupported_message">Odo can show photos and PDFs. This file is neither.</string>
+</resources>

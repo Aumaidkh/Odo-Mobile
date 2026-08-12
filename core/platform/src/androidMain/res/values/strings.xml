@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Text the system draws, so it lives in Android resources rather than in the Compose
+    multiplatform resources the screens use. A notification is built by the OS from a
+    Context, which cannot reach those.
+-->
+<resources>
+    <string name="document_reminder_channel_name">Document reminders</string>
+    <string name="document_reminder_channel_description">Insurance, PUC and licence renewals before they lapse</string>
+
+    <string name="document_reminder_title_days">%1$s expires in %2$d days</string>
+    <string name="document_reminder_title_tomorrow">%1$s expires tomorrow</string>
+    <string name="document_reminder_body">Renew it before %1$s to stay covered.</string>
+
+    <!-- The document vault's own labels, repeated for the notification. -->
+    <string name="document_kind_insurance">Insurance</string>
+    <string name="document_kind_puc">PUC certificate</string>
+    <string name="document_kind_rc">RC</string>
+    <string name="document_kind_licence">Driving licence</string>
+    <string name="document_kind_loan">Loan papers</string>
+    <string name="document_kind_other">Document</string>
+</resources>

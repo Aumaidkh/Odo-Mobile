@@ -1,0 +1,109 @@
+<resources>
+    <string name="rm_title">Reminders</string>
+    <string name="rm_manage">Manage</string>
+
+    <!-- Summary header -->
+    <string name="rm_attention_title_one">%1$d reminder needs attention</string>
+    <string name="rm_attention_title_many">%1$d reminders need attention</string>
+    <string name="rm_caught_up_title">You’re all caught up</string>
+    <string name="rm_caught_up_body">Nothing due this month — we’ll nudge you in time.</string>
+    <string name="rm_attention_body">Tap a reminder below to act on it.</string>
+    <string name="rm_error_load_failed">Couldn’t load reminders.</string>
+
+    <!-- Sections -->
+    <string name="rm_this_week">THIS WEEK</string>
+    <string name="rm_upcoming">UPCOMING</string>
+
+    <!-- Statuses -->
+    <string name="rm_status_due_soon">Due soon</string>
+    <string name="rm_status_on_track">On track</string>
+    <string name="rm_remind_me">Remind me</string>
+
+    <!-- Row titles (derived reminders) -->
+    <string name="rm_row_insurance">Insurance renewal</string>
+    <string name="rm_row_puc">PUC renewal</string>
+    <string name="rm_row_licence">Licence renewal</string>
+    <string name="rm_row_service">Service due</string>
+
+    <!-- Row lines -->
+    <string name="rm_line_due_today">Due today · %1$s</string>
+    <string name="rm_line_due_in_days">Due in %1$d days · %2$s</string>
+    <string name="rm_line_valid_till">Valid till %1$s</string>
+    <string name="rm_line_service_overdue_days">%1$d days overdue</string>
+    <string name="rm_line_service_overdue_km">%1$s past due</string>
+    <string name="rm_line_service_km">Due in %1$s</string>
+    <string name="rm_line_service_next">Next service in about %1$d days</string>
+    <string name="rm_line_due_today_plain">Due today</string>
+    <string name="rm_line_due_in_days_plain">In %1$d days</string>
+    <string name="rm_line_at_km">At %1$s</string>
+    <string name="rm_line_suggested_every_days">Suggested · every %1$d days</string>
+    <string name="rm_line_suggested_monthly">Suggested · monthly</string>
+    <string name="rm_line_suggested_every_km">Suggested · every %1$s</string>
+    <string name="rm_line_suggested_once">Suggested · one time</string>
+
+    <!-- Content descriptions -->
+    <string name="rm_cd_open">Open</string>
+    <string name="rm_cd_add">Add reminder</string>
+
+    <!-- Reminder settings screen -->
+    <string name="rm_settings_title">Reminder settings</string>
+    <string name="rm_settings_how">HOW TO NOTIFY ME</string>
+    <string name="rm_settings_push">Push notifications</string>
+    <string name="rm_settings_whatsapp">WhatsApp</string>
+    <string name="rm_settings_whatsapp_soon">Coming soon</string>
+    <string name="rm_settings_what">WHAT TO REMIND ME ABOUT</string>
+    <string name="rm_settings_insurance">Insurance &amp; documents</string>
+    <string name="rm_settings_service">Service due</string>
+    <string name="rm_settings_custom">Custom reminders</string>
+    <string name="rm_settings_partner">Partner offers</string>
+    <string name="rm_settings_partner_sub">Deals near renewals</string>
+
+    <!-- New reminder screen (create custom) -->
+    <string name="rm_new_title">New reminder</string>
+    <string name="rm_new_title_edit">Edit reminder</string>
+    <string name="rm_new_cd_close">Close</string>
+    <string name="rm_new_about">WHAT TO REMIND ME ABOUT</string>
+    <string name="rm_new_preset_air">Air pressure</string>
+    <string name="rm_new_preset_coolant">Coolant</string>
+    <string name="rm_new_preset_wiper">Wiper fluid</string>
+    <string name="rm_new_preset_battery">Battery</string>
+    <string name="rm_new_preset_tyre">Tyre rotation</string>
+    <string name="rm_new_preset_custom">+ Custom</string>
+    <string name="rm_new_custom_placeholder">Custom reminder</string>
+    <string name="rm_new_default_air">Air pressure check</string>
+    <string name="rm_new_default_coolant">Coolant top-up</string>
+    <string name="rm_new_default_wiper">Wiper fluid top-up</string>
+    <string name="rm_new_default_battery">Battery check</string>
+    <string name="rm_new_default_tyre">Tyre rotation</string>
+    <string name="rm_new_name_label">Reminder name</string>
+    <string name="rm_new_name_placeholder">Name this reminder</string>
+    <string name="rm_new_repeat_label">Repeat</string>
+    <string name="rm_new_repeat_15">Every 15 days</string>
+    <string name="rm_new_repeat_monthly">Monthly</string>
+    <string name="rm_new_repeat_distance">By distance</string>
+    <string name="rm_new_repeat_once">Once</string>
+    <string name="rm_new_starts_label">Starts</string>
+    <string name="rm_new_starts_today">Today</string>
+    <string name="rm_new_starts_tomorrow">Tomorrow</string>
+    <string name="rm_new_time_label">Time</string>
+    <string name="rm_new_picker_confirm">Done</string>
+    <string name="rm_new_picker_cancel">Cancel</string>
+    <string name="rm_new_notified_prefix">Notified via your</string>
+    <string name="rm_new_notified_channels">Push + WhatsApp</string>
+    <string name="rm_new_notified_suffix">settings</string>
+    <string name="rm_new_change">Change</string>
+    <string name="rm_new_save">Save reminder</string>
+    <string name="rm_new_anchor">Counted from %1$s on the odometer</string>
+    <string name="rm_new_error_name_blank">Give it a name</string>
+    <string name="rm_new_error_name_long">Keep it under %1$d characters</string>
+    <string name="rm_new_error_start_past">Pick today or a later day</string>
+    <string name="rm_new_error_save">Couldn’t save. Try again.</string>
+
+    <!-- This-week reminder actions (bottom sheet) -->
+    <string name="rm_actions_reschedule">Reschedule reminder</string>
+    <string name="rm_actions_snooze">Skip this one</string>
+    <string name="rm_actions_turn_off">Turn off this reminder</string>
+    <string name="rm_cd_reschedule">Reschedule</string>
+    <string name="rm_cd_snooze">Snooze</string>
+    <string name="rm_cd_turn_off">Turn off</string>
+</resources>

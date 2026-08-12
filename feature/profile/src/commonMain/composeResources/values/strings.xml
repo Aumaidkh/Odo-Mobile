@@ -1,0 +1,226 @@
+<resources>
+    <!-- Common -->
+    <string name="pf_done">Done</string>
+    <string name="pf_cancel">Cancel</string>
+
+    <!-- Errors -->
+    <string name="pf_error_read_failed">Couldn’t read your profile. Try again in a moment.</string>
+    <string name="pf_error_save_failed">Couldn’t save that. Try again.</string>
+    <string name="pf_error_name_blank">Add your name.</string>
+    <string name="pf_error_name_too_short">Names are at least %1$d characters.</string>
+    <string name="pf_error_name_too_long">Keep it under %1$d characters.</string>
+    <string name="pf_error_email_invalid">That doesn’t look like an email address.</string>
+    <string name="pf_error_email_too_long">Keep it under %1$d characters.</string>
+    <string name="pf_error_no_profile">There’s no profile on this device yet.</string>
+
+    <!-- Profile home -->
+    <string name="pf_title">Profile</string>
+    <string name="pf_edit">Edit</string>
+    <string name="pf_pro_title">Odo Pro</string>
+    <string name="pf_pro_active">ACTIVE</string>
+    <string name="pf_manage_plan">Manage plan</string>
+    <string name="pf_restore">Restore purchases</string>
+    <string name="pf_go_pro">Go Pro</string>
+    <string name="pf_free_plan">You’re on the free plan</string>
+    <string name="pf_pro_feat_1">Full cost breakdown &amp; 6-month trend</string>
+    <string name="pf_pro_feat_2">Unlimited bill scans &amp; fairness checks</string>
+    <string name="pf_pro_feat_3">City benchmark detail</string>
+    <string name="pf_start_pro">Start Pro · ₹149/mo</string>
+    <string name="pf_preferences">PREFERENCES</string>
+    <string name="pf_notifications">Notifications</string>
+    <string name="pf_units">Units &amp; currency</string>
+    <string name="pf_appearance">Appearance</string>
+    <string name="pf_data_privacy">DATA &amp; PRIVACY</string>
+    <string name="pf_export">Export my data</string>
+    <string name="pf_privacy">Privacy &amp; permissions</string>
+    <string name="pf_help">Help &amp; support</string>
+    <string name="pf_sign_out">Sign out</string>
+    <string name="pf_sign_in">Sign in to back up your data</string>
+    <!-- App version, e.g. "Odo v1.4.0 · Made in India". -->
+    <string name="pf_version">Odo v%1$s · Made in India</string>
+    <!-- App version on a debug or stage build, where the build number is worth showing
+         too, e.g. "Odo v1.0.0-beta01-stage (1) · Made in India". -->
+    <string name="pf_version_build">Odo v%1$s (%2$s) · Made in India</string>
+    <string name="pf_name_missing">Add your name</string>
+    <string name="pf_city_missing">Set your city for price checks</string>
+    <!-- How many notification topics are switched on, e.g. "4 on". -->
+    <string name="pf_notif_summary">%1$d on</string>
+    <!-- The units row summary, e.g. "km · ₹". -->
+    <string name="pf_units_summary">%1$s · ₹</string>
+    <string name="pf_cd_avatar">Profile photo</string>
+
+    <!-- Edit profile -->
+    <string name="pf_edit_title">Edit profile</string>
+    <string name="pf_cd_close">Close</string>
+    <string name="pf_cd_back">Back</string>
+    <string name="pf_change_photo">Change photo</string>
+    <string name="pf_full_name">Full name</string>
+    <string name="pf_mobile">Mobile number</string>
+    <string name="pf_mobile_note">Changing this needs a new OTP.</string>
+    <string name="pf_email">Email (optional)</string>
+    <string name="pf_email_hint">Add an email for receipts</string>
+    <string name="pf_city">City</string>
+    <string name="pf_city_note">Sets your price benchmarks.</string>
+    <string name="pf_save">Save changes</string>
+    <string name="pf_delete">Delete my data</string>
+    <string name="pf_mobile_signed_out">Sign in to add your number</string>
+    <string name="pf_delete_title">Delete everything on this device?</string>
+    <string name="pf_delete_body">Your car, its service history, your documents and your profile are removed from this phone. Nothing has been backed up yet, so this cannot be undone.</string>
+    <string name="pf_delete_confirm">Delete everything</string>
+    <string name="pf_deleting">Deleting…</string>
+
+    <!-- Notifications -->
+    <string name="pf_notif_reminders">REMINDERS</string>
+    <string name="pf_notif_doc_expiry">Document expiry</string>
+    <string name="pf_notif_doc_expiry_sub">7 days before</string>
+    <string name="pf_notif_service_due">Service due</string>
+    <string name="pf_notif_service_due_sub">Based on km &amp; time</string>
+    <string name="pf_notif_custom">Custom reminders</string>
+    <string name="pf_notif_custom_sub">Air pressure, wash, etc.</string>
+    <string name="pf_notif_insights">INSIGHTS</string>
+    <string name="pf_notif_overcharge">Overcharge alerts</string>
+    <string name="pf_notif_overcharge_sub">When a bill is above average</string>
+    <string name="pf_notif_monthly">Monthly cost summary</string>
+    <string name="pf_notif_monthly_sub">1st of every month</string>
+    <string name="pf_notif_health">Health Score changes</string>
+    <string name="pf_notif_health_sub">When your score moves</string>
+    <string name="pf_notif_channels">CHANNELS</string>
+    <string name="pf_notif_push">Push</string>
+    <string name="pf_notif_system">System notifications are on.</string>
+    <string name="pf_notif_system_off">System notifications are off, so nothing above can reach you.</string>
+    <string name="pf_notif_device">Open device settings</string>
+
+    <!-- Units &amp; currency sheet -->
+    <string name="pf_units_distance">DISTANCE</string>
+    <string name="pf_units_km">KM</string>
+    <string name="pf_units_km_unit">kilometres</string>
+    <string name="pf_units_mi">MI</string>
+    <string name="pf_units_mi_unit">miles</string>
+    <string name="pf_units_fuel">FUEL ECONOMY</string>
+    <string name="pf_units_kmpl">KM / L</string>
+    <string name="pf_units_higher">higher is better</string>
+    <string name="pf_units_l100">L / 100KM</string>
+    <string name="pf_units_lower">lower is better</string>
+    <string name="pf_units_currency">CURRENCY</string>
+    <string name="pf_units_inr">Indian Rupee</string>
+    <string name="pf_units_inr_only">Every amount in Odo is in ₹. Benchmarks and fuel prices are Indian, so there is nothing to convert to yet.</string>
+    <!-- Example readings shown on the unit cards, so the choice is legible before it is made. -->
+    <string name="pf_units_example_km">54,000</string>
+    <string name="pf_units_example_mi">33,554</string>
+    <string name="pf_units_example_kmpl">15</string>
+    <string name="pf_units_example_l100">6.7</string>
+
+    <!-- Appearance sheet -->
+    <string name="pf_appear_dark">Dark</string>
+    <string name="pf_appear_light">Light</string>
+    <string name="pf_appear_system">System</string>
+    <string name="pf_appear_larger">Larger text</string>
+    <string name="pf_appear_larger_sub">Follows your device text size</string>
+
+    <!-- Export data sheet -->
+    <string name="pf_export_sub">Everything Odo holds for your car.</string>
+    <string name="pf_export_history">Service history &amp; costs</string>
+    <string name="pf_export_docs">Documents</string>
+    <string name="pf_export_account">Account &amp; profile info</string>
+    <string name="pf_export_note">A full export ships with the Resale Passport, which also gives a buyer a verified copy of the history.</string>
+    <string name="pf_export_pdf">Download PDF</string>
+    <string name="pf_export_request">Request export</string>
+    <!-- On a CTA that is built but has nothing behind it yet. -->
+    <string name="pf_coming_soon">COMING SOON</string>
+
+    <!-- Sign out sheet -->
+    <string name="pf_signout_title">Sign out of Odo?</string>
+    <string name="pf_signout_body">Your records stay backed up. They&#8217;ll be removed from this phone and come back when you sign in again.</string>
+
+    <!-- Sync debug row. Diagnostics, not product copy: this is what someone reads out when
+         they say their data is missing. -->
+    <string name="pf_sync_title">Sync</string>
+    <string name="pf_sync_idle">Up to date</string>
+    <string name="pf_sync_running">Syncing…</string>
+    <string name="pf_sync_pending">%1$d change not backed up yet</string>
+    <string name="pf_sync_pending_plural">%1$d changes not backed up yet</string>
+    <string name="pf_sync_never">Never synced on this device</string>
+    <string name="pf_sync_last">Last synced %1$s</string>
+    <string name="pf_sync_blocked">stuck: %1$s</string>
+
+    <!-- ===================== Privacy & permissions ===================== -->
+    <string name="pf_pv_title">Privacy &amp; permissions</string>
+
+    <!-- Device access. Read-only: Android owns these, and the footnote says so rather than
+         offering a switch that would be a lie. -->
+    <string name="pf_pv_device_access">DEVICE ACCESS</string>
+    <string name="pf_pv_device_lede">What Odo can reach. Everything here is off unless you turned it on.</string>
+    <string name="pf_pv_camera">Camera</string>
+    <string name="pf_pv_camera_sub">Bills, documents, pump QR</string>
+    <string name="pf_pv_location">Location</string>
+    <string name="pf_pv_location_sub">Auto Odometer · while driving</string>
+    <string name="pf_pv_notifications">Notifications</string>
+    <string name="pf_pv_notifications_sub">Renewals and alerts</string>
+    <string name="pf_pv_files">Files</string>
+    <string name="pf_pv_files_sub">Only when you upload one</string>
+    <string name="pf_pv_managed">Managed by Android. Change these in system settings.</string>
+
+    <!-- Permission states. "Asked each time" is the Files row and never changes: the picker
+         asks per document and holds no permission. -->
+    <string name="pf_pv_allowed">Allowed</string>
+    <string name="pf_pv_while_using">While using</string>
+    <string name="pf_pv_always">Always</string>
+    <string name="pf_pv_not_allowed">Not allowed</string>
+    <string name="pf_pv_blocked">Blocked</string>
+    <string name="pf_pv_each_time">Asked each time</string>
+
+    <!-- The three switches. The analytics line deliberately does not mention crash reports:
+         this switch does not control them, and Crashlytics keeps its own gate. -->
+    <string name="pf_pv_usage">HOW YOUR DATA IS USED</string>
+    <string name="pf_pv_share_prices">Share prices anonymously</string>
+    <string name="pf_pv_share_prices_sub">Powers the city benchmark for everyone</string>
+    <string name="pf_pv_routes">Keep trip routes</string>
+    <string name="pf_pv_routes_on">On — start and end points are stored on this phone</string>
+    <string name="pf_pv_routes_off">Off — only distance is stored</string>
+    <string name="pf_pv_analytics">Usage analytics</string>
+    <string name="pf_pv_analytics_sub">Which screens and features you use</string>
+
+    <string name="pf_pv_policy">Privacy policy</string>
+    <string name="pf_pv_delete_account">Delete my account &amp; data</string>
+
+    <!-- ===================== Delete account ===================== -->
+    <string name="pf_da_title">Delete my account &amp; data</string>
+
+    <!-- The confirmation. Says what goes, and that none of it can come back — an owner
+         reaching this screen is about to do the one thing the app cannot undo. -->
+    <string name="pf_da_confirm_heading">This cannot be undone</string>
+    <string name="pf_da_confirm_body">Your car, its full service history, every document you uploaded and your profile will be deleted from this phone and from our servers. Nothing is kept, and nothing can be restored.</string>
+    <!-- Shown only when signed in. %1$s is the masked number, e.g. "•••• 10". -->
+    <string name="pf_da_confirm_code_note">We\'ll text a code to %1$s first, to make sure it\'s you.</string>
+    <string name="pf_da_confirm_local_note">This phone was never signed in, so there is nothing on our servers to delete.</string>
+    <!-- %1$s is the phrase that has to be typed, held in code (DeleteAccountUiState) rather
+         than here: the string the owner types and the string the app compares must be the
+         same one, or a translation would lock out everyone who reads it. -->
+    <string name="pf_da_confirm_phrase_label">Type “%1$s” to confirm</string>
+    <string name="pf_da_confirm_action">Delete everything</string>
+    <string name="pf_da_cancel">Cancel</string>
+
+    <!-- The code step. -->
+    <string name="pf_da_verify_heading">Enter the code</string>
+    <!-- %1$s is the masked number. -->
+    <string name="pf_da_verify_body">Sent to %1$s. Entering it deletes your account straight away.</string>
+    <string name="pf_da_verify_action">Confirm deletion</string>
+    <string name="pf_da_resend">Send it again</string>
+
+    <string name="pf_da_working">Deleting…</string>
+
+    <!-- The account is gone and this phone kept its copy. Neither success nor failure. -->
+    <string name="pf_da_local_failed_heading">Your account is deleted</string>
+    <string name="pf_da_local_failed_body">This phone still has a copy that we couldn\'t remove. Nothing is left on our servers. You can try again, or uninstall Odo to be sure.</string>
+    <string name="pf_da_local_failed_action">Remove it from this phone</string>
+
+    <!-- Errors. Each one says what state the account is actually in, because that is what
+         decides what the owner does next. -->
+    <string name="pf_da_error_code_wrong">That code isn\'t right. Check it and try again.</string>
+    <string name="pf_da_error_code_expired">That code has expired. Ask for a new one.</string>
+    <string name="pf_da_error_no_code">We couldn\'t send the code. Check your connection and try again.</string>
+    <string name="pf_da_error_throttled">Too many codes requested. Wait a moment and try again.</string>
+    <string name="pf_da_error_reverify">We need you to confirm your number again before deleting.</string>
+    <string name="pf_da_error_local_survived">Your account is deleted, but this phone still has a copy.</string>
+    <string name="pf_da_error_failed">We couldn\'t delete your account. Nothing has been removed — please try again.</string>
+</resources>

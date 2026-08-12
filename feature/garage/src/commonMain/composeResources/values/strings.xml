@@ -1,0 +1,190 @@
+<resources>
+    <string name="gr_title">Garage</string>
+
+    <!-- Empty state -->
+    <string name="gr_add_car_title">Add your car</string>
+    <string name="gr_add_car_subtitle">Takes under a minute</string>
+    <string name="gr_add">Add</string>
+    <string name="gr_empty_title">Nothing here yet</string>
+    <string name="gr_empty_body">Once your car is added, this becomes home base — documents at a glance and every service on record.</string>
+    <string name="gr_empty_add_docs">Add insurance, PUC or RC</string>
+    <string name="gr_empty_log_service">Log your first service</string>
+
+    <!-- Car card -->
+    <!-- Model year · registration plate, e.g. "2020 · MH 12 AB 1234". -->
+    <string name="gr_car_meta">%1$d · %2$s</string>
+    <string name="gr_no_plate">No plate on record</string>
+    <string name="gr_odometer">ODOMETER</string>
+    <string name="gr_update">Update</string>
+    <string name="gr_cd_more">Car options</string>
+
+    <!-- Auto-odometer card / status tile (F9, docs/AUTO_ODOMETER_PLAN.md §8) — ga_ prefix
+         keeps this pitch's copy distinct from the rest of the garage's gr_ strings. -->
+    <string name="ga_title">Auto odometer</string>
+    <string name="ga_chip_new">NEW</string>
+    <!-- %1$d = how many times the owner has typed a reading by hand. -->
+    <string name="ga_body">You’ve typed your reading in %1$d times. Let Odo keep it current instead.</string>
+    <string name="ga_hint">Works off your car’s Bluetooth — nothing to plug in.</string>
+    <string name="ga_cta">See how it works</string>
+    <!-- Status tile once set up. Copy owed to design (plan §1); a working string until then.
+         %1$d = kilometres tracked so far this calendar month. -->
+    <string name="ga_status_tile">Auto odometer on · %1$d km this month</string>
+
+    <!-- Documents -->
+    <string name="gr_documents">DOCUMENTS</string>
+    <string name="gr_manage">Manage</string>
+    <string name="gr_doc_insurance">Insurance</string>
+    <string name="gr_doc_puc">Pollution (PUC)</string>
+    <string name="gr_doc_rc">Registration (RC)</string>
+    <string name="gr_doc_licence">Driving licence</string>
+    <string name="gr_doc_loan">Loan papers</string>
+    <string name="gr_doc_other">Other</string>
+    <string name="gr_doc_add">+ Add</string>
+    <string name="gr_doc_on_file">On file</string>
+    <string name="gr_doc_valid_till">Valid · %1$s</string>
+    <string name="gr_doc_expires_in">Expires in %1$d days</string>
+    <string name="gr_doc_expired">Expired %1$s</string>
+
+    <!-- Service history -->
+    <string name="gr_service_history">SERVICE HISTORY</string>
+    <string name="gr_entries_summary">%1$d entries · %2$s total</string>
+    <string name="gr_no_entries">No entries in this category yet</string>
+    <string name="gr_cd_add_service">Add service</string>
+    <string name="gr_filter_all">All</string>
+    <string name="gr_filter_service">Service</string>
+    <string name="gr_filter_tyres">Tyres</string>
+    <string name="gr_filter_battery">Battery</string>
+    <string name="gr_badge_verified">Verified</string>
+    <string name="gr_badge_self_reported">Self-reported</string>
+    <!-- Heading for an entry with no category tags on it. -->
+    <string name="gr_entry_untagged">Service</string>
+    <!-- Service date · workshop, e.g. "02 Mar 2026 · Sharma Motors". -->
+    <string name="gr_entry_meta">%1$s · %2$s</string>
+
+    <!-- Service categories -->
+    <string name="gr_cat_oil_change">Oil change</string>
+    <string name="gr_cat_brakes">Brakes</string>
+    <string name="gr_cat_tyres">Tyres</string>
+    <string name="gr_cat_ac">AC</string>
+    <string name="gr_cat_battery">Battery</string>
+    <string name="gr_cat_suspension">Suspension</string>
+    <string name="gr_cat_electrical">Electrical</string>
+    <string name="gr_cat_general_service">General service</string>
+    <string name="gr_cat_other">Other work</string>
+
+    <!-- Failures -->
+    <string name="gr_error_title">Can’t open your garage</string>
+    <string name="gr_error_load_failed">Something went wrong reading your car’s records. Try again.</string>
+    <string name="gr_error_save_failed">Couldn’t save that. Try again.</string>
+    <string name="gr_error_remove_failed">Couldn’t remove the car. Try again.</string>
+    <string name="gr_error_no_car">Add a car first.</string>
+    <string name="gr_error_odo_back">Your last recorded reading was %1$s. An odometer only goes up.</string>
+    <string name="gr_error_odo_ahead">A later service already reads %1$s.</string>
+    <string name="gr_error_field_odometer">Enter the reading</string>
+    <string name="gr_error_field_make">Pick the make</string>
+    <string name="gr_error_field_model">Pick the model</string>
+    <string name="gr_error_field_year">Pick the year</string>
+    <string name="gr_error_field_fuel">Pick the fuel</string>
+
+    <!-- Car actions sheet -->
+    <string name="gr_ca_edit">Edit car details</string>
+    <string name="gr_ca_export">Export car record</string>
+    <string name="gr_ca_remove">Remove car</string>
+
+    <!-- Update odometer sheet -->
+    <string name="gr_odo_title">Update odometer</string>
+    <string name="gr_odo_subtitle">Keeps your ₹/km and service predictions accurate.</string>
+    <string name="gr_odo_unit_km">km</string>
+    <string name="gr_odo_unit_miles">miles</string>
+    <string name="gr_odo_last">Last recorded %1$s on %2$s</string>
+    <!-- %1$s and %2$s already carry the unit, e.g. "1,200 km". -->
+    <string name="gr_odo_delta">+%1$s since last update · about %2$s a month</string>
+    <string name="gr_odo_save">Save reading</string>
+
+    <!-- Add to service history sheet -->
+    <string name="gr_ah_title">Add to service history</string>
+    <string name="gr_ah_subtitle">Scanning a bill gets it verified automatically.</string>
+    <string name="gr_ah_scan">Scan a bill</string>
+    <string name="gr_ah_scan_sub">Odo reads the amounts and checks fairness.</string>
+    <string name="gr_ah_verified">VERIFIED</string>
+    <string name="gr_ah_manual">Enter manually</string>
+    <string name="gr_ah_manual_sub">Logs as self-reported · add a bill later.</string>
+    <string name="gr_ah_doc">Add a document</string>
+    <string name="gr_ah_doc_sub">Insurance, PUC or RC → opens Vault.</string>
+    <string name="gr_ah_view">View all records</string>
+    <string name="gr_ah_view_sub">Every service on file for this car.</string>
+
+    <!-- Export car record sheet -->
+    <string name="gr_ex_title">Export car record</string>
+    <string name="gr_ex_subtitle">A clean summary of everything on file for this car.</string>
+    <string name="gr_ex_service">Service history</string>
+    <string name="gr_ex_service_count">%1$d entries</string>
+    <string name="gr_ex_docs">Documents</string>
+    <string name="gr_ex_docs_count">%1$d files</string>
+    <string name="gr_ex_pdf">PDF</string>
+    <string name="gr_ex_share">Share</string>
+    <string name="gr_ex_pro_note">Exporting your record is part of Odo Pro.</string>
+    <!-- On a CTA that is built but has nothing behind it yet. -->
+    <string name="gr_ex_coming_soon">COMING SOON</string>
+
+    <!-- Remove car sheet -->
+    <string name="gr_rm_title">Remove %1$s?</string>
+    <string name="gr_rm_body">This deletes %1$d service entries and %2$d documents for this car. It can’t be undone.</string>
+    <string name="gr_rm_export_first">Export the record first?</string>
+    <string name="gr_rm_confirm">Remove car</string>
+    <string name="gr_rm_cancel">Cancel</string>
+
+    <!-- Car detail fields (Edit car + the manual half of Add a car) -->
+    <string name="gr_field_make">Make</string>
+    <string name="gr_field_model">Model</string>
+    <string name="gr_field_year">Year</string>
+    <string name="gr_field_fuel">Fuel</string>
+    <string name="gr_choose">Choose</string>
+    <string name="gr_cancel">Cancel</string>
+    <string name="gr_done">Done</string>
+    <string name="gr_match_count">%1$d MATCHES</string>
+    <string name="gr_make_sheet_title">Pick your car’s make</string>
+    <string name="gr_make_sheet_subtitle">%1$d brands sold in India</string>
+    <string name="gr_make_search">Search brands</string>
+    <string name="gr_make_popular">POPULAR</string>
+    <string name="gr_make_all">ALL BRANDS</string>
+    <string name="gr_make_empty">No brand matches that</string>
+    <string name="gr_model_sheet_title">Pick the model</string>
+    <string name="gr_model_sheet_subtitle">%1$s models</string>
+    <string name="gr_model_search">Search models</string>
+    <string name="gr_model_all">ALL MODELS</string>
+    <string name="gr_model_empty">No model matches that</string>
+    <string name="gr_year_sheet_title">Model year</string>
+    <string name="gr_year_sheet_subtitle">The year it rolled off the line</string>
+    <string name="gr_fuel_sheet_title">What does it run on?</string>
+    <string name="gr_fuel_sheet_subtitle">Sets your ₹/km estimate.</string>
+
+    <!-- Edit car full screen -->
+    <string name="gr_ec_title">Edit car</string>
+    <string name="gr_ec_reg">Registration number</string>
+    <string name="gr_ec_nickname">Nickname (optional)</string>
+    <string name="gr_ec_nickname_hint">e.g. “Daily driver”</string>
+    <string name="gr_ec_odo_note">Odometer is updated separately from the Garage card.</string>
+    <string name="gr_ec_save">Save changes</string>
+    <string name="gr_cd_close">Close</string>
+
+    <!-- Add a car full screen -->
+    <string name="gr_ac_title">Add a car</string>
+    <string name="gr_ac_intro">Enter the registration number — Odo pulls make, model, year and fuel type automatically.</string>
+    <string name="gr_ac_reg">Registration number</string>
+    <string name="gr_ac_current_odo">Current odometer</string>
+    <string name="gr_ac_odo_subtitle">Today’s reading — every ₹/km figure is anchored to it.</string>
+    <string name="gr_ac_odo_hint">Tap to enter the reading</string>
+    <!-- The RTO match line: model year · fuel, e.g. "2022 · Petrol · found via RTO". -->
+    <string name="gr_ac_found_meta">%1$d · %2$s · found via RTO</string>
+    <string name="gr_ac_details">Car details</string>
+    <string name="gr_ac_lookup_unavailable">Registry lookup isn’t available yet — fill in the details below.</string>
+    <string name="gr_ac_looking">Checking the registry…</string>
+    <string name="gr_ac_add">Add to Garage</string>
+
+    <!-- Fuel types -->
+    <string name="gr_fuel_petrol">Petrol</string>
+    <string name="gr_fuel_diesel">Diesel</string>
+    <string name="gr_fuel_cng">CNG</string>
+    <string name="gr_fuel_electric">Electric</string>
+</resources>

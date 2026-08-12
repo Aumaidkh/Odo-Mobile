@@ -1,0 +1,61 @@
+<resources>
+    <string name="hs_title">Health Score</string>
+    <string name="hs_cd_back">Back</string>
+    <string name="hs_cd_info">How this is calculated</string>
+    <string name="hs_out_of">/ 100</string>
+
+    <!-- Bands (PRD §5.4: 85+ / 70–84 / 50–69 / below 50) -->
+    <string name="hs_band_needs_care">NEEDS CARE</string>
+    <string name="hs_band_fair">FAIR</string>
+    <string name="hs_band_good">GOOD</string>
+    <string name="hs_band_excellent">EXCELLENT</string>
+
+    <!-- Delta line -->
+    <string name="hs_delta_up">%1$d points this month</string>
+    <string name="hs_delta_down">%1$d points — take action</string>
+    <string name="hs_delta_none">No change this month</string>
+    <string name="hs_nothing_logged">Log a service or add a document to start building your score</string>
+
+    <!-- Breakdown -->
+    <string name="hs_breakdown_label">WHAT MAKES UP YOUR SCORE</string>
+    <string name="hs_factor_score">%1$d / %2$d</string>
+
+    <string name="hs_factor_maintenance_title">Maintenance regularity</string>
+    <string name="hs_factor_maintenance_sub">Services logged on time</string>
+    <string name="hs_factor_documentation_title">Documentation</string>
+    <string name="hs_factor_documentation_sub">Insurance, PUC &amp; RC on file</string>
+    <string name="hs_factor_cost_title">Cost fairness</string>
+    <string name="hs_factor_cost_sub">Bills within fair price range</string>
+    <string name="hs_factor_history_title">History completeness</string>
+    <string name="hs_factor_history_sub">Bills attached, odometer consistent</string>
+
+    <!-- Biggest opportunity -->
+    <string name="hs_opportunity_label">BIGGEST OPPORTUNITY · +%1$d POINTS</string>
+    <string name="hs_opportunity_history">Attach bills to your services for a history a buyer can trust.</string>
+    <string name="hs_opportunity_documents">Add your missing documents so renewals never lapse.</string>
+    <string name="hs_opportunity_maintenance">Log your services on time to lift your score.</string>
+    <string name="hs_opportunity_cost">Scan more bills so we can verify fair pricing.</string>
+
+    <!-- Paywall (free) -->
+    <string name="hs_paywall_title">See your full breakdown</string>
+    <string name="hs_paywall_body">Odo Pro shows every factor and exactly how to raise your score.</string>
+    <string name="hs_paywall_cta">Unlock with Pro · Rs. 149/mo</string>
+
+    <!-- Failed read -->
+    <string name="hs_error_load_failed">We couldn’t read your score. Pull down or try again in a moment.</string>
+
+    <!-- "How your score works" info sheet -->
+    <string name="hs_info_title">How your score works</string>
+    <string name="hs_info_body">Your Health Score is out of 100, built from four things Odo can verify. Keep them current and it climbs.</string>
+    <string name="hs_info_points">%1$d pts</string>
+    <string name="hs_info_band_excellent">Excellent</string>
+    <string name="hs_info_band_good">Good</string>
+    <string name="hs_info_band_fair">Fair</string>
+    <string name="hs_info_band_needs_care">Needs care</string>
+    <string name="hs_info_range_excellent">85–100</string>
+    <string name="hs_info_range_good">70–84</string>
+    <string name="hs_info_range_fair">50–69</string>
+    <string name="hs_info_range_needs_care">below 50</string>
+    <string name="hs_info_footer">Updated automatically as you log services and add documents.</string>
+    <string name="hs_info_cta">Got it</string>
+</resources>

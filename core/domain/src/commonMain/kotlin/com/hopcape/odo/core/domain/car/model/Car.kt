@@ -1,0 +1,187 @@
+package com.hopcape.odo.core.domain.car.model
+
+import arrow.core.Either
+import arrow.core.EitherNel
+import arrow.core.getOrElse
+import arrow.core.raise.either
+import arrow.core.raise.ensureNotNull
+import arrow.core.raise.zipOrAccumulate
+import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.shared.Distance
+import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.datetime.LocalDate
+
+/**
+ * The Car aggregate root — the consistency boundary for a single car.
+ *
+ * Construct only via [create], which enforces every invariant and accumulates
+ * *all* validation failures (so an onboarding form can show them at once), or via
+ * [reconstitute] for a car already in the database. Changing a stored car goes through
+ * [withOdometer] or back through [create] with the same id. The private constructor
+ * guarantees an invalid [Car] can never exist.
+ *
+ * The cross-aggregate "one primary car per owner" rule is NOT enforced here —
+ * it spans multiple Car instances and lives in the repository/DB.
+ */
+class Car private constructor(
+    val id: CarId,
+    val ownerId: OwnerId,
+    val make: String,
+    val model: String,
+    val variant: String?,
+    val year: ModelYear,
+    val fuelType: FuelType,
+    val registrationNumber: RegistrationNumber?,
+    val odometer: Distance,
+    val purchaseYear: PurchaseYear?,
+    val nickname: String?,
+    val isPrimary: Boolean,
+    /**
+     * The day this car was added to Odo — the date of the timeline's opening milestone.
+     *
+     * Null until the car has been stored: the date comes from the row, so a car built by
+     * [create] and not yet inserted has no answer. A stored car always has one. Kept
+     * nullable rather than stamped in [create] because editing a car re-runs [create] with
+     * the same id, which would move a date that the first insert owns.
+     */
+    val addedOn: LocalDate?,
+) {
+    /**
+     * What to call this car on screen: the owner's nickname if they gave one, otherwise
+     * the make, model and trim read together ("Maruti Suzuki Swift VXI").
+     *
+     * Derived here rather than in each feature, so the garage card, the timeline header,
+     * a reminder's notification and the resale passport all name the same car the same
+     * way — and renaming the rule is one edit.
+     */
+    val displayName: String
+        get() = nickname ?: listOfNotNull(make, model, variant).joinToString(" ")
+
+    /** Make, model and trim, ignoring any nickname — for the places that want the real car. */
+    val modelName: String get() = listOfNotNull(make, model, variant).joinToString(" ")
+
+    /**
+     * The same car with a new odometer reading, or the reason [km] is not a reading.
+     *
+     * Only the value itself is checked (present, not negative). Whether the reading fits
+     * the car's history is a rule about the car's *other* readings, which this aggregate
+     * cannot see, so the caller runs
+     * [OdometerTimeline][com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline]
+     * first and calls this once the reading is accepted.
+     *
+     * A named method rather than passing every field back through [create], so the intent
+     * ("the odometer moved") is what the call site reads, and there is one less place to
+     * drop a field while copying one.
+     */
+    fun withOdometer(km: Int?): Either<DomainError, Car> =
+        Distance.of(km).map { reading ->
+            Car(
+                id = id,
+                ownerId = ownerId,
+                make = make,
+                model = model,
+                variant = variant,
+                year = year,
+                fuelType = fuelType,
+                registrationNumber = registrationNumber,
+                odometer = reading,
+                purchaseYear = purchaseYear,
+                nickname = nickname,
+                isPrimary = isPrimary,
+                addedOn = addedOn,
+            )
+        }
+
+    companion object {
+        /**
+         * Validating factory — the single entry point for building a [Car].
+         * Takes raw, domain-meaningful inputs (not a use-case command) so any
+         * use case can construct a car without the entity depending outward.
+         * Accumulates every validation failure.
+         */
+        fun create(
+            id: CarId,
+            ownerId: OwnerId,
+            make: String?,
+            model: String?,
+            year: Int?,
+            fuelType: FuelType?,
+            odometerKm: Int?,
+            variant: String? = null,
+            registrationNumber: String? = null,
+            purchaseYear: Int? = null,
+            nickname: String? = null,
+            isPrimary: Boolean = false,
+        ): EitherNel<DomainError, Car> = either {
+            zipOrAccumulate(
+                { ensureNotNull(make?.trim()?.ifBlank { null }) { DomainError.BlankMake } },
+                { ensureNotNull(model?.trim()?.ifBlank { null }) { DomainError.BlankModel } },
+                { ModelYear.of(year).bind() },
+                { ensureNotNull(fuelType) { DomainError.MissingFuelType } },
+                { Distance.of(odometerKm).bind() },
+                { PurchaseYear.of(purchaseYear).bind() },
+                { RegistrationNumber.of(registrationNumber) },
+            ) { validMake, validModel, validYear, validFuel, validOdometer, validPurchaseYear, validRegistration ->
+                Car(
+                    id = id,
+                    ownerId = ownerId,
+                    make = validMake,
+                    model = validModel,
+                    variant = variant?.trim()?.ifBlank { null },
+                    year = validYear,
+                    fuelType = validFuel,
+                    registrationNumber = validRegistration,
+                    odometer = validOdometer,
+                    purchaseYear = validPurchaseYear,
+                    nickname = nickname?.trim()?.ifBlank { null },
+                    isPrimary = isPrimary,
+                    // Nothing has been stored yet, so there is no date to claim; the row
+                    // written by the insert is what supplies it on the next read.
+                    addedOn = null,
+                )
+            }
+        }
+
+        /**
+         * Rehydrate a [Car] from already-persisted, trusted data (the local DB,
+         * which mirrors these invariants via CHECK constraints).
+         *
+         * Unlike [create], this does **not** accumulate validation errors: the
+         * row was written by a previously-valid [Car], so a value that fails to
+         * reconstruct signals local data corruption — a programming/storage
+         * error, not user input — and fails fast. Construction stays inside the
+         * domain, so the value objects' private constructors remain private.
+         */
+        fun reconstitute(
+            id: CarId,
+            ownerId: OwnerId,
+            make: String,
+            model: String,
+            variant: String?,
+            year: Int,
+            fuelType: FuelType,
+            registrationNumber: String?,
+            odometerKm: Int,
+            purchaseYear: Int?,
+            nickname: String?,
+            isPrimary: Boolean,
+            addedOn: LocalDate?,
+        ): Car = Car(
+            id = id,
+            ownerId = ownerId,
+            make = make,
+            model = model,
+            variant = variant,
+            year = ModelYear.of(year).getOrElse { error("corrupt car.year=$year for ${id.value}") },
+            fuelType = fuelType,
+            registrationNumber = RegistrationNumber.of(registrationNumber),
+            odometer = Distance.of(odometerKm)
+                .getOrElse { error("corrupt car.odometer=$odometerKm for ${id.value}") },
+            purchaseYear = PurchaseYear.of(purchaseYear)
+                .getOrElse { error("corrupt car.purchaseYear=$purchaseYear for ${id.value}") },
+            nickname = nickname,
+            isPrimary = isPrimary,
+            addedOn = addedOn,
+        )
+    }
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Empty for 1.0, because auto odometer is off (FeatureFlags.AUTO_ODOMETER_ENABLED) and
+      the app manifest no longer asks for the permissions behind it. What was here, and why
+      it had to go with them:
+
+      - <service android:name=".service.TripTrackingService" android:exported="false"
+          android:foregroundServiceType="location" />
+        A service typed "location" is a lint error without FOREGROUND_SERVICE_LOCATION, and
+        would throw at runtime on Android 14+ if anything ever started it.
+
+      - <receiver android:name=".motion.ActivityTransitionReceiver" android:exported="false" />
+      - <receiver android:name=".bluetooth.BluetoothAclReceiver" android:exported="true">
+          with an intent-filter on android.bluetooth.device.action.ACL_CONNECTED and
+          ACL_DISCONNECTED.
+        Both were manifest-declared rather than registered at runtime (the only module here
+        that does) precisely so a car connecting could start tracking after the process was
+        killed — ACL broadcasts and the ActivityRecognition Transition API are both on
+        Android 8+'s implicit-broadcast exemption list. With tracking unreachable that
+        survival is only a cost: the receivers would wake the process for a signal nothing
+        is listening for. ACL_CONNECTED/DISCONNECTED are protected broadcasts (only the
+        Bluetooth stack can send them) and exported="true" because that sender is a
+        different, system process — restore both attributes as they were.
+
+      Restore this file and the app manifest's permissions together when the flag goes true.
+    -->
+
+</manifest>
