@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
@@ -281,7 +282,10 @@ private fun ServiceLogEmpty(
                         OdoButton(
                             text = stringResource(Res.string.sl_action_enter_manually),
                             onClick = onAddLog,
-                            variant = OdoButtonVariant.Secondary,
+                            variant = OdoButtonVariant.Tertiary,
+                            modifier = Modifier
+                                .align(Alignment.Start)
+                                .offset(x = (-12).dp),
                         )
                     }
                 },
