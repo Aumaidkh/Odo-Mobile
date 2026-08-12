@@ -158,8 +158,10 @@ internal fun ServiceLogDetailRoute(
                     ),
                 )
 
+            // From an entry's detail the sheet shares that entry's bill, not the whole
+            // record — the logId is what flips the document.
             ServiceLogDetailEffect.OpenShareRecord ->
-                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId, logId = key.logId))
 
             is ServiceLogDetailEffect.OpenReportOvercharge ->
                 navigationManager.navigateTo(
@@ -239,7 +241,10 @@ internal fun ServiceLogFormRoute(
  */
 @Composable
 internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share) {
-    val viewModel = koinViewModel<ShareRecordViewModel> { parametersOf(CarId(key.carId)) }
+    val viewModel = koinViewModel<ShareRecordViewModel> {
+        // Absent for a whole-record share; present when one entry's bill is going out.
+        parametersOf(CarId(key.carId), key.logId?.let(::ServiceLogId))
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val htmlToPdf = rememberHtmlToPdf()

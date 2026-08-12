@@ -22,7 +22,9 @@ import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormViewMo
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListViewModel
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeViewModel
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewModel
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.BrandedServiceBillDocumentFactory
 import com.hopcape.odo.feature.servicelog.presentation.share.pdf.BrandedServiceRecordDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceBillDocumentFactory
 import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocumentFactory
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
@@ -85,6 +87,7 @@ val serviceLogModule = module {
     // Reads the feature's copy and the brand font, so it is bound behind its interface and
     // the share ViewModel's own rules stay testable without an Android runtime.
     factory<ServiceRecordDocumentFactory> { BrandedServiceRecordDocumentFactory() }
+    factory<ServiceBillDocumentFactory> { BrandedServiceBillDocumentFactory() }
 
     factory { ServiceLogTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
@@ -135,8 +138,12 @@ val serviceLogModule = module {
     viewModel { params ->
         ShareRecordViewModel(
             carId = params.get<CarId>(),
+            // Absent for a whole-record share; present when one entry's bill is going out.
+            logId = params.getOrNull<ServiceLogId>(),
             observeRecord = get(),
+            observeDetail = get(),
             documents = get(),
+            bills = get(),
             files = get(),
             telemetry = get(),
         )

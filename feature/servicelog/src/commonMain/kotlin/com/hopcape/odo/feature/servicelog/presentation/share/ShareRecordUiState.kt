@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.servicelog.presentation.share
 
+import com.hopcape.odo.core.domain.shared.Amount
+import kotlinx.datetime.LocalDate
+
 /**
  * Where a verified record can be sent.
  *
@@ -51,6 +54,17 @@ internal data class ShareRecordUiState(
             val carName: String?,
             val verifiedCount: Int,
             val serviceCount: Int,
+        ) : Content
+
+        /**
+         * The sheet was opened on one entry, so the document going out is that entry's
+         * bill — and the line under the title says which bill, not how the whole record
+         * is doing.
+         */
+        data class LoadedBill(
+            val carName: String?,
+            val serviceDate: LocalDate,
+            val amount: Amount,
         ) : Content
     }
 }

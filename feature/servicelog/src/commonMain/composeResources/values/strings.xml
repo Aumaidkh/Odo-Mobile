@@ -108,6 +108,7 @@
 
     <!-- Share verified record sheet -->
     <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
+    <string name="sl_share_bill_subtitle">%1$s · %2$s · %3$s</string>
     <string name="sl_share_whatsapp">WhatsApp</string>
     <string name="sl_share_email">Email</string>
     <string name="sl_share_more">More</string>
@@ -223,6 +224,24 @@
     <string name="sl_record_disclaimer">This record is generated from the owner’s Odo account and reflects what was logged there. It is not an inspection report and makes no claim about the vehicle’s present mechanical condition.</string>
     <string name="sl_record_footer">Verified entries are backed by a bill image held in the owner’s Odo account. Self-reported entries are the owner’s own record.</string>
     <string name="sl_record_empty">Nothing has been logged for this car yet.</string>
+
+    <!-- Printed service bill (single-entry PDF) -->
+    <string name="sl_bill_title">%1$s service bill</string>
+    <string name="sl_bill_header_prefix">Service bill</string>
+    <string name="sl_bill_eyebrow">Verified service bill</string>
+    <string name="sl_bill_eyebrow_self">Service bill</string>
+    <string name="sl_bill_stat_date">Service date</string>
+    <string name="sl_bill_stat_odo">Odometer</string>
+    <string name="sl_bill_stat_status">Status</string>
+    <string name="sl_bill_stat_total">Bill total</string>
+    <string name="sl_bill_workshop">Workshop</string>
+    <string name="sl_bill_notes">Notes</string>
+    <string name="sl_bill_items">Billed items</string>
+    <string name="sl_bill_col_item">Item</string>
+    <string name="sl_bill_col_category">Category</string>
+    <string name="sl_bill_total">Bill total</string>
+    <string name="sl_bill_footer">A verified bill is backed by the bill image held in the owner’s Odo account.</string>
+    <string name="sl_bill_disclaimer">This bill summary is generated from the owner’s Odo account and reflects what was logged there. Amounts on a verified bill come from the bill image, not from memory.</string>
 
     <string name="sl_cd_delete">Delete service</string>
     <string name="sl_cd_share">Share record</string>

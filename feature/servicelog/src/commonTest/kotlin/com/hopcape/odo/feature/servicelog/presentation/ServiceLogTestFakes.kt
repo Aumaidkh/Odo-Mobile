@@ -296,6 +296,8 @@ internal fun testEntry(
     notes: String? = null,
     categories: Set<ServiceCategory> = emptySet(),
     lineItems: List<String> = emptyList(),
+    // Fully-priced lines, for tests about what a bill charges; wins over [lineItems].
+    pricedItems: List<ServiceLogLineItem> = emptyList(),
 ): ServiceLogEntry = ServiceLogEntry.reconstitute(
     id = ServiceLogId(id),
     carId = TEST_CAR,
@@ -309,8 +311,10 @@ internal fun testEntry(
     billId = if (verified) BillId("bill-$id") else null,
     categories = categories,
     // Priced lines name the work exactly, which is how a scanned bill reaches the record.
-    lineItems = lineItems.map { label ->
-        ServiceLogLineItem(label = label, category = ServiceCategory.OTHER, amount = Amount.ZERO)
+    lineItems = pricedItems.ifEmpty {
+        lineItems.map { label ->
+            ServiceLogLineItem(label = label, category = ServiceCategory.OTHER, amount = Amount.ZERO)
+        }
     },
 )
 
