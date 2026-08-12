@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.profile.domain.usecase
 
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -30,11 +31,13 @@ class ProfileUseCasesTest {
             settings = settings,
             entitlement = entitlement(isPro = true),
             session = session(signedIn = false),
+            account = account(PhoneNumber.of("9812345678").getOrNull()),
         )().first()
 
         assertEquals("Rahul", snapshot.name)
         assertEquals("rahul@example.com", snapshot.email)
         assertEquals("Pune", snapshot.city)
+        assertEquals("+919812345678", snapshot.phoneNumber)
         assertTrue(snapshot.isPro)
         assertTrue(!snapshot.isSignedIn)
         assertEquals(ThemePreference.DARK, snapshot.settings.theme)
@@ -47,9 +50,11 @@ class ProfileUseCasesTest {
             settings = FakeSettingsRepository(),
             entitlement = entitlement(isPro = false),
             session = session(signedIn = false),
+            account = account(),
         )().first()
 
         assertNull(snapshot.name)
+        assertNull(snapshot.phoneNumber)
         assertEquals(AppSettings.Default, snapshot.settings)
     }
 
