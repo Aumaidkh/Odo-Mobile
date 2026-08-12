@@ -10,7 +10,7 @@ import com.hopcape.odo.feature.servicelog.domain.usecase.GetCurrentOdometerUseCa
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceLogFeedUseCase
-import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveShareableRecordUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceRecordUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.RecordEntryFairnessUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ReportOverchargeUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ResolveEntryFairnessUseCase
@@ -22,6 +22,10 @@ import com.hopcape.odo.feature.servicelog.presentation.form.ServiceLogFormViewMo
 import com.hopcape.odo.feature.servicelog.presentation.list.ServiceLogListViewModel
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeViewModel
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewModel
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.BrandedServiceBillDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.BrandedServiceRecordDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceBillDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocumentFactory
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -46,7 +50,18 @@ val serviceLogModule = module {
 
     factory { ObserveServiceLogFeedUseCase(logs = get()) }
     factory { ObserveEntryDetailUseCase(observeFeed = get()) }
-    factory { ObserveShareableRecordUseCase(observeFeed = get(), cars = get()) }
+    // The five ports the printed record is assembled from. The clock dates the document,
+    // so a sheet left open across midnight still says the day it was produced.
+    factory {
+        ObserveServiceRecordUseCase(
+            cars = get(),
+            logs = get(),
+            documents = get(),
+            scores = get(),
+            owners = get(),
+            clock = get(),
+        )
+    }
     factory { GetServiceLogUseCase(logs = get()) }
     factory { GetCurrentOdometerUseCase(currentOdometer = get()) }
     factory { AddServiceLogUseCase(logs = get(), idGenerator = get(), clock = get()) }
@@ -69,6 +84,11 @@ val serviceLogModule = module {
     // A `factory`, not a `single`: each instance mints its own trace id, so one instance
     // covers one visit to the service log. Every screen of the feature shares the flow id
     // regardless, which is what stitches list → entry → report into one journey.
+    // Reads the feature's copy and the brand font, so it is bound behind its interface and
+    // the share ViewModel's own rules stay testable without an Android runtime.
+    factory<ServiceRecordDocumentFactory> { BrandedServiceRecordDocumentFactory() }
+    factory<ServiceBillDocumentFactory> { BrandedServiceBillDocumentFactory() }
+
     factory { ServiceLogTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
     viewModel { params ->
@@ -118,7 +138,13 @@ val serviceLogModule = module {
     viewModel { params ->
         ShareRecordViewModel(
             carId = params.get<CarId>(),
+            // Absent for a whole-record share; present when one entry's bill is going out.
+            logId = params.getOrNull<ServiceLogId>(),
             observeRecord = get(),
+            observeDetail = get(),
+            documents = get(),
+            bills = get(),
+            files = get(),
             telemetry = get(),
         )
     }

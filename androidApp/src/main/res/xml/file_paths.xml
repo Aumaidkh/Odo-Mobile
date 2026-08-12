@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the FileProvider is allowed to hand out.
+
+    One entry, naming one directory. `files-path` resolves against filesDir, which is where
+    PlatformFileStore keeps everything Odo stores, and `path` narrows that to the exports
+    subdirectory alone.
+
+    Nothing else belongs here. The same filesDir holds every scanned bill, insurance policy
+    and RC the owner has uploaded; a `<files-path path="." />` would make all of them
+    readable by any app the owner ever shares a record to.
+
+    The directory name matches EXPORT_DIRECTORY in :core:platform's FileSharing.kt. Changing
+    one without the other makes every share fail with a "Failed to find configured root".
+-->
+<paths>
+    <files-path
+        name="odo_exports"
+        path="exports/" />
+</paths>

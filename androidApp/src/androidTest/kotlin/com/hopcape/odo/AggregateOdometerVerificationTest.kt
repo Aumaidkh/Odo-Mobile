@@ -7,7 +7,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.sqldelight.db.SqlDriver
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.feature.garage.presentation.GarageTestTags
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +30,8 @@ class AggregateOdometerVerificationTest {
 
     @Test
     fun sameDayTripAfterAManualOdometerUpdate_addsOnTop() {
+        // Half of this is the trip-logged redirect, which 1.0 does not have.
+        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         resetAutoOdometer()
         seedOnboardedOwner() // baseline: 40,000 km
         rule.activityRule.scenario.recreate()

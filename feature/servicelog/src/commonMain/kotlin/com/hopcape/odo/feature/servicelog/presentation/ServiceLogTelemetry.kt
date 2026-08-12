@@ -367,6 +367,7 @@ internal class ServiceLogTelemetry(
         const val CHECK_FAIRNESS = "servicelog_check_fairness"
         const val SUBMIT_REPORT = "servicelog_submit_report"
         const val SHARE_LOAD = "servicelog_share_load"
+        const val RECORD_EXPORT = "servicelog_record_export"
     }
 
     /** Structured field / property keys, shared across logs, events and spans. */

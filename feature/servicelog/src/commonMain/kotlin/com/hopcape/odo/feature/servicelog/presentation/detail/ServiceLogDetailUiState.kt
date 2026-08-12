@@ -9,34 +9,26 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
-import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
 /**
  * One priced line of a service, display-ready ([Amount], not paise). Powers 1b's
- * resale-proof itemisation (Engine oil / Oil filter / Labour) and the 1a fairness
- * breakdown's paid column.
+ * resale-proof itemisation (Engine oil / Oil filter / Labour) and, where the line was
+ * benchmarked, the 1a fairness comparison printed under it.
  *
  * [label] is the owner's own wording and may be absent, in which case the line is named by
  * its [category] — whose copy lives in `strings.xml`, so the UI resolves it.
+ *
+ * [cityAverage] and [verdict] are null together when the line has no benchmark behind it —
+ * either nothing was ever checked, or the check found no city average for this category. An
+ * unbenchmarked line is shown as what it is, never quietly rendered as "fair".
  */
 internal data class ServiceLineItemUiState(
     val label: String?,
     val category: ServiceCategory,
     val amount: Amount,
-)
-
-/**
- * One row of the 1a fairness breakdown — a priced line compared to the city average.
- * [cityAverage] and [verdict] are null together when the line has no benchmark: an
- * unbenchmarked line is shown as what it is, never quietly rendered as "fair".
- */
-internal data class FairnessBreakdownRow(
-    val label: String?,
-    val category: ServiceCategory?,
-    val paid: Amount,
-    val cityAverage: Amount?,
-    val verdict: FairnessVerdict?,
+    val cityAverage: Amount? = null,
+    val verdict: FairnessVerdict? = null,
 )
 
 /**
@@ -51,9 +43,13 @@ internal sealed interface EntryFairnessUiState {
      * A verdict and the evidence behind it, as it was **stored** when the check ran (see
      * `FairnessSnapshot`) — the figure the owner was shown stays the figure they see.
      *
-     * [sampleSize] is the *weakest* comparison in the [breakdown], not a total: a report is
+     * [sampleSize] is the *weakest* comparison the report made, not a total: a report is
      * only as trustworthy as its thinnest line, and [confidence] is what the UI must
      * surface beside the verdict so the PRD's no-false-precision guardrail holds.
+     *
+     * The per-line comparison is not held here — it is attached to the billed lines
+     * themselves ([ServiceLineItemUiState.cityAverage]), so the screen has one list of what
+     * was charged rather than two lists of the same amounts.
      */
     data class Assessed(
         val overall: FairnessOutcome,
@@ -61,7 +57,6 @@ internal sealed interface EntryFairnessUiState {
         val cityAverageTotal: Amount,
         val sampleSize: Int,
         val confidence: FairnessConfidence,
-        val breakdown: List<FairnessBreakdownRow>,
     ) : EntryFairnessUiState
 }
 
@@ -121,14 +116,14 @@ internal sealed interface DeleteUiState {
 /**
  * Display view of one entry's detail — everything both directions render, built from typed
  * value objects rather than the raw `ServiceLogEntry`. 1a reads [fairness] + [bill]; 1b
- * reads [lineItems] + [resale] + [bill]; the header fields are shared.
+ * reads [resale] + [bill]; [lineItems] is what was charged and is shown either way, since a
+ * verdict about a bill is no reason to stop showing the bill.
  */
 internal data class ServiceEntryDetailUiState(
     val id: ServiceLogId,
     val workshopName: String?,
     val serviceDate: LocalDate,
     val odometer: Distance,
-    val workDone: WorkDone,
     val verification: VerificationStatus,
     val totalPaid: Amount,
     val lineItems: List<ServiceLineItemUiState>,
