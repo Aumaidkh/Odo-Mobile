@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -159,7 +160,10 @@ internal fun ProfileSheet(
 @Composable
 internal fun CloseTopBar(title: String, closeLabel: String, onClose: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.sm),
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
