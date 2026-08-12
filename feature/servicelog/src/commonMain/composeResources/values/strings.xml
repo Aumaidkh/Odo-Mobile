@@ -62,6 +62,9 @@
     <string name="sl_optional">(optional)</string>
 
     <!-- Detail -->
+    <string name="sl_detail_billed_items">Billed items</string>
+    <!-- Shown when the entry carries only a total — a hand-added entry has no priced lines. -->
+    <string name="sl_detail_no_items">No itemised list for this entry — only the total was recorded.</string>
     <string name="sl_detail_total_paid">Total paid</string>
     <string name="sl_detail_extras">Taxes &amp; charges</string>
     <string name="sl_detail_discount">Discount</string>

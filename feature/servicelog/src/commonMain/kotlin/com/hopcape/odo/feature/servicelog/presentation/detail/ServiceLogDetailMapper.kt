@@ -1,10 +1,8 @@
 package com.hopcape.odo.feature.servicelog.presentation.detail
 
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
-import com.hopcape.odo.core.domain.fairness.model.FairnessReportItem
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
-import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItem
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.feature.servicelog.domain.usecase.ServiceEntryDetail
@@ -23,17 +21,39 @@ internal fun ServiceEntryDetail.toUiState(): ServiceEntryDetailUiState = Service
     workDone = entry.workDone(),
     verification = entry.verification,
     totalPaid = entry.totalAmount,
-    lineItems = entry.lineItems.map(ServiceLogLineItem::toUiState),
+    lineItems = entry.billedLines(),
     fairness = entry.toFairnessUiState(),
     resale = entry.toResaleUiState(recordScoreUplift),
     bill = entry.toBillUiState(),
 )
 
-private fun ServiceLogLineItem.toUiState() = ServiceLineItemUiState(
-    label = label,
-    category = category,
-    amount = amount,
-)
+/**
+ * What the bill charged for, with the city comparison attached to the lines that got one.
+ *
+ * The lines come from the entry and nowhere else, so an assessed entry shows exactly what an
+ * unassessed one does — a verdict adds a comparison to a line, it never removes the line.
+ *
+ * The benchmark is matched **by position**: `fairnessItems()` builds the query from
+ * `lineItems` one-for-one and in order, and the stored snapshot keeps that order, so index
+ * `i` on both sides is the same line. When the counts disagree the pairing is no longer
+ * provable — an entry edited after its check, or a check taken on the total of a
+ * single-category entry that has no lines at all — and then nothing is attached rather than
+ * a comparison being invented for the wrong line.
+ */
+private fun ServiceLogEntry.billedLines(): List<ServiceLineItemUiState> {
+    val report = fairness?.report
+    val benchmarks = report?.items?.takeIf { it.size == lineItems.size }
+    return lineItems.mapIndexed { index, item ->
+        val benchmark = benchmarks?.get(index)
+        ServiceLineItemUiState(
+            label = item.label,
+            category = item.category,
+            amount = item.amount,
+            cityAverage = benchmark?.cityAverage,
+            verdict = benchmark?.verdict,
+        )
+    }
+}
 
 /**
  * The stored verdict, or nothing at all.
@@ -52,17 +72,8 @@ private fun ServiceLogEntry.toFairnessUiState(): EntryFairnessUiState {
         cityAverageTotal = report.cityAverageTotal,
         sampleSize = report.sampleSize,
         confidence = report.confidence,
-        breakdown = report.items.map(FairnessReportItem::toBreakdownRow),
     )
 }
-
-private fun FairnessReportItem.toBreakdownRow() = FairnessBreakdownRow(
-    label = label,
-    category = category,
-    paid = amount,
-    cityAverage = cityAverage,
-    verdict = verdict,
-)
 
 /**
  * What this entry is worth as resale proof. Only a verified entry counts — the PRD's trust
