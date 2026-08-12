@@ -41,6 +41,7 @@ import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItem
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
@@ -294,6 +295,7 @@ internal fun testEntry(
     workshop: String? = "Sharma Motors",
     notes: String? = null,
     categories: Set<ServiceCategory> = emptySet(),
+    lineItems: List<String> = emptyList(),
 ): ServiceLogEntry = ServiceLogEntry.reconstitute(
     id = ServiceLogId(id),
     carId = TEST_CAR,
@@ -306,6 +308,10 @@ internal fun testEntry(
     source = if (verified) LogSource.SCANNED else LogSource.MANUAL,
     billId = if (verified) BillId("bill-$id") else null,
     categories = categories,
+    // Priced lines name the work exactly, which is how a scanned bill reaches the record.
+    lineItems = lineItems.map { label ->
+        ServiceLogLineItem(label = label, category = ServiceCategory.OTHER, amount = Amount.ZERO)
+    },
 )
 
 /** The user's city for tests. */

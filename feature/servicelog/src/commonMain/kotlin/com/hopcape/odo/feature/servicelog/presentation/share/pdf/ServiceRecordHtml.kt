@@ -226,8 +226,13 @@ internal object ServiceRecordHtml {
         append("<td class=\"c-date\">").append(formatDate(row.date).escaped()).append("</td>")
         append("<td class=\"c-odo\">").append((row.odometer?.readableNumber() ?: EMPTY_FIELD).escaped()).append("</td>")
 
-        append("<td class=\"c-work\"><div class=\"work\">")
-        append(row.title(labels).escaped()).append("</div>")
+        append("<td class=\"c-work\">")
+        // One line per job. A scanned bill can carry a dozen items, and joining them into a
+        // single run-on sentence is unreadable at exactly the moment the record matters —
+        // a buyer scanning down the page for what was actually done.
+        row.jobs(labels).forEach { job ->
+            append("<div class=\"work\">").append(job.escaped()).append("</div>")
+        }
         row.subtitle(labels)?.let { append("<div class=\"where\">").append(it.escaped()).append("</div>") }
         append("</td>")
 
@@ -239,16 +244,22 @@ internal object ServiceRecordHtml {
         append("</tr>")
     }
 
-    /** The headline of a printed line — what was done, or which paper was filed. */
-    private fun RecordRow.title(labels: ServiceRecordLabels): String = when (val event = event) {
+    /**
+     * What a printed line says happened — one entry per job, so a bill with ten items reads
+     * as ten lines rather than as one paragraph.
+     *
+     * Never empty: an entry with nothing recorded against it still prints something, because
+     * a blank cell in the middle of a record looks like a document that failed to render.
+     */
+    private fun RecordRow.jobs(labels: ServiceRecordLabels): List<String> = when (val event = event) {
         is ActivityEvent.Service -> event.workDone.describe(labels)
         is ActivityEvent.DocumentFiled -> {
             val name = labels.documentName(event.document)
-            if (event.isRenewal) labels.documentRenewed(name) else labels.documentAdded(name)
+            listOf(if (event.isRenewal) labels.documentRenewed(name) else labels.documentAdded(name))
         }
-        is ActivityEvent.CarAdded -> labels.carAdded
+        is ActivityEvent.CarAdded -> listOf(labels.carAdded)
         // Never printed — the builder drops score moves before they reach here.
-        is ActivityEvent.ScoreChanged -> labels.carAdded
+        is ActivityEvent.ScoreChanged -> listOf(labels.carAdded)
     }
 
     /** The line under the headline: where the work was done, or when a paper runs out. */
@@ -259,13 +270,18 @@ internal object ServiceRecordHtml {
     }
 
     /**
-     * What a service line says it was. The parameter is named [wording] rather than `labels`
-     * because [WorkDone.Described] has a `labels` of its own — the owner's own words.
+     * The jobs a service covered, one per line. The parameter is named [wording] rather than
+     * `labels` because [WorkDone.Described] has a `labels` of its own — the owner's own words,
+     * or the line items read off a scanned bill.
      */
-    private fun WorkDone.describe(wording: ServiceRecordLabels): String = when (this) {
-        WorkDone.Unspecified -> wording.workUnspecified
-        is WorkDone.Described -> labels.joinToString(WORK_SEPARATOR)
-        is WorkDone.Tagged -> categories.joinToString(WORK_SEPARATOR) { wording.categoryName(it) }
+    private fun WorkDone.describe(wording: ServiceRecordLabels): List<String> = when (this) {
+        WorkDone.Unspecified -> listOf(wording.workUnspecified)
+        // A single free-text note that the owner wrote as one sentence stays one line; a
+        // scanned bill arrives already split into its items and prints as those items.
+        is WorkDone.Described -> labels.ifEmpty { listOf(wording.workUnspecified) }
+        is WorkDone.Tagged -> categories
+            .map { wording.categoryName(it) }
+            .ifEmpty { listOf(wording.workUnspecified) }
     }
 
     /* ------------------------- the legend ------------------------- */
@@ -295,7 +311,6 @@ internal object ServiceRecordHtml {
         readable().removeSuffix(" ${DistanceUnit.KILOMETRE.suffix()}")
 
     private const val SEPARATOR = " · "
-    private const val WORK_SEPARATOR = " + "
     private const val EMPTY_FIELD = "—"
     private const val TICK = "✓"
 
@@ -395,6 +410,7 @@ internal object ServiceRecordHtml {
         .c-amount { width: 16%; text-align: right; font-weight: 700; }
         th.c-amount { text-align: right; }
         .work { font-weight: 700; }
+        .work + .work { margin-top: 0.7mm; }
         .where { color: $DIM; font-size: 7.5pt; }
         .ok { color: $GREEN; font-weight: 700; }
         .muted { color: $DIM; }

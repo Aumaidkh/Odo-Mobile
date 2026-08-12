@@ -135,6 +135,46 @@ class ServiceRecordHtmlTest {
     }
 
     @Test
+    fun `a bill's line items print one per line, not as one run-on sentence`() {
+        val page = html(
+            record(
+                entries = listOf(
+                    testEntry(
+                        "scanned",
+                        km = 45_000,
+                        paise = 8_142_000,
+                        date = LocalDate(2026, 7, 12),
+                        lineItems = listOf(
+                            "Premium Synthetic Engine Oil",
+                            "Genuine Oil Filter",
+                            "Front and Rear Axle Report",
+                            "Air Conditioning System Full Service",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertPrinted(page, "<div class=\"work\">Premium Synthetic Engine Oil</div>")
+        assertPrinted(page, "<div class=\"work\">Genuine Oil Filter</div>")
+        assertPrinted(page, "<div class=\"work\">Front and Rear Axle Report</div>")
+        assertPrinted(page, "<div class=\"work\">Air Conditioning System Full Service</div>")
+        assertFalse(
+            page.contains("Premium Synthetic Engine Oil + Genuine Oil Filter"),
+            "a dozen items joined with plus signs is unreadable on the page that matters most",
+        )
+    }
+
+    @Test
+    fun `a single note stays a single line`() {
+        val page = html(
+            record(entries = listOf(testEntry("a", km = 54_000, date = LocalDate(2026, 7, 12), notes = "Oil change + oil filter"))),
+        )
+
+        assertPrinted(page, "<div class=\"work\">Oil change + oil filter</div>")
+    }
+
+    @Test
     fun `a hundred entries all reach the page`() {
         val entries = (1..100).map { index ->
             testEntry("log-$index", km = 10_000 + index * 100, paise = 100_000, date = LocalDate(2026, 1, 1), notes = "Job $index")

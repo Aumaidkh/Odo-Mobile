@@ -89,7 +89,9 @@ internal class ShareRecordViewModel(
         }
 
         _state.update { it.copy(export = ExportUiState.Rendering(target)) }
-        viewModelScope.launch {
+        // Traced: laying out a long history is the slowest thing the sheet does, and it is
+        // the number to look at when an owner says sharing takes too long.
+        viewModelScope.launch(telemetry.op(ServiceLogTelemetry.Trace.RECORD_EXPORT)) {
             val document = documents.create(record)
             documentTitle = document.name
             emit(
