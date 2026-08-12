@@ -2,6 +2,7 @@ package com.hopcape.odo
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -10,10 +11,13 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.garage.presentation.GarageTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assume.assumeFalse
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -320,6 +324,9 @@ class GarageEndToEndTest {
 
     @Test
     fun exportSaysWhatIsOnFileAndLeadsToPro() {
+        // The record is the paid Resale Passport, so both buttons open the paywall. Skipped
+        // while FeatureFlags.PAYWALL_ENABLED is false — see the coming-soon test below.
+        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         seedServiceHistory()
         seedDocument(id = GarageFixtures.RC_ID, type = DocumentType.RC)
         rule.openGarage()
@@ -337,6 +344,29 @@ class GarageEndToEndTest {
         rule.onNodeWithText(GarageCopy.EXPORT_PDF).performClick()
 
         rule.awaitGone(GarageCopy.EXPORT_TITLE)
+    }
+
+    /**
+     * What 1.0 ships: the sheet still says what is on file, but nothing can be bought, so
+     * both actions are disabled under a "coming soon" badge and Pro is not named.
+     */
+    @Test
+    fun exportIsMarkedComingSoonWhileProIsNotSold() {
+        assumeFalse(FeatureFlags.PAYWALL_ENABLED)
+        seedServiceHistory()
+        seedDocument(id = GarageFixtures.RC_ID, type = DocumentType.RC)
+        rule.openGarage()
+        rule.awaitText(LogFixtures.CAR_NAME)
+        rule.openCarMenu()
+
+        rule.onNodeWithText(GarageCopy.ACTION_EXPORT).performClick()
+
+        rule.awaitText(GarageCopy.EXPORT_TITLE)
+        rule.onNodeWithText(GarageCopy.exportServices(3)).assertIsDisplayed()
+        rule.onNodeWithText(GarageCopy.EXPORT_COMING_SOON).assertIsDisplayed()
+        assertEquals(0, rule.textCount(GarageCopy.EXPORT_PRO_NOTE))
+        rule.onNodeWithText(GarageCopy.EXPORT_PDF).assertIsNotEnabled()
+        rule.onNodeWithText(GarageCopy.EXPORT_SHARE).assertIsNotEnabled()
     }
 
     /* ------------------------------ Removing the car ------------------------------ */

@@ -21,23 +21,30 @@
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
 
-    <!-- Trip tracking: GPS fixes while a trip is in progress, including while the app is
-         backgrounded (the owner is driving, not looking at the phone). -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <!-- ActivityRecognition Transition API: IN_VEHICLE/STILL/WALKING transitions gate when
-         GPS is worth turning on. -->
-    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <!-- Bluetooth ACL connect/disconnect broadcasts from the bonded vehicle device. -->
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- The trip-tracking foreground service and its location subtype (Android 14+ requires
-         the subtype permission alongside the base one). -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <!-- The persistent trip-tracking notification, required at runtime on Android 13+. -->
+    <!-- Document expiry reminders, required at runtime on Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Auto odometer is off for 1.0 (FeatureFlags.AUTO_ODOMETER_ENABLED), so the app asks
+         for none of what it needs: ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION,
+         ACCESS_BACKGROUND_LOCATION, ACTIVITY_RECOGNITION, BLUETOOTH_CONNECT,
+         FOREGROUND_SERVICE and FOREGROUND_SERVICE_LOCATION were all removed here. Put them
+         back alongside :core:triptracker's own manifest when the flag goes true. -->
+
+    <!-- Pay via QR is off for 1.0 (FeatureFlags.PAY_VIA_QR_ENABLED), so the <queries> block
+         that declared the `upi:` VIEW intent was removed from here. It is Android 11+ package
+         visibility rather than a permission, but it exists only so the scan-to-pay flow can
+         ask "can anything on this phone take a payment" — and a manifest that still asks is a
+         manifest that still describes a feature the app does not ship.
+
+         Put it back with the flag. Without it `resolveActivity` answers null on a phone with
+         four UPI apps installed, so the flow would report "no UPI app" for everyone:
+
+             <queries>
+                 <intent>
+                     <action android:name="android.intent.action.VIEW" />
+                     <data android:scheme="upi" />
+                 </intent>
+             </queries> -->
     <!-- Firebase Analytics brings these three in transitively and nothing here asks for them:
          AD_ID from play-services-measurement-impl, the two ADSERVICES ones from
          play-services-measurement-api. Odo shows no ads and runs no ad campaigns, so an app

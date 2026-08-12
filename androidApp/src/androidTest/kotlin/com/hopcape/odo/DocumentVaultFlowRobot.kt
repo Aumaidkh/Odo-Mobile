@@ -66,7 +66,11 @@ internal object VaultCopy {
     const val CAPTURE_DIGILOCKER = "Import from DigiLocker"
     const val CAPTURE_UNAVAILABLE = "This way of adding a document is coming soon. Upload a file for now."
     const val WRITE_FAILED = "Something went wrong. Please try again."
-    const val LIMIT_REACHED = "Your free plan stores 3 documents. Delete one to add another."
+    /**
+     * FeatureFlags.PAYWALL_ENABLED: goes back to "Your free plan stores 3 documents. Delete
+     * one to add another." when the flag goes true.
+     */
+    const val LIMIT_REACHED = "Odo stores up to 3 documents. Delete one to add another."
 
     /* Confirm step — owned by the scanner, reached by both ways of adding a document. */
     const val REVIEW_TITLE = "Check the document"

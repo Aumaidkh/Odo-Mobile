@@ -177,7 +177,9 @@ private fun TargetChips(selected: ScanTarget, onSelect: (ScanTarget) -> Unit) {
             .padding(horizontal = OdoTheme.spacing.screenEdge),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm, Alignment.CenterHorizontally),
     ) {
-        ScanTarget.entries.forEach { target ->
+        // `scanTargets`, not `ScanTarget.entries` — Pay QR is off for 1.0 and its chip is the
+        // only way into the mode. See FeatureFlags.PAY_VIA_QR_ENABLED.
+        scanTargets.forEach { target ->
             OdoChip(
                 label = stringResource(target.labelResource()),
                 onClick = { onSelect(target) },

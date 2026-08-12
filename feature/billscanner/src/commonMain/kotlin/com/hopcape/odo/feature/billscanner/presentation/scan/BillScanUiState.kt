@@ -1,12 +1,33 @@
 package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.CameraFrameAnalysis
 import com.hopcape.odo.core.platform.camera.DetectedQuad
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
+
+/**
+ * The modes the scanner offers, in chip order.
+ *
+ * **The one choke point for `FeatureFlags.PAY_VIA_QR_ENABLED`.** Two things read it — the mode
+ * chips, and the ViewModel clamping whatever initial target it was handed — and between them
+ * that is every way `ScanTarget.PaymentQr` could become the live target. Nothing downstream
+ * needs its own guard: the frame analyser, the gallery decode and the navigation to
+ * `PayAtPump` are all already conditioned on the target, so a mode that cannot be selected is
+ * a feature that cannot run.
+ *
+ * A list rather than a filter at each call site, so the two can never disagree about what is
+ * on offer.
+ */
+internal val scanTargets: List<ScanTarget> =
+    if (FeatureFlags.PAY_VIA_QR_ENABLED) {
+        ScanTarget.entries
+    } else {
+        ScanTarget.entries.filterNot { it == ScanTarget.PaymentQr }
+    }
 
 /**
  * Display state for the scan screen.
@@ -51,8 +72,15 @@ internal data class BillScanUiState(
     val frameAnalysis: CameraFrameAnalysis
         get() = if (target == ScanTarget.PaymentQr) CameraFrameAnalysis.Qr else CameraFrameAnalysis.DocumentEdges
 
-    /** Whether the quota pill has anything true to say. */
-    val showQuota: Boolean get() = freeTotal > 0 && target != ScanTarget.PaymentQr
+    /**
+     * Whether the quota pill has anything true to say.
+     *
+     * It is off entirely while `FeatureFlags.PAYWALL_ENABLED` is false. "2 of 3 free" tells
+     * the owner they are on a free plan and that a paid one exists, and there is no paid one
+     * to move to yet. The count itself is unchanged and the pill returns with the flag.
+     */
+    val showQuota: Boolean
+        get() = FeatureFlags.PAYWALL_ENABLED && freeTotal > 0 && target != ScanTarget.PaymentQr
 }
 
 /** Sample state for previews. */

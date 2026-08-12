@@ -124,6 +124,8 @@
     <string name="gr_ex_pdf">PDF</string>
     <string name="gr_ex_share">Share</string>
     <string name="gr_ex_pro_note">Exporting your record is part of Odo Pro.</string>
+    <!-- On a CTA that is built but has nothing behind it yet. -->
+    <string name="gr_ex_coming_soon">COMING SOON</string>
 
     <!-- Remove car sheet -->
     <string name="gr_rm_title">Remove %1$s?</string>
