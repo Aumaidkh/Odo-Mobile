@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.garage
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.garage.domain.usecase.AddCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.GetOdometerContextUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveCarDetailsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
@@ -18,6 +19,8 @@ import com.hopcape.odo.feature.garage.presentation.GarageTelemetry
 import com.hopcape.odo.feature.garage.presentation.GarageViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.pdf.BrandedCarDetailsDocumentFactory
+import com.hopcape.odo.feature.garage.presentation.sheets.pdf.CarDetailsDocumentFactory
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
 import org.koin.core.module.dsl.viewModel
@@ -63,6 +66,24 @@ val garageModule = module {
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
+    // Everything the printed vehicle-details document is assembled from. The clock dates
+    // the document, so a sheet left open across midnight still says the day it was
+    // produced.
+    factory {
+        ObserveCarDetailsUseCase(
+            cars = get(),
+            logs = get(),
+            documents = get(),
+            scores = get(),
+            owners = get(),
+            city = get(),
+            fuelPrices = get(),
+            clock = get(),
+        )
+    }
+    // Reads the feature's copy and the brand font, so it is bound behind its interface and
+    // the export ViewModel's own rules stay testable without an Android runtime.
+    factory<CarDetailsDocumentFactory> { BrandedCarDetailsDocumentFactory() }
 
     // A `factory`, not a `single`: one instance covers one visit to the garage, and every
     // screen of that visit shares its flow id.
@@ -112,5 +133,13 @@ val garageModule = module {
             telemetry = get(),
         )
     }
-    viewModel { ExportViewModel(activeCar = get(), observeGarage = get(), telemetry = get()) }
+    viewModel {
+        ExportViewModel(
+            activeCar = get(),
+            observeDetails = get(),
+            documents = get(),
+            files = get(),
+            telemetry = get(),
+        )
+    }
 }
