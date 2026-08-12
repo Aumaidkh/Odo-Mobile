@@ -86,7 +86,13 @@ internal fun ServiceLogListScreen(
         onBack = { onEvent(ServiceLogListEvent.Open.Back) },
         modifier = modifier,
         actions = { TopBarAction(direction, onEvent) },
-        floatingActionButton = { AddServiceFab(onClick = { onEvent(ServiceLogListEvent.Open.AddForm) }) },
+        floatingActionButton = {
+            // Only over a loaded list: the empty state carries its own entry points
+            // ("Scan bill" / "Enter manually"), so a FAB there duplicates them.
+            if (state.content is ServiceLogListUiState.Content.Loaded) {
+                AddServiceFab(onClick = { onEvent(ServiceLogListEvent.Open.AddForm) })
+            }
+        },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding),
