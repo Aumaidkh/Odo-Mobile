@@ -6,6 +6,7 @@ import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -19,6 +20,7 @@ import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.account
 import com.hopcape.odo.feature.profile.domain.usecase.entitlement
 import com.hopcape.odo.feature.profile.domain.usecase.session
 import com.hopcape.odo.feature.profile.domain.usecase.testProfile
@@ -60,11 +62,13 @@ class ProfileViewModelsTest {
         settings: FakeSettingsRepository = FakeSettingsRepository(),
         isPro: Boolean = false,
         isSignedIn: Boolean = false,
+        phoneNumber: PhoneNumber? = null,
     ) = ObserveProfileUseCase(
         profiles = profiles,
         settings = settings,
         entitlement = entitlement(isPro),
         session = session(isSignedIn),
+        account = account(phoneNumber),
     )
 
     /* ---------------------------- home ---------------------------- */
@@ -147,6 +151,20 @@ class ProfileViewModelsTest {
         assertEquals("rahul@example.com", state.email.value)
         assertEquals("Pune", state.city.value)
         assertTrue(state.cities.contains("Pune"))
+    }
+
+    @Test
+    fun edit_showsTheVerifiedNumber_whichAuthOwnsAndTheProfileDoesNot() = runTest {
+        val viewModel = editViewModel(phoneNumber = PhoneNumber.of("9812345678").getOrNull())
+
+        assertEquals("+919812345678", viewModel.state.value.phoneNumber)
+    }
+
+    @Test
+    fun edit_leavesTheNumberEmptyOnADeviceThatNeverSignedIn() = runTest {
+        val viewModel = editViewModel(phoneNumber = null)
+
+        assertNull(viewModel.state.value.phoneNumber)
     }
 
     @Test
@@ -288,6 +306,7 @@ class ProfileViewModelsTest {
         profiles: FakeProfileRepository = FakeProfileRepository(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
         cars: FakeCarRepository = FakeCarRepository(),
+        phoneNumber: PhoneNumber? = null,
     ): EditProfileViewModel {
         val settings = FakeSettingsRepository()
         val files = FakeFileStore()
@@ -297,6 +316,7 @@ class ProfileViewModelsTest {
                 settings = settings,
                 entitlement = entitlement(false),
                 session = session(false),
+                account = account(phoneNumber),
             ),
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),

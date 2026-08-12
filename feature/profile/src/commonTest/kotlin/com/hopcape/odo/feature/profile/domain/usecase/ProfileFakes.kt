@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.domain.usecase
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.auth.VerifiedAccount
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
@@ -10,6 +11,7 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.entitlement.ProEntitlement
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
@@ -177,3 +179,9 @@ internal class FakeTripRepository(var failing: Boolean = false) : TripRepository
 internal fun entitlement(isPro: Boolean) = ProEntitlement { isPro }
 
 internal fun session(signedIn: Boolean) = SessionStatusProvider { signedIn }
+
+/** An auth provider holding [number], or nobody when null. [VerifiedAccount.delete] throws: only the read belongs here. */
+internal fun account(number: PhoneNumber? = null) = object : VerifiedAccount {
+    override suspend fun verifiedNumber(): PhoneNumber? = number
+    override suspend fun delete() = throw NotImplementedError()
+}

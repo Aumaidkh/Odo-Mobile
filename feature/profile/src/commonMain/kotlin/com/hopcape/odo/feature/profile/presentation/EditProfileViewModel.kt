@@ -72,6 +72,7 @@ internal class EditProfileViewModel(
                     name = it.name.update(snapshot.name),
                     email = it.email.update(snapshot.email),
                     city = it.city.update(snapshot.city),
+                    phoneNumber = snapshot.phoneNumber,
                     avatarPath = snapshot.avatarPath,
                     isSignedIn = snapshot.isSignedIn,
                 )

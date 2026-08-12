@@ -55,9 +55,9 @@ import org.jetbrains.compose.resources.stringResource
  * The city field is the one that matters beyond this screen: it is what turns price
  * benchmarks on, and onboarding never asks for it.
  *
- * The mobile number is read-only and empty until auth lands — there is no session and
- * therefore no number to show. It stays on the screen because that is where an owner will
- * look for it once there is one.
+ * The mobile number is read-only: it is the number auth has verified, and changing it means
+ * proving a new one with an OTP, not typing over it here. On a device that never signed in
+ * the field stays empty and its placeholder says to sign in.
  */
 @Composable
 internal fun EditProfileScreen(
@@ -153,13 +153,14 @@ internal fun EditProfileScreen(
                 modifier = Modifier.testTag(EditProfileTestTags.NAME_FIELD),
             )
             OdoInputField(
-                value = "",
+                value = state.phoneNumber.orEmpty(),
                 onValueChange = {},
                 readOnly = true,
                 enabled = false,
                 label = stringResource(Res.string.pf_mobile),
                 placeholder = stringResource(Res.string.pf_mobile_signed_out),
                 helperText = stringResource(Res.string.pf_mobile_note),
+                modifier = Modifier.testTag(EditProfileTestTags.MOBILE_FIELD),
             )
             OdoInputField(
                 value = state.email.text,
@@ -188,9 +189,10 @@ internal fun EditProfileScreen(
     }
 }
 
-/** Tags for the three fields, which have no unique words of their own once emptied. */
+/** Tags for the fields, which have no unique words of their own once emptied. */
 object EditProfileTestTags {
     const val NAME_FIELD: String = "profile_name_field"
+    const val MOBILE_FIELD: String = "profile_mobile_field"
     const val EMAIL_FIELD: String = "profile_email_field"
     const val CITY_FIELD: String = "profile_city_field"
 }
