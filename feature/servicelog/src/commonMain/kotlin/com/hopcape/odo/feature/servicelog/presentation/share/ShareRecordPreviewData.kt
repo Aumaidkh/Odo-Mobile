@@ -4,15 +4,12 @@ import androidx.compose.runtime.Composable
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 
-/**
- * Sample sheet state — stands in for the ViewModel until the route is wired to it.
- * [link] defaults to absent, which is the real state until the Resale Passport ships.
- */
+/** Sample sheet state, in whichever [export] state is being looked at. */
 internal fun sampleShareRecordState(
-    link: PassportLinkUiState = PassportLinkUiState.Unavailable,
+    export: ExportUiState = ExportUiState.Idle,
 ): ShareRecordUiState = ShareRecordUiState(
     content = ShareRecordUiState.Content.Loaded(carName = "Swift VXI", verifiedCount = 4, serviceCount = 6),
-    link = link,
+    export = export,
 )
 
 @OdoThemePreviews
@@ -21,12 +18,19 @@ private fun ShareRecordSheetPreview() = OdoPreview {
     ShareRecordSheetContent(state = sampleShareRecordState(), onEvent = {})
 }
 
-/** How the sheet reads once a passport link exists (Phase 2). */
+/** Mid-render: the tapped target spins and every other one goes flat. */
 @OdoThemePreviews
 @Composable
-private fun ShareRecordSheetWithLinkPreview() = OdoPreview {
+private fun ShareRecordSheetRenderingPreview() = OdoPreview {
     ShareRecordSheetContent(
-        state = sampleShareRecordState(PassportLinkUiState.Ready("odo.app/p/swift-9F2K")),
+        state = sampleShareRecordState(ExportUiState.Rendering(ShareTarget.WHATSAPP)),
         onEvent = {},
     )
+}
+
+/** The document could not be produced. */
+@OdoThemePreviews
+@Composable
+private fun ShareRecordSheetFailedPreview() = OdoPreview {
+    ShareRecordSheetContent(state = sampleShareRecordState(ExportUiState.Failed), onEvent = {})
 }

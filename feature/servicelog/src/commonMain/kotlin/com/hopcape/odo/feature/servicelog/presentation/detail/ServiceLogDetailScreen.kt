@@ -62,19 +62,20 @@ import com.hopcape.odo.core.platform.file.rememberStoredImage
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.CardFooter
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.IconLabel
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.VerificationBadge
-import com.hopcape.odo.feature.servicelog.presentation.ui.components.asString
 import com.hopcape.odo.feature.servicelog.presentation.ui.components.categoryLabel
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_badge_pdf
 import com.hopcape.odo.feature.servicelog.resources.sl_cd_open_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_attached
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_tap_hint
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_billed_items
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_city_avg
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_discount
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_extras
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fair_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_basis
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_label
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_no_items
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_over_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
@@ -96,14 +97,11 @@ import com.hopcape.odo.feature.servicelog.resources.sl_verdict_low_confidence
 import com.hopcape.odo.feature.servicelog.resources.sl_verdict_over
 import org.jetbrains.compose.resources.stringResource
 
-/** Shown where a line has neither a label nor a category to name it. */
-private const val EMPTY_FIELD = "—"
-
 /**
  * A single service entry's detail — a combined "fairness + resale proof" view. Shows
- * the resale-proof card (for verified entries), the fairness check + a per-line
- * breakdown (when assessed), and pins Share / Report actions to the bottom bar.
- * Stateless: the route host owns navigation and the state.
+ * the resale-proof card (for verified entries), the fairness check (when assessed), the
+ * billed items with any city comparison on them, and pins Share / Report actions to the
+ * bottom bar. Stateless: the route host owns navigation and the state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -181,13 +179,10 @@ private fun DetailContent(
         DetailHeader(entry)
         entry.bill?.photoRef?.let { ref -> BillCard(photoRef = ref, onOpen = { onEvent(ServiceLogDetailEvent.BillTapped) }) }
         (entry.resale as? ResaleProofUiState.Verified)?.let { ResaleProofCard(it) }
-        when (val fairness = entry.fairness) {
-            is EntryFairnessUiState.Assessed -> {
-                FairnessCheckCard(fairness)
-                BreakdownCard(fairness.breakdown, entry.totalPaid)
-            }
-            EntryFairnessUiState.NotAssessed -> LineItemsCard(entry)
-        }
+        (entry.fairness as? EntryFairnessUiState.Assessed)?.let { FairnessCheckCard(it) }
+        // Always: what the owner was charged for is the point of the screen, and a fairness
+        // verdict is a note on those lines rather than a replacement for them.
+        BilledItemsCard(entry)
     }
 }
 
@@ -231,17 +226,14 @@ private fun BillCard(photoRef: String, onOpen: () -> Unit) {
 
 @Composable
 private fun DetailHeader(entry: ServiceEntryDetailUiState) {
-    // Workshop name lives in the collapsing top bar; the header carries the trust
-    // badge + the "date · km · work" line.
+    // Workshop name lives in the collapsing top bar; the header carries the trust badge and
+    // the "date · km" line. What was done is not summarised here — the billed items below
+    // are the same list, and printing both left the header running to four lines.
     val distance = LocalOdoDistanceFormat.current
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
         VerificationBadge(entry.verification)
         OdoText(
-            text = buildString {
-                append(formatDate(entry.serviceDate))
-                append(" · ").append(distance.format(entry.odometer.km))
-                entry.workDone.asString()?.let { append(" · ").append(it) }
-            },
+            text = "${formatDate(entry.serviceDate)} · ${distance.format(entry.odometer.km)}",
             style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textDim,
         )
@@ -330,27 +322,49 @@ private fun FairnessCheckCard(fairness: EntryFairnessUiState.Assessed) {
     }
 }
 
-/** The per-line breakdown (label · city avg · paid · verdict) over the total. */
+/**
+ * What the bill charged for, priced line by line, over the total.
+ *
+ * One list rather than two: where a line was benchmarked, the city average and the verdict
+ * are printed on the line itself, so the same amounts are never shown twice under different
+ * headings. An entry with no priced breakdown says so instead of showing a card whose only
+ * row is the total the header already carries.
+ */
 @Composable
-private fun BreakdownCard(rows: List<FairnessBreakdownRow>, total: com.hopcape.odo.core.domain.shared.Amount) {
+private fun BilledItemsCard(entry: ServiceEntryDetailUiState) {
     OdoCard {
-        rows.forEach { row -> BreakdownRow(row) }
+        OdoText(
+            stringResource(Res.string.sl_detail_billed_items),
+            style = OdoTheme.typography.heading,
+            modifier = Modifier.padding(bottom = OdoTheme.spacing.sm),
+        )
+        if (entry.lineItems.isEmpty()) {
+            OdoText(
+                stringResource(Res.string.sl_detail_no_items),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+                modifier = Modifier.padding(bottom = OdoTheme.spacing.md),
+            )
+        } else {
+            entry.lineItems.forEach { item -> BilledItemRow(item) }
+        }
+        ExtrasRow(entry)
         CardFooter(
             leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
-            trailing = { OdoText(total.formatRupees(), style = OdoTheme.typography.title) },
+            trailing = { OdoText(entry.totalPaid.formatRupees(), style = OdoTheme.typography.title) },
         )
     }
 }
 
 @Composable
-private fun BreakdownRow(row: FairnessBreakdownRow) {
+private fun BilledItemRow(item: ServiceLineItemUiState) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = OdoTheme.spacing.md),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            OdoText(row.label ?: row.category?.let { categoryLabel(it) } ?: EMPTY_FIELD, style = OdoTheme.typography.body)
-            row.cityAverage?.let {
+            OdoText(item.label ?: categoryLabel(item.category), style = OdoTheme.typography.body)
+            item.cityAverage?.let {
                 OdoText(
                     stringResource(Res.string.sl_detail_city_avg, it.formatRupees()),
                     style = OdoTheme.typography.caption,
@@ -359,10 +373,10 @@ private fun BreakdownRow(row: FairnessBreakdownRow) {
             }
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            OdoText(row.paid.formatRupees(), style = OdoTheme.typography.body)
+            OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
             // A line with no city benchmark gets no verdict at all — showing one would
             // invent a comparison that was never made.
-            row.verdict?.let { VerdictLabel(it) }
+            item.verdict?.let { VerdictLabel(it) }
         }
     }
 }
@@ -379,24 +393,6 @@ private fun VerdictLabel(verdict: FairnessVerdict) {
         // Too thin a sample to call: the line says so instead of borrowing "fair".
         is FairnessVerdict.LowConfidence ->
             OdoText(stringResource(Res.string.sl_verdict_low_confidence), style = OdoTheme.typography.label, color = OdoTheme.colors.textDim)
-    }
-}
-
-/** Fallback for a self-reported entry with no fairness benchmark: plain line items. */
-@Composable
-private fun LineItemsCard(entry: ServiceEntryDetailUiState) {
-    OdoCard {
-        entry.lineItems.forEach { item ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                OdoText(item.label ?: categoryLabel(item.category), style = OdoTheme.typography.body, modifier = Modifier.weight(1f))
-                OdoText(item.amount.formatRupees(), style = OdoTheme.typography.body)
-            }
-        }
-        ExtrasRow(entry)
-        CardFooter(
-            leading = { OdoText(stringResource(Res.string.sl_detail_total_paid), style = OdoTheme.typography.title) },
-            trailing = { OdoText(entry.totalPaid.formatRupees(), style = OdoTheme.typography.title) },
-        )
     }
 }
 

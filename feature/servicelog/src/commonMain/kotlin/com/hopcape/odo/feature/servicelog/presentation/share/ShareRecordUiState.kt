@@ -1,30 +1,45 @@
 package com.hopcape.odo.feature.servicelog.presentation.share
 
-/** Where a verified record can be shared to. */
-internal enum class ShareTarget { WHATSAPP, EMAIL, MORE }
+/**
+ * Where a verified record can be sent.
+ *
+ * Every one of these produces the same PDF and opens the same system sheet — they differ
+ * only in what gets reported to analytics, because which app an owner reaches for is worth
+ * knowing and the system sheet never tells us. [DOWNLOAD] is a target like the rest: saving
+ * to Files or Drive is one of the choices inside that sheet.
+ */
+internal enum class ShareTarget { WHATSAPP, EMAIL, MORE, DOWNLOAD }
 
 /**
- * The public link to the car's record, and whether it has just been copied.
+ * How far along producing the document is.
  *
- * Typed because "no link yet" is the normal state today, not an error: the Resale Passport
- * that issues one is Phase 2. [Unavailable] hides the link row entirely rather than showing
- * an empty field or a placeholder URL that resolves to nothing.
+ * A record of forty entries takes a moment to lay out and print, so the sheet has to say
+ * something during it — and has to stop taking taps, because a second tap would render the
+ * same document again.
  */
-internal sealed interface PassportLinkUiState {
-    data object Unavailable : PassportLinkUiState
+internal sealed interface ExportUiState {
 
-    data class Ready(
-        val url: String,
-        /** Flipped for the "Copied" confirmation right after the owner copies it. */
-        val copied: Boolean = false,
-    ) : PassportLinkUiState
+    /** Nothing in progress. Every target is tappable. */
+    data object Idle : ExportUiState
+
+    /** Rendering, for [target]. The sheet marks that button and disables all of them. */
+    data class Rendering(val target: ShareTarget) : ExportUiState
+
+    /**
+     * The document could not be produced. Kept in state rather than shown once and lost, so
+     * the owner sees why nothing happened instead of a button that did nothing.
+     */
+    data object Failed : ExportUiState
 }
 
-/** The record being shared — the resale-passport summary and its link. */
+/** The record being shared: what the sheet says about it, and how the export is going. */
 internal data class ShareRecordUiState(
     val content: Content = Content.Loading,
-    val link: PassportLinkUiState = PassportLinkUiState.Unavailable,
+    val export: ExportUiState = ExportUiState.Idle,
 ) {
+    /** True while a document is being produced — every target is disabled. */
+    val isBusy: Boolean get() = export is ExportUiState.Rendering
+
     sealed interface Content {
         data object Loading : Content
 
