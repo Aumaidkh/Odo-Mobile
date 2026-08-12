@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.servicelog.domain.usecase.GetCurrentOdometerUseCa
 import com.hopcape.odo.feature.servicelog.domain.usecase.GetServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceLogFeedUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceRecordUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveShareableRecordUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.RecordEntryFairnessUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ReportOverchargeUseCase
@@ -47,6 +48,18 @@ val serviceLogModule = module {
     factory { ObserveServiceLogFeedUseCase(logs = get()) }
     factory { ObserveEntryDetailUseCase(observeFeed = get()) }
     factory { ObserveShareableRecordUseCase(observeFeed = get(), cars = get()) }
+    // The five ports the printed record is assembled from. The clock dates the document,
+    // so a sheet left open across midnight still says the day it was produced.
+    factory {
+        ObserveServiceRecordUseCase(
+            cars = get(),
+            logs = get(),
+            documents = get(),
+            scores = get(),
+            owners = get(),
+            clock = get(),
+        )
+    }
     factory { GetServiceLogUseCase(logs = get()) }
     factory { GetCurrentOdometerUseCase(currentOdometer = get()) }
     factory { AddServiceLogUseCase(logs = get(), idGenerator = get(), clock = get()) }
