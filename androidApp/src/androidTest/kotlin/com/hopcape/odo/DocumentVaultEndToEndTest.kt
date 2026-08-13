@@ -9,8 +9,14 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
 import androidx.test.espresso.Espresso
 import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.Intents.intended
+import androidx.test.espresso.intent.Intents.intending
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -47,11 +53,14 @@ import org.junit.runner.RunWith
  * Expiry dates are seeded relative to today for the same reason the app resolves them that
  * way: a fixed date would eventually mean a different status than the test was written for.
  *
- * **What is deliberately not covered**, because the product has no affordance for it yet:
- * viewing or downloading the file (both effects are still stubs).
+ * **What is not covered here**: opening the stored file in the reader, which the file-preview
+ * suite drives on its own.
  */
 @RunWith(AndroidJUnit4::class)
 class DocumentVaultEndToEndTest {
+
+    /** The row that used to sit between "Edit dates" and "Share", and no longer exists. */
+    private val REMOVED_REPLACE_ITEM = "Replace file"
 
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
@@ -89,6 +98,10 @@ class DocumentVaultEndToEndTest {
     @Before
     fun startFromASetUpDeviceWithAnEmptyVault() {
         Intents.init()
+        // Answer the chooser rather than launching it: an un-stubbed share sheet stays on
+        // screen and every test after this one drives into it.
+        intending(hasAction(Intent.ACTION_CHOOSER))
+            .respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
         resetVault()
         seedOnboardedOwner()
         rule.activityRule.scenario.recreate()
@@ -147,14 +160,16 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun aLapsedDocumentIsShownAsExpiredAndOfferedARenewal() {
+    fun aLapsedDocumentIsShownAsExpired() {
         seedDocument(id = VaultFixtures.PUC_ID, type = DocumentType.PUC, expiresOn = VaultFixtures.EXPIRED_ON)
         rule.openVault()
 
-        // Driving on a lapsed PUC is an offence, so it is stated plainly and given an action.
+        // Driving on a lapsed PUC is an offence, so it is stated plainly: the date it went,
+        // the red pill, and the header counting it. The row's own renewal button went with
+        // the release that took "Renew now" out — a lapsed paper is replaced by adding the
+        // new one, which the header's prompt is for.
         rule.awaitText(VaultCopy.expiredOn(VaultFixtures.EXPIRED_ON))
         rule.onNodeWithText(VaultCopy.PILL_EXPIRED).assertIsDisplayed()
-        rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.PUC)).assertIsDisplayed()
         rule.onNodeWithText(VaultCopy.attentionTitle(1)).assertIsDisplayed()
     }
 
@@ -317,22 +332,6 @@ class DocumentVaultEndToEndTest {
         rule.onNodeWithText(VaultCopy.added(VaultCopy.DOC_RC)).assertDoesNotExist()
     }
 
-    @Test
-    fun digiLockerSaysItIsNotReadyAndStoresNothing() {
-        rule.openVault()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-
-        // No importer behind it yet. Saying so beats walking an owner to a success screen
-        // for a document that was never written.
-        rule.onNodeWithText(VaultCopy.CAPTURE_DIGILOCKER).performClick()
-        rule.awaitText(VaultCopy.CAPTURE_UNAVAILABLE)
-
-        rule.onNodeWithLabel(VaultCopy.CLOSE_LABEL).performClick()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.INSURANCE)).assertIsDisplayed()
-    }
-
     /**
      * The vault's "Scan with camera" used to dead-end on "coming soon" while the scanner's
      * document path was already built. It hands over now, and it takes the type the owner
@@ -396,40 +395,60 @@ class DocumentVaultEndToEndTest {
     }
 
     /**
-     * Replacing swaps the file behind a document. It used to do nothing at all — the menu
-     * item was wired to an empty lambda — which is what left the old file in place.
+     * Every row in the overflow menu does its own job.
      *
-     * The badge is the proof that the swap happened: an official copy that has been replaced
-     * by a file the owner picked is no longer an official copy.
+     * "Save a copy" and the share sheet's buttons were wired to empty handlers, so tapping
+     * them closed the menu and nothing else happened. Replace was the same and has been
+     * taken out rather than left there.
      */
     @Test
-    fun replacingAFileSwapsItInsteadOfAddingAnother() {
-        seedDocument(
-            id = VaultFixtures.INSURANCE_ID,
-            type = DocumentType.INSURANCE,
-            expiresOn = VaultFixtures.INSURANCE_EXPIRY,
-            source = "DIGILOCKER",
-            title = VaultFixtures.INSURANCE_TITLE,
-            issuedOn = VaultFixtures.ISSUED_ON,
-        )
+    fun theMenuOffersOnlyWhatItCanDo() {
+        seedTrackedDocuments()
         rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
         rule.openDocument(DocumentType.INSURANCE)
-        rule.awaitText(VaultCopy.DETAIL_VERIFIED)
 
-        stubPickedFile()
         rule.openDocumentMenu()
-        rule.onNodeWithText(VaultCopy.MENU_REPLACE).performClick()
 
-        rule.awaitGone(VaultCopy.DETAIL_VERIFIED)
-        // The same document, not a second one, and the same dates on it. The title is
-        // asserted through awaitText because the screen shows it twice — on the card and in
-        // the collapsing title.
+        rule.onNodeWithText(VaultCopy.MENU_EDIT_DATES).assertIsDisplayed()
+        rule.onNodeWithText(VaultCopy.MENU_DOWNLOAD).assertIsDisplayed()
+        rule.onNodeWithText(VaultCopy.MENU_DELETE).assertIsDisplayed()
+        rule.onNodeWithText(REMOVED_REPLACE_ITEM).assertDoesNotExist()
+    }
+
+    @Test
+    fun savingACopyWritesOneAndSaysSo() {
+        seedTrackedDocuments()
+        rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
-        rule.onNodeWithText(VaultCopy.issuedOn(VaultFixtures.ISSUED_ON)).assertIsDisplayed()
-        assertEquals(1, storedDocumentCount())
-        // And one file behind it: the replacement took the old one's place.
-        assertEquals(1, storedVaultFiles().size)
+        rule.openDocument(DocumentType.INSURANCE)
+
+        rule.openDocumentMenu()
+        rule.onNodeWithText(VaultCopy.MENU_DOWNLOAD).performClick()
+
+        // The copy leaves the app, so the confirmation is the only thing on screen that can
+        // tell the owner the tap did anything.
+        rule.awaitText(VaultCopy.SHARE_SAVED)
+        // And the document keeps its own file: a copy was made, not moved.
+        assertTrue(storedVaultFiles().any { it.name.startsWith(VaultFixtures.INSURANCE_ID) })
+    }
+
+    @Test
+    fun sharingHandsTheDocumentToTheSystemChooser() {
+        seedTrackedDocuments()
+        rule.openVault()
+        rule.awaitText(VaultFixtures.INSURANCE_TITLE)
+        rule.openDocument(DocumentType.INSURANCE)
+        rule.openDocumentMenu()
+        rule.onNodeWithText(VaultCopy.MENU_SHARE).performClick()
+        rule.awaitText(VaultCopy.shareTitle(VaultFixtures.INSURANCE_TITLE))
+
+        rule.onNodeWithText(VaultCopy.SHARE_SEND).performClick()
+
+        // The chooser is the system's, so what Odo owns is the hand-off: a copy in the one
+        // directory another app is allowed to read, sent as what it is.
+        intended(hasAction(Intent.ACTION_CHOOSER))
+        assertTrue(exportedFiles().isNotEmpty())
     }
 
     @Test
@@ -463,29 +482,13 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun renewNowOpensTheAddFlowOnTheSameType() {
-        seedTrackedDocuments()
-        rule.openVault()
-        rule.awaitText(VaultCopy.PILL_EXPIRES_SOON)
-
-        rule.openDocument(DocumentType.PUC)
-        rule.onNodeWithText(VaultCopy.DETAIL_RENEW).performClick()
-
-        // A renewal is a new document of the same type, not an edit of the old one — so the
-        // add flow opens, pre-selected, and the lapsing copy stays where it is.
-        rule.awaitText(VaultCopy.ADD_TITLE)
-        rule.onNodeWithText(VaultCopy.ADD_CHIP_PUC).assertIsSelected()
-    }
-
-    @Test
     fun deletingADocumentLeavesTheVaultAskingForItAgain() {
         seedTrackedDocuments()
         rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
         rule.openDocument(DocumentType.INSURANCE)
 
-        rule.openDocumentMenu()
-        rule.onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+        rule.deleteTheOpenDocument()
 
         // The screen has nothing left to show, so it leaves; the row goes back to asking.
         rule.awaitText(VaultCopy.TITLE)
@@ -531,7 +534,7 @@ class DocumentVaultEndToEndTest {
     /* ------------------------------ Sharing ------------------------------ */
 
     @Test
-    fun theShareSheetNamesTheDocumentAndItsTargets() {
+    fun theShareSheetNamesTheDocumentAndWhatCanBeDoneWithIt() {
         seedTrackedDocuments()
         rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
@@ -543,9 +546,11 @@ class DocumentVaultEndToEndTest {
         // The sheet is its own destination, so it names what it is about rather than
         // inheriting it from whatever is behind it.
         rule.awaitText(VaultCopy.shareTitle(VaultFixtures.INSURANCE_TITLE))
-        rule.onNodeWithText(VaultCopy.SHARE_WHATSAPP).assertIsDisplayed()
-        rule.onNodeWithText(VaultCopy.SHARE_EMAIL).assertIsDisplayed()
-        rule.onNodeWithText(VaultCopy.SHARE_COPY).assertIsDisplayed()
+        // Two actions, both of which do something. The app icons that used to sit here —
+        // WhatsApp, Email, Copy link — named targets Odo could not reach, and a document
+        // has no link to copy at all.
+        rule.onNodeWithText(VaultCopy.SHARE_SEND).assertIsDisplayed()
+        rule.onNodeWithText(VaultCopy.SHARE_SAVE).assertIsDisplayed()
     }
 
     /* ------------------------------ The file on disk ------------------------------ */
@@ -561,8 +566,7 @@ class DocumentVaultEndToEndTest {
         rule.awaitText(VaultCopy.PILL_VALID)
 
         rule.openDocument(DocumentType.RC)
-        rule.openDocumentMenu()
-        rule.onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+        rule.deleteTheOpenDocument()
         rule.awaitText(VaultCopy.TITLE)
 
         // A byte blob outliving its row is wasted space nothing can ever reach again.
