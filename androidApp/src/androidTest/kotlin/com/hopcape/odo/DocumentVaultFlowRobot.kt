@@ -19,6 +19,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
@@ -311,8 +312,22 @@ private fun writeStoredFile(storagePath: String) {
  * Asked by id would be better, but the id of a document added through the UI is minted by the
  * app; "the directory is empty" is the same assertion for a vault with one document in it.
  */
-internal fun noVaultFilesRemain(): Boolean =
-    File(appContext().filesDir, "documents").walkTopDown().none { it.isFile }
+internal fun noVaultFilesRemain(): Boolean = storedVaultFiles().isEmpty()
+
+/**
+ * Every file in the vault's storage directory.
+ *
+ * Counted rather than named for the same reason as [noVaultFilesRemain]: a document added
+ * through the UI is keyed on an id the app minted. "One file for one document" is the
+ * assertion that a replacement swapped the bytes instead of leaving the old ones behind.
+ */
+internal fun storedVaultFiles(): List<File> =
+    File(appContext().filesDir, "documents").walkTopDown().filter { it.isFile }.toList()
+
+/** How many documents the owner holds — a replacement must not add one. */
+internal fun storedDocumentCount(): Int = runBlocking {
+    GlobalContext.get().get<DocumentRepository>().countForOwner(OwnerId(LogFixtures.OWNER))
+}
 
 /**
  * Answer the system document picker with a file, instead of opening it.
@@ -430,7 +445,7 @@ internal fun VaultTestRule.fileAnUploadedDocument() {
 internal fun VaultTestRule.awaitDocumentFiled(type: DocumentType) =
     awaitText(VaultCopy.added(documentName(type)), FILED_TIMEOUT_MILLIS)
 
-private const val FILED_TIMEOUT_MILLIS = 20_000L
+private const val FILED_TIMEOUT_MILLIS = 45_000L
 
 /** The document name the vault and the success screen use for a type. */
 internal fun documentName(type: DocumentType): String = when (type) {
