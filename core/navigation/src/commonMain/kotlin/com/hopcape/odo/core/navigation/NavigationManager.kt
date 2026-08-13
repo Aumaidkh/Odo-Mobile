@@ -62,3 +62,10 @@ fun NavigationManager.finishFlow(
     destination: OdoDestination,
     belongsToFlow: (OdoDestination) -> Boolean,
 ) = navigate(NavigationCommand.FinishFlow(destination, belongsToFlow))
+
+/**
+ * Leave the sub-flow the caller is in and land on whatever opened it. See
+ * [NavigationCommand.LeaveFlow].
+ */
+fun NavigationManager.leaveFlow(belongsToFlow: (OdoDestination) -> Boolean) =
+    navigate(NavigationCommand.LeaveFlow(belongsToFlow))

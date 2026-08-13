@@ -158,6 +158,49 @@ class NavigatorCommandExecutorTest {
     }
 
     @Test
+    fun leaveFlow_dropsTheErrandAndLandsOnWhateverOpenedIt() {
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.Garage.Home,
+            OdoDestination.BillScanner.Capture(),
+            OdoDestination.BillScanner.Review("p1"),
+            OdoDestination.Fairness(items = emptyList()),
+        )
+
+        nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))
+
+        // "Done" on the report ends the whole scan, so the confirm step for a bill that is
+        // already saved does not sit behind it.
+        assertEquals(
+            listOf(OdoDestination.Home, OdoDestination.Garage.Home),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun leaveFlow_landsOnTheScreenThatAskedForTheCheck() {
+        // The same report, reached from a stored entry rather than from a scan: there is no
+        // scan to drop, and leaving is a step back to the entry it was about.
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.ServiceLog.List("car-1"),
+            OdoDestination.ServiceLog.Detail(logId = "log-1", carId = "car-1"),
+            OdoDestination.Fairness(items = emptyList()),
+        )
+
+        nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))
+
+        assertEquals(
+            listOf(
+                OdoDestination.Home,
+                OdoDestination.ServiceLog.List("car-1"),
+                OdoDestination.ServiceLog.Detail(logId = "log-1", carId = "car-1"),
+            ),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
     fun back_popsTop_butNeverTheRoot() {
         val nav = navigator(OdoDestination.Home)
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.espresso.intent.Intents
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hopcape.odo.feature.fairnesscheck.presentation.report.FairnessTestTags
+import com.hopcape.odo.feature.profile.presentation.EditProfileTestTags
 import org.junit.Assert.assertEquals
 import org.junit.After
 import org.junit.Before
@@ -202,7 +203,7 @@ class FairnessEndToEndTest {
     }
 
     @Test
-    fun settingTheCityFromTheDeadEnd_opensTheProfile() {
+    fun settingTheCityFromTheDeadEnd_opensTheEditorThatHoldsTheField() {
         seedFairnessEntries()
         clearOwnerCity()
         rule.openServiceLog()
@@ -212,6 +213,45 @@ class FairnessEndToEndTest {
 
         rule.onNodeWithTag(FairnessTestTags.SET_CITY_BUTTON).performClick()
 
-        rule.awaitFairnessText(FairnessCopy.PROFILE_TITLE)
+        // The editor, not the profile root: the button named one field, and the root only
+        // holds a row that leads to the screen holding it.
+        rule.awaitFairnessText(ProfileCopy.SAVE)
+        rule.onNodeWithTag(EditProfileTestTags.CITY_FIELD).assertExists()
+    }
+
+    @Test
+    fun settingTheCity_comesBackToAReportThatUsesIt() {
+        seedFairnessEntries()
+        clearOwnerCity()
+        rule.openServiceLog()
+        rule.openEntryDetail(FairnessFixtures.OVER_ID, FairnessFixtures.OVER_WORKSHOP)
+        rule.runFairnessCheck()
+        rule.awaitFairnessTag(FairnessTestTags.SET_CITY_BUTTON)
+        rule.onNodeWithTag(FairnessTestTags.SET_CITY_BUTTON).performClick()
+        rule.awaitFairnessText(ProfileCopy.SAVE)
+
+        rule.chooseCity(FairnessFixtures.CITY)
+        rule.saveProfile()
+
+        // The report is what the owner was trying to see, so it is what they come back to,
+        // and the check runs again against the city they just set. That the dead end is gone
+        // is the whole assertion: which verdict the pool produces is what the outcome tests
+        // above are for, and this one must not depend on the benchmarks having data.
+        rule.awaitFairnessGone(FairnessTestTags.NO_CITY)
+        assertEquals(0, rule.fairnessTagCount(FairnessTestTags.SET_CITY_BUTTON))
+    }
+
+    @Test
+    fun doneAfterAScan_leavesTheWholeErrandRatherThanTheReport() {
+        seedFairnessEntries()
+        rule.openGarage()
+        rule.openReportAsIfScanned()
+
+        rule.onNodeWithTag(FairnessTestTags.DONE_BUTTON).performClick()
+
+        // Not the confirm step for a bill that is already saved, and not the viewfinder
+        // behind that: the errand is over, so the owner is back where it started.
+        rule.awaitFairnessText(GarageCopy.TITLE)
+        assertEquals(0, rule.fairnessTextCount(ScanCopy.REVIEW_TITLE))
     }
 }
