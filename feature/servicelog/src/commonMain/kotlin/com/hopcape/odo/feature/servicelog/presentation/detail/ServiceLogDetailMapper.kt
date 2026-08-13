@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.feature.servicelog.domain.usecase.ServiceEntryDetail
+import com.hopcape.odo.feature.servicelog.domain.usecase.fairnessItems
 
 /**
  * An entry (and its record context) → what the detail screen renders. A pure function kept
@@ -23,6 +24,9 @@ internal fun ServiceEntryDetail.toUiState(): ServiceEntryDetailUiState = Service
     fairness = entry.toFairnessUiState(),
     resale = entry.toResaleUiState(recordScoreUplift),
     bill = entry.toBillUiState(),
+    // Asked of the same function the check itself uses, so the screen cannot offer an
+    // action the ViewModel would refuse.
+    canCheckFairness = entry.fairnessItems() != null,
 )
 
 /**

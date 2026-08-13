@@ -85,6 +85,9 @@
     <!-- Turning a self-reported entry into a verified one, and checking its price. -->
     <string name="sl_detail_attach_bill">Add a bill to verify</string>
     <string name="sl_detail_check_fairness">Check fairness</string>
+    <!-- The entry has no priced lines and covers more than one job, so one total cannot be
+         compared job by job. -->
+    <string name="sl_detail_fairness_unavailable">This bill can’t be compared — it has one total covering more than one job, with no itemised charges to check against city prices.</string>
     <string name="sl_error_attach_failed">The bill couldn’t be attached. Try again.</string>
     <string name="sl_detail_city_avg">city avg %1$s</string>
     <string name="sl_detail_share">Share verified record</string>
