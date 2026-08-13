@@ -88,8 +88,9 @@ internal class BillScannerFeatureEntryProvider(
  *
  * The rationale is shown **before** the system prompt, not after a refusal: Android gives one
  * second chance and iOS gives none, so the single prompt an owner sees should follow an
- * explanation. Choosing "Not now" drops through to the scan screen, which keeps a nudge on
- * offer instead of leaving them on a dead screen.
+ * explanation. "Not now" and the X both leave the flow. Without the camera there is no
+ * viewfinder to show, so dropping through to the scan screen would only ask for the permission
+ * a second time on a screen that cannot work without it.
  */
 @Composable
 internal fun BillScanRoute(
@@ -172,7 +173,6 @@ internal fun BillScanRoute(
         onCapture = cameraState::capture,
         onPickGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
         onManual = { viewModel.onEvent(BillScanEvent.ManualTapped) },
-        onGrantCamera = grant,
         onTargetSelected = { viewModel.onEvent(BillScanEvent.TargetSelected(it)) },
         onToggleEdgeLock = { viewModel.onEvent(BillScanEvent.EdgeLockToggled) },
     )

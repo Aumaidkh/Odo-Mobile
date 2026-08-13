@@ -35,9 +35,8 @@ internal val scanTargets: List<ScanTarget> =
  * It carries what is being scanned, the free-scan quota shown in the top-bar pill (mirrored
  * read-only from the server entitlement), the camera permission, and any camera failure.
  *
- * The permission decides which of three things the screen is: the rationale, a live preview,
- * or a placeholder with a nudge. Keeping all three on one state means there is no window in
- * which the screen is none of them.
+ * The permission decides which of two things the screen is: the rationale, or a live preview.
+ * Keeping both on one state means there is no window in which the screen is neither.
  */
 @Immutable
 internal data class BillScanUiState(
@@ -46,8 +45,6 @@ internal data class BillScanUiState(
     val freeTotal: Int = 0,
     val cameraPermission: CameraPermissionStatus = CameraPermissionStatus.Askable,
     val cameraFailure: CameraFailure? = null,
-    /** True once the owner chose "Not now" — the rationale gives way to the nudge. */
-    val rationaleDismissed: Boolean = false,
     /** The paper outline the live frames currently hold, for the corner markers. */
     val detectedQuad: DetectedQuad? = null,
     /** True once the owner tapped to pin the outline — detection updates stop moving it. */
@@ -62,11 +59,18 @@ internal data class BillScanUiState(
     /** Whether a live preview can be shown at all. */
     val cameraGranted: Boolean get() = cameraPermission == CameraPermissionStatus.Granted
 
-    /** Whether the nudge should offer settings rather than another try at the prompt. */
+    /** Whether the rationale should offer settings rather than another try at the prompt. */
     val cameraBlocked: Boolean get() = cameraPermission == CameraPermissionStatus.Blocked
 
-    /** Show the full rationale: not granted, and the owner has not waved it away yet. */
-    val showRationale: Boolean get() = !cameraGranted && !rationaleDismissed
+    /**
+     * Show the rationale: anything short of granted.
+     *
+     * There is no third state where the scanner renders without the camera. A viewfinder with
+     * no preview is the same refusal asked twice, so declining leaves the flow instead. If the
+     * owner allows and then denies the system prompt, this stays true and the rationale comes
+     * back offering settings — which is the only thing left that can help.
+     */
+    val showRationale: Boolean get() = !cameraGranted
 
     /** What the live frames are analysed for: the payment mode reads QRs, paper modes find edges. */
     val frameAnalysis: CameraFrameAnalysis

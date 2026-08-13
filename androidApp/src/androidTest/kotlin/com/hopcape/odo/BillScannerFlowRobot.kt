@@ -64,20 +64,16 @@ internal object ScanCopy {
 
     /* Camera permission rationale. */
     const val CAMERA_TITLE = "Odo needs your camera to read things"
-    const val CAMERA_SUBTITLE = "Everything Odo checks starts as a photo. Grant once and all three work."
+    const val CAMERA_SUBTITLE = "Everything Odo checks starts as a photo. Grant once and both work."
     const val CAMERA_BILLS = "Service bills"
     const val CAMERA_PAPERS = "Insurance, PUC & RC"
-    const val CAMERA_QR = "Fuel pump QR"
     const val CAMERA_NO_BACKGROUND = "No photos or video in the background"
     const val CAMERA_ONLY_ON_SCAN = "Only when you tap Scan"
     const val CAMERA_ALLOW = "Allow camera"
     const val CAMERA_NOT_NOW = "Not now"
+    const val CLOSE_LABEL = "Close"
     const val CAMERA_BLOCKED_SUBTITLE =
         "The camera is switched off for Odo. Turn it back on in settings and scanning works again."
-
-    /* The nudge that replaces it once the owner has declined. */
-    const val NUDGE = "Scanning needs the camera."
-    const val NUDGE_ALLOW = "Allow"
 
     /* Viewfinder. */
     const val SCAN_TITLE_BILL = "Scan bill"
