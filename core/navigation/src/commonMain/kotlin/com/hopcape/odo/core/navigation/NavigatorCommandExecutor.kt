@@ -16,6 +16,14 @@ internal fun Navigator.execute(command: NavigationCommand) {
             if (!alreadyOnTop) navigate(command.destination)
         }
 
+        is NavigationCommand.FinishFlow -> {
+            // Top-down rather than by key: the flow's own steps are what has to go, and the
+            // first entry below them is whatever opened the flow — which the flow itself
+            // does not know. `goBack` stops at the root, so the loop always terminates.
+            while (canGoBack && command.belongsToFlow(backStack.last())) goBack()
+            if (backStack.lastOrNull() != command.destination) navigate(command.destination)
+        }
+
         NavigationCommand.Back -> goBack()
     }
 }
