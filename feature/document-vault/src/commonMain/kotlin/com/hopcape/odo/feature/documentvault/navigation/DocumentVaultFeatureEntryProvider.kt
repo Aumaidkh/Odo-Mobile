@@ -193,6 +193,8 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
         state = state,
         onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
         onEditDates = { viewModel.onEvent(DocumentDetailEvent.Open.EditDates) },
+        // TODO(files): open the picker, then send File.Replace with what it returns.
+        onReplace = { },
         onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
         onDownload = { viewModel.onEvent(DocumentDetailEvent.File.Download) },
         onDelete = { viewModel.onEvent(DocumentDetailEvent.File.Delete) },
