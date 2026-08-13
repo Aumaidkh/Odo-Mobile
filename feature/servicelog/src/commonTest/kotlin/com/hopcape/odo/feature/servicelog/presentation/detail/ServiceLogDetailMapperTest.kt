@@ -19,17 +19,20 @@ import com.hopcape.odo.feature.servicelog.domain.usecase.ServiceEntryDetail
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 /**
- * What the detail screen is allowed to show about a bill's lines.
+ * What the detail screen is allowed to show about a bill's lines, and what it may offer to
+ * do with them.
  *
- * The rule under test is one thing: an entry's priced lines survive to the screen whatever
- * the fairness check said about them (issue #109). A verdict annotates a line; it never
- * replaces the list, and it is never attached to a line it was not taken for.
+ * Two rules. An entry's priced lines survive to the screen whatever the fairness check said
+ * about them (issue #109): a verdict annotates a line, it never replaces the list, and it is
+ * never attached to a line it was not taken for. And the "Check fairness" action is offered
+ * only when there is something to benchmark (issue #111).
  */
 class ServiceLogDetailMapperTest {
 
@@ -96,12 +99,40 @@ class ServiceLogDetailMapperTest {
         assertTrue(items.all { it.cityAverage == null && it.verdict == null })
     }
 
+    @Test
+    fun entryWithPricedLines_offersTheFairnessCheck() {
+        val entry = entry(lines = listOf(line("Engine oil", ServiceCategory.OIL_CHANGE, 340_000)))
+
+        assertTrue(entry.toDetail().toUiState().canCheckFairness)
+    }
+
+    @Test
+    fun entryWithNoLines_butOneJob_offersTheCheckOnItsTotal() {
+        val entry = entry(lines = emptyList(), categories = setOf(ServiceCategory.OIL_CHANGE))
+
+        assertTrue(entry.toDetail().toUiState().canCheckFairness)
+    }
+
+    @Test
+    fun entryWithNoLines_andSeveralJobs_doesNotOfferTheCheck() {
+        // One total covering two jobs cannot be split, so there is nothing to benchmark.
+        // The screen used to offer the button anyway and the tap was refused in silence
+        // (issue #111).
+        val entry = entry(
+            lines = emptyList(),
+            categories = setOf(ServiceCategory.OIL_CHANGE, ServiceCategory.OTHER),
+        )
+
+        assertFalse(entry.toDetail().toUiState().canCheckFairness)
+    }
+
     private fun ServiceLogEntry.toDetail() = ServiceEntryDetail(entry = this, recordScoreUplift = 4)
 
     private fun entry(
         lines: List<ServiceLogLineItem>,
         benchmarks: Map<ServiceCategory, Long> = emptyMap(),
         snapshot: FairnessSnapshot? = null,
+        categories: Set<ServiceCategory> = emptySet(),
     ): ServiceLogEntry = ServiceLogEntry.reconstitute(
         id = ServiceLogId("log-1"),
         carId = CarId("car-1"),
@@ -113,6 +144,7 @@ class ServiceLogDetailMapperTest {
         notes = null,
         source = LogSource.SCANNED,
         billId = null,
+        categories = categories,
         lineItems = lines,
         billPhotoRef = "bills/car-1/log-1.jpg",
         fairness = snapshot ?: snapshotOf(lines, benchmarks),

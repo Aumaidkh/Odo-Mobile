@@ -41,6 +41,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -126,7 +127,7 @@ class ServiceLogDetailViewModelTest {
     }
 
     @Test
-    fun withNothingComparable_checkFairnessDoesNothing() = runTest(dispatcher) {
+    fun withNothingComparable_theCheckIsNotOffered_andOpensNoReport() = runTest(dispatcher) {
         // Two category tags over one total: there is no way to know which share belongs to
         // which job, so there is nothing honest to benchmark.
         val entry = testEntry(
@@ -139,6 +140,12 @@ class ServiceLogDetailViewModelTest {
         val viewModel = viewModel(FakeServiceLogRepository(listOf(entry)))
         advanceUntilIdle()
 
+        // The screen says so rather than leaving the owner with a button that refuses in
+        // silence (issue #111) — it draws the action disabled, with the reason under it.
+        val loaded = assertIs<ServiceLogDetailUiState.Content.Loaded>(viewModel.state.value.content)
+        assertFalse(loaded.entry.canCheckFairness)
+
+        // And the guard behind it holds: nothing opens even if the event arrives anyway.
         viewModel.onEvent(ServiceLogDetailEvent.CheckFairnessClicked)
 
         assertNull(withTimeoutOrNull(TIMEOUT_MILLIS) { viewModel.effects.first() })

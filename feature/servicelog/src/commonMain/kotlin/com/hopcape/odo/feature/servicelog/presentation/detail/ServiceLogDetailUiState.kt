@@ -130,6 +130,17 @@ internal data class ServiceEntryDetailUiState(
     val fairness: EntryFairnessUiState,
     val resale: ResaleProofUiState,
     val bill: BillAttachmentUiState?,
+    /**
+     * Whether a fairness check on this entry would have anything to benchmark — the same
+     * question `fairnessItems()` answers, carried onto the screen so the "Check fairness"
+     * action is offered on the condition that actually decides it.
+     *
+     * False for an entry with no priced lines and more than one category tag: one total
+     * covering two jobs cannot be split, so there is nothing to compare against the city.
+     * Without this the button was drawn on verification alone and the tap was refused in
+     * silence (issue #111).
+     */
+    val canCheckFairness: Boolean,
 ) {
     /** Whether this entry is over the city average — what offers the "report" action. */
     val isOvercharged: Boolean
