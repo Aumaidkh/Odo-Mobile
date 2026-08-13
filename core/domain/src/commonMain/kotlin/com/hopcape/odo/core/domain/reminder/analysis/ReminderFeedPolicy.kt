@@ -92,7 +92,7 @@ object ReminderFeedPolicy {
         documents: List<Document>,
         today: LocalDate,
     ): List<UpcomingReminder.DocumentRenewal> = documents
-        .filter { it.expiresOn != null && DocumentReminderPolicy.leadDaysFor(it.type).isNotEmpty() }
+        .filter { it.expiresOn != null && DocumentReminderPolicy.renews(it.type) }
         .groupBy { it.type }
         .mapNotNull { (type, ofType) ->
             val kind = ReminderKind.forDocument(type) ?: return@mapNotNull null

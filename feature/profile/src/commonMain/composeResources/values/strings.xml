@@ -72,7 +72,20 @@
     <!-- Notifications -->
     <string name="pf_notif_reminders">REMINDERS</string>
     <string name="pf_notif_doc_expiry">Document expiry</string>
-    <string name="pf_notif_doc_expiry_sub">7 days before</string>
+    <string name="pf_notif_doc_expiry_sub">Insurance, PUC and licence renewals</string>
+    <string name="pf_notif_leads_title">WARN ME BEFORE</string>
+    <string name="pf_notif_leads_note">Pick as many as you want. Odo nudges you on each of them.</string>
+    <string name="pf_notif_lead_day">%1$d day</string>
+    <string name="pf_notif_lead_days">%1$d days</string>
+    <string name="pf_notif_lead_none">Never — no reminders for this one</string>
+    <string name="pf_notif_time">Notify me at</string>
+    <string name="pf_notif_time_note">Every reminder arrives around this time.</string>
+    <string name="pf_notif_hour_am">%1$d AM</string>
+    <string name="pf_notif_hour_pm">%1$d PM</string>
+    <string name="pf_notif_hour_noon">12 PM</string>
+    <string name="pf_doc_kind_insurance">Insurance</string>
+    <string name="pf_doc_kind_puc">PUC</string>
+    <string name="pf_doc_kind_licence">Driving licence</string>
     <string name="pf_notif_service_due">Service due</string>
     <string name="pf_notif_service_due_sub">Based on km &amp; time</string>
     <string name="pf_notif_custom">Custom reminders</string>

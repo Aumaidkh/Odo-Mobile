@@ -33,19 +33,51 @@ class DocumentReminderPolicyTest {
 
     @Test
     fun insurance_followsThePrdTriggerTable() {
-        assertContentEquals(listOf(30, 7, 1), DocumentReminderPolicy.leadDaysFor(DocumentType.INSURANCE))
+        assertContentEquals(listOf(30, 7, 1), DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.INSURANCE))
     }
 
     @Test
     fun puc_followsThePrdTriggerTable() {
-        assertContentEquals(listOf(15, 3), DocumentReminderPolicy.leadDaysFor(DocumentType.PUC))
+        assertContentEquals(listOf(15, 3), DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.PUC))
     }
 
     @Test
     fun papersWithNoRenewal_areNeverChased() {
         listOf(DocumentType.RC, DocumentType.LOAN, DocumentType.OTHER).forEach { type ->
-            assertTrue(DocumentReminderPolicy.leadDaysFor(type).isEmpty(), "$type should not be chased")
+            assertTrue(DocumentReminderPolicy.defaultLeadDaysFor(type).isEmpty(), "$type should not be chased")
         }
+    }
+
+    @Test
+    fun theOwnersOwnLeads_replaceTheDefaults() {
+        // The point of the setting: an owner who renews through an agent wants more notice
+        // than the product's table gives, and nothing else about the paper changes.
+        val schedule = DocumentReminderPolicy.scheduleFor(
+            type = DocumentType.INSURANCE,
+            expiresOn = LocalDate(2026, 11, 12),
+            today = LocalDate(2026, 8, 1),
+            leadDays = listOf(60, 30),
+        )
+
+        assertContentEquals(
+            listOf(LocalDate(2026, 9, 13), LocalDate(2026, 10, 13)),
+            schedule.map { it.on },
+        )
+    }
+
+    @Test
+    fun mutingATypesLeads_stillLeavesItAPaperThatExpires() {
+        // An owner who turns every lead off has muted a reminder, not turned insurance into
+        // a document that never runs out — the confirm step must still ask for the date.
+        assertTrue(
+            DocumentReminderPolicy.scheduleFor(
+                type = DocumentType.INSURANCE,
+                expiresOn = LocalDate(2026, 11, 12),
+                today = LocalDate(2026, 8, 1),
+                leadDays = emptyList(),
+            ).isEmpty(),
+        )
+        assertTrue(DocumentReminderPolicy.renews(DocumentType.INSURANCE))
     }
 
     @Test

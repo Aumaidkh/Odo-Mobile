@@ -22,6 +22,8 @@ data class AppSettings(
     val distanceUnit: DistanceUnit = DistanceUnit.Default,
     val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.Default,
     val notifications: NotificationPreferences = NotificationPreferences(),
+    /** When those notifications arrive — lead times per document, and the hour of day. */
+    val notificationSchedule: NotificationSchedule = NotificationSchedule(),
     /** What this device may keep and count — see [PrivacyPreferences]. */
     val privacy: PrivacyPreferences = PrivacyPreferences(),
     /** Automatic trip tracking (docs/TRIPTRACKER_PLAN.md) — off until the owner turns it on. */

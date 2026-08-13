@@ -2,7 +2,9 @@ package com.hopcape.odo.feature.profile.presentation
 
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.settings.model.NotificationSchedule
 
 /** Which switch the owner moved on the notifications screen. */
 internal sealed interface NotificationsEvent {
@@ -14,6 +16,20 @@ internal sealed interface NotificationsEvent {
     data class MonthlySummaryToggled(val enabled: Boolean) : NotificationsEvent
     data class HealthScoreDropsToggled(val enabled: Boolean) : NotificationsEvent
     data class PushToggled(val enabled: Boolean) : NotificationsEvent
+
+    /**
+     * One lead chip on one kind of paper was tapped. [days] is the chip; the screen sends
+     * what it wants the state to become rather than a toggle, so a stale render cannot flip
+     * the wrong way.
+     */
+    data class DocumentLeadToggled(
+        val type: DocumentType,
+        val days: Int,
+        val selected: Boolean,
+    ) : NotificationsEvent
+
+    /** The hour of the day every reminder should arrive at. */
+    data class NotifyHourChosen(val hour: Int) : NotificationsEvent
 }
 
 /**
@@ -28,5 +44,7 @@ internal sealed interface NotificationsEvent {
 @Immutable
 internal data class NotificationsUiState(
     val preferences: NotificationPreferences = NotificationPreferences(),
+    /** When they arrive: the lead days per kind of paper, and the hour of day. */
+    val schedule: NotificationSchedule = NotificationSchedule(),
     val error: UiText? = null,
 )

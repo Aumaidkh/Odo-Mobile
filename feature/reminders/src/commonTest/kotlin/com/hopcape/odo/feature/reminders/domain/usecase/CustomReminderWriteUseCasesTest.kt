@@ -67,7 +67,7 @@ class CustomReminderWriteUseCasesTest {
         val stored = result.getOrNull()!!
         assertEquals("rem-new", stored.id.value)
         assertEquals(listOf(stored), fixture.reminders.customs)
-        assertEquals(listOf(stored), fixture.scheduler.scheduled)
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     @Test
@@ -78,7 +78,7 @@ class CustomReminderWriteUseCasesTest {
 
         assertContains(result.leftOrNull()!!, DomainError.BlankReminderTitle)
         assertTrue(fixture.reminders.customs.isEmpty())
-        assertTrue(fixture.scheduler.scheduled.isEmpty())
+        assertEquals(0, fixture.scheduler.refreshes)
     }
 
     @Test
@@ -88,7 +88,7 @@ class CustomReminderWriteUseCasesTest {
         val result = fixture.create(command, TEST_CAR, TEST_OWNER)
 
         assertTrue(result.isLeft())
-        assertTrue(fixture.scheduler.scheduled.isEmpty())
+        assertEquals(0, fixture.scheduler.refreshes)
     }
 
     /* ---- Update ---- */
@@ -103,7 +103,7 @@ class CustomReminderWriteUseCasesTest {
         val stored = result.getOrNull()!!
         assertEquals("Coolant top-up", stored.title.value)
         assertEquals(existing.id, stored.id)
-        assertEquals(listOf(stored), fixture.scheduler.scheduled)
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     @Test
@@ -123,8 +123,8 @@ class CustomReminderWriteUseCasesTest {
         val stored = fixture.update(existing.id, command).getOrNull()!!
 
         assertTrue(stored.paused)
-        assertTrue(fixture.scheduler.scheduled.isEmpty())
-        assertEquals(listOf(existing.id), fixture.scheduler.cancelled)
+        // A paused reminder is dropped by the rebuild, so the write still asks for one.
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     /* ---- Pause / resume ---- */
@@ -137,8 +137,7 @@ class CustomReminderWriteUseCasesTest {
         val stored = fixture.setPaused(existing.id, paused = true).getOrNull()!!
 
         assertTrue(stored.paused)
-        assertEquals(listOf(existing.id), fixture.scheduler.cancelled)
-        assertTrue(fixture.scheduler.scheduled.isEmpty())
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     @Test
@@ -149,7 +148,7 @@ class CustomReminderWriteUseCasesTest {
         val stored = fixture.setPaused(existing.id, paused = false).getOrNull()!!
 
         assertTrue(!stored.paused)
-        assertEquals(listOf(stored), fixture.scheduler.scheduled)
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     /* ---- Delete ---- */
@@ -162,7 +161,7 @@ class CustomReminderWriteUseCasesTest {
         assertTrue(fixture.delete(existing.id).isRight())
 
         assertTrue(fixture.reminders.customs.isEmpty())
-        assertEquals(listOf(existing.id), fixture.scheduler.cancelled)
+        assertEquals(1, fixture.scheduler.refreshes)
     }
 
     @Test
@@ -174,7 +173,7 @@ class CustomReminderWriteUseCasesTest {
         )
 
         assertTrue(fixture.delete(existing.id).isLeft())
-        assertTrue(fixture.scheduler.cancelled.isEmpty())
+        assertEquals(0, fixture.scheduler.refreshes)
     }
 
     /* ---- Dismiss ---- */
