@@ -243,9 +243,10 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # SQLDelight Gradle plugin — generates the typed DB API for :core:data.
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
-# kotlinx-serialization compiler plugin — applied directly by :core:data (the only
-# module with DTOs today). Promote to an `odo.serialization` convention plugin when
-# :core:network lands and a second module needs it.
+# kotlinx-serialization compiler plugin — applied directly by :core:data (sync DTOs and
+# structured columns) and :core:navigation (destination keys, so the back stack can be
+# saved). Two one-line applications; promote to an `odo.serialization` convention plugin
+# when there is something to configure beyond applying it.
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 # Applied directly by :androidApp — no other module ships a Firebase config file.
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
