@@ -6,13 +6,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.DocumentOrigin
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
-import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.camera.CameraEvent
@@ -44,6 +45,7 @@ import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEffect
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEvent
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanScreen
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanViewModel
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -60,9 +62,7 @@ internal class BillScannerFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.BillScanner.Capture> { key ->
-            BillScanRoute(navigationManager, key.target, key.documentType)
-        }
+        entry<OdoDestination.BillScanner.Capture> { key -> BillScanRoute(navigationManager, key) }
         entry<OdoDestination.BillScanner.Review> { key ->
             BillReviewRoute(navigationManager, photoKey = key.photoKey)
         }
@@ -94,11 +94,11 @@ internal class BillScannerFeatureEntryProvider(
 @Composable
 internal fun BillScanRoute(
     navigationManager: NavigationManager,
-    target: ScanTarget,
-    documentType: String? = null,
+    key: OdoDestination.BillScanner.Capture,
 ) {
-    val viewModel: BillScanViewModel = koinViewModel { parametersOf(target) }
+    val viewModel: BillScanViewModel = koinViewModel { parametersOf(key.target) }
     val state by viewModel.state.collectAsState()
+    val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
     val permission = rememberCameraPermissionController()
     val cameraState = rememberOdoCameraState()
     // Pictures only: a PDF has no frame to read a code or an expiry date off.
@@ -124,14 +124,24 @@ internal fun BillScanRoute(
             is BillScanEffect.OpenBillReview ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.Review(effect.photoKey))
             is BillScanEffect.OpenDocumentReview -> navigationManager.navigateTo(
-                OdoDestination.BillScanner.DocumentReview(effect.photoKey, documentType),
+                OdoDestination.BillScanner.DocumentReview(effect.photoKey, key.documentType),
             )
             is BillScanEffect.OpenPayment ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.PayAtPump(effect.payload))
             BillScanEffect.PickFromGallery -> pickFromGallery()
-            // "Manual" pops back to whatever opened the scanner, which is the form itself in
-            // every path that offers it.
-            BillScanEffect.OpenManualEntry -> navigationManager.back()
+            // "Manual" opens the log form in the viewfinder's place, not on top of it. The
+            // form's save pops back, and that should land on whatever opened the scanner
+            // rather than on a live camera. When the form itself opened the scanner, popping
+            // the capture leaves that form on top and `singleTop` reuses it — the same place
+            // this used to go. With no active car there is no form to open, so nothing moves:
+            // opening someone else's car is worse than opening none.
+            BillScanEffect.OpenManualEntry -> carId?.let {
+                navigationManager.navigateTo(
+                    OdoDestination.ServiceLog.AddEdit(it.value),
+                    popUpTo = key,
+                    inclusive = true,
+                )
+            }
             BillScanEffect.NavigateBack -> navigationManager.back()
         }
     }
@@ -176,6 +186,7 @@ internal fun BillScanRoute(
 internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: String?) {
     val viewModel: BillReviewViewModel = koinViewModel { parametersOf(photoKey) }
     val state by viewModel.state.collectAsState()
+    val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
@@ -187,7 +198,15 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
                 ),
             )
             BillReviewEffect.Retake -> navigationManager.back()
-            BillReviewEffect.OpenManualEntry -> navigationManager.back()
+            // Same as the scanner's "Manual": the form takes this screen's place, so nothing
+            // sends the owner back to a photo that could not be read.
+            BillReviewEffect.OpenManualEntry -> carId?.let {
+                navigationManager.navigateTo(
+                    OdoDestination.ServiceLog.AddEdit(it.value),
+                    popUpTo = OdoDestination.BillScanner.Review(photoKey),
+                    inclusive = true,
+                )
+            }
             BillReviewEffect.NavigateBack -> navigationManager.back()
         }
     }
@@ -300,21 +319,25 @@ internal fun SaveSuccessRoute(navigationManager: NavigationManager) {
     // Nothing routes here today: a saved scan goes straight to the fairness report, which is
     // the more useful confirmation. The key stays registered because the screen is what the
     // "save without a fairness check" path will land on.
+    val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
+
     SaveSuccessScreen(
         workshop = "",
         dateLabel = "",
-        onViewLog = { navigationManager.backToServiceLog() },
-        onDone = { navigationManager.backToServiceLog() },
+        onViewLog = { navigationManager.backToServiceLog(carId) },
+        onDone = { navigationManager.backToServiceLog(carId) },
     )
 }
 
 /** Terminal report-success host — "Back to Service Log" resets to the log. */
 @Composable
 internal fun ReportSuccessRoute(navigationManager: NavigationManager) {
+    val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
+
     ReportSuccessScreen(
         city = REVIEW_CITY,
         reportCount = 37,
-        onBackToLog = { navigationManager.backToServiceLog() },
+        onBackToLog = { navigationManager.backToServiceLog(carId) },
     )
 }
 
@@ -324,21 +347,35 @@ internal fun ReportSuccessRoute(navigationManager: NavigationManager) {
  */
 @Composable
 internal fun ScanErrorRoute(navigationManager: NavigationManager) {
+    val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
+
     ScanErrorScreen(
         onRetake = { navigationManager.back() },
-        onEnterManually = { navigationManager.navigateTo(OdoDestination.ServiceLog.AddEdit(DEMO_CAR_ID)) },
+        onEnterManually = {
+            carId?.let {
+                navigationManager.navigateTo(
+                    OdoDestination.ServiceLog.AddEdit(it.value),
+                    popUpTo = OdoDestination.BillScanner.ScanError,
+                    inclusive = true,
+                )
+            }
+        },
         onBack = { navigationManager.back() },
     )
 }
 
-/** The placeholder car the terminal screens still run on until real ids thread through. */
-private const val DEMO_CAR_ID = "aaa"
-
 /** Sample city on the report-success screen until the owner's city threads through. */
 private const val REVIEW_CITY = "Pune"
 
-/** Exit the scan flow and reset to the car's service log with a clean back stack. */
-private fun NavigationManager.backToServiceLog() {
-    val log = OdoDestination.ServiceLog.List(DEMO_CAR_ID)
+/**
+ * Exit the scan flow and reset to the car's service log with a clean back stack. With no
+ * active car there is no log to reset to, so the flow is simply popped.
+ */
+private fun NavigationManager.backToServiceLog(carId: CarId?) {
+    if (carId == null) {
+        back()
+        return
+    }
+    val log = OdoDestination.ServiceLog.List(carId.value)
     navigateTo(log, popUpTo = log, inclusive = true)
 }
