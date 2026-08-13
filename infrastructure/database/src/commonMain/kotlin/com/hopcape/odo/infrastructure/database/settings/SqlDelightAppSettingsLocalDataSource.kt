@@ -29,6 +29,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
     override suspend fun save(settings: AppSettings) {
         val now = clock.now().toString()
         val notifications = settings.notifications
+        val schedule = settings.notificationSchedule
+        val leadDays = schedule.documentLeadDays.asStoredLeadDays()
         database.transaction {
             queries.insertSettings(
                 theme = settings.theme.name,
@@ -49,6 +51,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
                 privacyKeepTripRoutes = settings.privacy.keepTripRoutes.toLong(),
                 privacyUsageAnalytics = settings.privacy.usageAnalytics.toLong(),
+                notifDocLeads = leadDays,
+                notifHour = schedule.notifyAtHour.toLong(),
                 updatedAt = now,
             )
             queries.updateSettings(
@@ -70,6 +74,8 @@ internal class SqlDelightAppSettingsLocalDataSource(
                 aoLastAckedTripEndedAt = settings.aoLastAckedTripEndedAt?.toString(),
                 privacyKeepTripRoutes = settings.privacy.keepTripRoutes.toLong(),
                 privacyUsageAnalytics = settings.privacy.usageAnalytics.toLong(),
+                notifDocLeads = leadDays,
+                notifHour = schedule.notifyAtHour.toLong(),
                 updatedAt = now,
             )
         }

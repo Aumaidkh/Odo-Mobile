@@ -117,7 +117,7 @@ class ProfileUseCasesTest {
     @Test
     fun updateSettings_eachSliceLeavesTheOthersAlone() = runTest {
         val settings = FakeSettingsRepository()
-        val useCase = UpdateSettingsUseCase(settings)
+        val useCase = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {})
 
         assertTrue(useCase.appearance(ThemePreference.LIGHT, largerText = true).isRight())
         assertTrue(useCase.units(DistanceUnit.MILE, FuelEfficiencyUnit.UNITS_PER_100KM).isRight())
@@ -137,7 +137,7 @@ class ProfileUseCasesTest {
     fun updateSettings_aFailedWriteIsReported() = runTest {
         val settings = FakeSettingsRepository(failing = true)
 
-        val result = UpdateSettingsUseCase(settings).appearance(ThemePreference.DARK, largerText = false)
+        val result = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}).appearance(ThemePreference.DARK, largerText = false)
 
         assertTrue(result.isLeft(), "expected Left but was $result")
     }

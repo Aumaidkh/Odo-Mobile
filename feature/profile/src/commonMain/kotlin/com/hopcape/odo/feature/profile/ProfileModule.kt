@@ -45,7 +45,13 @@ val profileModule = module {
         )
     }
     factory { UpdateOwnerDetailsUseCase(profiles = get()) }
-    factory { UpdateSettingsUseCase(settings = get()) }
+    factory {
+        UpdateSettingsUseCase(
+            settings = get(),
+            documentReminders = get(),
+            customReminders = get(),
+        )
+    }
     factory { SetAvatarUseCase(profiles = get(), files = get()) }
     factory {
         DeleteAllDataUseCase(cars = get(), profiles = get(), settings = get(), files = get())

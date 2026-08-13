@@ -3,6 +3,8 @@ package com.hopcape.odo.infrastructure.database.settings
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.settings.model.NotificationSchedule
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
@@ -60,6 +62,24 @@ class SqlDelightAppSettingsLocalDataSourceTest {
         local.save(settings)
 
         assertEquals(settings, local.observe().first())
+    }
+
+    @Test
+    fun save_thenObserve_roundTripsTheReminderSchedule() = runTest {
+        val db = newDb()
+        val schedule = NotificationSchedule(
+            documentLeadDays = mapOf(
+                DocumentType.INSURANCE to listOf(60, 30),
+                // The owner saying "not this one" — stored, and different from never chosen.
+                DocumentType.PUC to emptyList(),
+            ),
+            notifyAtHour = 20,
+        )
+
+        local(db).save(AppSettings(notificationSchedule = schedule))
+
+        val stored = local(db).observe().first()
+        assertEquals(schedule, stored?.notificationSchedule)
     }
 
     @Test
@@ -139,11 +159,22 @@ class SqlDelightAppSettingsLocalDataSourceTest {
             aoLastAckedTripEndedAt = null,
             privacyKeepTripRoutes = 0,
             privacyUsageAnalytics = 1,
+            // A lead for a type this build does not know, and one that is not a number.
+            notifDocLeads = "INSURANCE=30,7;SPACESHIP=5;PUC=x",
+            notifHour = 99,
             updatedAt = "2026-08-01T10:00:00Z",
         )
 
         val stored = local(db).observe().first()
         assertEquals(ThemePreference.SYSTEM, stored?.theme)
+        // What could be read is kept; what could not is dropped rather than guessed, and
+        // an impossible hour is pulled back into the day.
+        assertEquals(
+            listOf(30, 7),
+            stored?.notificationSchedule?.documentLeadDays?.get(DocumentType.INSURANCE),
+        )
+        assertEquals(emptyList<Int>(), stored?.notificationSchedule?.documentLeadDays?.get(DocumentType.PUC))
+        assertEquals(23, stored?.notificationSchedule?.notifyAtHour)
         assertEquals(DistanceUnit.KILOMETRE, stored?.distanceUnit)
         assertEquals(FuelEfficiencyUnit.DISTANCE_PER_UNIT, stored?.fuelEfficiencyUnit)
     }

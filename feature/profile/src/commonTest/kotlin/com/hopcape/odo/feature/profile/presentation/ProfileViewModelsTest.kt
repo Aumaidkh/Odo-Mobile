@@ -9,6 +9,8 @@ import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAllDataUseCase
@@ -242,7 +244,7 @@ class ProfileViewModelsTest {
         val settings = FakeSettingsRepository()
         val viewModel = NotificationsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -257,7 +259,7 @@ class ProfileViewModelsTest {
         val settings = FakeSettingsRepository(failing = true)
         val viewModel = NotificationsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -268,11 +270,96 @@ class ProfileViewModelsTest {
     }
 
     @Test
+    fun notifications_aLeadIsAddedAndDroppedWithoutTouchingTheOthers() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        // The owner who renews through an agent, asking for two months' notice.
+        viewModel.onEvent(
+            NotificationsEvent.DocumentLeadToggled(DocumentType.INSURANCE, days = 60, selected = true),
+        )
+        // And dropping the day-before nudge they never act on.
+        viewModel.onEvent(
+            NotificationsEvent.DocumentLeadToggled(DocumentType.INSURANCE, days = 1, selected = false),
+        )
+
+        val stored = settings.stored.value.notificationSchedule
+        assertEquals(listOf(60, 30, 7), stored.leadDaysFor(DocumentType.INSURANCE))
+        // Another kind of paper is untouched — it was never chosen, so it keeps the default.
+        assertEquals(
+            DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.PUC),
+            stored.leadDaysFor(DocumentType.PUC),
+        )
+    }
+
+    @Test
+    fun notifications_everyLeadCanBeDropped_whichIsNotTheSameAsNeverChoosing() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.PUC).forEach { days ->
+            viewModel.onEvent(
+                NotificationsEvent.DocumentLeadToggled(DocumentType.PUC, days = days, selected = false),
+            )
+        }
+
+        // Stored as "none", not as absent: absent would hand back the default and start
+        // nudging again on the next read.
+        assertEquals(emptyList(), settings.stored.value.notificationSchedule.leadDaysFor(DocumentType.PUC))
+    }
+
+    @Test
+    fun notifications_theHourIsStoredForEveryTopic() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(NotificationsEvent.NotifyHourChosen(20))
+
+        assertEquals(20, settings.stored.value.notificationSchedule.notifyAtHour)
+        assertEquals(20, viewModel.state.value.schedule.notifyAtHour)
+    }
+
+    @Test
+    fun notifications_aScheduleChangeRebuildsWhatIsQueued() = runTest {
+        val settings = FakeSettingsRepository()
+        var documentRefreshes = 0
+        var customRefreshes = 0
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(
+                settings,
+                documentReminders = { documentRefreshes++ },
+                customReminders = { customRefreshes++ },
+            ),
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(NotificationsEvent.NotifyHourChosen(7))
+
+        // Without this the phone would keep the old schedule until the next time a document
+        // happened to be written — the screen saying one thing and the OS doing another.
+        assertEquals(1, documentRefreshes)
+        assertEquals(1, customRefreshes)
+    }
+
+    @Test
     fun appearance_storesTheThemeAsItIsTapped() = runTest {
         val settings = FakeSettingsRepository()
         val viewModel = AppearanceViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -289,7 +376,7 @@ class ProfileViewModelsTest {
         val analytics = RecordingAnalytics()
         val viewModel = UnitsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(analytics),
         )
 

@@ -80,7 +80,7 @@ object AttentionPicker {
         documents: List<Document>,
         today: LocalDate,
     ): List<Pair<Document, DocumentValidity>> = DocumentType.entries.mapNotNull { type ->
-        val window = DocumentReminderPolicy.leadDaysFor(type).maxOrNull() ?: return@mapNotNull null
+        val window = DocumentReminderPolicy.defaultLeadDaysFor(type).maxOrNull() ?: return@mapNotNull null
         val document = documents.latestOfType(type) ?: return@mapNotNull null
         document to DocumentValidity.of(document.expiresOn, today, renewalWindowDays = window)
     }
