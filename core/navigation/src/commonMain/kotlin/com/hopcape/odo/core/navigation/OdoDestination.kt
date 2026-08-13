@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.navigation
 
 import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
 
 /**
  * Every screen the app can navigate to, modelled as a typed Navigation 3 [NavKey].
@@ -14,15 +15,18 @@ import androidx.navigation3.runtime.NavKey
  * To add a screen, add a subtype here; to make it appear in the bottom bar, make
  * it a [TopLevel].
  */
+@Serializable
 sealed interface OdoDestination : NavKey {
 
     /** Destinations shown as roots in the bottom navigation bar. */
+    @Serializable
     sealed interface TopLevel : OdoDestination {
         /** Short label rendered under the bottom-bar item. */
         val label: String
     }
 
     // --- Bottom-nav roots ---
+    @Serializable
     data object Home : TopLevel { override val label = "Home" }
 
     /**
@@ -32,12 +36,16 @@ sealed interface OdoDestination : NavKey {
      * metadata). "Go Pro" and "Manage plan" reuse the shared [Paywall] key rather than
      * anything of their own.
      */
+    @Serializable
     sealed interface Profile : OdoDestination {
         /** The profile / account home — reached from Home's avatar, not a bar tab. */
+        @Serializable
         data object Root : Profile
         /** Edit-profile full screen. */
+        @Serializable
         data object Edit : Profile
         /** Notification-settings full screen. */
+        @Serializable
         data object Notifications : Profile
         /**
          * Privacy & permissions full screen — what Odo can reach, and what it keeps.
@@ -45,6 +53,7 @@ sealed interface OdoDestination : NavKey {
          * Distinct from [Support.Privacy], which is the policy document. This one is
          * settings the owner changes; that one is text they read. The screen links to it.
          */
+        @Serializable
         data object Privacy : Profile
         /**
          * "Delete my account & data" — the whole erase, confirm through to done.
@@ -54,14 +63,19 @@ sealed interface OdoDestination : NavKey {
          * got), and splitting them across Nav3 entries would mean each getting its own
          * ViewModel and neither owning the outcome.
          */
+        @Serializable
         data object DeleteAccount : Profile
         /** Units-&-currency sheet. */
+        @Serializable
         data object Units : Profile
         /** Appearance (theme + text size) sheet. */
+        @Serializable
         data object Appearance : Profile
         /** Export-my-data sheet. */
+        @Serializable
         data object Export : Profile
         /** Sign-out confirmation — shown as a sheet. */
+        @Serializable
         data object SignOut : Profile
     }
 
@@ -73,22 +87,31 @@ sealed interface OdoDestination : NavKey {
      * opening a document or scanning a bill reuse the ServiceLog / Documents / BillScanner
      * keys rather than anything of its own.
      */
+    @Serializable
     sealed interface Garage : OdoDestination {
         /** The garage tab root — the car home-base overview. */
+        @Serializable
         data object Home : Garage, TopLevel { override val label = "Garage" }
         /** Car actions sheet (⋮): edit · export · remove. */
+        @Serializable
         data object CarActions : Garage
         /** Update-odometer sheet. */
+        @Serializable
         data object UpdateOdometer : Garage
         /** "Add to service history" sheet: scan · manual · document. */
+        @Serializable
         data object AddToHistory : Garage
         /** Export-car-record sheet. */
+        @Serializable
         data object Export : Garage
         /** Remove-car confirmation — shown as a sheet. */
+        @Serializable
         data object RemoveCar : Garage
         /** Edit-car full screen. */
+        @Serializable
         data object EditCar : Garage
         /** Add-a-car full screen. */
+        @Serializable
         data object AddCar : Garage
     }
 
@@ -97,15 +120,19 @@ sealed interface OdoDestination : NavKey {
      * screen, an add-reminder flow, and per-reminder detail follow); [List] is the
      * bottom-nav root, so this whole area lives under one shared key.
      */
+    @Serializable
     sealed interface Reminders : OdoDestination {
         /** The reminders home — reached from Home's bell, not a bar tab. */
+        @Serializable
         data object List : Reminders
         /** Notification + reminder preferences — reached from the home's "Manage". */
+        @Serializable
         data object Settings : Reminders
         /**
          * Create a custom reminder — reached from the home's "+ Add" — or edit one when
          * [reminderId] names it (the actions sheet's "Reschedule").
          */
+        @Serializable
         data class New(val reminderId: String? = null) : Reminders
         /**
          * Actions for a "this week" reminder (reschedule / snooze / turn off) — shown as a
@@ -116,6 +143,7 @@ sealed interface OdoDestination : NavKey {
          * [customId] identify the reminder so the sheet can act on it; [title], [due] and
          * [icon] are the display echo of the tapped card.
          */
+        @Serializable
         data class Actions(
             val kind: String,
             val dueOn: String?,
@@ -139,6 +167,7 @@ sealed interface OdoDestination : NavKey {
      * a route argument — [AutoOdometerFlowMode] is a small nav-local redeclaration, and the
      * feature maps between the two at its ViewModel/screen boundary.
      */
+    @Serializable
     sealed interface AutoOdometer : OdoDestination {
 
         /**
@@ -151,15 +180,18 @@ sealed interface OdoDestination : NavKey {
          * "Your reading stays current on its own" — the how-it-works + privacy explainer
          * (M2). [mode] picks the STEREO copy or the no-Bluetooth variant.
          */
+        @Serializable
         data class Education(val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO) : AutoOdometer
 
         /** "Which one is your car?" — pick the bonded stereo that triggers trips (M3). */
+        @Serializable
         data object DevicePicker : AutoOdometer
 
         /**
          * "One last thing" — the staged permission checklist (location, notifications, and
          * activity-recognition on the [mode] == NO_STEREO branch only) (M4).
          */
+        @Serializable
         data class PermissionSetup(val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO) : AutoOdometer
 
         /**
@@ -168,13 +200,16 @@ sealed interface OdoDestination : NavKey {
          * the trip, as a `TripId` value's raw string — `:core:navigation` holds no domain
          * types, so the feature maps it back at the boundary.
          */
+        @Serializable
         data class TripLogged(val tripId: String) : AutoOdometer
 
         /** Tracking toggle, trigger device, monthly stats, privacy controls (M7). */
+        @Serializable
         data object Settings : AutoOdometer
     }
 
     // --- Nested / argument-carrying destinations ---
+    @Serializable
     data class CarDetail(val carId: String) : OdoDestination
 
     // --- Service log (per car) — one feature, one sealed group ---
@@ -187,23 +222,29 @@ sealed interface OdoDestination : NavKey {
      * so [carId] is hoisted onto the parent. The list's empty view is a UI state of
      * [List], not a separate destination.
      */
+    @Serializable
     sealed interface ServiceLog : OdoDestination {
         /** The car whose service record these screens belong to. */
         val carId: String
 
         /** The service-log list — the feature's home (Ledger 1a / Timeline 1b). */
+        @Serializable
         data class List(override val carId: String) : ServiceLog
         /** A single service entry's detail screen. */
+        @Serializable
         data class Detail(val logId: String, override val carId: String) : ServiceLog
         /** The add/edit form; [editLogId] non-null puts it in edit mode (same screen). */
+        @Serializable
         data class AddEdit(override val carId: String, val editLogId: String? = null) : ServiceLog
         /** Report an overcharge on a specific (flagged) entry — reached from its detail. */
+        @Serializable
         data class ReportOvercharge(val logId: String, override val carId: String) : ServiceLog
         /**
          * Share as a PDF — shown as a bottom-sheet destination. With [logId] null the
          * document is the car's whole verified record; with it set, the document is that
          * one entry's bill, items and all.
          */
+        @Serializable
         data class Share(override val carId: String, val logId: String? = null) : ServiceLog
     }
 
@@ -213,6 +254,7 @@ sealed interface OdoDestination : NavKey {
      * where the AI-extracted fields are confirmed before saving. Features never
      * import billscanner — they navigate through this shared registry.
      */
+    @Serializable
     sealed interface BillScanner : OdoDestination {
         /**
          * Camera viewfinder — capture a photo or pick one from the gallery.
@@ -227,6 +269,7 @@ sealed interface OdoDestination : NavKey {
          * string because a key is serialized into the back stack, and because
          * `:core:navigation` holds no domain types.
          */
+        @Serializable
         data class Capture(
             val target: ScanTarget = ScanTarget.Bill,
             val documentType: String? = null,
@@ -238,6 +281,7 @@ sealed interface OdoDestination : NavKey {
          * [photoKey] is where the captured bill was stored, as a
          * `PlatformFileStore` key. Null when the flow was reached without a photo.
          */
+        @Serializable
         data class Review(val photoKey: String? = null) : BillScanner
 
         /**
@@ -254,6 +298,7 @@ sealed interface OdoDestination : NavKey {
          * source's name as a string: neither case earns the Verified badge, so no caller can
          * claim a document came from DigiLocker by naming it.
          */
+        @Serializable
         data class DocumentReview(
             val photoKey: String,
             val documentType: String? = null,
@@ -266,12 +311,16 @@ sealed interface OdoDestination : NavKey {
          * [payload] is the raw string read out of the code. Parsing it is the feature's job,
          * so `:core:navigation` stays free of any knowledge about UPI.
          */
+        @Serializable
         data class PayAtPump(val payload: String) : BillScanner
         /** Terminal success after the reviewed bill is saved to the log. */
+        @Serializable
         data object SaveSuccess : BillScanner
         /** Terminal success after an overcharge is anonymously reported. */
+        @Serializable
         data object ReportSuccess : BillScanner
         /** Error state — the AI couldn't read the bill (retry or enter manually). */
+        @Serializable
         data object ScanError : BillScanner
     }
 
@@ -280,8 +329,10 @@ sealed interface OdoDestination : NavKey {
      * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
      * owner corrects the fuel rate the estimate is built on.
      */
+    @Serializable
     sealed interface CostTracker : OdoDestination {
 
+        @Serializable
         data object Home : CostTracker, TopLevel { override val label = "Costs" }
 
         /**
@@ -289,6 +340,7 @@ sealed interface OdoDestination : NavKey {
          * and refreshed at best weekly, so the owner can state their own and have every
          * figure rebuilt on it.
          */
+        @Serializable
         data object FuelRate : CostTracker
     }
 
@@ -299,10 +351,13 @@ sealed interface OdoDestination : NavKey {
      * [ServiceLog.Detail] and sharing reuses [ServiceLog.Share] — Timeline never
      * reimplements them.
      */
+    @Serializable
     sealed interface Timeline : OdoDestination {
         /** The timeline tab root — the activity feed. */
+        @Serializable
         data object List : Timeline, TopLevel { override val label = "Timeline" }
         /** "Show in timeline" filter sheet. */
+        @Serializable
         data object Filter : Timeline
     }
 
@@ -312,6 +367,7 @@ sealed interface OdoDestination : NavKey {
      * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
      * "0 scans left" variant.
      */
+    @Serializable
     data class Paywall(
         val trigger: String = "GENERIC",
         val amountPaise: Long = 0L,
@@ -323,10 +379,13 @@ sealed interface OdoDestination : NavKey {
      * A sealed group: the [Detail] screen plus the [Info] explainer, which is presented as a
      * bottom sheet (its entry is tagged with [ModalBottomSheetSceneStrategy] metadata).
      */
+    @Serializable
     sealed interface HealthScore : OdoDestination {
         /** The score detail — dial, delta, and the factor breakdown. */
+        @Serializable
         data object Detail : HealthScore
         /** "How your score works" — shown as a bottom-sheet destination from the (i) button. */
+        @Serializable
         data object Info : HealthScore
     }
 
@@ -343,6 +402,7 @@ sealed interface OdoDestination : NavKey {
      * let the report offer "Report overcharge" — a standalone price check has nothing to
      * report against, so it passes neither and the action does not appear.
      */
+    @Serializable
     data class Fairness(
         val items: List<FairnessLineInput>,
         val logId: String? = null,
@@ -354,8 +414,10 @@ sealed interface OdoDestination : NavKey {
      * status. Modelled as a group from the start: the [Vault] overview ships now, with a
      * per-document detail + an add/edit form to follow.
      */
+    @Serializable
     sealed interface Documents : OdoDestination {
         /** The vault overview — every tracked document + its status. */
+        @Serializable
         data object Vault : Documents
 
         /**
@@ -363,15 +425,19 @@ sealed interface OdoDestination : NavKey {
          * [prefillType] names the type when the flow was opened from a vault row's "Add",
          * as the `DocumentType` enum name; `null` opens on the default.
          */
+        @Serializable
         data class Add(val prefillType: String? = null) : Documents
 
         /** A single document's detail: expiry, reminder, and the file actions. */
+        @Serializable
         data class Detail(val documentId: String) : Documents
 
         /** Terminal success after [documentId] was added to the vault. */
+        @Serializable
         data class AddSuccess(val documentId: String) : Documents
 
         /** Share a document — shown as a bottom-sheet destination. */
+        @Serializable
         data class Share(val documentId: String) : Documents
 
         /**
@@ -380,6 +446,7 @@ sealed interface OdoDestination : NavKey {
          * Its own key rather than a mode of [Detail], because it is where a document filed
          * with no expiry gets one, and that is what turns it into a reminder.
          */
+        @Serializable
         data class EditDates(val documentId: String) : Documents
     }
 
@@ -402,6 +469,7 @@ sealed interface OdoDestination : NavKey {
      * free of data-layer imports. Leave it null for a file that is always local, such as a
      * scan the owner has just taken.
      */
+    @Serializable
     data class FilePreview(
         val storageKey: String,
         val title: String? = null,
@@ -436,38 +504,54 @@ sealed interface OdoDestination : NavKey {
      * a system hand-off (a mail composer, the Play Store listing) rather than a screen of
      * ours, so they will become `:core:platform` calls and lose their keys.
      */
+    @Serializable
     sealed interface Support : OdoDestination {
         /** The Help & support hub — shown as a bottom-sheet destination. */
+        @Serializable
         data object Help : Support
         /** Search the help articles — reached from the hub's search box. */
+        @Serializable
         data object Search : Support
         /** Live chat with a support agent. */
+        @Serializable
         data object Chat : Support
         /** Email support — a mail hand-off once the platform layer exists. */
+        @Serializable
         data object Email : Support
         /** The owner's raised tickets and their status. */
+        @Serializable
         data object Tickets : Support
         /** "Something broken or wrong" — a bug report form. */
+        @Serializable
         data object ReportProblem : Support
         /** "Request a feature" — an idea/suggestion form. */
+        @Serializable
         data object SuggestIdea : Support
         /** "A benchmark looks off" — dispute a fairness price data point. */
+        @Serializable
         data object FlagPriceData : Support
         /** Rate Odo — a Play Store hand-off once the platform layer exists. */
+        @Serializable
         data object Rate : Support
         /** Frequently asked questions. */
+        @Serializable
         data object Faqs : Support
         /** Terms of service. */
+        @Serializable
         data object Terms : Support
         /** Privacy policy. */
+        @Serializable
         data object Privacy : Support
         /** Open-source licences. */
+        @Serializable
         data object Licences : Support
     }
 
     // --- Onboarding flow (first-run car setup) ---
     /** Intro carousel shown on first launch, before car setup. */
+    @Serializable
     data object Welcome : OdoDestination
+    @Serializable
     data object Onboarding : OdoDestination
 
     /**
@@ -481,6 +565,7 @@ sealed interface OdoDestination : NavKey {
      * Grouped so the whole flow pops in one command (`popUpTo = Auth.Phone(next),
      * inclusive = true`), which is why back can never land on sign-in afterwards.
      */
+    @Serializable
     sealed interface Auth : OdoDestination {
         /**
          * Where to land once the number is verified — or once the owner skips. Carried
@@ -490,6 +575,7 @@ sealed interface OdoDestination : NavKey {
         val next: OdoDestination
 
         /** Enter the mobile number the 6-digit code is sent to. */
+        @Serializable
         data class Phone(override val next: OdoDestination = Home) : Auth
 
         /**
@@ -499,9 +585,11 @@ sealed interface OdoDestination : NavKey {
          *   code) — carried so the "Sent to …" line states the real number rather than a
          *   placeholder.
          */
+        @Serializable
         data class Otp(val phone: String, override val next: OdoDestination = Home) : Auth
 
         /** Terminal progress while the code is checked, then hands off to [next]. */
+        @Serializable
         data class Verifying(override val next: OdoDestination = Home) : Auth
     }
 
@@ -557,6 +645,7 @@ enum class ScanTarget {
  * One line for a [OdoDestination.Fairness] check — primitives only, so `:core:navigation`
  * stays domain-free (the fairness feature maps [category]/[amountPaise] to domain types).
  */
+@Serializable
 data class FairnessLineInput(
     val label: String,
     val category: String?,
