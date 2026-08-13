@@ -18,6 +18,12 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
+import com.hopcape.odo.feature.fairnesscheck.presentation.report.FairnessTestTags
+import com.hopcape.odo.core.navigation.FairnessLineInput
+import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.navigateTo
 import org.koin.core.context.GlobalContext
 import java.io.File
 
@@ -71,6 +77,9 @@ internal object FairnessCopy {
  * three shapes in it.
  */
 internal object FairnessFixtures {
+    /** The city the seeded profile carries, and the one the benchmark table is keyed on. */
+    const val CITY = "Pune"
+
     /** Rs. 5,000 against a Rs. 3,400 average, on a sample big enough to say so. */
     const val OVER_ID = "fair-over"
     const val OVER_WORKSHOP = "AutoCare Pune"
@@ -100,6 +109,31 @@ internal object FairnessFixtures {
 private typealias FairnessTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
 
 private fun fairnessDriver(): SqlDriver = GlobalContext.get().get()
+
+/**
+ * Enter the report the way a scan leaves it: the viewfinder and the confirm step behind it.
+ *
+ * Pushed through the navigator rather than driven, for the same reason the scanner's own
+ * tests do it — the shutter needs a camera an emulator does not have. What is under test
+ * here is what "Done" does with the steps a scan leaves on the stack, not the capture.
+ */
+internal fun FairnessTestRule.openReportAsIfScanned() {
+    val navigation: NavigationManager = GlobalContext.get().get()
+    navigation.navigateTo(OdoDestination.BillScanner.Capture())
+    navigation.navigateTo(OdoDestination.BillScanner.Review(ScanFixtures.PHOTO_KEY))
+    navigation.navigateTo(
+        OdoDestination.Fairness(
+            items = listOf(
+                FairnessLineInput(
+                    label = FairnessFixtures.OVER_WORKSHOP,
+                    category = ServiceCategory.BRAKES.name,
+                    amountPaise = FairnessFixtures.OVER_PAISE,
+                ),
+            ),
+        ),
+    )
+    awaitFairnessTag(FairnessTestTags.DONE_BUTTON)
+}
 
 /**
  * Seed the four entries, all bill-backed and none carrying a stored verdict.
@@ -268,6 +302,11 @@ internal fun FairnessTestRule.awaitFairnessTag(tag: String, timeoutMillis: Long 
 
 internal fun FairnessTestRule.fairnessTextCount(text: String): Int =
     onAllNodesWithText(text).fetchSemanticsNodes().size
+
+/** Wait until nothing on screen carries [tag] — a state the screen has moved off. */
+internal fun FairnessTestRule.awaitFairnessGone(tag: String, timeoutMillis: Long = FAIRNESS_TIMEOUT_MILLIS) {
+    waitUntil(timeoutMillis) { fairnessTagCount(tag) == 0 }
+}
 
 internal fun FairnessTestRule.fairnessTagCount(tag: String): Int =
     onAllNodesWithTag(tag).fetchSemanticsNodes().size
