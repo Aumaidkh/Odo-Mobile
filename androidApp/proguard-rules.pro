@@ -124,3 +124,14 @@
 # artifact ships; these are the classes those rules leave dangling references to.
 -dontwarn java.lang.instrument.**
 -dontwarn sun.misc.**
+
+# ---------------------------------------------------------------------------
+# Advertising ID
+# ---------------------------------------------------------------------------
+# androidApp/build.gradle.kts excludes play-services-ads-identifier from every
+# configuration on purpose, so the Advertising ID cannot be read at all. Firebase
+# Analytics still carries the call site and degrades to not collecting the ID, which
+# leaves R8 looking at a reference with no class behind it. Without these, R8 fails
+# the release build outright rather than warning.
+-dontwarn com.google.android.gms.ads.identifier.AdvertisingIdClient
+-dontwarn com.google.android.gms.ads.identifier.AdvertisingIdClient$Info

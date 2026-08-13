@@ -20,7 +20,14 @@
              separately installed app can exercise it.
 
              The filter still names `host="pay"`, because every real UPI app does and a stub
-             worth having looks like one. It is documentation, not coverage. -->
+             worth having looks like one. It is documentation, not coverage.
+
+             **Which is the state right now.** Pay via QR is off for 1.0
+             (FeatureFlags.PAY_VIA_QR_ENABLED) and the app manifest's <queries> block went with
+             it, so this activity is currently invisible to the app. That is correct rather
+             than broken: every test that would resolve against it is skipped by the same flag.
+             Kept here, unchanged, so turning payments back on restores the coverage in one
+             edit rather than needing this file rebuilt from memory. -->
         <activity
             android:name="android.app.Activity"
             android:exported="true"

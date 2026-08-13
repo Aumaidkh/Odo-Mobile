@@ -44,12 +44,17 @@ internal sealed interface EditProfileEffect {
  * The fields are [FormField]s because two of them can be rejected and the screen has to say
  * which. [deletion] is its own [Submission]: a failed wipe must not read as a failed save,
  * and the two can never be in flight together.
+ *
+ * [phoneNumber] is a plain string, not a [FormField]: it is owned by auth, shown read-only,
+ * and can only change through a new OTP — there is nothing to type and nothing to reject.
+ * Null on a device that never signed in.
  */
 @Immutable
 internal data class EditProfileUiState(
     val name: FormField<String> = FormField(),
     val email: FormField<String> = FormField(),
     val city: FormField<String> = FormField(),
+    val phoneNumber: String? = null,
     val cities: List<String> = emptyList(),
     val avatarPath: String? = null,
     val isSignedIn: Boolean = false,

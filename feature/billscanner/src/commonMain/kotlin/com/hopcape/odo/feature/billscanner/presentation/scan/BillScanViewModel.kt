@@ -50,7 +50,18 @@ internal class BillScanViewModel(
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(BillScanUiState(target = initialTarget))
+    /**
+     * The target actually used, which is [initialTarget] only if it is on offer.
+     *
+     * A caller can hand over any [ScanTarget] — the destination carries one, so a deep link
+     * or a stale back-stack entry can name a mode this build does not ship. Clamping here
+     * rather than trusting the caller is what makes [scanTargets] a real choke point instead
+     * of a suggestion the chips happen to follow.
+     */
+    private val startingTarget: ScanTarget =
+        initialTarget.takeIf { it in scanTargets } ?: ScanTarget.Bill
+
+    private val _state = MutableStateFlow(BillScanUiState(target = startingTarget))
     val state: StateFlow<BillScanUiState> = _state.asStateFlow()
 
     private val _effects = Channel<BillScanEffect>(Channel.BUFFERED)
@@ -60,7 +71,7 @@ internal class BillScanViewModel(
     private var qrHandled = false
 
     init {
-        telemetry.scannerOpened(initialTarget.name)
+        telemetry.scannerOpened(startingTarget.name)
         loadAllowance()
     }
 
@@ -107,6 +118,10 @@ internal class BillScanViewModel(
     }
 
     private fun selectTarget(target: ScanTarget) {
+        // A mode this build does not offer cannot be switched into, whatever asked for it.
+        // The chips only ever show `scanTargets`, so this is unreachable through the UI — it
+        // is here so the invariant holds for every caller, not just the well-behaved one.
+        if (target !in scanTargets) return
         if (target == _state.value.target) return
         telemetry.targetSwitched(target.name)
         // Switching away from and back to QR should scan again, so the guard is released

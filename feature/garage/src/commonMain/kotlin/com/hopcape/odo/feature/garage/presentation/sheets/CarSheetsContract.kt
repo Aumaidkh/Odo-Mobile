@@ -59,20 +59,63 @@ internal data class RemoveCarUiState(
 
 /* ------------------------------ Export ------------------------------ */
 
+/** Which button asked for the document. Both send the same PDF; analytics tells them apart. */
+internal enum class ExportVia { PDF, SHARE }
+
 /** What the owner did on the export sheet. */
 internal sealed interface ExportEvent {
     data object PdfTapped : ExportEvent
     data object ShareTapped : ExportEvent
+
+    /**
+     * The host finished rendering, with the document's bytes or `null` if it could not be
+     * produced. Reported back rather than returned, because rendering needs a UI host and
+     * the ViewModel does not have one.
+     */
+    data class Rendered(val bytes: ByteArray?, val via: ExportVia) : ExportEvent {
+        // A ByteArray in a data class compares by identity, which would make two different
+        // documents look equal and two reads of one look different. Nothing depends on
+        // comparing these, so the generated versions are replaced with honest ones.
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = bytes.contentHashCode() * 31 + via.hashCode()
+    }
 }
 
 /**
- * Export is the Resale Passport's job, and that is a paid feature that does not exist yet,
- * so both actions lead to the paywall rather than producing a half-record the owner would
- * reasonably treat as proof.
+ * One-shot handoffs, performed by the sheet's host — the two things a ViewModel cannot do
+ * because both need whatever is hosting the UI.
  */
 internal sealed interface ExportEffect {
-    data class OpenPaywall(val trigger: String) : ExportEffect
+
+    /** Lay [html] out and print it. The document arrives fully built. */
+    data class RenderDocument(val html: String, val documentName: String, val via: ExportVia) : ExportEffect
+
+    /** Hand the written file to the system share sheet. */
+    data class ShareFile(val storageKey: String, val title: String) : ExportEffect
+}
+
+/** How far along producing the document is. */
+internal sealed interface ExportProgress {
+
+    /** Nothing in progress. Both buttons are tappable. */
+    data object Idle : ExportProgress
+
+    /** Rendering, for [via]. The sheet marks that button and disables both. */
+    data class Rendering(val via: ExportVia) : ExportProgress
+
+    /**
+     * The document could not be produced. Kept in state rather than shown once and lost,
+     * so the owner sees why nothing happened instead of a button that did nothing.
+     */
+    data object Failed : ExportProgress
 }
 
 @Immutable
-internal data class ExportUiState(val car: Loadable<CarSummary> = Loadable.Loading)
+internal data class ExportUiState(
+    val car: Loadable<CarSummary> = Loadable.Loading,
+    val export: ExportProgress = ExportProgress.Idle,
+) {
+    /** True while a document is being produced — both buttons are disabled. */
+    val isBusy: Boolean get() = export is ExportProgress.Rendering
+}

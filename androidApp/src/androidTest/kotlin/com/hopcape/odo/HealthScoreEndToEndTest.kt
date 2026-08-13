@@ -4,10 +4,13 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.feature.healthscore.presentation.HealthScoreTestTags
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeFalse
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -303,6 +306,9 @@ class HealthScoreEndToEndTest {
 
     @Test
     fun freeOwnersGetThePaywallInsteadOfTheNudge() {
+        // The breakdown is only locked when Pro can be bought — see the test below for what
+        // 1.0 ships.
+        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         setProEntitlement(isPro = false)
         startWellKeptCar()
         rule.openHealthScore()
@@ -316,6 +322,7 @@ class HealthScoreEndToEndTest {
 
     @Test
     fun unlockOpensThePaywall() {
+        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         setProEntitlement(isPro = false)
         startWellKeptCar()
         rule.openHealthScore()
@@ -324,6 +331,23 @@ class HealthScoreEndToEndTest {
         rule.tapUnlock()
 
         rule.awaitText(HealthCopy.PAYWALL_SCREEN_HEADLINE)
+    }
+
+    /**
+     * What 1.0 ships: nothing sells Pro, so nothing is held back for it. A free owner sees
+     * the same breakdown a Pro owner does rather than a lock over a paywall that cannot
+     * take money.
+     */
+    @Test
+    fun nothingIsLockedWhileProIsNotSold() {
+        assumeFalse(FeatureFlags.PAYWALL_ENABLED)
+        setProEntitlement(isPro = false)
+        startWellKeptCar()
+        rule.openHealthScore()
+        rule.awaitHealthScore(HealthFixtures.SCORE)
+
+        assertEquals(0, rule.tagCount(HealthScoreTestTags.PAYWALL))
+        assertEquals(1, rule.tagCount(HealthScoreTestTags.OPPORTUNITY))
     }
 
     /* ------------------------------ Getting back ------------------------------ */

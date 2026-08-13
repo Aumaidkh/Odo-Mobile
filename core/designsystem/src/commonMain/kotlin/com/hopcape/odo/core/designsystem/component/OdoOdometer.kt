@@ -99,7 +99,9 @@ fun OdoOdometer(
     enabled: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
+    // Fully expanded from the start: the editor summons the keyboard immediately, and a
+    // half-open sheet leaves the save button below the fold, hidden behind the keyboard.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {

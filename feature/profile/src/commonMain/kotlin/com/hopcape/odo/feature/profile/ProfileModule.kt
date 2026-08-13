@@ -40,6 +40,8 @@ val profileModule = module {
             settings = get(),
             entitlement = get(),
             session = get(),
+            // Firebase's own user, same binding DeleteAccountUseCase resolves below.
+            account = get(),
         )
     }
     factory { UpdateOwnerDetailsUseCase(profiles = get()) }

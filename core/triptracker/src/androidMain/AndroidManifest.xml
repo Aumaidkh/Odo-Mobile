@@ -2,40 +2,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      This module's first library-owned manifest (no other module here has one — every
-      other Android adapter in this repo registers its receiver dynamically at runtime,
-      e.g. core:platform's AndroidSmsCodeReader). That pattern doesn't fit here: a
-      dynamically-registered receiver only exists while some component in the process is
-      alive to have registered it, but ACTION_ACL_CONNECTED/DISCONNECTED and the
-      ActivityRecognition Transition API are both on Android's implicit-broadcast
-      exemption list specifically so a car connecting can start tracking even after the
-      process was killed. Only a manifest-declared receiver survives that.
+      Empty for 1.0, because auto odometer is off (FeatureFlags.AUTO_ODOMETER_ENABLED) and
+      the app manifest no longer asks for the permissions behind it. What was here, and why
+      it had to go with them:
+
+      - <service android:name=".service.TripTrackingService" android:exported="false"
+          android:foregroundServiceType="location" />
+        A service typed "location" is a lint error without FOREGROUND_SERVICE_LOCATION, and
+        would throw at runtime on Android 14+ if anything ever started it.
+
+      - <receiver android:name=".motion.ActivityTransitionReceiver" android:exported="false" />
+      - <receiver android:name=".bluetooth.BluetoothAclReceiver" android:exported="true">
+          with an intent-filter on android.bluetooth.device.action.ACL_CONNECTED and
+          ACL_DISCONNECTED.
+        Both were manifest-declared rather than registered at runtime (the only module here
+        that does) precisely so a car connecting could start tracking after the process was
+        killed — ACL broadcasts and the ActivityRecognition Transition API are both on
+        Android 8+'s implicit-broadcast exemption list. With tracking unreachable that
+        survival is only a cost: the receivers would wake the process for a signal nothing
+        is listening for. ACL_CONNECTED/DISCONNECTED are protected broadcasts (only the
+        Bluetooth stack can send them) and exported="true" because that sender is a
+        different, system process — restore both attributes as they were.
+
+      Restore this file and the app manifest's permissions together when the flag goes true.
     -->
-
-    <application>
-        <service
-            android:name=".service.TripTrackingService"
-            android:exported="false"
-            android:foregroundServiceType="location" />
-
-        <receiver
-            android:name=".motion.ActivityTransitionReceiver"
-            android:exported="false" />
-
-        <!--
-          ACL_CONNECTED/DISCONNECTED are protected broadcasts (only the Bluetooth stack can
-          send them — enforced by the platform, not by a permission declared here) and are
-          on the Android 8+ implicit-broadcast exemption list, so a manifest receiver still
-          gets them. exported="true" because the sender is a different, system process.
-        -->
-        <receiver
-            android:name=".bluetooth.BluetoothAclReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
-                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
-            </intent-filter>
-        </receiver>
-    </application>
 
 </manifest>

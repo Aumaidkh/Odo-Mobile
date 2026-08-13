@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.servicelog.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -16,6 +17,9 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.file.rememberFilePicker
+import com.hopcape.odo.core.platform.pdf.rememberHtmlToPdf
+import com.hopcape.odo.core.platform.share.ShareMimeType
+import com.hopcape.odo.core.platform.share.rememberFileSharer
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_bill_attached
 import com.hopcape.odo.feature.servicelog.presentation.detail.ServiceLogDetailEffect
@@ -32,10 +36,12 @@ import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeEf
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeScreen
 import com.hopcape.odo.feature.servicelog.presentation.report.ReportOverchargeViewModel
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordEffect
+import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordEvent
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordSheetContent
 import com.hopcape.odo.feature.servicelog.presentation.share.ShareRecordViewModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import kotlinx.coroutines.launch
 import org.koin.core.parameter.parametersOf
 
 /**
@@ -152,8 +158,10 @@ internal fun ServiceLogDetailRoute(
                     ),
                 )
 
+            // From an entry's detail the sheet shares that entry's bill, not the whole
+            // record — the logId is what flips the document.
             ServiceLogDetailEffect.OpenShareRecord ->
-                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId))
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = key.carId, logId = key.logId))
 
             is ServiceLogDetailEffect.OpenReportOvercharge ->
                 navigationManager.navigateTo(
@@ -225,23 +233,40 @@ internal fun ServiceLogFormRoute(
 }
 
 /**
- * The share-sheet route host. Every target is a platform capability the app doesn't have
- * yet (clipboard, share intent, PDF rendering), so those effects are collected and
- * deliberately go nowhere rather than half-working.
+ * The share-sheet route host.
+ *
+ * Both effects are platform work the ViewModel cannot do: laying a document out needs a
+ * renderer with a UI host, and presenting a share sheet needs whatever is hosting the UI.
+ * The ViewModel builds the document and decides where it goes; this runs it.
  */
 @Composable
 internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share) {
-    val viewModel = koinViewModel<ShareRecordViewModel> { parametersOf(CarId(key.carId)) }
+    val viewModel = koinViewModel<ShareRecordViewModel> {
+        // Absent for a whole-record share; present when one entry's bill is going out.
+        parametersOf(CarId(key.carId), key.logId?.let(::ServiceLogId))
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val htmlToPdf = rememberHtmlToPdf()
+    val shareFile = rememberFileSharer()
+    // Rendering suspends and CollectEffects hands over a plain lambda, so the render runs on
+    // the composition's own scope. It is cancelled with the sheet, which is what should
+    // happen to a document nobody is waiting for any more.
+    val scope = rememberCoroutineScope()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            // TODO(platform): clipboard, share intent and PDF rendering are `:core:platform`
-            //  expect/actuals that don't exist yet. The ViewModel already decides *what*
-            //  would be shared, so landing them is a change here and nowhere else.
-            is ShareRecordEffect.CopyLink -> Unit
-            is ShareRecordEffect.ShareLink -> Unit
-            ShareRecordEffect.DownloadPdf -> Unit
+            is ShareRecordEffect.RenderDocument -> scope.launch {
+                viewModel.onEvent(
+                    ShareRecordEvent.Rendered(
+                        bytes = htmlToPdf(effect.html, effect.documentName),
+                        target = effect.target,
+                    ),
+                )
+            }
+
+            is ShareRecordEffect.ShareFile ->
+                shareFile(effect.storageKey, ShareMimeType.PDF, effect.title)
         }
     }
 

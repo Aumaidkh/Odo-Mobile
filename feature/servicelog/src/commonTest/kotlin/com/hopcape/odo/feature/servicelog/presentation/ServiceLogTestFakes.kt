@@ -10,21 +10,38 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.document.model.Document
+import com.hopcape.odo.core.domain.document.model.DocumentId
+import com.hopcape.odo.core.domain.document.model.DocumentSource
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.model.FairnessEstimate
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReport
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.health.model.HealthFactor
+import com.hopcape.odo.core.domain.health.model.HealthFactorKind
+import com.hopcape.odo.core.domain.health.model.HealthScore
+import com.hopcape.odo.core.domain.health.model.HealthSnapshot
+import com.hopcape.odo.core.domain.health.model.HealthSnapshotId
+import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItem
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
@@ -93,6 +110,141 @@ internal class FakeServiceLogRepository(
         entries.map { odometerReadings(carId).orEmpty() }
 }
 
+/**
+ * In-memory [CarRepository] holding one car. Only the reads the record needs are real; the
+ * writes answer successfully so a test never has to care about them.
+ */
+internal class FakeCarRepository(initial: Car? = null) : CarRepository {
+
+    val car = MutableStateFlow(initial)
+
+    override suspend fun add(car: Car): Either<DomainError, Car> = car.right().also { this.car.value = car }
+    override suspend fun update(car: Car): Either<DomainError, Car> = car.right().also { this.car.value = car }
+    override fun observePrimaryCar(): Flow<Car?> = car
+    override fun observe(id: CarId): Flow<Car?> = car.map { held -> held?.takeIf { it.id == id } }
+    override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = Unit.right()
+}
+
+/** In-memory [DocumentRepository] over a fixed list. */
+internal class FakeDocumentRepository(initial: List<Document> = emptyList()) : DocumentRepository {
+
+    val documents = MutableStateFlow(initial)
+
+    override fun observe(carId: CarId): Flow<List<Document>> =
+        documents.map { list -> list.filter { it.carId == carId } }
+
+    override fun observe(id: DocumentId): Flow<Document?> =
+        documents.map { list -> list.find { it.id == id } }
+
+    override suspend fun add(document: Document): Either<DomainError, Document> =
+        document.right().also { documents.update { it + document } }
+
+    override suspend fun update(document: Document): Either<DomainError, Document> =
+        document.right().also { list -> documents.update { held -> held.map { if (it.id == document.id) document else it } } }
+
+    override suspend fun softDelete(id: DocumentId): Either<DomainError, Unit> =
+        Unit.right().also { documents.update { list -> list.filterNot { it.id == id } } }
+
+    override suspend fun countForOwner(ownerId: OwnerId): Int = documents.value.count { it.ownerId == ownerId }
+}
+
+/** In-memory [HealthScoreRepository] over a fixed history, oldest first. */
+internal class FakeHealthScoreRepository(initial: List<HealthSnapshot> = emptyList()) : HealthScoreRepository {
+
+    val history = MutableStateFlow(initial)
+
+    override suspend fun latest(carId: CarId): HealthSnapshot? =
+        history.value.filter { it.carId == carId }.maxByOrNull { it.computedAt }
+
+    override suspend fun latestOnOrBefore(carId: CarId, instant: Instant): HealthSnapshot? =
+        history.value.filter { it.carId == carId && it.computedAt <= instant }.maxByOrNull { it.computedAt }
+
+    override fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>> =
+        history.map { list -> list.filter { it.carId == carId } }
+
+    override suspend fun record(snapshot: HealthSnapshot): Either<DomainError, HealthSnapshot> =
+        snapshot.right().also { history.update { it + snapshot } }
+}
+
+/** In-memory [OwnerProfileRepository] holding one profile. */
+internal class FakeOwnerProfileRepository(initial: OwnerProfile? = null) : OwnerProfileRepository {
+
+    val profile = MutableStateFlow(initial)
+
+    override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> =
+        profile.right().also { this.profile.value = profile }
+
+    override fun observe(): Flow<OwnerProfile?> = profile
+
+    override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { profile.value = null }
+}
+
+/** The car every record test prints — a 2020 Swift VXI on a Maharashtra plate. */
+internal fun testCar(
+    addedOn: LocalDate? = LocalDate(2020, 8, 6),
+    purchaseYear: Int? = 2020,
+    odometerKm: Int = 54_120,
+    nickname: String? = null,
+): Car = Car.reconstitute(
+    id = TEST_CAR,
+    ownerId = TEST_OWNER,
+    make = "Maruti",
+    model = "Swift",
+    variant = "VXI",
+    year = 2020,
+    fuelType = FuelType.PETROL,
+    registrationNumber = "MH12AB1234",
+    odometerKm = odometerKm,
+    purchaseYear = purchaseYear,
+    nickname = nickname,
+    isPrimary = true,
+    addedOn = addedOn,
+)
+
+/** A stored profile with a name on it. */
+internal fun testOwner(name: String? = "Rahul Deshmukh"): OwnerProfile = OwnerProfile.reconstitute(
+    id = TEST_OWNER,
+    name = name,
+    goal = null,
+    onboardingCompletedAt = null,
+)
+
+/** A filed paper of [type], valid until [expiresOn] unless that is null. */
+internal fun testDocument(
+    type: DocumentType,
+    addedOn: LocalDate? = LocalDate(2026, 6, 1),
+    expiresOn: LocalDate? = LocalDate(2027, 7, 3),
+): Document = Document.reconstitute(
+    id = DocumentId("doc-$type-$addedOn"),
+    ownerId = TEST_OWNER,
+    carId = TEST_CAR,
+    type = type,
+    storagePath = "documents/doc-$type.pdf",
+    source = DocumentSource.UPLOADED,
+    addedOn = addedOn,
+    issuedOn = null,
+    expiresOn = expiresOn,
+)
+
+/** A score snapshot adding up to [total], poured into the factors in weight order. */
+internal fun testSnapshot(at: String, total: Int): HealthSnapshot {
+    var left = total
+    return HealthSnapshot(
+        id = HealthSnapshotId("snap-$at"),
+        carId = TEST_CAR,
+        ownerId = TEST_OWNER,
+        score = HealthScore(
+            factors = HealthFactorKind.entries.map { kind ->
+                val earned = minOf(left, kind.weight)
+                left -= earned
+                HealthFactor.of(kind, earned)
+            },
+        ),
+        computedAt = Instant.parse(at),
+        algoVersion = "rule-v1",
+    )
+}
+
 /** Emits a fixed [current] value for every car — a trip-aware "current odometer" double. */
 internal class FakeCurrentOdometerProvider(private val current: Distance?) : CurrentOdometerProvider {
     override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(current)
@@ -143,6 +295,9 @@ internal fun testEntry(
     workshop: String? = "Sharma Motors",
     notes: String? = null,
     categories: Set<ServiceCategory> = emptySet(),
+    lineItems: List<String> = emptyList(),
+    // Fully-priced lines, for tests about what a bill charges; wins over [lineItems].
+    pricedItems: List<ServiceLogLineItem> = emptyList(),
 ): ServiceLogEntry = ServiceLogEntry.reconstitute(
     id = ServiceLogId(id),
     carId = TEST_CAR,
@@ -155,6 +310,12 @@ internal fun testEntry(
     source = if (verified) LogSource.SCANNED else LogSource.MANUAL,
     billId = if (verified) BillId("bill-$id") else null,
     categories = categories,
+    // Priced lines name the work exactly, which is how a scanned bill reaches the record.
+    lineItems = pricedItems.ifEmpty {
+        lineItems.map { label ->
+            ServiceLogLineItem(label = label, category = ServiceCategory.OTHER, amount = Amount.ZERO)
+        }
+    },
 )
 
 /** The user's city for tests. */
