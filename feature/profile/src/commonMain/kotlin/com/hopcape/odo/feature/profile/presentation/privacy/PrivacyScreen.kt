@@ -100,21 +100,23 @@ internal fun PrivacyScreen(
                     supporting = stringResource(Res.string.pf_pv_share_prices_sub),
                     modifier = Modifier.testTag(ProfileTestTags.PRIVACY_SHARE_PRICES),
                 )
-                RowDivider()
-                OdoSwitchRow(
-                    label = stringResource(Res.string.pf_pv_routes),
-                    checked = state.keepTripRoutes,
-                    onCheckedChange = { onEvent(PrivacyEvent.KeepTripRoutesToggled(it)) },
-                    // The supporting line states what is true now rather than what the
-                    // switch would do. An owner reading "only distance is stored" under a
-                    // switch that is on would have it exactly backwards.
-                    supporting = if (state.keepTripRoutes) {
-                        stringResource(Res.string.pf_pv_routes_on)
-                    } else {
-                        stringResource(Res.string.pf_pv_routes_off)
-                    },
-                    modifier = Modifier.testTag(ProfileTestTags.PRIVACY_KEEP_ROUTES),
-                )
+            //    RowDivider()
+                /*
+  OdoSwitchRow(
+      label = stringResource(Res.string.pf_pv_routes),
+      checked = state.keepTripRoutes,
+      onCheckedChange = { onEvent(PrivacyEvent.KeepTripRoutesToggled(it)) },
+      // The supporting line states what is true now rather than what the
+      // switch would do. An owner reading "only distance is stored" under a
+      // switch that is on would have it exactly backwards.
+      supporting = if (state.keepTripRoutes) {
+          stringResource(Res.string.pf_pv_routes_on)
+      } else {
+          stringResource(Res.string.pf_pv_routes_off)
+      },
+      modifier = Modifier.testTag(ProfileTestTags.PRIVACY_KEEP_ROUTES),
+  )
+  */
                 RowDivider()
                 OdoSwitchRow(
                     label = stringResource(Res.string.pf_pv_analytics),

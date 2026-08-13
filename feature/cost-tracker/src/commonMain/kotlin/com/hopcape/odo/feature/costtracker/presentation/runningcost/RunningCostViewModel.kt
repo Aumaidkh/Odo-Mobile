@@ -80,9 +80,9 @@ internal class RunningCostViewModel(
     ) { carId, chosen, efficiencyUnit -> Triple(carId, chosen, efficiencyUnit) }
         .flatMapLatest { (carId, chosen, efficiencyUnit) ->
             // No car yet means setup has not finished. Nothing truthful can be said about
-            // what an absent car costs to run, so the screen keeps waiting.
+            // what an absent car costs to run, so the screen says so instead of waiting.
             if (carId == null) {
-                flowOf(RunningCostUiState(period = chosen, fuelEfficiencyUnit = efficiencyUnit))
+                flowOf(RunningCostUiState(period = chosen, fuelEfficiencyUnit = efficiencyUnit, noCar = true))
             } else {
                 observeRunningCost(carId, chosen).map { snapshot ->
                     RunningCostUiState(

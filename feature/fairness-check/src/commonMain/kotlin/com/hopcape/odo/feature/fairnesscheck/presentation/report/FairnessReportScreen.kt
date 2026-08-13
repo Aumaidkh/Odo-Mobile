@@ -207,7 +207,7 @@ private fun Hero(
     extra: @Composable () -> Unit = {},
 ) {
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(tag),
+        modifier = Modifier.testTag(tag),
         color = tone.copy(alpha = 0.10f),
         border = BorderStroke(1.dp, tone.copy(alpha = 0.45f)),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -240,7 +240,7 @@ private fun Hero(
 private fun ComparisonCard(report: FairnessUiState.Content.Report, cityAverageTotal: Amount) {
     val tone = if (report.verdict is FairnessVerdictUiState.Over) OdoTheme.colors.warning else OdoTheme.colors.success
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(FairnessTestTags.COMPARISON),
+        modifier = Modifier.testTag(FairnessTestTags.COMPARISON),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         OdoText(
@@ -295,7 +295,7 @@ private fun Bar(amount: String, label: String, fraction: Float, color: Color, mo
 @Composable
 private fun BreakdownCard(lines: List<FairnessLineUiState>) {
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(FairnessTestTags.BREAKDOWN),
+        modifier = Modifier.testTag(FairnessTestTags.BREAKDOWN),
         contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
@@ -435,7 +435,6 @@ private fun SkeletonBlock(height: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = OdoTheme.spacing.screenEdge)
             .height(height)
             .clip(OdoTheme.shapes.card)
             .background(OdoTheme.colors.surface),

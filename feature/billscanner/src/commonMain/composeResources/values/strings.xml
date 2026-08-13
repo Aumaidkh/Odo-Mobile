@@ -10,7 +10,7 @@
 
     <!-- Camera permission rationale, shown before the system prompt -->
     <string name="bs_camera_title">Odo needs your camera to read things</string>
-    <string name="bs_camera_subtitle">Everything Odo checks starts as a photo. Grant once and all three work.</string>
+    <string name="bs_camera_subtitle">Everything Odo checks starts as a photo. Grant once and both work.</string>
     <string name="bs_camera_bills_title">Service bills</string>
     <string name="bs_camera_bills_body">Read the amounts and check them against real city prices.</string>
     <string name="bs_camera_papers_title">Insurance, PUC &amp; RC</string>
