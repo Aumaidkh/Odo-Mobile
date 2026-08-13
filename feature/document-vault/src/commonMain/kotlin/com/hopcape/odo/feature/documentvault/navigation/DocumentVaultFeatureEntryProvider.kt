@@ -102,7 +102,6 @@ internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
     DocumentVaultScreen(
         state = state,
         onAdd = { viewModel.onEvent(DocumentVaultEvent.AddTapped(it)) },
-        onRenew = { viewModel.onEvent(DocumentVaultEvent.DocumentTapped(it)) },
         onOpen = { viewModel.onEvent(DocumentVaultEvent.DocumentTapped(it)) },
         onAddDocument = { viewModel.onEvent(DocumentVaultEvent.AddAnyTapped) },
         onBack = { viewModel.onEvent(DocumentVaultEvent.BackTapped) },
@@ -193,7 +192,6 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
     DocumentDetailScreen(
         state = state,
         onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
-        onRenew = { viewModel.onEvent(DocumentDetailEvent.Open.Renew) },
         onEditDates = { viewModel.onEvent(DocumentDetailEvent.Open.EditDates) },
         onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
         onDownload = { viewModel.onEvent(DocumentDetailEvent.File.Download) },
