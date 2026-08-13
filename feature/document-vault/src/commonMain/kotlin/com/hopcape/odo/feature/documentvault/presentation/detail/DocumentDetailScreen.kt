@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoConfirmDialog
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -66,6 +67,10 @@ import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_badge_pdf
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_more
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_preview_file
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_action
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_body
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_cancel
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_title
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_days_suffix
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expired_for
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expires_in
@@ -104,6 +109,9 @@ internal fun DocumentDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val content = (state.content as? Loadable.Ready)?.value
+    // Held here, not in the ViewModel: whether the owner is mid-confirmation is as
+    // transient as the open overflow menu, and only [onDelete] ever leaves the screen.
+    var confirmingDelete by remember { mutableStateOf(false) }
     OdoScreen(
         modifier = modifier,
         title = content?.let { it.title ?: docName(it.type) }.orEmpty(),
@@ -115,7 +123,7 @@ internal fun DocumentDetailScreen(
                     onEditDates = onEditDates,
                     onShare = onShare,
                     onDownload = onDownload,
-                    onDelete = onDelete,
+                    onDelete = { confirmingDelete = true },
                 )
             }
         },
@@ -150,6 +158,17 @@ internal fun DocumentDetailScreen(
                 ValidityCard(content = loadable.value)
             }
         }
+    }
+
+    if (confirmingDelete) {
+        OdoConfirmDialog(
+            title = stringResource(Res.string.dv_delete_confirm_title),
+            body = stringResource(Res.string.dv_delete_confirm_body),
+            confirmLabel = stringResource(Res.string.dv_delete_confirm_action),
+            cancelLabel = stringResource(Res.string.dv_delete_confirm_cancel),
+            onConfirm = { confirmingDelete = false; onDelete() },
+            onDismiss = { confirmingDelete = false },
+        )
     }
 }
 
