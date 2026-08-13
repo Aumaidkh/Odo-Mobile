@@ -156,9 +156,16 @@ internal class BillScanViewModel(
         _state.update { it.copy(cameraPermission = status) }
     }
 
+    /**
+     * "Not now" means no: leave the flow, the same as the X in the corner.
+     *
+     * It stays a separate event from [BillScanEvent.CloseTapped] even though both end up back
+     * where the owner came from, because telemetry needs to tell "declined the camera" apart
+     * from "closed the scanner".
+     */
     private fun declined() {
         telemetry.cameraDeclined()
-        _state.update { it.copy(rationaleDismissed = true) }
+        emit(BillScanEffect.NavigateBack)
     }
 
     private fun photoCaptured(storageKey: String) {

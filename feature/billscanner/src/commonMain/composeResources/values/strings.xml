@@ -25,10 +25,6 @@
     <string name="bs_camera_not_now">Not now</string>
     <string name="bs_camera_blocked_subtitle">The camera is switched off for Odo. Turn it back on in settings and scanning works again.</string>
 
-    <!-- In-context nudge on the scan screen, after the owner chose "Not now" -->
-    <string name="bs_camera_nudge">Scanning needs the camera.</string>
-    <string name="bs_camera_nudge_action">Allow</string>
-    <string name="bs_camera_nudge_settings">Settings</string>
     <string name="bs_camera_unavailable">The camera could not be opened. Enter the details yourself instead.</string>
     <string name="bs_camera_capture_failed">That photo did not save. Try again.</string>
 
