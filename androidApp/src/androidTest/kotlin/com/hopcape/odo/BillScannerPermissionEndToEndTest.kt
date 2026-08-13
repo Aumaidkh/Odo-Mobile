@@ -62,15 +62,14 @@ class BillScannerPermissionEndToEndTest {
     }
 
     @Test
-    fun theRationaleNamesAllThreeThingsTheOneGrantUnlocks() {
+    fun theRationaleNamesEverythingTheOneGrantUnlocks() {
         rule.openScanner()
         rule.awaitText(ScanCopy.CAMERA_TITLE)
 
-        // Asking three separate times for one permission would be asking for the same thing
-        // three times.
+        // Asking separately for one permission would be asking for the same thing twice. Pay
+        // at pump would be a third row here, and comes back with FeatureFlags.PAY_VIA_QR_ENABLED.
         rule.onNodeWithText(ScanCopy.CAMERA_BILLS).assertIsDisplayed()
         rule.onNodeWithText(ScanCopy.CAMERA_PAPERS).assertIsDisplayed()
-        rule.onNodeWithText(ScanCopy.CAMERA_QR).assertIsDisplayed()
     }
 
     @Test
@@ -83,43 +82,46 @@ class BillScannerPermissionEndToEndTest {
     }
 
     @Test
-    fun decliningLeavesAWayBackInsteadOfADeadScreen() {
+    fun decliningTheCameraLeavesTheFlowInsteadOfOpeningTheScanner() {
         rule.openScanner()
         rule.awaitText(ScanCopy.CAMERA_TITLE)
 
         rule.onNodeWithText(ScanCopy.CAMERA_NOT_NOW).performClick()
 
-        // The scanner still opens — with the frame, the mode chips and a nudge that offers
-        // the permission again. A blank screen with no explanation would be the alternative.
-        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
-        rule.awaitText(ScanCopy.NUDGE)
-        rule.onNodeWithText(ScanCopy.NUDGE_ALLOW).assertIsDisplayed()
-        // Typing the entry in by hand still works without a camera, so it stays offered.
-        rule.onNodeWithText(ScanCopy.MANUAL).assertIsDisplayed()
-    }
-
-    @Test
-    fun theRationaleDoesNotComeBackOnceItHasBeenWavedAway() {
-        rule.openScanner()
-        rule.awaitText(ScanCopy.CAMERA_TITLE)
-        rule.onNodeWithText(ScanCopy.CAMERA_NOT_NOW).performClick()
-        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
-
-        // Switching what is being scanned must not re-open the screen the owner just closed.
-        rule.selectScanMode(ScanCopy.MODE_DOCUMENT)
-
-        rule.awaitText(ScanCopy.SCAN_TITLE_DOCUMENT)
+        // "Not now" means no. Without the permission there is no preview to show, so landing
+        // on the scanner would be the same refusal asked a second time.
         rule.awaitGone(ScanCopy.CAMERA_TITLE)
+        rule.awaitLabel(ScanCopy.SCAN_ACTION)
+        rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
     }
 
     @Test
-    fun theTorchIsNotOfferedWhileTheCameraIsNotAllowed() {
+    fun theCloseButtonAndNotNowBothLeaveTheSamePlace() {
+        rule.openScanner()
+        rule.awaitText(ScanCopy.CAMERA_TITLE)
+        rule.onNodeWithLabel(ScanCopy.CLOSE_LABEL).performClick()
+        rule.awaitLabel(ScanCopy.SCAN_ACTION)
+
         rule.openScanner()
         rule.awaitText(ScanCopy.CAMERA_TITLE)
         rule.onNodeWithText(ScanCopy.CAMERA_NOT_NOW).performClick()
-        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
 
-        // A light that cannot be turned on is a control that does nothing.
+        // Two dismiss controls side by side. One intent, so one outcome.
+        rule.awaitLabel(ScanCopy.SCAN_ACTION)
+        rule.onNodeWithText(ScanCopy.CAMERA_TITLE).assertDoesNotExist()
+    }
+
+    @Test
+    fun noneOfTheViewfinderIsReachableWithoutTheCamera() {
+        rule.openScanner()
+        rule.awaitText(ScanCopy.CAMERA_TITLE)
+        rule.onNodeWithText(ScanCopy.CAMERA_NOT_NOW).performClick()
+        rule.awaitLabel(ScanCopy.SCAN_ACTION)
+
+        // A light that cannot be turned on and a mode chip for a camera that will not open are
+        // controls that do nothing.
         rule.onNodeWithLabel(ScanCopy.TORCH_ON).assertDoesNotExist()
+        rule.onNodeWithText(ScanCopy.MODE_DOCUMENT).assertDoesNotExist()
+        rule.onNodeWithText(ScanCopy.MANUAL).assertDoesNotExist()
     }
 }
