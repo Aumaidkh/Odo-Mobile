@@ -34,6 +34,16 @@ sealed interface NavigationCommand {
         val belongsToFlow: (OdoDestination) -> Boolean,
     ) : NavigationCommand
 
+    /**
+     * Leave a finished sub-flow, landing on whatever opened it.
+     *
+     * The same popping as [FinishFlow] with nothing pushed afterwards — for a flow that ends
+     * by handing the owner back where they came from rather than somewhere of its own. What
+     * that place is depends on where the flow was started, which is exactly what the stack
+     * already knows and the flow does not.
+     */
+    data class LeaveFlow(val belongsToFlow: (OdoDestination) -> Boolean) : NavigationCommand
+
     /** Pop the current destination. */
     data object Back : NavigationCommand
 }
