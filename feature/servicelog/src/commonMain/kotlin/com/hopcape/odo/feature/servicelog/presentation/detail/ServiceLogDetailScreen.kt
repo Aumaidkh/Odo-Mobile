@@ -76,6 +76,7 @@ import com.hopcape.odo.feature.servicelog.resources.sl_detail_extras
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fair_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_basis
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_label
+import com.hopcape.odo.feature.servicelog.resources.sl_detail_fairness_unavailable
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_no_items
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_over_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
@@ -475,14 +476,24 @@ private fun DetailActions(
             )
         }
         // Verified but never judged: the check is worth offering rather than waiting for the
-        // next write to trigger it.
+        // next write to trigger it. Offered disabled, with the reason, when the entry has
+        // nothing comparable on it — a bill of one total covering two jobs cannot be split,
+        // and an action that refuses in silence reads as a broken button (issue #111).
         if (entry.verification == VerificationStatus.VERIFIED && entry.fairness is EntryFairnessUiState.NotAssessed) {
             OdoButton(
                 text = stringResource(Res.string.sl_detail_check_fairness),
                 onClick = { onEvent(ServiceLogDetailEvent.CheckFairnessClicked) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = OdoButtonVariant.Secondary,
+                enabled = entry.canCheckFairness,
             )
+            if (!entry.canCheckFairness) {
+                OdoText(
+                    stringResource(Res.string.sl_detail_fairness_unavailable),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
         }
         if (entry.resale is ResaleProofUiState.Verified) {
             OdoButton(

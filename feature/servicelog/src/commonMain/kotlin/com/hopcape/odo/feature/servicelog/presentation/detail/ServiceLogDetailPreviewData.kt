@@ -50,12 +50,14 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
     ),
     resale = ResaleProofUiState.Verified(scoreUplift = 4, fairPriceChecked = true),
     bill = BillAttachmentUiState(scanned = true, verified = true, photoRef = "bills/c1/l1.jpg"),
+    canCheckFairness = true,
 )
 
 /**
  * A hand-added entry: a bill was attached later, so it is verified, but nobody ever typed
  * the lines. This is the case the screen used to render as a card holding nothing but the
- * total (issue #109).
+ * total (issue #109), and — with two jobs on one total — the case whose "Check fairness"
+ * button had nothing to benchmark (issue #111).
  */
 private val sampleUnitemisedEntry = sampleDetailEntry.copy(
     id = ServiceLogId("3"),
@@ -64,6 +66,7 @@ private val sampleUnitemisedEntry = sampleDetailEntry.copy(
     lineItems = emptyList(),
     fairness = EntryFairnessUiState.NotAssessed,
     resale = ResaleProofUiState.Verified(scoreUplift = 6, fairPriceChecked = false),
+    canCheckFairness = false,
 )
 
 /** Sample state (stands in for the ViewModel until the route is wired to it). */
