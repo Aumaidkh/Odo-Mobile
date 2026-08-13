@@ -233,8 +233,8 @@ private fun ProfileContentColumn(
 
         Spacer(Modifier.height(OdoTheme.spacing.md))
         SettingsGroup {
-            SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
-            RowDivider()
+           // SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
+           // RowDivider()
             if (content.isSignedIn) {
                 SettingsRow(
                     icon = IcSignOut,
