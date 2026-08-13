@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso
 import androidx.test.espresso.intent.Intents
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
@@ -17,6 +18,7 @@ import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,6 +59,23 @@ class DocumentVaultEndToEndTest {
     /** Granted for the whole class so the hand-off to the scanner reaches its viewfinder. */
     @get:Rule
     val cameraPermission: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
+
+    companion object {
+        /**
+         * The owner exists before anything launches an activity.
+         *
+         * Where the app opens is read once per launch and the rule starts the activity before
+         * `@Before` runs, so on the first test of the class an unseeded profile put the app on
+         * the welcome carousel — and recreating it did not move it off. Whichever test the
+         * runner happened to put first then failed on its way to the vault.
+         */
+        @JvmStatic
+        @BeforeClass
+        fun seedTheOwnerOnce() {
+            resetVault()
+            seedOnboardedOwner()
+        }
+    }
 
     /**
      * Start every test from a set-up device with an empty vault.
@@ -154,7 +173,7 @@ class DocumentVaultEndToEndTest {
         rule.fileAnUploadedDocument()
 
         // The success screen reads the document back rather than repeating what was sent.
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
+        rule.awaitDocumentFiled(DocumentType.RC)
         // An uploaded file carries no expiry, so there is nothing to promise a reminder for.
         rule.onNodeWithText(VaultCopy.SUCCESS_NO_REMINDER).assertIsDisplayed()
 
@@ -209,7 +228,7 @@ class DocumentVaultEndToEndTest {
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
         rule.addFromRow(DocumentType.RC)
         rule.fileAnUploadedDocument()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
+        rule.awaitDocumentFiled(DocumentType.RC)
         rule.onNodeWithText(VaultCopy.SUCCESS_BACK).performClick()
 
         // The picked URI stops resolving once the picker's permission lapses, so the bytes
@@ -227,13 +246,75 @@ class DocumentVaultEndToEndTest {
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
         rule.addFromRow(DocumentType.RC)
         rule.fileAnUploadedDocument()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
+        rule.awaitDocumentFiled(DocumentType.RC)
 
         rule.onNodeWithText(VaultCopy.SUCCESS_ADD_ANOTHER).performClick()
 
         // A fresh add, named by nothing, so it starts where the bar starts.
         rule.awaitText(VaultCopy.ADD_TITLE)
         rule.onNodeWithText(VaultCopy.ADD_CHIP_INSURANCE).assertIsSelected()
+    }
+
+    /**
+     * A finished add leaves nothing behind it.
+     *
+     * The add walks through three screens — the add screen, the confirm step, the success
+     * screen — and each used to stay on the stack. Back from the success screen stepped into
+     * a confirm step for a document already filed, and back from the vault returned to a
+     * success screen for the same one. Both are gone once the document is saved, so back does
+     * what back from the vault normally does: it leaves.
+     */
+    @Test
+    fun backFromTheSuccessScreenLeavesTheFinishedAddBehind() {
+        rule.openVault()
+        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitDocumentFiled(DocumentType.RC)
+
+        Espresso.pressBack()
+
+        rule.awaitText(VaultCopy.TITLE)
+        rule.onNodeWithText(VaultCopy.REVIEW_TITLE).assertDoesNotExist()
+
+        // And out of the vault, to the garage that opened it.
+        Espresso.pressBack()
+        rule.awaitText(GarageCopy.TITLE)
+    }
+
+    /** The same, for the inline button — the two ways out end in the same place. */
+    @Test
+    fun backToDocumentsLeavesTheFinishedAddBehind() {
+        rule.openVault()
+        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitDocumentFiled(DocumentType.RC)
+
+        rule.onNodeWithText(VaultCopy.SUCCESS_BACK).performClick()
+        rule.awaitText(VaultCopy.PILL_VALID)
+
+        Espresso.pressBack()
+        rule.awaitText(GarageCopy.TITLE)
+    }
+
+    /** "Add another" replaces the finished add rather than stacking on top of it. */
+    @Test
+    fun addAnotherDoesNotLeaveTheFinishedAddUnderTheNewOne() {
+        rule.openVault()
+        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
+        rule.addFromRow(DocumentType.RC)
+        rule.fileAnUploadedDocument()
+        rule.awaitDocumentFiled(DocumentType.RC)
+        rule.onNodeWithText(VaultCopy.SUCCESS_ADD_ANOTHER).performClick()
+        rule.awaitText(VaultCopy.ADD_TITLE)
+
+        // Backing out of the second add lands on the vault, not on the first add's success
+        // screen with its own add screen under that.
+        Espresso.pressBack()
+
+        rule.awaitText(VaultCopy.TITLE)
+        rule.onNodeWithText(VaultCopy.added(VaultCopy.DOC_RC)).assertDoesNotExist()
     }
 
     @Test
@@ -438,7 +519,7 @@ class DocumentVaultEndToEndTest {
         rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
         rule.addFromRow(DocumentType.RC)
         rule.fileAnUploadedDocument()
-        rule.awaitText(VaultCopy.added(VaultCopy.DOC_RC))
+        rule.awaitDocumentFiled(DocumentType.RC)
         rule.onNodeWithText(VaultCopy.SUCCESS_BACK).performClick()
         rule.awaitText(VaultCopy.PILL_VALID)
 

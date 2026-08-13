@@ -15,6 +15,8 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.camera.CameraEvent
 import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
@@ -259,8 +261,13 @@ internal fun DocumentReviewRoute(
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            is DocumentReviewEffect.OpenDocument -> navigationManager.navigateTo(
+            // The paper is filed, so every step that led here is finished: this screen, the
+            // viewfinder behind it, and the vault's add screen behind that. They come off the
+            // stack as the success screen goes on, which is what makes back from the success
+            // screen leave the flow instead of stepping back into it.
+            is DocumentReviewEffect.OpenDocument -> navigationManager.finishFlow(
                 OdoDestination.Documents.AddSuccess(effect.documentId),
+                ::isAddDocumentFlowStep,
             )
             DocumentReviewEffect.NavigateBack -> navigationManager.back()
         }

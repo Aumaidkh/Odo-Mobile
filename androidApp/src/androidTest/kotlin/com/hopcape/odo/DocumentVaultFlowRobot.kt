@@ -420,6 +420,18 @@ internal fun VaultTestRule.fileAnUploadedDocument() {
     onNodeWithText(VaultCopy.REVIEW_SAVE).performClick()
 }
 
+/**
+ * Wait for the success screen that names [type].
+ *
+ * A longer allowance than the usual wait: the first document filed in a run starts the
+ * reader and the file store with it, and that save has gone past five seconds. Every later
+ * one lands well inside it, and a wait costs nothing when the screen arrives early.
+ */
+internal fun VaultTestRule.awaitDocumentFiled(type: DocumentType) =
+    awaitText(VaultCopy.added(documentName(type)), FILED_TIMEOUT_MILLIS)
+
+private const val FILED_TIMEOUT_MILLIS = 20_000L
+
 /** The document name the vault and the success screen use for a type. */
 internal fun documentName(type: DocumentType): String = when (type) {
     DocumentType.INSURANCE -> VaultCopy.DOC_INSURANCE
