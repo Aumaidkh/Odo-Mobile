@@ -21,6 +21,7 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
@@ -168,6 +169,12 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
     // Resolved here rather than inside the effect handler, which is not a composable and so
     // cannot read a string resource.
     val previewTitle = (state.content as? Loadable.Ready)?.value?.let { it.title ?: docName(it.type) }
+    // Held here because a picker is a platform activity, not a ViewModel call: the launcher
+    // has to be remembered in the composition that will still be alive when it returns. A
+    // cancelled pick reports null, which is not a replacement and so is not sent on.
+    val pickReplacementFile = rememberFilePicker { pickedRef ->
+        pickedRef?.let { viewModel.onEvent(DocumentDetailEvent.File.Replace(it)) }
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
@@ -202,8 +209,7 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
         onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
         onRenew = { viewModel.onEvent(DocumentDetailEvent.Open.Renew) },
         onEditDates = { viewModel.onEvent(DocumentDetailEvent.Open.EditDates) },
-        // TODO(files): open the picker, then send File.Replace with what it returns.
-        onReplace = { },
+        onReplace = pickReplacementFile,
         onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
         onDownload = { viewModel.onEvent(DocumentDetailEvent.File.Download) },
         onDelete = { viewModel.onEvent(DocumentDetailEvent.File.Delete) },

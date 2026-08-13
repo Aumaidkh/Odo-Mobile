@@ -16,6 +16,7 @@ import androidx.test.rule.GrantPermissionRule
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.BeforeClass
@@ -47,8 +48,7 @@ import org.junit.runner.RunWith
  * way: a fixed date would eventually mean a different status than the test was written for.
  *
  * **What is deliberately not covered**, because the product has no affordance for it yet:
- * replacing a file (the menu item opens no picker — `TODO(files)` in the route), and viewing
- * or downloading the file (both effects are still stubs).
+ * viewing or downloading the file (both effects are still stubs).
  */
 @RunWith(AndroidJUnit4::class)
 class DocumentVaultEndToEndTest {
@@ -393,6 +393,43 @@ class DocumentVaultEndToEndTest {
         // A file the owner picked is a claim, not proof — same screen, no badge.
         rule.awaitText(VaultCopy.detailExpiresIn(VaultFixtures.PUC_DAYS_LEFT))
         rule.onNodeWithText(VaultCopy.DETAIL_VERIFIED).assertDoesNotExist()
+    }
+
+    /**
+     * Replacing swaps the file behind a document. It used to do nothing at all — the menu
+     * item was wired to an empty lambda — which is what left the old file in place.
+     *
+     * The badge is the proof that the swap happened: an official copy that has been replaced
+     * by a file the owner picked is no longer an official copy.
+     */
+    @Test
+    fun replacingAFileSwapsItInsteadOfAddingAnother() {
+        seedDocument(
+            id = VaultFixtures.INSURANCE_ID,
+            type = DocumentType.INSURANCE,
+            expiresOn = VaultFixtures.INSURANCE_EXPIRY,
+            source = "DIGILOCKER",
+            title = VaultFixtures.INSURANCE_TITLE,
+            issuedOn = VaultFixtures.ISSUED_ON,
+        )
+        rule.openVault()
+        rule.awaitText(VaultFixtures.INSURANCE_TITLE)
+        rule.openDocument(DocumentType.INSURANCE)
+        rule.awaitText(VaultCopy.DETAIL_VERIFIED)
+
+        stubPickedFile()
+        rule.openDocumentMenu()
+        rule.onNodeWithText(VaultCopy.MENU_REPLACE).performClick()
+
+        rule.awaitGone(VaultCopy.DETAIL_VERIFIED)
+        // The same document, not a second one, and the same dates on it. The title is
+        // asserted through awaitText because the screen shows it twice — on the card and in
+        // the collapsing title.
+        rule.awaitText(VaultFixtures.INSURANCE_TITLE)
+        rule.onNodeWithText(VaultCopy.issuedOn(VaultFixtures.ISSUED_ON)).assertIsDisplayed()
+        assertEquals(1, storedDocumentCount())
+        // And one file behind it: the replacement took the old one's place.
+        assertEquals(1, storedVaultFiles().size)
     }
 
     @Test
