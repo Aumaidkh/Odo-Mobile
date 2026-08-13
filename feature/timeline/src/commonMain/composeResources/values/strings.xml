@@ -70,4 +70,8 @@
     <string name="tl_filter_milestones">Milestones</string>
     <string name="tl_filter_flagged">Only flagged overpayments</string>
     <string name="tl_filter_show">Show %1$d events</string>
+
+    <!-- No active car — setup incomplete or the car was removed. -->
+    <string name="tl_no_car_title">No car yet</string>
+    <string name="tl_no_car_body">Add your car in the Garage and its service history will build up here.</string>
 </resources>
