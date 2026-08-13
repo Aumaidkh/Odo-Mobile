@@ -33,6 +33,7 @@ import kotlin.math.abs
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -346,7 +347,10 @@ private fun BilledItemsCard(entry: ServiceEntryDetailUiState) {
                 modifier = Modifier.padding(bottom = OdoTheme.spacing.md),
             )
         } else {
-            entry.lineItems.forEach { item -> BilledItemRow(item) }
+            entry.lineItems.forEachIndexed { index, item ->
+                if (index > 0) ItemDivider()
+                BilledItemRow(item)
+            }
         }
         ExtrasRow(entry)
         CardFooter(
@@ -415,6 +419,7 @@ private fun ExtrasRow(entry: ServiceEntryDetailUiState) {
     if (difference == 0L) return
 
     val label = if (difference > 0) Res.string.sl_detail_extras else Res.string.sl_detail_discount
+    ItemDivider()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         OdoText(
             stringResource(label),
@@ -428,6 +433,13 @@ private fun ExtrasRow(entry: ServiceEntryDetailUiState) {
             color = OdoTheme.colors.textDim,
         )
     }
+}
+
+/** The hairline between bill lines — dimmer than [CardFooter]'s rule so the strong line
+ *  stays reserved for the total, and the items merely read as separated. */
+@Composable
+private fun ItemDivider() {
+    OdoDivider(color = OdoTheme.colors.border.copy(alpha = 0.6f))
 }
 
 /** Bottom-pinned actions: Share (verified) + Report (when the entry is over the average). */
