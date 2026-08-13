@@ -18,6 +18,8 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
@@ -67,11 +69,15 @@ internal class DocumentVaultFeatureEntryProvider(
     }
 }
 
-/** Exit an add/detail sub-flow and reset to the vault overview with a clean back stack. */
-private fun NavigationManager.backToDocuments() {
-    val vault = OdoDestination.Documents.Vault
-    navigateTo(vault, popUpTo = vault, inclusive = true)
-}
+/**
+ * Exit the finished add flow and land on the vault overview.
+ *
+ * Every step of the add is popped first, so nothing of it is left underneath — including
+ * when the flow was opened from somewhere other than the vault, where there is no vault
+ * entry to pop back to and the overview is pushed instead.
+ */
+private fun NavigationManager.backToDocuments() =
+    finishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep)
 
 /**
  * The type a navigation key names, or null if it names none or one this build does not know.
@@ -220,7 +226,11 @@ internal fun AddSuccessRoute(navigationManager: NavigationManager, key: OdoDesti
         AddSuccessScreen(
             state = success,
             onBackToDocuments = { navigationManager.backToDocuments() },
-            onAddAnother = { navigationManager.navigateTo(OdoDestination.Documents.Add()) },
+            // A second add starts where the first one did, not on top of it: the finished
+            // flow comes off the stack before the new add screen goes on.
+            onAddAnother = {
+                navigationManager.finishFlow(OdoDestination.Documents.Add(), ::isAddDocumentFlowStep)
+            },
             notificationPermission = notifications.status,
             onEnableNotifications = {
                 // A blocked permission gets no dialog from the system, so the only way left
