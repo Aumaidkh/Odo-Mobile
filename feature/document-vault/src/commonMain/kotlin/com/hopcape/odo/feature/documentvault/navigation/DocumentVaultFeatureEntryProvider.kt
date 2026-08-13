@@ -1,7 +1,10 @@
 package com.hopcape.odo.feature.documentvault.navigation
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -11,6 +14,7 @@ import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.platform.permission.PlatformPermission
 import com.hopcape.odo.core.platform.permission.rememberPermissionController
+import com.hopcape.odo.core.platform.share.rememberFileSharer
 import com.hopcape.odo.core.navigation.DocumentOrigin
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
@@ -21,7 +25,9 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.core.platform.file.rememberFilePicker
+import com.hopcape.odo.feature.documentvault.resources.Res
+import com.hopcape.odo.feature.documentvault.resources.dv_share_save_failed
+import com.hopcape.odo.feature.documentvault.resources.dv_share_saved
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEffect
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentEvent
 import com.hopcape.odo.feature.documentvault.presentation.add.AddDocumentScreen
@@ -45,6 +51,8 @@ import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEff
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultEvent
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultScreen
 import com.hopcape.odo.feature.documentvault.presentation.vault.DocumentVaultViewModel
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -168,12 +176,14 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
     // Resolved here rather than inside the effect handler, which is not a composable and so
     // cannot read a string resource.
     val previewTitle = (state.content as? Loadable.Ready)?.value?.let { it.title ?: docName(it.type) }
-    // Held here because a picker is a platform activity, not a ViewModel call: the launcher
-    // has to be remembered in the composition that will still be alive when it returns. A
-    // cancelled pick reports null, which is not a replacement and so is not sent on.
-    val pickReplacementFile = rememberFilePicker { pickedRef ->
-        pickedRef?.let { viewModel.onEvent(DocumentDetailEvent.File.Replace(it)) }
-    }
+    // Saving a copy is over as soon as it is done, so it is reported once and taken away
+    // rather than becoming a state of the screen. Both messages and the host are resolved
+    // here: the effect handler is not a composable, so it can neither read a string resource
+    // nor start a coroutine of its own.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val savedMessage = stringResource(Res.string.dv_share_saved)
+    val saveFailedMessage = stringResource(Res.string.dv_share_save_failed)
+    val scope = rememberCoroutineScope()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
@@ -195,9 +205,10 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
                 ),
             )
 
-            // TODO(M5): save a copy where the owner can find it — needs the FileProvider that
-            // sharing will bring with it.
-            is DocumentDetailEffect.DownloadFile -> Unit
+            DocumentDetailEffect.CopySaved -> scope.launch { snackbarHostState.showSnackbar(savedMessage) }
+
+            DocumentDetailEffect.CopySaveFailed ->
+                scope.launch { snackbarHostState.showSnackbar(saveFailedMessage) }
 
             DocumentDetailEffect.NavigateBack -> navigationManager.back()
         }
@@ -208,11 +219,11 @@ internal fun DocumentDetailRoute(navigationManager: NavigationManager, key: OdoD
         onView = { viewModel.onEvent(DocumentDetailEvent.File.View) },
         onRenew = { viewModel.onEvent(DocumentDetailEvent.Open.Renew) },
         onEditDates = { viewModel.onEvent(DocumentDetailEvent.Open.EditDates) },
-        onReplace = pickReplacementFile,
         onShare = { viewModel.onEvent(DocumentDetailEvent.Open.Share) },
         onDownload = { viewModel.onEvent(DocumentDetailEvent.File.Download) },
         onDelete = { viewModel.onEvent(DocumentDetailEvent.File.Delete) },
         onBack = { viewModel.onEvent(DocumentDetailEvent.Open.Back) },
+        snackbarHostState = snackbarHostState,
     )
 }
 
@@ -273,19 +284,24 @@ internal fun ShareDocumentRoute(key: OdoDestination.Documents.Share) {
         parametersOf(DocumentId(key.documentId))
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // The share sheet needs whatever is hosting the UI, so the launcher is held here rather
+    // than in the ViewModel. The title it offers the file under is read here for the same
+    // reason as the preview's: a document's name is a string resource when it has no title
+    // of its own, and the effect handler cannot read one.
+    val shareFile = rememberFileSharer()
+    val shareTitle = state?.let { it.title ?: docName(it.type) }.orEmpty()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            // TODO(files): hand the stored file to the platform share sheet / downloads.
-            is ShareDocumentEffect.ShareFile -> Unit
-            is ShareDocumentEffect.DownloadFile -> Unit
+            is ShareDocumentEffect.ShareFile ->
+                shareFile(effect.storageKey, effect.mimeType, shareTitle)
         }
     }
 
     state?.let { share ->
         ShareDocumentSheetContent(
             state = share,
-            onShareVia = { viewModel.onEvent(ShareDocumentEvent.ShareVia(it)) },
+            onShare = { viewModel.onEvent(ShareDocumentEvent.ShareTapped) },
             onDownload = { viewModel.onEvent(ShareDocumentEvent.DownloadTapped) },
         )
     }

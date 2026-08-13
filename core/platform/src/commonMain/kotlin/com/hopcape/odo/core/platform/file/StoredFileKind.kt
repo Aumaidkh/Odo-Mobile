@@ -26,6 +26,26 @@ object StoredFileKinds {
     }
 
     /**
+     * The MIME type a stored file should travel as when it leaves the app.
+     *
+     * A concrete type rather than a wildcard one: the receiving app and the media store
+     * both record what they are given, and a wildcard is what makes a saved photo arrive as
+     * a file nothing will open. A key with an extension this app does not know is handed
+     * over as bytes, which every target can still take.
+     */
+    fun mimeTypeOf(storageKey: String): String = when (storageKey.extension()) {
+        PDF_EXTENSION -> "application/pdf"
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "webp" -> "image/webp"
+        "heic", "heif" -> "image/heic"
+        else -> OCTET_STREAM
+    }
+
+    /** What anything unrecognised travels as — bytes, with no claim about what they are. */
+    private const val OCTET_STREAM = "application/octet-stream"
+
+    /**
      * The extension of the key's last segment, lowercased; empty when it has none.
      *
      * The last segment first, because a directory may contain a dot while the file does not —

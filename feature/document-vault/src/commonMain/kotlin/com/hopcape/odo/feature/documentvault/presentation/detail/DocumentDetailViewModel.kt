@@ -3,12 +3,16 @@ package com.hopcape.odo.feature.documentvault.presentation.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
+import com.hopcape.odo.core.platform.file.PlatformDownloads
+import com.hopcape.odo.core.platform.file.StoredFileKinds
 import com.hopcape.odo.feature.documentvault.domain.usecase.DeleteDocumentUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.DocumentDetail
 import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentDetailUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.ReplaceDocumentFileUseCase
+import com.hopcape.odo.feature.documentvault.domain.usecase.exportFileName
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTelemetry
 import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.presentation.state.Submission
@@ -41,10 +45,14 @@ internal class DocumentDetailViewModel(
     observeDetail: ObserveDocumentDetailUseCase,
     private val deleteDocument: DeleteDocumentUseCase,
     private val replaceFile: ReplaceDocumentFileUseCase,
+    private val downloads: PlatformDownloads,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
 
     private val submission = MutableStateFlow<Submission>(Submission.Idle)
+
+    /** The document as it was last read — what the file actions act on. */
+    private var document: Document? = null
 
     private val _effects = Channel<DocumentDetailEffect>(Channel.BUFFERED)
     val effects: Flow<DocumentDetailEffect> = _effects.receiveAsFlow()
@@ -84,12 +92,33 @@ internal class DocumentDetailViewModel(
 
     private fun onFileEvent(event: DocumentDetailEvent.File) = when (event) {
         DocumentDetailEvent.File.View -> view()
-        DocumentDetailEvent.File.Download -> current()?.storagePath?.let {
-            emit(DocumentDetailEffect.DownloadFile(it))
-        } ?: Unit
-
+        DocumentDetailEvent.File.Download -> saveCopy()
         is DocumentDetailEvent.File.Replace -> replace(event.pickedRef)
         DocumentDetailEvent.File.Delete -> delete()
+    }
+
+    /**
+     * Put a copy of the file where the owner keeps their downloads.
+     *
+     * The outcome is reported either way. Nothing opens and nothing on this screen changes,
+     * so a save that says nothing is indistinguishable from a menu item that does nothing —
+     * which is what this one used to be.
+     */
+    private fun saveCopy() {
+        val document = document ?: return
+        viewModelScope.launch {
+            downloads.saveCopy(
+                storageKey = document.storagePath,
+                fileName = document.exportFileName(),
+                mimeType = StoredFileKinds.mimeTypeOf(document.storagePath),
+            ).fold(
+                ifLeft = { emit(DocumentDetailEffect.CopySaveFailed) },
+                ifRight = {
+                    telemetry.documentShared(document.type, DOWNLOADS_TARGET)
+                    emit(DocumentDetailEffect.CopySaved)
+                },
+            )
+        }
     }
 
     /** Open the stored file in the shared viewer. Nothing to open until the document loads. */
@@ -173,6 +202,7 @@ internal class DocumentDetailViewModel(
             leave()
             return Loadable.Loading
         }
+        document = detail.document
         return Loadable.Ready(
             DocumentDetailContent(
                 id = detail.document.id,
@@ -191,5 +221,8 @@ internal class DocumentDetailViewModel(
 
     private companion object {
         const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+
+        /** Recorded like any other way a document leaves the app. */
+        const val DOWNLOADS_TARGET = "DOWNLOADS"
     }
 }
