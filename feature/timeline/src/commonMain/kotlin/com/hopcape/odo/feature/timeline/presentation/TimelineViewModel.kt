@@ -67,7 +67,7 @@ internal class TimelineViewModel(
             // No car yet means setup has not finished. There is no history to show, and
             // nothing truthful to say about a car that does not exist.
             if (id == null) {
-                flowOf(TimelineUiState())
+                flowOf(TimelineUiState(noCar = true))
             } else {
                 combine(observeTimeline(id), filters.filter) { snapshot, filter ->
                     TimelineUiState(content = Loadable.Ready(snapshot.toContent(filter)))

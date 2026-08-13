@@ -82,16 +82,18 @@ internal fun DeviceAccessSection(modifier: Modifier = Modifier) {
                 onClick = openSettings,
                 testTag = ProfileTestTags.PRIVACY_CAMERA_ROW,
             )
-            RowDivider()
-            AccessRow(
-                icon = IcGarage,
-                title = stringResource(Res.string.pf_pv_location),
-                subtitle = stringResource(Res.string.pf_pv_location_sub),
-                value = locationLabel(fineLocation.status, backgroundLocation.status),
-                granted = fineLocation.status == PermissionStatus.Granted,
-                onClick = openSettings,
-                testTag = ProfileTestTags.PRIVACY_LOCATION_ROW,
-            )
+           // RowDivider()
+            /*
+ AccessRow(
+     icon = IcGarage,
+     title = stringResource(Res.string.pf_pv_location),
+     subtitle = stringResource(Res.string.pf_pv_location_sub),
+     value = locationLabel(fineLocation.status, backgroundLocation.status),
+     granted = fineLocation.status == PermissionStatus.Granted,
+     onClick = openSettings,
+     testTag = ProfileTestTags.PRIVACY_LOCATION_ROW,
+ )
+ */
             RowDivider()
             AccessRow(
                 icon = IcBellOutlined,
