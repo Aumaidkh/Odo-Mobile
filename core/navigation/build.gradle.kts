@@ -4,6 +4,11 @@ plugins {
     // NavigationManager is published as a Koin `single` (the Hilt @Binds analog),
     // so features inject the interface without knowing the implementation.
     alias(libs.plugins.odo.koin)
+    // Every OdoDestination is @Serializable so the back stack can be written to
+    // saved state and read back after a configuration change or process death.
+    // The hierarchy is sealed, so closed polymorphism covers it and no
+    // SerializersModule registration is needed — see RememberNavigator.
+    alias(libs.plugins.kotlinSerialization)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
 }
@@ -31,6 +36,12 @@ kotlin {
             // SharedFlow command bus. `api` so a feature that exposes the
             // NavigationManager flow keeps the coroutines types visible.
             api(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            // A concrete format to round-trip every destination through. The saved-state
+            // encoder is the one production uses, but the risk this guards is the sealed
+            // hierarchy resolving each subtype, which is format-independent.
+            implementation(libs.kotlinx.serialization.json)
         }
     }
 }

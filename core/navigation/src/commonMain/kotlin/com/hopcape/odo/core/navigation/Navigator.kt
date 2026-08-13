@@ -21,13 +21,13 @@ interface Navigator {
      * [OdoNavHost] renders, so the typed operations below reflect immediately in
      * the UI. Read it to inspect the stack; mutate it only through those operations.
      */
-    val backStack: List<NavKey>
+    val backStack: List<OdoDestination>
 
     /** `true` when there is a destination to pop back to (more than just the root). */
     val canGoBack: Boolean
 
     /** Push [destination] onto the back stack and show it. */
-    fun navigate(destination: NavKey)
+    fun navigate(destination: OdoDestination)
 
     /** Pop the current destination. No-op when already at the root. */
     fun goBack()
@@ -37,5 +37,5 @@ interface Navigator {
      * (default) [destination] is left on top; with `true` it is popped too.
      * Returns `false` (and changes nothing) if [destination] is not in the stack.
      */
-    fun popUpTo(destination: NavKey, inclusive: Boolean = false): Boolean
+    fun popUpTo(destination: OdoDestination, inclusive: Boolean = false): Boolean
 }

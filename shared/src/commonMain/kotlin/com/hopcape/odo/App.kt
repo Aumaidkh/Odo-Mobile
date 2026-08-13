@@ -10,7 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -118,13 +121,19 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
     // touches the profile would re-evaluate the gate and could yank someone out of what
     // they were doing back to Welcome. Where the app *opened* is a question with one
     // answer per launch.
-    val startDestination by produceState<OdoDestination?>(initialValue = null, koin) {
-        value = withContext(Dispatchers.Default) {
+    //
+    // Saved rather than merely remembered, because a configuration change (the OS
+    // dark/light switch, rotation) rebuilds the activity and would otherwise send the app
+    // back through StartupScreen while the database is read again. The back stack survives
+    // that now, so a blank frame in front of it would be the only thing still moving.
+    var onboarded by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(koin) {
+        if (onboarded != null) return@LaunchedEffect
+        onboarded = withContext(Dispatchers.Default) {
             // Resolving the repository is what opens the database — and on first launch
             // seeds the vehicle catalog — so it happens off the main thread.
             val profiles = koin.get<OwnerProfileRepository>()
-            val onboarded = profiles.observe().first()?.hasCompletedOnboarding == true
-            if (onboarded) OdoDestination.Home else OdoDestination.Welcome
+            profiles.observe().first()?.hasCompletedOnboarding == true
         }
     }
 
@@ -135,12 +144,14 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
             OdoBanner(maintenanceMessage.ifBlank { stringResource(Res.string.as_maintenance_banner_default) })
         }
         Box(modifier = Modifier.weight(1f)) {
-            // Nothing is rendered until the answer is in. `rememberNavigator` captures its
-            // start destination in a `remember`, so guessing Welcome and correcting later
-            // would flash the intro at every returning owner before jumping to Home.
-            when (val start = startDestination) {
+            // Nothing is rendered until the answer is in. The start destination is the
+            // stack's first element, so guessing Welcome and correcting later would flash
+            // the intro at every returning owner before jumping to Home.
+            when (val returning = onboarded) {
                 null -> StartupScreen()
-                else -> OdoApp(startDestination = start)
+                else -> OdoApp(
+                    startDestination = if (returning) OdoDestination.Home else OdoDestination.Welcome,
+                )
             }
         }
     }
@@ -181,7 +192,7 @@ private fun OdoApp(startDestination: OdoDestination) {
     val entryProviders = remember(koin) { koin.getAll<FeatureEntryProvider>() }
 
     // The live top of the stack drives both the selected tab and whether the bar shows.
-    val currentDestination = navigator.backStack.lastOrNull() as? OdoDestination
+    val currentDestination = navigator.backStack.lastOrNull()
 
     // D4's redirect: surface the trip-logged screen (M6) on the next top-level tab the
     // owner lands on, rather than a push notification. `PendingTripLoggedProvider` is
