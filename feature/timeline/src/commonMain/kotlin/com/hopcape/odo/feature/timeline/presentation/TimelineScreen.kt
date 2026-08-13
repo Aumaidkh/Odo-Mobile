@@ -33,6 +33,7 @@ import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
+import com.hopcape.odo.core.designsystem.component.OdoEmptyState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -73,6 +74,8 @@ import com.hopcape.odo.feature.timeline.resources.tl_health_fell
 import com.hopcape.odo.feature.timeline.resources.tl_health_rose
 import com.hopcape.odo.feature.timeline.resources.tl_milestone_car_added
 import com.hopcape.odo.feature.timeline.resources.tl_milestone_car_added_sub
+import com.hopcape.odo.feature.timeline.resources.tl_no_car_body
+import com.hopcape.odo.feature.timeline.resources.tl_no_car_title
 import com.hopcape.odo.feature.timeline.resources.tl_self_reported
 import com.hopcape.odo.feature.timeline.resources.tl_subtitle
 import com.hopcape.odo.feature.timeline.resources.tl_subtitle_filtered
@@ -115,6 +118,28 @@ internal fun TimelineScreen(
             )
         },
     ) { padding ->
+        if (state.noCar) {
+            // No read is in flight, so a spinner here would spin forever; say what is
+            // actually missing and where to fix it.
+            Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoEmptyState(
+                    title = stringResource(Res.string.tl_no_car_title),
+                    message = stringResource(Res.string.tl_no_car_body),
+                    icon = {
+                        OdoIcon(
+                            IcCar,
+                            contentDescription = null,
+                            tint = OdoTheme.colors.textMuted,
+                            size = OdoTheme.iconSizes.large,
+                        )
+                    },
+                )
+            }
+            return@OdoScreen
+        }
         when (val content = state.content) {
             Loadable.Loading -> Box(
                 Modifier.fillMaxSize().padding(padding),
