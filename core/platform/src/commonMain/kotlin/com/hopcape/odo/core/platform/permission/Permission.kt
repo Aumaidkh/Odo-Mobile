@@ -45,8 +45,14 @@ interface PermissionController {
     /**
      * Show the system permission dialog.
      *
-     * Does nothing when the status is [PermissionStatus.Blocked], because the system would
-     * not show a dialog anyway. Call [openAppSettings] in that case instead.
+     * Only [PermissionStatus.Askable] can produce one: [PermissionStatus.Granted] has nothing
+     * to ask for, and [PermissionStatus.Blocked] would be refused without a dialog, so both
+     * do nothing here. Call [openAppSettings] for the blocked case instead.
+     *
+     * The system can also refuse a request the app believed was askable — the owner turned
+     * the permission off outside Odo, which nothing here can read beforehand. That is caught
+     * where it happens and turned into a trip to the settings page, so this never leaves a
+     * tap with no answer.
      */
     fun request()
 
