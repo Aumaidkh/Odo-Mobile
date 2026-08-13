@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.navigation
 
 import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,7 +11,7 @@ import kotlin.test.assertFalse
  */
 class NavigatorCommandExecutorTest {
 
-    private fun navigator(vararg start: NavKey): Navigator =
+    private fun navigator(vararg start: OdoDestination): Navigator =
         OdoNavigator(NavBackStack(*start))
 
     @Test
