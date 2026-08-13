@@ -70,11 +70,6 @@ internal fun CameraRationaleScreen(
                 title = stringResource(Res.string.bs_camera_papers_title),
                 description = stringResource(Res.string.bs_camera_papers_body),
             ),
-            OdoPermissionBenefit(
-                icon = IcQr,
-                title = stringResource(Res.string.bs_camera_qr_title),
-                description = stringResource(Res.string.bs_camera_qr_body),
-            ),
         ),
         assurances = listOf(
             OdoPermissionAssurance(
