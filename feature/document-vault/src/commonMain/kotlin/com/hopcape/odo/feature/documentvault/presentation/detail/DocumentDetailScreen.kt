@@ -50,7 +50,6 @@ import com.hopcape.odo.core.designsystem.icons.IcDownload
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcImage
 import com.hopcape.odo.core.designsystem.icons.IcPdf
-import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTrash
@@ -82,7 +81,6 @@ import com.hopcape.odo.feature.documentvault.resources.dv_detail_view
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_delete
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_edit_dates
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_download
-import com.hopcape.odo.feature.documentvault.resources.dv_menu_replace
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_share
 import com.hopcape.odo.feature.documentvault.resources.dv_reminder
 import com.hopcape.odo.feature.documentvault.resources.dv_status_expired
@@ -92,7 +90,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * A single document's detail — its name and Verified badge, the expiry countdown with the
- * bar, the next reminder, and the file actions (replace, share, download, delete) behind
+ * bar, the next reminder, and the file actions (share, download, delete) behind
  * the overflow menu, with "Renew now" pinned to the bottom for a document that needs it.
  *
  * State-free: renders [state] and forwards intents.
@@ -103,7 +101,6 @@ internal fun DocumentDetailScreen(
     onView: () -> Unit,
     onRenew: () -> Unit,
     onEditDates: () -> Unit,
-    onReplace: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
@@ -120,7 +117,6 @@ internal fun DocumentDetailScreen(
             if (content != null) {
                 DocumentMenu(
                     onEditDates = onEditDates,
-                    onReplace = onReplace,
                     onShare = onShare,
                     onDownload = onDownload,
                     onDelete = onDelete,
@@ -165,7 +161,6 @@ internal fun DocumentDetailScreen(
 @Composable
 private fun RowScope.DocumentMenu(
     onEditDates: () -> Unit,
-    onReplace: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
@@ -177,7 +172,6 @@ private fun RowScope.DocumentMenu(
             // First in the list: a document with no expiry produces no reminder, and this is
             // the only way to give it one.
             MenuItem(stringResource(Res.string.dv_menu_edit_dates), IcClock) { expanded = false; onEditDates() }
-            MenuItem(stringResource(Res.string.dv_menu_replace), IcRefresh) { expanded = false; onReplace() }
             MenuItem(stringResource(Res.string.dv_menu_share), IcShare) { expanded = false; onShare() }
             MenuItem(stringResource(Res.string.dv_menu_download), IcDownload) { expanded = false; onDownload() }
             HorizontalDivider(color = OdoTheme.colors.border)
@@ -393,11 +387,11 @@ private fun daysCounter(validity: DocumentValidity): Int? = when (validity) {
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailPreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {},)
 }
 
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailLifetimePreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {},)
 }

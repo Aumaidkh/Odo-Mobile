@@ -34,7 +34,6 @@ import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
-import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
@@ -44,8 +43,6 @@ import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_add_camera_body
 import com.hopcape.odo.feature.documentvault.resources.dv_add_camera_title
-import com.hopcape.odo.feature.documentvault.resources.dv_add_digilocker_body
-import com.hopcape.odo.feature.documentvault.resources.dv_add_digilocker_title
 import com.hopcape.odo.feature.documentvault.resources.dv_add_fastest
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_insurance
 import com.hopcape.odo.feature.documentvault.resources.dv_add_kind_licence
@@ -62,14 +59,10 @@ import com.hopcape.odo.feature.documentvault.resources.dv_add_upload_title
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_close
 import org.jetbrains.compose.resources.stringResource
 
-/** DigiLocker's brand-ish blue — no semantic blue token exists, so it lives here. */
-private val DigiLockerBlue = Color(0xFF4E86E8)
-
 /**
  * The "Add document" screen — the entry point to adding a paper. The owner picks a
- * document type, then a capture method: scan (fastest — Odo reads the expiry), upload a
- * file, or import from DigiLocker. Each method routes into its own next step
- * (review & confirm) in M2.
+ * document type, then a capture method: scan (fastest — Odo reads the expiry) or upload
+ * a file. Each method routes into its own next step (review & confirm) in M2.
  *
  * State-free: renders [state] and forwards intents.
  */
@@ -79,7 +72,6 @@ internal fun AddDocumentScreen(
     onTypeSelect: (DocumentType) -> Unit,
     onScan: () -> Unit,
     onFilePicked: (String?) -> Unit,
-    onImportDigiLocker: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -127,13 +119,6 @@ internal fun AddDocumentScreen(
                         title = stringResource(Res.string.dv_add_upload_title),
                         body = stringResource(Res.string.dv_add_upload_body),
                         onClick = launchFilePicker,
-                    )
-                    MethodCard(
-                        icon = IcWindow,
-                        iconTone = DigiLockerBlue,
-                        title = stringResource(Res.string.dv_add_digilocker_title),
-                        body = stringResource(Res.string.dv_add_digilocker_body),
-                        onClick = onImportDigiLocker,
                     )
                 }
             }
@@ -237,7 +222,6 @@ private fun AddDocumentScreenPreview() = OdoPreview(padded = false) {
         onTypeSelect = {},
         onScan = {},
         onFilePicked = {},
-        onImportDigiLocker = {},
         onClose = {},
     )
 }
