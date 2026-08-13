@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
@@ -258,7 +259,16 @@ private fun SpendBarColumn(bar: SpendBar, max: Long, modifier: Modifier = Modifi
                     .background(if (bar.highlighted) OdoTheme.colors.accent else OdoTheme.colors.surfaceRaised),
             )
         }
-        OdoText(bar.label.asString(), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+        // The 1Y period packs two-month labels ("Aug–Oct") under sixth-width columns;
+        // caption's tracked caps overflow there, so the axis drops the tracking and
+        // pins to one line instead of wrapping mid-word.
+        OdoText(
+            bar.label.asString(),
+            style = OdoTheme.typography.caption.copy(fontSize = 10.sp, letterSpacing = 0.sp),
+            color = OdoTheme.colors.textDim,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
