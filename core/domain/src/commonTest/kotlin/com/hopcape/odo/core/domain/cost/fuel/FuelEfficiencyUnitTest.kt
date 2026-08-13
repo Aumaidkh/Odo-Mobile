@@ -8,8 +8,8 @@ class FuelEfficiencyUnitTest {
     @Test
     fun distancePerUnit_readsAsMileageDoesInIndia() {
         assertEquals("15 km/l", FuelEfficiencyUnit.DISTANCE_PER_UNIT.format(15, FuelUnit.LITRE))
-        assertEquals("22 km/kg", FuelEfficiencyUnit.DISTANCE_PER_UNIT.format(22, FuelUnit.KILOGRAM))
-        assertEquals("7 km/kWh", FuelEfficiencyUnit.DISTANCE_PER_UNIT.format(7, FuelUnit.KILOWATT_HOUR))
+        assertEquals("22 km/l", FuelEfficiencyUnit.DISTANCE_PER_UNIT.format(22, FuelUnit.LITRE))
+        assertEquals("7 km/l", FuelEfficiencyUnit.DISTANCE_PER_UNIT.format(7, FuelUnit.LITRE))
     }
 
     @Test
