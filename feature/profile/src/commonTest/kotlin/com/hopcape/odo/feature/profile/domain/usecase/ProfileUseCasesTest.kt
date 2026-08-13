@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.profile.domain.usecase
 
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -30,11 +31,13 @@ class ProfileUseCasesTest {
             settings = settings,
             entitlement = entitlement(isPro = true),
             session = session(signedIn = false),
+            account = account(PhoneNumber.of("9812345678").getOrNull()),
         )().first()
 
         assertEquals("Rahul", snapshot.name)
         assertEquals("rahul@example.com", snapshot.email)
         assertEquals("Pune", snapshot.city)
+        assertEquals("+919812345678", snapshot.phoneNumber)
         assertTrue(snapshot.isPro)
         assertTrue(!snapshot.isSignedIn)
         assertEquals(ThemePreference.DARK, snapshot.settings.theme)
@@ -47,9 +50,11 @@ class ProfileUseCasesTest {
             settings = FakeSettingsRepository(),
             entitlement = entitlement(isPro = false),
             session = session(signedIn = false),
+            account = account(),
         )().first()
 
         assertNull(snapshot.name)
+        assertNull(snapshot.phoneNumber)
         assertEquals(AppSettings.Default, snapshot.settings)
     }
 
@@ -112,7 +117,7 @@ class ProfileUseCasesTest {
     @Test
     fun updateSettings_eachSliceLeavesTheOthersAlone() = runTest {
         val settings = FakeSettingsRepository()
-        val useCase = UpdateSettingsUseCase(settings)
+        val useCase = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {})
 
         assertTrue(useCase.appearance(ThemePreference.LIGHT, largerText = true).isRight())
         assertTrue(useCase.units(DistanceUnit.MILE, FuelEfficiencyUnit.UNITS_PER_100KM).isRight())
@@ -132,7 +137,7 @@ class ProfileUseCasesTest {
     fun updateSettings_aFailedWriteIsReported() = runTest {
         val settings = FakeSettingsRepository(failing = true)
 
-        val result = UpdateSettingsUseCase(settings).appearance(ThemePreference.DARK, largerText = false)
+        val result = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}).appearance(ThemePreference.DARK, largerText = false)
 
         assertTrue(result.isLeft(), "expected Left but was $result")
     }

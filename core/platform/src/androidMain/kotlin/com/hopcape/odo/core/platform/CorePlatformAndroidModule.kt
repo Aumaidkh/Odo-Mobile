@@ -10,14 +10,18 @@ import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
 import com.hopcape.odo.core.platform.camera.AndroidQrImageDecoder
 import com.hopcape.odo.core.platform.camera.DocumentCropper
 import com.hopcape.odo.core.platform.camera.QrImageDecoder
+import com.hopcape.odo.core.platform.file.AndroidDownloads
 import com.hopcape.odo.core.platform.file.AndroidFileStore
 import com.hopcape.odo.core.platform.file.AndroidStoredPageRenderer
+import com.hopcape.odo.core.platform.file.PlatformDownloads
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.platform.logging.WorkManagerLogUploadScheduler
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
+import com.hopcape.odo.core.platform.notification.WorkManagerCustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerDocumentReminderScheduler
 import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -43,6 +47,7 @@ import java.io.File
  */
 val corePlatformAndroidModule = module {
     single<PlatformFileStore> { AndroidFileStore(context = get<Context>()) }
+    single<PlatformDownloads> { AndroidDownloads(context = get<Context>()) }
     single<StoredPageRenderer> { AndroidStoredPageRenderer(context = get<Context>()) }
     single<DocumentCropper> { AndroidDocumentCropper(context = get<Context>()) }
     single<QrImageDecoder> { AndroidQrImageDecoder(context = get<Context>()) }
@@ -61,6 +66,19 @@ val corePlatformAndroidModule = module {
             context = get<Context>(),
             documents = get(),
             activeCar = get(),
+            settings = get(),
+            clock = get(),
+            logger = get(),
+        )
+    }
+    // Replaces :core:data's no-op — the line that turns the owner's own reminders from a
+    // list they have to open the app to see into notifications that arrive.
+    single<CustomReminderScheduler> {
+        WorkManagerCustomReminderScheduler(
+            context = get<Context>(),
+            reminders = get(),
+            activeCar = get(),
+            settings = get(),
             clock = get(),
             logger = get(),
         )

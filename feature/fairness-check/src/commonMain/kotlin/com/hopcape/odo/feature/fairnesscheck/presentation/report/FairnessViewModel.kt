@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.fairness.model.FairnessQueryItem
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.feature.fairnesscheck.resources.Res
 import com.hopcape.odo.feature.fairnesscheck.resources.fc_error_check_failed
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,10 @@ internal data class FairnessCheckInput(
  * their profile, and a screen that took one as an argument would be a second answer to a
  * question the app already has. With no city there is nothing to benchmark against, and the
  * screen says so rather than showing a verdict built on a guess.
+ *
+ * The check is started by [FairnessEvent.Shown] rather than in `init`, because the report is
+ * shown more than once: the owner can leave it to set the city the check needs and come back,
+ * and the answer waiting for them has to be the one for the city they just set.
  */
 internal class FairnessViewModel(
     private val input: FairnessCheckInput,
@@ -53,21 +58,38 @@ internal class FairnessViewModel(
     private val _effects = Channel<FairnessEffect>(Channel.BUFFERED)
     val effects: Flow<FairnessEffect> = _effects.receiveAsFlow()
 
-    init {
-        check()
-    }
+    /** The check in flight, so a second showing does not start one alongside it. */
+    private var checking: Job? = null
 
     fun onEvent(event: FairnessEvent) = when (event) {
         FairnessEvent.ReportTapped -> report()
 
-        FairnessEvent.DoneTapped -> send(FairnessEffect.NavigateBack)
+        FairnessEvent.DoneTapped -> send(FairnessEffect.LeaveFlow)
+
+        FairnessEvent.Shown -> checkIfUnanswered()
 
         FairnessEvent.SetCityTapped -> {
             telemetry.setCityTapped()
-            send(FairnessEffect.OpenProfile)
+            send(FairnessEffect.OpenEditProfile)
         }
 
         FairnessEvent.RetryTapped -> check()
+    }
+
+    /**
+     * Run the check on the first showing, and again on a later one that found no city.
+     *
+     * "No city" is the one answer the owner can go away and change — the button on that state
+     * sends them to do exactly that — so it is re-asked when they come back. A report that
+     * was produced does not change while the owner is off looking at their profile, and
+     * re-running it would cost a second lookup for the same verdict.
+     */
+    private fun checkIfUnanswered() {
+        if (checking?.isActive == true) return
+        val content = _state.value.content
+        if (content is FairnessUiState.Content.Loading || content is FairnessUiState.Content.NoCity) {
+            check()
+        }
     }
 
     /**
@@ -80,7 +102,7 @@ internal class FairnessViewModel(
      */
     private fun check() {
         _state.update { it.copy(content = FairnessUiState.Content.Loading) }
-        viewModelScope.launch(telemetry.op(OP_CHECK)) {
+        checking = viewModelScope.launch(telemetry.op(OP_CHECK)) {
             val city = runCatching { city.currentCity() }.getOrNull()
             if (city == null) {
                 telemetry.skippedWithoutCity()

@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -147,6 +148,7 @@ internal fun PhoneScreen(
                 stringResource(Res.string.au_skip_hint),
                 style = OdoTheme.typography.caption,
                 color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(OdoTheme.spacing.xl))
         }

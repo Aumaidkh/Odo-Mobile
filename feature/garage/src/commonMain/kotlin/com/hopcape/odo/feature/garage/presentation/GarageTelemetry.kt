@@ -214,8 +214,8 @@ internal class GarageTelemetry(
     }
 
     /**
-     * Export was asked for, which today means the paywall. Counted because it is demand:
-     * how often owners reach for their record decides what the Resale Passport is worth.
+     * Export was asked for. Counted because it is demand: how often owners reach for
+     * their car's document decides what the Resale Passport is worth.
      */
     fun exportRequested(target: String) {
         val fields = mapOf(Key.TARGET to target)
@@ -310,6 +310,9 @@ internal class GarageTelemetry(
         const val SAVE_ODOMETER = "garage_save_odometer"
         const val SAVE_CAR = "garage_save_car"
         const val REMOVE_CAR = "garage_remove_car"
+
+        /** Laying out and printing the vehicle-details document — the export's slow step. */
+        const val EXPORT_PDF = "garage_export_pdf"
     }
 
     /** Property names carried by the events and spans above. */

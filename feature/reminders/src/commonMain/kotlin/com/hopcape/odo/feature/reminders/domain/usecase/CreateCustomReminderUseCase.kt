@@ -10,7 +10,7 @@ import com.hopcape.odo.core.domain.reminder.model.CustomReminder
 import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -28,7 +28,7 @@ import kotlin.time.Clock
  */
 internal class CreateCustomReminderUseCase(
     private val reminders: ReminderRepository,
-    private val scheduler: ReminderNotificationScheduler,
+    private val scheduler: CustomReminderScheduler,
     private val idGenerator: IdGenerator,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -55,7 +55,7 @@ internal class CreateCustomReminderUseCase(
             .mapLeft { nonEmptyListOf(it) }
             .bind()
 
-        scheduler.schedule(stored)
+        scheduler.refresh()
         stored
     }
 }

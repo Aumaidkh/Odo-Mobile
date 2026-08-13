@@ -174,7 +174,10 @@ internal class ServiceLogDetailViewModel(
      *
      * Nothing happens when there is nothing comparable — an entry with no priced lines and
      * more than one category tag cannot be split into jobs, and a report built on a guess is
-     * worse than no report.
+     * worse than no report. The screen does not let it get this far: the same question is
+     * asked in the mapper (`canCheckFairness`), which is what disables the button and prints
+     * the reason under it. The check stays here as the invariant behind that, so a caller
+     * that skips the screen cannot open a report on lines that were never comparable.
      */
     private fun openFairness() {
         val current = entry ?: return

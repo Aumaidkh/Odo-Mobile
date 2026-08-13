@@ -141,13 +141,35 @@
 
         <activity
             android:exported="true"
-            android:name=".MainActivity">
+            android:name=".MainActivity"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Lets another app read a file Odo exports — today, the service record PDF the
+             share sheet sends. Odo's files live in private storage, so a receiving app
+             cannot open a path; this hands it a content:// URI instead, readable only for
+             as long as the activity the owner picked is running.
+
+             The authority carries ${applicationId}, so debug, stage and release each get
+             their own. Two installed variants claiming one authority is an install failure.
+
+             file_paths.xml exposes the exports directory and nothing else. Every scanned
+             bill and uploaded policy sits under the same filesDir, and a provider pointed
+             at the root would make all of them readable by whatever the owner shares to. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

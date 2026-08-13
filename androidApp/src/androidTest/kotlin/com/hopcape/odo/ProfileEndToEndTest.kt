@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import org.junit.Before
 import org.junit.Rule
@@ -162,6 +163,30 @@ class ProfileEndToEndTest {
             ProfileTestTags.NOTIFICATIONS_ROW,
             ProfileCopy.topicsOn(DEFAULT_TOPICS_ON + 1),
         )
+    }
+
+    @Test
+    fun aLeadTime_isTheOwnersToChange() {
+        rule.openProfile()
+        rule.openNotifications()
+
+        // The complaint the issue is about: 30 days is too early for some owners and too
+        // late for others, and the only lever used to be turning the topic off.
+        rule.toggleLeadChip(DocumentType.INSURANCE, days = 60)
+        rule.toggleLeadChip(DocumentType.INSURANCE, days = 1)
+
+        // Stored longest-first, and only the type that was touched is written.
+        assertEquals("INSURANCE=60,30,7", storedLeadDays())
+    }
+
+    @Test
+    fun theHourReminders_arriveAtIsTheOwnersToChange() {
+        rule.openProfile()
+        rule.openNotifications()
+
+        rule.chooseNotifyHour(ProfileCopy.NOTIFY_AT_8_AM)
+
+        assertEquals(8L, storedNotifyHour())
     }
 
     /* ------------------------------ Deleting ------------------------------ */

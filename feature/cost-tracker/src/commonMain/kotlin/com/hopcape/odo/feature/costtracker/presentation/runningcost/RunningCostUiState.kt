@@ -96,4 +96,7 @@ internal data class RunningCostUiState(
     val content: Loadable<RunningCostContent> = Loadable.Loading,
     /** How the owner writes fuel efficiency — their setting, not this screen's choice. */
     val fuelEfficiencyUnit: FuelEfficiencyUnit = FuelEfficiencyUnit.Default,
+    /** No active car — setup incomplete or the car was removed. A nudge, not a spinner:
+     *  there is no read in flight, so a loader would spin forever. */
+    val noCar: Boolean = false,
 )

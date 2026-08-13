@@ -8,7 +8,6 @@ import com.hopcape.odo.core.designsystem.component.OdoPermissionBenefit
 import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
-import com.hopcape.odo.core.designsystem.icons.IcQr
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -24,8 +23,6 @@ import com.hopcape.odo.feature.billscanner.resources.bs_camera_only_on_scan
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_open_settings
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_papers_body
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_papers_title
-import com.hopcape.odo.feature.billscanner.resources.bs_camera_qr_body
-import com.hopcape.odo.feature.billscanner.resources.bs_camera_qr_title
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_subtitle
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_title
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_close
@@ -69,11 +66,6 @@ internal fun CameraRationaleScreen(
                 icon = IcShieldCheck,
                 title = stringResource(Res.string.bs_camera_papers_title),
                 description = stringResource(Res.string.bs_camera_papers_body),
-            ),
-            OdoPermissionBenefit(
-                icon = IcQr,
-                title = stringResource(Res.string.bs_camera_qr_title),
-                description = stringResource(Res.string.bs_camera_qr_body),
             ),
         ),
         assurances = listOf(

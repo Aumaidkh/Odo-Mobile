@@ -18,7 +18,7 @@
     <string name="onb_welcome_value_bill">Know in seconds if a bill is fair</string>
     <string name="onb_welcome_value_cost">See what your car really costs to run</string>
     <string name="onb_welcome_value_resale">Ask more at resale — and prove it</string>
-    <string name="onb_welcome_cta">Continue with mobile</string>
+    <string name="onb_welcome_cta">Get started</string>
     <string name="onb_welcome_legal">By continuing you agree to our %1$s and %2$s.</string>
     <string name="onb_welcome_legal_terms">Terms</string>
     <string name="onb_welcome_legal_privacy">Privacy Policy</string>
@@ -117,7 +117,7 @@
     <!-- 4 · First scan -->
     <string name="onb_scan_title">Find out if you overpaid last time</string>
     <string name="onb_scan_subtitle">Most bills have something worth checking — and it takes 10 seconds.</string>
-    <string name="onb_scan_permission">Camera access is asked here, only for scanning bills.</string>
+    <string name="onb_scan_permission">Camera access is only used for scanning bills.</string>
     <string name="onb_scan_cta">Check my last bill</string>
     <string name="onb_save_error">Couldn’t save that on your phone. Please try again.</string>
 

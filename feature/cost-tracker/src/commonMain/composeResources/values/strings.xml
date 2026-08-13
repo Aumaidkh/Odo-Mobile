@@ -35,7 +35,7 @@
     <!-- The assumed mileage behind the fuel estimate, e.g. "Assumes 15 km/l." -->
     <string name="ct_fuel_note_efficiency">Assumes %1$s.</string>
     <string name="ct_unit_litre">litre</string>
-    <string name="ct_unit_kg">kg</string>
+    <string name="ct_unit_kg">Lt</string>
     <string name="ct_unit_kwh">unit</string>
 
     <!-- Not enough driving behind the numbers to quote a rate. -->
@@ -54,12 +54,16 @@
 
     <!-- The owner’s own fuel rate — the fix for a price Odo has wrong or does not carry -->
     <string name="ct_fuel_rate_action">Set your rate</string>
-    <string name="ct_fuel_rate_title">What do you pay for fuel?</string>
-    <string name="ct_fuel_rate_subtitle">Odo’s prices are approximate. Enter what your pump charges and every figure here is rebuilt on it.</string>
+    <string name="ct_fuel_rate_title">What's your fuel price per litre?</string>
+    <string name="ct_fuel_rate_subtitle">Odo’s prices are approximate. Enter your fuel station charges and every figure here is rebuilt on it.</string>
     <string name="ct_fuel_rate_label">Price per %1$s</string>
     <string name="ct_fuel_rate_placeholder">e.g. 104.40</string>
     <string name="ct_fuel_rate_save">Save rate</string>
     <string name="ct_fuel_rate_clear">Use Odo’s estimate instead</string>
     <string name="ct_fuel_rate_error_range">Enter a price between Rs. %1$s and Rs. %2$s</string>
     <string name="ct_fuel_rate_error_save">Couldn’t save your rate. Try again.</string>
+
+    <!-- No active car — setup incomplete or the car was removed. -->
+    <string name="ct_no_car_title">No car yet</string>
+    <string name="ct_no_car_body">Add your car in the Garage and its running cost will build up here.</string>
 </resources>

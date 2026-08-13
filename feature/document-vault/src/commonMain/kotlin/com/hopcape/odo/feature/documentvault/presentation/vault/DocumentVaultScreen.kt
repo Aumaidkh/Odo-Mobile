@@ -57,7 +57,6 @@ import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_action_add
-import com.hopcape.odo.feature.documentvault.resources.dv_action_renew
 import com.hopcape.odo.feature.documentvault.resources.dv_add_document
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_insurance
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_licence
@@ -97,7 +96,6 @@ import org.jetbrains.compose.resources.stringResource
 internal fun DocumentVaultScreen(
     state: DocumentVaultUiState,
     onAdd: (DocumentType) -> Unit,
-    onRenew: (DocumentId) -> Unit,
     onOpen: (DocumentId) -> Unit,
     onAddDocument: () -> Unit,
     onBack: () -> Unit,
@@ -138,7 +136,7 @@ internal fun DocumentVaultScreen(
             ) {
                 VaultHeader(content.value.header)
                 content.value.rows.forEach { row ->
-                    DocumentCard(row = row, onAdd = onAdd, onRenew = onRenew, onOpen = onOpen)
+                    DocumentCard(row = row, onAdd = onAdd, onOpen = onOpen)
                 }
             }
         }
@@ -186,7 +184,6 @@ private fun HeaderCard(tone: Color, title: String, body: String) {
 private fun DocumentCard(
     row: DocumentRow,
     onAdd: (DocumentType) -> Unit,
-    onRenew: (DocumentId) -> Unit,
     onOpen: (DocumentId) -> Unit,
 ) {
     val tone = rowTone(row)
@@ -201,7 +198,7 @@ private fun DocumentCard(
                 OdoText(openable?.title ?: docName(row.type), style = OdoTheme.typography.heading)
                 OdoText(rowSubtitle(row), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
             }
-            StatusEnd(row = row, onAdd = onAdd, onRenew = onRenew)
+            StatusEnd(row = row, onAdd = onAdd)
         }
         val reminderDays = openable?.takeIf { it.needsAttention }?.reminderDaysBefore
         if (reminderDays != null) {
@@ -212,16 +209,13 @@ private fun DocumentCard(
 }
 
 @Composable
-private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit, onRenew: (DocumentId) -> Unit) {
+private fun StatusEnd(row: DocumentRow, onAdd: (DocumentType) -> Unit) {
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         StatusPill(row)
         val actionTag = Modifier.testTag(DocumentVaultTestTags.rowAction(row.type))
         when {
             row is DocumentRow.Missing ->
                 DocActionButton(stringResource(Res.string.dv_action_add), actionTag) { onAdd(row.type) }
-
-            row is DocumentRow.OnFile && row.needsAttention ->
-                DocActionButton(stringResource(Res.string.dv_action_renew), actionTag) { onRenew(row.id) }
 
             else -> OdoIcon(
                 IcChevronRight,
@@ -364,17 +358,17 @@ private fun rowSubtitle(row: DocumentRow): String = when (row) {
 @OdoThemePreviews
 @Composable
 private fun DocumentVaultEmptyPreview() = OdoPreview(padded = false) {
-    DocumentVaultScreen(sampleVaultEmpty(), {}, {}, {}, {}, {})
+    DocumentVaultScreen(sampleVaultEmpty(), {}, {}, {}, {},)
 }
 
 @OdoThemePreviews
 @Composable
 private fun DocumentVaultCoveredPreview() = OdoPreview(padded = false) {
-    DocumentVaultScreen(sampleVaultCovered(), {}, {}, {}, {}, {})
+    DocumentVaultScreen(sampleVaultCovered(), {}, {}, {}, {},)
 }
 
 @OdoThemePreviews
 @Composable
 private fun DocumentVaultAttentionPreview() = OdoPreview(padded = false) {
-    DocumentVaultScreen(sampleVaultAttention(), {}, {}, {}, {}, {})
+    DocumentVaultScreen(sampleVaultAttention(), {}, {}, {}, {},)
 }

@@ -23,7 +23,7 @@ internal data class EditDatesUiState(
     val submission: Submission = Submission.Idle,
 ) {
     /** Whether this kind of paper renews at all — an RC and a loan letter do not. */
-    val needsExpiry: Boolean get() = DocumentReminderPolicy.leadDaysFor(type).isNotEmpty()
+    val needsExpiry: Boolean get() = DocumentReminderPolicy.renews(type)
 
     /** The same rule the confirm step applies: a paper that renews saves with a date on it. */
     val canSave: Boolean get() = !submission.isInFlight && (expiresOn != null || !needsExpiry)

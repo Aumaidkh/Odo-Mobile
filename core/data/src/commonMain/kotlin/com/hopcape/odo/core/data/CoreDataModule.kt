@@ -46,6 +46,7 @@ import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
+import com.hopcape.odo.core.data.notification.NoopCustomReminderScheduler
 import com.hopcape.odo.core.data.notification.NoopDocumentReminderScheduler
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobDownloader
@@ -55,6 +56,7 @@ import com.hopcape.odo.core.data.trip.FakeTripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRepositoryImpl
 import com.hopcape.odo.core.sync.SyncGate
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
@@ -126,6 +128,7 @@ val coreDataModule = module {
     // Same shape for document reminders: the writers already ask for a refresh after every
     // change, and the platform module binds the scheduler that delivers them.
     single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
+    single<CustomReminderScheduler> { NoopCustomReminderScheduler() }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the

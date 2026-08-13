@@ -1,7 +1,6 @@
 package com.hopcape.odo.core.navigation
 
 import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,7 +11,7 @@ import kotlin.test.assertFalse
  */
 class NavigatorCommandExecutorTest {
 
-    private fun navigator(vararg start: NavKey): Navigator =
+    private fun navigator(vararg start: OdoDestination): Navigator =
         OdoNavigator(NavBackStack(*start))
 
     @Test
@@ -61,6 +60,144 @@ class NavigatorCommandExecutorTest {
         )
 
         assertEquals(listOf(OdoDestination.Home, OdoDestination.Profile.Root), nav.backStack.toList())
+    }
+
+    @Test
+    fun finishFlow_popsEveryStepOfTheFlow_thenLands() {
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.Documents.Vault,
+            OdoDestination.BillScanner.Capture(target = ScanTarget.Document),
+            OdoDestination.BillScanner.DocumentReview(photoKey = "p1"),
+        )
+
+        // Filing the paper ends the add flow: its steps go, the success screen lands on the
+        // vault that opened it.
+        nav.execute(
+            NavigationCommand.FinishFlow(
+                destination = OdoDestination.Documents.AddSuccess("d1"),
+                belongsToFlow = ::isAddDocumentFlowStep,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                OdoDestination.Home,
+                OdoDestination.Documents.Vault,
+                OdoDestination.Documents.AddSuccess("d1"),
+            ),
+            nav.backStack.toList(),
+        )
+
+        // Leaving the success screen pops it and reveals the vault — no second copy pushed.
+        nav.execute(
+            NavigationCommand.FinishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep),
+        )
+
+        assertEquals(
+            listOf(OdoDestination.Home, OdoDestination.Documents.Vault),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun finishFlow_pushesTarget_whenTheFlowWasOpenedElsewhere() {
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.Garage.Home,
+            OdoDestination.Documents.Add(),
+            OdoDestination.Documents.AddSuccess("d1"),
+        )
+
+        nav.execute(
+            NavigationCommand.FinishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep),
+        )
+
+        assertEquals(
+            listOf(OdoDestination.Home, OdoDestination.Garage.Home, OdoDestination.Documents.Vault),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun finishFlow_leavesAnotherFlowsStepsAlone() {
+        // A bill capture is the service log's flow, not the vault's; a document add cannot
+        // start on top of one, and if it somehow did, the bill's step would stay.
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.BillScanner.Capture(target = ScanTarget.Bill),
+            OdoDestination.Documents.AddSuccess("d1"),
+        )
+
+        nav.execute(
+            NavigationCommand.FinishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep),
+        )
+
+        assertEquals(
+            listOf(
+                OdoDestination.Home,
+                OdoDestination.BillScanner.Capture(target = ScanTarget.Bill),
+                OdoDestination.Documents.Vault,
+            ),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun finishFlow_neverPopsTheRoot() {
+        val nav = navigator(OdoDestination.Documents.Add())
+
+        nav.execute(
+            NavigationCommand.FinishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep),
+        )
+
+        assertEquals(
+            listOf(OdoDestination.Documents.Add(), OdoDestination.Documents.Vault),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun leaveFlow_dropsTheErrandAndLandsOnWhateverOpenedIt() {
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.Garage.Home,
+            OdoDestination.BillScanner.Capture(),
+            OdoDestination.BillScanner.Review("p1"),
+            OdoDestination.Fairness(items = emptyList()),
+        )
+
+        nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))
+
+        // "Done" on the report ends the whole scan, so the confirm step for a bill that is
+        // already saved does not sit behind it.
+        assertEquals(
+            listOf(OdoDestination.Home, OdoDestination.Garage.Home),
+            nav.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun leaveFlow_landsOnTheScreenThatAskedForTheCheck() {
+        // The same report, reached from a stored entry rather than from a scan: there is no
+        // scan to drop, and leaving is a step back to the entry it was about.
+        val nav = navigator(
+            OdoDestination.Home,
+            OdoDestination.ServiceLog.List("car-1"),
+            OdoDestination.ServiceLog.Detail(logId = "log-1", carId = "car-1"),
+            OdoDestination.Fairness(items = emptyList()),
+        )
+
+        nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))
+
+        assertEquals(
+            listOf(
+                OdoDestination.Home,
+                OdoDestination.ServiceLog.List("car-1"),
+                OdoDestination.ServiceLog.Detail(logId = "log-1", carId = "car-1"),
+            ),
+            nav.backStack.toList(),
+        )
     }
 
     @Test

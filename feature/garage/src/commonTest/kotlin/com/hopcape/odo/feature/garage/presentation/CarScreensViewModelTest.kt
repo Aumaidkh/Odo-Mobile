@@ -1,10 +1,23 @@
 package com.hopcape.odo.feature.garage.presentation
 
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.cost.fuel.FuelPrice
+import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
+import com.hopcape.odo.core.domain.health.model.HealthSnapshot
+import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
+import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
+import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.feature.garage.domain.usecase.AddCarUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveCarDetailsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleCatalog
@@ -26,16 +39,23 @@ import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsEvent
 import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportEvent
+import com.hopcape.odo.feature.garage.presentation.sheets.ExportProgress
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.ExportVia
+import com.hopcape.odo.feature.garage.presentation.sheets.pdf.CarDetailsPrintable
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEvent
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.presentation.state.valueOrNull
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -246,20 +266,122 @@ class CarScreensViewModelTest {
         assertTrue(analytics.events.any { it.first == GarageTelemetry.Event.CAR_REMOVED })
     }
 
-    /** Export is the Resale Passport's job, and that is paid — both actions go to the paywall. */
+    /* ------------------------------ Export ------------------------------ */
+
+    private class FakeHealthScores : HealthScoreRepository {
+        override suspend fun latest(carId: CarId): HealthSnapshot? = null
+        override suspend fun latestOnOrBefore(carId: CarId, instant: Instant): HealthSnapshot? = null
+        override fun observeHistory(carId: CarId): Flow<List<HealthSnapshot>> = flowOf(emptyList())
+        override suspend fun record(snapshot: HealthSnapshot): Either<DomainError, HealthSnapshot> = snapshot.right()
+    }
+
+    private class FakeOwners : OwnerProfileRepository {
+        override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> = profile.right()
+        override fun observe(): Flow<OwnerProfile?> = flowOf(null)
+        override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
+    }
+
+    private class NoFuelPrices : FuelPriceProvider {
+        override suspend fun priceFor(city: String?, fuelType: FuelType): FuelPrice? = null
+        override fun priceChanges(): Flow<Unit> = flowOf(Unit)
+    }
+
+    /** Records what was written, and can be told to fail the way a full disk would. */
+    private class RecordingFileStore : PlatformFileStore {
+        val written = mutableListOf<Pair<String, Int>>()
+
+        override suspend fun save(pickedRef: String, directory: String, fileName: String): Either<DomainError, String> =
+            DomainError.PersistenceFailure("unused").left()
+
+        override suspend fun delete(storageKey: String) = Unit
+        override suspend fun exists(storageKey: String): Boolean = written.any { it.first == storageKey }
+        override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> =
+            DomainError.PersistenceFailure("unused").left()
+
+        override suspend fun write(storageKey: String, bytes: ByteArray): Either<DomainError, String> {
+            written += storageKey to bytes.size
+            return storageKey.right()
+        }
+    }
+
+    private fun exportViewModel(
+        activeCar: ActiveCarProvider = FakeActiveCar(TEST_CAR),
+        files: RecordingFileStore = RecordingFileStore(),
+        analytics: RecordingAnalytics = RecordingAnalytics(),
+    ) = ExportViewModel(
+        activeCar = activeCar,
+        observeDetails = ObserveCarDetailsUseCase(
+            cars = FakeCarRepository(testCar()),
+            logs = FakeServiceLogRepository(),
+            documents = FakeDocumentRepository(),
+            scores = FakeHealthScores(),
+            owners = FakeOwners(),
+            city = CurrentCityProvider { "Pune" },
+            fuelPrices = NoFuelPrices(),
+            clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            timeZone = TimeZone.UTC,
+        ),
+        documents = { details -> CarDetailsPrintable("<!doctype html>${details.record.carName}", "${details.record.carName} car details") },
+        files = files,
+        telemetry = testTelemetry(analytics),
+    )
+
     @Test
-    fun exportingLeadsToThePaywall() = runTest {
+    fun tappingExport_asksTheHostToRenderTheCarDetails() = runTest {
         val analytics = RecordingAnalytics()
-        val viewModel = ExportViewModel(
-            activeCar = FakeActiveCar(TEST_CAR),
-            observeGarage = garage(FakeCarRepository(testCar())),
-            telemetry = testTelemetry(analytics),
-        )
+        val viewModel = exportViewModel(analytics = analytics)
+        val effects = mutableListOf<ExportEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
 
         viewModel.onEvent(ExportEvent.PdfTapped)
 
-        val effect = assertIs<ExportEffect.OpenPaywall>(viewModel.effects.first())
-        assertEquals("EXPORT", effect.trigger)
+        val render = assertIs<ExportEffect.RenderDocument>(effects.single())
+        assertEquals("<!doctype html>Maruti Suzuki Swift VXI", render.html)
+        assertEquals(ExportVia.PDF, render.via)
+        assertTrue(viewModel.state.value.isBusy, "both buttons hold still while the document is laid out")
         assertTrue(analytics.events.any { it.first == GarageTelemetry.Event.EXPORT_REQUESTED })
+    }
+
+    @Test
+    fun aRenderedDocument_isWrittenBesideTheCarAndShared() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = exportViewModel(files = files)
+        val effects = mutableListOf<ExportEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ExportEvent.ShareTapped)
+        viewModel.onEvent(ExportEvent.Rendered("%PDF-1.4 fake".encodeToByteArray(), ExportVia.SHARE))
+
+        val share = assertIs<ExportEffect.ShareFile>(effects.last())
+        assertEquals("exports/${TEST_CAR.value}/car-details.pdf", share.storageKey)
+        assertEquals(listOf(share.storageKey), files.written.map { it.first })
+        assertTrue(share.title.isNotBlank(), "the share sheet offers the file under a name")
+    }
+
+    @Test
+    fun aRenderThatProducedNothing_isReportedAsAFailure() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = exportViewModel(files = files)
+        val effects = mutableListOf<ExportEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ExportEvent.PdfTapped)
+        viewModel.onEvent(ExportEvent.Rendered(bytes = null, via = ExportVia.PDF))
+
+        assertEquals(ExportProgress.Failed, viewModel.state.value.export)
+        assertTrue(effects.none { it is ExportEffect.ShareFile }, "there is no file to share")
+        assertTrue(files.written.isEmpty())
+    }
+
+    @Test
+    fun exportWithoutACar_offersNothing() = runTest {
+        val viewModel = exportViewModel(activeCar = FakeActiveCar(null))
+        val effects = mutableListOf<ExportEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ExportEvent.PdfTapped)
+
+        assertIs<Loadable.Failed>(viewModel.state.value.car)
+        assertTrue(effects.isEmpty(), "there is no car to describe")
     }
 }

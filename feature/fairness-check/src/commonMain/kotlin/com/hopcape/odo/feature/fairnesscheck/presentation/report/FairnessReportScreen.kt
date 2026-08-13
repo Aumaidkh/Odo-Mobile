@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoEmptyState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -206,7 +207,7 @@ private fun Hero(
     extra: @Composable () -> Unit = {},
 ) {
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(tag),
+        modifier = Modifier.testTag(tag),
         color = tone.copy(alpha = 0.10f),
         border = BorderStroke(1.dp, tone.copy(alpha = 0.45f)),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -239,7 +240,7 @@ private fun Hero(
 private fun ComparisonCard(report: FairnessUiState.Content.Report, cityAverageTotal: Amount) {
     val tone = if (report.verdict is FairnessVerdictUiState.Over) OdoTheme.colors.warning else OdoTheme.colors.success
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(FairnessTestTags.COMPARISON),
+        modifier = Modifier.testTag(FairnessTestTags.COMPARISON),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         OdoText(
@@ -294,7 +295,7 @@ private fun Bar(amount: String, label: String, fraction: Float, color: Color, mo
 @Composable
 private fun BreakdownCard(lines: List<FairnessLineUiState>) {
     OdoCard(
-        modifier = Modifier.padding(horizontal = OdoTheme.spacing.screenEdge).testTag(FairnessTestTags.BREAKDOWN),
+        modifier = Modifier.testTag(FairnessTestTags.BREAKDOWN),
         contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
@@ -309,19 +310,27 @@ private fun BreakdownRow(line: FairnessLineUiState) {
             .fillMaxWidth()
             .testTag(FairnessTestTags.BREAKDOWN_ROW)
             .padding(vertical = OdoTheme.spacing.md),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+        // The label yields (weight + wrap) so the amounts on the right always get their
+        // full intrinsic width — a long part name must never squeeze "Rs. 13,000" into
+        // a one-character-wide column.
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+        ) {
             OdoText(
                 line.label ?: stringResource(Res.string.fc_item_unlabelled),
                 style = OdoTheme.typography.heading,
+                maxLines = 2,
             )
             OdoText(
                 text = line.cityAverage?.let { stringResource(Res.string.fc_item_avg, it.formatRupees()) }
                     ?: stringResource(Res.string.fc_item_no_benchmark),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textDim,
+                maxLines = 1,
             )
         }
         when (val verdict = line.verdict) {
@@ -330,7 +339,12 @@ private fun BreakdownRow(line: FairnessLineUiState) {
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
                 ) {
-                    OdoText(line.paid.formatRupees(), style = OdoTheme.typography.heading)
+                    OdoText(
+                        line.paid.formatRupees(),
+                        style = OdoTheme.typography.heading,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
                         verticalAlignment = Alignment.CenterVertically,
@@ -340,6 +354,8 @@ private fun BreakdownRow(line: FairnessLineUiState) {
                             stringResource(Res.string.fc_item_over, verdict.by.formatRupees()),
                             style = OdoTheme.typography.label,
                             color = OdoTheme.colors.warning,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }
@@ -349,6 +365,8 @@ private fun BreakdownRow(line: FairnessLineUiState) {
                     stringResource(Res.string.fc_fair_verdict),
                     style = OdoTheme.typography.label,
                     color = OdoTheme.colors.success,
+                    maxLines = 1,
+                    softWrap = false,
                 )
 
             // Judged on too thin a pool: the row says so instead of borrowing "Fair".
@@ -357,11 +375,18 @@ private fun BreakdownRow(line: FairnessLineUiState) {
                     stringResource(Res.string.fc_item_thin),
                     style = OdoTheme.typography.label,
                     color = OdoTheme.colors.textMuted,
+                    maxLines = 1,
+                    softWrap = false,
                 )
 
             // Nothing to compare against: show what was paid, claim nothing.
             FairnessLineVerdictUiState.NoBenchmark ->
-                OdoText(line.paid.formatRupees(), style = OdoTheme.typography.heading)
+                OdoText(
+                    line.paid.formatRupees(),
+                    style = OdoTheme.typography.heading,
+                    maxLines = 1,
+                    softWrap = false,
+                )
         }
     }
 }
@@ -410,7 +435,6 @@ private fun SkeletonBlock(height: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = OdoTheme.spacing.screenEdge)
             .height(height)
             .clip(OdoTheme.shapes.card)
             .background(OdoTheme.colors.surface),

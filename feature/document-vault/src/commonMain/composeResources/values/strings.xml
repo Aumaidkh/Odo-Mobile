@@ -82,10 +82,15 @@
     <!-- Overflow menu -->
     <string name="dv_cd_more">More</string>
     <string name="dv_menu_edit_dates">Edit dates</string>
-    <string name="dv_menu_replace">Replace file</string>
     <string name="dv_menu_share">Share</string>
-    <string name="dv_menu_download">Download PDF</string>
+    <string name="dv_menu_download">Save a copy</string>
     <string name="dv_menu_delete">Delete document</string>
+
+    <!-- Delete confirmation -->
+    <string name="dv_delete_confirm_title">Delete this document?</string>
+    <string name="dv_delete_confirm_body">The file and its reminders are removed from this phone. This can’t be undone.</string>
+    <string name="dv_delete_confirm_action">Delete</string>
+    <string name="dv_delete_confirm_cancel">Cancel</string>
 
     <!-- Add success screen -->
     <string name="dv_success_title">%1$s added</string>
@@ -115,9 +120,9 @@
     <!-- Share document sheet -->
     <string name="dv_share_title">Share %1$s</string>
     <string name="dv_share_subtitle">Valid till %1$s</string>
-    <string name="dv_share_whatsapp">WhatsApp</string>
-    <string name="dv_share_email">Email</string>
-    <string name="dv_share_copy">Copy link</string>
-    <string name="dv_share_more">More</string>
-    <string name="dv_share_download">Download PDF</string>
+    <string name="dv_share_send">Share</string>
+    <string name="dv_share_download">Save a copy</string>
+    <string name="dv_share_saved">Saved to your downloads.</string>
+    <string name="dv_share_save_failed">Couldn’t save a copy. Please try again.</string>
+    <string name="dv_share_failed">Couldn’t open the share sheet. Please try again.</string>
 </resources>

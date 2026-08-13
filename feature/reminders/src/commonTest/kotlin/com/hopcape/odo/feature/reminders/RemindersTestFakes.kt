@@ -27,7 +27,7 @@ import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -235,16 +235,18 @@ internal class FakeAppSettingsRepository(
     }
 }
 
-/** Records every schedule and cancel, so a test can check the write drove the right one. */
-internal class RecordingScheduler : ReminderNotificationScheduler {
-    val scheduled = mutableListOf<CustomReminder>()
-    val cancelled = mutableListOf<ReminderId>()
+/**
+ * Counts refreshes, so a test can check that a write asked for one.
+ *
+ * Counting is the whole assertion available, and that is the point of the scheduler's shape:
+ * it rebuilds the schedule from the database rather than being told which reminder changed,
+ * so there is no per-reminder bookkeeping here to get out of step with the real one.
+ */
+internal class RecordingScheduler : CustomReminderScheduler {
+    var refreshes: Int = 0
+        private set
 
-    override suspend fun schedule(reminder: CustomReminder) {
-        scheduled += reminder
-    }
-
-    override suspend fun cancel(id: ReminderId) {
-        cancelled += id
+    override suspend fun refresh() {
+        refreshes++
     }
 }

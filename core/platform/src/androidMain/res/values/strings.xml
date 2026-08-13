@@ -12,6 +12,10 @@
     <string name="document_reminder_title_tomorrow">%1$s expires tomorrow</string>
     <string name="document_reminder_body">Renew it before %1$s to stay covered.</string>
 
+    <string name="custom_reminder_channel_name">Your reminders</string>
+    <string name="custom_reminder_channel_description">The reminders you set yourself</string>
+    <string name="custom_reminder_body">Tap to open Odo.</string>
+
     <!-- The document vault's own labels, repeated for the notification. -->
     <string name="document_kind_insurance">Insurance</string>
     <string name="document_kind_puc">PUC certificate</string>

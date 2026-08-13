@@ -53,3 +53,19 @@ fun NavigationManager.navigateTo(
 ) = navigate(NavigationCommand.NavigateTo(destination, popUpTo, inclusive, singleTop))
 
 fun NavigationManager.back() = navigate(NavigationCommand.Back)
+
+/**
+ * Leave the sub-flow the caller is in — every step [belongsToFlow] accepts is popped — and
+ * land on [destination]. See [NavigationCommand.FinishFlow].
+ */
+fun NavigationManager.finishFlow(
+    destination: OdoDestination,
+    belongsToFlow: (OdoDestination) -> Boolean,
+) = navigate(NavigationCommand.FinishFlow(destination, belongsToFlow))
+
+/**
+ * Leave the sub-flow the caller is in and land on whatever opened it. See
+ * [NavigationCommand.LeaveFlow].
+ */
+fun NavigationManager.leaveFlow(belongsToFlow: (OdoDestination) -> Boolean) =
+    navigate(NavigationCommand.LeaveFlow(belongsToFlow))

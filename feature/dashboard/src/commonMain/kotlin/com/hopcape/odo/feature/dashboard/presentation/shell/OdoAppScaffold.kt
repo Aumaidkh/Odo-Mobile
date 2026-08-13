@@ -15,7 +15,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
  *
  * ```
  * OdoAppScaffold(
- *     currentDestination = navigator.backStack.lastOrNull() as? OdoDestination,
+ *     currentDestination = navigator.backStack.lastOrNull(),
  *     onSelectTab = { navigationManager.navigateTo(it, popUpTo = OdoDestination.Home) },
  *     onScan = { navigationManager.navigateTo(OdoDestination.BillScanner.Capture()) },
  * ) { padding -> OdoNavHost(navigator, navigationManager, entryProviders, Modifier.padding(padding)) }

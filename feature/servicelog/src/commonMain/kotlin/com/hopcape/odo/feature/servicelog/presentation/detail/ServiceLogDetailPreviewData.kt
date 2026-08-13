@@ -12,7 +12,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
-import com.hopcape.odo.feature.servicelog.presentation.state.WorkDone
 import kotlinx.datetime.LocalDate
 
 private fun rupees(paise: Long): Amount = Amount.of(paise).getOrElse { Amount.ZERO }
@@ -24,12 +23,23 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
     workshopName = "AutoCare Pune",
     serviceDate = LocalDate(2026, 3, 2),
     odometer = km(48_500),
-    workDone = WorkDone.Described(listOf("Front brake pads")),
     verification = VerificationStatus.VERIFIED,
     totalPaid = rupees(480_000),
     lineItems = listOf(
-        ServiceLineItemUiState("Front brake pads", ServiceCategory.BRAKES, rupees(330_000)),
-        ServiceLineItemUiState("Labour", ServiceCategory.BRAKES, rupees(120_000)),
+        ServiceLineItemUiState(
+            label = "Front brake pads",
+            category = ServiceCategory.BRAKES,
+            amount = rupees(330_000),
+            cityAverage = rupees(240_000),
+            verdict = FairnessVerdict.Over(rupees(90_000)),
+        ),
+        // Unbenchmarked on purpose: the preview has to show what a line with no city
+        // average looks like, since that is the one the old screen used to drop.
+        ServiceLineItemUiState(
+            label = "Labour",
+            category = ServiceCategory.BRAKES,
+            amount = rupees(120_000),
+        ),
     ),
     fairness = EntryFairnessUiState.Assessed(
         overall = FairnessOutcome.Over(rupees(110_000)),
@@ -37,25 +47,26 @@ private val sampleDetailEntry = ServiceEntryDetailUiState(
         cityAverageTotal = rupees(370_000),
         sampleSize = 240,
         confidence = FairnessConfidence.HIGH,
-        breakdown = listOf(
-            FairnessBreakdownRow(
-                label = "Front brake pads",
-                category = ServiceCategory.BRAKES,
-                paid = rupees(330_000),
-                cityAverage = rupees(240_000),
-                verdict = FairnessVerdict.Over(rupees(90_000)),
-            ),
-            FairnessBreakdownRow(
-                label = "Labour",
-                category = ServiceCategory.BRAKES,
-                paid = rupees(120_000),
-                cityAverage = rupees(100_000),
-                verdict = FairnessVerdict.Over(rupees(20_000)),
-            ),
-        ),
     ),
     resale = ResaleProofUiState.Verified(scoreUplift = 4, fairPriceChecked = true),
     bill = BillAttachmentUiState(scanned = true, verified = true, photoRef = "bills/c1/l1.jpg"),
+    canCheckFairness = true,
+)
+
+/**
+ * A hand-added entry: a bill was attached later, so it is verified, but nobody ever typed
+ * the lines. This is the case the screen used to render as a card holding nothing but the
+ * total (issue #109), and — with two jobs on one total — the case whose "Check fairness"
+ * button had nothing to benchmark (issue #111).
+ */
+private val sampleUnitemisedEntry = sampleDetailEntry.copy(
+    id = ServiceLogId("3"),
+    workshopName = "Sai Motor Works",
+    totalPaid = rupees(8_142_000),
+    lineItems = emptyList(),
+    fairness = EntryFairnessUiState.NotAssessed,
+    resale = ResaleProofUiState.Verified(scoreUplift = 6, fairPriceChecked = false),
+    canCheckFairness = false,
 )
 
 /** Sample state (stands in for the ViewModel until the route is wired to it). */
@@ -66,4 +77,13 @@ internal fun sampleDetailState(): ServiceLogDetailUiState =
 @Composable
 private fun ServiceLogDetailPreview() = OdoPreview(padded = false) {
     ServiceLogDetailScreen(state = sampleDetailState(), onEvent = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun ServiceLogDetailNoItemsPreview() = OdoPreview(padded = false) {
+    ServiceLogDetailScreen(
+        state = ServiceLogDetailUiState(content = ServiceLogDetailUiState.Content.Loaded(sampleUnitemisedEntry)),
+        onEvent = {},
+    )
 }

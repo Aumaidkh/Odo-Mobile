@@ -53,7 +53,7 @@ internal class BillScannerTelemetry(
         logger.info(TAG, Event.CAMERA_PERMISSION_ANSWERED, tc = flowTrace.toLog(), fields = fields)
     }
 
-    /** The owner declined and stayed on the scan screen with the nudge. */
+    /** The owner declined, which ends the scan: there is no viewfinder without the camera. */
     fun cameraDeclined() {
         analytics.track(Event.CAMERA_DECLINED)
         logger.info(TAG, Event.CAMERA_DECLINED, tc = flowTrace.toLog())

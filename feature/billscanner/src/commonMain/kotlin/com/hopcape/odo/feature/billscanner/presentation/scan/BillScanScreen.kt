@@ -47,11 +47,9 @@ import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoPermissionNudge
 import com.hopcape.odo.core.designsystem.component.OdoQuadMarkers
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcImage
 import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
@@ -65,12 +63,8 @@ import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.OdoCameraPreview
 import com.hopcape.odo.core.platform.camera.OdoCameraState
 import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
-import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_capture_failed
-import com.hopcape.odo.feature.billscanner.resources.bs_camera_nudge
-import com.hopcape.odo.feature.billscanner.resources.bs_camera_nudge_action
-import com.hopcape.odo.feature.billscanner.resources.bs_camera_nudge_settings
 import com.hopcape.odo.feature.billscanner.resources.bs_camera_unavailable
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_close
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_edges_locked
@@ -102,9 +96,11 @@ import org.jetbrains.compose.resources.stringResource
  * State-free by design: it renders [state] and forwards intents. The camera itself is
  * driven through [cameraState], so the screen never touches a platform camera type.
  *
- * Without the camera permission it still renders, showing the placeholder frame and a
- * nudge — a screen that is simply blank leaves the owner with nothing to act on. AI
- * edge detection replaces the static brackets when the `ai-bill-scan` pipeline lands (M2).
+ * It is only ever shown with the camera allowed — the rationale stands in front of it until
+ * then. The permission checks that remain are there so a grant withdrawn while the app was
+ * away leaves a still frame rather than a preview bound to a camera this process can no longer
+ * open. AI edge detection replaces the static brackets when the `ai-bill-scan` pipeline lands
+ * (M2).
  */
 @Composable
 internal fun BillScanScreen(
@@ -115,7 +111,6 @@ internal fun BillScanScreen(
     onCapture: () -> Unit,
     onPickGallery: () -> Unit,
     onManual: () -> Unit,
-    onGrantCamera: () -> Unit,
     onTargetSelected: (ScanTarget) -> Unit,
     onToggleEdgeLock: () -> Unit,
     modifier: Modifier = Modifier,
@@ -141,6 +136,9 @@ internal fun BillScanScreen(
                     // Nothing to shoot in QR mode: the code is read off the live frames, so
                     // the shutter would only produce a photo of a QR nobody wants.
                     showShutter = state.target != ScanTarget.PaymentQr,
+                    // Manual entry is a bill-form fallback; a document or a QR has no
+                    // hand-typed equivalent to fall back to.
+                    showManual = state.target == ScanTarget.Bill,
                     onPickGallery = onPickGallery,
                     onCapture = onCapture,
                     onManual = onManual,
@@ -152,7 +150,6 @@ internal fun BillScanScreen(
             state = state,
             cameraState = cameraState,
             onCameraEvent = onCameraEvent,
-            onGrantCamera = onGrantCamera,
             onToggleEdgeLock = onToggleEdgeLock,
             modifier = Modifier
                 .fillMaxSize()
@@ -283,7 +280,6 @@ private fun Viewfinder(
     state: BillScanUiState,
     cameraState: OdoCameraState,
     onCameraEvent: (CameraEvent) -> Unit,
-    onGrantCamera: () -> Unit,
     onToggleEdgeLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -390,19 +386,6 @@ private fun Viewfinder(
                         textAlign = TextAlign.Center,
                     )
                 }
-            } else {
-                // The owner declined, so the rationale screen is behind them. This is the
-                // only remaining route back to a working scanner.
-                OdoPermissionNudge(
-                    icon = IcCamera,
-                    message = stringResource(Res.string.bs_camera_nudge),
-                    actionLabel = if (state.cameraBlocked) {
-                        stringResource(Res.string.bs_camera_nudge_settings)
-                    } else {
-                        stringResource(Res.string.bs_camera_nudge_action)
-                    },
-                    onAction = onGrantCamera,
-                )
             }
         }
     }
@@ -470,6 +453,7 @@ private fun DetectingLabel(transition: InfiniteTransition) {
 @Composable
 private fun ScanControls(
     showShutter: Boolean,
+    showManual: Boolean,
     onPickGallery: () -> Unit,
     onCapture: () -> Unit,
     onManual: () -> Unit,
@@ -507,17 +491,21 @@ private fun ScanControls(
             Spacer(Modifier.size(SHUTTER_SIZE))
         }
 
+        // The weighted box stays even without the affordance, so the shutter keeps its
+        // centre when the mode changes instead of the row reflowing.
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            Column(
-                modifier = Modifier
-                    .clip(OdoTheme.shapes.field)
-                    .clickable(onClick = onManual)
-                    .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
-            ) {
-                OdoIcon(IcList, contentDescription = null, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
-                OdoText(stringResource(Res.string.bs_scan_manual), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+            if (showManual) {
+                Column(
+                    modifier = Modifier
+                        .clip(OdoTheme.shapes.field)
+                        .clickable(onClick = onManual)
+                        .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+                ) {
+                    OdoIcon(IcList, contentDescription = null, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
+                    OdoText(stringResource(Res.string.bs_scan_manual), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+                }
             }
         }
     }
@@ -546,23 +534,19 @@ private fun ShutterButton(onCapture: () -> Unit) {
 /** The shutter's diameter, shared with the spacer that stands in for it in QR mode. */
 private val SHUTTER_SIZE = 72.dp
 
-// The preview deliberately runs without the permission: a preview host has no camera to bind,
-// and this is also the state that is easiest to get wrong.
+// Granted, which is the only way this screen is reached — but a preview host has no camera to
+// bind, so what renders here is the frame and its chrome around the silhouette.
 @OdoThemePreviews
 @Composable
 private fun BillScanScreenPreview() = OdoPreview(padded = false) {
     BillScanScreen(
-        state = sampleBillScanState().copy(
-            cameraPermission = CameraPermissionStatus.Askable,
-            rationaleDismissed = true,
-        ),
+        state = sampleBillScanState(),
         cameraState = rememberOdoCameraState(),
         onCameraEvent = {},
         onClose = {},
         onCapture = {},
         onPickGallery = {},
         onManual = {},
-        onGrantCamera = {},
         onTargetSelected = {},
         onToggleEdgeLock = {},
     )
