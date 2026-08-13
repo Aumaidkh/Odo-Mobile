@@ -163,7 +163,6 @@ internal fun AddDocumentRoute(navigationManager: NavigationManager, key: OdoDest
         onTypeSelect = { viewModel.onEvent(AddDocumentEvent.TypeSelected(it)) },
         onScan = { viewModel.onEvent(AddDocumentEvent.Capture.Scan) },
         onFilePicked = { viewModel.onEvent(AddDocumentEvent.Capture.FilePicked(it)) },
-        onImportDigiLocker = { viewModel.onEvent(AddDocumentEvent.Capture.DigiLocker) },
         onClose = { viewModel.onEvent(AddDocumentEvent.CloseTapped) },
     )
 }

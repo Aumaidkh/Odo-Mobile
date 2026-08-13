@@ -330,22 +330,6 @@ class DocumentVaultEndToEndTest {
         rule.onNodeWithText(VaultCopy.added(VaultCopy.DOC_RC)).assertDoesNotExist()
     }
 
-    @Test
-    fun digiLockerSaysItIsNotReadyAndStoresNothing() {
-        rule.openVault()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-
-        // No importer behind it yet. Saying so beats walking an owner to a success screen
-        // for a document that was never written.
-        rule.onNodeWithText(VaultCopy.CAPTURE_DIGILOCKER).performClick()
-        rule.awaitText(VaultCopy.CAPTURE_UNAVAILABLE)
-
-        rule.onNodeWithLabel(VaultCopy.CLOSE_LABEL).performClick()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.INSURANCE)).assertIsDisplayed()
-    }
-
     /**
      * The vault's "Scan with camera" used to dead-end on "coming soon" while the scanner's
      * document path was already built. It hands over now, and it takes the type the owner

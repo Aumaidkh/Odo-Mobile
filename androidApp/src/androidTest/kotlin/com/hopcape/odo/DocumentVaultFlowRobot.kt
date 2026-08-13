@@ -64,8 +64,6 @@ internal object VaultCopy {
     const val ADD_CHIP_RC = "RC"
     const val CAPTURE_SCAN = "Scan with camera"
     const val CAPTURE_UPLOAD = "Upload a file"
-    const val CAPTURE_DIGILOCKER = "Import from DigiLocker"
-    const val CAPTURE_UNAVAILABLE = "This way of adding a document is coming soon. Upload a file for now."
     const val WRITE_FAILED = "Something went wrong. Please try again."
     /**
      * FeatureFlags.PAYWALL_ENABLED: goes back to "Your free plan stores 3 documents. Delete

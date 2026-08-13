@@ -136,6 +136,9 @@ internal fun BillScanScreen(
                     // Nothing to shoot in QR mode: the code is read off the live frames, so
                     // the shutter would only produce a photo of a QR nobody wants.
                     showShutter = state.target != ScanTarget.PaymentQr,
+                    // Manual entry is a bill-form fallback; a document or a QR has no
+                    // hand-typed equivalent to fall back to.
+                    showManual = state.target == ScanTarget.Bill,
                     onPickGallery = onPickGallery,
                     onCapture = onCapture,
                     onManual = onManual,
@@ -450,6 +453,7 @@ private fun DetectingLabel(transition: InfiniteTransition) {
 @Composable
 private fun ScanControls(
     showShutter: Boolean,
+    showManual: Boolean,
     onPickGallery: () -> Unit,
     onCapture: () -> Unit,
     onManual: () -> Unit,
@@ -487,17 +491,21 @@ private fun ScanControls(
             Spacer(Modifier.size(SHUTTER_SIZE))
         }
 
+        // The weighted box stays even without the affordance, so the shutter keeps its
+        // centre when the mode changes instead of the row reflowing.
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            Column(
-                modifier = Modifier
-                    .clip(OdoTheme.shapes.field)
-                    .clickable(onClick = onManual)
-                    .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
-            ) {
-                OdoIcon(IcList, contentDescription = null, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
-                OdoText(stringResource(Res.string.bs_scan_manual), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+            if (showManual) {
+                Column(
+                    modifier = Modifier
+                        .clip(OdoTheme.shapes.field)
+                        .clickable(onClick = onManual)
+                        .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+                ) {
+                    OdoIcon(IcList, contentDescription = null, tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
+                    OdoText(stringResource(Res.string.bs_scan_manual), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+                }
             }
         }
     }
