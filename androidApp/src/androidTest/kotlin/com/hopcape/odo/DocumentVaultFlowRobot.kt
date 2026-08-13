@@ -20,6 +20,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
@@ -64,8 +65,6 @@ internal object VaultCopy {
     const val ADD_CHIP_RC = "RC"
     const val CAPTURE_SCAN = "Scan with camera"
     const val CAPTURE_UPLOAD = "Upload a file"
-    const val CAPTURE_DIGILOCKER = "Import from DigiLocker"
-    const val CAPTURE_UNAVAILABLE = "This way of adding a document is coming soon. Upload a file for now."
     const val WRITE_FAILED = "Something went wrong. Please try again."
     /**
      * FeatureFlags.PAYWALL_ENABLED: goes back to "Your free plan stores 3 documents. Delete
@@ -89,6 +88,7 @@ internal object VaultCopy {
     const val DETAIL_LIFETIME = "Never expires"
     const val DETAIL_FILE_MISSING =
         "The stored file is missing. Replace it to view or share this document."
+    /** Removed with the release that took the renewal button out; asserted absent. */
     const val DETAIL_RENEW = "Renew now"
 
     const val MENU_LABEL = "More"
@@ -98,6 +98,8 @@ internal object VaultCopy {
     const val MENU_SHARE = "Share"
     const val MENU_DOWNLOAD = "Save a copy"
     const val MENU_DELETE = "Delete document"
+    const val DELETE_CONFIRM_TITLE = "Delete this document?"
+    const val DELETE_CONFIRM_ACTION = "Delete"
 
     /* Edit dates sheet. */
     const val DATES_TITLE = "Edit dates"
@@ -402,6 +404,19 @@ internal fun VaultTestRule.assertRowShows(type: DocumentType, text: String) {
 internal fun VaultTestRule.openDocument(type: DocumentType) {
     onNodeWithTag(DocumentVaultTestTags.row(type)).performClick()
     awaitLabel(VaultCopy.MENU_LABEL)
+}
+
+/**
+ * Delete the open document, through the confirmation the menu item now raises.
+ *
+ * The dialog is the point of the two steps: a delete takes the file and its reminders with
+ * it, and the menu item sits one tap from "Share".
+ */
+internal fun VaultTestRule.deleteTheOpenDocument() {
+    openDocumentMenu()
+    onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+    awaitText(VaultCopy.DELETE_CONFIRM_TITLE)
+    onNodeWithText(VaultCopy.DELETE_CONFIRM_ACTION).performClick()
 }
 
 /** Open the detail screen's overflow menu. */

@@ -165,7 +165,6 @@ internal fun ServiceLogFormScreen(
                 },
                 modifier = Modifier.fillMaxWidth().testTag(ServiceLogTestTags.AMOUNT_FIELD),
             )
-            AttachBillCard(onClick = { onEvent(ServiceLogFormEvent.AttachBillClicked) })
         }
     }
 }
@@ -305,32 +304,6 @@ private fun CategorySection(
     }
 }
 
-
-/** The dashed, optional "attach a bill photo" slot (verifies the entry once a bill lands). */
-@Composable
-private fun AttachBillCard(onClick: () -> Unit) {
-    val border = OdoTheme.colors.border
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(OdoTheme.shapes.card)
-            .drawBehind {
-                drawRoundRect(
-                    color = border,
-                    cornerRadius = CornerRadius(16.dp.toPx()),
-                    style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 6.dp.toPx()))),
-                )
-            }
-            .clickable(onClick = onClick)
-            .padding(OdoTheme.spacing.md),
-        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OdoIcon(IcJournal, contentDescription = null, tint = OdoTheme.colors.textMuted, size = OdoTheme.iconSizes.small)
-        OdoText(stringResource(Res.string.sl_attach_bill), style = OdoTheme.typography.body, color = OdoTheme.colors.textDim)
-        OdoText(stringResource(Res.string.sl_optional), style = OdoTheme.typography.body, color = OdoTheme.colors.textMuted)
-    }
-}
 
 @Composable
 private fun SaveBar(state: ServiceLogFormUiState, onSave: () -> Unit) {

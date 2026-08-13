@@ -160,14 +160,16 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun aLapsedDocumentIsShownAsExpiredAndOfferedARenewal() {
+    fun aLapsedDocumentIsShownAsExpired() {
         seedDocument(id = VaultFixtures.PUC_ID, type = DocumentType.PUC, expiresOn = VaultFixtures.EXPIRED_ON)
         rule.openVault()
 
-        // Driving on a lapsed PUC is an offence, so it is stated plainly and given an action.
+        // Driving on a lapsed PUC is an offence, so it is stated plainly: the date it went,
+        // the red pill, and the header counting it. The row's own renewal button went with
+        // the release that took "Renew now" out — a lapsed paper is replaced by adding the
+        // new one, which the header's prompt is for.
         rule.awaitText(VaultCopy.expiredOn(VaultFixtures.EXPIRED_ON))
         rule.onNodeWithText(VaultCopy.PILL_EXPIRED).assertIsDisplayed()
-        rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.PUC)).assertIsDisplayed()
         rule.onNodeWithText(VaultCopy.attentionTitle(1)).assertIsDisplayed()
     }
 
@@ -330,22 +332,6 @@ class DocumentVaultEndToEndTest {
         rule.onNodeWithText(VaultCopy.added(VaultCopy.DOC_RC)).assertDoesNotExist()
     }
 
-    @Test
-    fun digiLockerSaysItIsNotReadyAndStoresNothing() {
-        rule.openVault()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.addFromRow(DocumentType.INSURANCE)
-
-        // No importer behind it yet. Saying so beats walking an owner to a success screen
-        // for a document that was never written.
-        rule.onNodeWithText(VaultCopy.CAPTURE_DIGILOCKER).performClick()
-        rule.awaitText(VaultCopy.CAPTURE_UNAVAILABLE)
-
-        rule.onNodeWithLabel(VaultCopy.CLOSE_LABEL).performClick()
-        rule.awaitText(VaultCopy.HEADER_ADD_TITLE)
-        rule.onNodeWithTag(DocumentVaultTestTags.rowAction(DocumentType.INSURANCE)).assertIsDisplayed()
-    }
-
     /**
      * The vault's "Scan with camera" used to dead-end on "coming soon" while the scanner's
      * document path was already built. It hands over now, and it takes the type the owner
@@ -496,29 +482,13 @@ class DocumentVaultEndToEndTest {
     }
 
     @Test
-    fun renewNowOpensTheAddFlowOnTheSameType() {
-        seedTrackedDocuments()
-        rule.openVault()
-        rule.awaitText(VaultCopy.PILL_EXPIRES_SOON)
-
-        rule.openDocument(DocumentType.PUC)
-        rule.onNodeWithText(VaultCopy.DETAIL_RENEW).performClick()
-
-        // A renewal is a new document of the same type, not an edit of the old one — so the
-        // add flow opens, pre-selected, and the lapsing copy stays where it is.
-        rule.awaitText(VaultCopy.ADD_TITLE)
-        rule.onNodeWithText(VaultCopy.ADD_CHIP_PUC).assertIsSelected()
-    }
-
-    @Test
     fun deletingADocumentLeavesTheVaultAskingForItAgain() {
         seedTrackedDocuments()
         rule.openVault()
         rule.awaitText(VaultFixtures.INSURANCE_TITLE)
         rule.openDocument(DocumentType.INSURANCE)
 
-        rule.openDocumentMenu()
-        rule.onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+        rule.deleteTheOpenDocument()
 
         // The screen has nothing left to show, so it leaves; the row goes back to asking.
         rule.awaitText(VaultCopy.TITLE)
@@ -596,8 +566,7 @@ class DocumentVaultEndToEndTest {
         rule.awaitText(VaultCopy.PILL_VALID)
 
         rule.openDocument(DocumentType.RC)
-        rule.openDocumentMenu()
-        rule.onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+        rule.deleteTheOpenDocument()
         rule.awaitText(VaultCopy.TITLE)
 
         // A byte blob outliving its row is wasted space nothing can ever reach again.

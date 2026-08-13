@@ -15,6 +15,9 @@ import com.hopcape.odo.feature.timeline.presentation.state.Loadable
 @Immutable
 internal data class TimelineUiState(
     val content: Loadable<TimelineContent> = Loadable.Loading,
+    /** No active car — setup incomplete or the car was removed. A nudge, not a spinner:
+     *  there is no read in flight, so a loader would spin forever. */
+    val noCar: Boolean = false,
 )
 
 /** A loaded timeline. */
