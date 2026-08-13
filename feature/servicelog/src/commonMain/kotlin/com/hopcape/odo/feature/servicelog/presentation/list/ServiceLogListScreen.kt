@@ -41,7 +41,6 @@ import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcFilter
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcJournalPlus
 import com.hopcape.odo.core.designsystem.icons.IcPlusLarge
@@ -56,7 +55,6 @@ import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_action_enter_manually
 import com.hopcape.odo.feature.servicelog.resources.sl_action_scan
 import com.hopcape.odo.feature.servicelog.resources.sl_cd_add
-import com.hopcape.odo.feature.servicelog.resources.sl_cd_filter
 import com.hopcape.odo.feature.servicelog.resources.sl_cd_share
 import com.hopcape.odo.feature.servicelog.resources.sl_direction_ledger
 import com.hopcape.odo.feature.servicelog.resources.sl_direction_timeline
@@ -148,7 +146,7 @@ internal fun ServiceLogListScreen(
     }
 }
 
-/** Top-bar action, cross-fading between Ledger's filter and Timeline's share. */
+/** Top-bar action — Timeline's share only; the Ledger carries no top-bar action. */
 @Composable
 private fun TopBarAction(
     direction: ServiceLogDirection,
@@ -164,11 +162,7 @@ private fun TopBarAction(
         label = "servicelog-action",
     ) { dir ->
         when (dir) {
-            ServiceLogDirection.LEDGER -> OdoCircularIconButton(
-                imageVector = IcFilter,
-                contentDescription = stringResource(Res.string.sl_cd_filter),
-                onClick = { onEvent(ServiceLogListEvent.Open.Filters) },
-            )
+            ServiceLogDirection.LEDGER -> {}
             ServiceLogDirection.TIMELINE -> OdoCircularIconButton(
                 imageVector = IcShare,
                 contentDescription = stringResource(Res.string.sl_cd_share),
