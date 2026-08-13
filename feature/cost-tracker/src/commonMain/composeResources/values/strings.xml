@@ -62,4 +62,8 @@
     <string name="ct_fuel_rate_clear">Use Odo’s estimate instead</string>
     <string name="ct_fuel_rate_error_range">Enter a price between Rs. %1$s and Rs. %2$s</string>
     <string name="ct_fuel_rate_error_save">Couldn’t save your rate. Try again.</string>
+
+    <!-- No active car — setup incomplete or the car was removed. -->
+    <string name="ct_no_car_title">No car yet</string>
+    <string name="ct_no_car_body">Add your car in the Garage and its running cost will build up here.</string>
 </resources>

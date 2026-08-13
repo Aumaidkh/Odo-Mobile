@@ -86,6 +86,12 @@
     <string name="dv_menu_download">Save a copy</string>
     <string name="dv_menu_delete">Delete document</string>
 
+    <!-- Delete confirmation -->
+    <string name="dv_delete_confirm_title">Delete this document?</string>
+    <string name="dv_delete_confirm_body">The file and its reminders are removed from this phone. This can’t be undone.</string>
+    <string name="dv_delete_confirm_action">Delete</string>
+    <string name="dv_delete_confirm_cancel">Cancel</string>
+
     <!-- Add success screen -->
     <string name="dv_success_title">%1$s added</string>
     <string name="dv_success_body_before">Safely stored in your vault. We’ll remind you on </string>
