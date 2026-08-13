@@ -4,6 +4,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.documentvault.domain.file.DocumentFileStore
 import com.hopcape.odo.feature.documentvault.domain.file.PlatformDocumentFileStore
 import com.hopcape.odo.feature.documentvault.domain.usecase.DeleteDocumentUseCase
+import com.hopcape.odo.feature.documentvault.domain.usecase.ExportDocumentFileUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentDetailUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentVaultUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.ReplaceDocumentFileUseCase
@@ -58,6 +59,9 @@ val documentVaultModule = module {
     }
     factory { UpdateDocumentUseCase(documents = get(), reminders = get(), clock = get()) }
     factory { ReplaceDocumentFileUseCase(documents = get(), files = get()) }
+    // Takes the shared PlatformFileStore rather than the vault's own naming of it: an export
+    // is a copy on its way out of the app, not another document being filed.
+    factory { ExportDocumentFileUseCase(files = get()) }
     factory { DeleteDocumentUseCase(documents = get(), files = get(), reminders = get()) }
 
     // A `factory`, not a `single`: one instance covers one visit to the vault, and every
@@ -71,6 +75,7 @@ val documentVaultModule = module {
             observeDetail = get(),
             deleteDocument = get(),
             replaceFile = get(),
+            downloads = get(),
             telemetry = get(),
         )
     }
@@ -89,6 +94,8 @@ val documentVaultModule = module {
         ShareDocumentViewModel(
             documentId = params.get<DocumentId>(),
             observeDetail = get(),
+            exportFile = get(),
+            downloads = get(),
             telemetry = get(),
         )
     }

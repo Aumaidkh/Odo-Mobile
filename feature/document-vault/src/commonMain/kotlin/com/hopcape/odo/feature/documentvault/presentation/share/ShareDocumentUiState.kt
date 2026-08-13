@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.documentvault.presentation.share
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
@@ -22,10 +23,18 @@ internal data class ShareDocumentUiState(
     val validity: DocumentValidity,
     /** False when the stored file has gone missing; sharing is then disabled. */
     val isFileAvailable: Boolean = true,
+    /** What the last action did, shown under the buttons. `null` until one is taken. */
+    val notice: UiText? = null,
 )
 
-/** Where a document can be shared to. */
-internal enum class ShareTarget { WHATSAPP, EMAIL, COPY, MORE }
+/**
+ * Where a document went.
+ *
+ * Two cases, because the sheet offers two things and neither of them names an app. The
+ * system chooser is what picks WhatsApp or mail, and it does not say which was picked — so
+ * recording anything more precise here would be recording a guess.
+ */
+internal enum class ShareTarget { SYSTEM, DOWNLOADS }
 
 /** Sample for previews. */
 internal fun sampleShareDocument() = ShareDocumentUiState(
