@@ -62,7 +62,7 @@ internal object HealthCopy {
 
     /* Free tier. */
     const val PAYWALL_TITLE = "See your full breakdown"
-    const val PAYWALL_CTA = "Unlock with Pro · Rs. 149/mo"
+    const val PAYWALL_CTA = "Unlock with Pro"
 
     /* The paywall screen this lands on. The HEALTH_BREAKDOWN trigger has no framing of
      * its own yet, so it falls back to the generic one — the trigger still travels for

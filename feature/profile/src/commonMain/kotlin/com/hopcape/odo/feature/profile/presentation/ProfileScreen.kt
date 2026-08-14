@@ -71,6 +71,7 @@ import com.hopcape.odo.feature.profile.resources.pf_pro_active
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_1
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_2
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_3
+import com.hopcape.odo.feature.profile.resources.pf_pro_feat_4
 import com.hopcape.odo.feature.profile.resources.pf_pro_trial
 import com.hopcape.odo.feature.profile.resources.pf_pro_renews
 import com.hopcape.odo.feature.profile.resources.pf_pro_ends
@@ -408,6 +409,7 @@ private fun GoProCard(onStartPro: () -> Unit) {
         FeatureRow(stringResource(Res.string.pf_pro_feat_1))
         FeatureRow(stringResource(Res.string.pf_pro_feat_2))
         FeatureRow(stringResource(Res.string.pf_pro_feat_3))
+        FeatureRow(stringResource(Res.string.pf_pro_feat_4))
         OdoButton(stringResource(Res.string.pf_start_pro), onClick = onStartPro, modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.xs))
         OdoText(
             stringResource(Res.string.pf_restore),
