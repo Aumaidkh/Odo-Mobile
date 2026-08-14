@@ -27,7 +27,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,38 +45,39 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.runtime.CompositionLocalProvider
 import com.hopcape.odo.core.designsystem.component.OdoButton
-import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBarChart
 import com.hopcape.odo.core.designsystem.icons.IcCamera
-import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcClose
+import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcStarFilled
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.formatRupees
+import com.hopcape.odo.core.domain.subscription.BillingPeriod
+import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
 import com.hopcape.odo.feature.paywall.resources.pw_badge_generic
 import com.hopcape.odo.feature.paywall.resources.pw_badge_savings
 import com.hopcape.odo.feature.paywall.resources.pw_badge_scans
 import com.hopcape.odo.feature.paywall.resources.pw_cd_close
-import com.hopcape.odo.feature.paywall.resources.pw_cta_annual
-import com.hopcape.odo.feature.paywall.resources.pw_cta_monthly
-import com.hopcape.odo.feature.paywall.resources.pw_feature_analytics_sub
-import com.hopcape.odo.feature.paywall.resources.pw_feature_analytics_title
-import com.hopcape.odo.feature.paywall.resources.pw_feature_doctor_sub
-import com.hopcape.odo.feature.paywall.resources.pw_feature_doctor_title
+import com.hopcape.odo.feature.paywall.resources.pw_cta
+import com.hopcape.odo.feature.paywall.resources.pw_cta_trial
+import com.hopcape.odo.feature.paywall.resources.pw_cta_working
+import com.hopcape.odo.feature.paywall.resources.pw_feature_documents_sub
+import com.hopcape.odo.feature.paywall.resources.pw_feature_documents_title
+import com.hopcape.odo.feature.paywall.resources.pw_feature_export_sub
+import com.hopcape.odo.feature.paywall.resources.pw_feature_export_title
 import com.hopcape.odo.feature.paywall.resources.pw_feature_health_sub
 import com.hopcape.odo.feature.paywall.resources.pw_feature_health_title
 import com.hopcape.odo.feature.paywall.resources.pw_feature_scans_sub
@@ -82,39 +86,39 @@ import com.hopcape.odo.feature.paywall.resources.pw_footer
 import com.hopcape.odo.feature.paywall.resources.pw_headline_generic
 import com.hopcape.odo.feature.paywall.resources.pw_headline_savings
 import com.hopcape.odo.feature.paywall.resources.pw_headline_scans
-import com.hopcape.odo.feature.paywall.resources.pw_passport_cta
-import com.hopcape.odo.feature.paywall.resources.pw_passport_sub
-import com.hopcape.odo.feature.paywall.resources.pw_passport_title
+import com.hopcape.odo.feature.paywall.resources.pw_period_annual
+import com.hopcape.odo.feature.paywall.resources.pw_period_monthly
 import com.hopcape.odo.feature.paywall.resources.pw_plan_annual
 import com.hopcape.odo.feature.paywall.resources.pw_plan_annual_badge
 import com.hopcape.odo.feature.paywall.resources.pw_plan_annual_period
-import com.hopcape.odo.feature.paywall.resources.pw_plan_annual_price
 import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly
 import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly_period
-import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly_price
 import com.hopcape.odo.feature.paywall.resources.pw_restore
-import com.hopcape.odo.feature.paywall.resources.pw_selling
+import com.hopcape.odo.feature.paywall.resources.pw_retry
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_generic
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_savings
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_scans
+import com.hopcape.odo.feature.paywall.resources.pw_terms
+import com.hopcape.odo.feature.paywall.resources.pw_terms_trial
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The Pro paywall — one offer, framed by [PaywallUiState.trigger] (generic / scans-exhausted
- * / a fresh savings win). Feature list, monthly-vs-annual selector, the Razorpay CTA, and the
- * Resale Passport upsell. Entrance is staggered; the CTA breathes a soft glow; plan selection
- * and the CTA price animate.
+ * The Pro paywall — one offer, framed by [PaywallUiState.trigger] (generic / scans-exhausted /
+ * a fresh savings win). Feature list, monthly-vs-annual selector, the store CTA and the terms
+ * Play requires above it.
  *
- * State-free: renders [state] and forwards intents. Real entitlement + Razorpay land later.
+ * **No price is written anywhere in this file.** Every figure comes from the offer the store
+ * answered with, which is why the plan cards and the CTA only exist once it has loaded. While
+ * it is loading there is a spinner, and if it failed there is a retry — never a placeholder
+ * price, because a figure this screen cannot confirm is one the owner might be charged
+ * something else for.
+ *
+ * State-free: renders [state] and forwards intents.
  */
 @Composable
 internal fun PaywallScreen(
     state: PaywallUiState,
-    onSelectPlan: (PaywallPlan) -> Unit,
-    onStartPro: () -> Unit,
-    onRestore: () -> Unit,
-    onBuildPassport: () -> Unit,
-    onClose: () -> Unit,
+    onEvent: (PaywallEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -132,7 +136,7 @@ internal fun PaywallScreen(
         )
         CompositionLocalProvider(LocalContentColor provides OdoTheme.colors.text) {
             Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-                PaywallTopBar(onClose, onRestore)
+                PaywallTopBar(state, onEvent)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -148,11 +152,8 @@ internal fun PaywallScreen(
                             Entrance(2 + index, visible) { FeatureRow(feature) }
                         }
                     }
-                    Entrance(6, visible) { PlanSelector(state.selectedPlan, onSelectPlan) }
-                    Entrance(7, visible) { StartProButton(state.selectedPlan, onStartPro) }
-                    Entrance(8, visible) { SellingDivider() }
-                    Entrance(8, visible) { PassportCard(onBuildPassport) }
-                    Entrance(9, visible) { Footer() }
+                    Entrance(6, visible) { OfferBlock(state, onEvent) }
+                    Entrance(7, visible) { Footer() }
                 }
             }
         }
@@ -162,7 +163,7 @@ internal fun PaywallScreen(
 // --- Top bar ---
 
 @Composable
-private fun PaywallTopBar(onClose: () -> Unit, onRestore: () -> Unit) {
+private fun PaywallTopBar(state: PaywallUiState, onEvent: (PaywallEvent) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,17 +172,31 @@ private fun PaywallTopBar(onClose: () -> Unit, onRestore: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(OdoTheme.colors.surface).clickable(onClick = onClose),
+            Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(OdoTheme.colors.surface)
+                .clickable { onEvent(PaywallEvent.CloseTapped) },
             contentAlignment = Alignment.Center,
         ) {
-            OdoIcon(IcClose, contentDescription = stringResource(Res.string.pw_cd_close), tint = OdoTheme.colors.text, size = OdoTheme.iconSizes.medium)
+            OdoIcon(
+                IcClose,
+                contentDescription = stringResource(Res.string.pw_cd_close),
+                tint = OdoTheme.colors.text,
+                size = OdoTheme.iconSizes.medium,
+            )
         }
         Box(Modifier.weight(1f))
+        // Every store requires this: the same account on a new phone has already paid, and
+        // must be able to say so without paying again.
         OdoText(
             stringResource(Res.string.pw_restore),
             style = OdoTheme.typography.label,
-            color = OdoTheme.colors.textDim,
-            modifier = Modifier.clip(OdoTheme.shapes.pill).clickable(onClick = onRestore).padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
+            color = if (state.restoring) OdoTheme.colors.textMuted else OdoTheme.colors.textDim,
+            modifier = Modifier
+                .clip(OdoTheme.shapes.pill)
+                .clickable(enabled = !state.busy) { onEvent(PaywallEvent.RestoreTapped) }
+                .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
         )
     }
 }
@@ -218,18 +233,22 @@ private fun HeadlineBlock(state: PaywallUiState) {
 
 // --- Feature list ---
 
-private data class Feature(val icon: ImageVector, val title: String, val subtitle: String)
+private data class Feature(val icon: ImageVector, val key: String)
 
+/** The four things Pro does. Each one works today — nothing here is a promise. */
 private val FEATURES = listOf(
-    Feature(IcCamera, "scans", "scans_sub"),
-    Feature(IcChatOutlined, "doctor", "doctor_sub"),
-    Feature(IcSpeedometer, "health", "health_sub"),
-    Feature(IcBarChart, "analytics", "analytics_sub"),
+    Feature(IcCamera, "scans"),
+    Feature(IcShieldCheck, "documents"),
+    Feature(IcSpeedometer, "health"),
+    Feature(IcTagFilled, "export"),
 )
 
 @Composable
 private fun FeatureRow(feature: Feature) {
-    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(
             Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.accent.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
@@ -237,50 +256,117 @@ private fun FeatureRow(feature: Feature) {
             OdoIcon(feature.icon, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
         }
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-            OdoText(featureTitle(feature.title), style = OdoTheme.typography.heading)
-            OdoText(featureSubtitle(feature.subtitle), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+            OdoText(featureTitle(feature.key), style = OdoTheme.typography.heading)
+            OdoText(featureSubtitle(feature.key), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
     }
 }
 
-// --- Plans ---
+// --- The offer: plans, terms, CTA ---
+
+/**
+ * Everything that depends on the store's answer, in one place.
+ *
+ * The three states are the whole point of reading prices at run time. Loading is a spinner
+ * rather than skeleton cards with fake numbers in them; failure is a sentence and a retry;
+ * only [Loadable.Ready] draws a price or a button that can take money.
+ */
+@Composable
+private fun OfferBlock(state: PaywallUiState, onEvent: (PaywallEvent) -> Unit) {
+    when (val offer = state.offer) {
+        is Loadable.Loading -> LoadingOffer()
+        is Loadable.Failed -> FailedOffer(offer, onEvent)
+        is Loadable.Ready -> ReadyOffer(state, offer.value, onEvent)
+    }
+}
 
 @Composable
-private fun PlanSelector(selected: PaywallPlan, onSelect: (PaywallPlan) -> Unit) {
+private fun LoadingOffer() {
+    Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = OdoTheme.colors.accent)
+    }
+}
+
+@Composable
+private fun FailedOffer(failed: Loadable.Failed, onEvent: (PaywallEvent) -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+    ) {
+        OdoText(
+            failed.message.asString(),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
+            textAlign = TextAlign.Center,
+        )
+        OdoButton(
+            text = stringResource(Res.string.pw_retry),
+            onClick = { onEvent(PaywallEvent.RetryTapped) },
+            variant = OdoButtonVariant.Secondary,
+        )
+    }
+}
+
+@Composable
+private fun ReadyOffer(state: PaywallUiState, offer: PaywallOffer, onEvent: (PaywallEvent) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
+        PlanSelector(offer, enabled = !state.busy, onSelect = { onEvent(PaywallEvent.PlanSelected(it)) })
+        offer.selected?.let { selected ->
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                // Above the button, not below it: Play requires the terms before the tap, not
+                // as small print after it.
+                Terms(selected)
+                StartProButton(selected, busy = state.busy, onStart = { onEvent(PaywallEvent.StartProTapped) })
+                state.notice?.let { notice ->
+                    OdoText(
+                        notice.asString(),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanSelector(offer: PaywallOffer, enabled: Boolean, onSelect: (String) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-        PlanCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(Res.string.pw_plan_monthly),
-            price = stringResource(Res.string.pw_plan_monthly_price),
-            period = stringResource(Res.string.pw_plan_monthly_period),
-            selected = selected == PaywallPlan.MONTHLY,
-            onClick = { onSelect(PaywallPlan.MONTHLY) },
-        )
-        PlanCard(
-            modifier = Modifier.weight(1f),
-            title = stringResource(Res.string.pw_plan_annual),
-            price = stringResource(Res.string.pw_plan_annual_price),
-            period = stringResource(Res.string.pw_plan_annual_period),
-            selected = selected == PaywallPlan.ANNUAL,
-            badge = stringResource(Res.string.pw_plan_annual_badge),
-            onClick = { onSelect(PaywallPlan.ANNUAL) },
-        )
+        offer.plans.forEach { plan ->
+            PlanCard(
+                modifier = Modifier.weight(1f),
+                plan = plan,
+                selected = plan.id == offer.selectedPlanId,
+                enabled = enabled,
+                // Only the annual card carries it, and only when there is an honest number.
+                badge = offer.savingPercent
+                    ?.takeIf { plan.period == BillingPeriod.ANNUAL }
+                    ?.let { stringResource(Res.string.pw_plan_annual_badge, it) },
+                onClick = { onSelect(plan.id) },
+            )
+        }
     }
 }
 
 @Composable
 private fun PlanCard(
-    title: String,
-    price: String,
-    period: String,
+    plan: PaywallPlanCard,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     badge: String? = null,
 ) {
     val accent = OdoTheme.colors.accent
     val borderColor by animateColorAsState(if (selected) accent else OdoTheme.colors.border, tween(220), label = "planBorder")
-    val container by animateColorAsState(if (selected) accent.copy(alpha = 0.10f) else OdoTheme.colors.surface, tween(220), label = "planBg")
+    val container by animateColorAsState(
+        if (selected) accent.copy(alpha = 0.10f) else OdoTheme.colors.surface,
+        tween(220),
+        label = "planBg",
+    )
     Box(modifier) {
         Column(
             modifier = Modifier
@@ -288,16 +374,21 @@ private fun PlanCard(
                 .clip(OdoTheme.shapes.card)
                 .background(container)
                 .border(if (selected) 2.dp else 1.dp, borderColor, OdoTheme.shapes.card)
-                .clickable(onClick = onClick)
+                .clickable(enabled = enabled, onClick = onClick)
                 .padding(OdoTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OdoText(title, style = OdoTheme.typography.label, color = OdoTheme.colors.textDim, modifier = Modifier.weight(1f))
+                OdoText(
+                    planTitle(plan.period),
+                    style = OdoTheme.typography.label,
+                    color = OdoTheme.colors.textDim,
+                    modifier = Modifier.weight(1f),
+                )
                 PlanRadio(selected)
             }
-            OdoText(price, style = OdoTheme.typography.heading.copy(fontSize = 26.sp))
-            OdoText(period, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+            OdoText(plan.price, style = OdoTheme.typography.heading.copy(fontSize = 26.sp))
+            OdoText(planPeriod(plan), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
         if (badge != null) {
             OdoText(
@@ -334,10 +425,32 @@ private fun PlanRadio(selected: Boolean) {
     }
 }
 
-// --- CTA ---
+/**
+ * What the owner is agreeing to, in the plainest sentence the facts allow.
+ *
+ * Required by Play before the button: the price, how often it bills, that it renews, and how
+ * long the trial runs. Two sentences rather than one with an optional clause, because a plan
+ * with no trial must not carry copy shaped like it has one.
+ */
+@Composable
+private fun Terms(plan: PaywallPlanCard) {
+    val period = stringResource(
+        if (plan.period == BillingPeriod.ANNUAL) Res.string.pw_period_annual else Res.string.pw_period_monthly,
+    )
+    val text = plan.trialDays
+        ?.let { stringResource(Res.string.pw_terms_trial, it, plan.price) }
+        ?: stringResource(Res.string.pw_terms, plan.price, period)
+    OdoText(
+        text,
+        style = OdoTheme.typography.caption,
+        color = OdoTheme.colors.textMuted,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
 
 @Composable
-private fun StartProButton(selected: PaywallPlan, onStartPro: () -> Unit) {
+private fun StartProButton(plan: PaywallPlanCard, busy: Boolean, onStart: () -> Unit) {
     // A slow "breathing" glow so the CTA reads as the primary action without shouting.
     val glow = rememberInfiniteTransition(label = "ctaGlow")
     val elevation by glow.animateFloat(
@@ -346,56 +459,26 @@ private fun StartProButton(selected: PaywallPlan, onStartPro: () -> Unit) {
         animationSpec = infiniteRepeatable(tween(1300, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "ctaElevation",
     )
-    val label = if (selected == PaywallPlan.MONTHLY) {
-        stringResource(Res.string.pw_cta_monthly)
-    } else {
-        stringResource(Res.string.pw_cta_annual)
-    }
+    // The trial is the offer when there is one — leading with a price the owner will not pay
+    // for a week is a worse version of the same sentence.
+    val label = plan.trialDays
+        ?.let { stringResource(Res.string.pw_cta_trial, it) }
+        ?: stringResource(Res.string.pw_cta, plan.price)
     OdoButton(
         text = label,
-        onClick = onStartPro,
+        onClick = onStart,
+        loading = busy,
+        loadingText = stringResource(Res.string.pw_cta_working),
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(elevation.dp, OdoTheme.shapes.pill, clip = false, ambientColor = OdoTheme.colors.accent, spotColor = OdoTheme.colors.accent),
+            .shadow(
+                elevation.dp,
+                OdoTheme.shapes.pill,
+                clip = false,
+                ambientColor = OdoTheme.colors.accent,
+                spotColor = OdoTheme.colors.accent,
+            ),
     )
-}
-
-// --- Passport upsell ---
-
-@Composable
-private fun SellingDivider() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-        Box(Modifier.weight(1f).height(1.dp).background(OdoTheme.colors.border))
-        OdoText(stringResource(Res.string.pw_selling), style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-        Box(Modifier.weight(1f).height(1.dp).background(OdoTheme.colors.border))
-    }
-}
-
-@Composable
-private fun PassportCard(onBuild: () -> Unit) {
-    OdoCard(color = OdoTheme.colors.surfaceRaised) {
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(44.dp).clip(OdoTheme.shapes.small).background(OdoTheme.colors.accent.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                OdoIcon(IcTagFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(stringResource(Res.string.pw_passport_title), style = OdoTheme.typography.heading)
-                OdoText(stringResource(Res.string.pw_passport_sub), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
-            }
-            Box(
-                Modifier
-                    .clip(OdoTheme.shapes.pill)
-                    .border(1.dp, OdoTheme.colors.accent, OdoTheme.shapes.pill)
-                    .clickable(onClick = onBuild)
-                    .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.sm),
-            ) {
-                OdoText(stringResource(Res.string.pw_passport_cta), style = OdoTheme.typography.label, color = OdoTheme.colors.accent)
-            }
-        }
-    }
 }
 
 @Composable
@@ -404,6 +487,7 @@ private fun Footer() {
         stringResource(Res.string.pw_footer),
         style = OdoTheme.typography.caption,
         color = OdoTheme.colors.textMuted,
+        textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.md),
     )
 }
@@ -425,7 +509,7 @@ private fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Un
     ) { content() }
 }
 
-// --- Context copy resolution ---
+// --- Copy resolution ---
 
 private fun savingsText(amountPaise: Long): String = Amount.of(amountPaise).getOrNull()?.formatRupees() ?: ""
 
@@ -458,33 +542,60 @@ private fun subtitleText(state: PaywallUiState): String = when (state.trigger) {
 }
 
 @Composable
+private fun planTitle(period: BillingPeriod): String = stringResource(
+    when (period) {
+        BillingPeriod.MONTHLY -> Res.string.pw_plan_monthly
+        BillingPeriod.ANNUAL -> Res.string.pw_plan_annual
+    },
+)
+
+@Composable
+private fun planPeriod(plan: PaywallPlanCard): String = when (plan.period) {
+    BillingPeriod.MONTHLY -> stringResource(Res.string.pw_plan_monthly_period)
+    // The store's own per-month figure, so nothing here divides a price.
+    BillingPeriod.ANNUAL -> stringResource(Res.string.pw_plan_annual_period, plan.pricePerMonth)
+}
+
+@Composable
 private fun featureTitle(key: String): String = stringResource(
     when (key) {
         "scans" -> Res.string.pw_feature_scans_title
-        "doctor" -> Res.string.pw_feature_doctor_title
+        "documents" -> Res.string.pw_feature_documents_title
         "health" -> Res.string.pw_feature_health_title
-        else -> Res.string.pw_feature_analytics_title
+        else -> Res.string.pw_feature_export_title
     },
 )
 
 @Composable
 private fun featureSubtitle(key: String): String = stringResource(
     when (key) {
-        "scans_sub" -> Res.string.pw_feature_scans_sub
-        "doctor_sub" -> Res.string.pw_feature_doctor_sub
-        "health_sub" -> Res.string.pw_feature_health_sub
-        else -> Res.string.pw_feature_analytics_sub
+        "scans" -> Res.string.pw_feature_scans_sub
+        "documents" -> Res.string.pw_feature_documents_sub
+        "health" -> Res.string.pw_feature_health_sub
+        else -> Res.string.pw_feature_export_sub
     },
 )
 
 @OdoThemePreviews
 @Composable
 private fun PaywallGenericPreview() = OdoPreview(padded = false) {
-    PaywallScreen(samplePaywallGeneric(), onSelectPlan = {}, onStartPro = {}, onRestore = {}, onBuildPassport = {}, onClose = {})
+    PaywallScreen(samplePaywallGeneric(), onEvent = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun PaywallSavingsPreview() = OdoPreview(padded = false) {
-    PaywallScreen(samplePaywallSavings(), onSelectPlan = {}, onStartPro = {}, onRestore = {}, onBuildPassport = {}, onClose = {})
+    PaywallScreen(samplePaywallSavings(), onEvent = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun PaywallLoadingPreview() = OdoPreview(padded = false) {
+    PaywallScreen(samplePaywallLoading(), onEvent = {})
+}
+
+@OdoThemePreviews
+@Composable
+private fun PaywallUnavailablePreview() = OdoPreview(padded = false) {
+    PaywallScreen(samplePaywallUnavailable(), onEvent = {})
 }

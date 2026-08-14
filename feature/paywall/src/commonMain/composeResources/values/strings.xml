@@ -5,7 +5,7 @@
     <!-- Context badges + headlines + subtitles -->
     <string name="pw_badge_generic">ODO PRO</string>
     <string name="pw_headline_generic">Everything Odo can do, unlocked.</string>
-    <string name="pw_subtitle_generic">Unlimited scans, AI Doctor, the full Health Score breakdown and analytics.</string>
+    <string name="pw_subtitle_generic">Unlimited scans, an unlimited document vault, the full Health Score breakdown and your record as a PDF.</string>
 
     <string name="pw_badge_scans">0 FREE SCANS LEFT</string>
     <string name="pw_headline_scans">Keep scanning, without limits.</string>
@@ -15,36 +15,48 @@
     <string name="pw_headline_savings">Catch every overcharge, automatically.</string>
     <string name="pw_subtitle_savings">You found %1$s on one bill. Pro checks every bill you’ll ever pay — and pays for itself fast.</string>
 
-    <!-- Feature list -->
+    <!-- Feature list. Four things, and Pro does all four today: nothing here is a promise. -->
     <string name="pw_feature_scans_title">Unlimited bill scans</string>
     <string name="pw_feature_scans_sub">Check every bill for overcharges</string>
-    <string name="pw_feature_doctor_title">AI Doctor chat</string>
-    <string name="pw_feature_doctor_sub">Describe a problem, get a first opinion</string>
+    <string name="pw_feature_documents_title">Unlimited document vault</string>
+    <string name="pw_feature_documents_sub">Every paper for the car, in one place</string>
     <string name="pw_feature_health_title">Full Health Score breakdown</string>
     <string name="pw_feature_health_sub">See exactly what moves your score</string>
-    <string name="pw_feature_analytics_title">Analytics dashboard</string>
-    <string name="pw_feature_analytics_sub">Per-km cost &amp; spend trends</string>
+    <string name="pw_feature_export_title">Export your full record</string>
+    <string name="pw_feature_export_sub">A printable PDF buyers and workshops trust</string>
 
-    <!-- Plans -->
+    <!-- Plans. Every price comes from the store at run time, so no figure is written here. -->
     <string name="pw_plan_monthly">Monthly</string>
-    <string name="pw_plan_monthly_price">Rs. 149</string>
     <string name="pw_plan_monthly_period">per month</string>
     <string name="pw_plan_annual">Annual</string>
-    <string name="pw_plan_annual_price">Rs. 1,490</string>
-    <string name="pw_plan_annual_period">≈ Rs. 124 / mo</string>
-    <string name="pw_plan_annual_badge">2 MONTHS FREE</string>
-    <string name="pw_cd_selected">Selected</string>
+    <string name="pw_plan_annual_period">≈ %1$s / mo</string>
+    <string name="pw_plan_annual_badge">SAVE %1$d%%</string>
 
-    <!-- CTA -->
-    <string name="pw_cta_monthly">Start Pro · Rs. 149/mo</string>
-    <string name="pw_cta_annual">Start Pro · Rs. 1,490/yr</string>
+    <!-- CTA. The price is the store's own string, so both take it as an argument. -->
+    <string name="pw_cta">Start Pro · %1$s</string>
+    <string name="pw_cta_trial">Start %1$d-day free trial</string>
+    <string name="pw_cta_working">Just a moment…</string>
 
-    <!-- Resale Passport upsell -->
-    <string name="pw_selling">selling your car?</string>
-    <string name="pw_passport_title">Resale Passport</string>
-    <string name="pw_passport_sub">Verified proof buyers trust · Rs. 249 once</string>
-    <string name="pw_passport_cta">Build it</string>
+    <!--
+      Play requires the terms before the button, not after it: price, period, that it renews,
+      and how long the trial runs. Two versions, because a plan with no trial must not claim
+      one.
+    -->
+    <string name="pw_terms_trial">%1$d days free, then %2$s. Renews automatically until you cancel.</string>
+    <string name="pw_terms">%1$s, billed %2$s. Renews automatically until you cancel.</string>
+    <string name="pw_period_monthly">monthly</string>
+    <string name="pw_period_annual">annually</string>
+
+    <!-- Nothing to show -->
+    <string name="pw_error_store_unavailable">Couldn’t reach the store. Check your connection and try again.</string>
+    <string name="pw_error_nothing_for_sale">Odo Pro isn’t available to buy right now. Please try again later.</string>
+    <string name="pw_retry">Try again</string>
+
+    <!-- What the store just said -->
+    <string name="pw_purchase_failed">That payment didn’t go through. You haven’t been charged.</string>
+    <string name="pw_restore_none">Nothing to restore on this account.</string>
+    <string name="pw_restore_failed">Couldn’t reach the store to check. Try again in a moment.</string>
 
     <!-- Footer -->
-    <string name="pw_footer">Cancel anytime · UPI / cards · secured by Razorpay</string>
+    <string name="pw_footer">Cancel anytime in Google Play</string>
 </resources>

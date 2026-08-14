@@ -9,6 +9,7 @@ import com.hopcape.odo.infrastructure.billing.catalog.UnconfiguredCatalog
 import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource
 import com.hopcape.odo.infrastructure.billing.identity.RevenueCatIdentity
 import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatPurchaser
+import com.hopcape.odo.infrastructure.billing.purchase.UnconfiguredPurchaser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,8 +69,11 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         }
     } else {
         single<SubscriptionCatalog> { UnconfiguredCatalog() }
-        // No purchaser and no entitlement source: with nothing for sale there is nothing to
-        // buy, and coreDataModule's free-plan source and no-op identity already stand.
+        // The paywall's ViewModel asks for a purchaser the moment it is built, so this is
+        // bound too. No entitlement source and no identity: coreDataModule's free-plan source
+        // and no-op identity already stand, and replacing them with more nothing would be
+        // noise.
+        single<SubscriptionPurchaser> { UnconfiguredPurchaser() }
     }
 }
 
