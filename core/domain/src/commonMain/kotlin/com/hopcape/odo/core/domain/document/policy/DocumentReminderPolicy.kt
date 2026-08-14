@@ -17,7 +17,10 @@ import kotlinx.datetime.minus
  * showed rather than a second copy that can drift from it.
  *
  * Lead times come from the PRD's reminder trigger table (§5.3): insurance at 30/7/1 days,
- * PUC at 15/3. The others the PRD does not list, decided here:
+ * PUC at 15/3. Those are the **defaults**; the owner moves their own on the notifications
+ * screen, and every entry point that schedules or promises a nudge passes what they chose
+ * (see [NotificationSchedule][com.hopcape.odo.core.domain.settings.model.NotificationSchedule]).
+ * The others the PRD does not list, decided here:
  * - **Licence** — 30 and 7 days. A licence renewal means an RTO appointment, so the
  *   day-before nudge that suits an online insurance purchase would arrive too late to act on.
  * - **RC, loan papers, other** — nothing. An RC is a lifetime document, a loan letter has
@@ -26,15 +29,41 @@ import kotlinx.datetime.minus
 object DocumentReminderPolicy {
 
     /**
-     * How many days before expiry this kind of paper is worth a nudge, longest lead first.
-     * Empty for the types that never need renewing.
+     * The leads the product chose for this kind of paper, longest first. Empty for the types
+     * that never need renewing.
+     *
+     * This is the *default*, not necessarily what will fire: the owner can move their leads
+     * on the notifications screen, and what is scheduled comes from
+     * [NotificationSchedule][com.hopcape.odo.core.domain.settings.model.NotificationSchedule].
+     * Read this when the question is about the kind of paper rather than about one owner —
+     * the confirm step asks it to decide whether an expiry date is required at all.
      */
-    fun leadDaysFor(type: DocumentType): List<Int> = when (type) {
+    fun defaultLeadDaysFor(type: DocumentType): List<Int> = when (type) {
         DocumentType.INSURANCE -> INSURANCE_LEAD_DAYS
         DocumentType.PUC -> PUC_LEAD_DAYS
         DocumentType.LICENCE -> LICENCE_LEAD_DAYS
         DocumentType.RC, DocumentType.LOAN, DocumentType.OTHER -> emptyList()
     }
+
+    /**
+     * Whether this kind of paper renews at all.
+     *
+     * Asked instead of "are any leads set", because an owner who turns every lead off for
+     * their insurance has muted a reminder — they have not turned insurance into a document
+     * that never expires, and the confirm step must still insist on the date.
+     */
+    fun renews(type: DocumentType): Boolean = defaultLeadDaysFor(type).isNotEmpty()
+
+    /** The types Odo chases, in the order the settings screen lists them. */
+    val chasedTypes: List<DocumentType> get() = DocumentType.entries.filter { renews(it) }
+
+    /**
+     * The leads the notifications screen offers as chips.
+     *
+     * Coarse on purpose: the useful choices are "the month before", "the week before" and
+     * "the day before", and a free number would invite a 23-day lead nobody means.
+     */
+    val LEAD_DAY_PRESETS: List<Int> = listOf(60, 30, 15, 7, 3, 1)
 
     /**
      * The nudges still ahead of [today] for a document expiring on [expiresOn], earliest
@@ -49,25 +78,32 @@ object DocumentReminderPolicy {
         type: DocumentType,
         expiresOn: LocalDate?,
         today: LocalDate,
+        leadDays: List<Int> = defaultLeadDaysFor(type),
     ): List<DocumentReminder> {
         if (expiresOn == null) return emptyList()
-        return leadDaysFor(type)
+        return leadDays
             .map { DocumentReminder(daysBefore = it, on = expiresOn.minus(it, DateTimeUnit.DAY)) }
             .filter { it.on >= today }
             .sortedBy { it.on }
     }
 
     /** [scheduleFor] for a document that already exists. */
-    fun scheduleFor(document: Document, today: LocalDate): List<DocumentReminder> =
-        scheduleFor(document.type, document.expiresOn, today)
+    fun scheduleFor(
+        document: Document,
+        today: LocalDate,
+        leadDays: List<Int> = defaultLeadDaysFor(document.type),
+    ): List<DocumentReminder> = scheduleFor(document.type, document.expiresOn, today, leadDays)
 
     /**
      * The next nudge only — the single line the add-document success screen renders
      * ("we'll remind you on 26 Jun, 7 days before it expires"). `null` when nothing is due:
      * a lifetime paper, a lapsed one, or a type Odo does not chase.
      */
-    fun nextReminderFor(document: Document, today: LocalDate): DocumentReminder? =
-        scheduleFor(document, today).firstOrNull()
+    fun nextReminderFor(
+        document: Document,
+        today: LocalDate,
+        leadDays: List<Int> = defaultLeadDaysFor(document.type),
+    ): DocumentReminder? = scheduleFor(document, today, leadDays).firstOrNull()
 
     /** PRD §5.3 — push + WhatsApp, the renewal that costs the most to miss. */
     private val INSURANCE_LEAD_DAYS = listOf(30, 7, 1)

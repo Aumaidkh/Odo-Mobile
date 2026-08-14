@@ -3,8 +3,10 @@ package com.hopcape.odo.feature.documentvault.presentation
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
 import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.documentvault.FakeDocumentFileStore
 import com.hopcape.odo.feature.documentvault.FakeDocumentRepository
+import com.hopcape.odo.feature.documentvault.RecordingDownloads
 import com.hopcape.odo.feature.documentvault.RecordingReminderScheduler
 import com.hopcape.odo.feature.documentvault.RecordingAnalytics
 import com.hopcape.odo.feature.documentvault.TEST_CAR
@@ -59,6 +61,7 @@ class DocumentDetailViewModelTest {
         documentId: String = "d1",
         repository: FakeDocumentRepository = FakeDocumentRepository(listOf(insurance)),
         files: FakeDocumentFileStore = FakeDocumentFileStore(stored = setOf(insurance.storagePath)),
+        downloads: RecordingDownloads = RecordingDownloads(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
     ): DocumentDetailViewModel {
         val observeDetail = ObserveDocumentDetailUseCase(
@@ -72,6 +75,7 @@ class DocumentDetailViewModelTest {
             observeDetail = observeDetail,
             deleteDocument = DeleteDocumentUseCase(repository, files, RecordingReminderScheduler()),
             replaceFile = ReplaceDocumentFileUseCase(repository, files),
+            downloads = downloads,
             telemetry = testTelemetry(analytics),
         )
     }
@@ -175,6 +179,35 @@ class DocumentDetailViewModelTest {
 
         val effect = assertIs<DocumentDetailEffect.OpenFile>(viewModel.effects.first())
         assertEquals(insurance.storagePath, effect.storagePath)
+    }
+
+    @Test
+    fun savingACopyNamesItAfterTheDocument() = runTest(dispatcher) {
+        val downloads = RecordingDownloads()
+        val viewModel = viewModel(downloads = downloads)
+        viewModel.content()
+
+        viewModel.onEvent(DocumentDetailEvent.File.Download)
+        advanceUntilIdle()
+
+        // The stored key is an id nobody can read; what leaves the app is named after the
+        // paper, and declared as what it actually is.
+        val (storageKey, fileName, mimeType) = downloads.saved.single()
+        assertEquals(insurance.storagePath, storageKey)
+        assertEquals("Insurance.pdf", fileName)
+        assertEquals("application/pdf", mimeType)
+        assertEquals(DocumentDetailEffect.CopySaved, viewModel.effects.first())
+    }
+
+    @Test
+    fun aCopyThatCouldNotBeSavedSaysSo() = runTest(dispatcher) {
+        val viewModel = viewModel(downloads = RecordingDownloads(DomainError.PersistenceFailure("no space")))
+        viewModel.content()
+
+        viewModel.onEvent(DocumentDetailEvent.File.Download)
+        advanceUntilIdle()
+
+        assertEquals(DocumentDetailEffect.CopySaveFailed, viewModel.effects.first())
     }
 
     @Test

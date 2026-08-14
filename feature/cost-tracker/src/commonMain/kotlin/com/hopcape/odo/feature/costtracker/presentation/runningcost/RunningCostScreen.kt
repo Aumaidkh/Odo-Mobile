@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
@@ -31,9 +32,11 @@ import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoDistanceUnit
+import com.hopcape.odo.core.designsystem.component.OdoEmptyState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCaretUpFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -67,6 +70,8 @@ import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_generic
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_missing
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_note_owner
 import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_action
+import com.hopcape.odo.feature.costtracker.resources.ct_no_car_body
+import com.hopcape.odo.feature.costtracker.resources.ct_no_car_title
 import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_title
 import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_rate
 import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_suffix
@@ -102,6 +107,28 @@ internal fun RunningCostScreen(
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(modifier = modifier, title = stringResource(Res.string.ct_title)) { padding ->
+        if (state.noCar) {
+            // No read is in flight, so a spinner here would spin forever; say what is
+            // actually missing and where to fix it.
+            Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoEmptyState(
+                    title = stringResource(Res.string.ct_no_car_title),
+                    message = stringResource(Res.string.ct_no_car_body),
+                    icon = {
+                        OdoIcon(
+                            IcCar,
+                            contentDescription = null,
+                            tint = OdoTheme.colors.textMuted,
+                            size = OdoTheme.iconSizes.large,
+                        )
+                    },
+                )
+            }
+            return@OdoScreen
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -258,7 +285,16 @@ private fun SpendBarColumn(bar: SpendBar, max: Long, modifier: Modifier = Modifi
                     .background(if (bar.highlighted) OdoTheme.colors.accent else OdoTheme.colors.surfaceRaised),
             )
         }
-        OdoText(bar.label.asString(), style = OdoTheme.typography.caption, color = OdoTheme.colors.textDim)
+        // The 1Y period packs two-month labels ("Aug–Oct") under sixth-width columns;
+        // caption's tracked caps overflow there, so the axis drops the tracking and
+        // pins to one line instead of wrapping mid-word.
+        OdoText(
+            bar.label.asString(),
+            style = OdoTheme.typography.caption.copy(fontSize = 10.sp, letterSpacing = 0.sp),
+            color = OdoTheme.colors.textDim,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 

@@ -13,11 +13,16 @@ import com.hopcape.odo.core.domain.settings.model.AppSettings
  * [name] and the rest are nullable because a profile legitimately has none of them yet: a
  * signup-created row carries no name, onboarding never asks for a city, and nothing here
  * requires an email or a photo.
+ *
+ * [phoneNumber] comes from the auth provider, not from the stored profile — nothing in Odo
+ * keeps it (see [VerifiedAccount][com.hopcape.odo.core.domain.auth.VerifiedAccount]). It is
+ * null on a device that never signed in, in E.164 otherwise.
  */
 internal data class ProfileSnapshot(
     val name: String?,
     val email: String?,
     val city: String?,
+    val phoneNumber: String?,
     val avatarPath: String?,
     val isPro: Boolean,
     val isSignedIn: Boolean,

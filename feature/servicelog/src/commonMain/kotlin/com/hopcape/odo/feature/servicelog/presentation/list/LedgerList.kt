@@ -101,7 +101,7 @@ private fun LedgerCard(card: ServiceLogCardUiState, onClick: () -> Unit, modifie
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OdoText(text = card.workshopName ?: "—", style = OdoTheme.typography.heading)
-                VerificationBadge(card.verification)
+                //VerificationBadge(card.verification)
             }
             OdoText(text = card.amount.formatRupees(), style = OdoTheme.typography.title)
         }

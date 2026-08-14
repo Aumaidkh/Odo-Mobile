@@ -16,9 +16,16 @@ internal sealed interface DocumentDetailEvent {
         /** Open the stored file in a viewer. */
         data object View : File
 
-        /** A replacement file was picked. [source] records where it came from. */
+        /**
+         * A replacement file was picked.
+         *
+         * Nothing in the menu sends this today — the option was taken out while it had no
+         * picker behind it. The path stays because what it leads to is finished and tested;
+         * putting the option back is a menu row, not a feature.
+         */
         data class Replace(val pickedRef: String) : File
 
+        /** "Save a copy" — put the file where the owner keeps their downloads. */
         data object Download : File
 
         data object Delete : File
@@ -52,8 +59,11 @@ internal sealed interface DocumentDetailEffect {
     /** Hand the stored file to a platform viewer. */
     data class OpenFile(val storagePath: String) : DocumentDetailEffect
 
-    /** Save a copy of the stored file where the owner can find it. */
-    data class DownloadFile(val storagePath: String) : DocumentDetailEffect
+    /** A copy of the file is in the owner's downloads. */
+    data object CopySaved : DocumentDetailEffect
+
+    /** The copy could not be written — no space, or the file went missing under it. */
+    data object CopySaveFailed : DocumentDetailEffect
 
     /** The document is gone, so the screen that was showing it closes. */
     data object NavigateBack : DocumentDetailEffect

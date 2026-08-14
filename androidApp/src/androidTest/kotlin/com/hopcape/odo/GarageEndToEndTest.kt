@@ -1,6 +1,7 @@
 package com.hopcape.odo
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -318,8 +319,13 @@ class GarageEndToEndTest {
 
     /* ------------------------------ Export ------------------------------ */
 
+    /**
+     * The sheet says what is on file and offers the vehicle-details PDF two ways. The
+     * render-and-share leg itself is covered by the ViewModel's tests and by the record
+     * export's device test — this asserts the sheet is live, not a mock-up.
+     */
     @Test
-    fun exportSaysWhatIsOnFileAndLeadsToPro() {
+    fun exportSaysWhatIsOnFileAndOffersThePdf() {
         seedServiceHistory()
         seedDocument(id = GarageFixtures.RC_ID, type = DocumentType.RC)
         rule.openGarage()
@@ -331,12 +337,8 @@ class GarageEndToEndTest {
         rule.awaitText(GarageCopy.EXPORT_TITLE)
         rule.onNodeWithText(GarageCopy.exportServices(3)).assertIsDisplayed()
         rule.onNodeWithText(GarageCopy.exportDocs(1)).assertIsDisplayed()
-        // The record itself is the paid Resale Passport, and the sheet says so.
-        rule.onNodeWithText(GarageCopy.EXPORT_PRO_NOTE).assertIsDisplayed()
-
-        rule.onNodeWithText(GarageCopy.EXPORT_PDF).performClick()
-
-        rule.awaitGone(GarageCopy.EXPORT_TITLE)
+        rule.onNodeWithText(GarageCopy.EXPORT_PDF).assertIsEnabled()
+        rule.onNodeWithText(GarageCopy.EXPORT_SHARE).assertIsEnabled()
     }
 
     /* ------------------------------ Removing the car ------------------------------ */

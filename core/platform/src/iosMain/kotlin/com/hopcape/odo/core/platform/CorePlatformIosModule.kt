@@ -4,7 +4,10 @@ import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
 import com.hopcape.odo.core.platform.camera.QrImageDecoder
+import arrow.core.left
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.IosFileStore
+import com.hopcape.odo.core.platform.file.PlatformDownloads
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
@@ -33,6 +36,11 @@ import org.koin.dsl.module
  */
 val corePlatformIosModule = module {
     single<PlatformFileStore> { IosFileStore() }
+    // No Files-app export on iOS yet. Refusing says so through the screen's own "could not
+    // save" message, which is the same thing the owner would see if the disk were full.
+    single<PlatformDownloads> {
+        PlatformDownloads { _, _, _ -> DomainError.PersistenceFailure("downloads are not available on iOS yet").left() }
+    }
     // No PDF rasterizer on iOS yet. Answering "no page" leaves the reader's own
     // "we could not read this" message doing the explaining, as it does for a bad photo.
     single<StoredPageRenderer> { StoredPageRenderer { null } }

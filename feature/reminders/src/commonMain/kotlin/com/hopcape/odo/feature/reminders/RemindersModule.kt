@@ -1,8 +1,6 @@
 package com.hopcape.odo.feature.reminders
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
-import com.hopcape.odo.feature.reminders.domain.notification.NoOpReminderNotificationScheduler
-import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
 import com.hopcape.odo.feature.reminders.domain.usecase.CreateCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.domain.usecase.DeleteCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.domain.usecase.DismissReminderUseCase
@@ -39,7 +37,6 @@ val remindersModule = module {
         RemindersFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
 
-    single<ReminderNotificationScheduler> { NoOpReminderNotificationScheduler }
 
     factory {
         ObserveRemindersUseCase(

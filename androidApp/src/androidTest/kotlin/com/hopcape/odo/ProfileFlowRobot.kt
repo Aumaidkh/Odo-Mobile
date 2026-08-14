@@ -18,7 +18,9 @@ import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeTestTags
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceTestTags
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.profile.presentation.EditProfileTestTags
+import com.hopcape.odo.feature.profile.presentation.NotificationsTestTags
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsTestTags
 import org.koin.core.context.GlobalContext
@@ -59,6 +61,7 @@ internal object ProfileCopy {
     /* Notifications screen. */
     const val NOTIF_HEALTH = "Health Score changes"
     const val NOTIF_DOC_EXPIRY = "Document expiry"
+    const val NOTIFY_AT_8_AM = "8 AM"
 
     /* Sheets. */
     const val DONE = "Done"
@@ -105,6 +108,9 @@ internal fun storedDistanceUnit(): String? = readSetting("distance_unit")
 
 internal fun storedNotificationFlag(column: String): Long? =
     readSetting(column)?.toLongOrNull()
+
+/** One column off the single settings row, as text. */
+internal fun readStoredSetting(column: String): String? = readSetting(column)
 
 private fun readSetting(column: String): String? = with(profileDriver()) {
     executeQuery(
@@ -209,6 +215,31 @@ internal fun ProfileTestRule.openNotifications() {
     onNodeWithTag(ProfileTestTags.NOTIFICATIONS_ROW).performClick()
     awaitText(ProfileCopy.NOTIF_DOC_EXPIRY)
 }
+
+/**
+ * Tap one lead chip under "Document expiry".
+ *
+ * By tag rather than by text: several kinds of paper offer the same "30 days", and the row
+ * they sit in is the only thing that tells them apart.
+ */
+internal fun ProfileTestRule.toggleLeadChip(type: DocumentType, days: Int) {
+    onNodeWithTag(NotificationsTestTags.leadChip(type, days)).performScrollTo().performClick()
+    waitForIdle()
+}
+
+/** Pick the hour every reminder should arrive at. */
+internal fun ProfileTestRule.chooseNotifyHour(label: String) {
+    onNodeWithTag(NotificationsTestTags.NOTIFY_AT_FIELD).performScrollTo().performClick()
+    awaitText(label)
+    onNodeWithText(label).performClick()
+    waitForIdle()
+}
+
+/** The owner's stored lead days, as the column holds them. */
+internal fun storedLeadDays(): String? = readStoredSetting("notif_doc_leads")
+
+/** The stored hour every reminder fires at. */
+internal fun storedNotifyHour(): Long? = readStoredSetting("notif_hour")?.toLongOrNull()
 
 internal fun ProfileTestRule.openUnitsSheet() {
     onNodeWithTag(ProfileTestTags.UNITS_ROW).performClick()
