@@ -14,6 +14,7 @@ import com.hopcape.odo.core.domain.payment.model.UpiPaymentStatus
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanLimit
+import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.domain.scan.model.BillType
 import com.hopcape.odo.core.domain.scan.model.ExtractedBill
 import com.hopcape.odo.core.domain.scan.model.ExtractedLineItem
@@ -35,6 +36,7 @@ class ScanAndLogUseCasesTest {
     private val ids = SequentialIds()
     private val carId = CarId("car-1")
     private val ownerId = OwnerId("owner-1")
+    private val usage = RecordingScanUsage()
 
     /* ------------------------------ ScanBillUseCase ------------------------------ */
 
@@ -44,6 +46,7 @@ class ScanAndLogUseCasesTest {
         val useCase = ScanBillUseCase(
             extractor = { _ -> called = true; readableBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 3) },
+            usage = usage,
             ids = ids,
             clock = clock,
         )
@@ -61,6 +64,7 @@ class ScanAndLogUseCasesTest {
         val useCase = ScanBillUseCase(
             extractor = { readableBill().right() },
             allowance = { ScanLimit.Unlimited },
+            usage = usage,
             ids = ids,
             clock = clock,
         )
@@ -73,6 +77,7 @@ class ScanAndLogUseCasesTest {
         val useCase = ScanBillUseCase(
             extractor = { emptyBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
+            usage = usage,
             ids = ids,
             clock = clock,
         )
@@ -84,6 +89,7 @@ class ScanAndLogUseCasesTest {
         val useCase = ScanBillUseCase(
             extractor = { DomainError.ScanUnavailable.left() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
+            usage = usage,
             ids = ids,
             clock = clock,
         )
@@ -96,6 +102,7 @@ class ScanAndLogUseCasesTest {
         val useCase = ScanBillUseCase(
             extractor = { image -> seen = image; readableBill().right() },
             allowance = { ScanLimit.Unlimited },
+            usage = usage,
             ids = ids,
             clock = clock,
         )
@@ -103,6 +110,43 @@ class ScanAndLogUseCasesTest {
 
         assertEquals("scans/abc.jpg", seen?.storageKey)
         assertEquals(clock.now(), seen?.capturedAt)
+    }
+
+    @Test
+    fun a_usable_read_spends_one_scan() = runTest {
+        val useCase = ScanBillUseCase(
+            extractor = { readableBill().right() },
+            allowance = { ScanLimit.UpTo(max = 3, used = 0) },
+            usage = usage,
+            ids = ids,
+            clock = clock,
+        )
+
+        useCase("scans/a.jpg")
+
+        assertEquals(1, usage.recorded)
+    }
+
+    @Test
+    fun a_read_that_gave_nothing_back_spends_nothing() = runTest {
+        // Both ways a scan can come to nothing: the extractor failing, and it returning a
+        // bill with no fields. Neither costs the owner one of their three.
+        ScanBillUseCase(
+            extractor = { DomainError.ScanUnavailable.left() },
+            allowance = { ScanLimit.UpTo(max = 3, used = 0) },
+            usage = usage,
+            ids = ids,
+            clock = clock,
+        )("scans/a.jpg")
+        ScanBillUseCase(
+            extractor = { emptyBill().right() },
+            allowance = { ScanLimit.UpTo(max = 3, used = 0) },
+            usage = usage,
+            ids = ids,
+            clock = clock,
+        )("scans/b.jpg")
+
+        assertEquals(0, usage.recorded)
     }
 
     /* ------------------------------ LogFuelFillUseCase ------------------------------ */
@@ -189,6 +233,18 @@ private class RecordingFuelFills : FuelFillRepository {
     override suspend fun add(fill: FuelFill): Either<DomainError, FuelFill> {
         added += fill
         return fill.right()
+    }
+}
+
+/** Counts what was charged, so a test can assert nothing was. */
+private class RecordingScanUsage : ScanUsage {
+    var recorded = 0
+        private set
+
+    override suspend fun usedThisMonth(): Int = recorded
+
+    override suspend fun recordScan() {
+        recorded++
     }
 }
 

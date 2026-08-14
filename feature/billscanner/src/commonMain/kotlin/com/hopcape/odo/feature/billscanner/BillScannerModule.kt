@@ -37,8 +37,8 @@ val billScannerModule = module {
         BillScannerFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
 
-    factory { ScanBillUseCase(extractor = get(), allowance = get(), ids = get(), clock = get()) }
-    factory { ScanDocumentUseCase(extractor = get(), allowance = get(), ids = get(), clock = get()) }
+    factory { ScanBillUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
+    factory { ScanDocumentUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
     factory { SaveScannedBillUseCase(logs = get(), ids = get(), clock = get()) }
     factory {
         SaveScannedDocumentUseCase(

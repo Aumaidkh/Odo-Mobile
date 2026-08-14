@@ -6,6 +6,7 @@ import arrow.core.raise.ensure
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.domain.scan.model.ExtractedBill
 import com.hopcape.odo.core.domain.scan.model.ScanId
 import com.hopcape.odo.core.domain.scan.model.ScannedImage
@@ -27,6 +28,7 @@ import kotlin.time.Clock
 internal class ScanBillUseCase(
     private val extractor: BillExtractor,
     private val allowance: ScanAllowance,
+    private val usage: ScanUsage,
     private val ids: IdGenerator,
     private val clock: Clock,
 ) {
@@ -41,6 +43,9 @@ internal class ScanBillUseCase(
         )
         val bill = extractor.extract(image).bind()
         ensure(!bill.isEmpty) { DomainError.ScanRejected }
+        // Counted only now. A read that failed or came back empty gave the owner nothing,
+        // and charging a free scan for a blurry photo is how a cap stops feeling fair.
+        usage.recordScan()
         bill
     }
 }

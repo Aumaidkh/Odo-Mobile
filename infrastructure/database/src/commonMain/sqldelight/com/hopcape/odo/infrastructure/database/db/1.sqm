@@ -1,0 +1,19 @@
+-- Schema 1 -> 2: adds `scan_usage`.
+--
+-- The first migration this database has ever had, and it exists because 1.0 is on
+-- Play. Until now every schema change landed before anyone had a copy, so the .sq
+-- files alone were enough: SQLDelight builds the schema from them on a fresh
+-- install. An existing install is different — its `user_version` is 1, and a table
+-- that only exists in a .sq file is a table that phone has never created. The first
+-- query against it would fail with "no such table".
+--
+-- So every schema change from here on needs a file like this one as well as the
+-- edit to the .sq. The number is the version being migrated *from*: this one takes
+-- a version-1 database to version 2, and `OdoDatabase.Schema.version` becomes 2
+-- because of it. The statements below must match ScanUsage.sq exactly — the .sq is
+-- what a fresh install creates, this is what an upgrade runs, and they are two
+-- descriptions of one table.
+CREATE TABLE scan_usage (
+    month      TEXT NOT NULL PRIMARY KEY,
+    scan_count INTEGER NOT NULL
+);

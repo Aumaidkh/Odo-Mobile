@@ -41,9 +41,13 @@ object FeatureFlags {
      * - The end-to-end tests — the paywall ones are skipped by `assumeTrue`, and each has an
      *   `assumeFalse` twin asserting what 1.0 ships. Both halves compile either way.
      *
-     * **Two things the search finds only by comment**, because they are copy rather than
-     * code, and both say so where they sit: `dv_error_limit_reached` (reworded to stop
-     * naming the free plan) and `DocumentVaultFlowRobot.LIMIT_REACHED`, which asserts it.
+     * **Three things the search finds only by comment**, because they are copy rather than
+     * code, and each says so where it sits: `dv_error_limit_reached` and `bs_error_quota`
+     * (both reworded to stop naming the free plan and Pro), and
+     * `DocumentVaultFlowRobot.LIMIT_REACHED`, which asserts the first of them.
+     *
+     * `bs_error_quota` was unreachable until the scan counter landed — the allowance always
+     * reported nothing used, so the cap could not be met. It can be now.
      *
      * **Also delete when it goes true:** the now-unused `pf_coming_soon`, `gr_ex_coming_soon`
      * and `GarageCopy.EXPORT_COMING_SOON` strings.

@@ -42,7 +42,11 @@
     <string name="bs_error_generic">Something went wrong. Try again.</string>
     <string name="bs_error_unreadable">That photo was too blurry to read. Try again in better light.</string>
     <string name="bs_error_scan_unavailable">Scanning isn’t available right now. Enter the details yourself instead.</string>
-    <string name="bs_error_quota">You’ve used all %1$d free scans this month. Go Pro for unlimited.</string>
+    <!-- FeatureFlags.PAYWALL_ENABLED: says the cap without naming a plan, because there is
+         no paid plan to move to yet. Unreachable until the scan counter landed — the
+         allowance reported nothing used, so the cap was never met. Restore "You’ve used all
+         %1$d free scans this month. Go Pro for unlimited." when the flag goes true. -->
+    <string name="bs_error_quota">Odo reads %1$d bills a month. You can scan again next month.</string>
     <string name="bs_error_save_failed">That didn’t save. Try again.</string>
     <string name="bs_error_unsupported_qr">That isn’t a UPI payment code.</string>
     <string name="bs_error_upi_no_app">No UPI app on this phone. Install one to pay from Odo.</string>

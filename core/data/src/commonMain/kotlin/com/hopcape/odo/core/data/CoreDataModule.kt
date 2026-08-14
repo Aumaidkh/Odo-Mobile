@@ -11,12 +11,14 @@ import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
+import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
 import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
 import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
 import com.hopcape.odo.core.data.document.FakeDocumentRemoteDataSource
@@ -211,7 +213,10 @@ val coreDataModule = module {
     // their callers ask a shaped question ("how many documents", "how many scans left"), but
     // neither holds a number of its own any more — PlanLimits does.
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
-    single<ScanAllowance> { EntitlementScanAllowance(entitlements = get()) }
+    single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
+    // The tally the cap is measured against. Device-local: nothing counts a scan but the
+    // phone that ran it.
+    single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }
 
     // Extraction has no implementation yet, so both ports refuse and say why. A stub that
     // invented a bill would put made-up amounts into someone's service history, which is the

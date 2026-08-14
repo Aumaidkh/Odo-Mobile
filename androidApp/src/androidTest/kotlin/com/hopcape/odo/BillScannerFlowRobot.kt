@@ -134,8 +134,11 @@ internal object ScanCopy {
     /** `"%1$d of %2$d free"` — the quota pill. */
     fun quota(remaining: Int, total: Int) = "$remaining of $total free"
 
-    /** `"You've used all %1$d free scans this month. Go Pro for unlimited."` */
-    fun quotaSpent(limit: Int) = "You’ve used all $limit free scans this month. Go Pro for unlimited."
+    /**
+     * FeatureFlags.PAYWALL_ENABLED: goes back to "You've used all $limit free scans this
+     * month. Go Pro for unlimited." when the flag goes true.
+     */
+    fun quotaSpent(limit: Int) = "Odo reads $limit bills a month. You can scan again next month."
 }
 
 /** What the fakes return, and the rows the assertions look for. */
