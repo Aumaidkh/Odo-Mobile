@@ -367,6 +367,18 @@ internal class BillScannerTelemetry(
         const val UNKNOWN = "Unknown"
     }
 
+    /**
+     * The free-scan pill was tapped.
+     *
+     * A gate-hit: it counts owners who noticed the limit, whether or not they go on to
+     * subscribe. How often a cap is looked at is what says whether it was worth having.
+     */
+    fun quotaTapped(remaining: Int) {
+        val fields = mapOf(Key.REMAINING to remaining)
+        analytics.track(Event.QUOTA_TAPPED, fields)
+        logger.info(TAG, Event.QUOTA_TAPPED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /*
      * The feature's observability taxonomy. These names are what a dashboard queries, so they
      * are shipped contracts: reuse one rather than inventing a synonym, and do not rename one
@@ -379,6 +391,7 @@ internal class BillScannerTelemetry(
         const val CAMERA_DECLINED = "scanner_camera_declined"
         const val READ_FAILED = "scanner_read_failed"
         const val SCANNER_OPENED = "scanner_opened"
+        const val QUOTA_TAPPED = "scanner_quota_tapped"
         const val TARGET_SWITCHED = "scanner_target_switched"
         const val PHOTO_CAPTURED = "scanner_photo_captured"
         const val PHOTO_CROPPED = "scanner_photo_cropped"
@@ -415,6 +428,7 @@ internal class BillScannerTelemetry(
     /** Property names carried by the events and spans above. */
     object Key {
         const val TARGET = "target"
+        const val REMAINING = "remaining"
         const val STATUS = "status"
         const val REASON = "reason"
         const val SOURCE = "source"

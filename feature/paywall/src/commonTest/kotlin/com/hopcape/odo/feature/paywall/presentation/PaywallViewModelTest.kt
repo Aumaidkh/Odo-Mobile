@@ -3,6 +3,12 @@ package com.hopcape.odo.feature.paywall.presentation
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
+import com.hopcape.logging.api.LogLevel
+import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.core.domain.subscription.Offer
@@ -177,6 +183,68 @@ class PaywallViewModelTest {
         assertEquals(1, bought.size, "the store's sheet is modal; a second purchase must not start")
     }
 
+    /* ------------------------------ the funnel ------------------------------ */
+
+    @Test
+    fun everyStepOfTheFunnelIsCounted() = runTest {
+        // The drop-off between these is the product question this screen exists to answer,
+        // so each step is its own event rather than one "subscribed" at the end.
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.onEvent(PaywallEvent.PlanSelected(MONTHLY_ID))
+        viewModel.onEvent(PaywallEvent.StartProTapped)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                PaywallTelemetry.Event.SHOWN,
+                PaywallTelemetry.Event.PLAN_SELECTED,
+                PaywallTelemetry.Event.CHECKOUT_STARTED,
+                PaywallTelemetry.Event.PURCHASE_COMPLETED,
+            ),
+            tracked.events.map { it.first },
+        )
+    }
+
+    @Test
+    fun everyEventCarriesWhatSentTheOwnerHere() = runTest {
+        // The paywall cannot see which gate it was opened from, and that is what decides
+        // which gates are worth keeping.
+        val viewModel = viewModel(trigger = PaywallTrigger.SCANS_EXHAUSTED)
+        advanceUntilIdle()
+
+        viewModel.onEvent(PaywallEvent.CloseTapped)
+
+        assertTrue(
+            tracked.events.all { it.second[PaywallTelemetry.Key.TRIGGER] == "SCANS_EXHAUSTED" },
+            "the trigger rides on every event",
+        )
+    }
+
+    @Test
+    fun backingOutAndBeingRefusedAreCountedApart() = runTest {
+        // One says the price is wrong; the other says payments are broken.
+        viewModel(purchaser = RefusingPurchaser(DomainError.PaymentCancelled)).also {
+            advanceUntilIdle()
+            it.onEvent(PaywallEvent.StartProTapped)
+            advanceUntilIdle()
+        }
+
+        assertTrue(tracked.events.any { it.first == PaywallTelemetry.Event.PURCHASE_CANCELLED })
+        assertTrue(tracked.events.none { it.first == PaywallTelemetry.Event.PURCHASE_FAILED })
+    }
+
+    @Test
+    fun anOfferThatCouldNotBeShownIsCounted() = runTest {
+        // Without it the funnel reads a store outage as a pricing problem.
+        viewModel(catalog = { DomainError.NothingForSale.left() })
+        advanceUntilIdle()
+
+        val event = tracked.events.single { it.first == PaywallTelemetry.Event.OFFER_UNAVAILABLE }
+        assertEquals("nothing_for_sale", event.second[PaywallTelemetry.Key.REASON])
+    }
+
     /* ------------------------------ restoring ------------------------------ */
 
     @Test
@@ -205,6 +273,8 @@ class PaywallViewModelTest {
 
     /* ------------------------------ scaffolding ------------------------------ */
 
+    private val tracked = RecordingTracker()
+
     private fun viewModel(
         catalog: SubscriptionCatalog = SubscriptionCatalog { offer().right() },
         purchaser: SubscriptionPurchaser = RecordingPurchaser(mutableListOf()),
@@ -212,6 +282,7 @@ class PaywallViewModelTest {
     ) = PaywallViewModel(
         catalog = catalog,
         purchaser = purchaser,
+        telemetry = PaywallTelemetry(logger = NoopLogger, analytics = tracked, ids = { "id" }),
         trigger = trigger,
         amountPaise = 0L,
         freeScans = 0,
@@ -258,6 +329,30 @@ class PaywallViewModelTest {
     private class RestoringPurchaser(private val outcome: RestoreOutcome) : SubscriptionPurchaser {
         override suspend fun purchase(planId: String) = Unit.right()
         override suspend fun restore() = outcome.right()
+    }
+
+    private class RecordingTracker : AnalyticsTracker {
+        val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+
+        override fun identify(traits: UserTraits) = Unit
+        override fun track(eventName: String, properties: Map<String, Any?>) {
+            events += eventName to properties
+        }
+
+        override fun setConsent(status: ConsentStatus) = Unit
+        override fun flush() = Unit
+    }
+
+    private object NoopLogger : Logger {
+        override fun log(
+            level: LogLevel,
+            tag: String,
+            event: String,
+            traceContext: TraceContext?,
+            fields: Map<String, Any?>,
+        ) = Unit
+
+        override fun flush() = Unit
     }
 
     private companion object {

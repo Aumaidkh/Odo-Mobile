@@ -35,10 +35,6 @@ import org.junit.runner.RunWith
  * fail here. That is the job: `HealthScoreCalculator.RULES_VERSION` moving is the reminder
  * to come and re-read [HealthFixtures].
  *
- * **Before running:** `health_scores` is a new table and the local database still has no
- * migrations, so an install carrying an older database does not have it. Clear the app's
- * data (or uninstall) first.
- *
  * **What is deliberately not covered:** a failed database read (there is no way to break
  * SQLite from a test without breaking the whole app with it, and the ViewModel's failure
  * branch is unit-tested), and the cost-fairness factor above zero (it needs a stored

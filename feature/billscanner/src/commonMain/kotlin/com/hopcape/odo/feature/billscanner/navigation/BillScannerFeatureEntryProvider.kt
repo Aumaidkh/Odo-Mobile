@@ -145,6 +145,11 @@ internal fun BillScanRoute(
                     inclusive = true,
                 )
             }
+            is BillScanEffect.OpenPaywall ->
+                navigationManager.navigateTo(
+                    OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_SCANS, freeScans = effect.freeScans),
+                )
+
             BillScanEffect.NavigateBack -> navigationManager.back()
         }
     }
@@ -172,6 +177,7 @@ internal fun BillScanRoute(
             }
         },
         onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
+        onQuotaTapped = { viewModel.onEvent(BillScanEvent.QuotaTapped) },
         onCapture = cameraState::capture,
         onPickGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
         onManual = { viewModel.onEvent(BillScanEvent.ManualTapped) },
@@ -386,3 +392,6 @@ private fun NavigationManager.backToServiceLog(carId: CarId?) {
     val log = OdoDestination.ServiceLog.List(carId.value)
     navigateTo(log, popUpTo = log, inclusive = true)
 }
+
+/** Where the paywall was opened from. A shipped analytics value — do not reword it. */
+private const val PAYWALL_TRIGGER_SCANS = "SCANS_EXHAUSTED"

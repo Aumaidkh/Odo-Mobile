@@ -79,6 +79,13 @@ internal class BillScanViewModel(
         is BillScanEvent.TargetSelected -> selectTarget(event.target)
         is BillScanEvent.PermissionChanged -> permissionChanged(event.status)
         BillScanEvent.PermissionDeclined -> declined()
+        // The pill is the only place the scanner says "free plan", so it is the honest place
+        // to let the owner leave one. It opens whether or not the quota is spent: someone
+        // reading "1 of 3 free" is already thinking about the limit.
+        BillScanEvent.QuotaTapped -> {
+            telemetry.quotaTapped(_state.value.freeRemaining)
+            emit(BillScanEffect.OpenPaywall(freeScans = _state.value.freeTotal))
+        }
         is BillScanEvent.PhotoCaptured -> photoCaptured(event.storageKey)
         is BillScanEvent.QrDetected -> qrDetected(event.payload)
         // Deliberately silent in telemetry — this fires per frame, and a log per frame is

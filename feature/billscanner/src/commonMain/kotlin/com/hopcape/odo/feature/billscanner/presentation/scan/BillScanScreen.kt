@@ -113,11 +113,12 @@ internal fun BillScanScreen(
     onManual: () -> Unit,
     onTargetSelected: (ScanTarget) -> Unit,
     onToggleEdgeLock: () -> Unit,
+    onQuotaTapped: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
         modifier = modifier,
-        topBar = { ScanTopBar(state = state, cameraState = cameraState, onClose = onClose) },
+        topBar = { ScanTopBar(state = state, cameraState = cameraState, onClose = onClose, onQuotaTapped = onQuotaTapped) },
         bottomBar = {
             Column {
                 state.failure?.let { message ->
@@ -212,6 +213,7 @@ private fun ScanTopBar(
     state: BillScanUiState,
     cameraState: OdoCameraState,
     onClose: () -> Unit,
+    onQuotaTapped: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -262,6 +264,9 @@ private fun ScanTopBar(
             OdoBadge(
                 text = stringResource(Res.string.bs_scan_quota, state.freeRemaining, state.freeTotal),
                 tone = OdoBadgeTone.Accent,
+                modifier = Modifier
+                    .clip(OdoTheme.shapes.pill)
+                    .clickable(onClick = onQuotaTapped),
             )
         }
     }
@@ -549,5 +554,6 @@ private fun BillScanScreenPreview() = OdoPreview(padded = false) {
         onManual = {},
         onTargetSelected = {},
         onToggleEdgeLock = {},
+        onQuotaTapped = {},
     )
 }

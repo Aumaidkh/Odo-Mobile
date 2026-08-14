@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.paywall
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.paywall.navigation.PaywallFeatureEntryProvider
+import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
 import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import com.hopcape.odo.feature.paywall.presentation.PaywallViewModel
 import org.koin.core.module.dsl.viewModel
@@ -22,6 +23,9 @@ import org.koin.dsl.module
  * passing them in keeps the ViewModel free of any idea of how it was navigated to.
  */
 val paywallModule = module {
+    // A factory, so one instance covers one visit and its trace id names that visit.
+    factory { PaywallTelemetry(logger = get(), analytics = get(), ids = get()) }
+
     single {
         PaywallFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
@@ -30,6 +34,7 @@ val paywallModule = module {
         PaywallViewModel(
             catalog = get(),
             purchaser = get(),
+            telemetry = get(),
             trigger = trigger,
             amountPaise = amountPaise,
             freeScans = freeScans,

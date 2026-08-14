@@ -38,10 +38,14 @@ import kotlinx.coroutines.launch
 internal class PaywallViewModel(
     private val catalog: SubscriptionCatalog,
     private val purchaser: SubscriptionPurchaser,
-    trigger: PaywallTrigger,
+    private val telemetry: PaywallTelemetry,
+    private val trigger: PaywallTrigger,
     amountPaise: Long,
     freeScans: Int,
 ) : ViewModel() {
+
+    /** Which surface sent the owner here, on every event. The paywall cannot see it itself. */
+    private val from: String get() = trigger.name
 
     private val _state = MutableStateFlow(
         PaywallUiState(trigger = trigger, amountPaise = amountPaise, freeScans = freeScans),
@@ -52,12 +56,16 @@ internal class PaywallViewModel(
     val effects = _effects.receiveAsFlow()
 
     init {
+        telemetry.shown(from)
         loadOffer()
     }
 
     fun onEvent(event: PaywallEvent) {
         when (event) {
-            PaywallEvent.CloseTapped -> send(PaywallEffect.GoBack)
+            PaywallEvent.CloseTapped -> {
+                telemetry.dismissed(from)
+                send(PaywallEffect.GoBack)
+            }
             PaywallEvent.RetryTapped -> loadOffer()
             is PaywallEvent.PlanSelected -> selectPlan(event.planId)
             PaywallEvent.StartProTapped -> startPurchase()
@@ -75,7 +83,10 @@ internal class PaywallViewModel(
         _state.value = _state.value.copy(offer = Loadable.Loading, notice = null)
         viewModelScope.launch {
             catalog.current().fold(
-                ifLeft = { error -> _state.value = _state.value.copy(offer = Loadable.Failed(error.toMessage())) },
+                ifLeft = { error ->
+                    telemetry.offerUnavailable(from, error.reasonName())
+                    _state.value = _state.value.copy(offer = Loadable.Failed(error.toMessage()))
+                },
                 ifRight = { offer -> _state.value = _state.value.copy(offer = Loadable.Ready(offer.toUi())) },
             )
         }
@@ -84,6 +95,8 @@ internal class PaywallViewModel(
     private fun selectPlan(planId: String) {
         val offer = _state.value.offer
         if (offer !is Loadable.Ready) return
+        if (offer.value.selectedPlanId == planId) return
+        telemetry.planSelected(from, planId)
         _state.value = _state.value.copy(
             offer = Loadable.Ready(offer.value.copy(selectedPlanId = planId)),
             notice = null,
@@ -100,10 +113,17 @@ internal class PaywallViewModel(
         val plan = (_state.value.offer as? Loadable.Ready)?.value?.selected ?: return
         if (_state.value.busy) return
 
+        val withTrial = plan.trialDays != null
+        telemetry.checkoutStarted(from, plan.id, withTrial)
         _state.value = _state.value.copy(purchasing = true, notice = null)
         viewModelScope.launch {
             purchaser.purchase(plan.id).fold(
                 ifLeft = { error ->
+                    if (error == DomainError.PaymentCancelled) {
+                        telemetry.purchaseCancelled(from, plan.id)
+                    } else {
+                        telemetry.purchaseFailed(from, plan.id)
+                    }
                     _state.value = _state.value.copy(
                         purchasing = false,
                         // Backing out is not a failure and gets no message. They looked at the
@@ -112,6 +132,7 @@ internal class PaywallViewModel(
                     )
                 },
                 ifRight = {
+                    telemetry.purchaseCompleted(from, plan.id, withTrial)
                     _state.value = _state.value.copy(purchasing = false)
                     send(PaywallEffect.GoBack)
                 },
@@ -121,21 +142,29 @@ internal class PaywallViewModel(
 
     private fun restore() {
         if (_state.value.busy) return
+        telemetry.restoreTapped(from)
         _state.value = _state.value.copy(restoring = true, notice = null)
         viewModelScope.launch {
             purchaser.restore().fold(
-                ifLeft = { finishRestore(UiText(Res.string.pw_restore_failed)) },
+                ifLeft = {
+                    telemetry.restoreFinished(from, restored = false)
+                    finishRestore(UiText(Res.string.pw_restore_failed))
+                },
                 ifRight = { outcome ->
                     when (outcome) {
                         // Nothing else to do: the entitlement stream has already changed, so
                         // the screen behind this one is unlocked. Say so and get out of the way.
                         RestoreOutcome.ProRestored -> {
+                            telemetry.restoreFinished(from, restored = true)
                             _state.value = _state.value.copy(restoring = false)
                             send(PaywallEffect.GoBack)
                         }
                         // Not an error — the usual cause is tapping Restore on an account that
                         // never subscribed — so it gets a plain sentence, not a failure.
-                        RestoreOutcome.NothingToRestore -> finishRestore(UiText(Res.string.pw_restore_none))
+                        RestoreOutcome.NothingToRestore -> {
+                            telemetry.restoreFinished(from, restored = false)
+                            finishRestore(UiText(Res.string.pw_restore_none))
+                        }
                     }
                 },
             )
@@ -176,6 +205,10 @@ internal class PaywallViewModel(
      * The two are kept apart because only one of them is worth a retry: a request that did not
      * come back will usually work a moment later, and a dashboard with nothing in it will not.
      */
+    /** The store's reason, as a stable analytics value rather than a message. */
+    private fun DomainError.reasonName(): String =
+        if (this == DomainError.NothingForSale) REASON_NOTHING_FOR_SALE else REASON_STORE_UNAVAILABLE
+
     private fun DomainError.toMessage(): UiText = when (this) {
         DomainError.NothingForSale -> UiText(Res.string.pw_error_nothing_for_sale)
         else -> UiText(Res.string.pw_error_store_unavailable)
@@ -183,5 +216,10 @@ internal class PaywallViewModel(
 
     private fun send(effect: PaywallEffect) {
         _effects.trySend(effect)
+    }
+
+    private companion object {
+        const val REASON_NOTHING_FOR_SALE = "nothing_for_sale"
+        const val REASON_STORE_UNAVAILABLE = "store_unavailable"
     }
 }
