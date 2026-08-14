@@ -233,6 +233,12 @@ private fun ExportRoute(navigationManager: NavigationManager) {
             // The share sheet owns both the document and the Pro gate, so this only has to
             // say which car. With no car there is nothing to export and nowhere to go.
             activeCar.activeCarId.value?.let { carId ->
+                // Close this sheet before opening that one. Both are bottom-sheet
+                // destinations, and Nav3 has nothing left to overlay when a sheet is pushed
+                // straight onto a sheet — it throws "Overlaid entries must not be empty".
+                // Popping first also means back from the record returns to the profile
+                // rather than to an export sheet the owner is already done with.
+                navigationManager.back()
                 navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = carId.value))
             }
         },
