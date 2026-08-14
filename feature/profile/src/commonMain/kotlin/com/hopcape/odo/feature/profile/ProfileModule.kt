@@ -39,6 +39,7 @@ val profileModule = module {
             profiles = get(),
             settings = get(),
             entitlements = get(),
+            subscription = get(),
             session = get(),
             // Firebase's own user, same binding DeleteAccountUseCase resolves below.
             account = get(),

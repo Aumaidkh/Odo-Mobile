@@ -103,6 +103,7 @@ private fun ProfileSnapshot.toContent(): ProfileContent = ProfileContent(
     city = city,
     avatarPath = avatarPath,
     isPro = isPro,
+    subscription = subscription,
     isSignedIn = isSignedIn,
     notificationTopicsOn = settings.notifications.enabledTopics,
     distanceUnit = settings.distanceUnit,

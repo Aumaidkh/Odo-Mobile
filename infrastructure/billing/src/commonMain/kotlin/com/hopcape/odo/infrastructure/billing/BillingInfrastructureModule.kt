@@ -4,14 +4,17 @@ import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
+import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.infrastructure.billing.catalog.RevenueCatCatalog
 import com.hopcape.odo.infrastructure.billing.catalog.UnconfiguredCatalog
 import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource
 import com.hopcape.odo.infrastructure.billing.identity.RevenueCatIdentity
 import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatPurchaser
 import com.hopcape.odo.infrastructure.billing.purchase.UnconfiguredPurchaser
+import com.hopcape.odo.infrastructure.billing.status.RevenueCatSubscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.qualifier.named
 import com.hopcape.odo.infrastructure.billing.observability.BillingTelemetry
@@ -57,11 +60,15 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
     if (environment.isConfigured) {
         single<SubscriptionCatalog> { RevenueCatCatalog(telemetry = get()) }
         single<SubscriptionPurchaser> { RevenueCatPurchaser(telemetry = get()) }
+        // The SDK allows one delegate, so one object owns customer info and both readers
+        // below share it.
+        single { CustomerInfoStream(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get()) }
         // Replaces coreDataModule's FreePlanEntitlementSource — the swap every gate in the
         // app has been waiting for since S2, and it is this one line.
-        single<EntitlementSource> {
-            RevenueCatEntitlementSource(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get())
-        }
+        single<EntitlementSource> { RevenueCatEntitlementSource(stream = get(), telemetry = get()) }
+        // The same customer info, read for what the profile card says rather than for what
+        // the owner may do.
+        single<SubscriptionStatusSource> { RevenueCatSubscriptionStatus(stream = get()) }
         // Replaces coreDataModule's NoopSubscriptionIdentity, which :feature:auth calls
         // unconditionally.
         single<SubscriptionIdentity> {
@@ -74,6 +81,8 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         // and no-op identity already stand, and replacing them with more nothing would be
         // noise.
         single<SubscriptionPurchaser> { UnconfiguredPurchaser() }
+        // Nobody has a subscription on a build that cannot sell one.
+        single<SubscriptionStatusSource> { SubscriptionStatusSource { flowOf(null) } }
     }
 }
 

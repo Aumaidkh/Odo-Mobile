@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.profile.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
@@ -75,11 +76,16 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
     // Opening a settings row is counted by the destination's own ViewModel, not here: the
     // screen or sheet is what an owner actually reached, and counting the tap as well would
     // put two events on the dashboard for one action.
+    val uriHandler = LocalUriHandler.current
     ProfileScreen(
         state = state,
         onBack = { navigationManager.back() },
         onEdit = { navigationManager.navigateTo(OdoDestination.Profile.Edit) },
         onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall()) },
+        // The store's own subscription page. Cancelling, changing plan and fixing a card all
+        // happen there — Play requires it, and an in-app cancel that did not cancel would be
+        // the worst version of this screen.
+        onManagePlan = { url -> uriHandler.openUri(url) },
         onNotifications = { navigationManager.navigateTo(OdoDestination.Profile.Notifications) },
         onUnits = { navigationManager.navigateTo(OdoDestination.Profile.Units) },
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },

@@ -6,10 +6,10 @@ import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.feature.profile.domain.model.ProfileSnapshot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 
 /**
  * The profile as every one of its screens sees it: the owner's details, their plan, whether
@@ -26,6 +26,7 @@ internal class ObserveProfileUseCase(
     private val profiles: OwnerProfileRepository,
     private val settings: AppSettingsRepository,
     private val entitlements: EntitlementSource,
+    private val subscription: SubscriptionStatusSource,
     private val session: SessionStatusProvider,
     private val account: VerifiedAccount,
 ) {
@@ -34,17 +35,18 @@ internal class ObserveProfileUseCase(
             profiles.observe(),
             settings.observe(),
             entitlements.observe(),
-        ) { profile, appSettings, entitlements -> Triple(profile, appSettings, entitlements) }
-            .map { (profile, appSettings, entitlements) ->
-                ProfileSnapshot(
-                    name = profile?.name?.value,
-                    email = profile?.email?.value,
-                    city = profile?.city,
-                    phoneNumber = account.verifiedNumber()?.value,
-                    avatarPath = profile?.avatarPath,
-                    isPro = entitlements.plan == Plan.PRO,
-                    isSignedIn = session.isSignedIn(),
-                    settings = appSettings,
-                )
-            }
+            subscription.observe(),
+        ) { profile, appSettings, entitlements, subscription ->
+            ProfileSnapshot(
+                name = profile?.name?.value,
+                email = profile?.email?.value,
+                city = profile?.city,
+                phoneNumber = account.verifiedNumber()?.value,
+                avatarPath = profile?.avatarPath,
+                isPro = entitlements.plan == Plan.PRO,
+                subscription = subscription,
+                isSignedIn = session.isSignedIn(),
+                settings = appSettings,
+            )
+        }
 }

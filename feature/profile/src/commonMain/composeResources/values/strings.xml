@@ -18,6 +18,12 @@
     <string name="pf_edit">Edit</string>
     <string name="pf_pro_title">Odo Pro</string>
     <string name="pf_pro_active">ACTIVE</string>
+    <string name="pf_pro_trial">FREE TRIAL</string>
+    <string name="pf_pro_renews">Renews %1$s</string>
+    <string name="pf_pro_ends">Ends %1$s</string>
+    <string name="pf_pro_no_date">Your subscription is active.</string>
+    <string name="pf_pro_billing_issue">Your last payment didn’t go through. Update your payment method in Google Play to keep Pro.</string>
+    <string name="pf_pro_cancelled">Cancelled. Pro works until then.</string>
     <string name="pf_manage_plan">Manage plan</string>
     <string name="pf_restore">Restore purchases</string>
     <string name="pf_go_pro">Go Pro</string>
