@@ -29,7 +29,7 @@ class ProfileUseCasesTest {
         val snapshot = ObserveProfileUseCase(
             profiles = profiles,
             settings = settings,
-            entitlement = entitlement(isPro = true),
+            entitlements = entitlement(isPro = true),
             session = session(signedIn = false),
             account = account(PhoneNumber.of("9812345678").getOrNull()),
         )().first()
@@ -48,7 +48,7 @@ class ProfileUseCasesTest {
         val snapshot = ObserveProfileUseCase(
             profiles = FakeProfileRepository(profile = null),
             settings = FakeSettingsRepository(),
-            entitlement = entitlement(isPro = false),
+            entitlements = entitlement(isPro = false),
             session = session(signedIn = false),
             account = account(),
         )().first()

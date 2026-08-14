@@ -48,9 +48,11 @@ object FeatureFlags {
      * **Also delete when it goes true:** the now-unused `pf_coming_soon`, `gr_ex_coming_soon`
      * and `GarageCopy.EXPORT_COMING_SOON` strings.
      *
-     * **Not guarded by this flag**, and a separate decision: `AlwaysProEntitlement` still
-     * answers true (so nothing is content-locked) and `FreeTierDocumentAllowance` still caps
-     * documents at 3. Both are stubs that a real entitlement adapter replaces.
+     * **Not guarded by this flag**, and a separate decision: `FreePlanEntitlementSource`
+     * answers "free plan" for everyone, so the document cap is 3 and the scan cap is 3 a
+     * month. Content that is Pro-only — the health-score breakdown — is unlocked by the
+     * guards above rather than by that source, so nothing is content-locked while this is
+     * false. `:infrastructure:billing` replaces the source and the caps become real.
      */
     const val PAYWALL_ENABLED = false
 

@@ -68,7 +68,7 @@ class ProfileViewModelsTest {
     ) = ObserveProfileUseCase(
         profiles = profiles,
         settings = settings,
-        entitlement = entitlement(isPro),
+        entitlements = entitlement(isPro),
         session = session(isSignedIn),
         account = account(phoneNumber),
     )
@@ -401,7 +401,7 @@ class ProfileViewModelsTest {
             observeProfile = ObserveProfileUseCase(
                 profiles = profiles,
                 settings = settings,
-                entitlement = entitlement(false),
+                entitlements = entitlement(false),
                 session = session(false),
                 account = account(phoneNumber),
             ),

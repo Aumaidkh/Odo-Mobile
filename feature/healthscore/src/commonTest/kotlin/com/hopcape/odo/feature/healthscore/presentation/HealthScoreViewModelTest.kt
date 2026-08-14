@@ -9,7 +9,10 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentType
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
@@ -36,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -182,8 +186,8 @@ class HealthScoreViewModelTest {
 
     @Test
     fun freeOwnersGetTheLockedBreakdown() = runTest(dispatcher) {
-        assertEquals(false, viewModel(isPro = false).content().isPro)
-        assertTrue(viewModel(isPro = true).content().isPro)
+        assertEquals(false, viewModel(isPro = false).content().entitlements.has(ProFeature.HEALTH_BREAKDOWN))
+        assertTrue(viewModel(isPro = true).content().entitlements.has(ProFeature.HEALTH_BREAKDOWN))
     }
 
     @Test
@@ -266,7 +270,7 @@ class HealthScoreViewModelTest {
             logs = logs,
             documents = FakeDocumentRepository(documents),
             snapshots = history,
-            entitlement = ProEntitlement { isPro },
+            entitlements = entitlementsOf(isPro),
             currentOdometer = currentOdometerFrom(logs),
             clock = FixedClock(now),
             timeZone = TimeZone.UTC,
@@ -308,4 +312,10 @@ class HealthScoreViewModelTest {
         override fun setConsent(status: ConsentStatus) = Unit
         override fun flush() = Unit
     }
+}
+
+/** An [EntitlementSource] that stands still on one plan. */
+private fun entitlementsOf(isPro: Boolean) = object : EntitlementSource {
+    override fun observe() = flowOf(Entitlements(if (isPro) Plan.PRO else Plan.FREE))
+    override suspend fun refresh() = Unit
 }

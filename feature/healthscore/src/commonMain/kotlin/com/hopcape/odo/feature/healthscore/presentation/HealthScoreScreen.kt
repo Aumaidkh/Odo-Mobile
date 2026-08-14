@@ -54,6 +54,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
@@ -152,7 +153,7 @@ private fun ScoreContent(content: HealthScoreContent, onEvent: (HealthScoreEvent
         SectionLabel(stringResource(Res.string.hs_breakdown_label))
         // Nothing is locked while nothing can sell Pro: the lock's only button opens a
         // paywall that cannot take money. The locked view returns with the flag.
-        if (content.isPro || !FeatureFlags.PAYWALL_ENABLED) {
+        if (content.entitlements.has(ProFeature.HEALTH_BREAKDOWN) || !FeatureFlags.PAYWALL_ENABLED) {
             content.factors.forEach { FactorCard(it) }
             content.opportunity?.let { OpportunityCard(it) }
         } else {
