@@ -1,8 +1,18 @@
 package com.hopcape.odo.infrastructure.billing
 
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
+import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
 import com.hopcape.odo.infrastructure.billing.catalog.RevenueCatCatalog
 import com.hopcape.odo.infrastructure.billing.catalog.UnconfiguredCatalog
+import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource
+import com.hopcape.odo.infrastructure.billing.identity.RevenueCatIdentity
+import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatPurchaser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import org.koin.core.qualifier.named
 import com.hopcape.odo.infrastructure.billing.observability.BillingTelemetry
 import org.koin.dsl.module
 
@@ -34,6 +44,7 @@ val billingInfrastructureModule = billingInfrastructureModule(BillingEnvironment
  */
 internal fun billingInfrastructureModule(environment: BillingEnvironment) = module {
     single { BillingTelemetry(logger = get(), crash = get()) }
+    billingScope()
     // Resolved at startup rather than on first use, because it configures the SDK in its
     // constructor and nothing else in this module works until it has.
     single(createdAtStart = true) { RevenueCatBootstrap(environment = environment, telemetry = get()) }
@@ -44,7 +55,33 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
     // which is true and is a screen the paywall already has.
     if (environment.isConfigured) {
         single<SubscriptionCatalog> { RevenueCatCatalog(telemetry = get()) }
+        single<SubscriptionPurchaser> { RevenueCatPurchaser(telemetry = get()) }
+        // Replaces coreDataModule's FreePlanEntitlementSource — the swap every gate in the
+        // app has been waiting for since S2, and it is this one line.
+        single<EntitlementSource> {
+            RevenueCatEntitlementSource(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get())
+        }
+        // Replaces coreDataModule's NoopSubscriptionIdentity, which :feature:auth calls
+        // unconditionally.
+        single<SubscriptionIdentity> {
+            RevenueCatIdentity(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get())
+        }
     } else {
         single<SubscriptionCatalog> { UnconfiguredCatalog() }
+        // No purchaser and no entitlement source: with nothing for sale there is nothing to
+        // buy, and coreDataModule's free-plan source and no-op identity already stand.
     }
+}
+
+/**
+ * Where the two fire-and-forget adapters run their work.
+ *
+ * App-lifetime by design: the entitlement stream lives as long as the process, and an
+ * identity link started at sign-in must not be cancelled by the screen that triggered it
+ * going away. `SupervisorJob` so one failed call cannot take the other down with it.
+ */
+private const val QUALIFIER_BILLING_SCOPE = "billing"
+
+private fun org.koin.core.module.Module.billingScope() {
+    single(named(QUALIFIER_BILLING_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 }

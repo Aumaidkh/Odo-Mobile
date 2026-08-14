@@ -98,6 +98,91 @@ internal class BillingTelemetry(
         logger.info(TAG, "$OFFERINGS.dropped", fields = mapOf(Key.PACKAGE to packageId, Key.TYPE to type))
     }
 
+    /* ---- Entitlement ---- */
+
+    /** The store answered with what this owner is entitled to. */
+    fun entitlementRead(plan: String) {
+        logger.info(TAG, "$ENTITLEMENT.read", fields = mapOf(Key.PLAN to plan))
+    }
+
+    /**
+     * The store could not be asked, so the owner is treated as free.
+     *
+     * A warning, not a non-fatal: offline is the usual cause. It matters because it is the
+     * one line that explains a paying owner briefly seeing a locked screen.
+     */
+    fun entitlementFailed(code: String, message: String) {
+        logger.warn(TAG, "$ENTITLEMENT.failed", fields = mapOf(Key.CODE to code, Key.MESSAGE to message))
+    }
+
+    /* ---- Purchase ---- */
+
+    /** The store's purchase sheet is about to open. */
+    fun purchaseStarted(planId: String) {
+        logger.info(TAG, "$PURCHASE.started", fields = mapOf(Key.PLAN to planId))
+    }
+
+    /** Money changed hands and the entitlement is on its way through the delegate. */
+    fun purchaseCompleted(planId: String) {
+        logger.info(TAG, "$PURCHASE.completed", fields = mapOf(Key.PLAN to planId))
+    }
+
+    /** The owner closed the sheet. Recorded at info, because nothing went wrong. */
+    fun purchaseCancelled(planId: String) {
+        logger.info(TAG, "$PURCHASE.cancelled", fields = mapOf(Key.PLAN to planId))
+    }
+
+    /**
+     * The store refused.
+     *
+     * The store's own code is the whole value of this line: "payment failed" is what the
+     * owner is told, and it is not enough to answer their support message.
+     */
+    fun purchaseFailed(planId: String, code: String, message: String) {
+        logger.error(
+            TAG,
+            "$PURCHASE.failed",
+            fields = mapOf(Key.PLAN to planId, Key.CODE to code, Key.MESSAGE to message),
+        )
+    }
+
+    /** A restore finished; [restored] says whether it found anything. */
+    fun restored(restored: Boolean) {
+        logger.info(TAG, "$RESTORE.done", fields = mapOf(Key.RESTORED to restored))
+    }
+
+    /** A restore could not reach the store. */
+    fun restoreFailed(code: String, message: String) {
+        logger.warn(TAG, "$RESTORE.failed", fields = mapOf(Key.CODE to code, Key.MESSAGE to message))
+    }
+
+    /* ---- Identity ---- */
+
+    /** The subscription is now attached to the signed-in account. */
+    fun identified(created: Boolean) {
+        logger.info(TAG, "$IDENTITY.linked", fields = mapOf(Key.CREATED to created))
+    }
+
+    /**
+     * Linking failed, so a purchase is still on an anonymous identity.
+     *
+     * Worth an error: the owner has paid and signed in, and until this succeeds their Pro
+     * does not follow them to another device. The next sign-in retries it.
+     */
+    fun identifyFailed(code: String, message: String) {
+        logger.error(TAG, "$IDENTITY.failed", fields = mapOf(Key.CODE to code, Key.MESSAGE to message))
+    }
+
+    /** The device is back on an anonymous identity. */
+    fun forgotten() {
+        logger.info(TAG, "$IDENTITY.cleared")
+    }
+
+    /** Signing the store out failed. Harmless — the account still owns the subscription. */
+    fun forgetFailed(code: String, message: String) {
+        logger.warn(TAG, "$IDENTITY.clear_failed", fields = mapOf(Key.CODE to code, Key.MESSAGE to message))
+    }
+
     /** Field keys — kept here so a dashboard query never breaks on a renamed literal. */
     internal object Key {
         const val REASON = "reason"
@@ -109,12 +194,19 @@ internal class BillingTelemetry(
         const val TYPE = "type"
         const val CODE = "code"
         const val MESSAGE = "message"
+        const val PLAN = "plan"
+        const val RESTORED = "restored"
+        const val CREATED = "created"
     }
 
     internal companion object {
         const val TAG = "billing"
         const val CONFIGURE = "configure"
         const val OFFERINGS = "offerings"
+        const val ENTITLEMENT = "entitlement"
+        const val PURCHASE = "purchase"
+        const val RESTORE = "restore"
+        const val IDENTITY = "identity"
         const val NO_API_KEY = "no_api_key"
         const val NO_CURRENT_OFFERING = "no_current_offering"
         const val NO_USABLE_PACKAGES = "no_usable_packages"

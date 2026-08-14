@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.platform.secure.SecureStore
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
@@ -47,6 +48,7 @@ internal class OdoSessionManager(
     private val store: SecureStore,
     private val telemetry: AuthTelemetry,
     private val scheduler: SyncScheduler,
+    private val identity: SubscriptionIdentity,
     private val clock: Clock = Clock.System,
 ) : SessionStatusProvider, CurrentOwnerProvider, AccessTokenProvider, SessionRestore {
 
@@ -142,7 +144,7 @@ internal class OdoSessionManager(
      */
     suspend fun signOut() = mutex.withLock {
         _session.value?.let { gateway.signOut(it.accessToken) }
-        _session.value = null
+        hold(null)
         SESSION_KEYS.forEach { store.remove(it) }
         telemetry.signedOut()
     }
@@ -157,7 +159,7 @@ internal class OdoSessionManager(
     private suspend fun refreshLocked(current: AuthSession): AuthSession? =
         gateway.refresh(current.refreshToken).fold(
             ifLeft = {
-                _session.value = null
+                hold(null)
                 SESSION_KEYS.forEach { key -> store.remove(key) }
                 // Nothing interrupts the owner, so this line is the only trace that an
                 // install has quietly stopped syncing.
@@ -169,7 +171,7 @@ internal class OdoSessionManager(
 
     /** Hold it in memory and on disk, and hand it back. */
     private suspend fun keep(session: AuthSession): AuthSession {
-        _session.value = session
+        hold(session)
         store.put(SecureStore.KEY_ACCESS_TOKEN, session.accessToken)
         store.put(SecureStore.KEY_REFRESH_TOKEN, session.refreshToken)
         store.put(SecureStore.KEY_EXPIRES_AT, session.expiresAt.toString())
@@ -195,7 +197,23 @@ internal class OdoSessionManager(
             ?.let { runCatching { Instant.parse(it) }.getOrNull() }
             ?: return null
 
-        return AuthSession(access, refresh, OwnerId(owner), expiresAt).also { _session.value = it }
+        return AuthSession(access, refresh, OwnerId(owner), expiresAt).also { hold(it) }
+    }
+
+    /**
+     * The one place the session changes, so the store hears about it every time.
+     *
+     * Telling the payments vendor who this device is belongs here rather than at each of the
+     * five call sites that used to assign the field: sign-in, a restored session, a renewed
+     * one, sign-out and a refresh that was refused all have to reach it, and one of them
+     * being forgotten is exactly how a paid owner ends up on the free plan.
+     *
+     * Neither identity call blocks or can fail — that is [SubscriptionIdentity]'s contract —
+     * so this stays inside the mutex without holding a network call under it.
+     */
+    private fun hold(session: AuthSession?) {
+        _session.value = session
+        if (session != null) identity.identify(session.ownerId) else identity.forget()
     }
 
     private companion object {

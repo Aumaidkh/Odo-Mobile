@@ -30,6 +30,7 @@ import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.EntitlementDocumentAllowance
 import com.hopcape.odo.core.data.entitlement.EntitlementScanAllowance
 import com.hopcape.odo.core.data.entitlement.FreePlanEntitlementSource
+import com.hopcape.odo.core.data.subscription.NoopSubscriptionIdentity
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
 import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
@@ -70,6 +71,7 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
@@ -212,6 +214,10 @@ val coreDataModule = module {
     // The two counted gates, both reading the plan above. They keep their own ports because
     // their callers ask a shaped question ("how many documents", "how many scans left"), but
     // neither holds a number of its own any more — PlanLimits does.
+    // Sign-in calls this unconditionally, so it is always bound. :infrastructure:billing
+    // replaces it with the RevenueCat one when the build has a key.
+    single<SubscriptionIdentity> { NoopSubscriptionIdentity() }
+
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
     single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
     // The tally the cap is measured against. Device-local: nothing counts a scan but the
