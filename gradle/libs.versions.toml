@@ -61,6 +61,12 @@ nav3 = "1.1.1"
 # Coroutines — SharedFlow command bus in :core:navigation
 kotlinxCoroutines = "1.10.2"
 
+# In-app subscriptions (:infrastructure:billing). RevenueCat wraps Google Play
+# Billing and StoreKit behind one API and validates receipts server-side. The KMP
+# SDK rather than two platform SDKs, so the purchase and entitlement code is
+# commonMain; 3.x needs no manual iOS framework linking.
+purchasesKmp = "3.5.0"
+
 # Local-first persistence (:core:data) — SQLDelight is the source of truth.
 sqldelight = "2.0.2"
 # Client-stamped offline timestamps (created_at/updated_at) in :core:data.
@@ -188,6 +194,9 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 # ML Kit OCR + the Task.await() bridge + EXIF — :infrastructure:ai androidMain only.
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitTextRecognition" }
+# RevenueCat — :infrastructure:billing only. Offerings, purchase, restore and the
+# CustomerInfo stream the entitlement source mirrors.
+purchases-kmp-core = { module = "com.revenuecat.purchases:purchases-kmp-core", version.ref = "purchasesKmp" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifInterface" }
 
