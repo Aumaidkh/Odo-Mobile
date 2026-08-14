@@ -1,5 +1,8 @@
 package com.hopcape.odo.infrastructure.billing
 
+import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
+import com.hopcape.odo.infrastructure.billing.catalog.RevenueCatCatalog
+import com.hopcape.odo.infrastructure.billing.catalog.UnconfiguredCatalog
 import com.hopcape.odo.infrastructure.billing.observability.BillingTelemetry
 import org.koin.dsl.module
 
@@ -34,4 +37,14 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
     // Resolved at startup rather than on first use, because it configures the SDK in its
     // constructor and nothing else in this module works until it has.
     single(createdAtStart = true) { RevenueCatBootstrap(environment = environment, telemetry = get()) }
+
+    // Both branches are bound, never neither: a missing definition is a crash the moment
+    // someone opens the paywall. Without a key `Purchases.sharedInstance` does not exist, so
+    // the real adapter would throw there — the unconfigured one says nothing is for sale,
+    // which is true and is a screen the paywall already has.
+    if (environment.isConfigured) {
+        single<SubscriptionCatalog> { RevenueCatCatalog(telemetry = get()) }
+    } else {
+        single<SubscriptionCatalog> { UnconfiguredCatalog() }
+    }
 }

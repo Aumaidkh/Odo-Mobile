@@ -197,6 +197,9 @@ mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version
 # RevenueCat — :infrastructure:billing only. Offerings, purchase, restore and the
 # CustomerInfo stream the entitlement source mirrors.
 purchases-kmp-core = { module = "com.revenuecat.purchases:purchases-kmp-core", version.ref = "purchasesKmp" }
+# The same API as suspend functions returning Arrow's Either, which is what the
+# rest of Odo already speaks. Saves wrapping every callback by hand.
+purchases-kmp-either = { module = "com.revenuecat.purchases:purchases-kmp-either", version.ref = "purchasesKmp" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifInterface" }
 

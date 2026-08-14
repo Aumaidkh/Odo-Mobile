@@ -211,6 +211,27 @@ sealed interface DomainError {
      */
     data object PaymentPending : DomainError
 
+    /* ---- Subscriptions ---- */
+
+    /**
+     * The store could not be reached, so what Pro costs is not known right now.
+     *
+     * Worth retrying: the network, the Play Store app or RevenueCat is momentarily
+     * unavailable, and the same request a moment later usually answers. The paywall shows a
+     * retry rather than a price, because a price it cannot confirm is worse than none.
+     */
+    data object StoreUnavailable : DomainError
+
+    /**
+     * The store answered and has nothing to sell.
+     *
+     * Distinct from [StoreUnavailable] because retrying will not help: either no offering is
+     * marked current in the RevenueCat dashboard, or its packages are not the monthly and
+     * annual plans this app knows how to show. It is a configuration mistake, not a network
+     * one, and it is the app's own fault rather than the owner's.
+     */
+    data object NothingForSale : DomainError
+
     /* ---- Fuel fills ---- */
 
     /** A fill was submitted without the day it happened. */

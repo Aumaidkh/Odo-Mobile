@@ -49,16 +49,74 @@ internal class BillingTelemetry(
         logger.error(TAG, "$CONFIGURE.failed", fields = mapOf(Key.ERROR to throwable::class.simpleName))
     }
 
+    /** The offering loaded and has plans to show. */
+    fun offeringsLoaded(offeringId: String, planCount: Int) {
+        logger.info(
+            TAG,
+            "$OFFERINGS.loaded",
+            fields = mapOf(Key.OFFERING to offeringId, Key.PLANS to planCount),
+        )
+    }
+
+    /**
+     * The store could not be asked what Pro costs.
+     *
+     * A log line rather than a non-fatal: the usual cause is a phone with no network, which
+     * is not a defect. What it does buy is the store's own error code next to the moment the
+     * paywall showed a retry.
+     */
+    fun offeringsFailed(code: String, message: String) {
+        logger.warn(TAG, "$OFFERINGS.failed", fields = mapOf(Key.CODE to code, Key.MESSAGE to message))
+    }
+
+    /**
+     * RevenueCat has no offering marked current.
+     *
+     * An error, and ours: the dashboard is misconfigured and every owner is looking at a
+     * paywall that cannot sell them anything.
+     */
+    fun noCurrentOffering() {
+        logger.error(TAG, "$OFFERINGS.none", fields = mapOf(Key.REASON to NO_CURRENT_OFFERING))
+    }
+
+    /** The offering exists but holds nothing this app knows how to show. Also ours to fix. */
+    fun noUsablePackages(offeringId: String) {
+        logger.error(
+            TAG,
+            "$OFFERINGS.none",
+            fields = mapOf(Key.REASON to NO_USABLE_PACKAGES, Key.OFFERING to offeringId),
+        )
+    }
+
+    /**
+     * A package was not shown because it is not one of the two plans Odo sells.
+     *
+     * Legitimate — a dashboard may hold a weekly or lifetime package — but never silent. An
+     * offering that renders as a shorter paywall than expected has to be explainable.
+     */
+    fun packageDropped(packageId: String, type: String) {
+        logger.info(TAG, "$OFFERINGS.dropped", fields = mapOf(Key.PACKAGE to packageId, Key.TYPE to type))
+    }
+
     /** Field keys — kept here so a dashboard query never breaks on a renamed literal. */
     internal object Key {
         const val REASON = "reason"
         const val STAGE = "stage"
         const val ERROR = "error"
+        const val OFFERING = "offering"
+        const val PLANS = "plans"
+        const val PACKAGE = "package"
+        const val TYPE = "type"
+        const val CODE = "code"
+        const val MESSAGE = "message"
     }
 
     internal companion object {
         const val TAG = "billing"
         const val CONFIGURE = "configure"
+        const val OFFERINGS = "offerings"
         const val NO_API_KEY = "no_api_key"
+        const val NO_CURRENT_OFFERING = "no_current_offering"
+        const val NO_USABLE_PACKAGES = "no_usable_packages"
     }
 }

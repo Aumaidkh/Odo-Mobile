@@ -18,6 +18,10 @@ kotlin {
             // StoreKit on iOS, and validates receipts on RevenueCat's servers — which is why
             // the client only ever mirrors entitlement rather than deciding it.
             implementation(libs.purchases.kmp.core)
+            // Its callbacks as suspend functions returning Either. Every port here answers
+            // with Either already, so this is the shape the adapters would have written.
+            implementation(libs.purchases.kmp.either)
+            implementation(libs.arrow.core)
             // The ports implemented here: EntitlementSource and, from S5, the subscription
             // catalog and purchaser.
             implementation(projects.core.domain)
