@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -185,12 +184,7 @@ private fun ProfileContentColumn(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
         ProfileCard(content, onEdit)
-        // The plan card is the only place that names Odo Pro, the free plan and a price, so
-        // it is hidden while nothing can sell a subscription. Both cards are still here and
-        // come back with FeatureFlags.PAYWALL_ENABLED.
-        if (FeatureFlags.PAYWALL_ENABLED) {
-            if (content.isPro) ProPlanCard(onGoPro) else GoProCard(onGoPro)
-        }
+        if (content.isPro) ProPlanCard(onGoPro) else GoProCard(onGoPro)
 
         SectionLabel(stringResource(Res.string.pf_preferences))
         SettingsGroup {

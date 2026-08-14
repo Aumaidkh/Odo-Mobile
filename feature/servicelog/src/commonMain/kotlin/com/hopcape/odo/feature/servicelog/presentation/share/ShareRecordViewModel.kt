@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.record.model.ServiceRecord
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -49,6 +52,7 @@ internal class ShareRecordViewModel(
     private val logId: ServiceLogId?,
     private val observeRecord: ObserveServiceRecordUseCase,
     private val observeDetail: ObserveEntryDetailUseCase,
+    private val entitlements: EntitlementSource,
     private val documents: ServiceRecordDocumentFactory,
     private val bills: ServiceBillDocumentFactory,
     private val files: PlatformFileStore,
@@ -115,6 +119,25 @@ internal class ShareRecordViewModel(
         // A bill sheet with no entry yet (or no entry any more) has nothing to print.
         if (logId != null && entry == null) return
 
+        // The whole record is what Pro sells. One entry's bill is not: the owner is sharing
+        // the bill they just paid, and charging for that would be charging for their own
+        // receipt.
+        if (logId == null) {
+            viewModelScope.launch {
+                if (entitlements.observe().first().has(ProFeature.RECORD_EXPORT)) {
+                    startShare(target, record)
+                } else {
+                    telemetry.recordExportLocked()
+                    emit(ShareRecordEffect.OpenPaywall)
+                }
+            }
+            return
+        }
+        startShare(target, record)
+    }
+
+    /** The share itself, once it is allowed. */
+    private fun startShare(target: ShareTarget, record: ServiceRecord) {
         writtenKey?.let { key ->
             telemetry.recordShared(target.name)
             emit(ShareRecordEffect.ShareFile(key, documentTitle.orEmpty()))

@@ -117,23 +117,10 @@ class BillScannerEndToEndTest {
 
     @Test
     fun theQuotaPillShowsWhatIsLeftOnTheFreePlan() {
-        // The pill says the owner is on a free plan, so it is off entirely until there is a
-        // paid one to move to.
-        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         installScanAllowance(ScanLimit.UpTo(max = 3, used = 1))
         rule.openScanner()
 
         rule.awaitText(ScanCopy.quota(remaining = 2, total = 3))
-    }
-
-    @Test
-    fun theQuotaPillIsHiddenWhileProIsNotSold() {
-        assumeFalse(FeatureFlags.PAYWALL_ENABLED)
-        installScanAllowance(ScanLimit.UpTo(max = 3, used = 1))
-        rule.openScanner()
-        rule.awaitText(ScanCopy.SCAN_TITLE_BILL)
-
-        assertEquals(0, rule.textCount(ScanCopy.quota(remaining = 2, total = 3)))
     }
 
     @Test

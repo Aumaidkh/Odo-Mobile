@@ -135,11 +135,9 @@
     <string name="pf_export_history">Service history &amp; costs</string>
     <string name="pf_export_docs">Documents</string>
     <string name="pf_export_account">Account &amp; profile info</string>
-    <string name="pf_export_note">A full export ships with the Resale Passport, which also gives a buyer a verified copy of the history.</string>
-    <string name="pf_export_pdf">Download PDF</string>
-    <string name="pf_export_request">Request export</string>
+    <string name="pf_export_note">The export is one printable PDF — the same record a buyer or a workshop can read.</string>
+    <string name="pf_export_pdf">Export as PDF</string>
     <!-- On a CTA that is built but has nothing behind it yet. -->
-    <string name="pf_coming_soon">COMING SOON</string>
 
     <!-- Sign out sheet -->
     <string name="pf_signout_title">Sign out of Odo?</string>

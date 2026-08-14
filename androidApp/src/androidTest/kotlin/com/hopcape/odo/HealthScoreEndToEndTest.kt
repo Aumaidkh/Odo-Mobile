@@ -306,9 +306,6 @@ class HealthScoreEndToEndTest {
 
     @Test
     fun freeOwnersGetThePaywallInsteadOfTheNudge() {
-        // The breakdown is only locked when Pro can be bought — see the test below for what
-        // 1.0 ships.
-        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         setProEntitlement(isPro = false)
         startWellKeptCar()
         rule.openHealthScore()
@@ -322,7 +319,6 @@ class HealthScoreEndToEndTest {
 
     @Test
     fun unlockOpensThePaywall() {
-        assumeTrue(FeatureFlags.PAYWALL_ENABLED)
         setProEntitlement(isPro = false)
         startWellKeptCar()
         rule.openHealthScore()
@@ -331,23 +327,6 @@ class HealthScoreEndToEndTest {
         rule.tapUnlock()
 
         rule.awaitText(HealthCopy.PAYWALL_SCREEN_HEADLINE)
-    }
-
-    /**
-     * What 1.0 ships: nothing sells Pro, so nothing is held back for it. A free owner sees
-     * the same breakdown a Pro owner does rather than a lock over a paywall that cannot
-     * take money.
-     */
-    @Test
-    fun nothingIsLockedWhileProIsNotSold() {
-        assumeFalse(FeatureFlags.PAYWALL_ENABLED)
-        setProEntitlement(isPro = false)
-        startWellKeptCar()
-        rule.openHealthScore()
-        rule.awaitHealthScore(HealthFixtures.SCORE)
-
-        assertEquals(0, rule.tagCount(HealthScoreTestTags.PAYWALL))
-        assertEquals(1, rule.tagCount(HealthScoreTestTags.OPPORTUNITY))
     }
 
     /* ------------------------------ Getting back ------------------------------ */

@@ -3,6 +3,9 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.PlatformFileStore
@@ -27,6 +30,7 @@ import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDo
 import com.hopcape.odo.feature.servicelog.presentation.testOwner
 import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -94,6 +98,7 @@ class ShareRecordViewModelTest {
         ),
         files: PlatformFileStore = RecordingFileStore(),
         logId: ServiceLogId? = null,
+        isPro: Boolean = true,
     ) = ShareRecordViewModel(
         carId = TEST_CAR,
         logId = logId,
@@ -107,13 +112,53 @@ class ShareRecordViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         observeDetail = ObserveEntryDetailUseCase(observeFeed = ObserveServiceLogFeedUseCase(logs = logs)),
+        entitlements = entitlementsOf(isPro),
         documents = { record -> ServiceRecordDocument(html = "<!doctype html>${record.carName}", name = "${record.carName} service record") },
         bills = { record, entry -> ServiceRecordDocument(html = "<!doctype html>bill:${entry.id.value}", name = "${record.carName} service bill") },
         files = files,
         telemetry = telemetry(),
     )
 
+    /** A plan that stands still, so the gate is the only thing under test. */
+    private fun entitlementsOf(isPro: Boolean) = object : EntitlementSource {
+        override fun observe() = flowOf(Entitlements(if (isPro) Plan.PRO else Plan.FREE))
+        override suspend fun refresh() = Unit
+    }
+
     private val renderedBytes = "%PDF-1.4 fake".encodeToByteArray()
+
+    /* ------------------------------ the Pro gate ------------------------------ */
+
+    @Test
+    fun `a free owner asking for the whole record is sent to the paywall`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, isPro = false)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertEquals(listOf<ShareRecordEffect>(ShareRecordEffect.OpenPaywall), effects)
+        assertTrue(files.written.isEmpty(), "nothing is rendered for an export that is not allowed")
+    }
+
+    @Test
+    fun `sharing one entry's bill is never gated`() = runTest {
+        // It is the bill they just paid. Charging for their own receipt would be the wrong
+        // line to draw.
+        val viewModel = viewModel(logId = ServiceLogId("a"), isPro = false)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertTrue(effects.none { it is ShareRecordEffect.OpenPaywall })
+        assertTrue(effects.any { it is ShareRecordEffect.RenderDocument })
+    }
 
     @Test
     fun `the sheet reports the counts the record holds`() = runTest {

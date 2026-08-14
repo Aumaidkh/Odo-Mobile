@@ -79,12 +79,11 @@ internal data class BillScanUiState(
     /**
      * Whether the quota pill has anything true to say.
      *
-     * It is off entirely while `FeatureFlags.PAYWALL_ENABLED` is false. "2 of 3 free" tells
-     * the owner they are on a free plan and that a paid one exists, and there is no paid one
-     * to move to yet. The count itself is unchanged and the pill returns with the flag.
+     * Off on an unlimited plan — there is no count to show — and off in the payment mode,
+     * which spends no scan.
      */
     val showQuota: Boolean
-        get() = FeatureFlags.PAYWALL_ENABLED && freeTotal > 0 && target != ScanTarget.PaymentQr
+        get() = freeTotal > 0 && target != ScanTarget.PaymentQr
 }
 
 /** Sample state for previews. */

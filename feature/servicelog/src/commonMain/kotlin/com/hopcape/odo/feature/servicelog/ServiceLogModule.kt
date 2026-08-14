@@ -142,6 +142,7 @@ val serviceLogModule = module {
             logId = params.getOrNull<ServiceLogId>(),
             observeRecord = get(),
             observeDetail = get(),
+            entitlements = get(),
             documents = get(),
             bills = get(),
             files = get(),

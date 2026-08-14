@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
@@ -219,10 +220,15 @@ private fun AppearanceRoute(navigationManager: NavigationManager) {
 @Composable
 private fun ExportRoute(navigationManager: NavigationManager) {
     val telemetry = koinInject<ProfileTelemetry>()
+    val activeCar = koinInject<ActiveCarProvider>()
     ExportDataSheetContent(
-        onUpgrade = { target ->
-            telemetry.exportRequested(target)
-            navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_EXPORT))
+        onExport = {
+            telemetry.exportRequested(ProfileTelemetry.ExportTarget.PDF)
+            // The share sheet owns both the document and the Pro gate, so this only has to
+            // say which car. With no car there is nothing to export and nowhere to go.
+            activeCar.activeCarId.value?.let { carId ->
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = carId.value))
+            }
         },
     )
 }
@@ -258,4 +264,3 @@ private fun SignOutRoute(navigationManager: NavigationManager) {
 }
 
 /** What the paywall is told it was opened for, so the screen can name the reason. */
-private const val PAYWALL_TRIGGER_EXPORT = "EXPORT"

@@ -12,55 +12,6 @@ package com.hopcape.odo.core.common
 object FeatureFlags {
 
     /**
-     * Whether the app can sell Odo Pro.
-     *
-     * False for 1.0. The paywall screen and its call sites are written, but nothing behind
-     * them takes money yet, so a "Start Pro" would end on a button that cannot do anything.
-     * While this is false two things hold: no screen names Pro, the free plan, or a price,
-     * and no button reaches the `OdoDestination.Paywall` route. The upsell CTAs that remain
-     * visible are disabled and marked "coming soon".
-     *
-     * Flip it to true when RevenueCat lands. The paywall, the upsell cards, the Pro copy and
-     * the navigation calls are all still here, guarded by this flag — nothing is rewritten.
-     *
-     * **Removing it.** This flag is meant to live for one release, not to stay as a switch.
-     * Everything it guards landed in a single squash-merged commit, so `git revert` on that
-     * commit undoes all of it at once — the flag, the guards and the two reworded strings —
-     * and is the first thing to try.
-     *
-     * **Finding every site**, when the revert conflicts or you would rather do it by hand.
-     * Nothing was commented out or deleted, so a project-wide search for `PAYWALL_ENABLED`
-     * lists all of them, and the list cannot go stale: delete this constant and the build
-     * fails at every site that reads it. What is behind each one:
-     *
-     * - `ProfileScreen` — the plan card (`ProPlanCard` / `GoProCard`). Hidden, not removed.
-     * - `ExportDataSheet` (profile) and `ExportSheet` (garage) — buttons disabled under a
-     *   "coming soon" badge; the garage sheet's "part of Odo Pro" note is hidden.
-     * - `HealthScoreScreen` — the breakdown is never locked while this is false.
-     * - `BillScanUiState.showQuota` — the "2 of 3 free" pill is off.
-     * - The end-to-end tests — the paywall ones are skipped by `assumeTrue`, and each has an
-     *   `assumeFalse` twin asserting what 1.0 ships. Both halves compile either way.
-     *
-     * **Three things the search finds only by comment**, because they are copy rather than
-     * code, and each says so where it sits: `dv_error_limit_reached` and `bs_error_quota`
-     * (both reworded to stop naming the free plan and Pro), and
-     * `DocumentVaultFlowRobot.LIMIT_REACHED`, which asserts the first of them.
-     *
-     * `bs_error_quota` was unreachable until the scan counter landed — the allowance always
-     * reported nothing used, so the cap could not be met. It can be now.
-     *
-     * **Also delete when it goes true:** the now-unused `pf_coming_soon`, `gr_ex_coming_soon`
-     * and `GarageCopy.EXPORT_COMING_SOON` strings.
-     *
-     * **Not guarded by this flag**, and a separate decision: `FreePlanEntitlementSource`
-     * answers "free plan" for everyone, so the document cap is 3 and the scan cap is 3 a
-     * month. Content that is Pro-only — the health-score breakdown — is unlocked by the
-     * guards above rather than by that source, so nothing is content-locked while this is
-     * false. `:infrastructure:billing` replaces the source and the caps become real.
-     */
-    const val PAYWALL_ENABLED = false
-
-    /**
      * Whether the app tracks drives on its own and keeps the odometer current from them.
      *
      * False for 1.0. The whole feature is written and tested — `:core:triptracker`'s engine,

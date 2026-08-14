@@ -66,11 +66,7 @@ internal object VaultCopy {
     const val CAPTURE_SCAN = "Scan with camera"
     const val CAPTURE_UPLOAD = "Upload a file"
     const val WRITE_FAILED = "Something went wrong. Please try again."
-    /**
-     * FeatureFlags.PAYWALL_ENABLED: goes back to "Your free plan stores 3 documents. Delete
-     * one to add another." when the flag goes true.
-     */
-    const val LIMIT_REACHED = "Odo stores up to 3 documents. Delete one to add another."
+    const val LIMIT_REACHED = "Your free plan stores 3 documents. Delete one to add another."
 
     /* Confirm step — owned by the scanner, reached by both ways of adding a document. */
     const val REVIEW_TITLE = "Check the document"

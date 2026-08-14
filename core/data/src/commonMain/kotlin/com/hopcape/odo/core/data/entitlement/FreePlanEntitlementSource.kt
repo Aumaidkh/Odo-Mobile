@@ -13,11 +13,6 @@ import kotlinx.coroutines.flow.flowOf
  * This is the honest answer today, not a placeholder that pretends to read something. There
  * is no subscription state in the app yet, so [Plan.FREE] is true for every owner.
  *
- * It replaces `AlwaysProEntitlement`, which answered the opposite. That stub existed because
- * `isPro = false` would have locked the health-score breakdown behind a paywall that could
- * not take money — but the lock is guarded by `FeatureFlags.PAYWALL_ENABLED`, not by this,
- * so answering truthfully here locks nothing while the flag is false.
- *
  * `:infrastructure:billing` replaces it with the RevenueCat-backed source in one line of
  * `coreDataModule`. Nothing that reads entitlements changes when it does.
  */
