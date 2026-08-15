@@ -45,6 +45,9 @@ export const privacyPage = (): string =>
       not on a server.</li>
   <li>If you turn on trip tracking, the GPS coordinates <strong>never leave your phone</strong>. Only the
       distance and the times are synced.</li>
+  <li>If you turn on automatic fuel logging, ${IDENTITY.product} reads the merchant name and the amount from
+      payment notifications sent by the payment apps you pick — nothing else, and only on your
+      phone. It is off until you switch it on.</li>
   <li>We do not sell your data, and we do not share it with advertisers or insurers.</li>
   <li>You can delete your account and everything in it yourself, from
       <a href="delete-account">this website</a>, without installing the app.</li>
@@ -102,6 +105,16 @@ export const privacyPage = (): string =>
       <td>Your phone and our servers</td>
     </tr>
     <tr>
+      <td><strong>Fuel fills</strong> — date, amount paid, quantity, rate, the fuel station's name, and the odometer reading if you give one</td>
+      <td>What fuel actually costs you, and the two readings that turn into a measured mileage.</td>
+      <td>Your phone and our servers</td>
+    </tr>
+    <tr>
+      <td><strong>Detected payments awaiting your confirmation</strong> — the merchant name and the amount, only from payment apps you enabled</td>
+      <td>So a fill you were shown but have not answered yet is not lost when the notification is dismissed. Deleted once you confirm or reject it.</td>
+      <td>Your phone only — never sent anywhere</td>
+    </tr>
+    <tr>
       <td><strong>Trips</strong> — start and end time, distance covered</td>
       <td>Only if you switch trip tracking on. Used to keep the odometer current without you typing it.</td>
       <td>Your phone and our servers</td>
@@ -144,7 +157,7 @@ export const privacyPage = (): string =>
   needs it rather than at launch. Declining any of them leaves the rest of ${IDENTITY.product} working.
 </p>
 <ul>
-  <li><strong>Camera</strong> — to scan a bill, a document or a UPI payment QR code. Frames are read on the
+  <li><strong>Camera</strong> — to scan a bill, a document or a fuel pump's display. Frames are read on the
       device; nothing is uploaded unless you save the photo to a record.</li>
   <li><strong>Location, including in the background</strong> — only for trip tracking, and only after you
       switch it on. Background access is what lets a trip keep measuring while your phone is in
@@ -154,7 +167,37 @@ export const privacyPage = (): string =>
   <li><strong>Nearby devices (Bluetooth)</strong> — to notice your car's stereo connecting or
       disconnecting, which is the cheapest signal that a drive has started or ended. We read the
       connection event, not the device's contents.</li>
-  <li><strong>Notifications</strong> — to show reminders about an expiring document or a due service.</li>
+  <li><strong>Notifications</strong> — to show reminders about an expiring document or a due service,
+      and to show you a fill ${IDENTITY.product} has detected so you can confirm it in one tap.</li>
+  <li><strong>Notification access</strong> — optional, off by default, and the one permission worth
+      explaining at length. See below.</li>
+</ul>
+
+<h2>Reading payment notifications</h2>
+<p>
+  Automatic fuel logging works by reading the notification your payment app posts when you pay at
+  a fuel station, so a fill is recorded without you opening ${IDENTITY.product}. Android has a single switch for
+  this, and its own consent screen warns that an app holding it could read every notification on
+  the phone — some manufacturers add a red warning and a risk checkbox. That warning describes
+  what the permission <em>allows</em>, not what ${IDENTITY.product} does, so here is what ${IDENTITY.product} actually does.
+</p>
+<ul>
+  <li><strong>It is off until you turn it on</strong>, and turning it off again in Android's settings
+      stops it immediately. Nothing else in the app depends on it.</li>
+  <li><strong>Only apps you choose are read.</strong> ${IDENTITY.product} checks the sending app against a list you
+      control before it looks at any text. A notification from any other app — messages, email,
+      banking, anything — is discarded without being read.</li>
+  <li><strong>Only two things are taken from it:</strong> the merchant's name and the amount. Not the
+      full text, not your balance, not an account or card number, not the sender.</li>
+  <li><strong>It is read on your phone.</strong> The text is never uploaded, and ${IDENTITY.product} is never inside the
+      payment itself — it sees the same notification you see, after the payment has happened.</li>
+  <li><strong>A payment that does not look like fuel is dropped</strong> and nothing is stored. If ${IDENTITY.product}
+      asks about a merchant that was not a fuel station, telling it so stops it asking again.</li>
+  <li><strong>Nothing is saved until you confirm it.</strong> A detected fill is held on your phone as an
+      unanswered question until you accept or reject it. Only what you confirm becomes a record,
+      and only confirmed records sync.</li>
+  <li><strong>${IDENTITY.product} does not have the SMS permission at all</strong>, so it cannot read your messages. You
+      can check that yourself in Android's app permissions.</li>
 </ul>
 
 <h2>Who else can see it</h2>
