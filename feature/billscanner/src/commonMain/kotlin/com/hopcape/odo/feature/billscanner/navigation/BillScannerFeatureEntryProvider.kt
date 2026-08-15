@@ -22,8 +22,6 @@ import com.hopcape.odo.core.platform.camera.CameraEvent
 import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
 import com.hopcape.odo.core.platform.file.FileTypes
 import com.hopcape.odo.core.platform.file.rememberFilePicker
-import com.hopcape.odo.core.platform.payment.UpiLaunchResult
-import com.hopcape.odo.core.platform.payment.rememberUpiPaymentLauncher
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.core.platform.permission.rememberCameraPermissionController
 import com.hopcape.odo.feature.billscanner.domain.usecase.CaptureOrigin
@@ -32,10 +30,6 @@ import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewE
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewScreen
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewViewModel
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
-import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpEffect
-import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpEvent
-import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpScreen
-import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpViewModel
 import com.hopcape.odo.feature.billscanner.presentation.permission.CameraRationaleScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
@@ -54,11 +48,11 @@ import org.koin.core.parameter.parametersOf
 /**
  * BillScanner's contribution to the navigation graph: the [OdoDestination.BillScanner] flow.
  *
- * [OdoDestination.BillScanner.Capture] is the one camera surface for all three targets; where
- * a capture goes next is the only thing the target changes — a bill to
+ * [OdoDestination.BillScanner.Capture] is the one camera surface for every target; where a
+ * capture goes next is the only thing the target changes — a bill to
  * [OdoDestination.BillScanner.Review], a paper to [OdoDestination.BillScanner.DocumentReview],
- * a payment code to [OdoDestination.BillScanner.PayAtPump]. Every other feature reaches this
- * flow through the shared [OdoDestination] registry, so none of them imports this module.
+ * a pump display to refuel's own confirm step. Every other feature reaches this flow through
+ * the shared [OdoDestination] registry, so none of them imports this module.
  */
 internal class BillScannerFeatureEntryProvider(
     private val navigationManager: NavigationManager,
@@ -75,9 +69,6 @@ internal class BillScannerFeatureEntryProvider(
                 documentType = key.documentType,
                 origin = key.origin.toCaptureOrigin(),
             )
-        }
-        entry<OdoDestination.BillScanner.PayAtPump> { key ->
-            PayAtPumpRoute(navigationManager, payload = key.payload)
         }
         entry<OdoDestination.BillScanner.SaveSuccess> { SaveSuccessRoute(navigationManager) }
         entry<OdoDestination.BillScanner.ReportSuccess> { ReportSuccessRoute(navigationManager) }
@@ -129,8 +120,11 @@ internal fun BillScanRoute(
             is BillScanEffect.OpenDocumentReview -> navigationManager.navigateTo(
                 OdoDestination.BillScanner.DocumentReview(effect.photoKey, key.documentType),
             )
-            is BillScanEffect.OpenPayment ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.PayAtPump(effect.payload))
+            // The scanner's only handoff to another feature's flow. It navigates rather than
+            // replacing itself: backing out of the confirm step should land on the viewfinder,
+            // because the owner is still standing at the pump and the display is still lit.
+            is BillScanEffect.OpenPumpConfirm ->
+                navigationManager.navigateTo(OdoDestination.Refuel.Confirm(effect.draft))
             BillScanEffect.PickFromGallery -> pickFromGallery()
             // "Manual" opens the log form in the viewfinder's place, not on top of it. The
             // form's save pops back, and that should land on whatever opened the scanner
@@ -170,7 +164,6 @@ internal fun BillScanRoute(
         onCameraEvent = { event ->
             when (event) {
                 is CameraEvent.PhotoCaptured -> viewModel.onEvent(BillScanEvent.PhotoCaptured(event.storageKey))
-                is CameraEvent.QrDetected -> viewModel.onEvent(BillScanEvent.QrDetected(event.payload))
                 is CameraEvent.EdgesDetected -> viewModel.onEvent(BillScanEvent.EdgesDetected(event.quad))
                 is CameraEvent.Failed -> viewModel.onEvent(BillScanEvent.CameraFailed(event.failure))
                 CameraEvent.Ready -> viewModel.onEvent(BillScanEvent.CameraReady)
@@ -286,42 +279,6 @@ internal fun DocumentReviewRoute(
     )
 }
 
-/**
- * The scan-to-pay host.
- *
- * The UPI hand-off is a platform launcher rather than something the ViewModel can call, so the
- * route owns it and reports the outcome back as an event. Every way the hand-off can fail —
- * no app, no support on this platform, dismissed — is reported, because a payment screen that
- * does nothing when tapped is the worst possible thing to hand someone at a pump.
- */
-@Composable
-internal fun PayAtPumpRoute(navigationManager: NavigationManager, payload: String) {
-    val viewModel: PayAtPumpViewModel = koinViewModel { parametersOf(payload) }
-    val state by viewModel.state.collectAsState()
-
-    val launchUpi = rememberUpiPaymentLauncher { result ->
-        when (result) {
-            is UpiLaunchResult.Completed -> viewModel.onEvent(PayAtPumpEvent.PaymentReturned(result.response))
-            UpiLaunchResult.Dismissed -> viewModel.onEvent(PayAtPumpEvent.PaymentReturned(null))
-            UpiLaunchResult.NoUpiApp ->
-                viewModel.onEvent(PayAtPumpEvent.PaymentUnavailable(onThisPlatform = false))
-            UpiLaunchResult.Unsupported ->
-                viewModel.onEvent(PayAtPumpEvent.PaymentUnavailable(onThisPlatform = true))
-        }
-    }
-
-    CollectEffects(viewModel.effects) { effect ->
-        when (effect) {
-            is PayAtPumpEffect.LaunchUpi -> launchUpi(effect.links)
-            // The fill is written, so the errand is over; going back to the viewfinder would
-            // invite a second payment for the same tank.
-            PayAtPumpEffect.FillSaved -> navigationManager.back()
-            PayAtPumpEffect.NavigateBack -> navigationManager.back()
-        }
-    }
-
-    PayAtPumpScreen(state = state, onEvent = viewModel::onEvent)
-}
 
 /**
  * Terminal save-success host. "View in Service Log" / "Done" both exit the whole scan flow and

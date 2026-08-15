@@ -62,20 +62,9 @@ actual fun OdoCameraPreview(
     // photo-only screen is not paying for per-frame analysis.
     DisposableEffect(controller, analysis) {
         when (analysis) {
-            CameraFrameAnalysis.Qr -> {
-                // The main executor is fine here: ML Kit's process() only *starts* the scan
-                // and does its work off-thread.
-                val analyzer = QrFrameAnalyzer { payload -> currentOnEvent(CameraEvent.QrDetected(payload)) }
-                controller.setImageAnalysisAnalyzer(ContextCompat.getMainExecutor(context), analyzer)
-                onDispose {
-                    controller.clearImageAnalysisAnalyzer()
-                    analyzer.close()
-                }
-            }
-
             CameraFrameAnalysis.DocumentEdges -> {
-                // Unlike the QR analyzer, this one does all its work inline — so it gets
-                // its own thread rather than a slice of every frame's UI budget. The
+                // This one does all its work inline, so it gets its own thread rather than a
+                // slice of every frame's UI budget. The
                 // event still reaches Compose safely: state writes are thread-agnostic.
                 val executor = Executors.newSingleThreadExecutor()
                 val analyzer = DocumentEdgeAnalyzer { quad -> currentOnEvent(CameraEvent.EdgesDetected(quad)) }

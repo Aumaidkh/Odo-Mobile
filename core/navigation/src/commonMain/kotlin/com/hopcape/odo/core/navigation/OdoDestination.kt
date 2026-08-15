@@ -305,14 +305,6 @@ sealed interface OdoDestination : NavKey {
             val origin: DocumentOrigin = DocumentOrigin.Scanned,
         ) : BillScanner
 
-        /**
-         * Pay a scanned QR, then record the fill it bought.
-         *
-         * [payload] is the raw string read out of the code. Parsing it is the feature's job,
-         * so `:core:navigation` stays free of any knowledge about UPI.
-         */
-        @Serializable
-        data class PayAtPump(val payload: String) : BillScanner
         /** Terminal success after the reviewed bill is saved to the log. */
         @Serializable
         data object SaveSuccess : BillScanner
@@ -322,6 +314,61 @@ sealed interface OdoDestination : NavKey {
         /** Error state — the AI couldn't read the bill (retry or enter manually). */
         @Serializable
         data object ScanError : BillScanner
+    }
+
+    /**
+     * Logging a tank of fuel — owned by `:feature:refuel`.
+     *
+     * Every way of capturing a fill ends in this group. A payment notification, a photo of
+     * a pump display and the owner opening the form themselves all build the same draft and
+     * land on [Confirm]; only what filled the draft in differs.
+     * That is why the draft travels as a [FuelFillDraftInput] on the key rather than each
+     * capture route having a confirm screen of its own.
+     */
+    @Serializable
+    sealed interface Refuel : OdoDestination {
+
+        /**
+         * The form the owner opens themselves, prefilled from their last visit.
+         *
+         * No arguments: what it prefills with is read when it opens, and a key carrying
+         * yesterday's station would show a stale one after a back-stack restore.
+         */
+        @Serializable
+        data object Log : Refuel
+
+        /**
+         * Confirm a captured fill before it is written.
+         *
+         * [draft] is what the capture channel managed to read. It is a navigation-layer
+         * type rather than the domain's `FuelFillDraft` because a key is serialized into
+         * the back stack and `:core:navigation` holds no domain types.
+         */
+        @Serializable
+        data class Confirm(val draft: FuelFillDraftInput) : Refuel
+
+        /** Terminal success — what was logged, and what the tank returned. */
+        @Serializable
+        data class Logged(val fillId: String) : Refuel
+
+        /**
+         * Fills that were detected but never answered.
+         *
+         * No arguments: what it lists is read when it opens. A key carrying the detections
+         * would show a stale set after a back-stack restore, and this screen exists precisely
+         * because those detections outlive the moment they happened.
+         */
+        @Serializable
+        data object Pending : Refuel
+
+        /**
+         * The opt-in for reading payment notifications, and the settings behind it.
+         *
+         * One key rather than two: before the owner opts in the screen explains what it
+         * would read, and afterwards the same screen is where they change or revoke it.
+         */
+        @Serializable
+        data object AutoDetect : Refuel
     }
 
     /**
@@ -637,9 +684,41 @@ enum class ScanTarget {
     /** A paper with an expiry date on it: insurance, PUC, RC or a licence. */
     Document,
 
-    /** A payment QR at a fuel pump or a workshop counter. */
-    PaymentQr,
+    /**
+     * The pump's own display: the amount, the volume and the rate it is showing.
+     *
+     * The one capture channel that works in every market and needs no payment app at all —
+     * a pump shows those three numbers whether the owner paid by card, by phone or in cash.
+     */
+    PumpDisplay,
 }
+
+/**
+ * A captured fill on its way to the confirm step, in navigation-layer primitives.
+ *
+ * A mirror of the domain's `FuelFillDraft` rather than the type itself, because a key is
+ * serialized into the back stack and `:core:navigation` may not depend on `:core:domain`.
+ * The refuel feature maps it both ways at the boundary.
+ *
+ * Every field is optional for the same reason it is on the domain type: each capture channel
+ * knows a different subset, and what is missing is what the confirm step asks for. The
+ * `*Origin` strings name a `FieldOrigin`; an unrecognised one reads as unknown, so a key
+ * written by an older build cannot claim a number was observed.
+ */
+@Serializable
+data class FuelFillDraftInput(
+    val source: String,
+    val amountPaise: Long? = null,
+    val amountOrigin: String? = null,
+    val quantityMilli: Long? = null,
+    val quantityOrigin: String? = null,
+    val pricePerUnitPaise: Long? = null,
+    val priceOrigin: String? = null,
+    val odometerKm: Int? = null,
+    val odometerOrigin: String? = null,
+    val stationName: String? = null,
+    val transactionRef: String? = null,
+)
 
 /**
  * One line for a [OdoDestination.Fairness] check — primitives only, so `:core:navigation`

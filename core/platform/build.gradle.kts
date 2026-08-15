@@ -49,7 +49,6 @@ kotlin {
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.camera2)
             // On-device QR reading off the live preview frames, and off a picked photo.
-            implementation(libs.mlkit.barcodeScanning)
             // ML Kit answers with a Task; this is what awaits one from a coroutine.
             implementation(libs.kotlinx.coroutines.play.services)
             // CameraX stores capture rotation in EXIF; the cropper must go upright first.

@@ -243,4 +243,7 @@
     <string name="pf_da_error_reverify">We need you to confirm your number again before deleting.</string>
     <string name="pf_da_error_local_survived">Your account is deleted, but this phone still has a copy.</string>
     <string name="pf_da_error_failed">We couldn\'t delete your account. Nothing has been removed — please try again.</string>
+    <string name="pf_notif_detection">Automatic logging</string>
+    <string name="pf_notif_auto_detect">Auto-detect fuel fills</string>
+    <string name="pf_notif_auto_detect_sub">Reads the payment notification from a fuel station and drafts the entry for you. Nothing leaves your phone.</string>
 </resources>

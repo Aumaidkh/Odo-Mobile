@@ -138,6 +138,7 @@ private fun NotificationsRoute(navigationManager: NavigationManager) {
         systemNotificationsEnabled = systemSettings.areEnabled(),
         onBack = { navigationManager.back() },
         onDeviceSettings = { systemSettings.open() },
+        onAutoDetect = { navigationManager.navigateTo(OdoDestination.Refuel.AutoDetect) },
     )
 }
 

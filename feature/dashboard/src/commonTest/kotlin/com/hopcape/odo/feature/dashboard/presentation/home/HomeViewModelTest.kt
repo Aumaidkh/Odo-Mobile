@@ -15,6 +15,8 @@ import com.hopcape.odo.feature.dashboard.FakeCarRepository
 import com.hopcape.odo.feature.dashboard.FakeCurrentCityProvider
 import com.hopcape.odo.feature.dashboard.FakeDocumentRepository
 import com.hopcape.odo.feature.dashboard.FakeFuelPriceProvider
+import com.hopcape.odo.feature.dashboard.FakeFuelFillRepository
+import com.hopcape.odo.feature.dashboard.FakeRefuelDetectionStore
 import com.hopcape.odo.feature.dashboard.FakeHealthScoreRepository
 import com.hopcape.odo.feature.dashboard.FakeOwnerProfileRepository
 import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
@@ -247,6 +249,7 @@ class HomeViewModelTest {
             logs = logs,
             documents = FakeDocumentRepository(documents),
             scores = FakeHealthScoreRepository(),
+            fills = FakeFuelFillRepository(),
             owners = FakeOwnerProfileRepository(),
             city = FakeCurrentCityProvider(),
             fuelPrices = FakeFuelPriceProvider(),
@@ -254,6 +257,7 @@ class HomeViewModelTest {
             clock = FixedClock(),
             timeZone = TimeZone.UTC,
         ),
+        detection = FakeRefuelDetectionStore(),
         telemetry = telemetry(analytics),
     )
 

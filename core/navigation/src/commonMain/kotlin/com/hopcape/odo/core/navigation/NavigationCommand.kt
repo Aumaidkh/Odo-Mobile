@@ -16,6 +16,13 @@ sealed interface NavigationCommand {
         val destination: OdoDestination,
         val popUpTo: OdoDestination? = null,
         val inclusive: Boolean = false,
+        /**
+         * Skip the push when [destination] is already on top.
+         *
+         * Note this is *not* what stops duplicates — a key already deeper in the stack is
+         * brought forward whatever this says, because Nav3 cannot hold the same key twice.
+         * This only decides whether re-selecting the current screen is a no-op.
+         */
         val singleTop: Boolean = true,
     ) : NavigationCommand
 

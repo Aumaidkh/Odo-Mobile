@@ -56,6 +56,7 @@ include(":feature:dashboard")
 include(":feature:fairness-check")
 include(":feature:garage")
 include(":feature:profile")
+include(":feature:refuel")
 include(":feature:support")
 include(":feature:timeline")
 

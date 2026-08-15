@@ -4,6 +4,7 @@ import com.hopcape.odo.core.domain.activity.analysis.ActivityFeedBuilder
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
@@ -34,17 +35,30 @@ internal class ObserveTimelineUseCase(
     private val logs: ServiceLogRepository,
     private val documents: DocumentRepository,
     private val scores: HealthScoreRepository,
+    private val fills: FuelFillRepository,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
+    /**
+     * Five sources, which is the most `combine` has a typed overload for. A sixth would have
+     * to be staged in two steps, the way `ObserveHomeUseCase` does it.
+     */
     operator fun invoke(carId: CarId): Flow<TimelineSnapshot> = combine(
         cars.observe(carId),
         logs.observe(carId),
         documents.observe(carId),
         scores.observeHistory(carId),
-    ) { car, entries, documents, history ->
+        fills.observeForCar(carId),
+    ) { car, entries, documents, history, fuelFills ->
         TimelineSnapshot(
             carName = car?.displayName.orEmpty(),
-            events = ActivityFeedBuilder.build(car, entries, documents, history, timeZone),
+            events = ActivityFeedBuilder.build(
+                car = car,
+                entries = entries,
+                documents = documents,
+                scores = history,
+                zone = timeZone,
+                fills = fuelFills,
+            ),
         )
     }
 }

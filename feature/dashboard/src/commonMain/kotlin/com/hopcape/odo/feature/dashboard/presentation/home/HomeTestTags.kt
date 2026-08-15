@@ -19,6 +19,8 @@ object HomeTestTags {
     const val BELL_BUTTON = "home_bell_button"
 
     const val HEALTH_CARD = "home_health_card"
+    const val LOG_FILL_BUTTON = "home_log_fill_button"
+    const val AUTO_DETECT_OFFER = "home_auto_detect_offer"
     const val SCORE = "home_score"
     const val BREAKDOWN_LINK = "home_breakdown_link"
 

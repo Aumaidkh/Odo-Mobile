@@ -119,4 +119,8 @@
     <string name="hm_category_electrical">Electrical</string>
     <string name="hm_category_general_service">General service</string>
     <string name="hm_category_other">Other work</string>
+    <string name="hm_log_fill">Log a fill</string>
+    <string name="hm_recent_fuel">Fuel · %1$s</string>
+    <string name="hm_auto_detect_title">Log fills automatically</string>
+    <string name="hm_auto_detect_body">Let Odo spot the payment at a pump and draft the entry. See what it reads first.</string>
 </resources>

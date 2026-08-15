@@ -23,7 +23,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
-import com.hopcape.odo.core.designsystem.icons.IcQr
+import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -320,9 +320,9 @@ private fun OdoPermissionRationalePreview() = OdoPreview(padded = false) {
                 description = "Pull the expiry date so renewals never catch you out.",
             ),
             OdoPermissionBenefit(
-                icon = IcQr,
-                title = "Fuel pump QR",
-                description = "Pay by UPI and log the fill in one step.",
+                icon = IcFuelPump,
+                title = "Fuel pump display",
+                description = "Read the litres, the rate and the total straight off the pump.",
             ),
         ),
         assurances = listOf(

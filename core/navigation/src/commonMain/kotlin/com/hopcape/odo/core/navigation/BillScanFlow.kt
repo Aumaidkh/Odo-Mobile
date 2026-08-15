@@ -20,7 +20,6 @@ package com.hopcape.odo.core.navigation
 fun isBillScanFlowStep(destination: OdoDestination): Boolean = when (destination) {
     is OdoDestination.Fairness,
     is OdoDestination.BillScanner.Review,
-    is OdoDestination.BillScanner.PayAtPump,
     is OdoDestination.BillScanner.SaveSuccess,
     is OdoDestination.BillScanner.ReportSuccess,
     is OdoDestination.BillScanner.ScanError,

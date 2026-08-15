@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The dark-mode set, and the one the brand is actually designed for: Odo's own theme is dark,
+    and this is where the notification looks like the rest of the app.
+
+    Every value is the inverse of its `values/` twin. The design's own tokens: #FFFFFF titles,
+    #9CA3AF supporting text, a white filled pill with a black label, and a #262626 hairline.
+-->
+<resources>
+    <color name="refuel_notification_text">#FFFFFF</color>
+    <color name="refuel_notification_text_dim">#9CA3AF</color>
+
+    <color name="refuel_notification_cta_fill">#FFFFFF</color>
+    <color name="refuel_notification_cta_label">#000000</color>
+
+    <color name="refuel_notification_outline">#66FFFFFF</color>
+</resources>

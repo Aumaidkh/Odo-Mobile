@@ -10,6 +10,8 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyPolicy
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.cost.model.CostWindow
 import com.hopcape.odo.core.domain.cost.model.RunningCost
+import com.hopcape.odo.core.domain.cost.model.FuelFill
+import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.analysis.SavingsCalculator
@@ -61,6 +63,7 @@ internal class ObserveHomeUseCase(
     private val logs: ServiceLogRepository,
     private val documents: DocumentRepository,
     private val scores: HealthScoreRepository,
+    private val fills: FuelFillRepository,
     private val owners: OwnerProfileRepository,
     private val city: CurrentCityProvider,
     private val fuelPrices: FuelPriceProvider,
@@ -84,10 +87,28 @@ internal class ObserveHomeUseCase(
         logs.observe(carId),
         readingsAndCurrent(carId),
         documents.observe(carId),
-        scores.observeHistory(carId),
-    ) { car, entries, readingsAndCurrent, documents, history ->
-        CarRecord(car, entries, readingsAndCurrent.readings, readingsAndCurrent.current, documents, history)
+        historyAndFills(carId),
+    ) { car, entries, readingsAndCurrent, documents, historyAndFills ->
+        CarRecord(
+            car = car,
+            entries = entries,
+            readings = readingsAndCurrent.readings,
+            currentOdometer = readingsAndCurrent.current,
+            documents = documents,
+            history = historyAndFills.history,
+            fills = historyAndFills.fills,
+        )
     }
+
+    /**
+     * The score history and the car's fills, bundled for the same reason [readingsAndCurrent]
+     * is: [record] has all five of `combine`'s typed slots spoken for. They travel together
+     * because both are only read by the feed builder.
+     */
+    private fun historyAndFills(carId: CarId): Flow<HistoryAndFills> = combine(
+        scores.observeHistory(carId),
+        fills.observeForCar(carId),
+    ) { history, fills -> HistoryAndFills(history, fills) }
 
     /**
      * The raw odometer timeline (still needed for the history-consistency check) alongside
@@ -149,6 +170,7 @@ internal class ObserveHomeUseCase(
                 documents = record.documents,
                 scores = record.history,
                 zone = timeZone,
+                fills = record.fills,
             ).firstOrNull(),
             setup = SetupProgress(
                 carAdded = record.car != null,
@@ -192,6 +214,13 @@ internal class ObserveHomeUseCase(
         val currentOdometer: Distance?,
         val documents: List<Document>,
         val history: List<HealthSnapshot>,
+        val fills: List<FuelFill>,
+    )
+
+    /** [historyAndFills]'s bundle — see its KDoc for why the two travel together. */
+    private data class HistoryAndFills(
+        val history: List<HealthSnapshot>,
+        val fills: List<FuelFill>,
     )
 
     /** [readingsAndCurrent]'s bundle — see its KDoc for why the two travel together. */
