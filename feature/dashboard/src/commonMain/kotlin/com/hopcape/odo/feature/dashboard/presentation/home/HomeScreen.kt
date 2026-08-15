@@ -279,13 +279,6 @@ private fun ScoredContent(
 }
 
 /**
- * "Log a fill" — the shortcut the whole smart-refuel feature hangs off.
- *
- * High on the screen rather than buried in the garage, because the owner opening Odo right
- * after paying at a pump is the single most common reason this screen is looked at, and every
- * tap between here and the amount field is one that gets a fill left unlogged.
- */
-/**
  * The only place automatic fuel logging is discoverable.
  *
  * Without it the feature lives three screens down — Profile, Notifications, Auto-detect — and
@@ -338,12 +331,31 @@ private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
     }
 }
 
+/**
+ * "Log a fill" — the shortcut the whole smart-refuel feature hangs off.
+ *
+ * High on the screen rather than buried in the garage, because the owner opening Odo right
+ * after paying at a pump is the single most common reason this screen is looked at, and every
+ * tap between here and the amount field is one that gets a fill left unlogged.
+ *
+ * Primary rather than secondary, and carrying the fuel-pump icon. It was an outlined button
+ * sitting between two filled cards, which put the screen's most-used action at the lowest
+ * emphasis on it — it read as a link under the health score rather than the thing to tap. On
+ * a screen where everything else is a card, the one button that *does* something should be
+ * the one thing that looks like a button.
+ */
 @Composable
 private fun LogFillAction(onEvent: (HomeEvent) -> Unit) {
     OdoButton(
         text = stringResource(Res.string.hm_log_fill),
         onClick = { onEvent(HomeEvent.LogFillTapped) },
-        variant = OdoButtonVariant.Secondary,
+        leadingIcon = {
+            OdoIcon(
+                IcFuelPump,
+                contentDescription = null,
+                size = OdoTheme.iconSizes.small,
+            )
+        },
         modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.LOG_FILL_BUTTON),
     )
 }
