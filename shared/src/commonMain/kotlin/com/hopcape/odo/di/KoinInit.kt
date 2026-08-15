@@ -32,6 +32,7 @@ import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
+import com.hopcape.odo.infrastructure.billing.billingInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
@@ -127,6 +128,10 @@ fun initKoin(
         // Same reason again: its AppStatusSource binding replaces coreDataModule's
         // AlwaysAvailableAppStatusSource, which blocks nothing.
         firebaseRemoteConfigModule,
+        // After coreDataModule for the same reason: from S6 its EntitlementSource binding
+        // replaces that module's FreePlanEntitlementSource. Today it only configures the
+        // RevenueCat SDK, which it does while Koin starts.
+        billingInfrastructureModule,
         platformModule,
     )
 }.also { application ->

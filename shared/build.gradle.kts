@@ -71,6 +71,9 @@ kotlin {
             // On-device scan adapters for the ports :core:domain declares — same
             // composition-root reasoning; aiInfrastructureModule goes in after coreDataModule.
             implementation(projects.infrastructure.ai)
+            // The store adapters. Same composition-root reasoning as the two above: only
+            // the app assembles the graph, so only the app depends on who implements a port.
+            implementation(projects.infrastructure.billing)
             // Structured logging — build-type-aware Logger wired via loggingModule.
             implementation(projects.observability.logging)
             // Product analytics — AnalyticsTracker wired via analyticsModule.

@@ -13,6 +13,7 @@ import com.hopcape.odo.core.domain.auth.AuthSession
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.platform.secure.SecureStore
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
@@ -201,7 +202,14 @@ class OtpViewModelTest {
         smsCodes: SmsCodeReader = SmsCodeReader { flowOf(SmsCodeStatus.Listening) },
     ) = OtpViewModel(
         phone = phone,
-        sessions = OdoSessionManager(gateway, InMemoryStore(), silentTelemetry(), NoopScheduler, MovingClock()),
+        sessions = OdoSessionManager(
+            gateway = gateway,
+            store = InMemoryStore(),
+            telemetry = silentTelemetry(),
+            scheduler = NoopScheduler,
+            identity = NoopIdentity,
+            clock = MovingClock(),
+        ),
         telemetry = silentTelemetry(),
         smsCodes = smsCodes,
         smsSignature = { emptyList() },
@@ -273,4 +281,10 @@ class OtpViewModelTest {
             expiresAt = Instant.parse("2026-08-03T11:00:00Z"),
         )
     }
+}
+
+/** Nothing here is about the store. */
+private object NoopIdentity : SubscriptionIdentity {
+    override fun identify(ownerId: OwnerId) = Unit
+    override fun forget() = Unit
 }

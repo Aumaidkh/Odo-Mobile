@@ -29,7 +29,7 @@ val healthScoreModule = module {
             logs = get(),
             documents = get(),
             snapshots = get(),
-            entitlement = get(),
+            entitlements = get(),
             currentOdometer = get(),
             clock = get(),
         )

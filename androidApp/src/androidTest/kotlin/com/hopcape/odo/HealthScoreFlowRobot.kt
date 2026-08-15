@@ -14,9 +14,12 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentType
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.feature.healthscore.presentation.HealthScoreTestTags
+import kotlinx.coroutines.flow.flowOf
 import org.koin.core.context.GlobalContext
 import org.koin.dsl.module
 import java.time.Instant
@@ -59,7 +62,7 @@ internal object HealthCopy {
 
     /* Free tier. */
     const val PAYWALL_TITLE = "See your full breakdown"
-    const val PAYWALL_CTA = "Unlock with Pro · Rs. 149/mo"
+    const val PAYWALL_CTA = "Unlock with Pro"
 
     /* The paywall screen this lands on. The HEALTH_BREAKDOWN trigger has no framing of
      * its own yet, so it falls back to the generic one — the trigger still travels for
@@ -356,16 +359,26 @@ private const val HEALTH_SEEDED_AT = "2026-07-01T00:00:00Z"
 /* ------------------------------ Entitlement ------------------------------ */
 
 /**
- * Answer the Pro question with [isPro] for the rest of the test.
+ * Put the owner on Pro or the free plan for the rest of the test.
  *
- * The shipped stub answers Pro for everyone until Razorpay lands, so the locked breakdown
- * and its paywall are unreachable in the running app — overriding the port is the only way
- * to walk the half of this screen a free owner sees. Every test sets it explicitly rather
- * than relying on the default, because the definition outlives the test that changed it.
+ * The shipped source answers free for everyone until billing lands, so the Pro half of this
+ * screen is unreachable in the running app — overriding the port is the only way to walk
+ * both. Every test sets it explicitly rather than relying on the default, because the
+ * definition outlives the test that changed it.
  */
 internal fun setProEntitlement(isPro: Boolean) {
+    val entitlements = Entitlements(if (isPro) Plan.PRO else Plan.FREE)
     GlobalContext.get().loadModules(
-        listOf(module { single<ProEntitlement> { ProEntitlement { isPro } } }),
+        listOf(
+            module {
+                single<EntitlementSource> {
+                    object : EntitlementSource {
+                        override fun observe() = flowOf(entitlements)
+                        override suspend fun refresh() = Unit
+                    }
+                }
+            },
+        ),
         allowOverride = true,
     )
 }

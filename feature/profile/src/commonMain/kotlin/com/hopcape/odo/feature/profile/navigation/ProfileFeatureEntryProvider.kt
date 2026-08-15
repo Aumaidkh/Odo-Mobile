@@ -1,10 +1,12 @@
 package com.hopcape.odo.feature.profile.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
@@ -74,11 +76,16 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
     // Opening a settings row is counted by the destination's own ViewModel, not here: the
     // screen or sheet is what an owner actually reached, and counting the tap as well would
     // put two events on the dashboard for one action.
+    val uriHandler = LocalUriHandler.current
     ProfileScreen(
         state = state,
         onBack = { navigationManager.back() },
         onEdit = { navigationManager.navigateTo(OdoDestination.Profile.Edit) },
         onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall()) },
+        // The store's own subscription page. Cancelling, changing plan and fixing a card all
+        // happen there — Play requires it, and an in-app cancel that did not cancel would be
+        // the worst version of this screen.
+        onManagePlan = { url -> uriHandler.openUri(url) },
         onNotifications = { navigationManager.navigateTo(OdoDestination.Profile.Notifications) },
         onUnits = { navigationManager.navigateTo(OdoDestination.Profile.Units) },
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
@@ -219,10 +226,21 @@ private fun AppearanceRoute(navigationManager: NavigationManager) {
 @Composable
 private fun ExportRoute(navigationManager: NavigationManager) {
     val telemetry = koinInject<ProfileTelemetry>()
+    val activeCar = koinInject<ActiveCarProvider>()
     ExportDataSheetContent(
-        onUpgrade = { target ->
-            telemetry.exportRequested(target)
-            navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_EXPORT))
+        onExport = {
+            telemetry.exportRequested(ProfileTelemetry.ExportTarget.PDF)
+            // The share sheet owns both the document and the Pro gate, so this only has to
+            // say which car. With no car there is nothing to export and nowhere to go.
+            activeCar.activeCarId.value?.let { carId ->
+                // Close this sheet before opening that one. Both are bottom-sheet
+                // destinations, and Nav3 has nothing left to overlay when a sheet is pushed
+                // straight onto a sheet — it throws "Overlaid entries must not be empty".
+                // Popping first also means back from the record returns to the profile
+                // rather than to an export sheet the owner is already done with.
+                navigationManager.back()
+                navigationManager.navigateTo(OdoDestination.ServiceLog.Share(carId = carId.value))
+            }
         },
     )
 }
@@ -258,4 +276,3 @@ private fun SignOutRoute(navigationManager: NavigationManager) {
 }
 
 /** What the paywall is told it was opened for, so the screen can name the reason. */
-private const val PAYWALL_TRIGGER_EXPORT = "EXPORT"

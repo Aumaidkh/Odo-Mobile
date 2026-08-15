@@ -62,6 +62,9 @@
     <string name="sl_optional">(optional)</string>
 
     <!-- Detail -->
+    <string name="sl_detail_billed_items">Billed items</string>
+    <!-- Shown when the entry carries only a total — a hand-added entry has no priced lines. -->
+    <string name="sl_detail_no_items">No itemised list for this entry — only the total was recorded.</string>
     <string name="sl_detail_total_paid">Total paid</string>
     <string name="sl_detail_extras">Taxes &amp; charges</string>
     <string name="sl_detail_discount">Discount</string>
@@ -82,6 +85,9 @@
     <!-- Turning a self-reported entry into a verified one, and checking its price. -->
     <string name="sl_detail_attach_bill">Add a bill to verify</string>
     <string name="sl_detail_check_fairness">Check fairness</string>
+    <!-- The entry has no priced lines and covers more than one job, so one total cannot be
+         compared job by job. -->
+    <string name="sl_detail_fairness_unavailable">This bill can’t be compared — it has one total covering more than one job, with no itemised charges to check against city prices.</string>
     <string name="sl_error_attach_failed">The bill couldn’t be attached. Try again.</string>
     <string name="sl_detail_city_avg">city avg %1$s</string>
     <string name="sl_detail_share">Share verified record</string>
@@ -105,12 +111,13 @@
 
     <!-- Share verified record sheet -->
     <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
-    <string name="sl_share_copy">Copy</string>
-    <string name="sl_share_copied">Copied</string>
+    <string name="sl_share_bill_subtitle">%1$s · %2$s · %3$s</string>
     <string name="sl_share_whatsapp">WhatsApp</string>
     <string name="sl_share_email">Email</string>
     <string name="sl_share_more">More</string>
     <string name="sl_share_download_pdf">Download as PDF</string>
+    <string name="sl_share_preparing">Preparing record…</string>
+    <string name="sl_share_failed">The record could not be prepared. Please try again.</string>
 
     <!-- Delete confirmation -->
     <string name="sl_delete_confirm_title">Delete this service?</string>
@@ -168,6 +175,77 @@
     <string name="sl_cd_close">Close</string>
     <string name="sl_cd_add">Add service</string>
     <string name="sl_cd_edit">Edit service</string>
+    <!-- The printed service record (PDF). Every word inside the document the owner shares.
+         Written in sentence case; the labels that read as small caps on the page are
+         uppercased by the stylesheet, not here. -->
+    <string name="sl_record_title">%1$s service record</string>
+    <string name="sl_record_header_prefix">Service record</string>
+    <string name="sl_record_issued">Issued %1$s</string>
+    <string name="sl_record_eyebrow">Verified service record</string>
+    <string name="sl_record_stat_health">Health score</string>
+    <string name="sl_record_stat_health_unit">/100</string>
+    <string name="sl_record_stat_entries">Entries</string>
+    <string name="sl_record_stat_verified">Verified</string>
+    <string name="sl_record_stat_verified_of">of %1$d</string>
+    <string name="sl_record_stat_since">Record since</string>
+    <string name="sl_record_ownership">Ownership</string>
+    <string name="sl_record_owner">Owner</string>
+    <string name="sl_record_owned_since">Owned since</string>
+    <string name="sl_record_odometer">Odometer</string>
+    <string name="sl_record_odometer_consistent">Consistent across all entries</string>
+    <string name="sl_record_odometer_inconsistent">A reading falls below an earlier one</string>
+    <string name="sl_record_documents">Documents on file</string>
+    <string name="sl_record_doc_insurance">Insurance</string>
+    <string name="sl_record_doc_puc">Pollution (PUC)</string>
+    <string name="sl_record_doc_rc">Registration</string>
+    <string name="sl_record_doc_loan">Loan</string>
+    <string name="sl_record_doc_other">Other</string>
+    <string name="sl_record_doc_valid_till">Valid till %1$s</string>
+    <string name="sl_record_doc_on_file">On file</string>
+    <string name="sl_record_doc_expired">Expired %1$s</string>
+    <string name="sl_record_doc_added">%1$s added</string>
+    <string name="sl_record_doc_renewed">%1$s renewed</string>
+    <string name="sl_record_car_added">Added to Odo</string>
+    <string name="sl_record_work_unspecified">Service</string>
+    <string name="sl_record_timeline">Service timeline · most recent first</string>
+    <string name="sl_record_col_date">Date</string>
+    <string name="sl_record_col_odo">Odo</string>
+    <string name="sl_record_col_work">Work done</string>
+    <string name="sl_record_col_status">Status</string>
+    <string name="sl_record_col_amount">Amount</string>
+    <string name="sl_record_status_verified">Verified</string>
+    <string name="sl_record_status_self">Self-reported</string>
+    <string name="sl_record_total">Total on record</string>
+    <string name="sl_record_fuel_petrol">Petrol</string>
+    <string name="sl_record_fuel_diesel">Diesel</string>
+    <string name="sl_record_fuel_cng">CNG</string>
+    <string name="sl_record_fuel_electric">Electric</string>
+    <string name="sl_record_howto">How to read this record</string>
+    <string name="sl_record_howto_verified">A bill image was uploaded and read by Odo at the time of service. Amounts come from that bill, not from memory.</string>
+    <string name="sl_record_howto_self">Entered by the owner without a bill attached. Treat it as their word — accurate or not, Odo cannot confirm it.</string>
+    <string name="sl_record_howto_odometer">Readings only ever move forward in this record. A rollback would show as a gap here.</string>
+    <string name="sl_record_disclaimer">This record is generated from the owner’s Odo account and reflects what was logged there. It is not an inspection report and makes no claim about the vehicle’s present mechanical condition.</string>
+    <string name="sl_record_footer">Verified entries are backed by a bill image held in the owner’s Odo account. Self-reported entries are the owner’s own record.</string>
+    <string name="sl_record_empty">Nothing has been logged for this car yet.</string>
+
+    <!-- Printed service bill (single-entry PDF) -->
+    <string name="sl_bill_title">%1$s service bill</string>
+    <string name="sl_bill_header_prefix">Service bill</string>
+    <string name="sl_bill_eyebrow">Verified service bill</string>
+    <string name="sl_bill_eyebrow_self">Service bill</string>
+    <string name="sl_bill_stat_date">Service date</string>
+    <string name="sl_bill_stat_odo">Odometer</string>
+    <string name="sl_bill_stat_status">Status</string>
+    <string name="sl_bill_stat_total">Bill total</string>
+    <string name="sl_bill_workshop">Workshop</string>
+    <string name="sl_bill_notes">Notes</string>
+    <string name="sl_bill_items">Billed items</string>
+    <string name="sl_bill_col_item">Item</string>
+    <string name="sl_bill_col_category">Category</string>
+    <string name="sl_bill_total">Bill total</string>
+    <string name="sl_bill_footer">A verified bill is backed by the bill image held in the owner’s Odo account.</string>
+    <string name="sl_bill_disclaimer">This bill summary is generated from the owner’s Odo account and reflects what was logged there. Amounts on a verified bill come from the bill image, not from memory.</string>
+
     <string name="sl_cd_delete">Delete service</string>
     <string name="sl_cd_share">Share record</string>
     <string name="sl_cd_open_bill">Open the attached bill</string>

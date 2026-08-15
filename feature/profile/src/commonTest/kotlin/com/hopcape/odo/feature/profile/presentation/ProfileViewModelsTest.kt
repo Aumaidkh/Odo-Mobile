@@ -6,8 +6,11 @@ import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
+import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAllDataUseCase
@@ -19,7 +22,9 @@ import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.account
 import com.hopcape.odo.feature.profile.domain.usecase.entitlement
+import com.hopcape.odo.feature.profile.domain.usecase.subscription
 import com.hopcape.odo.feature.profile.domain.usecase.session
 import com.hopcape.odo.feature.profile.domain.usecase.testProfile
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceEvent
@@ -60,11 +65,14 @@ class ProfileViewModelsTest {
         settings: FakeSettingsRepository = FakeSettingsRepository(),
         isPro: Boolean = false,
         isSignedIn: Boolean = false,
+        phoneNumber: PhoneNumber? = null,
     ) = ObserveProfileUseCase(
         profiles = profiles,
         settings = settings,
-        entitlement = entitlement(isPro),
+        subscription = subscription(),
+            entitlements = entitlement(isPro),
         session = session(isSignedIn),
+        account = account(phoneNumber),
     )
 
     /* ---------------------------- home ---------------------------- */
@@ -150,6 +158,20 @@ class ProfileViewModelsTest {
     }
 
     @Test
+    fun edit_showsTheVerifiedNumber_whichAuthOwnsAndTheProfileDoesNot() = runTest {
+        val viewModel = editViewModel(phoneNumber = PhoneNumber.of("9812345678").getOrNull())
+
+        assertEquals("+919812345678", viewModel.state.value.phoneNumber)
+    }
+
+    @Test
+    fun edit_leavesTheNumberEmptyOnADeviceThatNeverSignedIn() = runTest {
+        val viewModel = editViewModel(phoneNumber = null)
+
+        assertNull(viewModel.state.value.phoneNumber)
+    }
+
+    @Test
     fun edit_savesAndReportsThatTheCityMoved() = runTest {
         val analytics = RecordingAnalytics()
         val profiles = FakeProfileRepository()
@@ -224,7 +246,7 @@ class ProfileViewModelsTest {
         val settings = FakeSettingsRepository()
         val viewModel = NotificationsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -239,7 +261,7 @@ class ProfileViewModelsTest {
         val settings = FakeSettingsRepository(failing = true)
         val viewModel = NotificationsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -250,11 +272,96 @@ class ProfileViewModelsTest {
     }
 
     @Test
+    fun notifications_aLeadIsAddedAndDroppedWithoutTouchingTheOthers() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        // The owner who renews through an agent, asking for two months' notice.
+        viewModel.onEvent(
+            NotificationsEvent.DocumentLeadToggled(DocumentType.INSURANCE, days = 60, selected = true),
+        )
+        // And dropping the day-before nudge they never act on.
+        viewModel.onEvent(
+            NotificationsEvent.DocumentLeadToggled(DocumentType.INSURANCE, days = 1, selected = false),
+        )
+
+        val stored = settings.stored.value.notificationSchedule
+        assertEquals(listOf(60, 30, 7), stored.leadDaysFor(DocumentType.INSURANCE))
+        // Another kind of paper is untouched — it was never chosen, so it keeps the default.
+        assertEquals(
+            DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.PUC),
+            stored.leadDaysFor(DocumentType.PUC),
+        )
+    }
+
+    @Test
+    fun notifications_everyLeadCanBeDropped_whichIsNotTheSameAsNeverChoosing() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        DocumentReminderPolicy.defaultLeadDaysFor(DocumentType.PUC).forEach { days ->
+            viewModel.onEvent(
+                NotificationsEvent.DocumentLeadToggled(DocumentType.PUC, days = days, selected = false),
+            )
+        }
+
+        // Stored as "none", not as absent: absent would hand back the default and start
+        // nudging again on the next read.
+        assertEquals(emptyList(), settings.stored.value.notificationSchedule.leadDaysFor(DocumentType.PUC))
+    }
+
+    @Test
+    fun notifications_theHourIsStoredForEveryTopic() = runTest {
+        val settings = FakeSettingsRepository()
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(NotificationsEvent.NotifyHourChosen(20))
+
+        assertEquals(20, settings.stored.value.notificationSchedule.notifyAtHour)
+        assertEquals(20, viewModel.state.value.schedule.notifyAtHour)
+    }
+
+    @Test
+    fun notifications_aScheduleChangeRebuildsWhatIsQueued() = runTest {
+        val settings = FakeSettingsRepository()
+        var documentRefreshes = 0
+        var customRefreshes = 0
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(
+                settings,
+                documentReminders = { documentRefreshes++ },
+                customReminders = { customRefreshes++ },
+            ),
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(NotificationsEvent.NotifyHourChosen(7))
+
+        // Without this the phone would keep the old schedule until the next time a document
+        // happened to be written — the screen saying one thing and the OS doing another.
+        assertEquals(1, documentRefreshes)
+        assertEquals(1, customRefreshes)
+    }
+
+    @Test
     fun appearance_storesTheThemeAsItIsTapped() = runTest {
         val settings = FakeSettingsRepository()
         val viewModel = AppearanceViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(),
         )
 
@@ -271,7 +378,7 @@ class ProfileViewModelsTest {
         val analytics = RecordingAnalytics()
         val viewModel = UnitsViewModel(
             settings = settings,
-            updateSettings = UpdateSettingsUseCase(settings),
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}),
             telemetry = testTelemetry(analytics),
         )
 
@@ -288,6 +395,7 @@ class ProfileViewModelsTest {
         profiles: FakeProfileRepository = FakeProfileRepository(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
         cars: FakeCarRepository = FakeCarRepository(),
+        phoneNumber: PhoneNumber? = null,
     ): EditProfileViewModel {
         val settings = FakeSettingsRepository()
         val files = FakeFileStore()
@@ -295,8 +403,10 @@ class ProfileViewModelsTest {
             observeProfile = ObserveProfileUseCase(
                 profiles = profiles,
                 settings = settings,
-                entitlement = entitlement(false),
+                subscription = subscription(),
+            entitlements = entitlement(false),
                 session = session(false),
+                account = account(phoneNumber),
             ),
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),

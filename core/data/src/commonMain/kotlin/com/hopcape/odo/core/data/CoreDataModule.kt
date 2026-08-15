@@ -11,23 +11,26 @@ import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
-import com.hopcape.odo.core.data.scan.FreeTierScanAllowance
+import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
 import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
 import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
 import com.hopcape.odo.core.data.document.FakeDocumentRemoteDataSource
-import com.hopcape.odo.core.data.document.FreeTierDocumentAllowance
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRepositoryImpl
 import com.hopcape.odo.core.data.fairness.FakeFairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
-import com.hopcape.odo.core.data.entitlement.AlwaysProEntitlement
+import com.hopcape.odo.core.data.entitlement.EntitlementDocumentAllowance
+import com.hopcape.odo.core.data.entitlement.EntitlementScanAllowance
+import com.hopcape.odo.core.data.entitlement.FreePlanEntitlementSource
+import com.hopcape.odo.core.data.subscription.NoopSubscriptionIdentity
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
 import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
@@ -46,6 +49,7 @@ import com.hopcape.odo.core.data.reminder.ReminderRepositoryImpl
 import com.hopcape.odo.core.data.servicelog.FakeServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogRepositoryImpl
+import com.hopcape.odo.core.data.notification.NoopCustomReminderScheduler
 import com.hopcape.odo.core.data.notification.NoopDocumentReminderScheduler
 import com.hopcape.odo.core.data.sync.NoopSyncScheduler
 import com.hopcape.odo.core.data.sync.BlobDownloader
@@ -55,6 +59,7 @@ import com.hopcape.odo.core.data.trip.FakeTripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.core.data.trip.TripRepositoryImpl
 import com.hopcape.odo.core.sync.SyncGate
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
@@ -65,7 +70,8 @@ import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
@@ -126,6 +132,7 @@ val coreDataModule = module {
     // Same shape for document reminders: the writers already ask for a refresh after every
     // change, and the platform module binds the scheduler that delivers them.
     single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
+    single<CustomReminderScheduler> { NoopCustomReminderScheduler() }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the
@@ -199,15 +206,23 @@ val coreDataModule = module {
     // MUST be swapped for a real adapter before launch — this one line is the swap.
     single<VehicleRegistryLookup> { StubVehicleRegistryLookup() }
 
-    // Everyone is on the free tier until something sells a subscription, so this answers
-    // truthfully rather than standing in for a reader that does not exist. The vault asks
-    // before every add; a real entitlement adapter swaps in on this one line.
-    single<DocumentAllowance> { FreeTierDocumentAllowance() }
+    // What the owner's plan grants. Everyone is on the free plan until something sells a
+    // subscription; :infrastructure:billing replaces this with the RevenueCat-backed source
+    // on this one line, and every gate below follows without being touched.
+    single<EntitlementSource> { FreePlanEntitlementSource() }
 
-    // The same shape for AI scans: everyone is on the free tier's three a month. The count
-    // that enforces it is the server's — this one only tells the owner where they stand
-    // before they take the photo.
-    single<ScanAllowance> { FreeTierScanAllowance() }
+    // The two counted gates, both reading the plan above. They keep their own ports because
+    // their callers ask a shaped question ("how many documents", "how many scans left"), but
+    // neither holds a number of its own any more — PlanLimits does.
+    // Sign-in calls this unconditionally, so it is always bound. :infrastructure:billing
+    // replaces it with the RevenueCat one when the build has a key.
+    single<SubscriptionIdentity> { NoopSubscriptionIdentity() }
+
+    single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
+    single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
+    // The tally the cap is measured against. Device-local: nothing counts a scan but the
+    // phone that ran it.
+    single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }
 
     // Extraction has no implementation yet, so both ports refuse and say why. A stub that
     // invented a bill would put made-up amounts into someone's service history, which is the
@@ -220,11 +235,6 @@ val coreDataModule = module {
     // posting to a table that does not exist would only manufacture failures. The rows
     // carry the sync columns and wait as PENDING.
     single<FuelFillRepository> { FuelFillRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
-
-    // Everyone is Pro until Razorpay lands in M6. Answering false would hide Pro-gated
-    // content behind a paywall that cannot take money yet. MUST be swapped before launch —
-    // this one line is the swap.
-    single<ProEntitlement> { AlwaysProEntitlement() }
 
     // Blocks nothing until a real remote is configured. Swapped for
     // RemoteConfigAppStatusSource by :infrastructure:firebase:remoteconfig's Koin module,

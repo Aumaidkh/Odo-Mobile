@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,8 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
-import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoConfirmDialog
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconButton
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -50,7 +50,6 @@ import com.hopcape.odo.core.designsystem.icons.IcDownload
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcImage
 import com.hopcape.odo.core.designsystem.icons.IcPdf
-import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcTrash
@@ -69,20 +68,22 @@ import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_badge_pdf
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_more
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_preview_file
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_action
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_body
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_cancel
+import com.hopcape.odo.feature.documentvault.resources.dv_delete_confirm_title
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_days_suffix
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expired_for
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_expires_in
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_file_missing
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_issued_on
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_lifetime
-import com.hopcape.odo.feature.documentvault.resources.dv_detail_renew
 import com.hopcape.odo.feature.documentvault.resources.dv_cd_back
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_verified
 import com.hopcape.odo.feature.documentvault.resources.dv_detail_view
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_delete
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_edit_dates
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_download
-import com.hopcape.odo.feature.documentvault.resources.dv_menu_replace
 import com.hopcape.odo.feature.documentvault.resources.dv_menu_share
 import com.hopcape.odo.feature.documentvault.resources.dv_reminder
 import com.hopcape.odo.feature.documentvault.resources.dv_status_expired
@@ -92,42 +93,44 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * A single document's detail — its name and Verified badge, the expiry countdown with the
- * bar, the next reminder, and the file actions (replace, share, download, delete) behind
- * the overflow menu, with "Renew now" pinned to the bottom for a document that needs it.
+ * bar, the next reminder, and the file actions (edit dates, share, save a copy, delete)
+ * behind the overflow menu.
  *
- * State-free: renders [state] and forwards intents.
+ * State-free: renders [state] and forwards intents. [snackbarHostState] is where saving a
+ * copy reports itself — a result the owner reads once, rather than a state of the screen.
  */
 @Composable
 internal fun DocumentDetailScreen(
     state: DocumentDetailUiState,
     onView: () -> Unit,
-    onRenew: () -> Unit,
     onEditDates: () -> Unit,
-    onReplace: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState? = null,
 ) {
     val content = (state.content as? Loadable.Ready)?.value
+    // Held here, not in the ViewModel: whether the owner is mid-confirmation is as
+    // transient as the open overflow menu, and only [onDelete] ever leaves the screen.
+    var confirmingDelete by remember { mutableStateOf(false) }
     OdoScreen(
         modifier = modifier,
         title = content?.let { it.title ?: docName(it.type) }.orEmpty(),
         onBack = onBack,
+        snackbarHostState = snackbarHostState,
         backContentDescription = stringResource(Res.string.dv_cd_back),
         actions = {
             if (content != null) {
                 DocumentMenu(
                     onEditDates = onEditDates,
-                    onReplace = onReplace,
                     onShare = onShare,
                     onDownload = onDownload,
-                    onDelete = onDelete,
+                    onDelete = { confirmingDelete = true },
                 )
             }
         },
-        bottomBar = { if (content?.validity?.needsAttention == true) RenewBar(onRenew) },
     ) { padding ->
         when (val loadable = state.content) {
             Loadable.Loading -> Box(
@@ -160,12 +163,22 @@ internal fun DocumentDetailScreen(
             }
         }
     }
+
+    if (confirmingDelete) {
+        OdoConfirmDialog(
+            title = stringResource(Res.string.dv_delete_confirm_title),
+            body = stringResource(Res.string.dv_delete_confirm_body),
+            confirmLabel = stringResource(Res.string.dv_delete_confirm_action),
+            cancelLabel = stringResource(Res.string.dv_delete_confirm_cancel),
+            onConfirm = { confirmingDelete = false; onDelete() },
+            onDismiss = { confirmingDelete = false },
+        )
+    }
 }
 
 @Composable
 private fun RowScope.DocumentMenu(
     onEditDates: () -> Unit,
-    onReplace: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
@@ -177,7 +190,6 @@ private fun RowScope.DocumentMenu(
             // First in the list: a document with no expiry produces no reminder, and this is
             // the only way to give it one.
             MenuItem(stringResource(Res.string.dv_menu_edit_dates), IcClock) { expanded = false; onEditDates() }
-            MenuItem(stringResource(Res.string.dv_menu_replace), IcRefresh) { expanded = false; onReplace() }
             MenuItem(stringResource(Res.string.dv_menu_share), IcShare) { expanded = false; onShare() }
             MenuItem(stringResource(Res.string.dv_menu_download), IcDownload) { expanded = false; onDownload() }
             HorizontalDivider(color = OdoTheme.colors.border)
@@ -346,20 +358,6 @@ private fun IconChip(icon: ImageVector, tone: Color) {
 }
 
 @Composable
-private fun RenewBar(onRenew: () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(OdoTheme.colors.bg)
-            .navigationBarsPadding()
-            .padding(horizontal = OdoTheme.spacing.screenEdge)
-            .padding(top = OdoTheme.spacing.sm, bottom = OdoTheme.spacing.md),
-    ) {
-        OdoButton(stringResource(Res.string.dv_detail_renew), onClick = onRenew, modifier = Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
 private fun validityTone(validity: DocumentValidity): Color = when (validity) {
     is DocumentValidity.ExpiringSoon -> OdoTheme.colors.warning
     is DocumentValidity.Expired -> OdoTheme.colors.danger
@@ -393,11 +391,11 @@ private fun daysCounter(validity: DocumentValidity): Int? = when (validity) {
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailPreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleDocumentDetail(), {}, {}, {}, {}, {}, {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun DocumentDetailLifetimePreview() = OdoPreview(padded = false) {
-    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {}, {}, {})
+    DocumentDetailScreen(sampleLifetimeDocumentDetail(), {}, {}, {}, {}, {}, {})
 }

@@ -10,6 +10,7 @@ import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
+import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
@@ -56,6 +57,7 @@ import com.hopcape.odo.infrastructure.database.reminder.SqlDelightReminderLocalD
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncTable
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncable
 import com.hopcape.odo.infrastructure.database.servicelog.SqlDelightServiceLogLocalDataSource
+import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.settings.SqlDelightAppSettingsLocalDataSource
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightLocalUserDataWipe
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightOwnershipAdoption
@@ -133,6 +135,10 @@ val databaseInfrastructureModule = module {
     // Device settings — theme, units, notification topics. No Syncable adapter:
     // `app_settings` mirrors no server table, so there is nothing to push.
     single<AppSettingsLocalDataSource> { SqlDelightAppSettingsLocalDataSource(database = get()) }
+
+    // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
+    // `scan_usage` mirrors no server table, because extraction never leaves the device.
+    single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
 
     // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
     // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no

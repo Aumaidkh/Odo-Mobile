@@ -4,7 +4,7 @@ import arrow.core.Either
 import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 
 /**
  * Soft-deletes a custom reminder and takes its occurrences off the notification
@@ -12,8 +12,8 @@ import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificatio
  */
 internal class DeleteCustomReminderUseCase(
     private val reminders: ReminderRepository,
-    private val scheduler: ReminderNotificationScheduler,
+    private val scheduler: CustomReminderScheduler,
 ) {
     suspend operator fun invoke(id: ReminderId): Either<DomainError, Unit> =
-        reminders.softDelete(id).onRight { scheduler.cancel(id) }
+        reminders.softDelete(id).onRight { scheduler.refresh() }
 }

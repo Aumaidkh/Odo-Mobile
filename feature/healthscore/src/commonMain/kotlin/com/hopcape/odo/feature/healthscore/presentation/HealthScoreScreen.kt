@@ -53,6 +53,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
@@ -149,7 +150,7 @@ private fun ScoreContent(content: HealthScoreContent, onEvent: (HealthScoreEvent
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         SectionLabel(stringResource(Res.string.hs_breakdown_label))
-        if (content.isPro) {
+        if (content.entitlements.has(ProFeature.HEALTH_BREAKDOWN)) {
             content.factors.forEach { FactorCard(it) }
             content.opportunity?.let { OpportunityCard(it) }
         } else {

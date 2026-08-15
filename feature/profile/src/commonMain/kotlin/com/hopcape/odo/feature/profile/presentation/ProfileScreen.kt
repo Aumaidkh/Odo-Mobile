@@ -42,6 +42,9 @@ import com.hopcape.odo.core.designsystem.icons.IcSignOut
 import com.hopcape.odo.core.designsystem.icons.IcStarFilled
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.suffix
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
@@ -68,6 +71,13 @@ import com.hopcape.odo.feature.profile.resources.pf_pro_active
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_1
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_2
 import com.hopcape.odo.feature.profile.resources.pf_pro_feat_3
+import com.hopcape.odo.feature.profile.resources.pf_pro_feat_4
+import com.hopcape.odo.feature.profile.resources.pf_pro_trial
+import com.hopcape.odo.feature.profile.resources.pf_pro_renews
+import com.hopcape.odo.feature.profile.resources.pf_pro_ends
+import com.hopcape.odo.feature.profile.resources.pf_pro_no_date
+import com.hopcape.odo.feature.profile.resources.pf_pro_billing_issue
+import com.hopcape.odo.feature.profile.resources.pf_pro_cancelled
 import com.hopcape.odo.feature.profile.resources.pf_pro_title
 import com.hopcape.odo.feature.profile.resources.pf_restore
 import com.hopcape.odo.feature.profile.resources.pf_sign_in
@@ -102,6 +112,7 @@ internal fun ProfileScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onGoPro: () -> Unit,
+    onManagePlan: (url: String) -> Unit,
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
@@ -144,6 +155,7 @@ internal fun ProfileScreen(
                 padding = padding,
                 onEdit = onEdit,
                 onGoPro = onGoPro,
+                onManagePlan = onManagePlan,
                 onNotifications = onNotifications,
                 onUnits = onUnits,
                 onAppearance = onAppearance,
@@ -166,6 +178,7 @@ private fun ProfileContentColumn(
     padding: PaddingValues,
     onEdit: () -> Unit,
     onGoPro: () -> Unit,
+    onManagePlan: (url: String) -> Unit,
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
@@ -184,7 +197,7 @@ private fun ProfileContentColumn(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
         ProfileCard(content, onEdit)
-        if (content.isPro) ProPlanCard(onGoPro) else GoProCard(onGoPro)
+        if (content.isPro) ProPlanCard(content.subscription, onManagePlan) else GoProCard(onGoPro)
 
         SectionLabel(stringResource(Res.string.pf_preferences))
         SettingsGroup {
@@ -227,8 +240,8 @@ private fun ProfileContentColumn(
 
         Spacer(Modifier.height(OdoTheme.spacing.md))
         SettingsGroup {
-            SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
-            RowDivider()
+           // SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
+           // RowDivider()
             if (content.isSignedIn) {
                 SettingsRow(
                     icon = IcSignOut,
@@ -312,31 +325,69 @@ private fun ThemePreference.label(): String = when (this) {
 private fun initialOf(name: String?): String = name?.trim()?.firstOrNull()?.uppercase() ?: "O"
 
 /**
- * The Pro card. It states the plan and nothing about its renewal: there is no subscription
- * record to read one from, and a date the app invented would be worse than none.
+ * The Pro card.
+ *
+ * It says what the store says and nothing more. When the store gave no renewal date the card
+ * simply does not claim one — a date the app invented would be worse than none.
+ *
+ * A failed payment gets a line of its own rather than a quieter badge, because it is the only
+ * state here the owner has to do something about, and Pro keeps working through the grace
+ * period so nothing else would tell them.
  */
 @Composable
-private fun ProPlanCard(onManage: () -> Unit) {
+private fun ProPlanCard(subscription: SubscriptionState?, onManage: (url: String) -> Unit) {
     OdoCard(border = BorderStroke(1.dp, OdoTheme.colors.accent.copy(alpha = 0.4f))) {
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
             IconTile(IcStarFilled)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 OdoText(stringResource(Res.string.pf_pro_title), style = OdoTheme.typography.heading)
                 OdoText(
-                    stringResource(Res.string.pf_pro_feat_2),
+                    planSummary(subscription),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )
             }
-            OdoBadge(stringResource(Res.string.pf_pro_active), tone = OdoBadgeTone.Accent)
+            OdoBadge(
+                stringResource(
+                    if (subscription?.health == SubscriptionHealth.IN_TRIAL) {
+                        Res.string.pf_pro_trial
+                    } else {
+                        Res.string.pf_pro_active
+                    },
+                ),
+                tone = OdoBadgeTone.Accent,
+            )
         }
-        OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
-        OdoButton(
-            stringResource(Res.string.pf_manage_plan),
-            onClick = onManage,
-            modifier = Modifier.fillMaxWidth(),
-            variant = OdoButtonVariant.Secondary,
-        )
+        if (subscription?.health == SubscriptionHealth.BILLING_ISSUE) {
+            OdoText(
+                stringResource(Res.string.pf_pro_billing_issue),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.warning,
+            )
+        }
+        // Hidden when the store gave no management link. Cancelling has to happen in the
+        // store, so a button that opened nothing would be a control that lies.
+        subscription?.managementUrl?.let { url ->
+            OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
+            OdoButton(
+                stringResource(Res.string.pf_manage_plan),
+                onClick = { onManage(url) },
+                modifier = Modifier.fillMaxWidth(),
+                variant = OdoButtonVariant.Secondary,
+            )
+        }
+    }
+}
+
+/** What the card says under "Odo Pro" — the renewal, the end date, or nothing specific. */
+@Composable
+private fun planSummary(subscription: SubscriptionState?): String {
+    val date = subscription?.renewsOn?.let(::formatDate)
+    return when {
+        date == null -> stringResource(Res.string.pf_pro_no_date)
+        subscription.health == SubscriptionHealth.CANCELLED ->
+            stringResource(Res.string.pf_pro_ends, date) + " " + stringResource(Res.string.pf_pro_cancelled)
+        else -> stringResource(Res.string.pf_pro_renews, date)
     }
 }
 
@@ -358,6 +409,7 @@ private fun GoProCard(onStartPro: () -> Unit) {
         FeatureRow(stringResource(Res.string.pf_pro_feat_1))
         FeatureRow(stringResource(Res.string.pf_pro_feat_2))
         FeatureRow(stringResource(Res.string.pf_pro_feat_3))
+        FeatureRow(stringResource(Res.string.pf_pro_feat_4))
         OdoButton(stringResource(Res.string.pf_start_pro), onClick = onStartPro, modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.xs))
         OdoText(
             stringResource(Res.string.pf_restore),

@@ -29,6 +29,10 @@ kotlin {
             // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
             // Brings Arrow transitively via domain (Amount.of returns Either).
             implementation(projects.core.domain)
+            // The export pipeline: HtmlToPdf renderer, PlatformFileStore + StorageKey for
+            // the written document, and the system share sheet — the same three the
+            // service log's record export runs on.
+            implementation(projects.core.platform)
             // The auto-odometer engine's public ports (TripTracker, VehicleBondStore) — the
             // garage card/status tile (F9) reads them directly rather than importing
             // :feature:auto-odometer, per the golden rule that features never import

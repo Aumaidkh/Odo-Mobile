@@ -11,6 +11,7 @@ import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.policy.DocumentReminder
 import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -36,11 +37,17 @@ import kotlin.time.Instant
  *
  * Nothing here throws. A scheduler that took a screen down over an unwritable job queue would
  * be worse than one that silently misses a nudge, and the failure is logged either way.
+ *
+ * What is scheduled comes from the owner's settings, read on every refresh: their lead days
+ * per kind of paper, the hour they asked to be told at, and whether they want this topic at
+ * all. A topic they turned off schedules nothing, which is what the switch has always looked
+ * like it did.
  */
 internal class WorkManagerDocumentReminderScheduler(
     context: Context,
     private val documents: DocumentRepository,
     private val activeCar: ActiveCarProvider,
+    private val settings: AppSettingsRepository,
     private val clock: Clock,
     private val logger: Logger,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -65,13 +72,32 @@ internal class WorkManagerDocumentReminderScheduler(
                 return
             }
 
+            // Read after the cancel, so turning the topic off takes effect on the next
+            // write rather than only on the one after it. Both the topic and the channel
+            // have to be on: an owner who turned notifications off entirely means it for
+            // every topic, and one who turned this topic off means it for this one.
+            val stored = settings.observe().first()
+            val notifications = stored.notifications
+            if (!notifications.push || !notifications.documentExpiry) {
+                logger.info(
+                    TAG_LOG,
+                    "document_reminders_muted",
+                    fields = mapOf("push" to notifications.push, "topic" to notifications.documentExpiry),
+                )
+                return
+            }
+            val schedule = stored.notificationSchedule
+
             val today = clock.now().toLocalDateTime(timeZone).date
             val now = clock.now()
             val onFile = documents.observe(carId).first()
             var scheduled = 0
             onFile.forEach { document ->
-                DocumentReminderPolicy.scheduleFor(document, today).forEach { reminder ->
-                    enqueue(document, reminder, now)
+                // The owner's leads, not the product's: what fires has to be what the vault
+                // promised them, and both read the same schedule.
+                val leads = schedule.leadDaysFor(document.type)
+                DocumentReminderPolicy.scheduleFor(document, today, leads).forEach { reminder ->
+                    enqueue(document, reminder, now, schedule.notifyAtHour)
                     scheduled++
                 }
             }
@@ -89,9 +115,9 @@ internal class WorkManagerDocumentReminderScheduler(
         }
     }
 
-    private fun enqueue(document: Document, reminder: DocumentReminder, now: Instant) {
+    private fun enqueue(document: Document, reminder: DocumentReminder, now: Instant, hour: Int) {
         val expiresOn = document.expiresOn ?: return
-        val fireAt = reminder.on.atTime(NOTIFY_HOUR, 0).toInstant(timeZone)
+        val fireAt = reminder.on.atTime(hour, 0).toInstant(timeZone)
         // A nudge whose hour has already passed today still fires: the owner added the
         // document this afternoon, and telling them tomorrow about "expires tomorrow" is late.
         val delay = (fireAt - now).inWholeMilliseconds.coerceAtLeast(0)
@@ -123,9 +149,6 @@ internal class WorkManagerDocumentReminderScheduler(
     private companion object {
         const val TAG = "OdoDocumentReminder"
         const val TAG_LOG = "REMINDERS"
-
-        /** Morning, local time — early enough to act on, late enough not to wake anyone. */
-        const val NOTIFY_HOUR = 9
 
         /** How long to wait for the active car before deciding there is none. */
         const val CAR_RESOLVE_TIMEOUT_MILLIS = 5_000L

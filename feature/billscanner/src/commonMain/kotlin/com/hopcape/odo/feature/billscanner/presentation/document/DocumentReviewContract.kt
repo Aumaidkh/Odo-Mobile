@@ -34,7 +34,7 @@ internal data class DocumentReviewUiState(
      * Whether this kind of paper renews at all. An RC and a loan letter do not, so asking for
      * an expiry date they do not carry would block the owner from filing them.
      */
-    val needsExpiry: Boolean get() = DocumentReminderPolicy.leadDaysFor(type).isNotEmpty()
+    val needsExpiry: Boolean get() = DocumentReminderPolicy.renews(type)
 
     /**
      * A paper that renews and has no expiry cannot produce a reminder, which is most of what

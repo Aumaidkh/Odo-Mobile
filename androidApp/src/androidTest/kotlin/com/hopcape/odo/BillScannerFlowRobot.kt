@@ -64,20 +64,16 @@ internal object ScanCopy {
 
     /* Camera permission rationale. */
     const val CAMERA_TITLE = "Odo needs your camera to read things"
-    const val CAMERA_SUBTITLE = "Everything Odo checks starts as a photo. Grant once and all three work."
+    const val CAMERA_SUBTITLE = "Everything Odo checks starts as a photo. Grant once and both work."
     const val CAMERA_BILLS = "Service bills"
     const val CAMERA_PAPERS = "Insurance, PUC & RC"
-    const val CAMERA_QR = "Fuel pump QR"
     const val CAMERA_NO_BACKGROUND = "No photos or video in the background"
     const val CAMERA_ONLY_ON_SCAN = "Only when you tap Scan"
     const val CAMERA_ALLOW = "Allow camera"
     const val CAMERA_NOT_NOW = "Not now"
+    const val CLOSE_LABEL = "Close"
     const val CAMERA_BLOCKED_SUBTITLE =
         "The camera is switched off for Odo. Turn it back on in settings and scanning works again."
-
-    /* The nudge that replaces it once the owner has declined. */
-    const val NUDGE = "Scanning needs the camera."
-    const val NUDGE_ALLOW = "Allow"
 
     /* Viewfinder. */
     const val SCAN_TITLE_BILL = "Scan bill"
@@ -86,6 +82,14 @@ internal object ScanCopy {
     const val ALIGN_BILL = "Align the bill inside the frame"
     const val ALIGN_DOCUMENT = "Fit the whole paper inside the frame"
     const val ALIGN_QR = "Point at the payment QR"
+
+    /*
+     * What the same line says once the live edge detector has found a paper. The align copy
+     * above is only what is shown *until* then, which is why an assertion on a paper mode has
+     * to accept either — see [awaitGuidance].
+     */
+    const val EDGES_DETECTED = "Bill detected — tap to lock edges"
+    const val EDGES_PINNED = "Edges locked — capture, or tap to unlock"
     const val MODE_BILL = "Bill"
     const val MODE_DOCUMENT = "Document"
     const val MODE_QR = "Pay QR"
@@ -130,7 +134,6 @@ internal object ScanCopy {
     /** `"%1$d of %2$d free"` — the quota pill. */
     fun quota(remaining: Int, total: Int) = "$remaining of $total free"
 
-    /** `"You've used all %1$d free scans this month. Go Pro for unlimited."` */
     fun quotaSpent(limit: Int) = "You’ve used all $limit free scans this month. Go Pro for unlimited."
 }
 
@@ -305,6 +308,26 @@ internal fun ScanTestRule.openPayAtPump(payload: String) {
 /** Switch what the viewfinder is pointed at. */
 internal fun ScanTestRule.selectScanMode(label: String) {
     onNodeWithText(label).performClick()
+}
+
+/**
+ * Wait until the line under the frame says one of [acceptable].
+ *
+ * Polling rather than a bare `assertIsDisplayed`, and a set rather than one string, because
+ * that line has two reasons to disagree with a test that names a single value:
+ *
+ * - It is the *live* guidance. In a paper mode it reads "align…" only until the edge detector
+ *   finds a quad, and then becomes "detected"/"pinned". On a device with a real camera
+ *   pointed at a real scene, which of those is on screen is a race the test cannot win, and
+ *   both are correct app behaviour.
+ * - It sits in the viewfinder, not the top bar, so it settles a frame or two after the title
+ *   the caller has already waited for.
+ *
+ * Naming every acceptable value keeps the assertion meaningful — a mode switch that changed
+ * nothing, or landed on another mode's copy, still fails.
+ */
+internal fun ScanTestRule.awaitGuidance(vararg acceptable: String, timeoutMillis: Long = 5_000L) {
+    waitUntil(timeoutMillis) { acceptable.any { textCount(it) > 0 } }
 }
 
 /* ------------------------------ Typing ------------------------------ */

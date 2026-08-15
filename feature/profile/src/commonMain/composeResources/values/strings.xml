@@ -18,14 +18,23 @@
     <string name="pf_edit">Edit</string>
     <string name="pf_pro_title">Odo Pro</string>
     <string name="pf_pro_active">ACTIVE</string>
+    <string name="pf_pro_trial">FREE TRIAL</string>
+    <string name="pf_pro_renews">Renews %1$s</string>
+    <string name="pf_pro_ends">Ends %1$s</string>
+    <string name="pf_pro_no_date">Your subscription is active.</string>
+    <string name="pf_pro_billing_issue">Your last payment didn’t go through. Update your payment method in Google Play to keep Pro.</string>
+    <string name="pf_pro_cancelled">Cancelled. Pro works until then.</string>
     <string name="pf_manage_plan">Manage plan</string>
     <string name="pf_restore">Restore purchases</string>
     <string name="pf_go_pro">Go Pro</string>
     <string name="pf_free_plan">You’re on the free plan</string>
-    <string name="pf_pro_feat_1">Full cost breakdown &amp; 6-month trend</string>
-    <string name="pf_pro_feat_2">Unlimited bill scans &amp; fairness checks</string>
-    <string name="pf_pro_feat_3">City benchmark detail</string>
-    <string name="pf_start_pro">Start Pro · ₹149/mo</string>
+    <string name="pf_pro_feat_1">Unlimited bill scans &amp; fairness checks</string>
+    <string name="pf_pro_feat_2">Unlimited document vault</string>
+    <string name="pf_pro_feat_3">Full Health Score breakdown</string>
+    <string name="pf_pro_feat_4">Export your full record as a PDF</string>
+    <!-- No price here on purpose: the paywall reads it from the store, so a figure
+         written down would be one the app cannot stand behind. -->
+    <string name="pf_start_pro">See plans</string>
     <string name="pf_preferences">PREFERENCES</string>
     <string name="pf_notifications">Notifications</string>
     <string name="pf_units">Units &amp; currency</string>
@@ -72,7 +81,20 @@
     <!-- Notifications -->
     <string name="pf_notif_reminders">REMINDERS</string>
     <string name="pf_notif_doc_expiry">Document expiry</string>
-    <string name="pf_notif_doc_expiry_sub">7 days before</string>
+    <string name="pf_notif_doc_expiry_sub">Insurance, PUC and licence renewals</string>
+    <string name="pf_notif_leads_title">WARN ME BEFORE</string>
+    <string name="pf_notif_leads_note">Pick as many as you want. Odo nudges you on each of them.</string>
+    <string name="pf_notif_lead_day">%1$d day</string>
+    <string name="pf_notif_lead_days">%1$d days</string>
+    <string name="pf_notif_lead_none">Never — no reminders for this one</string>
+    <string name="pf_notif_time">Notify me at</string>
+    <string name="pf_notif_time_note">Every reminder arrives around this time.</string>
+    <string name="pf_notif_hour_am">%1$d AM</string>
+    <string name="pf_notif_hour_pm">%1$d PM</string>
+    <string name="pf_notif_hour_noon">12 PM</string>
+    <string name="pf_doc_kind_insurance">Insurance</string>
+    <string name="pf_doc_kind_puc">PUC</string>
+    <string name="pf_doc_kind_licence">Driving licence</string>
     <string name="pf_notif_service_due">Service due</string>
     <string name="pf_notif_service_due_sub">Based on km &amp; time</string>
     <string name="pf_notif_custom">Custom reminders</string>
@@ -122,9 +144,9 @@
     <string name="pf_export_history">Service history &amp; costs</string>
     <string name="pf_export_docs">Documents</string>
     <string name="pf_export_account">Account &amp; profile info</string>
-    <string name="pf_export_note">A full export ships with the Resale Passport, which also gives a buyer a verified copy of the history.</string>
-    <string name="pf_export_pdf">Download PDF</string>
-    <string name="pf_export_request">Request export</string>
+    <string name="pf_export_note">The export is one printable PDF — the same record a buyer or a workshop can read.</string>
+    <string name="pf_export_pdf">Export as PDF</string>
+    <!-- On a CTA that is built but has nothing behind it yet. -->
 
     <!-- Sign out sheet -->
     <string name="pf_signout_title">Sign out of Odo?</string>

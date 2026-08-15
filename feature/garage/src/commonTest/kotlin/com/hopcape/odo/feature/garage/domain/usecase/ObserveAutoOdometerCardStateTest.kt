@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.garage.domain.usecase
 
 import arrow.core.getOrElse
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.trip.model.Trip
@@ -17,8 +18,17 @@ import kotlin.test.assertIs
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
-/** Visibility matrix (reading count x setup state) for the garage's auto-odometer slot (F9). */
+/**
+ * Visibility matrix (reading count x setup state) for the garage's auto-odometer slot (F9).
+ *
+ * The matrix describes the slot with [FeatureFlags.AUTO_ODOMETER_ENABLED] on. While it is
+ * off the slot is [AutoOdometerCardState.Hidden] in every cell, which is what
+ * [whileTheFeatureIsOff_theSlotIsHiddenNoMatterWhatIsOnRecord] asserts; kotlin-test has no
+ * `assumeTrue`, so the other tests return early rather than fail.
+ */
 class ObserveAutoOdometerCardStateTest {
+
+    private val featureOn = FeatureFlags.AUTO_ODOMETER_ENABLED
 
     private val timeZone = TimeZone.UTC
     private val now = Instant.parse("2026-08-07T12:00:00Z")
@@ -58,6 +68,7 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun twoOrMoreReadings_notSetUp_showsThePitchCardWithTheLiveCount() = runTest {
+        if (!featureOn) return@runTest
         val readings = listOf(
             reading(LocalDate(2026, 6, 1), 10_000),
             reading(LocalDate(2026, 7, 1), 10_500),
@@ -71,6 +82,7 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun setUp_showsTheStatusTile_regardlessOfReadingCount() = runTest {
+        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val trip = testTrip(
             id = "t1",
@@ -93,6 +105,7 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun setUp_withNoReadingsAtAll_stillShowsTheTileNotHidden() = runTest {
+        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val state = useCase(readings = emptyList(), bond = bond, enabled = true)(TEST_CAR).first()
 
@@ -101,6 +114,7 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun bondWithoutTrackingEnabled_isNotConsideredSetUp() = runTest {
+        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val readings = listOf(
             reading(LocalDate(2026, 7, 1), 10_000),
@@ -110,5 +124,28 @@ class ObserveAutoOdometerCardStateTest {
 
         val notSetUp = assertIs<AutoOdometerCardState.NotSetUp>(state)
         assertEquals(2, notSetUp.readingCount)
+    }
+
+    /**
+     * The 1.0 twin of the matrix above: the two states that would otherwise show something
+     * — enrolled, and enough readings for the pitch — both collapse to hidden, so there is
+     * no way into enrollment.
+     */
+    @Test
+    fun whileTheFeatureIsOff_theSlotIsHiddenNoMatterWhatIsOnRecord() = runTest {
+        if (featureOn) return@runTest
+        val readings = listOf(
+            reading(LocalDate(2026, 7, 1), 10_000),
+            reading(LocalDate(2026, 8, 1), 10_500),
+        )
+
+        assertIs<AutoOdometerCardState.Hidden>(useCase(readings = readings)(TEST_CAR).first())
+        assertIs<AutoOdometerCardState.Hidden>(
+            useCase(
+                readings = readings,
+                bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO),
+                enabled = true,
+            )(TEST_CAR).first(),
+        )
     }
 }

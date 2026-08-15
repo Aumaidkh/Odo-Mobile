@@ -11,6 +11,15 @@ internal sealed interface BillScanEvent {
     /** A mode chip was tapped. */
     data class TargetSelected(val target: ScanTarget) : BillScanEvent
 
+    /**
+     * The free-scan pill was tapped.
+     *
+     * The pill is the only place the scanner says the owner is on a free plan, so it is the
+     * honest place to let them leave it. Tapping it opens the paywall whether or not the
+     * quota is spent — someone reading "1 of 3 free" is already thinking about the limit.
+     */
+    data object QuotaTapped : BillScanEvent
+
     /** The permission changed — answered, or re-read when the screen came back. */
     data class PermissionChanged(val status: CameraPermissionStatus) : BillScanEvent
 
@@ -69,4 +78,7 @@ internal sealed interface BillScanEffect {
     data object OpenManualEntry : BillScanEffect
 
     data object NavigateBack : BillScanEffect
+
+    /** Open the paywall, framed by how many free scans the plan gives. */
+    data class OpenPaywall(val freeScans: Int) : BillScanEffect
 }

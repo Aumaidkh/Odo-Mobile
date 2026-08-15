@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -19,6 +20,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.feature.documentvault.presentation.DocumentVaultTestTags
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
@@ -63,8 +65,6 @@ internal object VaultCopy {
     const val ADD_CHIP_RC = "RC"
     const val CAPTURE_SCAN = "Scan with camera"
     const val CAPTURE_UPLOAD = "Upload a file"
-    const val CAPTURE_DIGILOCKER = "Import from DigiLocker"
-    const val CAPTURE_UNAVAILABLE = "This way of adding a document is coming soon. Upload a file for now."
     const val WRITE_FAILED = "Something went wrong. Please try again."
     const val LIMIT_REACHED = "Your free plan stores 3 documents. Delete one to add another."
 
@@ -84,16 +84,18 @@ internal object VaultCopy {
     const val DETAIL_LIFETIME = "Never expires"
     const val DETAIL_FILE_MISSING =
         "The stored file is missing. Replace it to view or share this document."
+    /** Removed with the release that took the renewal button out; asserted absent. */
     const val DETAIL_RENEW = "Renew now"
 
     const val MENU_LABEL = "More"
     const val CLOSE_LABEL = "Close"
     const val BACK_LABEL = "Back"
     const val MENU_EDIT_DATES = "Edit dates"
-    const val MENU_REPLACE = "Replace file"
     const val MENU_SHARE = "Share"
-    const val MENU_DOWNLOAD = "Download PDF"
+    const val MENU_DOWNLOAD = "Save a copy"
     const val MENU_DELETE = "Delete document"
+    const val DELETE_CONFIRM_TITLE = "Delete this document?"
+    const val DELETE_CONFIRM_ACTION = "Delete"
 
     /* Edit dates sheet. */
     const val DATES_TITLE = "Edit dates"
@@ -103,9 +105,9 @@ internal object VaultCopy {
     const val DATES_SAVE = "Save dates"
 
     /* Share sheet. */
-    const val SHARE_WHATSAPP = "WhatsApp"
-    const val SHARE_EMAIL = "Email"
-    const val SHARE_COPY = "Copy link"
+    const val SHARE_SEND = "Share"
+    const val SHARE_SAVE = "Save a copy"
+    const val SHARE_SAVED = "Saved to your downloads."
 
     /** The garage is the only route into the vault today, so its copy is on the path. */
     const val GARAGE_TAB = "Garage"
@@ -307,8 +309,26 @@ private fun writeStoredFile(storagePath: String) {
  * Asked by id would be better, but the id of a document added through the UI is minted by the
  * app; "the directory is empty" is the same assertion for a vault with one document in it.
  */
-internal fun noVaultFilesRemain(): Boolean =
-    File(appContext().filesDir, "documents").walkTopDown().none { it.isFile }
+internal fun noVaultFilesRemain(): Boolean = storedVaultFiles().isEmpty()
+
+/**
+ * Every file in the vault's storage directory.
+ *
+ * Counted rather than named for the same reason as [noVaultFilesRemain]: a document added
+ * through the UI is keyed on an id the app minted. "One file for one document" is the
+ * assertion that a replacement swapped the bytes instead of leaving the old ones behind.
+ */
+internal fun storedVaultFiles(): List<File> =
+    File(appContext().filesDir, "documents").walkTopDown().filter { it.isFile }.toList()
+
+/**
+ * Every file in the export directory — the only one other apps are allowed to read.
+ *
+ * Sharing a document copies it here first, so this is what proves the hand-off had a real
+ * file behind it rather than a key pointing into private storage.
+ */
+internal fun exportedFiles(): List<File> =
+    File(appContext().filesDir, "exports").walkTopDown().filter { it.isFile }.toList()
 
 /**
  * Answer the system document picker with a file, instead of opening it.
@@ -382,6 +402,19 @@ internal fun VaultTestRule.openDocument(type: DocumentType) {
     awaitLabel(VaultCopy.MENU_LABEL)
 }
 
+/**
+ * Delete the open document, through the confirmation the menu item now raises.
+ *
+ * The dialog is the point of the two steps: a delete takes the file and its reminders with
+ * it, and the menu item sits one tap from "Share".
+ */
+internal fun VaultTestRule.deleteTheOpenDocument() {
+    openDocumentMenu()
+    onNodeWithText(VaultCopy.MENU_DELETE).performClick()
+    awaitText(VaultCopy.DELETE_CONFIRM_TITLE)
+    onNodeWithText(VaultCopy.DELETE_CONFIRM_ACTION).performClick()
+}
+
 /** Open the detail screen's overflow menu. */
 internal fun VaultTestRule.openDocumentMenu() {
     onNodeWithLabel(VaultCopy.MENU_LABEL).performClick()
@@ -413,8 +446,38 @@ internal fun VaultTestRule.uploadAFile() {
 internal fun VaultTestRule.fileAnUploadedDocument() {
     uploadAFile()
     awaitText(VaultCopy.REVIEW_TITLE)
+    saveTheReviewedDocument()
+}
+
+/**
+ * Tap "Save to vault", but only once the confirm step will take it.
+ *
+ * The button is disabled while the reader works through the file, and a tap that lands
+ * before it finishes is dropped with nothing on screen to say so. The first file read in a
+ * run is the slow one — the reader starts up behind it — so whichever test filed first used
+ * to lose its tap and then wait out its timeout for a success screen that was never coming.
+ */
+internal fun VaultTestRule.saveTheReviewedDocument() {
+    waitUntil(READY_TO_SAVE_TIMEOUT_MILLIS) {
+        onAllNodes(hasText(VaultCopy.REVIEW_SAVE) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+    }
     onNodeWithText(VaultCopy.REVIEW_SAVE).performClick()
 }
+
+/** Long enough for the reader's first run of the session, which starts it up. */
+private const val READY_TO_SAVE_TIMEOUT_MILLIS = 90_000L
+
+/**
+ * Wait for the success screen that names [type].
+ *
+ * A longer allowance than the usual wait: the save writes a file as well as a row, and the
+ * first one of a run starts the file store with it. The reader's own start-up is waited out
+ * before the save, in [saveTheReviewedDocument].
+ */
+internal fun VaultTestRule.awaitDocumentFiled(type: DocumentType) =
+    awaitText(VaultCopy.added(documentName(type)), FILED_TIMEOUT_MILLIS)
+
+private const val FILED_TIMEOUT_MILLIS = 20_000L
 
 /** The document name the vault and the success screen use for a type. */
 internal fun documentName(type: DocumentType): String = when (type) {

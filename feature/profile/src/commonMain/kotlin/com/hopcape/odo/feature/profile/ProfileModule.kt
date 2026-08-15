@@ -38,12 +38,21 @@ val profileModule = module {
         ObserveProfileUseCase(
             profiles = get(),
             settings = get(),
-            entitlement = get(),
+            entitlements = get(),
+            subscription = get(),
             session = get(),
+            // Firebase's own user, same binding DeleteAccountUseCase resolves below.
+            account = get(),
         )
     }
     factory { UpdateOwnerDetailsUseCase(profiles = get()) }
-    factory { UpdateSettingsUseCase(settings = get()) }
+    factory {
+        UpdateSettingsUseCase(
+            settings = get(),
+            documentReminders = get(),
+            customReminders = get(),
+        )
+    }
     factory { SetAvatarUseCase(profiles = get(), files = get()) }
     factory {
         DeleteAllDataUseCase(cars = get(), profiles = get(), settings = get(), files = get())

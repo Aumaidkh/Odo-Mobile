@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.healthscore.domain.model
 
+import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.health.model.HealthScore
 
 /**
@@ -19,6 +20,6 @@ internal data class HealthScoreSummary(
      */
     val delta: Int?,
 
-    /** Pro sees every factor; free sees the first one and a paywall. */
-    val isPro: Boolean,
+    /** What the owner's plan grants. Pro sees every factor; free sees the first and a paywall. */
+    val entitlements: Entitlements,
 )

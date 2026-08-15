@@ -131,12 +131,54 @@ class FairnessViewModelTest {
     }
 
     @Test
-    fun setCity_opensTheProfile() = runTest(dispatcher) {
+    fun setCity_opensTheProfileEditorRatherThanTheProfile() = runTest(dispatcher) {
         val viewModel = viewModel(city = null)
 
         viewModel.onEvent(FairnessEvent.SetCityTapped)
 
-        assertEquals(FairnessEffect.OpenProfile, viewModel.effects.first())
+        // The editor holds the city field. The profile root only holds a row that leads to
+        // it, which leaves the owner to find what they just asked for.
+        assertEquals(FairnessEffect.OpenEditProfile, viewModel.effects.first())
+    }
+
+    @Test
+    fun done_leavesTheWholeErrandRatherThanSteppingBack() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.report()
+
+        viewModel.onEvent(FairnessEvent.DoneTapped)
+
+        assertEquals(FairnessEffect.LeaveFlow, viewModel.effects.first())
+    }
+
+    @Test
+    fun showingItAgainAfterTheCityIsSet_producesTheReport() = runTest(dispatcher) {
+        val city = MutableCity(null)
+        val viewModel = viewModel(cityProvider = city)
+        assertEquals(
+            FairnessUiState.Content.NoCity,
+            viewModel.state.first { it.content != FairnessUiState.Content.Loading }.content,
+        )
+
+        // What the owner does with the button on that state: sets a city, then comes back.
+        city.value = "Pune"
+        viewModel.onEvent(FairnessEvent.Shown)
+
+        assertEquals("Pune", viewModel.report().city)
+    }
+
+    @Test
+    fun showingAFinishedReportAgain_doesNotCheckASecondTime() = runTest(dispatcher) {
+        val analyzer = CountingAnalyzer()
+        val viewModel = viewModel(analyzer = analyzer)
+        viewModel.report()
+
+        viewModel.onEvent(FairnessEvent.Shown)
+        viewModel.report()
+
+        // The verdict does not change while the owner is away, and asking again would cost a
+        // second lookup for the same answer.
+        assertEquals(1, analyzer.calls)
     }
 
     /* ------------------------- fixtures ------------------------- */
@@ -149,19 +191,24 @@ class FairnessViewModelTest {
         logId: String? = "log-1",
         carId: String? = "car-1",
         city: String? = "Pune",
+        cityProvider: CurrentCityProvider = CurrentCityProvider { city },
         analyzer: FairnessAnalyzer = StubAnalyzer,
         analytics: RecordingAnalytics = RecordingAnalytics(),
     ) = FairnessViewModel(
         input = FairnessCheckInput(items = items, logId = logId, carId = carId),
         analyzer = analyzer,
-        city = CurrentCityProvider { city },
+        city = cityProvider,
         telemetry = FairnessTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
             tracer = APM.asTracer(),
             ids = FixedIdGenerator(),
         ),
-    )
+    ).also {
+        // The route sends this the moment the report is on screen; nothing is checked until
+        // it does, because the report is shown more than once.
+        it.onEvent(FairnessEvent.Shown)
+    }
 
     private fun item(label: String, category: ServiceCategory?, paise: Long) =
         FairnessQueryItem(label = label, category = category, amount = paise(paise))
@@ -179,6 +226,19 @@ class FairnessViewModelTest {
                 ),
             ),
         )
+    }
+
+    /** The owner's city as it changes under the screen — set on the profile, read here. */
+    private class MutableCity(var value: String?) : CurrentCityProvider {
+        override suspend fun currentCity(): String? = value
+    }
+
+    private class CountingAnalyzer : FairnessAnalyzer {
+        var calls = 0
+        override suspend fun analyze(query: FairnessQuery): FairnessReport {
+            calls++
+            return StubAnalyzer.analyze(query)
+        }
     }
 
     private object ThrowingAnalyzer : FairnessAnalyzer {

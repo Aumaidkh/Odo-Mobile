@@ -3,33 +3,59 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveShareableRecordUseCase
-import com.hopcape.odo.feature.servicelog.domain.usecase.ShareableRecord
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.ProFeature
+import com.hopcape.odo.core.domain.record.model.ServiceRecord
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.platform.file.PlatformFileStore
+import com.hopcape.odo.core.platform.file.StorageKey
+import com.hopcape.odo.core.platform.share.EXPORT_DIRECTORY
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
+import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveServiceRecordUseCase
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceBillDocumentFactory
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocument
+import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDocumentFactory
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * State holder for the "share verified record" sheet. Holds [ShareRecordUiState], consumes
- * [ShareRecordEvent]s, and emits one-shot [ShareRecordEffect]s.
+ * State holder for the "share verified record" sheet.
  *
- * The sheet is a destination like any other, so it gets a state holder like any other: the
- * counts it claims come from the same observed read as the list behind it, and the "Copied"
- * confirmation lives here rather than in a `remember` that a recomposition owns.
+ * Decides everything about the document — what goes in it, what it is called, where it is
+ * written, and whether it can be sent. The host does the two things that need a UI to exist:
+ * running the platform's renderer, and opening the system share sheet.
  *
- * Sharing itself is the host's job — this decides *what* would be shared and whether there
- * is anything to share it with.
+ * Two documents can come out of it, decided by [logId]. Opened without one (the list, the
+ * Timeline) the document is the car's whole verified record; opened with one (an entry's
+ * detail) it is that entry's bill — its items, its workshop, its total — because the owner
+ * standing on one bill is sharing that bill, not the car's life story.
+ *
+ * **Rendered once per sheet.** The first target the owner taps produces the file; every
+ * target after that sends the same one. A record does not change while a sheet is open over
+ * it, and laying out forty entries twice to send the same document twice is time the owner
+ * spends looking at a spinner.
  */
 internal class ShareRecordViewModel(
-    carId: CarId,
-    observeRecord: ObserveShareableRecordUseCase,
+    private val carId: CarId,
+    private val logId: ServiceLogId?,
+    private val observeRecord: ObserveServiceRecordUseCase,
+    private val observeDetail: ObserveEntryDetailUseCase,
+    private val entitlements: EntitlementSource,
+    private val documents: ServiceRecordDocumentFactory,
+    private val bills: ServiceBillDocumentFactory,
+    private val files: PlatformFileStore,
     private val telemetry: ServiceLogTelemetry,
 ) : ViewModel() {
 
@@ -39,62 +65,168 @@ internal class ShareRecordViewModel(
     private val _effects = Channel<ShareRecordEffect>(Channel.BUFFERED)
     val effects: Flow<ShareRecordEffect> = _effects.receiveAsFlow()
 
+    /** The record as last read. Null until the first emission, which is why sharing waits. */
+    private var record: ServiceRecord? = null
+
+    /** The entry being shared as a bill. Stays null for a whole-record sheet. */
+    private var entry: ServiceLogEntry? = null
+
+    /** The document, once written. Reused by every later target. */
+    private var writtenKey: String? = null
+
+    /** What the file is called, kept beside the key so the share sheet can offer a name. */
+    private var documentTitle: String? = null
+
     init {
         telemetry.shareOpened()
         viewModelScope.launch(telemetry.op(ServiceLogTelemetry.Trace.SHARE_LOAD)) {
-            observeRecord(carId)
+            observed()
                 // Reported rather than thrown: an unhandled failure in a `collect` cancels
                 // the ViewModel's scope, and the sheet showing no counts is better than the
                 // sheet taking the screen behind it down.
                 .catch { cause -> telemetry.readFailed(ServiceLogTelemetry.Source.SHARE, cause) }
-                .collect(::show)
+                .collect { (record, entry) -> show(record, entry) }
+        }
+    }
+
+    /**
+     * What the sheet watches: the record alone, or — for a bill — the record and the entry
+     * together. The record rides along either way because even the bill document opens with
+     * the car's identity, which no single entry carries.
+     */
+    private fun observed(): Flow<Pair<ServiceRecord, ServiceLogEntry?>> {
+        val records = observeRecord(carId)
+        val logId = logId ?: return records.map { record -> record to null }
+        return combine(records, observeDetail(carId, logId)) { record, detail ->
+            record to detail?.entry
         }
     }
 
     fun onEvent(event: ShareRecordEvent) = when (event) {
-        ShareRecordEvent.CopyLinkClicked -> copyLink()
-        is ShareRecordEvent.ShareViaClicked -> shareVia(event.target)
-        ShareRecordEvent.DownloadPdfClicked -> downloadPdf()
+        is ShareRecordEvent.ShareViaClicked -> share(event.target)
+        is ShareRecordEvent.Rendered -> onRendered(event.bytes, event.target)
     }
 
     /**
-     * Copy the link and say so. Both halves are conditional on there being a link at all:
-     * until the Resale Passport issues one there is nothing to put on the clipboard, and
-     * confirming a copy that didn't happen is the one thing worse than no confirmation.
+     * Send the record. Builds the document the first time and reuses it after.
+     *
+     * Ignored outright while one is already being produced: the sheet disables its buttons
+     * during a render, and this is the half of that rule a missed frame cannot get around.
      */
-    private fun copyLink() = withLink { url ->
-        telemetry.recordShared(COPY_TARGET)
-        _state.update { it.copy(link = PassportLinkUiState.Ready(url, copied = true)) }
-        emit(ShareRecordEffect.CopyLink(url))
+    private fun share(target: ShareTarget) {
+        if (_state.value.isBusy) return
+        val record = record ?: return
+        // A bill sheet with no entry yet (or no entry any more) has nothing to print.
+        if (logId != null && entry == null) return
+
+        // The whole record is what Pro sells. One entry's bill is not: the owner is sharing
+        // the bill they just paid, and charging for that would be charging for their own
+        // receipt.
+        if (logId == null) {
+            viewModelScope.launch {
+                if (entitlements.observe().first().has(ProFeature.RECORD_EXPORT)) {
+                    startShare(target, record)
+                } else {
+                    telemetry.recordExportLocked()
+                    emit(ShareRecordEffect.OpenPaywall)
+                }
+            }
+            return
+        }
+        startShare(target, record)
     }
 
-    private fun shareVia(target: ShareTarget) = withLink { url ->
-        telemetry.recordShared(target.name)
-        emit(ShareRecordEffect.ShareLink(target, url))
+    /** The share itself, once it is allowed. */
+    private fun startShare(target: ShareTarget, record: ServiceRecord) {
+        writtenKey?.let { key ->
+            telemetry.recordShared(target.name)
+            emit(ShareRecordEffect.ShareFile(key, documentTitle.orEmpty()))
+            return
+        }
+
+        _state.update { it.copy(export = ExportUiState.Rendering(target)) }
+        // Traced: laying out a long history is the slowest thing the sheet does, and it is
+        // the number to look at when an owner says sharing takes too long.
+        viewModelScope.launch(telemetry.op(ServiceLogTelemetry.Trace.RECORD_EXPORT)) {
+            val document = buildDocument(record)
+            documentTitle = document.name
+            emit(
+                ShareRecordEffect.RenderDocument(
+                    html = document.html,
+                    documentName = document.name,
+                    target = target,
+                ),
+            )
+        }
     }
 
-    private fun downloadPdf() {
-        telemetry.recordShared(PDF_TARGET)
-        emit(ShareRecordEffect.DownloadPdf)
+    /** The whole record, or — when the sheet was opened on one entry — that entry's bill. */
+    private suspend fun buildDocument(record: ServiceRecord): ServiceRecordDocument {
+        val entry = entry ?: return documents.create(record)
+        return bills.create(record, entry)
     }
 
-    /** Run [action] only when there is a link to act on. */
-    private inline fun withLink(action: (String) -> Unit) {
-        val link = _state.value.link
-        if (link is PassportLinkUiState.Ready) action(link.url)
+    /** Write what the host rendered, then send it. */
+    private fun onRendered(bytes: ByteArray?, target: ShareTarget) {
+        if (bytes == null || bytes.isEmpty()) {
+            fail(target)
+            return
+        }
+
+        viewModelScope.launch {
+            val key = StorageKey.of(
+                directory = "$EXPORT_DIRECTORY/${carId.value}",
+                fileName = if (logId == null) RECORD_FILE_NAME else BILL_FILE_NAME,
+                rawExtension = PDF_EXTENSION,
+            )
+            files.write(key, bytes).fold(
+                ifLeft = { fail(target) },
+                ifRight = { written ->
+                    writtenKey = written
+                    _state.update { it.copy(export = ExportUiState.Idle) }
+                    telemetry.recordShared(target.name)
+                    emit(ShareRecordEffect.ShareFile(written, documentTitle.orEmpty()))
+                },
+            )
+        }
     }
 
-    private fun show(record: ShareableRecord) = _state.update {
-        it.copy(
-            content = ShareRecordUiState.Content.Loaded(
-                carName = record.carName,
-                verifiedCount = record.verifiedCount,
-                serviceCount = record.serviceCount,
-            ),
-            // Re-reading the record must not clear a "Copied" the owner just saw, so the
-            // link state is only rebuilt when the URL itself changes.
-            link = it.link.forUrl(record.passportUrl),
+    private fun fail(target: ShareTarget) {
+        telemetry.readFailed(
+            ServiceLogTelemetry.Source.SHARE,
+            IllegalStateException("record pdf could not be produced for ${target.name}"),
         )
+        _state.update { it.copy(export = ExportUiState.Failed) }
+    }
+
+    private fun show(record: ServiceRecord, entry: ServiceLogEntry?) {
+        this.record = record
+        this.entry = entry
+        // A record that has changed invalidates the file written from the older one, so the
+        // next target renders again rather than sending a document that is already stale.
+        writtenKey = null
+        val carName = record.carName.takeIf { name -> name.isNotBlank() }
+        _state.update {
+            it.copy(
+                content = if (logId == null) {
+                    ShareRecordUiState.Content.Loaded(
+                        carName = carName,
+                        verifiedCount = record.verifiedCount,
+                        serviceCount = record.entryCount,
+                    )
+                } else if (entry == null) {
+                    // The entry is gone — never written, or deleted under the open sheet.
+                    // The sheet keeps loading rather than describing a bill it cannot print.
+                    ShareRecordUiState.Content.Loading
+                } else {
+                    ShareRecordUiState.Content.LoadedBill(
+                        carName = carName,
+                        serviceDate = entry.serviceDate,
+                        amount = entry.totalAmount,
+                    )
+                },
+            )
+        }
     }
 
     private fun emit(effect: ShareRecordEffect) {
@@ -102,14 +234,13 @@ internal class ShareRecordViewModel(
     }
 
     private companion object {
-        const val COPY_TARGET = "copy_link"
-        const val PDF_TARGET = "pdf"
+        /**
+         * One file of each kind per car, overwritten on every export. The export directory
+         * is what the share sheet reads from, and a name carrying a date or an id would
+         * leave a copy of every document the owner ever sent sitting in it.
+         */
+        const val RECORD_FILE_NAME = "service-record"
+        const val BILL_FILE_NAME = "service-bill"
+        const val PDF_EXTENSION = "pdf"
     }
-}
-
-/** The link state for [url], keeping a just-copied confirmation when the URL is unchanged. */
-private fun PassportLinkUiState.forUrl(url: String?): PassportLinkUiState = when {
-    url == null -> PassportLinkUiState.Unavailable
-    this is PassportLinkUiState.Ready && this.url == url -> this
-    else -> PassportLinkUiState.Ready(url)
 }

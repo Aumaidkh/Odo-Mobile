@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.garage.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -13,6 +14,9 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.pdf.rememberHtmlToPdf
+import com.hopcape.odo.core.platform.share.ShareMimeType
+import com.hopcape.odo.core.platform.share.rememberFileSharer
 import com.hopcape.odo.feature.garage.presentation.AddCarEffect
 import com.hopcape.odo.feature.garage.presentation.AddCarScreen
 import com.hopcape.odo.feature.garage.presentation.AddCarViewModel
@@ -27,6 +31,7 @@ import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.CarActionsViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportEffect
+import com.hopcape.odo.feature.garage.presentation.sheets.ExportEvent
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEffect
@@ -35,6 +40,7 @@ import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -66,7 +72,7 @@ internal class GarageFeatureEntryProvider(
 
         entry<OdoDestination.Garage.CarActions>(metadata = sheet) { CarActionsRoute(::replace) }
         entry<OdoDestination.Garage.UpdateOdometer>(metadata = sheet) { UpdateOdometerRoute(nm) }
-        entry<OdoDestination.Garage.Export>(metadata = sheet) { ExportRoute(::replace) }
+        entry<OdoDestination.Garage.Export>(metadata = sheet) { ExportRoute() }
         entry<OdoDestination.Garage.RemoveCar>(metadata = sheet) { RemoveCarRoute(nm, ::replace) }
 
         entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) { AddToHistoryRoute(::replace) }
@@ -163,15 +169,37 @@ private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
     CarActionsSheetContent(state = state, onEvent = viewModel::onEvent)
 }
 
+/**
+ * The export sheet's host. Both effects are platform work the ViewModel cannot do: laying
+ * a document out needs a renderer with a UI host, and presenting a share sheet needs
+ * whatever is hosting the UI. The ViewModel builds the document and decides where it goes;
+ * this runs it — the same bridge the service log's share sheet uses.
+ */
 @Composable
-private fun ExportRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
+private fun ExportRoute() {
     val viewModel = koinViewModel<ExportViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    val htmlToPdf = rememberHtmlToPdf()
+    val shareFile = rememberFileSharer()
+    // Rendering suspends and CollectEffects hands over a plain lambda, so the render runs
+    // on the composition's own scope. It is cancelled with the sheet, which is what should
+    // happen to a document nobody is waiting for any more.
+    val scope = rememberCoroutineScope()
+
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            is ExportEffect.OpenPaywall ->
-                replace(OdoDestination.Garage.Export, OdoDestination.Paywall(trigger = effect.trigger))
+            is ExportEffect.RenderDocument -> scope.launch {
+                viewModel.onEvent(
+                    ExportEvent.Rendered(
+                        bytes = htmlToPdf(effect.html, effect.documentName),
+                        via = effect.via,
+                    ),
+                )
+            }
+
+            is ExportEffect.ShareFile ->
+                shareFile(effect.storageKey, ShareMimeType.PDF, effect.title)
         }
     }
 

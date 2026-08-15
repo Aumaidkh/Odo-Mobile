@@ -2,17 +2,22 @@ package com.hopcape.odo.feature.profile.domain.usecase
 
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.NotificationPreferences
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.BillingPeriod
+import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.datetime.LocalDate
 
 class ProfileUseCasesTest {
 
@@ -28,16 +33,56 @@ class ProfileUseCasesTest {
         val snapshot = ObserveProfileUseCase(
             profiles = profiles,
             settings = settings,
-            entitlement = entitlement(isPro = true),
+            subscription = subscription(),
+            entitlements = entitlement(isPro = true),
             session = session(signedIn = false),
+            account = account(PhoneNumber.of("9812345678").getOrNull()),
         )().first()
 
         assertEquals("Rahul", snapshot.name)
         assertEquals("rahul@example.com", snapshot.email)
         assertEquals("Pune", snapshot.city)
+        assertEquals("+919812345678", snapshot.phoneNumber)
         assertTrue(snapshot.isPro)
         assertTrue(!snapshot.isSignedIn)
         assertEquals(ThemePreference.DARK, snapshot.settings.theme)
+    }
+
+    @Test
+    fun observe_carriesTheLiveSubscriptionForThePlanCard() = runTest {
+        // The renewal date and the billing-issue banner come from here. Nothing gates on it,
+        // which is why it is a separate port from the entitlement.
+        val state = SubscriptionState(
+            period = BillingPeriod.ANNUAL,
+            health = SubscriptionHealth.BILLING_ISSUE,
+            renewsOn = LocalDate(2026, 9, 1),
+            managementUrl = "https://play.google.com/store/account/subscriptions",
+        )
+
+        val snapshot = ObserveProfileUseCase(
+            profiles = FakeProfileRepository(),
+            settings = FakeSettingsRepository(),
+            subscription = subscription(state),
+            entitlements = entitlement(isPro = true),
+            session = session(signedIn = true),
+            account = account(),
+        )().first()
+
+        assertEquals(state, snapshot.subscription)
+    }
+
+    @Test
+    fun observe_onTheFreePlanHasNoSubscriptionToDescribe() = runTest {
+        val snapshot = ObserveProfileUseCase(
+            profiles = FakeProfileRepository(),
+            settings = FakeSettingsRepository(),
+            subscription = subscription(),
+            entitlements = entitlement(isPro = false),
+            session = session(signedIn = false),
+            account = account(),
+        )().first()
+
+        assertNull(snapshot.subscription, "there is nothing to say about a subscription that does not exist")
     }
 
     @Test
@@ -45,11 +90,14 @@ class ProfileUseCasesTest {
         val snapshot = ObserveProfileUseCase(
             profiles = FakeProfileRepository(profile = null),
             settings = FakeSettingsRepository(),
-            entitlement = entitlement(isPro = false),
+            subscription = subscription(),
+            entitlements = entitlement(isPro = false),
             session = session(signedIn = false),
+            account = account(),
         )().first()
 
         assertNull(snapshot.name)
+        assertNull(snapshot.phoneNumber)
         assertEquals(AppSettings.Default, snapshot.settings)
     }
 
@@ -112,7 +160,7 @@ class ProfileUseCasesTest {
     @Test
     fun updateSettings_eachSliceLeavesTheOthersAlone() = runTest {
         val settings = FakeSettingsRepository()
-        val useCase = UpdateSettingsUseCase(settings)
+        val useCase = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {})
 
         assertTrue(useCase.appearance(ThemePreference.LIGHT, largerText = true).isRight())
         assertTrue(useCase.units(DistanceUnit.MILE, FuelEfficiencyUnit.UNITS_PER_100KM).isRight())
@@ -132,7 +180,7 @@ class ProfileUseCasesTest {
     fun updateSettings_aFailedWriteIsReported() = runTest {
         val settings = FakeSettingsRepository(failing = true)
 
-        val result = UpdateSettingsUseCase(settings).appearance(ThemePreference.DARK, largerText = false)
+        val result = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}).appearance(ThemePreference.DARK, largerText = false)
 
         assertTrue(result.isLeft(), "expected Left but was $result")
     }

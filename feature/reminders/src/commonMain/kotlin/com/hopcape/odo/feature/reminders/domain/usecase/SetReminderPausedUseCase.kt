@@ -7,7 +7,7 @@ import com.hopcape.odo.core.domain.reminder.model.CustomReminder
 import com.hopcape.odo.core.domain.reminder.model.ReminderId
 import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.reminders.domain.notification.ReminderNotificationScheduler
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import kotlinx.coroutines.flow.first
 
 /**
@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.first
  */
 internal class SetReminderPausedUseCase(
     private val reminders: ReminderRepository,
-    private val scheduler: ReminderNotificationScheduler,
+    private val scheduler: CustomReminderScheduler,
 ) {
     suspend operator fun invoke(
         id: ReminderId,
@@ -26,7 +26,7 @@ internal class SetReminderPausedUseCase(
 
         val stored = reminders.update(existing.withPaused(paused)).bind()
 
-        if (stored.paused) scheduler.cancel(stored.id) else scheduler.schedule(stored)
+        scheduler.refresh()
         stored
     }
 }

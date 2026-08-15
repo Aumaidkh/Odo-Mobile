@@ -18,6 +18,8 @@ import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId as CarIdAlias
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.platform.file.PlatformDownloads
+import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -108,6 +110,60 @@ internal class FakeDocumentRepository(
 
     override suspend fun countForOwner(ownerId: OwnerId): Int =
         stored.value.count { it.ownerId == ownerId }
+}
+
+/**
+ * In-memory [PlatformDownloads]. Records what was asked for, so a test can check the copy
+ * carried the document's own name and type rather than the key it is stored under.
+ */
+internal class RecordingDownloads(private val failWith: DomainError? = null) : PlatformDownloads {
+
+    val saved = mutableListOf<Triple<String, String, String>>()
+
+    override suspend fun saveCopy(
+        storageKey: String,
+        fileName: String,
+        mimeType: String,
+    ): Either<DomainError, Unit> {
+        failWith?.let { return it.left() }
+        saved += Triple(storageKey, fileName, mimeType)
+        return Unit.right()
+    }
+}
+
+/**
+ * In-memory [PlatformFileStore] for the export path — reads bytes back for anything it was
+ * told is stored, and remembers what was written where.
+ */
+internal class FakePlatformFileStore(
+    stored: Set<String> = emptySet(),
+    private val failWith: DomainError? = null,
+) : PlatformFileStore {
+
+    val written = mutableListOf<String>()
+    private val files = stored.toMutableSet()
+
+    override suspend fun save(pickedRef: String, directory: String, fileName: String): Either<DomainError, String> =
+        "$directory/$fileName.pdf".also { files += it }.right()
+
+    override suspend fun delete(storageKey: String) {
+        files -= storageKey
+    }
+
+    override suspend fun exists(storageKey: String): Boolean = storageKey in files
+
+    override suspend fun bytes(storageKey: String): Either<DomainError, ByteArray> {
+        failWith?.let { return it.left() }
+        if (storageKey !in files) return DomainError.PersistenceFailure("missing").left()
+        return storageKey.encodeToByteArray().right()
+    }
+
+    override suspend fun write(storageKey: String, bytes: ByteArray): Either<DomainError, String> {
+        failWith?.let { return it.left() }
+        files += storageKey
+        written += storageKey
+        return storageKey.right()
+    }
 }
 
 /**

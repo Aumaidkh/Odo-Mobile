@@ -275,6 +275,17 @@ internal class ServiceLogTelemetry(
         logger.info(TAG, Event.RECORD_SHARED, tc = flowTrace.toLog(), fields = mapOf(Key.TARGET to target))
     }
 
+    /**
+     * A free owner asked for the whole record and met the Pro gate.
+     *
+     * Counted whether or not they go on to subscribe: how often the export is wanted is the
+     * thing that says whether it was worth selling, and only the refusals show that.
+     */
+    fun recordExportLocked() {
+        analytics.track(Event.RECORD_EXPORT_LOCKED)
+        logger.info(TAG, Event.RECORD_EXPORT_LOCKED, tc = flowTrace.toLog())
+    }
+
     /* ------------------------------ Plumbing ------------------------------ */
 
     /**
@@ -354,6 +365,7 @@ internal class ServiceLogTelemetry(
         const val REPORT_FAILED = "servicelog_report_failed"
 
         const val SHARE_OPENED = "servicelog_share_opened"
+        const val RECORD_EXPORT_LOCKED = "record_export_locked"
         const val RECORD_SHARED = "servicelog_record_shared"
     }
 
@@ -367,6 +379,7 @@ internal class ServiceLogTelemetry(
         const val CHECK_FAIRNESS = "servicelog_check_fairness"
         const val SUBMIT_REPORT = "servicelog_submit_report"
         const val SHARE_LOAD = "servicelog_share_load"
+        const val RECORD_EXPORT = "servicelog_record_export"
     }
 
     /** Structured field / property keys, shared across logs, events and spans. */

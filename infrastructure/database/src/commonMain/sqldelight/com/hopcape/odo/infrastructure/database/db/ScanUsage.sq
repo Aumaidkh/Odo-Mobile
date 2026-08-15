@@ -1,0 +1,38 @@
+-- How many scans the owner has spent, per calendar month.
+--
+-- **Deliberately not a syncable table**, for the same reason as `app_settings`: it
+-- mirrors nothing on the server and should not. Extraction runs on the device (ML
+-- Kit), so no server ever sees a scan go past, and there is nothing for a row here
+-- to reconcile against. The mandatory sync column set (SYNC_DESIGN §4.1) is absent
+-- on purpose rather than by oversight.
+--
+-- What that costs, stated plainly: a reinstall clears the count. The cap is a
+-- commercial limit on a feature that costs nothing to run, not a cost control, so
+-- losing it on reinstall is accepted (docs/PAYWALL_PLAN.md, decision 4). Counting
+-- server-side would need an account, and the app can be used signed out.
+--
+-- month: `YYYY-MM` in the device's timezone. A row per month rather than a single
+-- pinned row, so the reset is a different key rather than a write — nothing has to
+-- run at midnight on the 1st for the count to start again, and last month's figure
+-- is still there if it is ever wanted.
+CREATE TABLE scan_usage (
+    month      TEXT NOT NULL PRIMARY KEY,
+    scan_count INTEGER NOT NULL
+);
+
+countForMonth:
+SELECT scan_count
+FROM scan_usage
+WHERE month = :month;
+
+-- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO UPDATE`
+-- needs SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored once the month
+-- has a row, so on every later scan the update is what counts.
+startMonth:
+INSERT OR IGNORE INTO scan_usage (month, scan_count)
+VALUES (:month, 0);
+
+incrementMonth:
+UPDATE scan_usage
+SET scan_count = scan_count + 1
+WHERE month = :month;
