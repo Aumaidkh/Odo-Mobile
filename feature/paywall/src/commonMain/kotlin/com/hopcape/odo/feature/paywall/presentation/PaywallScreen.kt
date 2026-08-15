@@ -101,6 +101,9 @@ import com.hopcape.odo.feature.paywall.resources.pw_subtitle_scans
 import com.hopcape.odo.feature.paywall.resources.pw_terms
 import com.hopcape.odo.feature.paywall.resources.pw_terms_trial
 import org.jetbrains.compose.resources.stringResource
+import com.hopcape.odo.feature.paywall.resources.pw_badge_refuel
+import com.hopcape.odo.feature.paywall.resources.pw_headline_refuel
+import com.hopcape.odo.feature.paywall.resources.pw_subtitle_refuel
 
 /**
  * The Pro paywall — one offer, framed by [PaywallUiState.trigger] (generic / scans-exhausted /
@@ -518,6 +521,7 @@ private fun badgeTone(trigger: PaywallTrigger): Color = when (trigger) {
     PaywallTrigger.GENERIC -> OdoTheme.colors.accent
     PaywallTrigger.SCANS_EXHAUSTED -> OdoTheme.colors.warning
     PaywallTrigger.SAVINGS -> OdoTheme.colors.success
+    PaywallTrigger.SMART_REFUEL -> OdoTheme.colors.accent
 }
 
 @Composable
@@ -525,6 +529,7 @@ private fun badgeText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.GENERIC -> stringResource(Res.string.pw_badge_generic)
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_badge_scans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_badge_savings, savingsText(state.amountPaise))
+    PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_badge_refuel)
 }
 
 @Composable
@@ -532,6 +537,7 @@ private fun headlineText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.GENERIC -> stringResource(Res.string.pw_headline_generic)
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_headline_scans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_headline_savings)
+    PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_headline_refuel)
 }
 
 @Composable
@@ -539,6 +545,7 @@ private fun subtitleText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.GENERIC -> stringResource(Res.string.pw_subtitle_generic)
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_subtitle_scans, state.freeScans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_subtitle_savings, savingsText(state.amountPaise))
+    PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_subtitle_refuel)
 }
 
 @Composable

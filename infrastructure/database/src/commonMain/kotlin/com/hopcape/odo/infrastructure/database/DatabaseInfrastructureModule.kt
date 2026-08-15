@@ -64,6 +64,8 @@ import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncTable
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncable
 import com.hopcape.odo.infrastructure.database.servicelog.SqlDelightServiceLogLocalDataSource
 import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
+import com.hopcape.odo.infrastructure.database.record.SqlDelightRecordExportUsageLocalDataSource
+import com.hopcape.odo.core.data.record.RecordExportUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.settings.SqlDelightAppSettingsLocalDataSource
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightLocalUserDataWipe
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightOwnershipAdoption
@@ -145,6 +147,7 @@ val databaseInfrastructureModule = module {
     // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
     // `scan_usage` mirrors no server table, because extraction never leaves the device.
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
+    single<RecordExportUsageLocalDataSource> { SqlDelightRecordExportUsageLocalDataSource(database = get()) }
 
     // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
     // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no

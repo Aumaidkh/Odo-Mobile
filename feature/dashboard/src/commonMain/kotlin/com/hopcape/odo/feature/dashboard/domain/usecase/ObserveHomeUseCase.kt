@@ -38,6 +38,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
+import com.hopcape.odo.feature.dashboard.domain.model.TankStatus
 
 /**
  * Everything the Home tab shows, as a stream.
@@ -172,6 +173,7 @@ internal class ObserveHomeUseCase(
                 zone = timeZone,
                 fills = record.fills,
             ).firstOrNull(),
+            tank = TankStatus.of(fills = record.fills, currentOdometer = record.currentOdometer),
             setup = SetupProgress(
                 carAdded = record.car != null,
                 billScanned = record.entries.any { it.verification == VerificationStatus.VERIFIED },

@@ -101,6 +101,22 @@ import com.hopcape.odo.feature.dashboard.ui.overchargeSubText
 import com.hopcape.odo.feature.dashboard.ui.recentMeta
 import com.hopcape.odo.feature.dashboard.ui.recentTitle
 import org.jetbrains.compose.resources.stringResource
+import com.hopcape.odo.core.designsystem.component.OdoBadge
+import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
+import com.hopcape.odo.feature.dashboard.resources.hm_badge_pro
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_kwh
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_kilogram
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_litre
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_log
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_no_fill_body
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_no_fill
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_usual
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_last
+import com.hopcape.odo.feature.dashboard.resources.hm_fuel_since_fill
+import com.hopcape.odo.feature.dashboard.domain.model.TankStatus
+import com.hopcape.odo.core.domain.shared.formatDayMonth
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.designsystem.component.OdoProgressBar
 
 /**
  * The Home tab — the dashboard's cross-feature glance: health score, cost, overcharges
@@ -147,7 +163,7 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, onEvent)
             }
         }
     }
@@ -157,13 +173,14 @@ internal fun HomeScreen(
 private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
+    autoDetectLocked: Boolean,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, onEvent)
     }
 }
 
@@ -267,11 +284,12 @@ private fun CircleButton(
 private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
+    autoDetectLocked: Boolean,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HealthCard(content, onEvent)
-    LogFillAction(onEvent)
-    if (offerAutoDetect) AutoDetectOffer(onEvent)
+    FuelCard(content.tank, onEvent)
+    if (offerAutoDetect) AutoDetectOffer(autoDetectLocked, onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
     content.insight?.let { InsightCard(it) }
@@ -291,7 +309,7 @@ private fun ScoredContent(
  * Gone the moment detection is on, so it is an offer rather than an advert.
  */
 @Composable
-private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
+private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
     OdoCard(
         modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_DETECT_OFFER),
         onClick = { onEvent(HomeEvent.AutoDetectTapped) },
@@ -311,10 +329,24 @@ private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
                 Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
-                OdoText(
-                    stringResource(Res.string.hm_auto_detect_title),
-                    style = OdoTheme.typography.label,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OdoText(
+                        stringResource(Res.string.hm_auto_detect_title),
+                        style = OdoTheme.typography.label,
+                    )
+                    // Named before it is tapped. A card that opens a paywall without saying
+                    // so first reads as a trick, and the owner who cannot buy today should be
+                    // able to skip it without spending a tap to find out.
+                    if (locked) {
+                        OdoBadge(
+                            text = stringResource(Res.string.hm_badge_pro),
+                            tone = OdoBadgeTone.Accent,
+                        )
+                    }
+                }
                 OdoText(
                     stringResource(Res.string.hm_auto_detect_body),
                     style = OdoTheme.typography.bodySmall,
@@ -345,19 +377,117 @@ private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
  * the one thing that looks like a button.
  */
 @Composable
-private fun LogFillAction(onEvent: (HomeEvent) -> Unit) {
-    OdoButton(
-        text = stringResource(Res.string.hm_log_fill),
-        onClick = { onEvent(HomeEvent.LogFillTapped) },
-        leadingIcon = {
-            OdoIcon(
-                IcFuelPump,
-                contentDescription = null,
-                size = OdoTheme.iconSizes.small,
-            )
-        },
+private fun FuelCard(tank: TankStatus, onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
         modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.LOG_FILL_BUTTON),
+        onClick = { onEvent(HomeEvent.LogFillTapped) },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(44.dp)
+                        .clip(OdoTheme.shapes.small)
+                        .background(OdoTheme.colors.surfaceRaised),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    OdoIcon(
+                        IcFuelPump,
+                        contentDescription = null,
+                        tint = OdoTheme.colors.text,
+                        size = OdoTheme.iconSizes.medium,
+                    )
+                }
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+                ) {
+                    OdoText(fuelTitle(tank), style = OdoTheme.typography.heading)
+                    OdoText(
+                        fuelSubtitle(tank),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+                // The whole card is tappable, so this is an affordance rather than the only
+                // way in — it says what the card does without the owner having to guess that
+                // a card is a button.
+                OdoButton(
+                    text = stringResource(Res.string.hm_fuel_log),
+                    onClick = { onEvent(HomeEvent.LogFillTapped) },
+                )
+            }
+
+            // Both only when there is a habit to compare against. One fill is a record, not a
+            // pattern, and a bar drawn from it would be a guess wearing a measurement's face.
+            tank.progress?.let { progress ->
+                OdoProgressBar(progress = progress, color = OdoTheme.colors.text)
+            }
+            tank.typicalRange?.let { range ->
+                OdoText(
+                    stringResource(
+                        Res.string.hm_fuel_usual,
+                        LocalOdoDistanceFormat.current.format(range.km),
+                    ),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textMuted,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * "412 km since last fill", or the invitation when there is nothing to measure.
+ *
+ * The distance needs both a last fill *and* a reading on it. A detected fill reaches the owner
+ * at the pump, where the dashboard reading is the one number out of reach, so a fill with no
+ * odometer is expected — and the card falls back to naming the fill rather than printing a
+ * zero that reads like the car has not moved.
+ */
+@Composable
+private fun fuelTitle(tank: TankStatus): String = when {
+    tank.sinceLastFill != null -> stringResource(
+        Res.string.hm_fuel_since_fill,
+        LocalOdoDistanceFormat.current.format(tank.sinceLastFill.km),
     )
+    tank.hasFill -> stringResource(Res.string.hm_log_fill)
+    else -> stringResource(Res.string.hm_fuel_no_fill)
+}
+
+/** "15 Aug · Rs. 3,809 · 40.1 L" — what the last fill was, as far as it is known. */
+@Composable
+private fun fuelSubtitle(tank: TankStatus): String {
+    val filledOn = tank.lastFilledOn ?: return stringResource(Res.string.hm_fuel_no_fill_body)
+    return stringResource(
+        Res.string.hm_fuel_last,
+        formatDayMonth(filledOn),
+        tank.lastAmount?.formatRupees().orEmpty(),
+        fuelQuantity(tank),
+    )
+}
+
+/**
+ * "40.1 L" — the quantity in the unit the fill was sold in.
+ *
+ * Stored in thousandths, shown to one decimal: a pump prints two, but the second is noise
+ * beside a figure the owner is reading at a glance, and rounding it here keeps the line short
+ * enough to sit on one row beside the date and the amount.
+ */
+@Composable
+private fun fuelQuantity(tank: TankStatus): String {
+    val milli = tank.lastQuantityMilli ?: return ""
+    val whole = milli / 1000
+    val tenth = (milli % 1000) / 100
+    val figure = "$whole.$tenth"
+    return when (tank.lastUnit) {
+        FuelUnit.KILOGRAM -> stringResource(Res.string.hm_fuel_kilogram, figure)
+        FuelUnit.KILOWATT_HOUR -> stringResource(Res.string.hm_fuel_kwh, figure)
+        else -> stringResource(Res.string.hm_fuel_litre, figure)
+    }
 }
 
 @Composable

@@ -143,6 +143,7 @@ val serviceLogModule = module {
             observeRecord = get(),
             observeDetail = get(),
             entitlements = get(),
+            exportUsage = get(),
             documents = get(),
             bills = get(),
             files = get(),

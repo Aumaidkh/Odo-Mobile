@@ -7,6 +7,9 @@
     <string name="pw_headline_generic">Everything Odo can do, unlocked.</string>
     <string name="pw_subtitle_generic">Unlimited scans, an unlimited document vault, the full Health Score breakdown and your record as a PDF.</string>
 
+    <string name="pw_badge_refuel">AUTOMATIC LOGGING</string>
+    <string name="pw_headline_refuel">Never log a fill again.</string>
+    <string name="pw_subtitle_refuel">Odo spots the payment at the pump and drafts the entry. You just confirm it. Logging a fill by hand stays free.</string>
     <string name="pw_badge_scans">0 FREE SCANS LEFT</string>
     <string name="pw_headline_scans">Keep scanning, without limits.</string>
     <string name="pw_subtitle_scans">You’ve used all %1$d free scans this month. Go Pro for unlimited fairness checks.</string>

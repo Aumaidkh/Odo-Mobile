@@ -20,7 +20,8 @@ class PlanLimitsTest {
                 ProFeature.DOCUMENTS -> Quota.UpTo(3)
                 ProFeature.BILL_SCANS -> Quota.UpTo(3)
                 ProFeature.HEALTH_BREAKDOWN -> Quota.None
-                ProFeature.RECORD_EXPORT -> Quota.None
+                ProFeature.RECORD_EXPORT -> Quota.UpTo(3)
+                ProFeature.SMART_REFUEL_DETECT -> Quota.UpTo(10)
             }
             assertEquals(expected, PlanLimits.quota(Plan.FREE, feature), "free plan, $feature")
         }
