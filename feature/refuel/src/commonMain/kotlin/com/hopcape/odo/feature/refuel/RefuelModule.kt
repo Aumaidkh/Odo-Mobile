@@ -78,6 +78,7 @@ val refuelModule = module {
             activeCar = get(),
             pending = get(),
             access = get(),
+            allowance = get(),
             clock = get(),
             copy = detectionCopy(),
         )

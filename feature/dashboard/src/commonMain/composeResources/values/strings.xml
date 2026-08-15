@@ -120,7 +120,19 @@
     <string name="hm_category_general_service">General service</string>
     <string name="hm_category_other">Other work</string>
     <string name="hm_log_fill">Log a fill</string>
+    <!-- Fuel card. %1$s is a formatted distance ("412 km"). -->
+    <string name="hm_fuel_since_fill">%1$s since last fill</string>
+    <!-- Last fill: date · what it cost · how much fuel. -->
+    <string name="hm_fuel_last">%1$s · %2$s · %3$s</string>
+    <string name="hm_fuel_usual">Usually you refill around %1$s</string>
+    <string name="hm_fuel_no_fill">No fills logged yet</string>
+    <string name="hm_fuel_no_fill_body">Log one and Odo starts tracking your running cost.</string>
+    <string name="hm_fuel_log">Log</string>
+    <string name="hm_fuel_litre">%1$s L</string>
+    <string name="hm_fuel_kilogram">%1$s kg</string>
+    <string name="hm_fuel_kwh">%1$s kWh</string>
     <string name="hm_recent_fuel">Fuel · %1$s</string>
+    <string name="hm_badge_pro">PRO</string>
     <string name="hm_auto_detect_title">Log fills automatically</string>
     <string name="hm_auto_detect_body">Let Odo spot the payment at a pump and draft the entry. See what it reads first.</string>
 </resources>

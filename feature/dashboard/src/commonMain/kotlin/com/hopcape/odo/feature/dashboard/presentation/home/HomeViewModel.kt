@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.feature.dashboard.domain.model.HomeSnapshot
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
@@ -45,6 +46,7 @@ internal class HomeViewModel(
     activeCar: ActiveCarProvider,
     observeHome: ObserveHomeUseCase,
     private val detection: RefuelDetectionStore,
+    private val smartRefuel: SmartRefuelAllowance,
     private val telemetry: HomeTelemetry,
 ) : ViewModel() {
 
@@ -79,6 +81,10 @@ internal class HomeViewModel(
         // Combined rather than folded into the snapshot: the offer is a device setting, and a
         // dashboard read that failed should not decide whether it is shown.
         .combine(offerAutoDetect()) { ui, offer -> ui.copy(offerAutoDetect = offer) }
+        // Locked is not the same question as offered. A free owner is still shown the card —
+        // it is the only place the feature is discoverable — so the plan decides what the tap
+        // does, not whether the card exists.
+        .combine(autoDetectLocked()) { ui, locked -> ui.copy(autoDetectLocked = locked) }
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -89,6 +95,22 @@ internal class HomeViewModel(
             started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MILLIS),
             initialValue = HomeUiState(),
         )
+
+    /**
+     * Whether automatic logging is behind Pro for this owner.
+     *
+     * Locked once the free allowance is spent, not from the plan alone — the free plan grants
+     * a fixed number of detected fills, so the card stays open until they are used and only
+     * then starts selling. Re-read rather than stored, so a purchase, a lapse, or the tenth
+     * fill changes the card without the dashboard being told.
+     *
+     * A failed read locks it: refusing to sell is recoverable, giving a paid feature away by
+     * accident is not.
+     */
+    private fun autoDetectLocked(): Flow<Boolean> =
+        smartRefuel.observe()
+            .map { !it.allowsAnother }
+            .catch { emit(true) }
 
     /**
      * Whether automatic logging is worth offering: built, and not already on.
@@ -129,7 +151,13 @@ internal class HomeViewModel(
 
         HomeEvent.LogFillTapped -> send(HomeEffect.OpenLogFill)
 
-        HomeEvent.AutoDetectTapped -> send(HomeEffect.OpenAutoDetect)
+        HomeEvent.AutoDetectTapped ->
+            if (state.value.autoDetectLocked) {
+                telemetry.autoDetectPaywalled()
+                send(HomeEffect.OpenPaywall)
+            } else {
+                send(HomeEffect.OpenAutoDetect)
+            }
 
         HomeEvent.AddDocumentsTapped -> {
             telemetry.addDocumentsTapped()
@@ -211,6 +239,7 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     attention = attention,
     insight = insight,
     recent = recent,
+    tank = tank,
     setup = setup,
     isNewUser = isNewUser,
 )

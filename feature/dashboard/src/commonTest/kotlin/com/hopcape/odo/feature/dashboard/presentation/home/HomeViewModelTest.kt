@@ -44,6 +44,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.hopcape.odo.core.domain.entitlement.Plan
+import kotlinx.coroutines.flow.flowOf
+import kotlin.test.assertFalse
+import com.hopcape.odo.core.domain.entitlement.ProFeature
+import com.hopcape.odo.core.domain.entitlement.PlanLimits
+import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
+import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelLimit
 
 class HomeViewModelTest {
 
@@ -236,12 +243,48 @@ class HomeViewModelTest {
 
     /* ------------------------- fixtures ------------------------- */
 
+    @Test
+    fun autoDetect_isOpenOnTheFreePlanUntilTheAllowanceRunsOut() = runTest {
+        val vm = viewModel(isPro = false, detectedFillsUsed = 9)
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
+    }
+
+    @Test
+    fun autoDetect_locksWhenTheFreeAllowanceIsSpent() = runTest {
+        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
+        assertTrue(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
+    }
+
+    @Test
+    fun autoDetect_staysUnlockedOnProPastTheFreeCap() = runTest {
+        val vm = viewModel(isPro = true, detectedFillsUsed = 50)
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
+    }
+
+    @Test
+    fun autoDetectTapped_opensThePaywallWhenLocked() = runTest {
+        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
+        vm.state.first { it.content is Loadable.Ready }
+        vm.onEvent(HomeEvent.AutoDetectTapped)
+        assertIs<HomeEffect.OpenPaywall>(vm.effects.first())
+    }
+
+    @Test
+    fun autoDetectTapped_opensEnrolmentWhenUnlocked() = runTest {
+        val vm = viewModel(isPro = true)
+        vm.state.first { it.content is Loadable.Ready }
+        vm.onEvent(HomeEvent.AutoDetectTapped)
+        assertIs<HomeEffect.OpenAutoDetect>(vm.effects.first())
+    }
+
     private fun viewModel(
         carId: CarId? = TEST_CAR,
         entries: List<ServiceLogEntry> = this.entries,
         documents: List<Document> = this.documents,
         logs: FakeServiceLogRepository = FakeServiceLogRepository(entries),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        isPro: Boolean = false,
+        detectedFillsUsed: Int = 0,
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -258,8 +301,19 @@ class HomeViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         detection = FakeRefuelDetectionStore(),
+        smartRefuel = smartRefuelAllowance(used = detectedFillsUsed, isPro = isPro),
         telemetry = telemetry(analytics),
     )
+
+    /** A [SmartRefuelAllowance] that stands still on one plan and one tally. */
+    private fun smartRefuelAllowance(used: Int, isPro: Boolean) = SmartRefuelAllowance {
+        flowOf(
+            SmartRefuelLimit(
+                used = used,
+                quota = PlanLimits.quota(if (isPro) Plan.PRO else Plan.FREE, ProFeature.SMART_REFUEL_DETECT),
+            ),
+        )
+    }
 
     private fun telemetry(analytics: RecordingAnalytics) = HomeTelemetry(
         logger = HLogger.asLogger(),

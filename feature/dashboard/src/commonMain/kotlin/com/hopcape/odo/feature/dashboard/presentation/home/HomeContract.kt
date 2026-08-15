@@ -75,6 +75,9 @@ internal sealed interface HomeEffect {
     /** Open the auto-detect opt-in, which explains what would be read before asking. */
     data object OpenAutoDetect : HomeEffect
 
+    /** Automatic logging was tapped by an owner who does not have it. */
+    data object OpenPaywall : HomeEffect
+
     /** Open the vault's add-document flow. */
     data object OpenAddDocument : HomeEffect
 

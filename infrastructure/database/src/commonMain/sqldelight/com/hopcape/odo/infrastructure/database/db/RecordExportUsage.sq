@@ -1,0 +1,46 @@
+-- How many record PDFs the owner has exported, per calendar month.
+--
+-- **Deliberately not a syncable table**, for the same reason as `scan_usage`: the PDF is
+-- rendered on the device and no server ever sees an export happen, so there is nothing for a
+-- row here to reconcile against. The mandatory sync column set (SYNC_DESIGN §4.1) is absent
+-- on purpose rather than by oversight.
+--
+-- What that costs, stated plainly: a reinstall clears the count. Accepted for the same reason
+-- the scan cap accepts it — the export costs nothing to run, so the cap is a commercial lever
+-- rather than a cost control, and counting it server-side would need an account the app does
+-- not require.
+--
+-- Keyed by month even though the cap in force is a **lifetime** one. An export is a rare act —
+-- an owner selling a car, or handing a record to a workshop — so a monthly allowance of three
+-- would never be reached and the cap would exist without ever binding. Storing the month
+-- anyway costs nothing and means switching to a monthly cap later is a different query rather
+-- than a migration.
+--
+-- month: `YYYY-MM` in the device's timezone, matching `scan_usage`.
+CREATE TABLE record_export_usage (
+    month        TEXT NOT NULL PRIMARY KEY,
+    export_count INTEGER NOT NULL
+);
+
+-- The lifetime tally — every month summed. `total` is nullable because SUM over no rows is
+-- NULL, which the caller reads as zero.
+countAllTime:
+SELECT sum(export_count) AS total
+FROM record_export_usage;
+
+countForMonth:
+SELECT export_count
+FROM record_export_usage
+WHERE month = :month;
+
+-- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO UPDATE` needs
+-- SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored once the month has a row, so on
+-- every later export the update is what counts.
+startMonth:
+INSERT OR IGNORE INTO record_export_usage (month, export_count)
+VALUES (:month, 0);
+
+incrementMonth:
+UPDATE record_export_usage
+SET export_count = export_count + 1
+WHERE month = :month;

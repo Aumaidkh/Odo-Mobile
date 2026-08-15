@@ -10,7 +10,7 @@ import com.hopcape.odo.feature.paywall.presentation.state.Loadable
  * and subtitle. [SAVINGS] uses [PaywallUiState.amountPaise]; [SCANS_EXHAUSTED] uses
  * [PaywallUiState.freeScans].
  */
-internal enum class PaywallTrigger { GENERIC, SCANS_EXHAUSTED, SAVINGS }
+internal enum class PaywallTrigger { GENERIC, SCANS_EXHAUSTED, SAVINGS, SMART_REFUEL }
 
 /**
  * One plan as the paywall draws it.

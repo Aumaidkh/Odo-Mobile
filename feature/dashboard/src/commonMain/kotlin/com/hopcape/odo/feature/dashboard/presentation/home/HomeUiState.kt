@@ -10,6 +10,7 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.dashboard.domain.model.SetupProgress
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
+import com.hopcape.odo.feature.dashboard.domain.model.TankStatus
 
 /**
  * Home render state.
@@ -34,6 +35,19 @@ internal data class HomeUiState(
      * they have it, it is an advert for something they already own.
      */
     val offerAutoDetect: Boolean = false,
+
+    /**
+     * Whether automatic logging is behind Pro for this owner.
+     *
+     * Shown rather than hidden when locked, and that is the point: the card is the only place
+     * automatic logging is discoverable, so hiding it from free owners would mean nobody ever
+     * learns the thing Pro sells. Locked, it carries a badge and opens the paywall; unlocked,
+     * it opens the explanation as before.
+     *
+     * "Log a fill" above it is untouched either way. Logging by hand stays free, so the
+     * dashboard always answers "can I record this fill?" with yes.
+     */
+    val autoDetectLocked: Boolean = false,
 )
 
 /** A loaded dashboard. */
@@ -61,6 +75,11 @@ internal data class HomeContent(
     val insight: CarInsight? = null,
     /** The newest event on the car's feed; `null` hides the recent section. */
     val recent: ActivityEvent? = null,
+    /**
+     * The fuel card's data: distance since the last fill, what that fill was, and how far
+     * this car usually goes between them.
+     */
+    val tank: TankStatus = TankStatus.Empty,
     val setup: SetupProgress = SetupProgress(
         carAdded = false,
         billScanned = false,
