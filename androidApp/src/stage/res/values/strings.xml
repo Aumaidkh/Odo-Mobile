@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launcher label for stage builds. The icon's ribbon already reads STAGE;
+         this repeats it where the text is legible at any icon size, and in the places
+         that show a name but no icon.
+
+         Stage is the build QA installs: production-shaped, not debuggable, but signed
+         with the debug key. It looks like release everywhere else, so the ribbon and
+         this label are the only things separating the two on a device that has both. -->
+    <string name="app_name">Odo Stage</string>
+</resources>
