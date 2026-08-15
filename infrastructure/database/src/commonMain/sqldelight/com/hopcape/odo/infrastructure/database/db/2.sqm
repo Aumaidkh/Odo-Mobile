@@ -1,0 +1,107 @@
+-- Schema 2 -> 3: everything smart refuel needs, as one migration.
+--
+-- Deliberately one file. Version 2 is what production is on, and the four separate steps this
+-- replaces were only ever separate because they were written on separate days — no shipped
+-- install has ever been on 3, 4 or 5, so there is no phone that needs them one at a time. One
+-- migration is one transaction and one thing to get right.
+--
+-- `fuel_fills` is rebuilt rather than altered. Two of the three changes it needs are
+-- impossible in place on SQLite 3.18 (minSdk 26): `ALTER TABLE` there does ADD COLUMN and
+-- RENAME TABLE and nothing else, so a NOT NULL cannot be relaxed and a column cannot be
+-- dropped. The rebuild does all three at once:
+--
+--   * `odometer_km` becomes nullable. The confirm step no longer demands it — a detected fill
+--     reaches the owner while they are still standing at the pump, where the dashboard reading
+--     is the one number out of reach, and refusing the whole row over that field lost the
+--     record to save part of it. `TankMileage` skips a fill without one instead of inventing a
+--     distance.
+--   * `entry_source` arrives, recording which channel produced the row: DETECTED, PUMP_OCR,
+--     PREFILLED or MANUAL. Rows that already exist have no channel to name, so the copy leaves
+--     the column to its default and they read as MANUAL.
+--   * `paid_via` goes. It was left behind by the removed scan-to-pay flow, and nothing has
+--     read or written it since.
+--
+-- The copy names its columns on both sides. `SELECT *` would have put the dropped `paid_via`
+-- into whichever slot happened to line up, which is how a migration turns a payment method
+-- into an odometer reading and nobody notices until the mileage is wrong.
+--
+-- Indexes are dropped with their table, so `idx_fuel_fills_car` is created again at the end.
+-- It is the same definition as in `FuelFill.sq`, and the two have to stay in step: a fresh
+-- install gets the `.sq`, an upgrade gets this, and a difference between them is a phone whose
+-- reads use a different plan from everybody else's.
+
+CREATE TABLE fuel_fills_new (
+    id              TEXT NOT NULL PRIMARY KEY,
+    car_id          TEXT NOT NULL,
+    owner_id        TEXT NOT NULL,
+    filled_on       TEXT NOT NULL,
+    odometer_km     INTEGER,
+    quantity_milli  INTEGER NOT NULL,
+    fuel_unit       TEXT NOT NULL,
+    amount_paise    INTEGER NOT NULL,
+    station_name    TEXT,
+    transaction_ref TEXT,
+    entry_source    TEXT NOT NULL DEFAULT 'MANUAL',
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    deleted_at      TEXT,
+    remote_version  TEXT,
+    sync_status     TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+INSERT INTO fuel_fills_new (
+    id, car_id, owner_id, filled_on, odometer_km, quantity_milli, fuel_unit, amount_paise,
+    station_name, transaction_ref, created_at, updated_at, deleted_at, remote_version,
+    sync_status
+)
+SELECT
+    id, car_id, owner_id, filled_on, odometer_km, quantity_milli, fuel_unit, amount_paise,
+    station_name, transaction_ref, created_at, updated_at, deleted_at, remote_version,
+    sync_status
+FROM fuel_fills;
+
+DROP TABLE fuel_fills;
+
+ALTER TABLE fuel_fills_new RENAME TO fuel_fills;
+
+CREATE INDEX idx_fuel_fills_car ON fuel_fills (car_id, filled_on) WHERE deleted_at IS NULL;
+
+-- Merchants the owner said were not fuel. Detection asks about a merchant once; being told
+-- "this wasn't fuel" is the only signal that ever makes the classifier better, so it is kept.
+CREATE TABLE ignored_merchants (
+    merchant_key TEXT NOT NULL PRIMARY KEY,
+    label        TEXT NOT NULL,
+    ignored_at   TEXT NOT NULL
+);
+
+-- Which payment apps the listener is allowed to look at. Device-local: it describes what is
+-- installed on this phone, which is not a fact about the owner's account.
+CREATE TABLE refuel_detection_apps (
+    package_name TEXT NOT NULL PRIMARY KEY,
+    enabled      INTEGER NOT NULL DEFAULT 1
+);
+
+-- One row, enforced by the CHECK. `autostart_ack` is the owner saying they have dealt with
+-- this phone's autostart switch, which is the only signal there is — no API reports it.
+CREATE TABLE refuel_detection_settings (
+    id                 INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    detect_enabled     INTEGER NOT NULL DEFAULT 0,
+    confirm_before_log INTEGER NOT NULL DEFAULT 1,
+    predict_odometer   INTEGER NOT NULL DEFAULT 1,
+    autostart_ack      INTEGER NOT NULL DEFAULT 0
+);
+
+-- A detection that has not been answered yet. Written the instant a fill is detected, because
+-- a notification the owner swipes away is gone for good — Android offers no way to read a
+-- dismissed one back. Resolved rather than deleted, so the same detection cannot be offered
+-- twice when the listener re-reads the shade.
+CREATE TABLE pending_fills (
+    id            TEXT NOT NULL PRIMARY KEY,
+    draft_payload TEXT NOT NULL,
+    merchant      TEXT,
+    amount_paise  INTEGER,
+    detected_at   TEXT NOT NULL,
+    resolved_at   TEXT
+);
+
+CREATE INDEX idx_pending_fills_open ON pending_fills (detected_at) WHERE resolved_at IS NULL;

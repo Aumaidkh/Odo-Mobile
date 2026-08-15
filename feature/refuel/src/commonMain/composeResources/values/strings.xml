@@ -1,0 +1,159 @@
+<resources>
+    <!-- Confirm surface -->
+    <string name="rf_confirm_title">Confirm this fill</string>
+    <string name="rf_confirm_cta">Confirm &amp; log</string>
+    <string name="rf_confirm_reject">This wasn’t fuel</string>
+    <string name="rf_amount_label">Amount</string>
+    <string name="rf_rate_unset_title">Set your fuel price first</string>
+    <string name="rf_rate_unset_body">Litres are worked out by dividing what you paid by your price per litre. Odo won’t guess that number — set it once and every fill fills itself in.</string>
+    <string name="rf_rate_unset_cta">Set fuel price</string>
+    <string name="rf_rate_info">Where does this come from?</string>
+    <string name="rf_rate_source">Your fuel price, from Cost tracker. Tap to change it.</string>
+    <string name="rf_odometer_optional">Optional</string>
+    <string name="rf_rate_label">Rate</string>
+    <string name="rf_quantity_label">Quantity</string>
+    <string name="rf_odometer_label">ODOMETER</string>
+    <string name="rf_odometer_predicted">PREDICTED — CHECK IT</string>
+    <string name="rf_odometer_hint">Roll the last digits to match your dashboard</string>
+    <string name="rf_odometer_title">Odometer</string>
+    <string name="rf_odometer_subtitle">What your dashboard reads right now</string>
+    <string name="rf_odometer_save">Done</string>
+    <string name="rf_km">km</string>
+    <string name="rf_mi">mi</string>
+
+    <!-- Where a number came from -->
+    <string name="rf_origin_payment">FROM PAYMENT</string>
+    <string name="rf_origin_ocr">OCR</string>
+    <string name="rf_origin_history">FROM HISTORY</string>
+    <string name="rf_origin_predicted">PREDICTED</string>
+    <string name="rf_origin_derived">CALCULATED</string>
+
+    <!-- Capture channel badges -->
+    <string name="rf_source_detected">DETECTED</string>
+    <string name="rf_source_pump">SCANNED</string>
+    <string name="rf_source_prefilled">PREFILLED</string>
+    <string name="rf_source_payment">PAID IN ODO</string>
+    <string name="rf_source_manual">TYPED</string>
+
+    <!-- Units -->
+    <string name="rf_unit_litre">L</string>
+    <string name="rf_unit_kg">kg</string>
+    <string name="rf_unit_kwh">kWh</string>
+
+    <!-- Small-amount question -->
+    <string name="rf_small_title">Was this a fuel fill?</string>
+    <string name="rf_small_body">You paid %1$s at %2$s. That’s small for a tank — it might be a shop purchase.</string>
+    <string name="rf_small_usual">Your usual fill</string>
+
+    <!-- Log a fill -->
+    <string name="rf_log_title">Log a fill</string>
+    <string name="rf_log_prefill_note">Filled in from your last visit. Change what’s different.</string>
+    <string name="rf_log_station">Station</string>
+    <string name="rf_log_station_last">last used</string>
+    <string name="rf_log_rate_carried">carried forward</string>
+    <string name="rf_log_odometer_predicted">predicted</string>
+    <string name="rf_log_amount_label">AMOUNT — THE ONLY THING TO TYPE</string>
+    <string name="rf_log_quantity_calculated">%1$s calculated</string>
+    <string name="rf_log_full_tank">Full tank</string>
+    <string name="rf_log_scan_pump">Scan pump</string>
+    <string name="rf_log_cta">Done</string>
+    <string name="rf_log_no_station">Not set</string>
+
+    <!-- Logged -->
+    <string name="rf_logged_title">Logged</string>
+    <string name="rf_logged_title_one_tap">Logged in one tap</string>
+    <string name="rf_logged_body">%1$s at %2$s.</string>
+    <string name="rf_logged_body_no_station">%1$s logged.</string>
+    <string name="rf_logged_fuel_added">Fuel added</string>
+    <string name="rf_logged_odometer">Odometer</string>
+    <string name="rf_logged_source">Source</string>
+    <string name="rf_logged_done">Done</string>
+    <string name="rf_logged_view_timeline">View in Timeline</string>
+    <string name="rf_logged_rate_line">%1$s · %2$s</string>
+
+    <!-- Tank mileage insight -->
+    <string name="rf_insight_mileage">%1$s this tank</string>
+    <string name="rf_insight_better">A little better than your average</string>
+    <string name="rf_insight_typical">About the same as your average</string>
+    <string name="rf_insight_worse">Down slightly on your average</string>
+    <string name="rf_insight_first">Your first measured tank</string>
+
+    <!-- Auto-detect opt-in -->
+    <string name="rf_autodetect_title">Auto-detect</string>
+    <string name="rf_optin_title">Log a fill without touching the app</string>
+    <string name="rf_optin_body">When you pay at a pump, Odo can read that one payment notification and draft the entry for you.</string>
+    <string name="rf_optin_reads_amount">Reads only the amount and merchant name</string>
+    <string name="rf_optin_reads_fuel_only">Only when the merchant is a fuel station</string>
+    <string name="rf_optin_never_others">Never your other notifications</string>
+    <string name="rf_optin_never_payment">Never sits inside your payment</string>
+    <string name="rf_optin_on_device">Runs on your phone. Nothing about your payments leaves the device.</string>
+    <string name="rf_optin_cta">Turn on auto-detect</string>
+    <string name="rf_optin_continue">See what it needs</string>
+    <string name="rf_setup_heading">Two permissions, one at a time</string>
+    <string name="rf_autostart_heading">One setting Odo can’t ask for</string>
+    <string name="rf_autostart_intro">The permissions are done. This last one is your phone’s own, and only you can turn it on.</string>
+    <string name="rf_autostart_skip">Skip for now</string>
+    <string name="rf_setup_intro">Both are Android switches. Odo asks for them separately because they do different things, and the second one is the one that matters.</string>
+    <string name="rf_optin_cta_notify">Allow notifications</string>
+    <string name="rf_optin_cta_notify_blocked">Open app settings</string>
+    <string name="rf_optin_cta_access">Open notification access</string>
+
+    <!-- Forewarning for the OEM permission screen. -->
+    <string name="rf_warning_title">The next screen is your phone’s, and it looks alarming</string>
+    <string name="rf_warning_body">Android has one switch for notification access, so the warning it shows lists everything any app could do with it — not what Odo does. Some phones put a red danger sign on it. It is the same switch either way.</string>
+    <string name="rf_warning_sms">It may say “Read all SMS”. Odo does not ask for the SMS permission at all, so it cannot read a single message — check the app’s permissions yourself and you will not find it.</string>
+    <string name="rf_warning_scope">What Odo reads is one line from one notification, and only when the sender is a payment app and the merchant is a fuel station.</string>
+    <string name="rf_warning_how">On that screen: turn Odo on, tick the box at the bottom if there is one, then confirm.</string>
+
+    <!-- The two-permission setup chain. -->
+    <string name="rf_setup_label">What Odo needs</string>
+    <string name="rf_setup_state_done">Done</string>
+    <string name="rf_setup_state_pending">Not yet</string>
+    <string name="rf_setup_notify_title">1. Let Odo notify you</string>
+    <string name="rf_setup_notify_body">Odo hands you the fill as a notification you confirm in one tap. Without this a detected fill has nowhere to appear.</string>
+    <string name="rf_setup_notify_blocked">Notifications are switched off for Odo. Turn them back on in app settings.</string>
+    <string name="rf_setup_read_title">2. Let Odo read payment notifications</string>
+    <string name="rf_setup_read_body">Step 1 only lets Odo show you notifications. Reading the one your payment app posts is a separate Android switch, and detection cannot work without it. The system will warn that Odo can read every notification — what it actually reads is the list above.</string>
+    <string name="rf_optin_not_now">Not now</string>
+
+    <!-- Auto-detect settings -->
+    <string name="rf_settings_master">Detect fuel payments</string>
+    <string name="rf_settings_master_sub">Reads fuel-merchant notifications only</string>
+    <string name="rf_settings_apps">APPS IT LISTENS TO</string>
+    <string name="rf_settings_behaviour">HOW IT BEHAVES</string>
+    <string name="rf_settings_confirm">Confirm before logging</string>
+    <string name="rf_settings_confirm_sub">Off means it logs silently</string>
+    <string name="rf_settings_predict">Predict odometer</string>
+    <string name="rf_settings_detected_count">Detected fills</string>
+    <string name="rf_settings_detected_value">%1$d so far</string>
+    <string name="rf_settings_keeps_fills">Turning this off never deletes fills you’ve already logged.</string>
+    <string name="rf_settings_ignored">MERCHANTS YOU SAID WEREN’T FUEL</string>
+    <string name="rf_settings_ignored_undo">Ask again</string>
+    <string name="rf_settings_notify_missing">Odo cannot show you a detected fill, so nothing will reach you.</string>
+    <string name="rf_settings_permission_missing">Odo cannot read payment notifications yet, so nothing is being detected.</string>
+    <string name="rf_settings_permission_open">Open notification access</string>
+
+    <!-- Detection notification -->
+    <string name="rf_notification_title">Fuel fill detected</string>
+    <string name="rf_notification_body">%1$s at %2$s</string>
+    <string name="rf_notification_confirm">Confirm</string>
+    <string name="rf_notification_edit">Edit</string>
+
+    <!-- Errors -->
+    <string name="rf_error_save">That fill couldn’t be saved. Try again.</string>
+    <string name="rf_error_no_car">Add a car before logging a fill.</string>
+
+    <!-- Fills detected while the owner was away, still unanswered -->
+    <string name="rf_pending_title_one">One fill you haven’t confirmed</string>
+    <string name="rf_pending_title">%1$d fills you haven’t confirmed</string>
+    <string name="rf_pending_body">Odo spotted these payments at fuel stations. Nothing is saved until you say so.</string>
+    <string name="rf_pending_review">Review</string>
+    <string name="rf_pending_not_fuel">Not fuel</string>
+    <string name="rf_pending_later">Later</string>
+
+    <!-- Manufacturer autostart guidance -->
+    <string name="rf_autostart_title">Autostart, on this phone</string>
+    <string name="rf_autostart_body">This phone stops apps starting on their own, and Android offers no way to ask. The button opens this phone’s own Autostart page: turn Autostart on for Odo, and set its battery usage to no restrictions. Until then, fills stop being detected as soon as you close the app.</string>
+    <string name="rf_autostart_action">Open Autostart settings</string>
+    <string name="rf_autostart_done">I’ve done this</string>
+</resources>

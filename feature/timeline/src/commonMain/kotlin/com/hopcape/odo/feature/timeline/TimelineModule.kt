@@ -24,7 +24,13 @@ val timelineModule = module {
     } bind FeatureEntryProvider::class
 
     factory {
-        ObserveTimelineUseCase(cars = get(), logs = get(), documents = get(), scores = get())
+        ObserveTimelineUseCase(
+            cars = get(),
+            logs = get(),
+            documents = get(),
+            scores = get(),
+            fills = get(),
+        )
     }
 
     // A `single`: the tab and its sheet are two destinations looking at one choice, so they

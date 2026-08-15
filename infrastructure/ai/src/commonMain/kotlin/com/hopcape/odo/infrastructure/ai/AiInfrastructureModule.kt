@@ -2,9 +2,11 @@ package com.hopcape.odo.infrastructure.ai
 
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
+import com.hopcape.odo.core.domain.scan.PumpReadingExtractor
 import com.hopcape.odo.infrastructure.ai.observability.AiTelemetry
 import com.hopcape.odo.infrastructure.ai.parsing.BillTextParser
 import com.hopcape.odo.infrastructure.ai.parsing.DocumentTextParser
+import com.hopcape.odo.infrastructure.ai.parsing.PumpTextParser
 import org.koin.dsl.module
 
 /**
@@ -28,9 +30,11 @@ val aiInfrastructureModule = module {
     // of the on-device path.
     single { BillTextParser() }
     single { DocumentTextParser() }
+    single { PumpTextParser() }
 
     // Platform-decided: ML Kit on Android, unavailable on iOS until a reader exists.
     // See BillExtractorBinding.kt and DocumentExtractorBinding.kt.
     single<BillExtractor> { platformBillExtractor() }
     single<DocumentExtractor> { platformDocumentExtractor() }
+    single<PumpReadingExtractor> { platformPumpReadingExtractor() }
 }

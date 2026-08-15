@@ -1,0 +1,117 @@
+-- Everything the payment-notification listener needs to decide what to do, all of it
+-- device-local.
+--
+-- **Deliberately not syncable tables.** None of these mirror anything on the server, and
+-- none should. Notification access is granted to one phone; the packages it may read are
+-- that phone's installed apps; a merchant the owner rejected was rejected against what that
+-- phone saw. The mandatory sync column set (SYNC_DESIGN §4.1) is absent on purpose, the same
+-- way it is absent from `app_settings`.
+--
+-- The one thing here that *does* follow the owner is the fill itself, and that is a row in
+-- `fuel_fills`, which carries the full sync column set already.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Merchants the owner said were not fuel.
+--
+-- `merchant_key` is the normalised name the classifier matches on (lowercase, punctuation
+-- stripped), so "HP Retail, Karol Bagh" and "HP RETAIL KAROL BAGH" are one entry rather than
+-- two. `label` keeps the name as it was actually seen, because that is what a settings
+-- screen has to show back.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE ignored_merchants (
+    merchant_key TEXT NOT NULL PRIMARY KEY,
+    label        TEXT NOT NULL,
+    ignored_at   TEXT NOT NULL
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Which payment apps the listener may read.
+--
+-- A table rather than a joined column on `app_settings`: it is a list, the owner toggles
+-- entries individually, and a comma-joined string is a table waiting to be normalised. A
+-- package absent from here has never been offered to the owner, which is different from one
+-- present and disabled.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE refuel_detection_apps (
+    package_name TEXT NOT NULL PRIMARY KEY,
+    enabled      INTEGER NOT NULL DEFAULT 1
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- The auto-detect screen's three switches. One row, pinned to id 1, like `app_settings`.
+--
+-- detect_enabled defaults to 0: detection is off until the owner turns it on and grants
+-- notification access. A default of 1 would claim consent the system has not been asked for.
+--
+-- confirm_before_log defaults to 1. Silent logging is offered, but a first-run default that
+-- writes records without showing them is not something an owner opted into.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE refuel_detection_settings (
+    id                 INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    detect_enabled     INTEGER NOT NULL DEFAULT 0,
+    confirm_before_log INTEGER NOT NULL DEFAULT 1,
+    predict_odometer   INTEGER NOT NULL DEFAULT 1,
+    -- The owner's word that they have dealt with this phone's autostart switch. Nothing can
+    -- read that setting, so the only alternative to asking them is showing the advice forever.
+    autostart_ack      INTEGER NOT NULL DEFAULT 0
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Ignored merchants
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectIgnoredMerchants:
+SELECT * FROM ignored_merchants ORDER BY ignored_at DESC;
+
+ignoreMerchant:
+INSERT OR REPLACE INTO ignored_merchants (merchant_key, label, ignored_at)
+VALUES (:merchantKey, :label, :ignoredAt);
+
+unignoreMerchant:
+DELETE FROM ignored_merchants WHERE merchant_key = :merchantKey;
+
+deleteAllIgnoredMerchants:
+DELETE FROM ignored_merchants;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Listener packages
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectDetectionApps:
+SELECT * FROM refuel_detection_apps ORDER BY package_name;
+
+-- Two statements rather than an UPSERT: minSdk 26 ships SQLite 3.18, which has none. The
+-- caller runs both inside one transaction, so a row is either inserted or updated, never
+-- both and never neither.
+insertDetectionAppIfAbsent:
+INSERT OR IGNORE INTO refuel_detection_apps (package_name, enabled)
+VALUES (:packageName, :enabled);
+
+updateDetectionApp:
+UPDATE refuel_detection_apps SET enabled = :enabled WHERE package_name = :packageName;
+
+deleteAllDetectionApps:
+DELETE FROM refuel_detection_apps;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Detection settings
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectDetectionSettings:
+SELECT * FROM refuel_detection_settings WHERE id = 1;
+
+insertDetectionSettingsIfAbsent:
+INSERT OR IGNORE INTO refuel_detection_settings (
+    id, detect_enabled, confirm_before_log, predict_odometer, autostart_ack
+) VALUES (1, :detectEnabled, :confirmBeforeLog, :predictOdometer, :autostartAck);
+
+updateDetectionSettings:
+UPDATE refuel_detection_settings
+SET detect_enabled     = :detectEnabled,
+    confirm_before_log = :confirmBeforeLog,
+    predict_odometer   = :predictOdometer,
+    autostart_ack      = :autostartAck
+WHERE id = 1;
+
+deleteDetectionSettings:
+DELETE FROM refuel_detection_settings;

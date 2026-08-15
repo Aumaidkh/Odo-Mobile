@@ -1,7 +1,6 @@
 package com.hopcape.odo.feature.billscanner.presentation.scan
 
 import androidx.compose.runtime.Immutable
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
@@ -12,22 +11,11 @@ import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 /**
  * The modes the scanner offers, in chip order.
  *
- * **The one choke point for `FeatureFlags.PAY_VIA_QR_ENABLED`.** Two things read it — the mode
- * chips, and the ViewModel clamping whatever initial target it was handed — and between them
- * that is every way `ScanTarget.PaymentQr` could become the live target. Nothing downstream
- * needs its own guard: the frame analyser, the gallery decode and the navigation to
- * `PayAtPump` are all already conditioned on the target, so a mode that cannot be selected is
- * a feature that cannot run.
- *
- * A list rather than a filter at each call site, so the two can never disagree about what is
- * on offer.
+ * A list rather than `ScanTarget.entries` at each call site, so the mode chips and the
+ * ViewModel's clamp of whatever initial target it was handed can never disagree about what is
+ * on offer. Between them those two are every way a target becomes the live one.
  */
-internal val scanTargets: List<ScanTarget> =
-    if (FeatureFlags.PAY_VIA_QR_ENABLED) {
-        ScanTarget.entries
-    } else {
-        ScanTarget.entries.filterNot { it == ScanTarget.PaymentQr }
-    }
+internal val scanTargets: List<ScanTarget> = ScanTarget.entries
 
 /**
  * Display state for the scan screen.
@@ -72,18 +60,27 @@ internal data class BillScanUiState(
      */
     val showRationale: Boolean get() = !cameraGranted
 
-    /** What the live frames are analysed for: the payment mode reads QRs, paper modes find edges. */
+    /**
+     * What the live frames are analysed for.
+     *
+     * The paper modes look for an outline. A pump display has none: it is a lit panel on a
+     * machine, so edge detection finds the housing rather than the numbers, and cropping to
+     * that outline would throw away the digits.
+     */
     val frameAnalysis: CameraFrameAnalysis
-        get() = if (target == ScanTarget.PaymentQr) CameraFrameAnalysis.Qr else CameraFrameAnalysis.DocumentEdges
+        get() = when (target) {
+            ScanTarget.PumpDisplay -> CameraFrameAnalysis.None
+            else -> CameraFrameAnalysis.DocumentEdges
+        }
 
     /**
      * Whether the quota pill has anything true to say.
      *
-     * Off on an unlimited plan — there is no count to show — and off in the payment mode,
-     * which spends no scan.
+     * Off on an unlimited plan — there is no count to show — and off when reading a pump
+     * display, which is how a fill gets recorded at all rather than a premium extra.
      */
     val showQuota: Boolean
-        get() = freeTotal > 0 && target != ScanTarget.PaymentQr
+        get() = freeTotal > 0 && target != ScanTarget.PumpDisplay
 }
 
 /** Sample state for previews. */

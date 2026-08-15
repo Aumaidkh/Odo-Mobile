@@ -4,6 +4,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanLimit
 import com.hopcape.odo.core.navigation.ScanTarget
+import com.hopcape.odo.feature.billscanner.domain.usecase.ScanPumpDisplayUseCase
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTelemetry
 import com.hopcape.odo.feature.billscanner.presentation.RecordingAnalytics
@@ -22,6 +23,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * What the camera permission decides, which on this screen is everything.
@@ -48,7 +51,13 @@ class BillScanViewModelTest {
         allowance = ScanAllowance { ScanLimit.UpTo(max = 3, used = 1) },
         cropper = { _, _ -> error("no test here captures a photo") },
         files = UnusedFileStore,
-        qrDecoder = { error("no test here decodes a code") },
+        scanPumpDisplay = ScanPumpDisplayUseCase(
+            extractor = { error("no test here reads a pump") },
+            ids = IdGenerator { "scan-1" },
+            clock = object : Clock {
+                override fun now(): Instant = Instant.fromEpochMilliseconds(0)
+            },
+        ),
         ids = IdGenerator { "scan-1" },
         telemetry = testTelemetry(analytics),
     )

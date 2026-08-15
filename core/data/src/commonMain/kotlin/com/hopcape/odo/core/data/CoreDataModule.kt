@@ -19,6 +19,8 @@ import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
+import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
+import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
 import com.hopcape.odo.core.data.document.FakeDocumentRemoteDataSource
@@ -190,6 +192,7 @@ val coreDataModule = module {
     // earlier ones, so with no credentials the fakes simply stand.
     single<ServiceLogRemoteDataSource> { FakeServiceLogRemoteDataSource() }
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
+    single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }

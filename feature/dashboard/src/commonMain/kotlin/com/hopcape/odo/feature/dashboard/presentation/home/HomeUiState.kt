@@ -22,6 +22,18 @@ import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 @Immutable
 internal data class HomeUiState(
     val content: Loadable<HomeContent> = Loadable.Loading,
+    /**
+     * Whether to offer automatic fuel logging.
+     *
+     * Kept beside [content] rather than inside it: it comes from a device-local setting that
+     * has nothing to do with the car, and folding it into the snapshot would put it behind the
+     * same failed read that hides the dashboard.
+     *
+     * True only while the feature is available and the owner has not already turned it on.
+     * Buried three screens deep in settings, it is a feature nobody discovers; shown after
+     * they have it, it is an advert for something they already own.
+     */
+    val offerAutoDetect: Boolean = false,
 )
 
 /** A loaded dashboard. */

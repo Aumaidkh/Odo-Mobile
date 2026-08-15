@@ -3,6 +3,7 @@ package com.hopcape.odo.infrastructure.supabase
 import arrow.core.right
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
+import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
@@ -17,6 +18,7 @@ import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseOverchargeRemoteDataSource
@@ -53,6 +55,7 @@ class SupabaseModuleTest {
 
         assertIs<SupabaseServiceLogRemoteDataSource>(koin.get<ServiceLogRemoteDataSource>())
         assertIs<SupabaseDocumentRemoteDataSource>(koin.get<DocumentRemoteDataSource>())
+        assertIs<SupabaseFuelFillRemoteDataSource>(koin.get<FuelFillRemoteDataSource>())
         assertIs<SupabaseFairnessRemoteDataSource>(koin.get<FairnessRemoteDataSource>())
         assertIs<SupabaseOverchargeRemoteDataSource>(koin.get<OverchargeRemoteDataSource>())
         assertIs<SupabaseRemoteFileStorage>(koin.get<RemoteFileStorage>())
@@ -66,6 +69,7 @@ class SupabaseModuleTest {
         // `initKoin` — is the one that survives. An override that never happens is the point.
         assertNull(koin.getOrNull<ServiceLogRemoteDataSource>())
         assertNull(koin.getOrNull<DocumentRemoteDataSource>())
+        assertNull(koin.getOrNull<FuelFillRemoteDataSource>())
         assertNull(koin.getOrNull<FairnessRemoteDataSource>())
         assertNull(koin.getOrNull<OverchargeRemoteDataSource>())
         assertNull(koin.getOrNull<RemoteFileStorage>())

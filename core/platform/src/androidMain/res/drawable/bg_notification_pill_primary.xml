@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The filled pill behind "Confirm".
+
+    The design system's filled-button treatment: a solid block of the text colour, with the
+    background colour as its label. On the dark shade Odo is designed for that is a white pill
+    with black text; `values-night` and `values` carry the two halves, because a notification
+    follows the phone's dark-mode setting rather than the app's theme and a white pill on a
+    white shade is a pill nobody can see.
+
+    The radius is deliberately larger than the pill can ever be tall, which is how a rounded
+    rectangle becomes a pill at any height the OEM's font scale produces.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/refuel_notification_cta_fill" />
+    <corners android:radius="999dp" />
+</shape>

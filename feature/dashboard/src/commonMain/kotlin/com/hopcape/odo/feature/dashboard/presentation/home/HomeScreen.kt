@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
@@ -41,6 +42,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
+import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
@@ -59,9 +61,12 @@ import com.hopcape.odo.core.domain.shared.formatRupeesDecimal
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 import com.hopcape.odo.feature.dashboard.resources.Res
 import com.hopcape.odo.feature.dashboard.resources.db_score_none
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
+import com.hopcape.odo.feature.dashboard.resources.hm_log_fill
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_bell
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_profile
 import com.hopcape.odo.feature.dashboard.resources.hm_get_set_up
@@ -142,19 +147,23 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, onEvent)
             }
         }
     }
 }
 
 @Composable
-private fun HomeBody(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
+private fun HomeBody(
+    content: HomeContent,
+    offerAutoDetect: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+) {
     HomeHeader(content, onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, onEvent)
     }
 }
 
@@ -255,12 +264,88 @@ private fun CircleButton(
 // --- Scored ---------------------------------------------------------------------
 
 @Composable
-private fun ScoredContent(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
+private fun ScoredContent(
+    content: HomeContent,
+    offerAutoDetect: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+) {
     HealthCard(content, onEvent)
+    LogFillAction(onEvent)
+    if (offerAutoDetect) AutoDetectOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
+}
+
+/**
+ * "Log a fill" — the shortcut the whole smart-refuel feature hangs off.
+ *
+ * High on the screen rather than buried in the garage, because the owner opening Odo right
+ * after paying at a pump is the single most common reason this screen is looked at, and every
+ * tap between here and the amount field is one that gets a fill left unlogged.
+ */
+/**
+ * The only place automatic fuel logging is discoverable.
+ *
+ * Without it the feature lives three screens down — Profile, Notifications, Auto-detect — and
+ * nobody looking for "log my fuel automatically" would think to look under notifications.
+ *
+ * It opens the explanation, never the permission. What the owner meets first is what would be
+ * read and what would not, and the system's own prompt only after they have chosen to go on;
+ * a card that asked for notification access on tap would be asking before it explained.
+ *
+ * Gone the moment detection is on, so it is an offer rather than an advert.
+ */
+@Composable
+private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_DETECT_OFFER),
+        onClick = { onEvent(HomeEvent.AutoDetectTapped) },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoIcon(
+                IcFuelPump,
+                contentDescription = null,
+                tint = OdoTheme.colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
+                OdoText(
+                    stringResource(Res.string.hm_auto_detect_title),
+                    style = OdoTheme.typography.label,
+                )
+                OdoText(
+                    stringResource(Res.string.hm_auto_detect_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LogFillAction(onEvent: (HomeEvent) -> Unit) {
+    OdoButton(
+        text = stringResource(Res.string.hm_log_fill),
+        onClick = { onEvent(HomeEvent.LogFillTapped) },
+        variant = OdoButtonVariant.Secondary,
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.LOG_FILL_BUTTON),
+    )
 }
 
 @Composable
@@ -494,6 +579,7 @@ private fun recentIcon(event: ActivityEvent): ImageVector = when (event) {
     is ActivityEvent.Service -> IcJournal
     is ActivityEvent.DocumentFiled -> IcFileFilled
     is ActivityEvent.ScoreChanged -> IcTagFilled
+    is ActivityEvent.FuelFilled -> IcFuelPump
     is ActivityEvent.CarAdded -> IcCar
 }
 

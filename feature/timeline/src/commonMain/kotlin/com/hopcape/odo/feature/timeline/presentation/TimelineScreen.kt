@@ -39,6 +39,7 @@ import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCar
+import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcFilter
@@ -82,6 +83,7 @@ import com.hopcape.odo.feature.timeline.resources.tl_subtitle_filtered
 import com.hopcape.odo.feature.timeline.resources.tl_subtitle_new
 import com.hopcape.odo.feature.timeline.resources.tl_title
 import com.hopcape.odo.feature.timeline.ui.documentText
+import com.hopcape.odo.feature.timeline.ui.fuelText
 import com.hopcape.odo.feature.timeline.ui.workDoneText
 import org.jetbrains.compose.resources.stringResource
 
@@ -237,6 +239,7 @@ private val ActivityEvent.rowKey: String
     get() = when (this) {
         is ActivityEvent.Service -> "service-${id.value}"
         is ActivityEvent.DocumentFiled -> "doc-${id.value}"
+        is ActivityEvent.FuelFilled -> "fuel-${id.value}"
         is ActivityEvent.ScoreChanged -> "score-$date"
         is ActivityEvent.CarAdded -> "car-$date"
     }
@@ -265,6 +268,14 @@ private fun TimelineRow(event: ActivityEvent, onEvent: (TimelineEvent) -> Unit) 
                     text = documentText(event),
                     date = formatDayMonth(event.date),
                     modifier = Modifier.testTag(TimelineTestTags.documentRow(event.document.name)),
+                )
+
+                // A one-liner rather than a card. A fill is the most frequent thing on the
+                // feed, and giving each one a card would bury the services between them.
+                is ActivityEvent.FuelFilled -> NoteRow(
+                    text = fuelText(event),
+                    date = formatDayMonth(event.date),
+                    modifier = Modifier.testTag(TimelineTestTags.FUEL_ROW),
                 )
 
                 is ActivityEvent.ScoreChanged -> NoteRow(
@@ -470,6 +481,7 @@ private fun nodeInfo(event: ActivityEvent): Pair<ImageVector, Color> {
             ServiceTrust.SelfReported -> c.textMuted
         }
         is ActivityEvent.DocumentFiled -> IcShieldFilled to c.success
+        is ActivityEvent.FuelFilled -> IcFuelPump to c.textDim
         is ActivityEvent.ScoreChanged -> IcLightningFilled to c.accent
         is ActivityEvent.CarAdded -> IcCar to c.accent
     }

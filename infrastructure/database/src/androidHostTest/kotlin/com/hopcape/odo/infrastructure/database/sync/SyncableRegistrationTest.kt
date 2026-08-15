@@ -60,6 +60,7 @@ class SyncableRegistrationTest {
                 SyncEntity.PROFILES,
                 SyncEntity.CARS,
                 SyncEntity.TRIPS,
+                SyncEntity.FUEL_FILLS,
                 SyncEntity.SERVICE_LOGS,
                 SyncEntity.OVERCHARGE_REPORTS,
                 SyncEntity.DOCUMENTS,

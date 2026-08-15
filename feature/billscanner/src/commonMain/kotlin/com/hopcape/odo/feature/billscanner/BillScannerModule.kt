@@ -3,16 +3,15 @@ package com.hopcape.odo.feature.billscanner
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ScanTarget
-import com.hopcape.odo.feature.billscanner.domain.usecase.LogFuelFillUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedBillUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.CaptureOrigin
 import com.hopcape.odo.feature.billscanner.domain.usecase.SaveScannedDocumentUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.ScanBillUseCase
+import com.hopcape.odo.feature.billscanner.domain.usecase.ScanPumpDisplayUseCase
 import com.hopcape.odo.feature.billscanner.domain.usecase.ScanDocumentUseCase
 import com.hopcape.odo.feature.billscanner.navigation.BillScannerFeatureEntryProvider
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTelemetry
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewViewModel
-import com.hopcape.odo.feature.billscanner.presentation.pay.PayAtPumpViewModel
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewViewModel
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanViewModel
 import org.koin.core.module.dsl.viewModel
@@ -38,6 +37,9 @@ val billScannerModule = module {
     } bind FeatureEntryProvider::class
 
     factory { ScanBillUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
+    // No allowance and no usage: reading a pump is how a fill gets logged at all, so it is
+    // not metered the way a workshop bill is.
+    factory { ScanPumpDisplayUseCase(extractor = get(), ids = get(), clock = get()) }
     factory { ScanDocumentUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
     factory { SaveScannedBillUseCase(logs = get(), ids = get(), clock = get()) }
     factory {
@@ -49,7 +51,6 @@ val billScannerModule = module {
             clock = get(),
         )
     }
-    factory { LogFuelFillUseCase(fills = get(), ids = get(), clock = get()) }
 
     // A `factory`, not a `single`: one instance covers one visit to the scanner, and every
     // screen of that visit shares its flow id.
@@ -60,10 +61,10 @@ val billScannerModule = module {
             initialTarget = params.getOrNull<ScanTarget>() ?: ScanTarget.Bill,
             allowance = get(),
             cropper = get(),
-            // A picture from the gallery is copied into app storage and, in the payment
-            // mode, read for a code — neither of which the camera path needs.
+            // A picture from the gallery is copied into app storage, which the camera path
+            // does not need.
             files = get(),
-            qrDecoder = get(),
+            scanPumpDisplay = get(),
             ids = get(),
             telemetry = get(),
         )
@@ -91,16 +92,6 @@ val billScannerModule = module {
             origin = params.getOrNull<CaptureOrigin>() ?: CaptureOrigin.Scanned,
             scanDocument = get(),
             saveDocument = get(),
-            activeCar = get(),
-            currentOwner = get(),
-            telemetry = get(),
-        )
-    }
-    viewModel { params ->
-        PayAtPumpViewModel(
-            payload = params.get<String>(),
-            logFill = get(),
-            cars = get(),
             activeCar = get(),
             currentOwner = get(),
             telemetry = get(),

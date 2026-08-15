@@ -15,8 +15,6 @@
     <string name="bs_camera_bills_body">Read the amounts and check them against real city prices.</string>
     <string name="bs_camera_papers_title">Insurance, PUC &amp; RC</string>
     <string name="bs_camera_papers_body">Pull the expiry date so renewals never catch you out.</string>
-    <string name="bs_camera_qr_title">Fuel pump QR</string>
-    <string name="bs_camera_qr_body">Pay by UPI and log the fill in one step.</string>
     <string name="bs_camera_no_background">No photos or video in the background</string>
     <string name="bs_camera_no_library">No access to your photo library</string>
     <string name="bs_camera_only_on_scan">Only when you tap Scan</string>
@@ -31,12 +29,14 @@
     <!-- Scan modes -->
     <string name="bs_mode_bill">Bill</string>
     <string name="bs_mode_document">Document</string>
-    <string name="bs_mode_qr">Pay QR</string>
+    <string name="bs_mode_pump">Pump</string>
     <string name="bs_scan_align_document">Fit the whole paper inside the frame</string>
-    <string name="bs_scan_align_qr">Point at the payment QR</string>
+    <string name="bs_scan_align_pump">Hold steady on the pump’s display</string>
     <string name="bs_scan_title_document">Scan document</string>
-    <string name="bs_scan_title_qr">Scan to pay</string>
+    <string name="bs_scan_title_pump">Scan the pump display</string>
     <string name="bs_scan_reading">Reading…</string>
+    <string name="bs_pump_manual">Enter the numbers myself</string>
+    <string name="bs_pump_unreadable">Those numbers didn’t read. Try again, or enter them yourself.</string>
 
     <!-- Failure messages, shared across the scanner's screens -->
     <string name="bs_error_generic">Something went wrong. Try again.</string>
@@ -44,15 +44,8 @@
     <string name="bs_error_scan_unavailable">Scanning isn’t available right now. Enter the details yourself instead.</string>
     <string name="bs_error_quota">You’ve used all %1$d free scans this month. Go Pro for unlimited.</string>
     <string name="bs_error_save_failed">That didn’t save. Try again.</string>
-    <string name="bs_error_unsupported_qr">That isn’t a UPI payment code.</string>
-    <string name="bs_error_upi_no_app">No UPI app on this phone. Install one to pay from Odo.</string>
-    <string name="bs_error_upi_unsupported">Paying from Odo isn’t supported on this device. Use the address below in your UPI app.</string>
-    <string name="bs_error_payment_cancelled">Payment cancelled. Nothing was charged.</string>
-    <string name="bs_error_payment_failed">The payment didn’t go through.</string>
-    <string name="bs_error_payment_pending">Your bank hasn’t confirmed yet. Check your UPI app, then log the fill from Costs.</string>
     <string name="bs_error_no_car">Add a car before scanning.</string>
-    <string name="bs_error_gallery_unreadable">Couldn\'t open that picture. Try another one.</string>
-    <string name="bs_error_gallery_no_qr">No payment code in that picture. Try another one.</string>
+    <string name="bs_error_gallery_unreadable">Couldn’t open that picture. Try another one.</string>
 
     <!-- Document review screen -->
     <string name="bs_doc_title">Check the document</string>
@@ -64,17 +57,6 @@
     <string name="bs_doc_save">Save to vault</string>
     <string name="bs_doc_not_set">Not set</string>
 
-    <!-- Pay at pump -->
-    <string name="bs_pay_title">Pay at the pump</string>
-    <string name="bs_pay_amount">Amount</string>
-    <string name="bs_pay_action">Pay with UPI</string>
-    <string name="bs_pay_vpa_label">UPI address</string>
-    <string name="bs_fill_title">Log this fill</string>
-    <string name="bs_fill_body">Two readings and Odo works out your real mileage.</string>
-    <string name="bs_fill_odometer">Odometer now</string>
-    <string name="bs_fill_quantity">Litres filled</string>
-    <string name="bs_fill_station">Petrol pump (optional)</string>
-    <string name="bs_fill_save">Save fill</string>
 
     <!-- Review details screen -->
     <string name="bs_review_title">Review details</string>

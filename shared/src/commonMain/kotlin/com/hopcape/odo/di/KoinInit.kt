@@ -26,6 +26,8 @@ import com.hopcape.odo.feature.garage.garageModule
 import com.hopcape.odo.feature.healthscore.healthScoreModule
 import com.hopcape.odo.feature.paywall.paywallModule
 import com.hopcape.odo.feature.profile.profileModule
+import com.hopcape.odo.feature.refuel.domain.RefuelDetectionWorker
+import com.hopcape.odo.feature.refuel.refuelModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
@@ -106,6 +108,7 @@ fun initKoin(
         dashboardModule,
         garageModule,
         profileModule,
+        refuelModule,
         supportModule,
         timelineModule,
         paywallModule,
@@ -142,7 +145,12 @@ fun initKoin(
     // Off the startup thread: reading the session touches the Keystore/Keychain. The
     // scheduling that follows is cheap by design — on Android it only enqueues WorkManager
     // work, and on iOS the engine is resolved inside the coroutine.
-    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+    val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // Detection collects for the app's lifetime rather than as part of the startup sequence:
+    // it is a subscription, not a step, and it must not sit between the session restore and
+    // the first sync. While SMART_REFUEL_DETECT_ENABLED is false this returns immediately.
+    application.koin.get<RefuelDetectionWorker>().start(startupScope)
+    startupScope.launch {
         // Restoring is allowed to fail — a session that will not decrypt is reported as no
         // session, which sends the owner to sign in again. What must not happen is losing
         // the sync request with it: a throw here would end the coroutine and this launch

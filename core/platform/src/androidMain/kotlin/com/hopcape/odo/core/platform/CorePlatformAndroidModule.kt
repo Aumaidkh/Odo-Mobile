@@ -7,9 +7,7 @@ import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.CurrentActivity
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
-import com.hopcape.odo.core.platform.camera.AndroidQrImageDecoder
 import com.hopcape.odo.core.platform.camera.DocumentCropper
-import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.AndroidDownloads
 import com.hopcape.odo.core.platform.file.AndroidFileStore
 import com.hopcape.odo.core.platform.file.AndroidStoredPageRenderer
@@ -18,6 +16,14 @@ import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.platform.logging.WorkManagerLogUploadScheduler
+import com.hopcape.odo.core.platform.notification.AndroidBackgroundStartAccess
+import com.hopcape.odo.core.platform.notification.AndroidDetectedFillNotifier
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
+import com.hopcape.odo.core.platform.notification.AndroidNotificationAccess
+import com.hopcape.odo.core.platform.notification.DetectedFillNotifier
+import com.hopcape.odo.core.platform.notification.NotificationAccess
+import com.hopcape.odo.core.platform.notification.PaymentNotices
+import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
 import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
@@ -50,7 +56,6 @@ val corePlatformAndroidModule = module {
     single<PlatformDownloads> { AndroidDownloads(context = get<Context>()) }
     single<StoredPageRenderer> { AndroidStoredPageRenderer(context = get<Context>()) }
     single<DocumentCropper> { AndroidDocumentCropper(context = get<Context>()) }
-    single<QrImageDecoder> { AndroidQrImageDecoder(context = get<Context>()) }
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
     // createdAtStart, because it starts watching in its constructor: resolved on first use it
     // would begin listening after the Activity it is being asked about already resumed. See
@@ -59,6 +64,12 @@ val corePlatformAndroidModule = module {
         ActivityTracker(application = get<Context>().applicationContext as Application)
     }
     single<SystemNotificationSettings> { AndroidSystemNotificationSettings(context = get<Context>()) }
+    single<NotificationAccess> { AndroidNotificationAccess(context = get<Context>()) }
+    single<DetectedFillNotifier> { AndroidDetectedFillNotifier(context = get<Context>()) }
+    single<BackgroundStartAccess> { AndroidBackgroundStartAccess(context = get<Context>()) }
+    // The listener service is constructed by the OS and cannot be injected, so the object it
+    // publishes into is what the graph knows about.
+    single<PaymentNoticeSource> { PaymentNotices }
     // Turns a document's expiry into notifications the OS delivers. Replaces :core:data's
     // no-op binding — the one line that makes a saved expiry actually reach the owner.
     single<DocumentReminderScheduler> {
