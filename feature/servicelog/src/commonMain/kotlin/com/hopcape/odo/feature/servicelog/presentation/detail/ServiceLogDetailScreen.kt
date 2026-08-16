@@ -30,8 +30,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import arrow.core.getOrElse
 import kotlin.math.abs
+import com.hopcape.odo.core.designsystem.component.CoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
@@ -81,6 +85,8 @@ import com.hopcape.odo.feature.servicelog.resources.sl_detail_no_items
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_over_headline
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_attach_bill
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_check_fairness
+import com.hopcape.odo.feature.servicelog.resources.sl_fairness_showcase
+import com.hopcape.odo.feature.servicelog.resources.sl_showcase_dismiss
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_report
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_reported
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_resale_subtitle
@@ -118,6 +124,7 @@ internal fun ServiceLogDetailScreen(
     // on scroll. Falls back to the generic screen title before the entry loads.
     val title = loaded?.entry?.workshopName ?: stringResource(Res.string.sl_detail_title)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val fairnessAnchor = rememberCoachMarkAnchorState()
 
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -146,7 +153,7 @@ internal fun ServiceLogDetailScreen(
             )
         },
         bottomBar = {
-            loaded?.let { DetailActions(it.entry, state, onEvent) }
+            loaded?.let { DetailActions(it.entry, state, onEvent, fairnessAnchor) }
         },
     ) { padding ->
         when (content) {
@@ -160,6 +167,18 @@ internal fun ServiceLogDetailScreen(
 
             is ServiceLogDetailUiState.Content.Loaded -> DetailContent(content.entry, padding, onEvent)
         }
+    }
+
+    // The fairness coach mark (#230): points at "Check fairness", one tap dismisses,
+    // tapping the cutout runs the check itself — it never delays a verdict (#217).
+    if (state.fairnessShowcase) {
+        OdoCoachMark(
+            text = stringResource(Res.string.sl_fairness_showcase),
+            dismissLabel = stringResource(Res.string.sl_showcase_dismiss),
+            anchor = fairnessAnchor,
+            onDismiss = { onEvent(ServiceLogDetailEvent.FairnessShowcaseDismissed) },
+            onAnchorTap = { onEvent(ServiceLogDetailEvent.FairnessShowcaseActedOn) },
+        )
     }
 }
 
@@ -449,6 +468,7 @@ private fun DetailActions(
     entry: ServiceEntryDetailUiState,
     state: ServiceLogDetailUiState,
     onEvent: (ServiceLogDetailEvent) -> Unit,
+    fairnessAnchor: CoachMarkAnchorState,
 ) {
     Column(
         modifier = Modifier
@@ -483,7 +503,7 @@ private fun DetailActions(
             OdoButton(
                 text = stringResource(Res.string.sl_detail_check_fairness),
                 onClick = { onEvent(ServiceLogDetailEvent.CheckFairnessClicked) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().coachMarkAnchor(fairnessAnchor),
                 variant = OdoButtonVariant.Secondary,
                 enabled = entry.canCheckFairness,
             )
