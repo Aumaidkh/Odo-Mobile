@@ -11,6 +11,8 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.cost.model.CostShortfall
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.domain.shared.formatMonth
 import com.hopcape.odo.core.domain.shared.formatMonthYear
 import com.hopcape.odo.feature.costtracker.domain.model.CostPeriod
@@ -19,6 +21,7 @@ import com.hopcape.odo.feature.costtracker.domain.model.SpendBucket
 import com.hopcape.odo.feature.costtracker.domain.usecase.ObserveRunningCostUseCase
 import com.hopcape.odo.feature.costtracker.presentation.CostTrackerTelemetry
 import com.hopcape.odo.feature.costtracker.presentation.state.Loadable
+import com.hopcape.odo.feature.costtracker.presentation.state.valueOrNull
 import com.hopcape.odo.feature.costtracker.resources.Res
 import com.hopcape.odo.feature.costtracker.resources.ct_bar_month
 import com.hopcape.odo.feature.costtracker.resources.ct_bar_range
@@ -41,6 +44,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * State holder for the running-cost screen. Holds [RunningCostUiState] and consumes
@@ -54,10 +58,17 @@ internal class RunningCostViewModel(
     activeCar: ActiveCarProvider,
     observeRunningCost: ObserveRunningCostUseCase,
     settings: AppSettingsRepository,
+    private val showcase: ShowcaseArbiter,
     private val telemetry: CostTrackerTelemetry,
 ) : ViewModel() {
 
     private val period = MutableStateFlow(CostPeriod.Y1)
+
+    /** True while the odometer coach mark holds the arbiter's grant (#229). */
+    private val odometerShowcaseVisible = MutableStateFlow(false)
+
+    /** One ask per visit — reset when the surface is left, so the next visit may ask again. */
+    private var odometerShowcaseRequested = false
 
     private val _effects = Channel<RunningCostEffect>(Channel.BUFFERED)
     val effects: Flow<RunningCostEffect> = _effects.receiveAsFlow()
@@ -93,6 +104,8 @@ internal class RunningCostViewModel(
                 }
             }
         }
+        .combine(odometerShowcaseVisible) { ui, visible -> ui.copy(odometerShowcase = visible) }
+        .onEach(::maybeRequestOdometerShowcase)
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -113,6 +126,36 @@ internal class RunningCostViewModel(
         RunningCostEvent.FuelRateTapped -> {
             _effects.trySend(RunningCostEffect.OpenFuelRate)
             Unit
+        }
+
+        RunningCostEvent.OdometerShowcaseDismissed -> {
+            odometerShowcaseVisible.value = false
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.ODOMETER_CURRENT) }
+            Unit
+        }
+
+        // Not seen: the owner never answered — a tab switch did. The hook keeps its one
+        // showing, and the reset lets the next visit ask again.
+        RunningCostEvent.OdometerShowcaseLeft -> {
+            if (odometerShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.ODOMETER_CURRENT)
+            odometerShowcaseVisible.value = false
+            odometerShowcaseRequested = false
+        }
+    }
+
+    /**
+     * The odometer hook's due-condition (#229): the headline is the "not enough yet"
+     * explanation — the one hook that fires on a disappointment rather than a discovery,
+     * so it fires exactly while the owner is looking at the empty figure and never once a
+     * real rate exists.
+     */
+    private suspend fun maybeRequestOdometerShowcase(ui: RunningCostUiState) {
+        if (odometerShowcaseRequested) return
+        val headline = ui.content.valueOrNull?.headline ?: return
+        if (headline !is CostHeadline.NotEnoughYet) return
+        odometerShowcaseRequested = true
+        if (showcase.request(ShowcaseHookId.ODOMETER_CURRENT)) {
+            odometerShowcaseVisible.value = true
         }
     }
 

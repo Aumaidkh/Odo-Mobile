@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.costtracker.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
@@ -16,6 +17,7 @@ import com.hopcape.odo.feature.costtracker.presentation.fuelrate.FuelRateEffect
 import com.hopcape.odo.feature.costtracker.presentation.fuelrate.FuelRateSheetContent
 import com.hopcape.odo.feature.costtracker.presentation.fuelrate.FuelRateViewModel
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostEffect
+import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostEvent
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostScreen
 import com.hopcape.odo.feature.costtracker.presentation.runningcost.RunningCostViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -45,6 +47,12 @@ internal class CostTrackerFeatureEntryProvider(
 internal fun RunningCostRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<RunningCostViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Leaving while the odometer coach mark is up releases the arbiter's grant without
+    // burning the hook's one showing — the owner never answered it (#229).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onEvent(RunningCostEvent.OdometerShowcaseLeft) }
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {

@@ -44,6 +44,10 @@
     <string name="ct_no_rate_distance">Odo needs about %1$s of driving before a running cost means anything. Log your next service with its odometer reading.</string>
     <string name="ct_no_rate_readings">Add your car’s odometer reading and Odo will start tracking what it costs to run.</string>
 
+    <!-- The odometer coach mark (#229) — explains the empty figure, cause to effect. -->
+    <string name="ct_odometer_showcase">Every figure here is anchored to your odometer. Update the reading as you log, and this becomes a real number.</string>
+    <string name="ct_showcase_dismiss">Got it</string>
+
     <!-- Summary -->
     <string name="ct_summary">SUMMARY</string>
     <string name="ct_total_spent">Total spent</string>

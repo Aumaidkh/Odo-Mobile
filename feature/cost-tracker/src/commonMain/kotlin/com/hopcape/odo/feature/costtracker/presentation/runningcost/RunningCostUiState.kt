@@ -99,4 +99,10 @@ internal data class RunningCostUiState(
     /** No active car — setup incomplete or the car was removed. A nudge, not a spinner:
      *  there is no read in flight, so a loader would spin forever. */
     val noCar: Boolean = false,
+    /**
+     * Whether the odometer coach mark is up (#229) — granted while the headline reads
+     * "not enough yet", the one moment the owner is looking at the consequence of a
+     * stale reading and the explanation means anything.
+     */
+    val odometerShowcase: Boolean = false,
 )
