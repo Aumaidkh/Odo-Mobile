@@ -175,6 +175,13 @@ internal data class ServiceLogDetailUiState(
     val attach: AttachUiState = AttachUiState.Idle,
     /** 1a: the user has filed the "Report this overcharge" action for this entry. */
     val reported: Boolean = false,
+    /**
+     * Whether the fairness coach mark is up (#230) — granted on a verified entry whose
+     * price has never been checked, the owner's own bill being the only convincing
+     * version of the pitch. Never allowed to delay a verdict (#217): it points at the
+     * check, one tap clears it.
+     */
+    val fairnessShowcase: Boolean = false,
 ) {
     sealed interface Content {
         data object Loading : Content

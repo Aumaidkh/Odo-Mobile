@@ -25,6 +25,15 @@ internal sealed interface ServiceLogDetailEvent {
     /** "Check fairness" — benchmark this entry's lines against the city. */
     data object CheckFairnessClicked : ServiceLogDetailEvent
 
+    /** The fairness coach mark was tapped away. Seen forever (#230). */
+    data object FairnessShowcaseDismissed : ServiceLogDetailEvent
+
+    /** The fairness coach mark's cutout was tapped — run the check it points at. Seen forever. */
+    data object FairnessShowcaseActedOn : ServiceLogDetailEvent
+
+    /** The screen left composition while the coach mark was up — release the grant, not seen. */
+    data object FairnessShowcaseLeft : ServiceLogDetailEvent
+
     /**
      * Deleting is three taps, not one: asking, confirming, and backing out. Each is its own
      * event because each moves [DeleteUiState] somewhere different.

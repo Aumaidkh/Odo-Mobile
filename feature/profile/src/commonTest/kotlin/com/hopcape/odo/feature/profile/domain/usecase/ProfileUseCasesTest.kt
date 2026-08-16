@@ -13,6 +13,8 @@ import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
 import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -229,7 +231,7 @@ class ProfileUseCasesTest {
         val settings = FakeSettingsRepository(AppSettings(theme = ThemePreference.DARK))
         val files = FakeFileStore()
 
-        val result = DeleteAllDataUseCase(cars, profiles, settings, files)()
+        val result = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore())()
 
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals(listOf(testCar().id), cars.softDeleted)
@@ -244,10 +246,20 @@ class ProfileUseCasesTest {
         val cars = FakeCarRepository(car = null)
         val profiles = FakeProfileRepository()
 
-        val result = DeleteAllDataUseCase(cars, profiles, FakeSettingsRepository(), FakeFileStore())()
+        val result = DeleteAllDataUseCase(cars, profiles, FakeSettingsRepository(), FakeFileStore(), FakeShowcaseSeenStore())()
 
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals(emptyList(), cars.softDeleted)
         assertEquals(1, profiles.deleteCount)
     }
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
 }

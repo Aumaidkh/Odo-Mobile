@@ -20,6 +20,12 @@ internal sealed interface ProfileEvent {
 
     /** The sign-in prompt was taken. */
     data object SignInStarted : ProfileEvent
+
+    /**
+     * "Show me around again" (#234): clears the coach marks' seen record, so each hook
+     * becomes due again on its own surface. Not a tour — nothing shows here.
+     */
+    data object ShowAroundTapped : ProfileEvent
 }
 
 /**

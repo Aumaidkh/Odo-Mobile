@@ -7,6 +7,8 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.feature.servicelog.domain.usecase.AttachBillPhotoUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.DeleteServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
@@ -44,8 +46,12 @@ internal class ServiceLogDetailViewModel(
     private val deleteLog: DeleteServiceLogUseCase,
     private val attachBillPhoto: AttachBillPhotoUseCase,
     private val recordFairness: RecordEntryFairnessUseCase,
+    private val showcase: ShowcaseArbiter,
     private val telemetry: ServiceLogTelemetry,
 ) : ViewModel() {
+
+    /** One ask per screen (the detail is a pushed destination, so one VM is one visit). */
+    private var fairnessShowcaseRequested = false
 
     private val _state = MutableStateFlow(ServiceLogDetailUiState())
     val state: StateFlow<ServiceLogDetailUiState> = _state.asStateFlow()
@@ -93,6 +99,26 @@ internal class ServiceLogDetailViewModel(
         is ServiceLogDetailEvent.BillPicked -> attachBill(event.pickedRef)
         ServiceLogDetailEvent.BillTapped -> previewBill()
         ServiceLogDetailEvent.CheckFairnessClicked -> openFairness()
+
+        ServiceLogDetailEvent.FairnessShowcaseDismissed -> {
+            _state.update { it.copy(fairnessShowcase = false) }
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.FAIRNESS_CHECK) }
+            Unit
+        }
+
+        // Acting on it runs the same check the button under the cutout runs — the coach
+        // mark never stands between the owner and the verdict (#217).
+        ServiceLogDetailEvent.FairnessShowcaseActedOn -> {
+            _state.update { it.copy(fairnessShowcase = false) }
+            viewModelScope.launch { showcase.actedOn(ShowcaseHookId.FAIRNESS_CHECK) }
+            openFairness()
+        }
+
+        ServiceLogDetailEvent.FairnessShowcaseLeft -> {
+            if (_state.value.fairnessShowcase) showcase.surfaceLeft(ShowcaseHookId.FAIRNESS_CHECK)
+            _state.update { it.copy(fairnessShowcase = false) }
+            fairnessShowcaseRequested = false
+        }
         is ServiceLogDetailEvent.Delete -> onDeleteEvent(event)
         ServiceLogDetailEvent.BackClicked -> emit(ServiceLogDetailEffect.NavigateBack)
     }
@@ -209,6 +235,27 @@ internal class ServiceLogDetailViewModel(
         val ui = detail.toUiState()
         reportOpenedOnce(ui)
         _state.update { it.copy(content = ServiceLogDetailUiState.Content.Loaded(ui)) }
+        maybeRequestFairnessShowcase(ui)
+    }
+
+    /**
+     * The fairness hook's due-condition (#230): a verified bill whose price was never
+     * checked, with something comparable on it. The owner's own bill on screen is the
+     * only version of this pitch that convinces — and an already-judged entry needs no
+     * teaching, its verdict is the aha.
+     */
+    private fun maybeRequestFairnessShowcase(ui: ServiceEntryDetailUiState) {
+        if (fairnessShowcaseRequested) return
+        val due = ui.verification == VerificationStatus.VERIFIED &&
+            ui.fairness is EntryFairnessUiState.NotAssessed &&
+            ui.canCheckFairness
+        if (!due) return
+        fairnessShowcaseRequested = true
+        viewModelScope.launch {
+            if (showcase.request(ShowcaseHookId.FAIRNESS_CHECK)) {
+                _state.update { it.copy(fairnessShowcase = true) }
+            }
+        }
     }
 
     /**

@@ -107,6 +107,7 @@ val serviceLogModule = module {
             deleteLog = get(),
             attachBillPhoto = get(),
             recordFairness = get(),
+            showcase = get(),
             telemetry = get(),
         )
     }

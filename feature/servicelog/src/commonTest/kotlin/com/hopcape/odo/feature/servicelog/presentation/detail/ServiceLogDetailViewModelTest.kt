@@ -11,6 +11,9 @@ import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -43,6 +46,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -110,6 +114,28 @@ class ServiceLogDetailViewModelTest {
         viewModel.onEvent(ServiceLogDetailEvent.AttachBillClicked)
 
         assertEquals(ServiceLogDetailEffect.PickBillPhoto, viewModel.effects.first())
+    }
+
+    @Test
+    fun aVerifiedUncheckedEntry_raisesTheFairnessShowcase_andActingOnItOpensTheCheck() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeServiceLogRepository(listOf(verified())))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.fairnessShowcase)
+
+        viewModel.onEvent(ServiceLogDetailEvent.FairnessShowcaseActedOn)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.fairnessShowcase)
+        assertIs<ServiceLogDetailEffect.OpenFairness>(viewModel.effects.first())
+    }
+
+    @Test
+    fun aSelfReportedEntry_neverRaisesTheFairnessShowcase() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeServiceLogRepository(listOf(selfReported())))
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.fairnessShowcase)
     }
 
     @Test
@@ -184,6 +210,7 @@ class ServiceLogDetailViewModelTest {
             currentCity = if (city == null) CurrentCityProvider { null } else TEST_CITY,
             clock = TEST_CLOCK,
         ),
+        showcase = ShowcaseArbiter(FakeShowcaseSeenStore()),
         telemetry = ServiceLogTelemetry(
             logger = HLogger.asLogger(),
             analytics = SilentAnalytics,
@@ -191,6 +218,16 @@ class ServiceLogDetailViewModelTest {
             ids = FixedIdGenerator(),
         ),
     )
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
 
     /** Copies nothing, but answers with the key the real store would have written to. */
     private object CopyingFileStore : PlatformFileStore {

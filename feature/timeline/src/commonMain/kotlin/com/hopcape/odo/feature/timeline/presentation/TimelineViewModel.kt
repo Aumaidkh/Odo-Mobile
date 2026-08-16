@@ -6,6 +6,11 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.feature.timeline.domain.model.TimelineFilter
 import com.hopcape.odo.feature.timeline.domain.usecase.ObserveTimelineUseCase
 import com.hopcape.odo.feature.timeline.domain.usecase.TimelineSnapshot
@@ -21,8 +26,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 
@@ -41,8 +49,18 @@ internal class TimelineViewModel(
     activeCar: ActiveCarProvider,
     observeTimeline: ObserveTimelineUseCase,
     private val filters: TimelineFilterStore,
+    private val showcase: ShowcaseArbiter,
+    entitlements: EntitlementSource,
     private val telemetry: TimelineTelemetry,
 ) : ViewModel() {
+
+    /** True while the record coach mark holds the arbiter's grant (#233). */
+    private val recordShowcaseVisible = MutableStateFlow(false)
+
+    /** One ask per visit — reset when the surface is left, so the next visit may ask again. */
+    private var recordShowcaseRequested = false
+
+    private val proPlan = entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }
 
     private val _effects = Channel<TimelineEffect>(Channel.BUFFERED)
     val effects: Flow<TimelineEffect> = _effects.receiveAsFlow()
@@ -74,6 +92,10 @@ internal class TimelineViewModel(
                 }
             }
         }
+        .combine(recordShowcaseVisible) { ui, visible -> ui.copy(recordShowcase = visible) }
+        // Read only to pick the Pro-gated coach mark's copy — never to hide it.
+        .combine(proPlan) { ui, pro -> ui.copy(proPlan = pro) }
+        .onEach(::maybeRequestRecordShowcase)
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -94,6 +116,26 @@ internal class TimelineViewModel(
         TimelineEvent.ShareTapped -> {
             telemetry.shareTapped()
             carId?.let { send(TimelineEffect.ShareRecord(carId = it.value)) } ?: Unit
+        }
+
+        TimelineEvent.RecordShowcaseDismissed -> {
+            recordShowcaseVisible.value = false
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.RECORD_EXPORT) }
+            Unit
+        }
+
+        TimelineEvent.RecordShowcaseActedOn -> {
+            recordShowcaseVisible.value = false
+            viewModelScope.launch { showcase.actedOn(ShowcaseHookId.RECORD_EXPORT) }
+            carId?.let { send(TimelineEffect.ShareRecord(carId = it.value)) } ?: Unit
+        }
+
+        // Not seen: the owner never answered — a navigation did. The hook keeps its one
+        // showing, and the reset lets the next visit ask again.
+        TimelineEvent.RecordShowcaseLeft -> {
+            if (recordShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.RECORD_EXPORT)
+            recordShowcaseVisible.value = false
+            recordShowcaseRequested = false
         }
 
         is TimelineEvent.ServiceTapped -> {
@@ -117,6 +159,24 @@ internal class TimelineViewModel(
      * history are different product problems, so the count and whether anything has been
      * serviced both ride along.
      */
+    /**
+     * The record hook's due-condition (#233): three or more verified services on the feed
+     * — by then the owner has invested enough that the export is worth showing off, and
+     * the PDF has enough rows to argue for itself.
+     */
+    private suspend fun maybeRequestRecordShowcase(ui: TimelineUiState) {
+        if (recordShowcaseRequested) return
+        val content = ui.content.valueOrNull ?: return
+        val verifiedServices = content.events.count {
+            it is ActivityEvent.Service && it.verification == VerificationStatus.VERIFIED
+        }
+        if (verifiedServices < RECORD_SHOWCASE_MIN_VERIFIED) return
+        recordShowcaseRequested = true
+        if (showcase.request(ShowcaseHookId.RECORD_EXPORT)) {
+            recordShowcaseVisible.value = true
+        }
+    }
+
     private fun reportOpened(state: TimelineUiState) {
         val content = state.content.valueOrNull ?: return
         if (reportedOpen) return
@@ -135,6 +195,9 @@ internal class TimelineViewModel(
 
     private companion object {
         const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+
+        /** #233: fewer rows than this argues against the export rather than for it. */
+        const val RECORD_SHOWCASE_MIN_VERIFIED = 3
     }
 }
 

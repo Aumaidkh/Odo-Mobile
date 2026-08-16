@@ -10,6 +10,12 @@ internal sealed interface RunningCostEvent {
 
     /** The fuel note's action — correcting the price the estimate is built on. */
     data object FuelRateTapped : RunningCostEvent
+
+    /** The odometer coach mark was tapped away. Seen forever (#229). */
+    data object OdometerShowcaseDismissed : RunningCostEvent
+
+    /** The screen left composition while the coach mark was up — release the grant, not seen. */
+    data object OdometerShowcaseLeft : RunningCostEvent
 }
 
 /** One-shot handoffs the route host performs. */

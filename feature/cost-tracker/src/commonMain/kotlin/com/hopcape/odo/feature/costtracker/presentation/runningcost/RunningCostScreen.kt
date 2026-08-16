@@ -28,6 +28,9 @@ import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
@@ -73,6 +76,8 @@ import com.hopcape.odo.feature.costtracker.resources.ct_fuel_rate_action
 import com.hopcape.odo.feature.costtracker.resources.ct_no_car_body
 import com.hopcape.odo.feature.costtracker.resources.ct_no_car_title
 import com.hopcape.odo.feature.costtracker.resources.ct_no_rate_title
+import com.hopcape.odo.feature.costtracker.resources.ct_odometer_showcase
+import com.hopcape.odo.feature.costtracker.resources.ct_showcase_dismiss
 import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_rate
 import com.hopcape.odo.feature.costtracker.resources.ct_per_unit_suffix
 import com.hopcape.odo.feature.costtracker.resources.ct_period_1y
@@ -129,6 +134,7 @@ internal fun RunningCostScreen(
             }
             return@OdoScreen
         }
+        val heroAnchor = rememberCoachMarkAnchorState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -138,7 +144,11 @@ internal fun RunningCostScreen(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
         ) {
             val content = (state.content as? Loadable.Ready)?.value
-            CostHeroCard(content = content, failure = state.content as? Loadable.Failed)
+            CostHeroCard(
+                content = content,
+                failure = state.content as? Loadable.Failed,
+                modifier = Modifier.coachMarkAnchor(heroAnchor),
+            )
             PeriodSelector(
                 selected = state.period,
                 onChange = { onEvent(RunningCostEvent.PeriodSelected(it)) },
@@ -156,6 +166,17 @@ internal fun RunningCostScreen(
                 SummaryCard(content)
             }
         }
+
+        // The odometer coach mark (#229): fires on the disappointment, so its copy
+        // explains why the figure is empty rather than congratulating a discovery.
+        if (state.odometerShowcase) {
+            OdoCoachMark(
+                text = stringResource(Res.string.ct_odometer_showcase),
+                dismissLabel = stringResource(Res.string.ct_showcase_dismiss),
+                anchor = heroAnchor,
+                onDismiss = { onEvent(RunningCostEvent.OdometerShowcaseDismissed) },
+            )
+        }
     }
 }
 
@@ -164,9 +185,13 @@ internal fun RunningCostScreen(
  * number: a rate taken off forty kilometres is arithmetic, not information.
  */
 @Composable
-private fun CostHeroCard(content: RunningCostContent?, failure: Loadable.Failed?) {
+private fun CostHeroCard(
+    content: RunningCostContent?,
+    failure: Loadable.Failed?,
+    modifier: Modifier = Modifier,
+) {
     val distance = LocalOdoDistanceFormat.current
-    OdoCard {
+    OdoCard(modifier = modifier) {
         if (failure != null) {
             OdoText(failure.message.asString(), style = OdoTheme.typography.heading)
             return@OdoCard

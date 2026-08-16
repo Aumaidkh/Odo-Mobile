@@ -25,6 +25,15 @@ internal sealed interface DocumentVaultEvent {
     data object AddAnyTapped : DocumentVaultEvent
 
     data object BackTapped : DocumentVaultEvent
+
+    /** The reminders coach mark was tapped away. Seen forever (#231). */
+    data object VaultShowcaseDismissed : DocumentVaultEvent
+
+    /** The coach mark's cutout (the add bar) was tapped — open the add flow. Seen forever. */
+    data object VaultShowcaseActedOn : DocumentVaultEvent
+
+    /** The screen left composition while the coach mark was up — release the grant, not seen. */
+    data object VaultShowcaseLeft : DocumentVaultEvent
 }
 
 /**

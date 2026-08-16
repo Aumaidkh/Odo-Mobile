@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.feature.profile.domain.model.ProfileSnapshot
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
@@ -28,6 +29,7 @@ internal class ProfileViewModel(
     private val observeProfile: ObserveProfileUseCase,
     appInfo: AppInfo,
     syncStatus: SyncStatusProvider,
+    private val showcaseSeen: ShowcaseSeenStore,
     private val telemetry: ProfileTelemetry,
 ) : ViewModel() {
 
@@ -74,6 +76,14 @@ internal class ProfileViewModel(
 
     fun onEvent(event: ProfileEvent) = when (event) {
         ProfileEvent.SignInStarted -> telemetry.signInStarted()
+
+        // Clearing the record is the whole action (#234): each hook fires again where and
+        // when it normally would — the same contextual behaviour, available a second time.
+        // Deliberately nothing on this screen changes.
+        ProfileEvent.ShowAroundTapped -> {
+            viewModelScope.launch { showcaseSeen.clearAll() }
+            Unit
+        }
     }
 
     private fun observe() {

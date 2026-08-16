@@ -42,6 +42,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -89,6 +91,7 @@ class ProfileViewModelsTest {
         val viewModel = ProfileViewModel(
             observeProfile = observeProfile(settings = settings, isPro = true),
             syncStatus = idleSync(),
+            showcaseSeen = FakeShowcaseSeenStore(),
             appInfo = FakeAppInfo("2.0.0", versionCode = 7L),
             telemetry = testTelemetry(),
         )
@@ -113,6 +116,7 @@ class ProfileViewModelsTest {
         ProfileViewModel(
             observeProfile = observeProfile(),
             syncStatus = idleSync(),
+            showcaseSeen = FakeShowcaseSeenStore(),
             appInfo = FakeAppInfo(),
             telemetry = testTelemetry(analytics),
         )
@@ -128,6 +132,7 @@ class ProfileViewModelsTest {
         ProfileViewModel(
             observeProfile = observeProfile(profiles = profiles),
             syncStatus = idleSync(),
+            showcaseSeen = FakeShowcaseSeenStore(),
             appInfo = FakeAppInfo(),
             telemetry = testTelemetry(analytics),
         )
@@ -410,7 +415,7 @@ class ProfileViewModelsTest {
             ),
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),
-            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files),
+            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore()),
             telemetry = testTelemetry(analytics),
         )
     }
@@ -425,6 +430,33 @@ class ProfileViewModelsTest {
         override val lastSyncedAt = flowOf<Instant?>(null)
         override val lastError = flowOf<String?>(null)
     }
+    @Test
+    fun showAroundAgain_clearsTheSeenRecord_soHooksBecomeDueAgain() = runTest {
+        val seenStore = FakeShowcaseSeenStore().apply { seen += ShowcaseHookId.SCAN_BUTTON }
+        val viewModel = ProfileViewModel(
+            observeProfile = observeProfile(),
+            syncStatus = idleSync(),
+            appInfo = FakeAppInfo("2.0.0", versionCode = 7L),
+            showcaseSeen = seenStore,
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(ProfileEvent.ShowAroundTapped)
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(seenStore.seen.isEmpty())
+    }
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
 }
 
 /** Reads a [Loadable]'s value in tests without repeating the cast. */

@@ -55,7 +55,7 @@ val profileModule = module {
     }
     factory { SetAvatarUseCase(profiles = get(), files = get()) }
     factory {
-        DeleteAllDataUseCase(cars = get(), profiles = get(), settings = get(), files = get())
+        DeleteAllDataUseCase(cars = get(), profiles = get(), settings = get(), files = get(), showcaseSeen = get())
     }
     factory { UpdatePrivacyUseCase(settings = get(), profiles = get(), trips = get()) }
     factory {
@@ -80,6 +80,7 @@ val profileModule = module {
             observeProfile = get(),
             appInfo = get(),
             syncStatus = get(),
+            showcaseSeen = get(),
             telemetry = get(),
         )
     }

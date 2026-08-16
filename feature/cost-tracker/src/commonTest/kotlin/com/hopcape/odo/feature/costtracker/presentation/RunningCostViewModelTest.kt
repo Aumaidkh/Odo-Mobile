@@ -44,6 +44,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -113,6 +116,31 @@ class RunningCostViewModelTest {
         ).content()
 
         assertIs<CostHeadline.NotEnoughYet>(content.headline)
+    }
+
+    @Test
+    fun theEmptyFigure_raisesTheOdometerShowcase_once() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(
+            readings = listOf(reading(LocalDate(2026, 7, 1), km = 30_000)),
+            entries = emptyList(),
+            seenStore = seen,
+        )
+
+        assertTrue(vm.state.first { it.odometerShowcase }.odometerShowcase)
+
+        vm.onEvent(RunningCostEvent.OdometerShowcaseDismissed)
+        assertEquals(false, vm.state.first { !it.odometerShowcase }.odometerShowcase)
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.ODOMETER_CURRENT in seen.seen)
+    }
+
+    @Test
+    fun aRealRate_neverRaisesTheOdometerShowcase() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.content()
+
+        assertEquals(false, vm.state.value.odometerShowcase)
     }
 
     @Test
@@ -194,6 +222,7 @@ class RunningCostViewModelTest {
         price: com.hopcape.odo.core.domain.cost.fuel.FuelPrice? = testFuelPrice(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
         settings: AppSettings = AppSettings.Default,
+        seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
     ) = RunningCostViewModel(
         activeCar = FakeActiveCarProvider(carId),
         settings = FakeSettingsRepository(settings),
@@ -205,6 +234,7 @@ class RunningCostViewModelTest {
             clock = FixedClock(Instant.parse("2026-08-01T09:00:00Z")),
             timeZone = TimeZone.UTC,
         ),
+        showcase = ShowcaseArbiter(seenStore),
         telemetry = CostTrackerTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
@@ -212,6 +242,16 @@ class RunningCostViewModelTest {
             ids = FixedIdGenerator(),
         ),
     )
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
 
     private suspend fun RunningCostViewModel.content(): RunningCostContent =
         assertIs<Loadable.Ready<RunningCostContent>>(state.first { it.content is Loadable.Ready }.content).value
