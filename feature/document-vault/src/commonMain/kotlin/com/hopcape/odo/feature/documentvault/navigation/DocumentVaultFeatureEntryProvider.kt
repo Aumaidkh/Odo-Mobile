@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.documentvault.navigation
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -114,12 +115,20 @@ internal fun DocumentVaultRoute(navigationManager: NavigationManager) {
         }
     }
 
+    // Leaving while the reminders coach mark is up releases the arbiter's grant without
+    // burning the hook's one showing — the owner never answered it (#231).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onEvent(DocumentVaultEvent.VaultShowcaseLeft) }
+    }
+
     DocumentVaultScreen(
         state = state,
         onAdd = { viewModel.onEvent(DocumentVaultEvent.AddTapped(it)) },
         onOpen = { viewModel.onEvent(DocumentVaultEvent.DocumentTapped(it)) },
         onAddDocument = { viewModel.onEvent(DocumentVaultEvent.AddAnyTapped) },
         onBack = { viewModel.onEvent(DocumentVaultEvent.BackTapped) },
+        onShowcaseDismiss = { viewModel.onEvent(DocumentVaultEvent.VaultShowcaseDismissed) },
+        onShowcaseActedOn = { viewModel.onEvent(DocumentVaultEvent.VaultShowcaseActedOn) },
     )
 }
 
