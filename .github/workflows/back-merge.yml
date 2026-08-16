@@ -1,0 +1,121 @@
+name: Back-merge master into develop
+
+# Keeps `develop` aware of everything on `master`, so the two branches never
+# become separate lines again.
+#
+# Why this exists: `master` is a release-snapshot branch and `develop` is the
+# trunk. When a release PR is squash-merged, the merge commit keeps only one
+# parent, so `develop` disappears from `master`'s ancestry and the merge base
+# between them falls back to whatever they last genuinely shared. That happened
+# after 1.2.1, and before it was repaired an ordinary merge reported 427
+# conflicting files — in code nobody had touched. The conflicts were an artefact
+# of the missing ancestry, not of the changes.
+#
+# A back-merge repairs that regardless of how the release PR was merged, which is
+# why this is automated rather than written down as a rule. The rule form depends
+# on someone remembering at the exact moment they are busy shipping, and that is
+# the thing that already failed once.
+#
+# It is nearly always a no-op in content: `master`'s tree is usually identical to
+# the `develop` commit it was cut from, so the merge changes no files and exists
+# only to record the parent. That is also why it is cheap to run every time.
+
+on:
+  push:
+    branches: [master]
+  # So it can be run by hand if a push slipped through while this was failing.
+  workflow_dispatch:
+
+# Never run two of these at once: both would branch from the same `develop` and
+# open PRs that conflict with each other. Queued rather than cancelled — a
+# skipped back-merge is the failure this workflow exists to prevent.
+concurrency:
+  group: back-merge-master
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          # The whole history: this job's entire purpose is asking ancestry
+          # questions, and a shallow clone cannot answer them.
+          fetch-depth: 0
+
+      - name: Check whether develop already contains master
+        id: check
+        run: |
+          if git merge-base --is-ancestor origin/master origin/develop; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "develop already contains master — nothing to back-merge."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "master is not an ancestor of develop — a back-merge is due."
+          fi
+
+      - name: Merge master into a branch off develop
+        id: merge
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          BRANCH="chore/back-merge-master-${GITHUB_SHA::8}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH" origin/develop
+
+          # --no-ff on purpose. A fast-forward would move develop to master's
+          # commit instead of recording master as a parent, which is not the same
+          # thing and not what fixes the ancestry.
+          if git merge --no-ff --no-edit origin/master; then
+            echo "clean=true" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "clean=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open the back-merge pull request
+        if: steps.check.outputs.needed == 'true' && steps.merge.outputs.clean == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${{ steps.merge.outputs.branch }}"
+          git push origin "$BRANCH"
+
+          # Reported so a reviewer knows at a glance whether this is the usual
+          # no-op or an actual back-merge of a hotfix that landed on master.
+          CHANGED=$(git diff --name-only origin/develop.."$BRANCH" | wc -l | tr -d ' ')
+
+          gh pr create \
+            --base develop \
+            --head "$BRANCH" \
+            --title "Back-merge master into develop" \
+            --body "Opened automatically after a push to \`master\`.
+
+          Makes \`master\` an ancestor of \`develop\` again, so the next release
+          merge is an ordinary one. **Files changed: ${CHANGED}.**
+
+          A count of 0 is the normal case — \`master\`'s tree already matches, and
+          this commit exists only to record the parent.
+
+          Merge with **Create a merge commit**. Squashing this would drop the
+          second parent and leave the ancestry exactly as broken as before."
+
+      - name: Report a conflicted back-merge
+        if: steps.check.outputs.needed == 'true' && steps.merge.outputs.clean == 'false'
+        run: |
+          echo "::error::Back-merging master into develop hit conflicts, so no PR was opened."
+          echo "This means master carries work develop does not, and the two have"
+          echo "genuinely diverged — resolve it by hand:"
+          echo ""
+          echo "  git checkout develop && git pull"
+          echo "  git merge origin/master"
+          echo ""
+          echo "The longer this waits the harder it gets, because every commit on"
+          echo "develop adds to what has to be reconciled."
+          exit 1
