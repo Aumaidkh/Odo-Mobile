@@ -36,7 +36,9 @@ import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -44,6 +46,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
 import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
@@ -223,6 +228,7 @@ class RunningCostViewModelTest {
         analytics: RecordingAnalytics = RecordingAnalytics(),
         settings: AppSettings = AppSettings.Default,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
+        isPro: Boolean = true,
     ) = RunningCostViewModel(
         activeCar = FakeActiveCarProvider(carId),
         settings = FakeSettingsRepository(settings),
@@ -234,6 +240,7 @@ class RunningCostViewModelTest {
             clock = FixedClock(Instant.parse("2026-08-01T09:00:00Z")),
             timeZone = TimeZone.UTC,
         ),
+        entitlements = FakeEntitlementSource(isPro),
         showcase = ShowcaseArbiter(seenStore),
         telemetry = CostTrackerTelemetry(
             logger = HLogger.asLogger(),
@@ -242,6 +249,24 @@ class RunningCostViewModelTest {
             ids = FixedIdGenerator(),
         ),
     )
+
+    private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
+        override fun observe(): Flow<Entitlements> =
+            flowOf(Entitlements(plan = if (isPro) Plan.PRO else Plan.FREE))
+
+        override suspend fun refresh() = Unit
+    }
+
+    /** #247: the analysis is Pro; the headline above it never is. */
+    @Test
+    fun theAnalysisIsLockedOnTheFreePlan_andOpenOnPro() = runTest(dispatcher) {
+        val free = viewModel(isPro = false)
+        assertTrue(free.state.first { it.analysisLocked }.analysisLocked)
+
+        val pro = viewModel(isPro = true)
+        pro.content()
+        assertEquals(false, pro.state.value.analysisLocked)
+    }
 
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {
         val seen = mutableSetOf<ShowcaseHookId>()

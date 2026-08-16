@@ -22,9 +22,9 @@ internal object OfferMapper {
     /**
      * Maps [offering], dropping any package that is not one of the two plans Odo sells.
      *
-     * Returns null when nothing is left. A dashboard can hold weekly or lifetime packages
-     * quite legitimately; this app has one screen and it shows a monthly and an annual plan,
-     * so anything else is not something it can render honestly. [onDropped] is called for
+     * Returns null when nothing is left. A dashboard can hold weekly or two-month packages
+     * quite legitimately; this app has one screen and it renders monthly, annual and
+     * lifetime, so anything else is not something it can show honestly. [onDropped] is called for
      * each one so the drop is visible rather than silent — an offering that renders as an
      * empty paywall must not be a mystery.
      */
@@ -41,10 +41,13 @@ internal object OfferMapper {
         return if (plans.isEmpty()) null else Offer(id = offering.identifier, plans = plans)
     }
 
-    /** Only the two Odo sells. Everything else is deliberately not guessed at. */
+    /** Only the shapes Odo sells. Everything else is deliberately not guessed at. */
     private fun PackageType.toBillingPeriod(): BillingPeriod? = when (this) {
         PackageType.MONTHLY -> BillingPeriod.MONTHLY
         PackageType.ANNUAL -> BillingPeriod.ANNUAL
+        // Growth Plan v3's ₹1,299 anchor (#245). Dropped before this: a lifetime package
+        // added in the dashboard vanished with a log line and the paywall showed one plan.
+        PackageType.LIFETIME -> BillingPeriod.LIFETIME
         else -> null
     }
 
@@ -55,7 +58,8 @@ internal object OfferMapper {
             period = period,
             formattedPrice = price.formatted,
             // The store derives and formats the per-month figure, so neither the division nor
-            // the rounding is Odo's to get wrong. Monthly plans have no separate one.
+            // the rounding is Odo's to get wrong. Monthly plans have no separate one, and a
+            // lifetime product has no per-month figure at all — nothing renders one for it.
             formattedPricePerMonth = storeProduct.pricePerMonth?.formatted ?: price.formatted,
             amountMicros = price.amountMicros,
             currencyCode = price.currencyCode,

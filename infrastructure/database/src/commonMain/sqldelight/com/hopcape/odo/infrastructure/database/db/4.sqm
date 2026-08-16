@@ -1,0 +1,13 @@
+-- Schema 4 -> 5: the bought-and-unspent record exports (#246).
+--
+-- Growth Plan v3 sells the record PDF two ways — inside Pro, or ₹99 once for someone who
+-- will never want a subscription. The second one is a balance rather than a plan: bought,
+-- spent, and buyable again, which is not something `Entitlements` can answer.
+--
+-- A plain CREATE TABLE: nothing existing is altered, so there is no SQLite 3.18 rebuild to
+-- do here. An install upgrading from 4 starts with no row at all, which reads as zero
+-- credits — correct, since it could not have bought one before this release existed.
+CREATE TABLE record_export_credits (
+    id        INTEGER NOT NULL PRIMARY KEY,
+    remaining INTEGER NOT NULL
+);

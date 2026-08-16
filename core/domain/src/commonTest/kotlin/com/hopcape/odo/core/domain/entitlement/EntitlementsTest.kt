@@ -8,12 +8,13 @@ import kotlin.test.assertTrue
 class EntitlementsTest {
 
     @Test
-    fun freePlanHoldsThreeDocumentsAndThreeScans() {
+    fun freePlanHoldsThreeDocumentsAndFiveScans() {
         val free = Entitlements(Plan.FREE)
 
         assertTrue(free.has(ProFeature.DOCUMENTS))
         assertEquals(3, free.quotaFor(ProFeature.DOCUMENTS).cap)
-        assertEquals(3, free.quotaFor(ProFeature.BILL_SCANS).cap)
+        // Five for the lifetime of the install, not three a month (#248).
+        assertEquals(5, free.quotaFor(ProFeature.BILL_SCANS).cap)
     }
 
     @Test
@@ -36,7 +37,6 @@ class EntitlementsTest {
 
         listOf(
             ProFeature.RECORD_EXPORT,
-            ProFeature.SMART_REFUEL_DETECT,
             ProFeature.DOCUMENTS,
             ProFeature.BILL_SCANS,
         ).forEach { feature ->

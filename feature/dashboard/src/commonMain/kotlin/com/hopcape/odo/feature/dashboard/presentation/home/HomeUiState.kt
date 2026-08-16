@@ -66,21 +66,15 @@ internal data class HomeUiState(
      */
     val offerAutoOdometer: Boolean = false,
 
-    /**
-     * Whether automatic logging is behind Pro for this owner.
-     *
-     * Shown rather than hidden when locked, and that is the point: the card is the only place
-     * automatic logging is discoverable, so hiding it from free owners would mean nobody ever
-     * learns the thing Pro sells. Locked, it carries a badge and opens the paywall; unlocked,
-     * it opens the explanation as before.
-     *
-     * "Log a fill" above it is untouched either way. Logging by hand stays free, so the
-     * dashboard always answers "can I record this fill?" with yes.
-     */
-    val autoDetectLocked: Boolean = false,
 )
 
 /** A loaded dashboard. */
+/** Blanks the score's trend line, leaving everything else — see `ProFeature.SCORE_HISTORY`. */
+internal fun HomeUiState.withoutScoreHistory(): HomeUiState = when (val c = content) {
+    is Loadable.Ready -> copy(content = Loadable.Ready(c.value.copy(scoreDelta = null)))
+    else -> this
+}
+
 @Immutable
 internal data class HomeContent(
     /** The owner's name for the greeting; empty falls back to a generic hello. */

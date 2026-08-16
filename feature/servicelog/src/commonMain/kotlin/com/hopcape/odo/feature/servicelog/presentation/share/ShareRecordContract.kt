@@ -6,6 +6,15 @@ internal sealed interface ShareRecordEvent {
     /** One of the targets, or the download button — every one of them sends the PDF. */
     data class ShareViaClicked(val target: ShareTarget) : ShareRecordEvent
 
+    /** "Buy this export" on the out-of-exports offer (#246). */
+    data object BuyExportClicked : ShareRecordEvent
+
+    /** "Unlock with Pro" on the same offer — the subscription route. */
+    data object UnlockWithProClicked : ShareRecordEvent
+
+    /** The offer was dismissed without choosing either route. */
+    data object ExportOfferDismissed : ShareRecordEvent
+
     /**
      * The host finished rendering, with the document's bytes or `null` if it could not be
      * produced. Reported back rather than returned, because rendering needs a UI host and

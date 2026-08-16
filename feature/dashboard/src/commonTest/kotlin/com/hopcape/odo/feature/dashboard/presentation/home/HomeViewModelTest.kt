@@ -59,10 +59,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.assertFalse
-import com.hopcape.odo.core.domain.entitlement.ProFeature
-import com.hopcape.odo.core.domain.entitlement.PlanLimits
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelLimit
 
 class HomeViewModelTest {
 
@@ -255,30 +251,18 @@ class HomeViewModelTest {
 
     /* ------------------------- fixtures ------------------------- */
 
+    /**
+     * #251: automatic logging is never gated, so the card always opens the explanation —
+     * on the free plan, and however many fills have already been detected.
+     */
     @Test
-    fun autoDetect_isOpenOnTheFreePlanUntilTheAllowanceRunsOut() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 9)
-        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetect_locksWhenTheFreeAllowanceIsSpent() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
-        assertTrue(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetect_staysUnlockedOnProPastTheFreeCap() = runTest {
-        val vm = viewModel(isPro = true, detectedFillsUsed = 50)
-        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetectTapped_opensThePaywallWhenLocked() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
+    fun autoDetectTapped_alwaysOpensTheExplanation_neverAPaywall() = runTest(dispatcher) {
+        val vm = viewModel(isPro = false, detectedFillsUsed = 50)
         vm.state.first { it.content is Loadable.Ready }
+
         vm.onEvent(HomeEvent.AutoDetectTapped)
-        assertIs<HomeEffect.OpenPaywall>(vm.effects.first())
+
+        assertIs<HomeEffect.OpenAutoDetect>(vm.effects.first())
     }
 
     @Test
@@ -432,7 +416,6 @@ class HomeViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         detection = FakeRefuelDetectionStore(),
-        smartRefuel = smartRefuelAllowance(used = detectedFillsUsed, isPro = isPro),
         bonds = FakeVehicleBondStore(bond),
         tracker = FakeTripTracker(enabled = trackingEnabled),
         showcase = ShowcaseArbiter(seenStore),
@@ -445,16 +428,6 @@ class HomeViewModelTest {
             flowOf(Entitlements(plan = if (isPro) Plan.PRO else Plan.FREE))
 
         override suspend fun refresh() = Unit
-    }
-
-    /** A [SmartRefuelAllowance] that stands still on one plan and one tally. */
-    private fun smartRefuelAllowance(used: Int, isPro: Boolean) = SmartRefuelAllowance {
-        flowOf(
-            SmartRefuelLimit(
-                used = used,
-                quota = PlanLimits.quota(if (isPro) Plan.PRO else Plan.FREE, ProFeature.SMART_REFUEL_DETECT),
-            ),
-        )
     }
 
     private fun telemetry(analytics: RecordingAnalytics) = HomeTelemetry(

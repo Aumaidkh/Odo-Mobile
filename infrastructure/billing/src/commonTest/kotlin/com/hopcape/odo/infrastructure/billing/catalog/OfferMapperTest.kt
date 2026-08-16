@@ -89,12 +89,30 @@ class OfferMapperTest {
         val dropped = mutableListOf<Pair<String, String>>()
 
         val offer = OfferMapper.map(
-            offering(monthlyPackage(), package_(id = "\$rc_lifetime", type = PackageType.LIFETIME)),
+            offering(monthlyPackage(), package_(id = "\$rc_weekly", type = PackageType.WEEKLY)),
             onDropped = { id, type -> dropped += id to type },
         )!!
 
         assertEquals(1, offer.plans.size)
-        assertEquals(listOf("\$rc_lifetime" to "LIFETIME"), dropped, "a dropped package is never silent")
+        assertEquals(listOf("\$rc_weekly" to "WEEKLY"), dropped, "a dropped package is never silent")
+    }
+
+    /**
+     * Growth Plan v3's ₹1,299 anchor (#245). This used to be dropped with a log line, so a
+     * lifetime package added in the dashboard vanished and the paywall showed one plan.
+     */
+    @Test
+    fun aLifetimePackageIsCarriedThroughRatherThanDropped() {
+        val dropped = mutableListOf<Pair<String, String>>()
+
+        val offer = OfferMapper.map(
+            offering(monthlyPackage(), package_(id = "\$rc_lifetime", type = PackageType.LIFETIME)),
+            onDropped = { id, type -> dropped += id to type },
+        )!!
+
+        assertEquals(2, offer.plans.size)
+        assertEquals(BillingPeriod.LIFETIME, offer.lifetime?.period)
+        assertEquals(emptyList(), dropped)
     }
 
     @Test

@@ -58,6 +58,9 @@ internal fun RunningCostRoute(navigationManager: NavigationManager) {
         when (effect) {
             RunningCostEffect.OpenFuelRate ->
                 navigationManager.navigateTo(OdoDestination.CostTracker.FuelRate)
+
+            RunningCostEffect.OpenPaywall ->
+                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER))
         }
     }
 
@@ -82,3 +85,6 @@ internal fun FuelRateRoute(navigationManager: NavigationManager) {
 
     FuelRateSheetContent(state = state, onEvent = viewModel::onEvent)
 }
+
+/** Names which surface sent the owner to the paywall, for the funnel (#247). */
+private const val PAYWALL_TRIGGER = "COST_ANALYSIS"

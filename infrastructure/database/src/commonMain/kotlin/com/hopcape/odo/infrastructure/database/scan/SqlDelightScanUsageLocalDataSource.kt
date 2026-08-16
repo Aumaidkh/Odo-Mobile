@@ -19,6 +19,9 @@ internal class SqlDelightScanUsageLocalDataSource(
 
     private val queries get() = database.scanUsageQueries
 
+    override suspend fun countAllTime(): Int =
+        queries.countAllTime().executeAsOneOrNull()?.total?.toInt() ?: 0
+
     override suspend fun countFor(month: String): Int =
         queries.countForMonth(month).executeAsOneOrNull()?.toInt() ?: 0
 
