@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import kotlinx.coroutines.flow.first
 
@@ -29,6 +30,7 @@ internal class DeleteAllDataUseCase(
     private val profiles: OwnerProfileRepository,
     private val settings: AppSettingsRepository,
     private val files: PlatformFileStore,
+    private val showcaseSeen: ShowcaseSeenStore,
 ) {
     suspend operator fun invoke(): Either<DomainError, Unit> {
         val car = cars.observePrimaryCar().first()
@@ -41,6 +43,9 @@ internal class DeleteAllDataUseCase(
             .onRight {
                 avatar?.let { files.delete(it) }
                 settings.save(AppSettings.Default)
+                // A wiped phone is a new phone: the coach marks teach again (#224). Same
+                // not-allowed-to-fail class as the settings reset above.
+                showcaseSeen.clearAll()
             }
     }
 }

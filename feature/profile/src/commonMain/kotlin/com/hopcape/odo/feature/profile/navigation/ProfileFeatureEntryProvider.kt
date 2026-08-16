@@ -91,6 +91,7 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
         onPrivacy = { navigationManager.navigateTo(OdoDestination.Profile.Privacy) },
+        onShowAround = { viewModel.onEvent(ProfileEvent.ShowAroundTapped) },
         onHelp = { navigationManager.navigateTo(OdoDestination.Support.Help) },
         onSignIn = {
             viewModel.onEvent(ProfileEvent.SignInStarted)
