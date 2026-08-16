@@ -18,14 +18,23 @@
     <string name="pf_edit">Edit</string>
     <string name="pf_pro_title">Odo Pro</string>
     <string name="pf_pro_active">ACTIVE</string>
+    <string name="pf_pro_trial">FREE TRIAL</string>
+    <string name="pf_pro_renews">Renews %1$s</string>
+    <string name="pf_pro_ends">Ends %1$s</string>
+    <string name="pf_pro_no_date">Your subscription is active.</string>
+    <string name="pf_pro_billing_issue">Your last payment didn’t go through. Update your payment method in Google Play to keep Pro.</string>
+    <string name="pf_pro_cancelled">Cancelled. Pro works until then.</string>
     <string name="pf_manage_plan">Manage plan</string>
     <string name="pf_restore">Restore purchases</string>
     <string name="pf_go_pro">Go Pro</string>
     <string name="pf_free_plan">You’re on the free plan</string>
-    <string name="pf_pro_feat_1">Full cost breakdown &amp; 6-month trend</string>
-    <string name="pf_pro_feat_2">Unlimited bill scans &amp; fairness checks</string>
-    <string name="pf_pro_feat_3">City benchmark detail</string>
-    <string name="pf_start_pro">Start Pro · ₹149/mo</string>
+    <string name="pf_pro_feat_1">Unlimited bill scans &amp; fairness checks</string>
+    <string name="pf_pro_feat_2">Unlimited document vault</string>
+    <string name="pf_pro_feat_3">Full Health Score breakdown</string>
+    <string name="pf_pro_feat_4">Export your full record as a PDF</string>
+    <!-- No price here on purpose: the paywall reads it from the store, so a figure
+         written down would be one the app cannot stand behind. -->
+    <string name="pf_start_pro">See plans</string>
     <string name="pf_preferences">PREFERENCES</string>
     <string name="pf_notifications">Notifications</string>
     <string name="pf_units">Units &amp; currency</string>
@@ -135,11 +144,9 @@
     <string name="pf_export_history">Service history &amp; costs</string>
     <string name="pf_export_docs">Documents</string>
     <string name="pf_export_account">Account &amp; profile info</string>
-    <string name="pf_export_note">A full export ships with the Resale Passport, which also gives a buyer a verified copy of the history.</string>
-    <string name="pf_export_pdf">Download PDF</string>
-    <string name="pf_export_request">Request export</string>
+    <string name="pf_export_note">The export is one printable PDF — the same record a buyer or a workshop can read.</string>
+    <string name="pf_export_pdf">Export as PDF</string>
     <!-- On a CTA that is built but has nothing behind it yet. -->
-    <string name="pf_coming_soon">COMING SOON</string>
 
     <!-- Sign out sheet -->
     <string name="pf_signout_title">Sign out of Odo?</string>
@@ -236,4 +243,7 @@
     <string name="pf_da_error_reverify">We need you to confirm your number again before deleting.</string>
     <string name="pf_da_error_local_survived">Your account is deleted, but this phone still has a copy.</string>
     <string name="pf_da_error_failed">We couldn\'t delete your account. Nothing has been removed — please try again.</string>
+    <string name="pf_notif_detection">Automatic logging</string>
+    <string name="pf_notif_auto_detect">Auto-detect fuel fills</string>
+    <string name="pf_notif_auto_detect_sub">Reads the payment notification from a fuel station and drafts the entry for you. Nothing leaves your phone.</string>
 </resources>

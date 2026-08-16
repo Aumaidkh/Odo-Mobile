@@ -10,6 +10,7 @@ import com.hopcape.odo.core.domain.auth.AuthSession
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
@@ -172,6 +173,7 @@ class OdoSessionManagerTest {
             store = InMemoryStore(),
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
+            identity = RecordingIdentity(),
             clock = FixedClock(now),
         )
 
@@ -192,6 +194,7 @@ class OdoSessionManagerTest {
             store = InMemoryStore(),
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
+            identity = RecordingIdentity(),
             clock = FixedClock(now),
         )
 
@@ -200,10 +203,57 @@ class OdoSessionManagerTest {
         assertTrue(requested.isEmpty())
     }
 
+    /* ------------------------------ the store's idea of who this is ------------------------------ */
+
+    @Test
+    fun signingInTellsTheStoreWhoThisIs() = runTest {
+        // Without this a subscription bought before signing in stays on an anonymous
+        // identity, and a new phone signed into the same number does not get Pro back.
+        val identity = RecordingIdentity()
+
+        manager(identity = identity).verifyOtp(phone, "123456")
+
+        assertEquals(listOf(issued().ownerId.value), identity.identified)
+    }
+
+    @Test
+    fun signingOutReturnsTheStoreToAnAnonymousIdentity() = runTest {
+        val identity = RecordingIdentity()
+        val manager = manager(identity = identity)
+        manager.verifyOtp(phone, "123456")
+
+        manager.signOut()
+
+        assertEquals(1, identity.forgotten)
+    }
+
+    @Test
+    fun aRestoredSessionIsIdentifiedToo() = runTest {
+        // A relaunch never goes through verifyOtp, so without this the store would only ever
+        // hear about an owner on the launch they signed in.
+        val store = InMemoryStore()
+        val identity = RecordingIdentity()
+        manager(store = store).verifyOtp(phone, "123456")
+
+        manager(store = store, identity = identity).restore()
+
+        assertEquals(listOf(issued().ownerId.value), identity.identified)
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
 
     /** Most tests do not care that a sync was asked for. */
     private val trigger = RecordingScheduler(mutableListOf())
+
+    /** Records who the store was told about, so the link and the clear can be asserted. */
+    private class RecordingIdentity : SubscriptionIdentity {
+        val identified = mutableListOf<String>()
+        var forgotten = 0
+            private set
+
+        override fun identify(ownerId: OwnerId) { identified += ownerId.value }
+        override fun forget() { forgotten++ }
+    }
 
     /** Records what was asked of the scheduler, without WorkManager anywhere near it. */
     private class RecordingScheduler(private val into: MutableList<SyncReason>) : SyncScheduler {
@@ -214,11 +264,20 @@ class OdoSessionManagerTest {
     private fun manager(
         gateway: AuthGateway = SucceedingGateway(),
         store: SecureStore = InMemoryStore(),
-    ) = OdoSessionManager(gateway = gateway, store = store, telemetry = silentTelemetry(), scheduler = trigger, clock = FixedClock(now))
+        identity: SubscriptionIdentity = RecordingIdentity(),
+    ) = OdoSessionManager(
+        gateway = gateway,
+        store = store,
+        telemetry = silentTelemetry(),
+        scheduler = trigger,
+        identity = identity,
+        clock = FixedClock(now),
+    )
 
     /** Signs in through a gateway that works, so sign-out has something to clear. */
     private suspend fun OdoSessionManager.verifyOtpWith(gateway: AuthGateway, store: SecureStore) {
-        OdoSessionManager(gateway, store, silentTelemetry(), trigger, FixedClock(now)).verifyOtp(phone, "123456")
+        OdoSessionManager(gateway, store, silentTelemetry(), trigger, RecordingIdentity(), FixedClock(now))
+            .verifyOtp(phone, "123456")
         restore()
     }
 

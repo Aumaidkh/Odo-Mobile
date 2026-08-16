@@ -45,6 +45,8 @@ internal data class HomeSnapshot(
     val insight: CarInsight?,
     /** The newest thing that happened to the car; `null` on a record with no events. */
     val recent: ActivityEvent?,
+    /** How far the car has run since its last fill, and what that fill was. */
+    val tank: TankStatus,
     val setup: SetupProgress,
 ) {
     /**

@@ -170,46 +170,38 @@ sealed interface DomainError {
      */
     data object ScanUnavailable : DomainError
 
-    /* ---- UPI payments ---- */
+    /* ---- Payments ---- */
 
-    /**
-     * The QR was read but is not a UPI payment link. Includes the EMVCo/Bharat QR grammar,
-     * which is deliberately not guessed at — misreading one would send money elsewhere.
-     */
-    data object UnsupportedQr : DomainError
-
-    /** The payment address in the code is not a well-formed `name@handle`. */
-    data object InvalidUpiAddress : DomainError
-
-    /** The amount in the code was not a plain rupee figure. */
-    data object InvalidUpiAmount : DomainError
-
-    /** No app on this device can take a UPI payment, so there is nothing to hand the request to. */
-    data object NoUpiAppAvailable : DomainError
-
-    /**
-     * This platform has no UPI hand-off at all — iOS, where the payment apps register
-     * private URL schemes and none accepts the standard link.
-     *
-     * Distinct from [NoUpiAppAvailable], which is a device that happens to have none
-     * installed: that one is fixed by installing an app, and this one is not.
-     */
-    data object UpiUnsupportedOnDevice : DomainError
-
-    /** The owner backed out of the UPI app without paying. */
+    /** The owner backed out of the store's purchase sheet without paying. */
     data object PaymentCancelled : DomainError
 
     /**
-     * The bank declined, or the UPI app reported a failure. Distinct from
+     * The card was declined, or the store reported a failure. Distinct from
      * [PaymentCancelled] because one is the owner's choice and the other is not.
      */
     data object PaymentFailed : DomainError
 
+
+    /* ---- Subscriptions ---- */
+
     /**
-     * The payment was submitted but not settled. Deliberately its own case: nothing may be
-     * recorded against it, and it is not a failure either — the money may still move.
+     * The store could not be reached, so what Pro costs is not known right now.
+     *
+     * Worth retrying: the network, the Play Store app or RevenueCat is momentarily
+     * unavailable, and the same request a moment later usually answers. The paywall shows a
+     * retry rather than a price, because a price it cannot confirm is worse than none.
      */
-    data object PaymentPending : DomainError
+    data object StoreUnavailable : DomainError
+
+    /**
+     * The store answered and has nothing to sell.
+     *
+     * Distinct from [StoreUnavailable] because retrying will not help: either no offering is
+     * marked current in the RevenueCat dashboard, or its packages are not the monthly and
+     * annual plans this app knows how to show. It is a configuration mistake, not a network
+     * one, and it is the app's own fault rather than the owner's.
+     */
+    data object NothingForSale : DomainError
 
     /* ---- Fuel fills ---- */
 

@@ -24,6 +24,7 @@ import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.account
 import com.hopcape.odo.feature.profile.domain.usecase.entitlement
+import com.hopcape.odo.feature.profile.domain.usecase.subscription
 import com.hopcape.odo.feature.profile.domain.usecase.session
 import com.hopcape.odo.feature.profile.domain.usecase.testProfile
 import com.hopcape.odo.feature.profile.presentation.sheets.AppearanceEvent
@@ -68,7 +69,8 @@ class ProfileViewModelsTest {
     ) = ObserveProfileUseCase(
         profiles = profiles,
         settings = settings,
-        entitlement = entitlement(isPro),
+        subscription = subscription(),
+            entitlements = entitlement(isPro),
         session = session(isSignedIn),
         account = account(phoneNumber),
     )
@@ -401,7 +403,8 @@ class ProfileViewModelsTest {
             observeProfile = ObserveProfileUseCase(
                 profiles = profiles,
                 settings = settings,
-                entitlement = entitlement(false),
+                subscription = subscription(),
+            entitlements = entitlement(false),
                 session = session(false),
                 account = account(phoneNumber),
             ),

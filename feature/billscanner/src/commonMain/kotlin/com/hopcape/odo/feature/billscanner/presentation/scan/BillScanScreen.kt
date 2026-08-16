@@ -74,16 +74,16 @@ import com.hopcape.odo.feature.billscanner.resources.bs_cd_torch_off
 import com.hopcape.odo.feature.billscanner.resources.bs_cd_torch_on
 import com.hopcape.odo.feature.billscanner.resources.bs_mode_bill
 import com.hopcape.odo.feature.billscanner.resources.bs_mode_document
-import com.hopcape.odo.feature.billscanner.resources.bs_mode_qr
+import com.hopcape.odo.feature.billscanner.resources.bs_mode_pump
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_align
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_align_document
-import com.hopcape.odo.feature.billscanner.resources.bs_scan_align_qr
+import com.hopcape.odo.feature.billscanner.resources.bs_scan_align_pump
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_detecting
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_manual
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_quota
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_title
 import com.hopcape.odo.feature.billscanner.resources.bs_scan_title_document
-import com.hopcape.odo.feature.billscanner.resources.bs_scan_title_qr
+import com.hopcape.odo.feature.billscanner.resources.bs_scan_title_pump
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -113,11 +113,12 @@ internal fun BillScanScreen(
     onManual: () -> Unit,
     onTargetSelected: (ScanTarget) -> Unit,
     onToggleEdgeLock: () -> Unit,
+    onQuotaTapped: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OdoScreen(
         modifier = modifier,
-        topBar = { ScanTopBar(state = state, cameraState = cameraState, onClose = onClose) },
+        topBar = { ScanTopBar(state = state, cameraState = cameraState, onClose = onClose, onQuotaTapped = onQuotaTapped) },
         bottomBar = {
             Column {
                 state.failure?.let { message ->
@@ -133,11 +134,9 @@ internal fun BillScanScreen(
                 }
                 TargetChips(selected = state.target, onSelect = onTargetSelected)
                 ScanControls(
-                    // Nothing to shoot in QR mode: the code is read off the live frames, so
-                    // the shutter would only produce a photo of a QR nobody wants.
-                    showShutter = state.target != ScanTarget.PaymentQr,
-                    // Manual entry is a bill-form fallback; a document or a QR has no
-                    // hand-typed equivalent to fall back to.
+                    showShutter = true,
+                    // Manual entry is a bill-form fallback; a document has no hand-typed
+                    // equivalent to fall back to, and a pump display has its own.
                     showManual = state.target == ScanTarget.Bill,
                     onPickGallery = onPickGallery,
                     onCapture = onCapture,
@@ -174,8 +173,6 @@ private fun TargetChips(selected: ScanTarget, onSelect: (ScanTarget) -> Unit) {
             .padding(horizontal = OdoTheme.spacing.screenEdge),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm, Alignment.CenterHorizontally),
     ) {
-        // `scanTargets`, not `ScanTarget.entries` — Pay QR is off for 1.0 and its chip is the
-        // only way into the mode. See FeatureFlags.PAY_VIA_QR_ENABLED.
         scanTargets.forEach { target ->
             OdoChip(
                 label = stringResource(target.labelResource()),
@@ -190,21 +187,21 @@ private fun TargetChips(selected: ScanTarget, onSelect: (ScanTarget) -> Unit) {
 private fun ScanTarget.labelResource(): StringResource = when (this) {
     ScanTarget.Bill -> Res.string.bs_mode_bill
     ScanTarget.Document -> Res.string.bs_mode_document
-    ScanTarget.PaymentQr -> Res.string.bs_mode_qr
+    ScanTarget.PumpDisplay -> Res.string.bs_mode_pump
 }
 
 /** The screen title, which names what is being scanned. */
 private fun ScanTarget.titleResource(): StringResource = when (this) {
     ScanTarget.Bill -> Res.string.bs_scan_title
     ScanTarget.Document -> Res.string.bs_scan_title_document
-    ScanTarget.PaymentQr -> Res.string.bs_scan_title_qr
+    ScanTarget.PumpDisplay -> Res.string.bs_scan_title_pump
 }
 
 /** The guidance under the frame. */
 private fun ScanTarget.guidanceResource(): StringResource = when (this) {
     ScanTarget.Bill -> Res.string.bs_scan_align
     ScanTarget.Document -> Res.string.bs_scan_align_document
-    ScanTarget.PaymentQr -> Res.string.bs_scan_align_qr
+    ScanTarget.PumpDisplay -> Res.string.bs_scan_align_pump
 }
 
 @Composable
@@ -212,6 +209,7 @@ private fun ScanTopBar(
     state: BillScanUiState,
     cameraState: OdoCameraState,
     onClose: () -> Unit,
+    onQuotaTapped: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -262,6 +260,9 @@ private fun ScanTopBar(
             OdoBadge(
                 text = stringResource(Res.string.bs_scan_quota, state.freeRemaining, state.freeTotal),
                 tone = OdoBadgeTone.Accent,
+                modifier = Modifier
+                    .clip(OdoTheme.shapes.pill)
+                    .clickable(onClick = onQuotaTapped),
             )
         }
     }
@@ -549,5 +550,6 @@ private fun BillScanScreenPreview() = OdoPreview(padded = false) {
         onManual = {},
         onTargetSelected = {},
         onToggleEdgeLock = {},
+        onQuotaTapped = {},
     )
 }

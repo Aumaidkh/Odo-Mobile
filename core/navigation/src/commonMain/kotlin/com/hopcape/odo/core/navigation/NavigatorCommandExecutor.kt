@@ -13,7 +13,26 @@ internal fun Navigator.execute(command: NavigationCommand) {
         is NavigationCommand.NavigateTo -> {
             command.popUpTo?.let { popUpTo(it, command.inclusive) }
             val alreadyOnTop = command.singleTop && backStack.lastOrNull() == command.destination
-            if (!alreadyOnTop) navigate(command.destination)
+            when {
+                alreadyOnTop -> Unit
+
+                // The same key twice is not two screens — it is a crash. Nav3 keys saved state
+                // by the destination itself, so a back stack holding one key in two places
+                // throws out of `SaveableStateHolder` ("Key … was used multiple times") and
+                // takes the app down. A detected-fill notification did exactly that: its
+                // launch intent was replayed on an activity recreation and pushed a
+                // `Refuel.Confirm` that was already further down the stack.
+                //
+                // That cause is fixed where it belongs, by consuming the intent. This is the
+                // backstop, and it is not a behaviour change — pushing a duplicate key was
+                // never something the framework could represent. Bringing the existing entry
+                // forward is the only meaning the request can have, and it keeps whatever
+                // state that entry had.
+                backStack.contains(command.destination) ->
+                    popUpTo(command.destination, inclusive = false)
+
+                else -> navigate(command.destination)
+            }
         }
 
         is NavigationCommand.FinishFlow -> {

@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 /** The groups the "Show in timeline" sheet offers, one per kind of event on the feed. */
 internal enum class ActivityCategory {
     SERVICES,
+    FUEL,
     DOCUMENTS,
     SCORE,
     MILESTONES,
@@ -14,6 +15,7 @@ internal enum class ActivityCategory {
 internal val ActivityEvent.category: ActivityCategory
     get() = when (this) {
         is ActivityEvent.Service -> ActivityCategory.SERVICES
+        is ActivityEvent.FuelFilled -> ActivityCategory.FUEL
         is ActivityEvent.DocumentFiled -> ActivityCategory.DOCUMENTS
         is ActivityEvent.ScoreChanged -> ActivityCategory.SCORE
         is ActivityEvent.CarAdded -> ActivityCategory.MILESTONES

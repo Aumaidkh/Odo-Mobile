@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">Odo</string>
+    <string name="refuel_widget_description">Log a fuel fill in one tap</string>
+
+    <!--
+      The widget's own copy. Android resources rather than the feature's Compose Resources:
+      Glance draws through RemoteViews in the launcher's process, which cannot resolve a
+      Compose resource. This is the same reason the detection notification keeps its copy in
+      Kotlin — except the widget is Android-only, so it can use the platform's own mechanism.
+    -->
+    <string name="refuel_widget_brand">ODO</string>
+    <string name="refuel_widget_scan_pump">Scan pump</string>
+    <string name="refuel_widget_type_it">Type it</string>
+    <string name="refuel_widget_odometer">Odometer</string>
 </resources>

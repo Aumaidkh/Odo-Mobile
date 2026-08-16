@@ -1,10 +1,14 @@
 package com.hopcape.odo.feature.healthscore.domain.usecase
 
 import com.hopcape.odo.core.domain.document.model.DocumentType
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -45,7 +49,7 @@ class ObserveHealthScoreUseCaseTest {
         logs = logs,
         documents = docs,
         snapshots = snapshots,
-        entitlement = ProEntitlement { isPro },
+        entitlements = entitlementsOf(isPro),
         currentOdometer = currentOdometer ?: currentOdometerFrom(logs),
         clock = FixedClock(now),
         timeZone = TimeZone.UTC,
@@ -106,8 +110,8 @@ class ObserveHealthScoreUseCaseTest {
 
     @Test
     fun theEntitlementTravelsWithTheScore() = runTest {
-        assertTrue(useCase(isPro = true).invoke(TEST_CAR).first().isPro)
-        assertEquals(false, useCase(isPro = false).invoke(TEST_CAR).first().isPro)
+        assertTrue(useCase(isPro = true).invoke(TEST_CAR).first().entitlements.has(ProFeature.HEALTH_BREAKDOWN))
+        assertEquals(false, useCase(isPro = false).invoke(TEST_CAR).first().entitlements.has(ProFeature.HEALTH_BREAKDOWN))
     }
 
     @Test
@@ -164,4 +168,10 @@ class ObserveHealthScoreUseCaseTest {
         assertEquals(35, before)
         assertEquals(20, after)
     }
+}
+
+/** An [EntitlementSource] that stands still on one plan. */
+private fun entitlementsOf(isPro: Boolean) = object : EntitlementSource {
+    override fun observe() = flowOf(Entitlements(if (isPro) Plan.PRO else Plan.FREE))
+    override suspend fun refresh() = Unit
 }

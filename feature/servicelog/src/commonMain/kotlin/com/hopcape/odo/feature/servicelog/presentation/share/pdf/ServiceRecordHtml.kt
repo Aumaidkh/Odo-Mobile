@@ -258,8 +258,11 @@ internal object ServiceRecordHtml {
             listOf(if (event.isRenewal) labels.documentRenewed(name) else labels.documentAdded(name))
         }
         is ActivityEvent.CarAdded -> listOf(labels.carAdded)
-        // Never printed — the builder drops score moves before they reach here.
+        // Neither is ever printed: the builder drops score moves, and it is never given the
+        // fills at all — a resale record is an account of how the car was looked after, and a
+        // year of refuelling would bury the services that say so.
         is ActivityEvent.ScoreChanged -> listOf(labels.carAdded)
+        is ActivityEvent.FuelFilled -> listOf(labels.carAdded)
     }
 
     /** The line under the headline: where the work was done, or when a paper runs out. */

@@ -36,12 +36,37 @@ class NavigatorCommandExecutorTest {
     }
 
     @Test
-    fun navigateTo_withoutSingleTop_allowsDuplicate() {
+    fun navigateTo_neverPutsTheSameKeyOnTheStackTwice() {
+        // This used to assert the opposite — that `singleTop = false` pushed a duplicate. It
+        // could not: Nav3 keys saved state by the destination, so a stack holding one key
+        // twice throws out of SaveableStateHolder and kills the app. A detected-fill
+        // notification hit it in the field, by replaying its launch intent on an activity
+        // recreation.
+        //
+        // Nothing in the app passes `singleTop = false`, so the old assertion only ever
+        // described a crash nobody had asked for.
         val nav = navigator(OdoDestination.Home)
 
         nav.execute(NavigationCommand.NavigateTo(OdoDestination.Home, singleTop = false))
 
-        assertEquals(listOf(OdoDestination.Home, OdoDestination.Home), nav.backStack.toList())
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
+    fun navigateTo_aDestinationAlreadyDeeperInTheStack_bringsItForward() {
+        // The shape the crash actually had: the key was not on top, so the singleTop check
+        // missed it, and pushing it again duplicated it. Popping back to it is the only
+        // meaning the request can have, and it keeps that entry's state.
+        val nav = navigator(OdoDestination.Home)
+        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Profile.Root))
+        nav.execute(NavigationCommand.NavigateTo(OdoDestination.CarDetail("c1")))
+
+        nav.execute(NavigationCommand.NavigateTo(OdoDestination.Profile.Root))
+
+        assertEquals(
+            listOf(OdoDestination.Home, OdoDestination.Profile.Root),
+            nav.backStack.toList(),
+        )
     }
 
     @Test

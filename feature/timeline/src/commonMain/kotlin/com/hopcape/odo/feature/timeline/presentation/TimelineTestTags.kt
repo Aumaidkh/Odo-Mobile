@@ -18,6 +18,9 @@ object TimelineTestTags {
     const val FILTERED_EMPTY = "timeline_filtered_empty"
     const val SUBTITLE = "timeline_subtitle"
 
+    /** A logged fuel fill. */
+    const val FUEL_ROW = "timeline_fuel_row"
+
     /** A health-score move row. */
     const val SCORE_ROW = "timeline_score_row"
 

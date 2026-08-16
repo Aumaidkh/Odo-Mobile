@@ -23,4 +23,6 @@
     <string name="document_kind_licence">Driving licence</string>
     <string name="document_kind_loan">Loan papers</string>
     <string name="document_kind_other">Document</string>
+    <string name="refuel_detected_channel_name">Detected fuel fills</string>
+    <string name="refuel_detected_channel_description">A payment at a fuel station, ready to log in one tap</string>
 </resources>

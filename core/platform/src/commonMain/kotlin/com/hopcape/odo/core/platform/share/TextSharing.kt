@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 /**
  * Hands a line of text to the system share sheet.
  *
- * A composable rather than an injected port, for the same reason as the camera, the file
- * picker and the UPI launcher: presenting a share sheet needs the thing hosting the UI (an
+ * A composable rather than an injected port, for the same reason as the camera and the file
+ * picker: presenting a share sheet needs the thing hosting the UI (an
  * Activity on Android, the key window on iOS), and no Koin singleton can hold one without
  * leaking it.
  *

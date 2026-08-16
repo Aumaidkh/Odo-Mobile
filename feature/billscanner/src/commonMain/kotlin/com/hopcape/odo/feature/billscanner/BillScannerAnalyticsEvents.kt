@@ -61,6 +61,13 @@ val billScannerAnalyticsEvents: List<EventSchema> = listOf(
         mapOf(BillScannerTelemetry.Key.HAS_EXPIRY to PropertyType.BOOLEAN),
     ),
     EventSchema(
+        BillScannerTelemetry.Event.PUMP_EXTRACTED,
+        mapOf(
+            BillScannerTelemetry.Key.FIELDS_READ to PropertyType.INT,
+            BillScannerTelemetry.Key.CROSS_CHECKED to PropertyType.BOOLEAN,
+        ),
+    ),
+    EventSchema(
         BillScannerTelemetry.Event.EXTRACTION_FAILED,
         mapOf(BillScannerTelemetry.Key.ERRORS to PropertyType.STRING),
     ),
@@ -77,24 +84,6 @@ val billScannerAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(
         BillScannerTelemetry.Event.SAVE_FAILED,
-        mapOf(BillScannerTelemetry.Key.ERRORS to PropertyType.STRING),
-    ),
-    EventSchema(
-        BillScannerTelemetry.Event.PAYMENT_QR_PARSED,
-        mapOf(BillScannerTelemetry.Key.QR_HAS_AMOUNT to PropertyType.BOOLEAN),
-    ),
-    EventSchema(
-        BillScannerTelemetry.Event.PAYMENT_QR_REJECTED,
-        mapOf(BillScannerTelemetry.Key.ERRORS to PropertyType.STRING),
-    ),
-    EventSchema(BillScannerTelemetry.Event.PAYMENT_INITIATED),
-    EventSchema(
-        BillScannerTelemetry.Event.PAYMENT_SETTLED,
-        mapOf(BillScannerTelemetry.Key.STATUS to PropertyType.STRING),
-    ),
-    EventSchema(BillScannerTelemetry.Event.FILL_SAVED),
-    EventSchema(
-        BillScannerTelemetry.Event.FILL_SAVE_FAILED,
         mapOf(BillScannerTelemetry.Key.ERRORS to PropertyType.STRING),
     ),
 )

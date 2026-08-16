@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.healthscore.presentation
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.feature.healthscore.presentation.state.Loadable
@@ -49,8 +50,8 @@ internal data class HealthScoreContent(
     val factors: List<HealthFactor>,
     /** The factor with the most points left to earn; `null` only at a perfect 100. */
     val opportunity: HealthFactor?,
-    /** Pro sees every factor; free sees the first and a paywall. */
-    val isPro: Boolean,
+    /** What the owner's plan grants. Pro sees every factor; free sees the first and a paywall. */
+    val entitlements: Entitlements,
 ) {
     /** Nothing has been logged or uploaded, so the score is zero for want of evidence. */
     val hasNothingLogged: Boolean get() = note is HealthNote.NothingLoggedYet

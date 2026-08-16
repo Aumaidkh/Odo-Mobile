@@ -6,11 +6,12 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.cost.model.FuelFillId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
-import com.hopcape.odo.core.domain.payment.model.PaymentMethod
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FuelFillTest {
@@ -48,9 +49,22 @@ class FuelFillTest {
     }
 
     @Test
-    fun a_fill_with_no_odometer_is_rejected() {
-        val errors = create(odometerKm = null).leftOrNull()
-        assertTrue(errors?.contains(DomainError.MissingOdometer) == true)
+    fun a_fill_with_no_odometer_is_accepted_and_keeps_no_reading() {
+        // The odometer is optional on a fill, unlike on a service entry. A detected fill
+        // reaches the owner at the pump, where the dashboard is the one number they cannot
+        // read, and losing the whole record over that field helps nobody.
+        val fill = create(odometerKm = null).getOrNull()
+
+        assertNotNull(fill)
+        assertNull(fill.odometer)
+    }
+
+    @Test
+    fun an_odometer_that_was_given_still_has_to_be_a_real_reading() {
+        // Left alone is not the same as typed wrong. Only the second is worth an error.
+        val errors = create(odometerKm = -1).leftOrNull()
+
+        assertTrue(errors?.contains(DomainError.NegativeOdometer) == true)
     }
 
     @Test
@@ -61,8 +75,10 @@ class FuelFillTest {
 
     @Test
     fun every_field_failure_is_reported_at_once() {
+        // An absent odometer is no longer one of them, so a fill missing all three inputs
+        // reports the two that are still required.
         val errors = create(odometerKm = null, quantityMilli = null, filledOn = null).leftOrNull()
-        assertEquals(3, errors?.size)
+        assertEquals(2, errors?.size)
     }
 
     private fun create(
@@ -70,7 +86,6 @@ class FuelFillTest {
         odometerKm: Int? = 40_000,
         quantityMilli: Long? = 32_000,
         amountPaise: Long? = 320_000,
-        paidVia: PaymentMethod = PaymentMethod.UPI,
         transactionRef: String? = "REF9",
     ) = FuelFill.create(
         id = FuelFillId("fill-1"),
@@ -82,7 +97,6 @@ class FuelFillTest {
         unit = FuelUnit.LITRE,
         amountPaise = amountPaise,
         today = today,
-        paidVia = paidVia,
         transactionRef = transactionRef,
     )
 }

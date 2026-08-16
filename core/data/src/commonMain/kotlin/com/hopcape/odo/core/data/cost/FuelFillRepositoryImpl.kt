@@ -4,11 +4,14 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 
 /**
  * [FuelFillRepository] over a [FuelFillLocalDataSource] — offline-first, like every other
@@ -20,7 +23,7 @@ import com.hopcape.odo.core.sync.SyncScheduler
  * has nowhere to go — when the server table lands, this class gains a `SyncRunner` and the
  * rows already waiting are pushed with no migration.
  *
- * The port it implements has one method, so this does too. It still asks the scheduler for a sync after a write. The scheduler is free to find
+ * It still asks the scheduler for a sync after a write. The scheduler is free to find
  * nothing to do for this entity; what it must not do is stay unaware that the owner changed
  * something, and the call site is the part that gets forgotten later.
  */
@@ -43,6 +46,31 @@ internal class FuelFillRepositoryImpl(
         }
 
     /**
+     * A read failure becomes an empty list rather than a broken stream.
+     *
+     * Every caller already treats "no fills yet" as normal — the prefill starts blank, the
+     * mileage line is left off — so an empty list degrades each of them into the state they
+     * were built to handle. A thrown exception would instead take down whichever screen was
+     * collecting, and none of them can do anything useful with the failure.
+     */
+    override fun observeForCar(carId: CarId): Flow<List<FuelFill>> =
+        local.observeByCar(carId)
+            .catch { e ->
+                telemetry.crashed(DataTelemetry.FUEL_FILL, OP_OBSERVE, e, carId.value)
+                emit(emptyList())
+            }
+
+    override suspend fun latestForCar(carId: CarId): Either<DomainError, FuelFill?> =
+        telemetry.span(DataTelemetry.FUEL_FILL, OP_LATEST, carId.value) {
+            try {
+                local.latestForCar(carId).right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.FUEL_FILL, OP_LATEST, e, carId.value)
+                DomainError.PersistenceFailure(e.message).left()
+            }
+        }
+
+    /**
      * Tell the scheduler there is something worth pushing, after the write has committed and
      * only when it succeeded. A scheduling failure never fails the write: the data is local
      * and `PENDING`, and the next trigger carries it.
@@ -57,5 +85,7 @@ internal class FuelFillRepositoryImpl(
 
     private companion object {
         const val OP_ADD = "addFuelFill"
+        const val OP_OBSERVE = "observeFuelFills"
+        const val OP_LATEST = "latestFuelFill"
     }
 }

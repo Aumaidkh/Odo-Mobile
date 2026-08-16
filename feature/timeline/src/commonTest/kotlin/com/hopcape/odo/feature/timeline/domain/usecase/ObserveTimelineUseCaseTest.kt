@@ -4,6 +4,8 @@ import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.timeline.FakeCarRepository
 import com.hopcape.odo.feature.timeline.FakeDocumentRepository
+import com.hopcape.odo.feature.timeline.FakeFuelFillRepository
+import com.hopcape.odo.feature.timeline.testFill
 import com.hopcape.odo.feature.timeline.FakeHealthScoreRepository
 import com.hopcape.odo.feature.timeline.FakeServiceLogRepository
 import com.hopcape.odo.feature.timeline.TEST_CAR
@@ -29,7 +31,8 @@ class ObserveTimelineUseCaseTest {
         logs: FakeServiceLogRepository = FakeServiceLogRepository(),
         documents: FakeDocumentRepository = FakeDocumentRepository(),
         scores: FakeHealthScoreRepository = FakeHealthScoreRepository(),
-    ) = ObserveTimelineUseCase(cars, logs, documents, scores, delhi)
+        fills: FakeFuelFillRepository = FakeFuelFillRepository(),
+    ) = ObserveTimelineUseCase(cars, logs, documents, scores, fills, delhi)
 
     @Test
     fun feed_mergesEverySource() = runTest {
@@ -54,6 +57,33 @@ class ObserveTimelineUseCaseTest {
             ),
             snapshot.events.map { it.date },
         )
+    }
+
+    @Test
+    fun feed_includesFuelFills() = runTest {
+        val snapshot = useCase(
+            fills = FakeFuelFillRepository(listOf(testFill(date = LocalDate(2026, 7, 20)))),
+        ).invoke(TEST_CAR).first()
+
+        val fill = snapshot.events.filterIsInstance<ActivityEvent.FuelFilled>().single()
+        assertEquals(LocalDate(2026, 7, 20), fill.date)
+        assertEquals("Bharat Petroleum, Karol Bagh", fill.station)
+        assertEquals(21_110L, fill.quantityMilli)
+    }
+
+    @Test
+    fun onADayWithBothAServiceOutranksAFill() = runTest {
+        val day = LocalDate(2026, 7, 12)
+        val snapshot = useCase(
+            logs = FakeServiceLogRepository(listOf(testEntry("l1", day))),
+            fills = FakeFuelFillRepository(listOf(testFill(date = day))),
+        ).invoke(TEST_CAR).first()
+
+        // The service is what the owner came looking for; the fill reads underneath it.
+        val sameDay = snapshot.events.filter { it.date == day }
+        assertEquals(2, sameDay.size)
+        assertTrue(sameDay.first() is ActivityEvent.Service)
+        assertTrue(sameDay.last() is ActivityEvent.FuelFilled)
     }
 
     @Test

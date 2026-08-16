@@ -56,10 +56,20 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
             HomeEffect.OpenReminders -> navigationManager.navigateTo(OdoDestination.Reminders.List)
             HomeEffect.OpenProfile -> navigationManager.navigateTo(OdoDestination.Profile.Root)
             HomeEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
+            HomeEffect.OpenLogFill -> navigationManager.navigateTo(OdoDestination.Refuel.Log)
+            HomeEffect.OpenAutoDetect -> navigationManager.navigateTo(OdoDestination.Refuel.AutoDetect)
             HomeEffect.OpenAddDocument -> navigationManager.navigateTo(OdoDestination.Documents.Add())
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
+            HomeEffect.OpenPaywall ->
+                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_REFUEL))
         }
     }
 
     HomeScreen(state = state, onEvent = viewModel::onEvent)
 }
+
+/**
+ * Must match a `PaywallTrigger` entry by name — an unrecognised string silently becomes the
+ * generic framing, which is how two other entry points in this app already lost theirs.
+ */
+private const val PAYWALL_TRIGGER_REFUEL = "SMART_REFUEL"

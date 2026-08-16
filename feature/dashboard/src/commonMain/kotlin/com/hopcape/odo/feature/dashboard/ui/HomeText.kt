@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.dashboard.ui
 import androidx.compose.runtime.Composable
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.health.model.HealthBand
@@ -67,6 +68,7 @@ import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_many
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_none
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_one
 import com.hopcape.odo.feature.dashboard.resources.hm_recent_car_added
+import com.hopcape.odo.feature.dashboard.resources.hm_recent_fuel
 import com.hopcape.odo.feature.dashboard.resources.hm_recent_doc_added
 import com.hopcape.odo.feature.dashboard.resources.hm_recent_doc_renewed
 import com.hopcape.odo.feature.dashboard.resources.hm_recent_meta
@@ -216,6 +218,11 @@ internal fun recentTitle(event: ActivityEvent): String = when (event) {
 
     is ActivityEvent.ScoreChanged ->
         stringResource(Res.string.hm_recent_score, event.from.value, event.to.value)
+
+    is ActivityEvent.FuelFilled -> stringResource(
+        Res.string.hm_recent_fuel,
+        event.amount.formatRupees(),
+    )
 
     is ActivityEvent.CarAdded -> stringResource(Res.string.hm_recent_car_added, event.carName)
 }

@@ -3,7 +3,6 @@ package com.hopcape.odo.core.platform
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
-import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import arrow.core.left
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.IosFileStore
@@ -11,6 +10,14 @@ import com.hopcape.odo.core.platform.file.PlatformDownloads
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
+import com.hopcape.odo.core.platform.notification.IosBackgroundStartAccess
+import com.hopcape.odo.core.platform.notification.IosDetectedFillNotifier
+import com.hopcape.odo.core.platform.notification.IosNotificationAccess
+import com.hopcape.odo.core.platform.notification.DetectedFillNotifier
+import com.hopcape.odo.core.platform.notification.NotificationAccess
+import com.hopcape.odo.core.platform.notification.PaymentNotices
+import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -48,10 +55,14 @@ val corePlatformIosModule = module {
     // passes through untouched.
     single<DocumentCropper> { DocumentCropper { storageKey, _ -> storageKey } }
     // No still-image reader on iOS yet — the live preview is the only way in. Answering
-    // "no code here" leaves the screen's own message doing the explaining.
-    single<QrImageDecoder> { QrImageDecoder { null } }
     single<AppInfo> { IosAppInfo() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
+    single<NotificationAccess> { IosNotificationAccess() }
+    single<DetectedFillNotifier> { IosDetectedFillNotifier() }
+    single<BackgroundStartAccess> { IosBackgroundStartAccess() }
+    // Nothing ever publishes into it on iOS — there is no way to read another app's
+    // notifications — so the flow simply never emits.
+    single<PaymentNoticeSource> { PaymentNotices }
     // No local notification scheduling on iOS yet; the reminders screen still derives and
     // shows every expiry, so nothing is lost beyond the push itself.
     single<DocumentReminderScheduler> { DocumentReminderScheduler { } }

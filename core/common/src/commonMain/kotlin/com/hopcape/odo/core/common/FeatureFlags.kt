@@ -12,49 +12,6 @@ package com.hopcape.odo.core.common
 object FeatureFlags {
 
     /**
-     * Whether the app can sell Odo Pro.
-     *
-     * False for 1.0. The paywall screen and its call sites are written, but nothing behind
-     * them takes money yet, so a "Start Pro" would end on a button that cannot do anything.
-     * While this is false two things hold: no screen names Pro, the free plan, or a price,
-     * and no button reaches the `OdoDestination.Paywall` route. The upsell CTAs that remain
-     * visible are disabled and marked "coming soon".
-     *
-     * Flip it to true when RevenueCat lands. The paywall, the upsell cards, the Pro copy and
-     * the navigation calls are all still here, guarded by this flag — nothing is rewritten.
-     *
-     * **Removing it.** This flag is meant to live for one release, not to stay as a switch.
-     * Everything it guards landed in a single squash-merged commit, so `git revert` on that
-     * commit undoes all of it at once — the flag, the guards and the two reworded strings —
-     * and is the first thing to try.
-     *
-     * **Finding every site**, when the revert conflicts or you would rather do it by hand.
-     * Nothing was commented out or deleted, so a project-wide search for `PAYWALL_ENABLED`
-     * lists all of them, and the list cannot go stale: delete this constant and the build
-     * fails at every site that reads it. What is behind each one:
-     *
-     * - `ProfileScreen` — the plan card (`ProPlanCard` / `GoProCard`). Hidden, not removed.
-     * - `ExportDataSheet` (profile) and `ExportSheet` (garage) — buttons disabled under a
-     *   "coming soon" badge; the garage sheet's "part of Odo Pro" note is hidden.
-     * - `HealthScoreScreen` — the breakdown is never locked while this is false.
-     * - `BillScanUiState.showQuota` — the "2 of 3 free" pill is off.
-     * - The end-to-end tests — the paywall ones are skipped by `assumeTrue`, and each has an
-     *   `assumeFalse` twin asserting what 1.0 ships. Both halves compile either way.
-     *
-     * **Two things the search finds only by comment**, because they are copy rather than
-     * code, and both say so where they sit: `dv_error_limit_reached` (reworded to stop
-     * naming the free plan) and `DocumentVaultFlowRobot.LIMIT_REACHED`, which asserts it.
-     *
-     * **Also delete when it goes true:** the now-unused `pf_coming_soon`, `gr_ex_coming_soon`
-     * and `GarageCopy.EXPORT_COMING_SOON` strings.
-     *
-     * **Not guarded by this flag**, and a separate decision: `AlwaysProEntitlement` still
-     * answers true (so nothing is content-locked) and `FreeTierDocumentAllowance` still caps
-     * documents at 3. Both are stubs that a real entitlement adapter replaces.
-     */
-    const val PAYWALL_ENABLED = false
-
-    /**
      * Whether the app tracks drives on its own and keeps the odometer current from them.
      *
      * False for 1.0. The whole feature is written and tested — `:core:triptracker`'s engine,
@@ -97,40 +54,40 @@ object FeatureFlags {
     const val AUTO_ODOMETER_ENABLED = false
 
     /**
-     * Whether the scanner can read a payment QR and hand it to a UPI app.
+     * Whether Odo reads payment notifications to detect a fill on its own.
      *
-     * False for 1.0. The flow is written and tested end to end — read the code, parse the
-     * `upi://pay` grammar, launch a chooser, read the response back, log the fuel fill it
-     * bought — but it moves the owner's money, and 1.0 is not the release to ask them to
-     * trust that with. It ships in the next one.
+     * False for this release. The detection itself is written and tested — the classifier, the
+     * usual-spend band, the draft builder, the opt-in screen and the settings behind it — but
+     * it needs `BIND_NOTIFICATION_LISTENER_SERVICE`, whose system dialog tells the owner Odo
+     * will be able to read every notification including message text. That is a claim worth
+     * getting reviewed before it ships, not one to discover in a policy rejection.
      *
-     * While this is false the scanner offers two modes instead of three. `ScanTarget.PaymentQr`
-     * is unreachable, and that single fact turns the whole feature off: the frame analyser
-     * stays on document edges rather than QR codes, so no code is ever read; the gallery path
-     * never decodes one; and `BillScanEffect.OpenPayment` — the only thing that navigates to
-     * `OdoDestination.BillScanner.PayAtPump` — is never emitted. The route stays registered
-     * and the Koin graph stays wired: unreachable, not removed.
+     * Nothing about the feature depends on it. Smart refuel's other two channels — reading the
+     * pump display, and the prefilled form — work in every market with no such permission, and
+     * they are what the design leans on. Detection is the best case, not the floor.
      *
-     * Flip it to true when payments are ready. Nothing here is rewritten.
+     * While this is false: the auto-detect screen is unreachable, so nothing ever writes
+     * `detect_enabled`, and the notice source never emits — the listener service is not in the
+     * manifest, so the OS has nothing to bind. The routes stay registered and the Koin graph
+     * stays wired; unreachable, not removed.
      *
-     * **Finding every site.** A project-wide search for `PAY_VIA_QR_ENABLED` lists them, and
-     * deleting this constant fails the build at each one:
+     * **Finding every site.** A project-wide search for `SMART_REFUEL_DETECT_ENABLED` lists
+     * them, and deleting this constant fails the build at each one:
      *
-     * - `scanTargets` (`BillScanUiState.kt`) — the one choke point. The mode chips are built
-     *   from it, and `BillScanViewModel` checks every target against it, both on the way in
-     *   (a deep link carrying `ScanTarget.PaymentQr` lands on `Bill`) and on every switch.
-     * - `BillScannerEndToEndTest` — the QR and pay-at-pump tests are skipped by `assumeTrue`,
-     *   with an `assumeFalse` twin asserting the chip is absent. Both compile either way.
+     * - `ProfileEntryPoints` / the refuel entry provider — whether the auto-detect row and its
+     *   destination are offered at all.
+     * - `RefuelDetectionWorker` — the collector that turns a notice into a draft. Returns
+     *   before subscribing, so nothing is read even if the service were somehow bound.
      *
      * **One thing the search does not find**, because it is not Kotlin:
-     * `androidApp/src/main/AndroidManifest.xml` — the `<queries>` block declaring the
-     * `upi:` VIEW intent was removed. It is Android 11+ package visibility, not a permission,
-     * but it exists only so this feature can ask "can anything here take a payment", and a
-     * manifest that still asks is a manifest that still describes a feature the app does not
-     * have. Put it back with the flag; without it `resolveActivity` answers null on a phone
-     * with four UPI apps installed. The file carries a comment pointing here.
      *
-     * **Not touched:** `CAMERA`. Bills and documents need it, and it was never QR's alone.
+     * - `androidApp/src/main/AndroidManifest.xml` — the `<service>` entry for
+     *   `RefuelNotificationListenerService`, with its `BIND_NOTIFICATION_LISTENER_SERVICE`
+     *   permission and `android.service.notification.NotificationListenerService` intent
+     *   filter, is deliberately absent. It has to go back with this flag: the class exists and
+     *   compiles, but a service the manifest does not declare is one the OS will never bind,
+     *   and a manifest that declares it is a manifest asking for the permission. The file
+     *   carries a comment pointing back here.
      */
-    const val PAY_VIA_QR_ENABLED = false
+    const val SMART_REFUEL_DETECT_ENABLED = true
 }

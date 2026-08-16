@@ -37,13 +37,38 @@ class ModalBottomSheetSceneStrategy<T : Any> : SceneStrategy<T> {
     override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T>? {
         val entry = entries.lastOrNull() ?: return null
         val properties = entry.metadata[BottomSheetKey] ?: return null
+
+        // Everything below the top sheet, with any *other* sheets skipped over.
+        //
+        // Two sheets cannot stack. Nav3 renders this scene's `overlaidEntries` and also
+        // computes a scene for the entries beneath it, so an entry named in both is composed
+        // twice in one pass — which throws out of SaveableStateHolder ("Key … was used
+        // multiple times") and kills the app. It fired reliably on "Set fuel price" from the
+        // confirm sheet: two sheet destinations on the stack, and the confirm entry was both
+        // the overlaid entry and the next scene's own entry.
+        //
+        // Skipping to the last non-sheet entry collapses a run of sheets to the one on top.
+        // What is drawn behind is the screen the owner came from rather than the sheet they
+        // came from, which is also the more honest picture — a sheet stacked on a sheet reads
+        // as one dialog interrupting another with no way to tell which is which.
+        val beneath = entries.dropLast(1).dropLastWhile { it.metadata[BottomSheetKey] != null }
+
+        // A sheet with nothing under it is not a sheet either. Nav3 requires an OverlayScene
+        // to name at least one overlaid entry and throws when it names none: `Overlaid entries
+        // ... must not be empty`. That happens when a sheet destination is the whole back
+        // stack — the detected-fill notification opens straight into the confirm sheet, so a
+        // cold start from the shade can land here before the start destination is on it.
+        // Declining the scene hands the entry to the single-pane fallback, which draws the
+        // same content full-screen. Worse-looking for one frame, and not a crash.
+        if (beneath.isEmpty()) return null
+
         val sceneOnBack = onBack
         return object : OverlayScene<T> {
             override val key: Any = entry.contentKey
             override val entries: List<NavEntry<T>> = listOf(entry)
-            override val previousEntries: List<NavEntry<T>> = entries.dropLast(1)
+            override val previousEntries: List<NavEntry<T>> = beneath
             // The entry directly beneath the sheet is drawn behind it.
-            override val overlaidEntries: List<NavEntry<T>> = previousEntries.takeLast(1)
+            override val overlaidEntries: List<NavEntry<T>> = beneath.takeLast(1)
 
             override val content: @Composable () -> Unit = {
                 ModalBottomSheet(

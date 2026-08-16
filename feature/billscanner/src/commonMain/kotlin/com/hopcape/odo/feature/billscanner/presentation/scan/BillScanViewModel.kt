@@ -10,13 +10,13 @@ import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.DetectedQuad
 import com.hopcape.odo.core.platform.camera.DocumentCropper
-import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.permission.CameraPermissionStatus
+import com.hopcape.odo.feature.billscanner.domain.usecase.ScanPumpDisplayUseCase
 import com.hopcape.odo.feature.billscanner.presentation.BillScannerTelemetry
 import com.hopcape.odo.feature.billscanner.resources.Res
-import com.hopcape.odo.feature.billscanner.resources.bs_error_gallery_no_qr
 import com.hopcape.odo.feature.billscanner.resources.bs_error_gallery_unreadable
+import com.hopcape.odo.feature.billscanner.resources.bs_pump_unreadable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +45,7 @@ internal class BillScanViewModel(
     private val allowance: ScanAllowance,
     private val cropper: DocumentCropper,
     private val files: PlatformFileStore,
-    private val qrDecoder: QrImageDecoder,
+    private val scanPumpDisplay: ScanPumpDisplayUseCase,
     private val ids: IdGenerator,
     private val telemetry: BillScannerTelemetry,
 ) : ViewModel() {
@@ -67,8 +67,6 @@ internal class BillScanViewModel(
     private val _effects = Channel<BillScanEffect>(Channel.BUFFERED)
     val effects: Flow<BillScanEffect> = _effects.receiveAsFlow()
 
-    /** Set once a QR has been handed on, so the repeat detections are ignored. */
-    private var qrHandled = false
 
     init {
         telemetry.scannerOpened(startingTarget.name)
@@ -79,8 +77,14 @@ internal class BillScanViewModel(
         is BillScanEvent.TargetSelected -> selectTarget(event.target)
         is BillScanEvent.PermissionChanged -> permissionChanged(event.status)
         BillScanEvent.PermissionDeclined -> declined()
+        // The pill is the only place the scanner says "free plan", so it is the honest place
+        // to let the owner leave one. It opens whether or not the quota is spent: someone
+        // reading "1 of 3 free" is already thinking about the limit.
+        BillScanEvent.QuotaTapped -> {
+            telemetry.quotaTapped(_state.value.freeRemaining)
+            emit(BillScanEffect.OpenPaywall(freeScans = _state.value.freeTotal))
+        }
         is BillScanEvent.PhotoCaptured -> photoCaptured(event.storageKey)
-        is BillScanEvent.QrDetected -> qrDetected(event.payload)
         // Deliberately silent in telemetry — this fires per frame, and a log per frame is
         // a log nobody can read. A pinned outline stays put: that is what the pin is for.
         is BillScanEvent.EdgesDetected -> _state.update {
@@ -126,7 +130,6 @@ internal class BillScanViewModel(
         telemetry.targetSwitched(target.name)
         // Switching away from and back to QR should scan again, so the guard is released
         // with the mode it belongs to. The outline and its pin belong to the old mode's frames.
-        qrHandled = false
         _state.update {
             it.copy(
                 target = target,
@@ -177,17 +180,37 @@ internal class BillScanViewModel(
             // The cropper answers the original key on any failure, so this can only improve
             // the photo, never lose it.
             val key = cropTo(quad, storageKey, target)
-            _effects.send(
-                when (target) {
-                    ScanTarget.Bill -> BillScanEffect.OpenBillReview(key)
-                    ScanTarget.Document -> BillScanEffect.OpenDocumentReview(key)
-                    // The shutter does nothing useful in QR mode — the code is read off the live
-                    // frames — so a stray tap reviews the photo as a bill rather than dropping it.
-                    ScanTarget.PaymentQr -> BillScanEffect.OpenBillReview(key)
-                },
-            )
+            val effect = when (target) {
+                ScanTarget.Bill -> BillScanEffect.OpenBillReview(key)
+                ScanTarget.Document -> BillScanEffect.OpenDocumentReview(key)
+                // The one target read here rather than by the screen it opens: a pump display
+                // yields three numbers, not a document, and there is no review screen for it.
+                ScanTarget.PumpDisplay -> pumpEffect(key) ?: return@launch
+            }
+            _effects.send(effect)
         }
     }
+
+    /**
+     * Read the pump display and turn it into a draft, or say it did not read.
+     *
+     * A failure keeps the owner on the viewfinder with a message rather than sending them
+     * back: they are standing at the pump, the display is still lit, and a second attempt in
+     * better light costs one tap. The screen's own "enter the numbers myself" is the way out
+     * when it will not read at all.
+     */
+    private suspend fun pumpEffect(key: String): BillScanEffect? =
+        telemetry.pumpExtraction(
+            read = { scanPumpDisplay(key) },
+            readCount = { it.readCount },
+            crossChecked = { it.crossChecked },
+        ).fold(
+            { _ ->
+                _state.update { it.copy(failure = UiText(Res.string.bs_pump_unreadable)) }
+                null
+            },
+            { reading -> BillScanEffect.OpenPumpConfirm(reading.toDraftInput()) },
+        )
 
     private fun galleryTapped() {
         telemetry.galleryOpened(_state.value.target.name)
@@ -223,38 +246,30 @@ internal class BillScanViewModel(
     }
 
     /**
-     * Where a picked picture goes, by what the owner came to scan. The payment mode is the
-     * one that has to read the picture here rather than passing it on: every other target
-     * hands the photo to a screen that reads it, but a QR is a payload, not a document, and
-     * the pay screen takes the payload.
+     * Where a picked picture goes, by what the owner came to scan. The pump mode is the one
+     * that has to read the picture here rather than passing it on: every other target hands
+     * the photo to a screen that reads it, and a pump display has no screen of its own.
      */
     private suspend fun effectFor(target: ScanTarget, key: String): BillScanEffect? = when (target) {
         ScanTarget.Bill -> BillScanEffect.OpenBillReview(key)
         ScanTarget.Document -> BillScanEffect.OpenDocumentReview(key)
-        ScanTarget.PaymentQr -> {
-            val payload = runCatching { qrDecoder.decode(key) }.getOrNull()
-            if (payload == null) {
-                telemetry.galleryQrMissing()
-                _state.update { it.copy(failure = UiText(Res.string.bs_error_gallery_no_qr)) }
-                null
-            } else {
-                BillScanEffect.OpenPayment(payload)
-            }
-        }
+        ScanTarget.PumpDisplay -> pumpEffect(key)
     }
 
+    /**
+     * The pump mode never crops. Its frames are not analysed for edges at all, so any quad
+     * still in state belongs to the mode the owner switched away from, and cropping to it
+     * would cut the display out of the picture.
+     */
     private suspend fun cropTo(quad: DetectedQuad?, storageKey: String, target: ScanTarget): String {
-        if (quad == null || target == ScanTarget.PaymentQr) return storageKey
+        if (quad == null || target == ScanTarget.PumpDisplay) {
+            return storageKey
+        }
         val cropped = runCatching { cropper.crop(storageKey, quad) }.getOrDefault(storageKey)
         telemetry.photoCropped(target.name, applied = cropped != storageKey)
         return cropped
     }
 
-    private fun qrDetected(payload: String) {
-        if (qrHandled || _state.value.target != ScanTarget.PaymentQr) return
-        qrHandled = true
-        emit(BillScanEffect.OpenPayment(payload))
-    }
 
     private fun cameraFailed(failure: CameraFailure) {
         telemetry.cameraFailed(failure.name)

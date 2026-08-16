@@ -39,6 +39,7 @@ val authModule = module {
             store = get(),
             telemetry = get(),
             scheduler = get(),
+            identity = get(),
         )
     }
     single<SessionStatusProvider> { get<OdoSessionManager>() }

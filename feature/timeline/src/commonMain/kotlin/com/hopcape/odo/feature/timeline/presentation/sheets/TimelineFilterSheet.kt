@@ -25,6 +25,7 @@ import com.hopcape.odo.feature.timeline.domain.model.ActivityCategory
 import com.hopcape.odo.feature.timeline.presentation.TimelineTestTags
 import com.hopcape.odo.feature.timeline.resources.Res
 import com.hopcape.odo.feature.timeline.resources.tl_filter_documents
+import com.hopcape.odo.feature.timeline.resources.tl_filter_fuel
 import com.hopcape.odo.feature.timeline.resources.tl_filter_flagged
 import com.hopcape.odo.feature.timeline.resources.tl_filter_health
 import com.hopcape.odo.feature.timeline.resources.tl_filter_milestones
@@ -89,6 +90,7 @@ internal fun TimelineFilterSheetContent(
 
 private fun ActivityCategory.labelResource(): StringResource = when (this) {
     ActivityCategory.SERVICES -> Res.string.tl_filter_services
+    ActivityCategory.FUEL -> Res.string.tl_filter_fuel
     ActivityCategory.DOCUMENTS -> Res.string.tl_filter_documents
     ActivityCategory.SCORE -> Res.string.tl_filter_health
     ActivityCategory.MILESTONES -> Res.string.tl_filter_milestones
