@@ -37,10 +37,9 @@ import kotlin.time.Instant
  * activity recognition, or a scriptable fused-location feed:
  *
  * - [installScriptedLocation] swaps the Koin [LocationProvider] binding for a flow this
- *   object feeds. **It must run before anything resolves the engine** (the engine captures
- *   its ports at construction) — in practice, first thing in the suite's `@Before`, and
- *   the suite must run in a fresh process where no other test class has touched
- *   `TripTracker` yet.
+ *   object feeds. The engine resolves the provider on every RequestFixes (its constructor
+ *   takes a provider function for exactly this reason), so installing it in `@Before` is
+ *   effective even though the boot arm constructed the engine at app start.
  * - [connectStereo]/[disconnectStereo] emit presence exactly where
  *   [BluetoothAclReceiver] does, past the MAC filter — engine-level presence.
  * - [fireAclConnected]/[fireAclDisconnected] go through the real receiver instead,

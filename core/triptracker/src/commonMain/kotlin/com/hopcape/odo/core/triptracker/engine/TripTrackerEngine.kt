@@ -43,7 +43,11 @@ import kotlin.time.Instant
  * virtual clock, the same reason [scope] is injected rather than captured internally.
  */
 internal class TripTrackerEngine(
-    private val locationProvider: LocationProvider,
+    // A provider function, not an instance: the engine is a process-lifetime singleton
+    // (constructed at app start by the boot arm), and the fix source must be whatever is
+    // bound at the moment fixes are requested — which is also what lets the instrumented
+    // harness swap in its scripted provider after construction.
+    private val locationProvider: () -> LocationProvider,
     private val motionSource: MotionActivitySource,
     private val presenceSource: VehiclePresenceSource,
     private val foregroundSession: TripForegroundSession,
@@ -248,7 +252,7 @@ internal class TripTrackerEngine(
         fixesJob?.cancel()
         fixesJob = scope.launch {
             safely(STAGE_FIXES_COLLECT) {
-                locationProvider.fixes(FixRequest(FIX_INTERVAL)).collect { sample ->
+                locationProvider().fixes(FixRequest(FIX_INTERVAL)).collect { sample ->
                     val integration = distanceIntegrator.accept(sample)
                     handle(TripEvent.Fix(sample, integration))
                 }

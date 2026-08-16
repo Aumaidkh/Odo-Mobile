@@ -13,12 +13,21 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  */
 internal class AclVehiclePresenceSource : VehiclePresenceSource {
 
-    private val events = MutableSharedFlow<VehiclePresence>(extraBufferCapacity = EVENT_BUFFER)
+    /**
+     * `replay = 1` is the cold-start contract: [BluetoothAclReceiver] fires in a process
+     * the OS may have just woken, and the engine's collector only subscribes once
+     * `armFromPersistedState` has run — strictly after the broadcast. Without replay the
+     * connect event that woke the process is dropped on a subscriber-less flow and the
+     * drive is never tracked. A stale replayed `Connected` on a later re-enable is
+     * harmless: the speed gate never confirms a parked car, and a stale `Disconnected`
+     * is a no-op in Standby.
+     */
+    private val events = MutableSharedFlow<VehiclePresence>(replay = 1, extraBufferCapacity = EVENT_BUFFER)
 
     /**
-     * Live collector count. The test harness waits on this before emitting: [onPresence]
-     * drops the event when nothing collects yet (no replay, deliberately — see the KDoc
-     * above), and the engine's own subscription starts asynchronously after enable.
+     * Live collector count. The test harness waits on this before emitting a *sequence*
+     * of events: replay keeps only the latest, and the engine's subscription starts
+     * asynchronously after enable.
      */
     internal val subscriptionCount get() = events.subscriptionCount
 

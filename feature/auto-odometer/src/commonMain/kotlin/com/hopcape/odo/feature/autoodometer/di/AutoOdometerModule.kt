@@ -64,7 +64,7 @@ val autoOdometerModule = module {
 
     factory { ObserveSetupState(serviceLogs = get(), bonds = get(), tracker = get(), preconditions = get()) }
     factory { EnrollTriggerDevice(bonds = get()) }
-    factory { CompleteSetup(tracker = get()) }
+    factory { CompleteSetup(tracker = get(), settings = get()) }
     factory { ObservePendingTripLogged(trips = get(), settings = get()) }
     factory { AcknowledgeTrip(settings = get()) }
     factory { RejectTrip(trips = get()) }

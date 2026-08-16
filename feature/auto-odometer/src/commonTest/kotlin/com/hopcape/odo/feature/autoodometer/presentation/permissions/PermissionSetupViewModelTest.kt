@@ -9,6 +9,7 @@ import com.hopcape.odo.core.triptracker.VehicleBond
 import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup
 import com.hopcape.odo.feature.autoodometer.domain.usecase.EnrollTriggerDevice
+import com.hopcape.odo.feature.autoodometer.domain.usecase.FakeAppSettingsRepository
 import com.hopcape.odo.feature.autoodometer.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import com.hopcape.odo.feature.autoodometer.presentation.FakeActiveCarProvider
@@ -62,6 +63,7 @@ class PermissionSetupViewModelTest {
         override suspend fun pauseActiveTrip() = Unit
         override suspend fun resumeActiveTrip() = Unit
         override suspend fun discardActiveTrip() = Unit
+        override suspend fun armFromPersistedState() = Unit
         override suspend fun startIfConnected() {
             startIfConnectedCalls++
         }
@@ -89,7 +91,7 @@ class PermissionSetupViewModelTest {
         val vm = PermissionSetupViewModel(
             mode = mode,
             enrollTriggerDevice = EnrollTriggerDevice(bonds = fakes.bonds),
-            completeSetup = CompleteSetup(tracker = fakes.tracker),
+            completeSetup = CompleteSetup(tracker = fakes.tracker, settings = FakeAppSettingsRepository()),
             activeCar = FakeActiveCarProvider(carId),
             telemetry = testTelemetry(analytics),
         )
@@ -295,7 +297,7 @@ class PermissionSetupViewModelTest {
         val vm = PermissionSetupViewModel(
             mode = TriggerMode.NO_STEREO,
             enrollTriggerDevice = EnrollTriggerDevice(bonds = ThrowingBondStore()),
-            completeSetup = CompleteSetup(tracker = tracker),
+            completeSetup = CompleteSetup(tracker = tracker, settings = FakeAppSettingsRepository()),
             activeCar = FakeActiveCarProvider(TEST_CAR),
             telemetry = testTelemetry(crash = crash),
         )

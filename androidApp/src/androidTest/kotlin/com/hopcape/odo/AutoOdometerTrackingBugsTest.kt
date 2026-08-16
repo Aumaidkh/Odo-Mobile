@@ -9,6 +9,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.core.triptracker.TripTracker
@@ -28,25 +29,24 @@ import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 
 /**
- * Failing-by-design regressions for two tracking bugs reported from a real car
- * (2026-08-16). Each test asserts the *expected* behaviour, so it fails until the engine
- * is fixed and then stands guard afterwards.
+ * Regressions for two tracking bugs reported from a real car (2026-08-16). Each test
+ * asserts the expected behaviour; both failed against the engine as it stood and guard
+ * the fixes now.
  *
  * **Report 1 — no auto-start.** "I connect to the stereo but the app is not in the
- * foreground, and tracking never starts." Root cause in code: `TripTrackerEngine.setEnabled(true)`
- * is only ever called from UI paths (`CompleteSetup`, `ResumeTracking`, the settings
- * toggle). After process death nothing re-enables the engine, so the manifest
- * `BluetoothAclReceiver` wakes the process, emits presence into a flow with no
- * subscriber (`AclVehiclePresenceSource` has no replay), and the event is gone.
- * [stereoConnectStartsTracking_withoutAnyUiAction] models exactly that process state: an
- * enrolled bond exists, but nothing in this process has enabled the engine.
+ * foreground, and tracking never starts." The engine's enabled flag was in-memory and
+ * only ever set from UI paths, so after process death the receiver's presence event died
+ * on a subscriber-less flow. Fixed by `TripTracker.armFromPersistedState` (called from
+ * the app boot and from `BluetoothAclReceiver` itself) plus `replay = 1` on
+ * `AclVehiclePresenceSource`. [stereoConnectStartsTracking_withoutAnyUiAction] models the
+ * receiver-woken process: bond + persisted toggle exist, nothing in-process has enabled
+ * the engine, and the ACL broadcast alone must lead to a tracking session.
  *
  * **Report 2 — walking counted as driving.** "I turn off the ignition, lock the car and
- * walk away, and my walk is added to the car's distance." Root cause in code: on
- * `PresenceLost` the machine enters `PendingStop` and `handlePendingStop` keeps
- * integrating every fix into `distanceMeters` for the whole stitch window (5 min) — the
- * stitch exists so a fuel stop doesn't split a trip, but the metres accumulated while
- * "stopped" are never rolled back when the stop turns out to be final.
+ * walk away, and my walk is added to the car's distance." `handlePendingStop` used to
+ * integrate every fix through the whole stitch window; the session is now frozen at stop
+ * entry (see `TripStateMachine`'s PENDING_STOP comment and
+ * `TripStateMachineTest.pendingStopFix_leavesTheSessionFrozen`).
  * [walkingAwayAfterIgnitionOff_isNotCountedAsCarDistance] scripts drive + disconnect +
  * walk and asserts the recorded trip is the driven distance only.
  *
@@ -57,11 +57,8 @@ import org.koin.core.context.GlobalContext
  * milliseconds. Everything else — Koin graph, engine, state machine, integrator,
  * finalizer, SQLite — is the shipped code.
  *
- * **Run this class alone** (fresh instrumentation process): the harness must swap the
- * `LocationProvider` binding before anything constructs the engine singleton, so a suite
- * run where another class touched `TripTracker` first would leave the engine holding the
- * real `FusedLocationProvider`. Same standing caveat as [AutoOdometerEndToEndTest]:
- * clear app data first (no migrations yet).
+ * Same standing caveat as [AutoOdometerEndToEndTest]: clear app data first (no
+ * migrations yet).
  */
 @RunWith(AndroidJUnit4::class)
 class AutoOdometerTrackingBugsTest {
@@ -99,20 +96,21 @@ class AutoOdometerTrackingBugsTest {
 
     /**
      * The cold-start contract: an owner who enrolled once should never have to open the
-     * app again for a trip to be tracked. The bond is seeded directly (enrolled in an
-     * earlier process life); nothing in this process calls `setEnabled(true)` — exactly
-     * the state a receiver-woken process is in. The activity the test rule launched is
-     * display-only here: no flow in it enables tracking.
-     *
-     * Fails today: the engine is `Disabled`, the presence event lands in a subscriber-less
-     * flow, no fix collector ever appears, and status never leaves `Disabled`.
+     * app again for a trip to be tracked. The bond and persisted toggle are seeded
+     * directly (enrolled in an earlier process life); nothing in this process calls
+     * `setEnabled(true)` — exactly the state a receiver-woken process is in. The activity
+     * the test rule launched is display-only here: no flow in it enables tracking.
      */
     @Test
     fun stereoConnectStartsTracking_withoutAnyUiAction() {
         assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
+        // The state CompleteSetup leaves behind: the bond and the persisted toggle — both
+        // survive process death, and together they are what armFromPersistedState reads.
         runBlocking {
             GlobalContext.get().get<VehicleBondStore>()
                 .saveBond(VehicleBond(CarId(LogFixtures.CAR), BOND_MAC, TriggerMode.STEREO))
+            val settings = GlobalContext.get().get<AppSettingsRepository>()
+            settings.save(settings.observe().first().copy(trackerEnabled = true))
         }
 
         // The real seam the OS wakes: the manifest receiver, MAC filter and all. Falls
@@ -146,9 +144,6 @@ class AutoOdometerTrackingBugsTest {
      * [WALKING_SPEED_MPS] (~360 m on foot, inside the 5-minute stitch window).
      * Disabling tracking at the end is only the flush — it finalizes whatever the session
      * holds, without waiting out the stitch timer.
-     *
-     * Fails today: `handlePendingStop` integrates the walk into the session, so the
-     * recorded trip reads ~driven+walked.
      */
     @Test
     fun walkingAwayAfterIgnitionOff_isNotCountedAsCarDistance() {
@@ -172,9 +167,7 @@ class AutoOdometerTrackingBugsTest {
 
         TripTrackerTestHarness.connectStereo(AutoOdometerFixtures.DEVICE_ID)
         assertTrue(
-            "The engine never requested fixes after the stereo connected — if other test " +
-                "classes ran first in this process, the scripted location override came too " +
-                "late; run this class alone.",
+            "The engine never requested fixes after the stereo connected. " + TripTrackerTestHarness.debugState(),
             TripTrackerTestHarness.awaitFixCollector(timeoutMillis = 10_000),
         )
 

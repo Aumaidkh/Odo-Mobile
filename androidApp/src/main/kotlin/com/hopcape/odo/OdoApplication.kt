@@ -23,6 +23,7 @@ import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
+import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
@@ -128,6 +129,8 @@ class OdoApplication : Application() {
 
         applyAnalyticsConsent()
 
+        armTripTracking()
+
         // Catches up on whatever the durable queue is still holding from the last session
         // — the periodic timer would get to it within flushInterval anyway, but there is
         // no reason to wait once the graph (and the AnalyticsEventStore behind it) is up.
@@ -169,6 +172,24 @@ class OdoApplication : Application() {
      * is a few milliseconds of a closed gate, which is the safe direction to be wrong in: an
      * event lost is better than an event nobody agreed to.
      */
+    /**
+     * Bring automatic trip tracking up from the owner's stored intent — the cold-start
+     * half of auto odometer. The engine's enabled flag is in-memory, so without this every
+     * process death turned tracking off until the owner next opened the app. This is the
+     * generic path (it also covers NO_STEREO, which has no Bluetooth receiver to arm from);
+     * `BluetoothAclReceiver` additionally arms on its own broadcast so a connect that woke
+     * a dead process is not lost to ordering. `armFromPersistedState` no-ops unless a bond
+     * exists, the persisted toggle is on and no pause marker is set.
+     *
+     * A short-lived coroutine for the same reason as [applyAnalyticsConsent]: the read
+     * needs the graph, and resolving the tracker opens the database — not main-thread work.
+     */
+    private fun armTripTracking() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            KoinPlatform.getKoin().get<TripTracker>().armFromPersistedState()
+        }
+    }
+
     private fun applyAnalyticsConsent() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             val settings = KoinPlatform.getKoin().get<AppSettingsRepository>()
