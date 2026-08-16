@@ -22,6 +22,8 @@ class PlanLimitsTest {
                 ProFeature.BILL_SCANS -> Quota.UpTo(5)
                 ProFeature.HEALTH_BREAKDOWN -> Quota.None
                 ProFeature.RECORD_EXPORT -> Quota.UpTo(3)
+                ProFeature.COST_ANALYSIS -> Quota.None
+                ProFeature.SCORE_HISTORY -> Quota.None
             }
             assertEquals(expected, PlanLimits.quota(Plan.FREE, feature), "free plan, $feature")
         }

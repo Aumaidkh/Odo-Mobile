@@ -48,6 +48,12 @@ object PlanLimits {
         // Lifetime, for the same reason: an owner exports a record when they are selling the
         // car or handing it to a workshop, which is a handful of times ever.
         ProFeature.RECORD_EXPORT to Quota.UpTo(3),
+        // Outputs, which is the plan's own test for what may be gated: the owner pours in
+        // fills and services for free, and these are what the app hands back after doing the
+        // arithmetic. Gating them costs nothing in data collection, which is the difference
+        // between this and gating the scanner.
+        ProFeature.COST_ANALYSIS to Quota.None,
+        ProFeature.SCORE_HISTORY to Quota.None,
     )
 
     /** What [plan] permits of [feature]. */

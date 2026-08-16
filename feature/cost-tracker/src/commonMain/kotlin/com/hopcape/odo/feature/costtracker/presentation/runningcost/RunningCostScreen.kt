@@ -25,6 +25,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
+import com.hopcape.odo.feature.costtracker.resources.ct_locked_title
+import com.hopcape.odo.feature.costtracker.resources.ct_locked_body
+import com.hopcape.odo.feature.costtracker.resources.ct_locked_cta
+import androidx.compose.ui.text.style.TextAlign
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -149,21 +156,27 @@ internal fun RunningCostScreen(
                 failure = state.content as? Loadable.Failed,
                 modifier = Modifier.coachMarkAnchor(heroAnchor),
             )
-            PeriodSelector(
-                selected = state.period,
-                onChange = { onEvent(RunningCostEvent.PeriodSelected(it)) },
-            )
-            if (content != null) {
-                SpendByMonthCard(bars = content.spendBars, avgPerMonth = content.avgPerMonth)
-                SectionLabel(stringResource(Res.string.ct_where_it_goes))
-                CategoryCard(
-                    categories = content.categories,
-                    fuelNote = content.fuelNote,
-                    fuelEfficiencyUnit = state.fuelEfficiencyUnit,
-                    onEditRate = { onEvent(RunningCostEvent.FuelRateTapped) },
+            // The headline above is free — it is the figure Home's tile already shows.
+            // Everything from here down is the analysis Pro sells (#247).
+            if (state.analysisLocked) {
+                if (content != null) LockedAnalysis(content) { onEvent(RunningCostEvent.UnlockAnalysisTapped) }
+            } else {
+                PeriodSelector(
+                    selected = state.period,
+                    onChange = { onEvent(RunningCostEvent.PeriodSelected(it)) },
                 )
-                SectionLabel(stringResource(Res.string.ct_summary))
-                SummaryCard(content)
+                if (content != null) {
+                    SpendByMonthCard(bars = content.spendBars, avgPerMonth = content.avgPerMonth)
+                    SectionLabel(stringResource(Res.string.ct_where_it_goes))
+                    CategoryCard(
+                        categories = content.categories,
+                        fuelNote = content.fuelNote,
+                        fuelEfficiencyUnit = state.fuelEfficiencyUnit,
+                        onEditRate = { onEvent(RunningCostEvent.FuelRateTapped) },
+                    )
+                    SectionLabel(stringResource(Res.string.ct_summary))
+                    SummaryCard(content)
+                }
             }
         }
 
@@ -262,6 +275,56 @@ private fun TrendBadge(percent: Int, up: Boolean) {
         },
     )
 }
+
+/**
+ * What the analysis looks like without Pro (#247): the owner's own real chart and
+ * categories behind a fade, with what Pro adds said plainly on top.
+ *
+ * Their own data rather than a mock-up, the same choice the health-score breakdown makes —
+ * a lock over someone else's numbers is an advert, a lock over your own is an offer. The
+ * ₹/km headline above stays readable throughout, so nothing that was on screen yesterday
+ * has been taken away.
+ */
+@Composable
+private fun LockedAnalysis(content: RunningCostContent, onUnlock: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(LockedAnalysisHeight).testTag(CostTrackerTestTags.PAYWALL)) {
+        Column(
+            Modifier.fillMaxWidth().alpha(0.18f),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        ) {
+            SpendByMonthCard(bars = content.spendBars, avgPerMonth = content.avgPerMonth)
+        }
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(listOf(OdoTheme.colors.bg.copy(alpha = 0.5f), OdoTheme.colors.bg)),
+            ),
+        )
+        Column(
+            modifier = Modifier.matchParentSize().padding(horizontal = OdoTheme.spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md, Alignment.CenterVertically),
+        ) {
+            Box(
+                Modifier.size(LockedIconSize).clip(OdoTheme.shapes.card)
+                    .background(OdoTheme.colors.accent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                OdoIcon(IcLockFilled, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.large)
+            }
+            OdoText(stringResource(Res.string.ct_locked_title), style = OdoTheme.typography.heading)
+            OdoText(
+                stringResource(Res.string.ct_locked_body),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+                textAlign = TextAlign.Center,
+            )
+            OdoButton(stringResource(Res.string.ct_locked_cta), onClick = onUnlock)
+        }
+    }
+}
+
+private val LockedAnalysisHeight = 320.dp
+private val LockedIconSize = 56.dp
 
 @Composable
 private fun PeriodSelector(selected: CostPeriod, onChange: (CostPeriod) -> Unit) {

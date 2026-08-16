@@ -9,6 +9,8 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyPolicy
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.cost.model.CostShortfall
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
@@ -58,9 +60,20 @@ internal class RunningCostViewModel(
     activeCar: ActiveCarProvider,
     observeRunningCost: ObserveRunningCostUseCase,
     settings: AppSettingsRepository,
+    entitlements: EntitlementSource,
     private val showcase: ShowcaseArbiter,
     private val telemetry: CostTrackerTelemetry,
 ) : ViewModel() {
+
+    /**
+     * Whether the analysis under the headline is locked (#247).
+     *
+     * A failed entitlement read locks it: refusing to show a paid surface is recoverable,
+     * giving it away by accident is not. The headline itself is never gated either way.
+     */
+    private val analysisLocked = entitlements.observe()
+        .map { !it.has(ProFeature.COST_ANALYSIS) }
+        .catch { emit(true) }
 
     private val period = MutableStateFlow(CostPeriod.Y1)
 
@@ -104,6 +117,7 @@ internal class RunningCostViewModel(
                 }
             }
         }
+        .combine(analysisLocked) { ui, locked -> ui.copy(analysisLocked = locked) }
         .combine(odometerShowcaseVisible) { ui, visible -> ui.copy(odometerShowcase = visible) }
         .onEach(::maybeRequestOdometerShowcase)
         .onEach(::reportOpened)
@@ -125,6 +139,11 @@ internal class RunningCostViewModel(
 
         RunningCostEvent.FuelRateTapped -> {
             _effects.trySend(RunningCostEffect.OpenFuelRate)
+            Unit
+        }
+
+        RunningCostEvent.UnlockAnalysisTapped -> {
+            _effects.trySend(RunningCostEffect.OpenPaywall)
             Unit
         }
 

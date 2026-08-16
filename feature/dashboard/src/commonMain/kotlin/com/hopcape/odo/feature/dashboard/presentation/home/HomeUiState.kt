@@ -69,6 +69,12 @@ internal data class HomeUiState(
 )
 
 /** A loaded dashboard. */
+/** Blanks the score's trend line, leaving everything else — see `ProFeature.SCORE_HISTORY`. */
+internal fun HomeUiState.withoutScoreHistory(): HomeUiState = when (val c = content) {
+    is Loadable.Ready -> copy(content = Loadable.Ready(c.value.copy(scoreDelta = null)))
+    else -> this
+}
+
 @Immutable
 internal data class HomeContent(
     /** The owner's name for the greeting; empty falls back to a generic hello. */

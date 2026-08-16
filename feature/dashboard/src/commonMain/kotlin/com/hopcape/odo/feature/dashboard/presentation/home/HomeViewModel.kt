@@ -11,6 +11,7 @@ import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
 import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.triptracker.TripTracker
@@ -59,6 +60,14 @@ internal class HomeViewModel(
     private val entitlements: EntitlementSource,
     private val telemetry: HomeTelemetry,
 ) : ViewModel() {
+
+    /**
+     * Whether the score's trend line may be shown (#247). A failed read hides it, which is
+     * the safe direction — the score itself is unaffected either way.
+     */
+    private val scoreHistoryGranted = entitlements.observe()
+        .map { it.has(ProFeature.SCORE_HISTORY) }
+        .catch { emit(false) }
 
     /** True while the SCAN coach mark holds the arbiter's grant. */
     private val scanShowcaseVisible = MutableStateFlow(false)
@@ -109,6 +118,12 @@ internal class HomeViewModel(
         // Read only to pick the Pro-gated coach marks' copy — never to hide them.
         .combine(entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }) { ui, pro ->
             ui.copy(proPlan = pro)
+        }
+        // Score *history* is Pro (#247), the score itself never is. Dropping the delta is
+        // what gates it: the dial keeps its number and the line under it goes quiet, rather
+        // than the card growing a lock over a figure the owner has always been able to read.
+        .combine(scoreHistoryGranted) { ui, granted ->
+            if (granted) ui else ui.withoutScoreHistory()
         }
         .onEach(::maybeRequestScanShowcase)
         .onEach(::maybeRequestHealthShowcase)
