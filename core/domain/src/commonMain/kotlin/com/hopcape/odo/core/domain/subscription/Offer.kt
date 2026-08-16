@@ -8,6 +8,21 @@ enum class BillingPeriod {
 
     /** Charged once a year. */
     ANNUAL,
+
+    /**
+     * Charged once, ever (#245).
+     *
+     * Not a billing period at all, which is the point: a lifetime purchase has no renewal,
+     * no per-month figure and no "billed monthly/annually" sentence — Play's required terms
+     * copy is a different sentence entirely. It lives in this enum anyway because every
+     * surface that renders a plan already switches on it, so adding the case is what forces
+     * each of those to state what a one-off looks like instead of quietly falling through
+     * to the subscription wording.
+     *
+     * It is also not a subscription: the entitlement it grants never expires and never
+     * enters grace.
+     */
+    LIFETIME,
 }
 
 /**
@@ -85,6 +100,9 @@ data class Offer(
     /** The annual plan, when the offering has one. */
     val annual: PlanOption? get() = plans.firstOrNull { it.period == BillingPeriod.ANNUAL }
 
+    /** The one-off lifetime plan, when the offering has one (#245). */
+    val lifetime: PlanOption? get() = plans.firstOrNull { it.period == BillingPeriod.LIFETIME }
+
     /** Whether any plan opens with a free trial, for the paywall's headline. */
     val hasFreeTrial: Boolean get() = plans.any { it.freeTrialDays != null }
 
@@ -97,6 +115,11 @@ data class Offer(
      * is not actually cheaper. The badge is computed rather than written down for the same
      * reason the prices are: a price change in Play Console must not leave the app claiming a
      * discount that stopped being true.
+     *
+     * Growth Plan v3 retires the monthly plan, which leaves nothing to compare against and
+     * makes this null — deliberately. An annual card next to a lifetime one has no honest
+     * saving to claim: the lifetime plan is dearer once and cheaper forever, and which is
+     * better depends on how long someone keeps the car. No badge is the truthful answer.
      */
     val annualSavingPercent: Int?
         get() {
