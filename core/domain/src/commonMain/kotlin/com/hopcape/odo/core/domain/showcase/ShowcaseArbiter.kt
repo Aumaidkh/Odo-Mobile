@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class ShowcaseArbiter(
     private val store: ShowcaseSeenStore,
+    private val telemetry: ShowcaseTelemetry = ShowcaseTelemetry.Noop,
 ) {
     private val mutex = Mutex()
 
@@ -46,16 +47,23 @@ class ShowcaseArbiter(
             store.isSeen(hook) -> false
             else -> {
                 _active.value = hook
+                telemetry.shown(hook)
                 true
             }
         }
     }
 
     /** The owner tapped the mark away. Seen forever, grant released, nothing promoted. */
-    suspend fun dismissed(hook: ShowcaseHookId) = settle(hook)
+    suspend fun dismissed(hook: ShowcaseHookId) {
+        telemetry.dismissed(hook)
+        settle(hook)
+    }
 
     /** The owner tapped through to the thing being taught. Seen forever, same as [dismissed]. */
-    suspend fun actedOn(hook: ShowcaseHookId) = settle(hook)
+    suspend fun actedOn(hook: ShowcaseHookId) {
+        telemetry.actedOn(hook)
+        settle(hook)
+    }
 
     /**
      * The surface disposed while [hook] held the grant — releases it without writing

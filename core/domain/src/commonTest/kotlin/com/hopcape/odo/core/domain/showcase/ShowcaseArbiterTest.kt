@@ -92,6 +92,46 @@ class ShowcaseArbiterTest {
         assertNull(arbiter.active.value)
     }
 
+    @Test
+    fun theThreeCounts_reportExactlyWhatHappened() = runTest {
+        val recorded = RecordingTelemetry()
+        val arbiter = ShowcaseArbiter(FakeSeenStore(), recorded)
+
+        arbiter.request(ShowcaseHookId.SCAN_BUTTON)
+        arbiter.request(ShowcaseHookId.FAIRNESS_CHECK) // denied — never counted as shown
+        arbiter.dismissed(ShowcaseHookId.SCAN_BUTTON)
+        arbiter.request(ShowcaseHookId.FAIRNESS_CHECK)
+        arbiter.actedOn(ShowcaseHookId.FAIRNESS_CHECK)
+        arbiter.request(ShowcaseHookId.ODOMETER_CURRENT)
+        arbiter.surfaceLeft(ShowcaseHookId.ODOMETER_CURRENT) // released, not an outcome
+
+        assertEquals(
+            listOf(
+                "shown:SCAN_BUTTON",
+                "dismissed:SCAN_BUTTON",
+                "shown:FAIRNESS_CHECK",
+                "actedOn:FAIRNESS_CHECK",
+                "shown:ODOMETER_CURRENT",
+            ),
+            recorded.events,
+        )
+    }
+
+    private class RecordingTelemetry : ShowcaseTelemetry {
+        val events = mutableListOf<String>()
+        override fun shown(hook: ShowcaseHookId) {
+            events += "shown:${hook.name}"
+        }
+
+        override fun dismissed(hook: ShowcaseHookId) {
+            events += "dismissed:${hook.name}"
+        }
+
+        override fun actedOn(hook: ShowcaseHookId) {
+            events += "actedOn:${hook.name}"
+        }
+    }
+
     private class FakeSeenStore : ShowcaseSeenStore {
         val seen = mutableSetOf<ShowcaseHookId>()
         override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
