@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The refuel widget's description to the launcher.
+
+    minWidth spans four cells so the three buttons fit side by side; a narrower widget would
+    wrap them and the whole point is that each is one tap away. resizeMode is horizontal only:
+    there is nothing below the row to grow into.
+
+    updatePeriodMillis is 0 because the widget reads nothing. It shows three fixed actions, so
+    there is no state for the launcher to refresh and no reason to wake the process.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/refuel_widget_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minHeight="70dp"
+    android:minWidth="250dp"
+    android:previewImage="@mipmap/ic_launcher"
+    android:resizeMode="horizontal"
+    android:targetCellHeight="1"
+    android:targetCellWidth="4"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

@@ -36,14 +36,6 @@ sealed interface CameraEvent {
      */
     data class PhotoCaptured(val storageKey: String) : CameraEvent
 
-    /**
-     * A QR code was read from the live preview. [payload] is the raw string in the code —
-     * for a payment QR, a `upi://pay?...` URI that still needs parsing.
-     *
-     * Fires repeatedly while the code stays in frame. The screen decides what to do with the
-     * second one; the camera does not try to guess.
-     */
-    data class QrDetected(val payload: String) : CameraEvent
 
     /**
      * The live frames contain a paper's outline — or stopped containing one, in which case
@@ -127,9 +119,6 @@ enum class CameraFrameAnalysis {
 
     /** Nothing — the preview is just a viewfinder. */
     None,
-
-    /** Read QR codes, reported as [CameraEvent.QrDetected]. */
-    Qr,
 
     /** Find a paper's outline, reported as [CameraEvent.EdgesDetected]. */
     DocumentEdges,

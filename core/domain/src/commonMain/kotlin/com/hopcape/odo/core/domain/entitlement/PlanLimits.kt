@@ -26,7 +26,14 @@ object PlanLimits {
         ProFeature.DOCUMENTS to Quota.UpTo(3),
         ProFeature.BILL_SCANS to Quota.UpTo(3),
         ProFeature.HEALTH_BREAKDOWN to Quota.None,
-        ProFeature.RECORD_EXPORT to Quota.None,
+        // Lifetime, like the smart-refuel allowance and for the same reason: an owner exports
+        // a record when they are selling the car or handing it to a workshop, which is a
+        // handful of times ever. A monthly three would never bind.
+        ProFeature.RECORD_EXPORT to Quota.UpTo(3),
+        // Lifetime, not monthly. An owner refuels a handful of times a month, so ten a month
+        // would never be reached — the cap would exist and never bind. Ten in total is a
+        // taste of automatic logging that runs out.
+        ProFeature.SMART_REFUEL_DETECT to Quota.UpTo(10),
     )
 
     /** What [plan] permits of [feature]. */

@@ -95,6 +95,15 @@ internal class AiTelemetry(
         const val BILL = "bill"
         const val DOCUMENT = "document"
 
+        /**
+         * Not paper at all: the lit display on a fuel pump.
+         *
+         * Worth its own target because it is the reader whose accuracy is least certain —
+         * seven-segment digits are not what the recogniser was trained on — and the only way
+         * to know whether it is working is to watch its results separately from the others.
+         */
+        const val PUMP = "pump"
+
         /** Engine — which pipeline produced the result. */
         const val ENGINE_MLKIT = "mlkit"
     }

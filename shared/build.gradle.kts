@@ -56,6 +56,7 @@ kotlin {
             implementation(projects.feature.dashboard)
             implementation(projects.feature.garage)
             implementation(projects.feature.profile)
+            implementation(projects.feature.refuel)
             implementation(projects.feature.support)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)

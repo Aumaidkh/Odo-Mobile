@@ -102,10 +102,23 @@ class OdoDestinationSerializationTest {
             documentType = "RC",
             origin = DocumentOrigin.Uploaded,
         ),
-        OdoDestination.BillScanner.PayAtPump(payload = "upi://pay?pa=pump@bank"),
         OdoDestination.BillScanner.SaveSuccess,
         OdoDestination.BillScanner.ReportSuccess,
         OdoDestination.BillScanner.ScanError,
+        // Refuel
+        OdoDestination.Refuel.Log,
+        OdoDestination.Refuel.Confirm(
+            draft = FuelFillDraftInput(
+                source = "DETECTED",
+                amountPaise = 200_000,
+                amountOrigin = "CAPTURED",
+                stationName = "Bharat Petroleum",
+                transactionRef = "txn-1",
+            ),
+        ),
+        OdoDestination.Refuel.Logged(fillId = "fill-1"),
+        OdoDestination.Refuel.Pending,
+        OdoDestination.Refuel.AutoDetect,
         // Cost tracker · Timeline · Health score
         OdoDestination.CostTracker.Home,
         OdoDestination.CostTracker.FuelRate,

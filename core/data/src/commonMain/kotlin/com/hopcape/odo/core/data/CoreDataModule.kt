@@ -19,6 +19,8 @@ import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
+import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
+import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
 import com.hopcape.odo.core.data.document.FakeDocumentRemoteDataSource
@@ -29,6 +31,10 @@ import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.EntitlementDocumentAllowance
 import com.hopcape.odo.core.data.entitlement.EntitlementScanAllowance
+import com.hopcape.odo.core.data.entitlement.EntitlementSmartRefuelAllowance
+import com.hopcape.odo.core.data.record.LocalRecordExportUsage
+import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
+import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
 import com.hopcape.odo.core.data.entitlement.FreePlanEntitlementSource
 import com.hopcape.odo.core.data.subscription.NoopSubscriptionIdentity
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
@@ -190,6 +196,7 @@ val coreDataModule = module {
     // earlier ones, so with no credentials the fakes simply stand.
     single<ServiceLogRemoteDataSource> { FakeServiceLogRemoteDataSource() }
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
+    single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
@@ -220,6 +227,10 @@ val coreDataModule = module {
 
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
     single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
+    single<RecordExportUsage> { LocalRecordExportUsage(local = get(), clock = get()) }
+    single<SmartRefuelAllowance> {
+        EntitlementSmartRefuelAllowance(entitlements = get(), activeCar = get(), fills = get())
+    }
     // The tally the cap is measured against. Device-local: nothing counts a scan but the
     // phone that ran it.
     single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }

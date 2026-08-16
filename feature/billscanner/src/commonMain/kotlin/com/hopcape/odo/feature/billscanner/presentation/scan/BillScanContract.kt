@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.billscanner.presentation.scan
 
+import com.hopcape.odo.core.navigation.FuelFillDraftInput
 import com.hopcape.odo.core.navigation.ScanTarget
 import com.hopcape.odo.core.platform.camera.CameraFailure
 import com.hopcape.odo.core.platform.camera.DetectedQuad
@@ -37,8 +38,6 @@ internal sealed interface BillScanEvent {
      */
     data class GalleryPicked(val pickedRef: String?) : BillScanEvent
 
-    /** A QR came into frame. Fires repeatedly while it stays there. */
-    data class QrDetected(val payload: String) : BillScanEvent
 
     /** The live frames found a paper's outline, or lost it (null). */
     data class EdgesDetected(val quad: DetectedQuad?) : BillScanEvent
@@ -68,8 +67,14 @@ internal sealed interface BillScanEffect {
     /** A paper was photographed; its confirm step reads it. */
     data class OpenDocumentReview(val photoKey: String) : BillScanEffect
 
-    /** A payment code was read; the pay-at-pump flow takes over. */
-    data class OpenPayment(val payload: String) : BillScanEffect
+    /**
+     * A pump display was read; the refuel confirm step takes the numbers.
+     *
+     * The draft travels as the navigation layer's own type rather than a domain one, because
+     * that is what the confirm destination's key holds — and it is what lets the scanner hand
+     * over to refuel without either feature importing the other.
+     */
+    data class OpenPumpConfirm(val draft: FuelFillDraftInput) : BillScanEffect
 
     /** Ask the platform for a picture from the gallery. */
     data object PickFromGallery : BillScanEffect

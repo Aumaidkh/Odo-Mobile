@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The detected-fill notification's content, so the two actions can be pills rather than the
+    system's plain text buttons.
+
+    `addAction` has no styling hook at all — the platform draws those, and on most builds they
+    are borderless capitalised text. A custom RemoteViews is the only way to a pill, which is
+    why this layout exists at all.
+
+    Paired with `DecoratedCustomViewStyle`: the system still draws the header (the app icon,
+    "Odo", the timestamp) and this fills only the content area. A fully custom notification is
+    restricted from Android 12 onwards, and the decorated form is the supported way to keep a
+    custom body while the header stays consistent with every other app's.
+
+    **Only RemoteViews-safe views appear here.** LinearLayout and TextView are on the allowed
+    list; a Button is not needed — a TextView with a background drawable and a click intent is
+    a button, and it avoids inheriting the platform button style this layout exists to escape.
+
+    **Every colour is one of Odo's own, never `?android:attr/textColorPrimary`.** That
+    attribute resolves against whatever theme the OEM inflates the row with, and on at least
+    one skin it came back dark on a dark shade — the title greyed out and the outlined button's
+    label vanished. Naming the colours instead means the notification looks like the app: white
+    title and supporting line, a white pill with a black label. The light-mode inverses live in
+    `values/`, because the shade follows the phone rather than the app.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/refuel_notification_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="@color/refuel_notification_text"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/refuel_notification_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:lineSpacingExtra="2dp"
+        android:textColor="@color/refuel_notification_text_dim"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <!-- The expected answer, so it is the filled one and it comes first. -->
+        <TextView
+            android:id="@+id/refuel_notification_confirm"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_notification_pill_primary"
+            android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:minHeight="40dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:textColor="@color/refuel_notification_cta_label"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/refuel_notification_edit"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_notification_pill_secondary"
+            android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:minHeight="40dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:textColor="@color/refuel_notification_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

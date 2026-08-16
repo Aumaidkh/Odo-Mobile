@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.domain.activity.analysis
 
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
+import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
@@ -46,10 +47,12 @@ object ActivityFeedBuilder {
         documents: List<Document>,
         scores: List<HealthSnapshot>,
         zone: TimeZone,
+        fills: List<FuelFill> = emptyList(),
     ): List<ActivityEvent> {
         val events = serviceEvents(entries) +
             documentEvents(documents) +
             scoreEvents(scores, zone) +
+            fuelEvents(fills) +
             milestoneEvents(car)
 
         // Newest first, then by a fixed rank so two events on one day always come back in
@@ -127,6 +130,26 @@ object ActivityFeedBuilder {
             }
     }
 
+    /**
+     * One event per fill, exactly as it was recorded.
+     *
+     * Nothing is derived here — no mileage, no comparison with the last tank. Those need the
+     * *next* fill to exist and are the success screen's job; a feed row states what happened
+     * on the day it happened.
+     */
+    private fun fuelEvents(fills: List<FuelFill>): List<ActivityEvent> =
+        fills.map { fill ->
+            ActivityEvent.FuelFilled(
+                id = fill.id,
+                station = fill.stationName,
+                quantityMilli = fill.quantityMilli,
+                unit = fill.unit,
+                amount = fill.amount,
+                odometer = fill.odometer,
+                date = fill.filledOn,
+            )
+        }
+
     private fun milestoneEvents(car: Car?): List<ActivityEvent> {
         val addedOn = car?.addedOn ?: return emptyList()
         return listOf(ActivityEvent.CarAdded(carName = car.displayName, date = addedOn))
@@ -142,6 +165,10 @@ object ActivityFeedBuilder {
             is ActivityEvent.Service -> 0
             is ActivityEvent.ScoreChanged -> 1
             is ActivityEvent.DocumentFiled -> 2
-            is ActivityEvent.CarAdded -> 3
+            // Under the paperwork, above the milestone. A fill is the most frequent thing on
+            // the feed and the least consequential: on a day the owner both serviced the car
+            // and refuelled it, the service is what they came looking for.
+            is ActivityEvent.FuelFilled -> 3
+            is ActivityEvent.CarAdded -> 4
         }
 }

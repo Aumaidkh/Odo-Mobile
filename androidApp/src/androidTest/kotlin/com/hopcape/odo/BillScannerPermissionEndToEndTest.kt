@@ -67,7 +67,6 @@ class BillScannerPermissionEndToEndTest {
         rule.awaitText(ScanCopy.CAMERA_TITLE)
 
         // Asking separately for one permission would be asking for the same thing twice. Pay
-        // at pump would be a third row here, and comes back with FeatureFlags.PAY_VIA_QR_ENABLED.
         rule.onNodeWithText(ScanCopy.CAMERA_BILLS).assertIsDisplayed()
         rule.onNodeWithText(ScanCopy.CAMERA_PAPERS).assertIsDisplayed()
     }

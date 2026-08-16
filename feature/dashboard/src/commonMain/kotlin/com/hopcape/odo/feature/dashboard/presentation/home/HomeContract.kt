@@ -24,6 +24,17 @@ internal sealed interface HomeEvent {
     /** "Scan your first bill", and the checklist's bill row. */
     data object ScanBillTapped : HomeEvent
 
+    /**
+     * "Log a fill" — the quick action that makes refuelling a two-tap job.
+     *
+     * On the home screen rather than inside the garage because the moment it serves is the
+     * one just after paying at a pump, when the owner opens the app and is looking at this.
+     */
+    data object LogFillTapped : HomeEvent
+
+    /** "Log fills automatically" — opens the explanation, not the permission. */
+    data object AutoDetectTapped : HomeEvent
+
     /** The checklist's documents row. */
     data object AddDocumentsTapped : HomeEvent
 
@@ -57,6 +68,15 @@ internal sealed interface HomeEffect {
 
     /** Open the bill scanner — the North Star funnel's entry point from Home. */
     data object OpenScanner : HomeEffect
+
+    /** Open the prefilled fuel-log form. */
+    data object OpenLogFill : HomeEffect
+
+    /** Open the auto-detect opt-in, which explains what would be read before asking. */
+    data object OpenAutoDetect : HomeEffect
+
+    /** Automatic logging was tapped by an owner who does not have it. */
+    data object OpenPaywall : HomeEffect
 
     /** Open the vault's add-document flow. */
     data object OpenAddDocument : HomeEffect

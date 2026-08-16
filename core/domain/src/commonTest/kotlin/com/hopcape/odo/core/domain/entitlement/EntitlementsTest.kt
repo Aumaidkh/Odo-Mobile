@@ -17,11 +17,36 @@ class EntitlementsTest {
     }
 
     @Test
-    fun freePlanDoesNotGetTheBreakdownOrTheExport() {
+    fun freePlanDoesNotGetTheBreakdown() {
         val free = Entitlements(Plan.FREE)
 
         assertFalse(free.has(ProFeature.HEALTH_BREAKDOWN))
-        assertFalse(free.has(ProFeature.RECORD_EXPORT))
+    }
+
+    /**
+     * The counted features are the reason `has` is not the question a caller should ask about
+     * them. It answers "does the plan grant this at all", and for a capped feature that is
+     * true from the first use to the last — only `quotaFor(...).allowsAnother(used)` knows
+     * whether there is one left. A gate written with `has` would hand a capped feature over
+     * on the free plan, which is what this states so the next person does not.
+     */
+    @Test
+    fun freePlanGrantsCountedFeaturesButNotWithoutLimit() {
+        val free = Entitlements(Plan.FREE)
+
+        listOf(
+            ProFeature.RECORD_EXPORT,
+            ProFeature.SMART_REFUEL_DETECT,
+            ProFeature.DOCUMENTS,
+            ProFeature.BILL_SCANS,
+        ).forEach { feature ->
+            val quota = free.quotaFor(feature)
+            assertTrue(free.has(feature), "$feature is granted in some amount")
+            val cap = quota.cap
+            assertTrue(cap != null && cap > 0, "$feature is capped on the free plan")
+            assertTrue(quota.allowsAnother(used = 0), "$feature allows the first")
+            assertFalse(quota.allowsAnother(used = cap), "$feature stops at its cap")
+        }
     }
 
     @Test

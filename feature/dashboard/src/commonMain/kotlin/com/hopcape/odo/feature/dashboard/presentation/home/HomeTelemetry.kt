@@ -101,6 +101,18 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.ADD_DOCUMENTS_TAPPED, tc = flowTrace.toLog())
     }
 
+    /**
+     * Automatic logging was tapped by an owner who does not have it.
+     *
+     * The paywall's own `shown` event says a paywall appeared; this says what the owner was
+     * reaching for when it did. Without it, the card that sells automatic logging and the card
+     * that sells anything else are indistinguishable in the funnel.
+     */
+    fun autoDetectPaywalled() {
+        analytics.track(Event.AUTO_DETECT_PAYWALLED, emptyMap())
+        logger.info(TAG, Event.AUTO_DETECT_PAYWALLED, tc = flowTrace.toLog())
+    }
+
     /** "Add your car" from the no-car state — setup never finished, and this is the way back. */
     fun addCarTapped() {
         analytics.track(Event.ADD_CAR_TAPPED, emptyMap())
@@ -145,6 +157,7 @@ internal class HomeTelemetry(
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"
         const val ADD_CAR_TAPPED = "home_add_car_tapped"
+        const val AUTO_DETECT_PAYWALLED = "home_auto_detect_paywalled"
         const val READ_FAILED = "home_read_failed"
     }
 

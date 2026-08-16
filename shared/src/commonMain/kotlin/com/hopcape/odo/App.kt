@@ -31,6 +31,7 @@ import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.domain.trip.model.TripId
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.domain.refuel.PendingFillStore
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.OdoNavHost
 import com.hopcape.odo.core.navigation.navigateTo
@@ -209,6 +210,22 @@ private fun OdoApp(startDestination: OdoDestination) {
         val tripId = pendingTripId
         if (shouldRedirectToTripLogged(currentDestination, tripId)) {
             navigationManager.navigateTo(OdoDestination.AutoOdometer.TripLogged(tripId!!.value))
+        }
+    }
+
+    // Fuel fills Odo detected while the owner was elsewhere and never got an answer about.
+    // Read straight from the store rather than through a feature port: unlike the trip
+    // redirect there is nothing to decide, only a count, and the sheet itself is a normal
+    // destination. `shouldPromptPendingFills` carries the guard so it stays testable.
+    val pendingFills = koinInject<PendingFillStore>()
+    val pendingFillCount by produceState(initialValue = 0, pendingFills) {
+        pendingFills.observeOpen().collect { value = it.size }
+    }
+    var promptedPendingFills by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(currentDestination, pendingFillCount) {
+        if (shouldPromptPendingFills(currentDestination, pendingFillCount, promptedPendingFills)) {
+            promptedPendingFills = true
+            navigationManager.navigateTo(OdoDestination.Refuel.Pending)
         }
     }
 

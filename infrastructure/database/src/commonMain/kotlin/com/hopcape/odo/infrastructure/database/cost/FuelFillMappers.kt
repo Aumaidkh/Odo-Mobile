@@ -3,10 +3,10 @@ package com.hopcape.odo.infrastructure.database.cost
 import com.hopcape.odo.infrastructure.database.db.Fuel_fills
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.FillEntrySource
 import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.cost.model.FuelFillId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
-import com.hopcape.odo.core.domain.payment.model.PaymentMethod
 import kotlinx.datetime.LocalDate
 
 /**
@@ -21,14 +21,25 @@ internal fun Fuel_fills.toDomain(): FuelFill = FuelFill.reconstitute(
     carId = CarId(car_id),
     ownerId = OwnerId(owner_id),
     filledOn = LocalDate.parse(filled_on),
-    odometerKm = odometer_km.toInt(),
+    odometerKm = odometer_km?.toInt(),
     quantityMilli = quantity_milli,
     unit = fuel_unit.toFuelUnit(),
     amountPaise = amount_paise,
     stationName = station_name,
-    paidVia = paid_via.toPaymentMethod(),
     transactionRef = transaction_ref,
+    entrySource = entry_source.toEntrySource(),
 )
+
+/**
+ * A channel this build does not know reads as [FillEntrySource.MANUAL] — the same value the
+ * column's own default gives rows written before the column existed.
+ *
+ * The direction matters: guessing `DETECTED` would let a row claim it came from a listener
+ * that may never have run on this phone, and the auto-detect screen counts those rows to
+ * show what detection has earned.
+ */
+private fun String.toEntrySource(): FillEntrySource =
+    FillEntrySource.entries.firstOrNull { it.name == this } ?: FillEntrySource.MANUAL
 
 /**
  * A unit this build does not know reads as [FuelUnit.LITRE] — what the overwhelming majority
@@ -36,12 +47,3 @@ internal fun Fuel_fills.toDomain(): FuelFill = FuelFill.reconstitute(
  */
 private fun String.toFuelUnit(): FuelUnit =
     FuelUnit.entries.firstOrNull { it.name == this } ?: FuelUnit.LITRE
-
-/**
- * An unrecognised payment method reads as [PaymentMethod.UNKNOWN], never [PaymentMethod.UPI].
- *
- * UPI is the only value that can make a fill count as verified, so guessing it would let a
- * row written by a newer build claim Odo watched a payment it never saw.
- */
-private fun String.toPaymentMethod(): PaymentMethod =
-    PaymentMethod.entries.firstOrNull { it.name == this } ?: PaymentMethod.UNKNOWN

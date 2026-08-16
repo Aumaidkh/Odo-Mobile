@@ -9,6 +9,7 @@ import com.hopcape.odo.feature.dashboard.FakeCurrentCityProvider
 import com.hopcape.odo.feature.dashboard.FakeCurrentOdometerProvider
 import com.hopcape.odo.feature.dashboard.FakeDocumentRepository
 import com.hopcape.odo.feature.dashboard.FakeFuelPriceProvider
+import com.hopcape.odo.feature.dashboard.FakeFuelFillRepository
 import com.hopcape.odo.feature.dashboard.FakeHealthScoreRepository
 import com.hopcape.odo.feature.dashboard.FakeOwnerProfileRepository
 import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
@@ -45,6 +46,7 @@ class ObserveHomeUseCaseTest {
         logs: FakeServiceLogRepository = FakeServiceLogRepository(),
         documents: FakeDocumentRepository = FakeDocumentRepository(),
         scores: FakeHealthScoreRepository = FakeHealthScoreRepository(),
+        fills: FakeFuelFillRepository = FakeFuelFillRepository(),
         owners: FakeOwnerProfileRepository = FakeOwnerProfileRepository(),
         city: FakeCurrentCityProvider = FakeCurrentCityProvider(),
         fuelPrices: FakeFuelPriceProvider = FakeFuelPriceProvider(),
@@ -56,6 +58,7 @@ class ObserveHomeUseCaseTest {
         logs = logs,
         documents = documents,
         scores = scores,
+        fills = fills,
         owners = owners,
         city = city,
         fuelPrices = fuelPrices,

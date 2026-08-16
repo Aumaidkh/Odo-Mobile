@@ -21,6 +21,15 @@ enum class SyncEntity {
      * trip only FKs to a car, not to a service log — nothing else references it.
      */
     TRIPS,
+    /**
+     * Tanks of fuel, confirmed by the owner. After [CARS] because a fill only FKs to a car,
+     * and beside [TRIPS] for the same reason — neither references the other.
+     *
+     * Only *confirmed* fills are ever here. A detection waiting for an answer lives in
+     * `pending_fills`, which is device-local and has no constant: it is a question this phone
+     * has not asked yet, not a record of anything that happened.
+     */
+    FUEL_FILLS,
     SERVICE_LOGS,
 
     /**

@@ -7,20 +7,25 @@ import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.FillEntrySource
 import com.hopcape.odo.core.domain.cost.model.FuelFill
 import com.hopcape.odo.core.domain.cost.model.FuelFillId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
-import com.hopcape.odo.core.domain.payment.model.PaymentMethod
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -74,6 +79,8 @@ class FuelFillRepositoryImplTest {
 
     private class FakeFuelFillLocalDataSource(
         private val insertThrows: Throwable? = null,
+        private val readThrows: Throwable? = null,
+        private val stored: List<FuelFill> = emptyList(),
     ) : FuelFillLocalDataSource {
         var inserted: FuelFill? = null
             private set
@@ -81,6 +88,19 @@ class FuelFillRepositoryImplTest {
         override suspend fun insert(fill: FuelFill) {
             insertThrows?.let { throw it }
             inserted = fill
+        }
+
+        override fun observeByCar(carId: CarId): Flow<List<FuelFill>> =
+            readThrows?.let { flow { throw it } } ?: flowOf(stored)
+
+        override suspend fun latestForCar(carId: CarId): FuelFill? {
+            readThrows?.let { throw it }
+            return stored.firstOrNull()
+        }
+
+        override suspend fun countBySource(carId: CarId, source: FillEntrySource): Int {
+            readThrows?.let { throw it }
+            return stored.count { it.entrySource == source }
         }
     }
 
@@ -102,7 +122,6 @@ class FuelFillRepositoryImplTest {
         amountPaise = 320_000,
         today = LocalDate(2026, 8, 1),
         stationName = "HP Andheri",
-        paidVia = PaymentMethod.UPI,
         transactionRef = "txn-1",
     ).getOrNull()!!
 
@@ -138,5 +157,31 @@ class FuelFillRepositoryImplTest {
         val result = repo(local, exploding).add(fill())
 
         assertTrue(result.isRight(), "a broken scheduler must not fail an already-committed write")
+    }
+
+    @Test
+    fun observe_readFails_emitsAnEmptyListRatherThanBreakingTheStream() = runTest {
+        val local = FakeFuelFillLocalDataSource(readThrows = RuntimeException("db gone"))
+
+        val fills = repo(local).observeForCar(CarId("car-1")).first()
+
+        assertEquals(emptyList(), fills)
+    }
+
+    @Test
+    fun latest_readFails_isPersistenceFailure() = runTest {
+        val local = FakeFuelFillLocalDataSource(readThrows = RuntimeException("db gone"))
+
+        val result = repo(local).latestForCar(CarId("car-1"))
+
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
+    }
+
+    @Test
+    fun latest_withNoFills_isNullRatherThanAFailure() = runTest {
+        val result = repo(FakeFuelFillLocalDataSource()).latestForCar(CarId("car-1"))
+
+        assertTrue(result.isRight())
+        assertNull(result.getOrNull())
     }
 }

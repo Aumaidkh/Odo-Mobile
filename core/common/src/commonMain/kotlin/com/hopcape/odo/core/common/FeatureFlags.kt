@@ -54,40 +54,40 @@ object FeatureFlags {
     const val AUTO_ODOMETER_ENABLED = false
 
     /**
-     * Whether the scanner can read a payment QR and hand it to a UPI app.
+     * Whether Odo reads payment notifications to detect a fill on its own.
      *
-     * False for 1.0. The flow is written and tested end to end — read the code, parse the
-     * `upi://pay` grammar, launch a chooser, read the response back, log the fuel fill it
-     * bought — but it moves the owner's money, and 1.0 is not the release to ask them to
-     * trust that with. It ships in the next one.
+     * False for this release. The detection itself is written and tested — the classifier, the
+     * usual-spend band, the draft builder, the opt-in screen and the settings behind it — but
+     * it needs `BIND_NOTIFICATION_LISTENER_SERVICE`, whose system dialog tells the owner Odo
+     * will be able to read every notification including message text. That is a claim worth
+     * getting reviewed before it ships, not one to discover in a policy rejection.
      *
-     * While this is false the scanner offers two modes instead of three. `ScanTarget.PaymentQr`
-     * is unreachable, and that single fact turns the whole feature off: the frame analyser
-     * stays on document edges rather than QR codes, so no code is ever read; the gallery path
-     * never decodes one; and `BillScanEffect.OpenPayment` — the only thing that navigates to
-     * `OdoDestination.BillScanner.PayAtPump` — is never emitted. The route stays registered
-     * and the Koin graph stays wired: unreachable, not removed.
+     * Nothing about the feature depends on it. Smart refuel's other two channels — reading the
+     * pump display, and the prefilled form — work in every market with no such permission, and
+     * they are what the design leans on. Detection is the best case, not the floor.
      *
-     * Flip it to true when payments are ready. Nothing here is rewritten.
+     * While this is false: the auto-detect screen is unreachable, so nothing ever writes
+     * `detect_enabled`, and the notice source never emits — the listener service is not in the
+     * manifest, so the OS has nothing to bind. The routes stay registered and the Koin graph
+     * stays wired; unreachable, not removed.
      *
-     * **Finding every site.** A project-wide search for `PAY_VIA_QR_ENABLED` lists them, and
-     * deleting this constant fails the build at each one:
+     * **Finding every site.** A project-wide search for `SMART_REFUEL_DETECT_ENABLED` lists
+     * them, and deleting this constant fails the build at each one:
      *
-     * - `scanTargets` (`BillScanUiState.kt`) — the one choke point. The mode chips are built
-     *   from it, and `BillScanViewModel` checks every target against it, both on the way in
-     *   (a deep link carrying `ScanTarget.PaymentQr` lands on `Bill`) and on every switch.
-     * - `BillScannerEndToEndTest` — the QR and pay-at-pump tests are skipped by `assumeTrue`,
-     *   with an `assumeFalse` twin asserting the chip is absent. Both compile either way.
+     * - `ProfileEntryPoints` / the refuel entry provider — whether the auto-detect row and its
+     *   destination are offered at all.
+     * - `RefuelDetectionWorker` — the collector that turns a notice into a draft. Returns
+     *   before subscribing, so nothing is read even if the service were somehow bound.
      *
      * **One thing the search does not find**, because it is not Kotlin:
-     * `androidApp/src/main/AndroidManifest.xml` — the `<queries>` block declaring the
-     * `upi:` VIEW intent was removed. It is Android 11+ package visibility, not a permission,
-     * but it exists only so this feature can ask "can anything here take a payment", and a
-     * manifest that still asks is a manifest that still describes a feature the app does not
-     * have. Put it back with the flag; without it `resolveActivity` answers null on a phone
-     * with four UPI apps installed. The file carries a comment pointing here.
      *
-     * **Not touched:** `CAMERA`. Bills and documents need it, and it was never QR's alone.
+     * - `androidApp/src/main/AndroidManifest.xml` — the `<service>` entry for
+     *   `RefuelNotificationListenerService`, with its `BIND_NOTIFICATION_LISTENER_SERVICE`
+     *   permission and `android.service.notification.NotificationListenerService` intent
+     *   filter, is deliberately absent. It has to go back with this flag: the class exists and
+     *   compiles, but a service the manifest does not declare is one the OS will never bind,
+     *   and a manifest that declares it is a manifest asking for the permission. The file
+     *   carries a comment pointing back here.
      */
-    const val PAY_VIA_QR_ENABLED = false
+    const val SMART_REFUEL_DETECT_ENABLED = true
 }

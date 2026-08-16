@@ -14,12 +14,8 @@ import com.hopcape.odo.core.platform.file.ensureParentDirectory
 import com.hopcape.odo.core.platform.file.StorageKey
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
-import platform.AVFoundation.AVCaptureConnection
 import platform.AVFoundation.AVCaptureDevice
 import platform.AVFoundation.AVCaptureDeviceInput
-import platform.AVFoundation.AVCaptureMetadataOutput
-import platform.AVFoundation.AVCaptureMetadataOutputObjectsDelegateProtocol
-import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCapturePhoto
 import platform.AVFoundation.AVCapturePhotoCaptureDelegateProtocol
 import platform.AVFoundation.AVCapturePhotoOutput
@@ -31,8 +27,6 @@ import platform.AVFoundation.AVCaptureTorchModeOn
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
-import platform.AVFoundation.AVMetadataMachineReadableCodeObject
-import platform.AVFoundation.AVMetadataObjectTypeQRCode
 import platform.AVFoundation.fileDataRepresentation
 import platform.AVFoundation.hasTorch
 import platform.AVFoundation.torchMode
@@ -54,8 +48,8 @@ import kotlin.uuid.Uuid
  * iOS actual — an `AVCaptureSession` shown through a `UIView` hosted by Compose.
  *
  * The structure mirrors the Android side: the preview starts when the composable appears and
- * stops when it leaves, photos are written into app storage and reported as a relative key,
- * and QR codes come off the live frames on the device.
+ * stops when it leaves, and photos are written into app storage and reported as a relative
+ * key.
  *
  * Everything that touches the session runs on its own serial queue. `startRunning` blocks
  * until the camera is actually up, which on the main thread is a visible freeze, and
@@ -67,10 +61,9 @@ actual fun OdoCameraPreview(
     state: OdoCameraState,
     onEvent: (CameraEvent) -> Unit,
     modifier: Modifier,
-    // DocumentEdges is accepted and ignored: on-device edge detection is Android-only for
-    // the MVP, so iOS never sends CameraEvent.EdgesDetected and the screen keeps its
-    // static frame.
-    analysis: CameraFrameAnalysis,
+    // Accepted and ignored: on-device edge detection is Android-only for the MVP, so iOS
+    // never sends CameraEvent.EdgesDetected and the screen keeps its static frame.
+    @Suppress("UNUSED_PARAMETER") analysis: CameraFrameAnalysis,
 ) {
     val currentOnEvent by rememberUpdatedState(onEvent)
     val session = remember { IosCameraSession() }
@@ -79,8 +72,8 @@ actual fun OdoCameraPreview(
     // holding the callback it was given first.
     SideEffect { session.onEvent = { event -> currentOnEvent(event) } }
 
-    DisposableEffect(session, analysis) {
-        session.start(detectQr = analysis == CameraFrameAnalysis.Qr) { ready -> state.isReady = ready }
+    DisposableEffect(session) {
+        session.start { ready -> state.isReady = ready }
         onDispose { session.stop() }
     }
 
@@ -116,13 +109,12 @@ private class IosCameraSession {
 
     private var device: AVCaptureDevice? = null
     private var photoDelegate: PhotoCaptureDelegate? = null
-    private var qrDelegate: QrMetadataDelegate? = null
 
     val previewView = CameraPreviewView(session)
 
-    fun start(detectQr: Boolean, onReady: (Boolean) -> Unit) {
+    fun start(onReady: (Boolean) -> Unit) {
         dispatch_async(queue) {
-            if (!configure(detectQr)) {
+            if (!configure()) {
                 onMain {
                     onReady(false)
                     onEvent(CameraEvent.Failed(CameraFailure.Unavailable))
@@ -168,13 +160,13 @@ private class IosCameraSession {
     }
 
     /**
-     * Wire up the camera, the photo output and — when asked — QR detection.
+     * Wire up the camera and the photo output.
      *
      * Returns false rather than throwing when there is no usable camera. That covers a
      * simulator with no hardware and a permission that was never granted, and both should
      * reach the screen as the same "camera unavailable" rather than as a crash.
      */
-    private fun configure(detectQr: Boolean): Boolean {
+    private fun configure(): Boolean {
         if (session.inputs.isNotEmpty()) return true
 
         val camera = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) ?: return false
@@ -185,21 +177,6 @@ private class IosCameraSession {
         session.sessionPreset = AVCaptureSessionPresetPhoto
         if (session.canAddInput(input)) session.addInput(input) else return abandon()
         if (session.canAddOutput(photoOutput)) session.addOutput(photoOutput) else return abandon()
-
-        if (detectQr) {
-            val metadataOutput = AVCaptureMetadataOutput()
-            if (session.canAddOutput(metadataOutput)) {
-                session.addOutput(metadataOutput)
-                val delegate = QrMetadataDelegate { payload ->
-                    onMain { onEvent(CameraEvent.QrDetected(payload)) }
-                }
-                qrDelegate = delegate
-                metadataOutput.setMetadataObjectsDelegate(delegate, dispatch_get_main_queue())
-                // Only valid once the output is attached — before that the session does not
-                // yet know which types this camera can even produce.
-                metadataOutput.metadataObjectTypes = listOf(AVMetadataObjectTypeQRCode)
-            }
-        }
 
         session.commitConfiguration()
         return true
@@ -272,27 +249,5 @@ private class PhotoCaptureDelegate(
         error: NSError?,
     ) {
         onFinished(if (error != null) null else didFinishProcessingPhoto.fileDataRepresentation())
-    }
-}
-
-/**
- * Reports QR codes seen in the live frames.
- *
- * Fires for as long as the code stays in view, matching the Android analyser. Deciding what to
- * do about the second sighting is the screen's job, not the camera's.
- */
-private class QrMetadataDelegate(
-    private val onPayload: (String) -> Unit,
-) : NSObject(), AVCaptureMetadataOutputObjectsDelegateProtocol {
-
-    override fun captureOutput(
-        output: AVCaptureOutput,
-        didOutputMetadataObjects: List<*>,
-        fromConnection: AVCaptureConnection,
-    ) {
-        didOutputMetadataObjects
-            .filterIsInstance<AVMetadataMachineReadableCodeObject>()
-            .firstNotNullOfOrNull { it.stringValue }
-            ?.let(onPayload)
     }
 }

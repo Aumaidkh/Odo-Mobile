@@ -7,6 +7,10 @@ import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.FuelFill
+import com.hopcape.odo.core.domain.cost.model.FuelFillId
+import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
@@ -116,6 +120,41 @@ internal fun testSnapshot(
         algoVersion = algoVersion,
     )
 }
+
+/** The car's fills, newest first, as the timeline reads them. */
+internal class FakeFuelFillRepository(fills: List<FuelFill> = emptyList()) : FuelFillRepository {
+    private val stored = MutableStateFlow(fills)
+
+    override suspend fun add(fill: FuelFill): Either<DomainError, FuelFill> = fill.right()
+    override fun observeForCar(carId: CarId): Flow<List<FuelFill>> = stored
+    override suspend fun latestForCar(carId: CarId): Either<DomainError, FuelFill?> =
+        stored.value.firstOrNull().right()
+
+    fun emit(fills: List<FuelFill>) {
+        stored.value = fills
+    }
+}
+
+/** A stored fill, with only the fields the feed reads worth naming. */
+internal fun testFill(
+    id: String = "fill-1",
+    date: LocalDate = LocalDate(2026, 7, 20),
+    quantityMilli: Long = 21_110,
+    amountPaise: Long = 200_000,
+    odometerKm: Int = 34_612,
+    station: String? = "Bharat Petroleum, Karol Bagh",
+): FuelFill = FuelFill.reconstitute(
+    id = FuelFillId(id),
+    carId = TEST_CAR,
+    ownerId = OwnerId("owner-1"),
+    filledOn = date,
+    odometerKm = odometerKm,
+    quantityMilli = quantityMilli,
+    unit = FuelUnit.LITRE,
+    amountPaise = amountPaise,
+    stationName = station,
+    transactionRef = null,
+)
 
 /** Emits whatever it was given, and lets a test push a change mid-collection. */
 internal class FakeCarRepository(car: Car? = testCar()) : CarRepository {

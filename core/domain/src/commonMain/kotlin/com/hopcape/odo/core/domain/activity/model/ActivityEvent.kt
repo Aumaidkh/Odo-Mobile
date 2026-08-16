@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.domain.activity.model
 
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.core.domain.cost.model.FuelFillId
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.servicelog.model.RecordScore
@@ -77,6 +79,29 @@ sealed interface ActivityEvent {
     data class ScoreChanged(
         val from: RecordScore,
         val to: RecordScore,
+        override val date: LocalDate,
+    ) : ActivityEvent
+
+    /**
+     * A tank of fuel, however it was captured.
+     *
+     * On the feed because it is the one thing an owner does to their car more often than
+     * anything else, and a record that shows every service but no refuelling is not a
+     * history of the car — it is a history of its repairs.
+     *
+     * [station] is absent for a fill typed in without one. [quantityMilli] is thousandths of
+     * a [unit], the resolution fills are stored at, and it stays a number rather than a
+     * formatted string for the same reason [Amount] and [Distance] do: the feature that
+     * renders it decides whether that reads as litres, kilograms or kWh.
+     */
+    data class FuelFilled(
+        val id: FuelFillId,
+        val station: String?,
+        val quantityMilli: Long,
+        val unit: FuelUnit,
+        val amount: Amount,
+        /** Null for a fill confirmed without one — the reading is optional on a fill. */
+        val odometer: Distance?,
         override val date: LocalDate,
     ) : ActivityEvent
 

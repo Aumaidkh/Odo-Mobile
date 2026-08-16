@@ -106,7 +106,20 @@ dependencies {
     // because verifyPhoneNumber needs an Activity and only this bootstrap can supply one.
     implementation(projects.infrastructure.firebase.auth)
 
+    // The widget builds destinations and pushes them onto the navigation bus, so the app
+    // module needs the shared registry directly rather than only in its test source set.
+    implementation(projects.core.navigation)
+    // RefuelDeepLinks — the activity turns the draft on a detected-fill notification back
+    // into the confirm destination. Only that one object is public.
+    implementation(projects.feature.refuel)
+
     implementation(libs.androidx.activity.compose)
+
+    // The home-screen widget. Glance is Android-only and draws through RemoteViews, so it
+    // cannot live in a shared module or reuse :core:designsystem's Compose components — the
+    // widget re-states its own colours and lays out with Glance's own primitives.
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
     // Compose UI test rule + semantics matchers, and the empty manifest the rule needs
     // to host an activity. Compose Multiplatform ships its own JUnit4 artifact; using

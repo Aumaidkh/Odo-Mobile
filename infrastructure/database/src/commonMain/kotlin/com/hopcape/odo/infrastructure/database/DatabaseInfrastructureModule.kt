@@ -30,11 +30,17 @@ import com.hopcape.odo.core.sync.Synchronizer
 import com.hopcape.odo.infrastructure.database.analytics.SqlDelightAnalyticsEventStore
 import com.hopcape.odo.infrastructure.database.car.CarSyncTable
 import com.hopcape.odo.infrastructure.database.car.CarSyncable
+import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncTable
+import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
+import com.hopcape.odo.core.domain.refuel.PendingFillStore
+import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.infrastructure.database.cost.SqlDelightFuelFillLocalDataSource
+import com.hopcape.odo.infrastructure.database.refuel.SqlDelightPendingFillStore
+import com.hopcape.odo.infrastructure.database.refuel.SqlDelightRefuelDetectionStore
 import com.hopcape.odo.infrastructure.database.cost.seedFuelPrices
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
@@ -58,6 +64,8 @@ import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncTable
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncable
 import com.hopcape.odo.infrastructure.database.servicelog.SqlDelightServiceLogLocalDataSource
 import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
+import com.hopcape.odo.infrastructure.database.record.SqlDelightRecordExportUsageLocalDataSource
+import com.hopcape.odo.core.data.record.RecordExportUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.settings.SqlDelightAppSettingsLocalDataSource
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightLocalUserDataWipe
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightOwnershipAdoption
@@ -139,6 +147,7 @@ val databaseInfrastructureModule = module {
     // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
     // `scan_usage` mirrors no server table, because extraction never leaves the device.
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
+    single<RecordExportUsageLocalDataSource> { SqlDelightRecordExportUsageLocalDataSource(database = get()) }
 
     // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
     // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no
@@ -231,10 +240,32 @@ val databaseInfrastructureModule = module {
         )
     } bind Syncable::class
 
-    // No Syncable adapter: there is no server table to push to yet, and one posting to a
-    // table that does not exist would only manufacture failures. The rows carry the sync
-    // columns and wait as PENDING.
+    // Tanks of fuel the owner confirmed. Detections still waiting for an answer are not
+    // here — they sit in `pending_fills`, which is device-local and has no sync columns at
+    // all, so Odo's guess about a payment can never reach a server.
     single<FuelFillLocalDataSource> { SqlDelightFuelFillLocalDataSource(database = get()) }
+    single {
+        FuelFillSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.FUEL_FILLS,
+                table = FuelFillSyncTable(
+                    database = get(),
+                    remote = get(),
+                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // Everything the payment-notification listener is allowed to do, and what it has learned.
+    // Device-local by design: the permission belongs to one phone, and so do its mistakes.
+    single<RefuelDetectionStore> { SqlDelightRefuelDetectionStore(database = get(), clock = get()) }
+
+    // Detections waiting for an answer. Separate from the store above because it holds the
+    // feature's output rather than its configuration, and a different screen reads it.
+    single<PendingFillStore> { SqlDelightPendingFillStore(database = get()) }
 
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
 

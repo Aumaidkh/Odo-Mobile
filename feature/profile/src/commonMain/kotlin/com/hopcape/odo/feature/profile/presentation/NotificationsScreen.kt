@@ -23,6 +23,8 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoSwitch
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcWindow
 import com.hopcape.odo.core.designsystem.text.asString
@@ -32,7 +34,10 @@ import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
 import com.hopcape.odo.core.domain.settings.model.NotificationSchedule
 import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_cd_back
+import com.hopcape.odo.feature.profile.resources.pf_notif_auto_detect
+import com.hopcape.odo.feature.profile.resources.pf_notif_auto_detect_sub
 import com.hopcape.odo.feature.profile.resources.pf_notif_channels
+import com.hopcape.odo.feature.profile.resources.pf_notif_detection
 import com.hopcape.odo.feature.profile.resources.pf_notif_custom
 import com.hopcape.odo.feature.profile.resources.pf_notif_custom_sub
 import com.hopcape.odo.feature.profile.resources.pf_notif_device
@@ -81,6 +86,7 @@ internal fun NotificationsScreen(
     systemNotificationsEnabled: Boolean,
     onBack: () -> Unit,
     onDeviceSettings: () -> Unit,
+    onAutoDetect: () -> Unit,
 ) {
     val preferences = state.preferences
     OdoScreen(
@@ -168,6 +174,28 @@ internal fun NotificationsScreen(
                 NotifyAtRow(hour = state.schedule.notifyAtHour) {
                     onEvent(NotificationsEvent.NotifyHourChosen(it))
                 }
+            }
+
+            // The one notification setting that is about *reading* rather than posting, which
+            // is why it opens a screen of its own instead of being a switch here: it needs a
+            // permission, and a permission is not something a toggle in a list can explain.
+            // Absent entirely while SMART_REFUEL_DETECT_ENABLED is false — a row that leads to
+            // a feature the build cannot run is worse than no row.
+            if (FeatureFlags.SMART_REFUEL_DETECT_ENABLED) {
+                SectionLabel(stringResource(Res.string.pf_notif_detection))
+                SettingsGroup {
+                    SettingsRow(
+                        icon = IcFuelPump,
+                        title = stringResource(Res.string.pf_notif_auto_detect),
+                        onClick = onAutoDetect,
+                    )
+                }
+                OdoText(
+                    stringResource(Res.string.pf_notif_auto_detect_sub),
+                    style = OdoTheme.typography.caption,
+                    color = OdoTheme.colors.textMuted,
+                    modifier = Modifier.padding(horizontal = OdoTheme.spacing.xs),
+                )
             }
 
             OdoCard(color = OdoTheme.colors.surfaceRaised) {

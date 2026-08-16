@@ -1,6 +1,5 @@
--- Local fuel fills — every tank the owner bought through Odo's QR payment flow, plus any
--- they recorded by hand. The first table in the app that *measures* fuel rather than
--- estimating it from an assumed mileage.
+-- Local fuel fills — every tank smart refuel captured, however it was captured. The first
+-- table in the app that *measures* fuel rather than estimating it from an assumed mileage.
 --
 -- The sync columns (SYNC_DESIGN §4.1) are present from this first version, as they must be
 -- on every table that mirrors a server one: retrofitting them is a migration nobody needs to
@@ -8,23 +7,33 @@
 -- `Syncable` that posted to a table that is not there would only manufacture failures. The
 -- rows sit `PENDING`, which is exactly what they should be until the server table lands.
 --
--- `odometer_km` is NOT NULL on purpose: it is what turns two fills into a measured mileage,
--- and a fill without one is a receipt rather than a reading.
+-- `odometer_km` is nullable. It is what turns two fills into a measured mileage, but a
+-- detected fill reaches the owner while they are still standing at the pump, and refusing the
+-- whole row to insist on one field would lose the record to save part of it. A fill without a
+-- reading still counts towards what fuel cost; `TankMileage` skips it.
 --
 -- `quantity_milli` is thousandths of a unit (32.45 litres → 32450). Integer, for the same
 -- reason money is integer paise: a mileage divided out of a float quantity drifts.
+--
+-- `paid_via` used to sit here, left behind by the removed scan-to-pay flow and kept only
+-- because SQLite 3.18 has no DROP COLUMN. Migration 5 rebuilds this table to make
+-- `odometer_km` nullable, and a rebuild can drop a column for free, so it is gone.
 CREATE TABLE fuel_fills (
     id              TEXT NOT NULL PRIMARY KEY,
     car_id          TEXT NOT NULL,
     owner_id        TEXT NOT NULL,
     filled_on       TEXT NOT NULL,
-    odometer_km     INTEGER NOT NULL,
+    odometer_km     INTEGER,
     quantity_milli  INTEGER NOT NULL,
     fuel_unit       TEXT NOT NULL,
     amount_paise    INTEGER NOT NULL,
     station_name    TEXT,
-    paid_via        TEXT NOT NULL DEFAULT 'UNKNOWN',
     transaction_ref TEXT,
+    -- Which capture channel produced the row: DETECTED, PUMP_OCR, PREFILLED or MANUAL.
+    -- Defaulted rather than NOT NULL without one, because rows written before smart refuel
+    -- existed have no channel to name. A value this build does not know also reads as MANUAL,
+    -- which is what rows from the removed scan-to-pay flow now come back as.
+    entry_source    TEXT NOT NULL DEFAULT 'MANUAL',
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL,
     deleted_at      TEXT,
@@ -32,24 +41,53 @@ CREATE TABLE fuel_fills (
     sync_status     TEXT NOT NULL DEFAULT 'PENDING'
 );
 
--- Nothing reads fills back yet, but the index ships with the table rather than as a later
--- migration: it is the shape every read will want, and adding it costs nothing on an empty one.
+-- The shape every read below wants: one car's fills in date order, tombstones excluded.
 CREATE INDEX idx_fuel_fills_car ON fuel_fills (car_id, filled_on) WHERE deleted_at IS NULL;
 
 insertFuelFill:
 INSERT INTO fuel_fills (
     id, car_id, owner_id, filled_on, odometer_km, quantity_milli, fuel_unit,
-    amount_paise, station_name, paid_via, transaction_ref,
+    amount_paise, station_name, transaction_ref, entry_source,
     created_at, updated_at, deleted_at, remote_version, sync_status
 ) VALUES (
     :id, :carId, :ownerId, :filledOn, :odometerKm, :quantityMilli, :fuelUnit,
-    :amountPaise, :stationName, :paidVia, :transactionRef,
+    :amountPaise, :stationName, :transactionRef, :entrySource,
     :now, :now, NULL, NULL, :syncStatus
 );
 
--- Tombstoning one fill at a time has no caller yet: nothing shows fills, so nothing can
--- delete one. Removing the car still has to take its fills with it, which is this statement.
--- There is deliberately no update — a fill records a payment that already happened.
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Reads. Newest first, because every caller wants the recent end: the prefill takes the
+-- first row, the mileage takes the first two, and the usual-spend band walks the lot.
+--
+-- `filled_on` alone does not order two fills on the same day, which happens when a fill is
+-- logged twice or corrected the same afternoon. `created_at` breaks the tie so the list has
+-- one stable order rather than whatever the storage engine returns.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectFillsByCar:
+SELECT *
+FROM fuel_fills
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY filled_on DESC, created_at DESC;
+
+selectLatestFillForCar:
+SELECT *
+FROM fuel_fills
+WHERE car_id = :carId AND deleted_at IS NULL
+ORDER BY filled_on DESC, created_at DESC
+LIMIT 1;
+
+-- How many fills a channel has produced. The auto-detect settings screen shows the count
+-- for DETECTED, which is the only honest measure of whether the listener is earning its
+-- permission.
+countFillsBySource:
+SELECT COUNT(*)
+FROM fuel_fills
+WHERE car_id = :carId AND entry_source = :entrySource AND deleted_at IS NULL;
+
+-- Tombstoning one fill at a time has no caller yet. Removing the car still has to take its
+-- fills with it, which is this statement. There is deliberately no update — a fill records a
+-- tank that was already bought.
 softDeleteFuelFillsForCar:
 UPDATE fuel_fills
 SET deleted_at  = :deletedAt,
@@ -78,3 +116,61 @@ UPDATE fuel_fills
 SET car_id = :serverId
 WHERE car_id = :localId;
 
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). These arrived with `SyncEntity.FUEL_FILLS`; before that the rows
+-- carried the sync columns and simply sat PENDING, because there was no server table to
+-- push them to and a Syncable posting to one that did not exist would only manufacture
+-- failures.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectPending:
+SELECT *
+FROM fuel_fills
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM fuel_fills
+WHERE id = :id;
+
+markSynced:
+UPDATE fuel_fills
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markConflict:
+UPDATE fuel_fills
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Insert-or-ignore then update, rather than an UPSERT:
+-- minSdk 26 ships SQLite 3.18, which has no ON CONFLICT clause.
+insertFromRemote:
+INSERT OR IGNORE INTO fuel_fills (id, car_id, owner_id, filled_on, odometer_km, quantity_milli, fuel_unit, amount_paise, station_name, transaction_ref, entry_source, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :car_id, :owner_id, :filled_on, :odometer_km, :quantity_milli, :fuel_unit, :amount_paise, :station_name, :transaction_ref, :entry_source, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE fuel_fills
+SET car_id = :car_id,
+    owner_id = :owner_id,
+    filled_on = :filled_on,
+    odometer_km = :odometer_km,
+    quantity_milli = :quantity_milli,
+    fuel_unit = :fuel_unit,
+    amount_paise = :amount_paise,
+    station_name = :station_name,
+    transaction_ref = :transaction_ref,
+    entry_source = :entry_source,
+    created_at = :created_at,
+    updated_at = :updated_at,
+    deleted_at = :deleted_at,
+    remote_version = :remote_version,
+    sync_status = 'SYNCED'
+WHERE id = :id;
+
+countPending:
+SELECT COUNT(*)
+FROM fuel_fills
+WHERE sync_status = 'PENDING';
