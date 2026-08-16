@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.healthscore.presentation
 
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.health.model.HealthFactor
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.core.domain.health.model.HealthScore
@@ -28,7 +30,7 @@ private fun state(score: HealthScore, note: HealthNote, isPro: Boolean) = Health
             note = note,
             factors = score.factors,
             opportunity = score.biggestGap,
-            isPro = isPro,
+            entitlements = Entitlements(if (isPro) Plan.PRO else Plan.FREE),
         ),
     ),
 )

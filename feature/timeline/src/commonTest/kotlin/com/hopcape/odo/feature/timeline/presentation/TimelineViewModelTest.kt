@@ -15,6 +15,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.feature.timeline.FakeActiveCarProvider
 import com.hopcape.odo.feature.timeline.FakeCarRepository
 import com.hopcape.odo.feature.timeline.FakeDocumentRepository
+import com.hopcape.odo.feature.timeline.FakeFuelFillRepository
 import com.hopcape.odo.feature.timeline.FakeHealthScoreRepository
 import com.hopcape.odo.feature.timeline.FakeServiceLogRepository
 import com.hopcape.odo.feature.timeline.TEST_CAR
@@ -254,6 +255,7 @@ class TimelineViewModelTest {
             logs = logs,
             documents = FakeDocumentRepository(documents),
             scores = FakeHealthScoreRepository(scores),
+            fills = FakeFuelFillRepository(),
             timeZone = TimeZone.UTC,
         ),
         filters = filters,
@@ -270,6 +272,7 @@ class TimelineViewModelTest {
             logs = FakeServiceLogRepository(entries),
             documents = FakeDocumentRepository(documents),
             scores = FakeHealthScoreRepository(scores),
+            fills = FakeFuelFillRepository(),
             timeZone = TimeZone.UTC,
         ),
         filters = filters,

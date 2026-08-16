@@ -2,10 +2,12 @@ package com.hopcape.odo.feature.timeline.ui
 
 import androidx.compose.runtime.Composable
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.WorkDone
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.timeline.resources.Res
 import com.hopcape.odo.feature.timeline.resources.tl_category_ac
 import com.hopcape.odo.feature.timeline.resources.tl_category_battery
@@ -16,6 +18,12 @@ import com.hopcape.odo.feature.timeline.resources.tl_category_oil_change
 import com.hopcape.odo.feature.timeline.resources.tl_category_other
 import com.hopcape.odo.feature.timeline.resources.tl_category_suspension
 import com.hopcape.odo.feature.timeline.resources.tl_category_tyres
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_at_station
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_no_station
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_quantity
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_unit_kg
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_unit_kwh
+import com.hopcape.odo.feature.timeline.resources.tl_fuel_unit_litre
 import com.hopcape.odo.feature.timeline.resources.tl_doc_added
 import com.hopcape.odo.feature.timeline.resources.tl_doc_added_valid_till
 import com.hopcape.odo.feature.timeline.resources.tl_doc_insurance
@@ -58,6 +66,46 @@ internal fun documentText(event: ActivityEvent.DocumentFiled): String {
         event.isRenewal -> stringResource(Res.string.tl_doc_renewed, name)
         else -> stringResource(Res.string.tl_doc_added, name)
     }
+}
+
+/**
+ * "21.11 L at Bharat Petroleum · Rs. 2,000", or without the station when none was recorded.
+ *
+ * The quantity leads because it is the fact the owner is checking when they scroll past —
+ * what a tank cost is on the row too, but "how much did I put in" is what a fill *is*.
+ */
+@Composable
+internal fun fuelText(event: ActivityEvent.FuelFilled): String {
+    val quantity = stringResource(
+        Res.string.tl_fuel_quantity,
+        formatQuantity(event.quantityMilli),
+        stringResource(event.unit.labelResource()),
+    )
+    val amount = event.amount.formatRupees()
+    val station = event.station
+    return if (station.isNullOrBlank()) {
+        stringResource(Res.string.tl_fuel_no_station, quantity, amount)
+    } else {
+        stringResource(Res.string.tl_fuel_at_station, quantity, station, amount)
+    }
+}
+
+/**
+ * Thousandths as two decimal places, trailing zeros dropped — "21.11", "20".
+ *
+ * Two rather than the three the value is stored at: that is what a pump prints and what an
+ * owner would recognise. The stored figure keeps its full resolution.
+ */
+private fun formatQuantity(milli: Long): String {
+    val whole = milli / 1_000
+    val hundredths = ((milli % 1_000) / 10).toInt()
+    return if (hundredths == 0) "$whole" else "$whole.${hundredths.toString().padStart(2, '0')}"
+}
+
+private fun FuelUnit.labelResource() = when (this) {
+    FuelUnit.LITRE -> Res.string.tl_fuel_unit_litre
+    FuelUnit.KILOGRAM -> Res.string.tl_fuel_unit_kg
+    FuelUnit.KILOWATT_HOUR -> Res.string.tl_fuel_unit_kwh
 }
 
 private fun DocumentType.labelResource() = when (this) {

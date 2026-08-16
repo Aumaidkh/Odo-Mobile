@@ -39,7 +39,7 @@
     <!-- Paywall (free) -->
     <string name="hs_paywall_title">See your full breakdown</string>
     <string name="hs_paywall_body">Odo Pro shows every factor and exactly how to raise your score.</string>
-    <string name="hs_paywall_cta">Unlock with Pro · Rs. 149/mo</string>
+    <string name="hs_paywall_cta">Unlock with Pro</string>
 
     <!-- Failed read -->
     <string name="hs_error_load_failed">We couldn’t read your score. Pull down or try again in a moment.</string>

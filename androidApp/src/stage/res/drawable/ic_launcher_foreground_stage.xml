@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The stage launcher icon's foreground: the production mark with the ribbon on top.
+
+     A separate name rather than an override of `ic_launcher_foreground`. A stage
+     resource of the same name would replace the main one outright, and this layer
+     list needs to reference it — so overriding it would make the reference point at
+     itself.
+
+     Only the two mipmap-anydpi-v26 XMLs are overridden for stage; `drawable/
+     ic_launcher_foreground.xml` and `ic_launcher_background.xml` still come from
+     src/main, so the mark stays in one place and the ribbon is additive. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:drawable="@drawable/ic_launcher_ribbon" />
+</layer-list>

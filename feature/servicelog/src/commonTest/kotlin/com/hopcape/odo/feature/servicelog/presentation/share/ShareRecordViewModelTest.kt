@@ -3,6 +3,9 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.PlatformFileStore
@@ -27,6 +30,7 @@ import com.hopcape.odo.feature.servicelog.presentation.share.pdf.ServiceRecordDo
 import com.hopcape.odo.feature.servicelog.presentation.testOwner
 import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -42,6 +46,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
 
 /**
  * The share sheet's rules, none of which are about how a PDF is drawn.
@@ -94,6 +99,8 @@ class ShareRecordViewModelTest {
         ),
         files: PlatformFileStore = RecordingFileStore(),
         logId: ServiceLogId? = null,
+        isPro: Boolean = true,
+        exportsUsed: Int = 0,
     ) = ShareRecordViewModel(
         carId = TEST_CAR,
         logId = logId,
@@ -107,13 +114,98 @@ class ShareRecordViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         observeDetail = ObserveEntryDetailUseCase(observeFeed = ObserveServiceLogFeedUseCase(logs = logs)),
+        entitlements = entitlementsOf(isPro),
+        exportUsage = FakeRecordExportUsage(used = exportsUsed),
         documents = { record -> ServiceRecordDocument(html = "<!doctype html>${record.carName}", name = "${record.carName} service record") },
         bills = { record, entry -> ServiceRecordDocument(html = "<!doctype html>bill:${entry.id.value}", name = "${record.carName} service bill") },
         files = files,
         telemetry = telemetry(),
     )
 
+    /** A tally that starts where the test wants it and counts what the sheet charges. */
+    private class FakeRecordExportUsage(private var used: Int) : RecordExportUsage {
+        var charged = 0
+            private set
+
+        override suspend fun used(): Int = used
+
+        override suspend fun recordExport() {
+            used++
+            charged++
+        }
+    }
+
+    /** A plan that stands still, so the gate is the only thing under test. */
+    private fun entitlementsOf(isPro: Boolean) = object : EntitlementSource {
+        override fun observe() = flowOf(Entitlements(if (isPro) Plan.PRO else Plan.FREE))
+        override suspend fun refresh() = Unit
+    }
+
     private val renderedBytes = "%PDF-1.4 fake".encodeToByteArray()
+
+    /* ------------------------------ the Pro gate ------------------------------ */
+
+    @Test
+    fun `a free owner with allowance left gets the export, not the paywall`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, isPro = false, exportsUsed = 2)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertTrue(
+            effects.none { it is ShareRecordEffect.OpenPaywall },
+            "the third of three free exports is still free",
+        )
+    }
+
+    @Test
+    fun `a free owner who has spent the allowance is sent to the paywall`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, isPro = false, exportsUsed = 3)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertEquals(listOf<ShareRecordEffect>(ShareRecordEffect.OpenPaywall), effects)
+        assertTrue(files.written.isEmpty(), "nothing is rendered for an export that is not allowed")
+    }
+
+    @Test
+    fun `a Pro owner is never stopped, however many they have taken`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, isPro = true, exportsUsed = 99)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertTrue(effects.none { it is ShareRecordEffect.OpenPaywall })
+    }
+
+    @Test
+    fun `sharing one entry's bill is never gated`() = runTest {
+        // It is the bill they just paid. Charging for their own receipt would be the wrong
+        // line to draw.
+        val viewModel = viewModel(logId = ServiceLogId("a"), isPro = false)
+        advanceUntilIdle()
+        val effects = mutableListOf<ShareRecordEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        assertTrue(effects.none { it is ShareRecordEffect.OpenPaywall })
+        assertTrue(effects.any { it is ShareRecordEffect.RenderDocument })
+    }
 
     @Test
     fun `the sheet reports the counts the record holds`() = runTest {

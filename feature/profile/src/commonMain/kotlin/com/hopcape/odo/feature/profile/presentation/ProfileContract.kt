@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
 import kotlin.time.Instant
 
@@ -37,6 +38,8 @@ internal data class ProfileContent(
     val city: String?,
     val avatarPath: String?,
     val isPro: Boolean,
+    /** The live subscription, or null on the free plan. Only the plan card reads it. */
+    val subscription: SubscriptionState?,
     val isSignedIn: Boolean,
     val notificationTopicsOn: Int,
     val distanceUnit: DistanceUnit,

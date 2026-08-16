@@ -1,0 +1,193 @@
+name: Play internal testing
+
+# Builds a signed release App Bundle and uploads it to the Play Console's
+# internal testing track.
+#
+# It runs on a pull request whose head is a `releases/**` branch and which
+# carries the `deploy` label — add the label when the release candidate is ready
+# to go out to internal testers. Because the label is what triggers it, a
+# release branch can be pushed to as often as needed and only becomes an upload
+# when someone asks for one. Remove and re-add the label to deploy again (a new
+# push to a labelled PR also re-runs it).
+#
+# The build is the PR's head, not the merge result, which is what a release
+# candidate should be: testers get exactly the branch that is being stabilised.
+#
+# Every upload needs a `versionCode` Play has not seen before. Odo bumps that by
+# hand in gradle/libs.versions.toml (`odo-versionCode`), so bump it on the
+# release branch before adding the label, or the upload is rejected.
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  # Manual runs from the Actions tab, for re-uploading a branch without a PR.
+  # Pick a `releases/**` branch — nothing here checks which ref you chose.
+  workflow_dispatch:
+
+# An upload is not something to cancel halfway: the Play edit is already open by
+# then. Queue instead of replacing.
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  internal-testing:
+    name: Bundle and upload
+    # A PR only qualifies when it is labelled AND comes off a release branch;
+    # `synchronize` fires on every push, so the label check is what keeps an
+    # ordinary release-branch PR from deploying on each commit.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'deploy') &&
+       startsWith(github.head_ref, 'releases/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Adding a required reviewer to this environment in repo settings turns every
+    # deploy into an approval gate. It is also where the secrets below can be
+    # scoped, so nothing else in the repo can read the signing key.
+    environment: play-internal
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvmargs=-Xmx1536m
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # A missing secret does not fail the build — the signing config is simply
+      # not created (build-logic ReleaseSigning.kt) and google-services.json is
+      # only applied when present. That silence is fine for the compile gate in
+      # ci.yml and wrong here, where it would produce an unsigned, Firebase-less
+      # bundle. Check up front instead of finding out at the upload step.
+      - name: Check required secrets are present
+        env:
+          KEYSTORE: ${{ secrets.ODO_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ODO_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ODO_UPLOAD_KEY_ALIAS }}
+          GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          PLAY_SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          missing=()
+          [ -n "$KEYSTORE" ] || missing+=(ODO_UPLOAD_KEYSTORE_BASE64)
+          [ -n "$STORE_PASSWORD" ] || missing+=(ODO_UPLOAD_STORE_PASSWORD)
+          [ -n "$KEY_ALIAS" ] || missing+=(ODO_UPLOAD_KEY_ALIAS)
+          [ -n "$GOOGLE_SERVICES" ] || missing+=(GOOGLE_SERVICES_JSON_BASE64)
+          [ -n "$PLAY_SERVICE_ACCOUNT" ] || missing+=(PLAY_SERVICE_ACCOUNT_JSON)
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "Missing repository secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v4.0.1
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v6.2.0
+
+      # Firebase phone auth, Crashlytics and Performance all need this file, and
+      # it is gitignored because it names a specific Firebase project. It has to
+      # list com.hopcape.odo.debug and com.hopcape.odo.stage alongside the base
+      # ID or the plugin fails on those build types — see androidApp/build.gradle.kts.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > androidApp/google-services.json
+          # A truncated or wrongly-encoded secret decodes to something that is not
+          # JSON and fails much later, inside AGP. Catch it here.
+          python3 -c 'import json,sys; json.load(open("androidApp/google-services.json"))'
+
+      # The keystore goes to the runner's temp directory, not the workspace, so a
+      # later step cannot pick it up as a build input or ship it in an artifact.
+      # ReleaseSigning.kt reads these four env vars when local.properties has no
+      # entries, which is always the case on a runner.
+      - name: Write upload keystore
+        env:
+          ODO_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ODO_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ODO_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "ODO_UPLOAD_STORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      # Read once, used for the Play release name and the job summary. The
+      # catalog is the single source of both values (AndroidApplicationConventionPlugin).
+      - name: Read version from the version catalog
+        run: |
+          version_name=$(sed -n 's/^odo-versionName = "\(.*\)"$/\1/p' gradle/libs.versions.toml)
+          version_code=$(sed -n 's/^odo-versionCode = "\(.*\)"$/\1/p' gradle/libs.versions.toml)
+          if [ -z "$version_name" ] || [ -z "$version_code" ]; then
+            echo "Could not read odo-versionName/odo-versionCode from gradle/libs.versions.toml" >&2
+            exit 1
+          fi
+          echo "VERSION_NAME=$version_name" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$version_code" >> "$GITHUB_ENV"
+
+      - name: Build release App Bundle
+        env:
+          ODO_UPLOAD_STORE_PASSWORD: ${{ secrets.ODO_UPLOAD_STORE_PASSWORD }}
+          ODO_UPLOAD_KEY_ALIAS: ${{ secrets.ODO_UPLOAD_KEY_ALIAS }}
+          # Optional: keystores are usually created with one password for both,
+          # and ReleaseSigning.kt falls back to the store password when this is unset.
+          ODO_UPLOAD_KEY_PASSWORD: ${{ secrets.ODO_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew :androidApp:bundleRelease
+
+      # If the keystore path or passwords were wrong, the build still succeeds and
+      # quietly produces an unsigned bundle. Play would reject it, but the error
+      # there is much harder to read than this one. An AAB is jar-signed, so the
+      # signature block sits in META-INF.
+      - name: Verify the bundle is signed
+        run: |
+          bundle=androidApp/build/outputs/bundle/release/androidApp-release.aab
+          [ -f "$bundle" ] || { echo "No bundle at $bundle" >&2; exit 1; }
+          # Anchored on a space so only the bundle's own top-level META-INF counts —
+          # a dependency can carry its signature files at base/root/META-INF/.
+          if ! unzip -l "$bundle" | grep -qE ' META-INF/[^/]+\.(RSA|DSA|EC)$'; then
+            echo "$bundle carries no signature block — check the signing secrets." >&2
+            exit 1
+          fi
+
+      - name: Upload to the internal testing track
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.hopcape.odo
+          releaseFiles: androidApp/build/outputs/bundle/release/androidApp-release.aab
+          track: internal
+          releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
+          # R8 runs on release (isMinifyEnabled), so Play gets the mapping and
+          # crash reports in the console are deobfuscated.
+          mappingFile: androidApp/build/outputs/mapping/release/mapping.txt
+          # Live on the internal track as soon as Play finishes processing.
+          status: completed
+          # No debugSymbols: the app has no native code of its own and every .so
+          # arrives pre-stripped, so the symbol directory is always empty — see the
+          # ndk.debugSymbolLevel comment in AndroidApplicationConventionPlugin.kt.
+
+      # Kept so the exact artifact that went to testers can be pulled back and
+      # installed or inspected without rebuilding it.
+      - name: Upload bundle and mapping as artifacts
+        uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: odo-release-bundle-${{ env.VERSION_CODE }}
+          path: |
+            androidApp/build/outputs/bundle/release/*.aab
+            androidApp/build/outputs/mapping/release/mapping.txt
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Write job summary
+        if: success()
+        run: |
+          {
+            echo "### Uploaded to Play internal testing"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`$VERSION_NAME\` ($VERSION_CODE) |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Branch | \`${{ github.head_ref || github.ref_name }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

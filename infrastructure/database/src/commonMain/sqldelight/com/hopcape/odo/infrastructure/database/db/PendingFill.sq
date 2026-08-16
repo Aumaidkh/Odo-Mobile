@@ -1,0 +1,61 @@
+-- Fills that were detected but never resolved.
+--
+-- **This table is why a detected fill cannot be lost.** A notification is not storage: the
+-- owner swipes it away, the shade is cleared, the phone reboots, and Android keeps no history
+-- of what was dismissed — there is no API that can read it back. So the detection is written
+-- here the moment it happens, and the notification becomes a shortcut to a row that already
+-- exists rather than the only place the fill lives.
+--
+-- Device-local, like everything else detection owns: no sync columns, and none should be
+-- added. A pending fill is a question this phone is waiting to ask. What syncs is the answer,
+-- and that is a row in `fuel_fills`.
+--
+-- Rows are **resolved, not deleted**. The listener re-reads what is still in the shade every
+-- time it reconnects, so a fill the owner already confirmed would be offered again the moment
+-- their phone reclaimed the process. `resolved_at` is what remembers that the question has
+-- been answered; `deletePendingFillsBefore` is what stops the table growing forever.
+CREATE TABLE pending_fills (
+    -- Stable across re-reads of the same notification: merchant, amount and the minute it was
+    -- posted. Two identical payments a minute apart are two fills; the same payment read
+    -- twice is one.
+    id            TEXT NOT NULL PRIMARY KEY,
+    -- The draft, encoded. Opaque here — the refuel feature owns what the string means.
+    draft_payload TEXT NOT NULL,
+    merchant      TEXT,
+    amount_paise  INTEGER,
+    detected_at   TEXT NOT NULL,
+    -- NULL while the question is open. Set when the owner confirms it or says it was not fuel.
+    resolved_at   TEXT
+);
+
+CREATE INDEX idx_pending_fills_open ON pending_fills (detected_at) WHERE resolved_at IS NULL;
+
+selectOpenPendingFills:
+SELECT *
+FROM pending_fills
+WHERE resolved_at IS NULL
+ORDER BY detected_at DESC;
+
+countOpenPendingFills:
+SELECT COUNT(*)
+FROM pending_fills
+WHERE resolved_at IS NULL;
+
+-- INSERT OR IGNORE, so re-reading a notification that is still in the shade does not reopen a
+-- question the owner has already answered, and does not overwrite the draft they may have
+-- edited on the way to answering it.
+rememberPendingFill:
+INSERT OR IGNORE INTO pending_fills (
+    id, draft_payload, merchant, amount_paise, detected_at, resolved_at
+) VALUES (:id, :draftPayload, :merchant, :amountPaise, :detectedAt, NULL);
+
+resolvePendingFill:
+UPDATE pending_fills SET resolved_at = :resolvedAt WHERE id = :id;
+
+-- Housekeeping. Answered questions are kept only long enough to stop the same notification
+-- being offered again while it sits in the shade; after that they are nothing but rows.
+deletePendingFillsBefore:
+DELETE FROM pending_fills WHERE resolved_at IS NOT NULL AND resolved_at < :before;
+
+deleteAllPendingFills:
+DELETE FROM pending_fills;

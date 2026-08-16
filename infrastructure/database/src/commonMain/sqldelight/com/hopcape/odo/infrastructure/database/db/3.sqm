@@ -1,0 +1,17 @@
+-- Schema 3 -> 4: the record-export tally.
+--
+-- The free plan gains an allowance of record PDF exports rather than being refused them
+-- outright, so something has to count the ones already taken. Nothing existing could: unlike a
+-- detected fill, which leaves a `fuel_fills` row that says how it arrived, an export leaves no
+-- trace at all once the file is handed to the share sheet.
+--
+-- Device-local and unsynced, matching `scan_usage`. See RecordExportUsage.sq for why, and for
+-- why the table is keyed by month while the cap in force is a lifetime one.
+--
+-- A plain CREATE TABLE: nothing is being altered, so there is no SQLite 3.18 rebuild to do
+-- here. An install upgrading from 3 has no exports counted, which is correct — it also has no
+-- cap until this release, so its owner starts the allowance whole rather than part-spent.
+CREATE TABLE record_export_usage (
+    month        TEXT NOT NULL PRIMARY KEY,
+    export_count INTEGER NOT NULL
+);

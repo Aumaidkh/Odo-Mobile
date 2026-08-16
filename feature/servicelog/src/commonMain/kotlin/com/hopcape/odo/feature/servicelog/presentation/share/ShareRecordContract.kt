@@ -39,4 +39,13 @@ internal sealed interface ShareRecordEffect {
 
     /** Hand the written file to the system share sheet. */
     data class ShareFile(val storageKey: String, val title: String) : ShareRecordEffect
+
+    /**
+     * The whole record is a Pro export and this owner is on the free plan.
+     *
+     * Checked when the target is tapped rather than when the sheet opens, so a free owner
+     * still sees what the export contains before being asked to pay for it. Sharing one
+     * entry's bill is never gated — that is the bill they just paid, not the car's history.
+     */
+    data object OpenPaywall : ShareRecordEffect
 }

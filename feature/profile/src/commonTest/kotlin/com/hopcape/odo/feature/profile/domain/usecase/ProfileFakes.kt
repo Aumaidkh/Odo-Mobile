@@ -8,7 +8,11 @@ import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.repository.CarRepository
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
+import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -27,6 +31,7 @@ import com.hopcape.odo.core.domain.trip.repository.TripRepository
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlin.time.Instant
 
@@ -176,7 +181,13 @@ internal class FakeTripRepository(var failing: Boolean = false) : TripRepository
     override suspend fun deleteAllForCar(carId: CarId): Either<DomainError, Unit> = throw NotImplementedError()
 }
 
-internal fun entitlement(isPro: Boolean) = ProEntitlement { isPro }
+/** No subscription unless a test says otherwise; only the plan card reads this. */
+internal fun subscription(state: SubscriptionState? = null) = SubscriptionStatusSource { flowOf(state) }
+
+internal fun entitlement(isPro: Boolean) = object : EntitlementSource {
+    override fun observe() = flowOf(Entitlements(if (isPro) Plan.PRO else Plan.FREE))
+    override suspend fun refresh() = Unit
+}
 
 internal fun session(signedIn: Boolean) = SessionStatusProvider { signedIn }
 

@@ -29,6 +29,7 @@ val dashboardModule = module {
             logs = get(),
             documents = get(),
             scores = get(),
+            fills = get(),
             owners = get(),
             city = get(),
             fuelPrices = get(),

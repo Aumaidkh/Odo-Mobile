@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.feature.healthscore.domain.model.HealthScoreSummary
 import com.hopcape.odo.feature.healthscore.domain.usecase.ObserveHealthScoreUseCase
@@ -115,7 +116,7 @@ internal class HealthScoreViewModel(
         telemetry.scoreOpened(
             score = content.score,
             band = content.band.name,
-            isPro = content.isPro,
+            isPro = content.entitlements.plan == Plan.PRO,
             hasNothingLogged = content.hasNothingLogged,
         )
     }
@@ -139,7 +140,7 @@ private fun HealthScoreSummary.toContent(): HealthScoreContent = HealthScoreCont
     note = note(),
     factors = score.factors,
     opportunity = score.biggestGap,
-    isPro = isPro,
+    entitlements = entitlements,
 )
 
 /**

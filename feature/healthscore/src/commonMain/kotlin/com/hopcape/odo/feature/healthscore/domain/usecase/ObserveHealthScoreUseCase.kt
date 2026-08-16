@@ -3,7 +3,8 @@ package com.hopcape.odo.feature.healthscore.domain.usecase
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
-import com.hopcape.odo.core.domain.entitlement.ProEntitlement
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
@@ -25,12 +26,16 @@ import kotlin.time.Duration.Companion.days
  * Gathers the three things the rules read — the car's service logs, its documents and its
  * odometer readings — and hands them to [HealthScoreCalculator], which owns the scoring.
  * This use case decides only what the calculator cannot see: what day it is, what the
- * score is compared against, and whether the owner may see the breakdown.
+ * score is compared against, and what the owner's plan lets them see.
  *
- * All three sources are observed rather than read once, because every one of them can
- * change while the screen is open: a service logged from the ledger, a policy uploaded to
- * the vault, an odometer updated in the garage. A score that did not move when the owner
- * just did the thing it asked for reads as broken.
+ * Every source is observed rather than read once, because every one of them can change
+ * while the screen is open: a service logged from the ledger, a policy uploaded to the
+ * vault, an odometer updated in the garage. A score that did not move when the owner just
+ * did the thing it asked for reads as broken.
+ *
+ * Entitlements are observed for the same reason, and it is a newer one: a subscription used
+ * to be bought outside the app, but a purchase now completes on the paywall and this screen
+ * is where the owner lands afterwards. The breakdown has to unlock without a reopen.
  *
  * The score itself is never read from storage. It is computed here from today's data, so
  * a document that lapsed overnight lowers it without anything having to notice. Storage
@@ -41,7 +46,7 @@ internal class ObserveHealthScoreUseCase(
     private val logs: ServiceLogRepository,
     private val documents: DocumentRepository,
     private val snapshots: HealthScoreRepository,
-    private val entitlement: ProEntitlement,
+    private val entitlements: EntitlementSource,
     private val currentOdometer: CurrentOdometerProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -51,8 +56,9 @@ internal class ObserveHealthScoreUseCase(
         documents.observe(carId),
         logs.observeOdometerReadings(carId),
         currentOdometer.observeCurrent(carId),
-    ) { entries, documents, readings, odometer ->
-        summaryOf(carId, entries, documents, readings, odometer)
+        entitlements.observe(),
+    ) { entries, documents, readings, odometer, entitlements ->
+        summaryOf(carId, entries, documents, readings, odometer, entitlements)
     }
 
     private suspend fun summaryOf(
@@ -61,6 +67,7 @@ internal class ObserveHealthScoreUseCase(
         documents: List<Document>,
         readings: List<OdometerReading>,
         currentOdometer: Distance?,
+        entitlements: Entitlements,
     ): HealthScoreSummary {
         // Resolved once per emission, so the score and the baseline are read on the same day.
         val now = clock.now()
@@ -76,7 +83,7 @@ internal class ObserveHealthScoreUseCase(
         return HealthScoreSummary(
             score = score,
             delta = score.deltaFrom(baseline?.score),
-            isPro = entitlement.isPro(),
+            entitlements = entitlements,
         )
     }
 

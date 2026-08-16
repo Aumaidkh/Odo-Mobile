@@ -20,9 +20,8 @@ kotlin {
             // Nav3 command bus + entry-provider registration. Features navigate
             // only through :core:navigation, never by importing another feature.
             implementation(projects.core.navigation)
-            // FeatureFlags — PAY_VIA_QR_ENABLED decides whether the scanner offers the
-            // payment mode at all. Reachable through :core:domain's `api`, but declared
-            // because this module reads it directly.
+            // IdGenerator — every scan mints a ScanId. Reachable through :core:domain's
+            // `api`, but declared because this module reads it directly.
             implementation(projects.core.common)
             // Branded UI atoms (OdoScreen, OdoCard, OdoInputField, OdoChip, OdoBadge…)
             // + the Odo theme tokens; re-exports Compose Material 3 transitively.

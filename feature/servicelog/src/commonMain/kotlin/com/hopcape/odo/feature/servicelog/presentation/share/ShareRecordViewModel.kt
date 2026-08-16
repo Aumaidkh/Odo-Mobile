@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.servicelog.presentation.share
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.record.model.ServiceRecord
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -21,11 +23,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
 
 /**
  * State holder for the "share verified record" sheet.
@@ -49,6 +53,8 @@ internal class ShareRecordViewModel(
     private val logId: ServiceLogId?,
     private val observeRecord: ObserveServiceRecordUseCase,
     private val observeDetail: ObserveEntryDetailUseCase,
+    private val entitlements: EntitlementSource,
+    private val exportUsage: RecordExportUsage,
     private val documents: ServiceRecordDocumentFactory,
     private val bills: ServiceBillDocumentFactory,
     private val files: PlatformFileStore,
@@ -115,6 +121,33 @@ internal class ShareRecordViewModel(
         // A bill sheet with no entry yet (or no entry any more) has nothing to print.
         if (logId != null && entry == null) return
 
+        // The whole record is what Pro sells. One entry's bill is not: the owner is sharing
+        // the bill they just paid, and charging for that would be charging for their own
+        // receipt.
+        if (logId == null) {
+            viewModelScope.launch {
+                // Counted, not on/off: the free plan grants a few whole-record exports and
+                // then stops. `has()` would be the wrong question — it answers true for any
+                // quota above none, so it would hand the feature over on the free plan.
+                //
+                // An already-rendered document is free to send again. The owner has spent the
+                // export; charging a second time because they also wanted to email what they
+                // just sent on WhatsApp would be charging for the share sheet, not the export.
+                val quota = entitlements.observe().first().quotaFor(ProFeature.RECORD_EXPORT)
+                if (writtenKey != null || quota.allowsAnother(exportUsage.used())) {
+                    startShare(target, record)
+                } else {
+                    telemetry.recordExportLocked()
+                    emit(ShareRecordEffect.OpenPaywall)
+                }
+            }
+            return
+        }
+        startShare(target, record)
+    }
+
+    /** The share itself, once it is allowed. */
+    private fun startShare(target: ShareTarget, record: ServiceRecord) {
         writtenKey?.let { key ->
             telemetry.recordShared(target.name)
             emit(ShareRecordEffect.ShareFile(key, documentTitle.orEmpty()))
@@ -160,6 +193,12 @@ internal class ShareRecordViewModel(
                 ifLeft = { fail(target) },
                 ifRight = { written ->
                     writtenKey = written
+                    // Charged here rather than on the tap: this is the first point at which
+                    // the PDF exists. A render that failed gave the owner nothing, and taking
+                    // one of three for it would make a broken export cost the same as a good
+                    // one. Only the whole-record export is counted — a single bill is free,
+                    // and it never reaches this branch with a null logId.
+                    if (logId == null) exportUsage.recordExport()
                     _state.update { it.copy(export = ExportUiState.Idle) }
                     telemetry.recordShared(target.name)
                     emit(ShareRecordEffect.ShareFile(written, documentTitle.orEmpty()))

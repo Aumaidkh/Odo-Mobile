@@ -74,4 +74,13 @@
     <!-- No active car — setup incomplete or the car was removed. -->
     <string name="tl_no_car_title">No car yet</string>
     <string name="tl_no_car_body">Add your car in the Garage and its service history will build up here.</string>
+
+    <!-- Fuel fills -->
+    <string name="tl_fuel_quantity">%1$s %2$s</string>
+    <string name="tl_fuel_at_station">%1$s at %2$s · %3$s</string>
+    <string name="tl_fuel_no_station">%1$s fuel · %2$s</string>
+    <string name="tl_fuel_unit_litre">L</string>
+    <string name="tl_fuel_unit_kg">kg</string>
+    <string name="tl_fuel_unit_kwh">kWh</string>
+    <string name="tl_filter_fuel">Fuel</string>
 </resources>

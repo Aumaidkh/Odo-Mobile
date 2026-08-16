@@ -69,7 +69,7 @@ internal class ServiceLogFeatureEntryProvider(
         entry<OdoDestination.ServiceLog.AddEdit> { key -> ServiceLogFormRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.ReportOvercharge> { key -> ServiceLogReportOverchargeRoute(key, navigationManager) }
         entry<OdoDestination.ServiceLog.Share>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) { key ->
-            ShareRecordRoute(key)
+            ShareRecordRoute(key, navigationManager)
         }
     }
 }
@@ -240,7 +240,7 @@ internal fun ServiceLogFormRoute(
  * The ViewModel builds the document and decides where it goes; this runs it.
  */
 @Composable
-internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share) {
+internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share, navigationManager: NavigationManager) {
     val viewModel = koinViewModel<ShareRecordViewModel> {
         // Absent for a whole-record share; present when one entry's bill is going out.
         parametersOf(CarId(key.carId), key.logId?.let(::ServiceLogId))
@@ -267,8 +267,19 @@ internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share) {
 
             is ShareRecordEffect.ShareFile ->
                 shareFile(effect.storageKey, ShareMimeType.PDF, effect.title)
+
+            // Close the sheet first: leaving it stacked under the paywall would put the
+            // owner back on a locked export after they subscribed, instead of the screen
+            // they came from.
+            ShareRecordEffect.OpenPaywall -> {
+                navigationManager.back()
+                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_EXPORT))
+            }
         }
     }
 
     ShareRecordSheetContent(state = state, onEvent = viewModel::onEvent)
 }
+
+/** Where the paywall was opened from. A shipped analytics value — do not reword it. */
+private const val PAYWALL_TRIGGER_EXPORT = "RECORD_EXPORT"

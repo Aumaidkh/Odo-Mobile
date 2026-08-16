@@ -30,21 +30,13 @@
          FOREGROUND_SERVICE and FOREGROUND_SERVICE_LOCATION were all removed here. Put them
          back alongside :core:triptracker's own manifest when the flag goes true. -->
 
-    <!-- Pay via QR is off for 1.0 (FeatureFlags.PAY_VIA_QR_ENABLED), so the <queries> block
-         that declared the `upi:` VIEW intent was removed from here. It is Android 11+ package
-         visibility rather than a permission, but it exists only so the scan-to-pay flow can
-         ask "can anything on this phone take a payment" — and a manifest that still asks is a
-         manifest that still describes a feature the app does not ship.
+    <!-- Smart refuel's payment-notification detection has no permission line of its own: a
+         notification listener is granted by the owner enabling Odo in the system's
+         notification-access list, not by a runtime prompt. What makes it possible at all is
+         the <service> declared inside <application> below, next to MainActivity. Removing
+         that declaration is what turns the feature off at the platform level rather than in
+         code — see FeatureFlags.SMART_REFUEL_DETECT_ENABLED. -->
 
-         Put it back with the flag. Without it `resolveActivity` answers null on a phone with
-         four UPI apps installed, so the flow would report "no UPI app" for everyone:
-
-             <queries>
-                 <intent>
-                     <action android:name="android.intent.action.VIEW" />
-                     <data android:scheme="upi" />
-                 </intent>
-             </queries> -->
     <!-- Firebase Analytics brings these three in transitively and nothing here asks for them:
          AD_ID from play-services-measurement-impl, the two ADSERVICES ones from
          play-services-measurement-api. Odo shows no ads and runs no ad campaigns, so an app
@@ -71,53 +63,6 @@
         android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
         tools:node="remove" />
 
-    <!-- Android 11 hides installed apps from each other unless they are declared here. Without
-         this, asking whether anything can take a UPI payment always answers "nothing", and the
-         scan-to-pay flow reports no UPI app on a phone that has four. It did exactly that.
-
-         **Name the authority.** A <queries> declaration is matched against the other app's
-         intent filter by the same rules as an intent, and a filter that names an authority
-         only matches a query that names one too. Google Pay declares `upi` with
-         `Authority: "pay"`, so a scheme-only entry never saw it — nor PhonePe, Paytm or BHIM,
-         which all declare the same shape. The reverse is not a problem: an entry that names an
-         authority still matches a filter that declares none, since a filter without one
-         accepts any. So one entry per scheme, always with the authority, is both necessary
-         and sufficient. Verified on device, both directions.
-
-         The three after `upi` are the payment apps' own schemes. They are here because an app
-         keeps its `upi:` activity disabled until UPI is set up inside it, and on such a phone
-         only its own scheme answers. Why that fallback exists at all is written up in
-         UpiDeepLink.candidates; this list must stay in step with the one there.
-
-         Note there is no QUERY_ALL_PACKAGES. These narrow entries do the same job, need no
-         Play declaration form, and cannot be used to inventory the phone. -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data
-                android:host="pay"
-                android:scheme="upi" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data
-                android:host="upi"
-                android:scheme="tez" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data
-                android:host="pay"
-                android:scheme="phonepe" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data
-                android:host="pay"
-                android:scheme="paytmmp" />
-        </intent>
-    </queries>
-
     <application
         android:name=".OdoApplication"
         android:allowBackup="true"
@@ -139,8 +84,13 @@
             android:name="google_analytics_default_allow_ad_personalization_signals"
             android:value="false" />
 
+        <!-- singleTop so a widget tap on an already-running app is delivered to
+             onNewIntent rather than starting a second copy of the activity. Without it the
+             owner taps "Scan pump", the existing screen stays where it was, and nothing
+             appears to happen. -->
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -149,6 +99,41 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Smart refuel's payment-notification listener, gated by
+             FeatureFlags.SMART_REFUEL_DETECT_ENABLED. This declaration is the one site a
+             project-wide Kotlin search for that flag will not find.
+
+             The OS binds this only after the owner enables Odo in Settings → Notification
+             access; there is no runtime prompt, which is why the app's own opt-in screen has
+             to explain what will be read before sending them there. The service filters to
+             the packages the owner enabled before it looks at any text, and forwards only a
+             merchant name, a sum and a timestamp — nothing is stored and nothing is sent.
+
+             Expect a listing review to ask about this. Deleting this block is how the feature
+             is switched off at the platform level. -->
+        <service
+            android:name="com.hopcape.odo.core.platform.notification.RefuelNotificationListenerService"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- The home-screen widget: scan a pump, type a fill, or update the odometer.
+             Not exported — the launcher binds it through the AppWidget framework, and
+             nothing else has any reason to. -->
+        <receiver
+            android:name=".widget.RefuelWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/refuel_widget_info" />
+        </receiver>
 
         <!-- Lets another app read a file Odo exports — today, the service record PDF the
              share sheet sends. Odo's files live in private storage, so a receiving app

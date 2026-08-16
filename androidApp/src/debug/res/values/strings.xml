@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launcher label for debug builds. The icon's ribbon already reads DEBUG;
+         this repeats it where the text is legible at any icon size, and in the places
+         that show a name but no icon.
+
+         Debug and stage install under their own application IDs (.debug / .stage), so
+         all three can sit on one device at once and the label is what tells them apart
+         in the launcher, the app switcher and Settings > Apps. -->
+    <string name="app_name">Odo Debug</string>
+</resources>

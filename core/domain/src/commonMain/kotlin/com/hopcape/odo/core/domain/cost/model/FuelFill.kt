@@ -11,7 +11,6 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerId
-import com.hopcape.odo.core.domain.payment.model.PaymentMethod
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -33,12 +32,14 @@ value class FuelFillId(val value: String) {
  * running cost multiplied a city price by an *assumed* mileage from
  * [FuelEfficiencyPolicy][com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyPolicy],
  * because the PRD ruled that asking owners to log every fill was friction not worth the
- * accuracy. Paying at the pump through Odo changes that trade: the fill is being recorded as
- * a side effect of something the owner was doing anyway.
+ * accuracy. Smart refuel changes that trade: the fill is captured as a side effect of
+ * something the owner was doing anyway — paying at a pump, or photographing its display.
  *
- * [odometer] is mandatory, like it is on a service entry. It is what turns two fills into a
- * measured mileage; a fill without one is a receipt, and Odo already has a way to record
- * money that bought nothing measurable.
+ * [odometer] is optional, unlike a service entry's. It is what turns two fills into a
+ * measured mileage, so a fill without one buys no mileage — but a fill Odo detected while the
+ * owner was still standing at the pump cannot wait for them to walk to the dashboard and read
+ * the number. Refusing the fill would lose the whole record to save one field of it. A fill
+ * with no reading is kept, counted in the running cost, and skipped by the mileage.
  *
  * [pricePerUnit] is derived, not stored as given: the pump prints a rate, but the rate that
  * matters is what this fill actually cost per litre, and deriving it means the three numbers
@@ -49,15 +50,20 @@ class FuelFill private constructor(
     val carId: CarId,
     val ownerId: OwnerId,
     val filledOn: LocalDate,
-    val odometer: Distance,
+    val odometer: Distance?,
     /** How much fuel went in, in thousandths of a unit — 32.45 litres is `32450`. */
     val quantityMilli: Long,
     val unit: FuelUnit,
     val amount: Amount,
     val stationName: String?,
-    val paidVia: PaymentMethod,
-    /** The bank's reference, when Odo watched the payment happen. Null for a fill typed in later. */
+    /**
+     * A reference for the payment, when a capture channel carried one. Null for every fill
+     * today: nothing Odo reads gives it one, and it is kept because the column exists and a
+     * later channel may.
+     */
     val transactionRef: String?,
+    /** Which capture channel produced this fill. See [FillEntrySource]. */
+    val entrySource: FillEntrySource,
 ) {
     /**
      * What this fill worked out to per unit of fuel, in paise, rounded to the nearest paise.
@@ -91,12 +97,12 @@ class FuelFill private constructor(
             amountPaise: Long?,
             today: LocalDate,
             stationName: String? = null,
-            paidVia: PaymentMethod = PaymentMethod.UNKNOWN,
             transactionRef: String? = null,
+            entrySource: FillEntrySource = FillEntrySource.MANUAL,
         ): EitherNel<DomainError, FuelFill> = either {
             zipOrAccumulate(
                 { validateFilledOn(filledOn, today).bind() },
-                { Distance.of(odometerKm).bind() },
+                { validateOdometer(odometerKm).bind() },
                 { validateQuantity(quantityMilli).bind() },
                 { Amount.of(amountPaise).bind() },
             ) { validDate, validOdometer, validQuantity, validAmount ->
@@ -110,8 +116,8 @@ class FuelFill private constructor(
                     unit = unit,
                     amount = validAmount,
                     stationName = stationName?.trim()?.takeIf { it.isNotEmpty() },
-                    paidVia = paidVia,
                     transactionRef = transactionRef?.trim()?.takeIf { it.isNotEmpty() },
+                    entrySource = entrySource,
                 )
             }
         }
@@ -125,27 +131,29 @@ class FuelFill private constructor(
             carId: CarId,
             ownerId: OwnerId,
             filledOn: LocalDate,
-            odometerKm: Int,
+            odometerKm: Int?,
             quantityMilli: Long,
             unit: FuelUnit,
             amountPaise: Long,
             stationName: String?,
-            paidVia: PaymentMethod,
             transactionRef: String?,
+            entrySource: FillEntrySource = FillEntrySource.MANUAL,
         ): FuelFill = FuelFill(
             id = id,
             carId = carId,
             ownerId = ownerId,
             filledOn = filledOn,
-            odometer = Distance.of(odometerKm)
-                .getOrElse { error("corrupt fuel_fills.odometer=$odometerKm for ${id.value}") },
+            odometer = odometerKm?.let { km ->
+                Distance.of(km)
+                    .getOrElse { error("corrupt fuel_fills.odometer=$km for ${id.value}") }
+            },
             quantityMilli = quantityMilli,
             unit = unit,
             amount = Amount.of(amountPaise)
                 .getOrElse { error("corrupt fuel_fills.amount=$amountPaise for ${id.value}") },
             stationName = stationName,
-            paidVia = paidVia,
             transactionRef = transactionRef,
+            entrySource = entrySource,
         )
 
         private fun validateFilledOn(
@@ -156,6 +164,16 @@ class FuelFill private constructor(
             date > today -> DomainError.FillDateInFuture.left()
             else -> date.right()
         }
+
+        /**
+         * A reading that was given has to be a real one; one that was not is not an error.
+         *
+         * The distinction matters because these are different owners. Someone who left the
+         * field alone is telling Odo nothing about the odometer, which is fine. Someone who
+         * typed a negative number has made a mistake worth showing them.
+         */
+        private fun validateOdometer(odometerKm: Int?): Either<DomainError, Distance?> =
+            if (odometerKm == null) null.right() else Distance.of(odometerKm)
 
         /**
          * A fill has to have fuel in it. Zero is rejected rather than allowed as "unknown",

@@ -17,6 +17,8 @@ import com.hopcape.odo.core.domain.shared.WorkshopName
 import com.hopcape.odo.feature.dashboard.domain.model.SetupProgress
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 import kotlinx.datetime.LocalDate
+import com.hopcape.odo.core.domain.cost.fuel.FuelUnit
+import com.hopcape.odo.feature.dashboard.domain.model.TankStatus
 
 /**
  * Sample Home states for previews.
@@ -49,6 +51,7 @@ internal fun previewNeedsAttention(): HomeUiState = HomeUiState(
             scoreDelta = 6,
             perKm = paise(1_230),
             costTrend = CostTrend(percentChange = 4),
+            tank = previewTank(),
             overchargeTotal = paise(140_000),
             overchargesCaught = 2,
             attention = CarAttention.DocumentLapsed(
@@ -126,3 +129,16 @@ internal fun previewNoCar(): HomeUiState = HomeUiState(content = Loadable.Ready(
 
 /** The wait before the first read lands. */
 internal fun previewLoading(): HomeUiState = HomeUiState()
+
+/**
+ * A tank part way through a usual range — the card's normal state, with a bar to draw and a
+ * habit to compare against.
+ */
+private fun previewTank(): TankStatus = TankStatus(
+    sinceLastFill = km(412),
+    lastFilledOn = LocalDate(2026, 8, 15),
+    lastAmount = paise(380_900),
+    lastQuantityMilli = 40_100,
+    lastUnit = FuelUnit.LITRE,
+    typicalRange = km(600),
+)

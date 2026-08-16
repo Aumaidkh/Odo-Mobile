@@ -6,19 +6,12 @@ import android.app.Instrumentation.ActivityResult
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
-import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextReplacement
 import androidx.core.content.ContextCompat
 import android.net.Uri
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
-import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
-import androidx.test.espresso.intent.matcher.UriMatchers.hasScheme
-import org.hamcrest.CoreMatchers.allOf
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.sqldelight.db.SqlDriver
@@ -42,9 +35,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.ScanTarget
-import com.hopcape.odo.core.platform.camera.QrImageDecoder
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.feature.billscanner.presentation.BillScannerTestTags
 import kotlinx.datetime.LocalDate
 import org.koin.core.context.GlobalContext
 import org.koin.dsl.module
@@ -78,10 +69,10 @@ internal object ScanCopy {
     /* Viewfinder. */
     const val SCAN_TITLE_BILL = "Scan bill"
     const val SCAN_TITLE_DOCUMENT = "Scan document"
-    const val SCAN_TITLE_QR = "Scan to pay"
+    const val SCAN_TITLE_PUMP = "Scan the pump display"
     const val ALIGN_BILL = "Align the bill inside the frame"
     const val ALIGN_DOCUMENT = "Fit the whole paper inside the frame"
-    const val ALIGN_QR = "Point at the payment QR"
+    const val ALIGN_PUMP = "Hold steady on the pump’s display"
 
     /*
      * What the same line says once the live edge detector has found a paper. The align copy
@@ -92,7 +83,7 @@ internal object ScanCopy {
     const val EDGES_PINNED = "Edges locked — capture, or tap to unlock"
     const val MODE_BILL = "Bill"
     const val MODE_DOCUMENT = "Document"
-    const val MODE_QR = "Pay QR"
+    const val MODE_PUMP = "Pump"
     const val MANUAL = "Manual"
     const val TORCH_ON = "Turn the light on"
     const val GALLERY = "Choose from gallery"
@@ -109,15 +100,6 @@ internal object ScanCopy {
     const val DOC_SAVE = "Save to vault"
     const val DOC_EXPIRY_REQUIRED = "Add the expiry date so Odo can remind you."
 
-    /* Pay at pump. */
-    const val PAY_TITLE = "Pay at the pump"
-    const val PAY_ACTION = "Pay with UPI"
-    const val PAY_VPA_LABEL = "UPI address"
-    const val FILL_TITLE = "Log this fill"
-    const val FILL_SAVE = "Save fill"
-    const val FILL_ODOMETER = "Odometer now"
-    const val FILL_QUANTITY = "Litres filled"
-
     /** The raised Scan action in the bottom bar — the app's primary call to action. */
     const val SCAN_ACTION = "Scan"
 
@@ -125,16 +107,11 @@ internal object ScanCopy {
     const val ERROR_SCAN_UNAVAILABLE =
         "Scanning isn’t available right now. Enter the details yourself instead."
     const val ERROR_UNREADABLE = "That photo was too blurry to read. Try again in better light."
-    const val ERROR_UNSUPPORTED_QR = "That isn’t a UPI payment code."
-    const val ERROR_PAYMENT_PENDING =
-        "Your bank hasn’t confirmed yet. Check your UPI app, then log the fill from Costs."
-    const val ERROR_PAYMENT_CANCELLED = "Payment cancelled. Nothing was charged."
-    const val ERROR_GALLERY_NO_QR = "No payment code in that picture. Try another one."
+    const val PUMP_UNREADABLE = "Those numbers didn’t read. Try again, or enter them yourself."
 
     /** `"%1$d of %2$d free"` — the quota pill. */
     fun quota(remaining: Int, total: Int) = "$remaining of $total free"
 
-    /** `"You've used all %1$d free scans this month. Go Pro for unlimited."` */
     fun quotaSpent(limit: Int) = "You’ve used all $limit free scans this month. Go Pro for unlimited."
 }
 
@@ -156,28 +133,6 @@ internal object ScanFixtures {
     const val INSURER = "SafeDrive comprehensive"
     val DOC_EXPIRY: LocalDate = LocalDate(2027, 3, 14)
 
-    /** A pump's code, with the sum left to the payer — the common case. */
-    const val QR_NO_AMOUNT = "upi://pay?pa=bharatpetroleum@ybl&pn=Bharat%20Petroleum"
-
-    /** A code that names its sum. */
-    const val QR_WITH_AMOUNT = "upi://pay?pa=bharatpetroleum@ybl&pn=Bharat%20Petroleum&am=2000.00"
-
-    const val PAYEE = "Bharat Petroleum"
-    const val VPA = "bharatpetroleum@ybl"
-
-    /** An EMVCo/Bharat QR payload — a payment code Odo deliberately refuses to guess at. */
-    const val QR_UNSUPPORTED = "00020101021226580011"
-
-    const val FILL_ODOMETER_KM = 41_800
-    const val FILL_LITRES = "32.45"
-    const val FILL_QUANTITY_MILLI = 32_450L
-    const val TXN_REF = "E2EREF9"
-
-    /** What a UPI app hands back on a settled payment. */
-    const val UPI_SUCCESS = "txnId=E2ETXN&responseCode=00&Status=SUCCESS&txnRef=$TXN_REF"
-
-    /** Submitted, not settled — the case that must write nothing. */
-    const val UPI_PENDING = "txnId=E2ETXN&Status=SUBMITTED"
 }
 
 private typealias ScanTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
@@ -226,9 +181,6 @@ internal fun installDefaultScanning() {
     installScanAllowance(ScanLimit.UpTo(max = 3, used = 0))
     installBillExtractor(DomainError.ScanUnavailable.left())
     installDocumentExtractor(DomainError.ScanUnavailable.left())
-    // A picture holds no code unless a test says it does — the shipped decoder needs a
-    // real QR in the pixels, which no fixture image has.
-    installQrImageDecoder(null)
 }
 
 /** A printed bill that read cleanly — three lines, a date, an odometer and a workshop. */
@@ -302,10 +254,6 @@ internal fun ScanTestRule.openDocumentReview(photoKey: String = ScanFixtures.PHO
     navigator().navigateTo(OdoDestination.BillScanner.DocumentReview(photoKey))
 }
 
-internal fun ScanTestRule.openPayAtPump(payload: String) {
-    navigator().navigateTo(OdoDestination.BillScanner.PayAtPump(payload))
-}
-
 /** Switch what the viewfinder is pointed at. */
 internal fun ScanTestRule.selectScanMode(label: String) {
     onNodeWithText(label).performClick()
@@ -331,69 +279,8 @@ internal fun ScanTestRule.awaitGuidance(vararg acceptable: String, timeoutMillis
     waitUntil(timeoutMillis) { acceptable.any { textCount(it) > 0 } }
 }
 
-/* ------------------------------ Typing ------------------------------ */
-
-/**
- * Type into a field found by its tag.
- *
- * By tag rather than by its words: every one of these is an empty input whose label sits
- * above it as separate text, so there is nothing on the field itself to aim at.
- *
- * The tag is matched as an *ancestor*, not as the node itself: a `testTag` on a field's
- * modifier lands on the wrapper the design system draws, and the node that actually accepts
- * text is inside it. `performTextReplacement` rather than `performTextInput`, so a field the
- * extraction already filled is overwritten rather than appended to.
- */
-internal fun ScanTestRule.typeIntoField(tag: String, text: String) {
-    onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag(tag))).performTextReplacement(text)
-}
-
-/** What the owner is paying at the pump, in rupees. */
-internal fun ScanTestRule.typeAmount(rupees: String) =
-    typeIntoField(BillScannerTestTags.PAY_AMOUNT_FIELD, rupees)
-
-/** The two readings a fill needs before it can be recorded. */
-internal fun ScanTestRule.typeFill(odometer: String, litres: String) {
-    typeIntoField(BillScannerTestTags.FILL_ODOMETER_FIELD, odometer)
-    typeIntoField(BillScannerTestTags.FILL_QUANTITY_FIELD, litres)
-}
-
 /** The target a scanner opened from the bottom bar starts on. */
 internal val DEFAULT_SCAN_TARGET = ScanTarget.Bill
-
-/* ------------------------------ The UPI hand-off ------------------------------ */
-
-/**
- * Answer the UPI hand-off with [response] instead of opening an app.
- *
- * A payment app is another app's activity, so the only way to test what Odo does *with* a
- * settled payment is to answer the intent. The launcher sends the payment as a bare `VIEW`
- * of a `upi:` link — deliberately unwrapped, because the payment apps judge who is asking
- * and a chooser in the middle hides the asker — so that is what is matched here.
- *
- * The androidTest manifest declares an activity handling `upi://pay` so the launcher's "is
- * there anything that can pay this?" check finds something. It does not test the `<queries>`
- * element that check depends on: the platform makes an instrumented pair visible to each
- * other automatically, so the stub is found whether or not that element is declared — which
- * is how these tests stayed green while every real phone answered no. The manifest says the
- * same, at length.
- */
-internal fun stubUpiPayment(response: String?) {
-    val data = Intent().apply { response?.let { putExtra("response", it) } }
-    intending(upiHandOff())
-        .respondWith(ActivityResult(Activity.RESULT_OK, data))
-}
-
-/** Answer the hand-off as a cancelled payment: the owner backed out, nothing was charged. */
-internal fun stubCancelledUpiPayment() {
-    intending(upiHandOff())
-        .respondWith(ActivityResult(Activity.RESULT_CANCELED, null))
-}
-
-private fun upiHandOff() = allOf(
-    hasAction(Intent.ACTION_VIEW),
-    hasData(hasScheme("upi")),
-)
 
 /* ------------------------------ Database ------------------------------ */
 
@@ -421,47 +308,6 @@ internal fun scannedLogCount(): Int =
 /** How many documents are on file. */
 internal fun documentCount(): Int =
     countRows("SELECT COUNT(*) FROM documents WHERE deleted_at IS NULL")
-
-/** How many fuel fills have been recorded. */
-internal fun fuelFillCount(): Int =
-    countRows("SELECT COUNT(*) FROM fuel_fills WHERE deleted_at IS NULL")
-
-/**
- * The one fuel fill on record, as the columns that matter.
- *
- * Read straight from the table rather than through the repository: the port has no read
- * method — nothing in the app shows a fill yet — and what this proves is that the row the
- * payment produced holds what the owner confirmed.
- */
-internal fun singleFuelFill(): FuelFillRow = scanDriver().executeQuery(
-    identifier = null,
-    sql = "SELECT odometer_km, quantity_milli, amount_paise, paid_via, transaction_ref, station_name " +
-        "FROM fuel_fills WHERE deleted_at IS NULL",
-    mapper = { cursor ->
-        cursor.next()
-        app.cash.sqldelight.db.QueryResult.Value(
-            FuelFillRow(
-                odometerKm = cursor.getLong(0)!!.toInt(),
-                quantityMilli = cursor.getLong(1)!!,
-                amountPaise = cursor.getLong(2)!!,
-                paidVia = cursor.getString(3)!!,
-                transactionRef = cursor.getString(4),
-                stationName = cursor.getString(5),
-            ),
-        )
-    },
-    parameters = 0,
-).value
-
-/** The columns of a stored fill these tests assert on. */
-internal data class FuelFillRow(
-    val odometerKm: Int,
-    val quantityMilli: Long,
-    val amountPaise: Long,
-    val paidVia: String,
-    val transactionRef: String?,
-    val stationName: String?,
-)
 
 /** The workshop name on the single scanned service entry. */
 internal fun scannedLogWorkshop(): String? = scanDriver().executeQuery(
@@ -505,20 +351,6 @@ internal fun stubPickedImage(): Uri {
     intending(hasAction(Intent.ACTION_OPEN_DOCUMENT))
         .respondWith(ActivityResult(Activity.RESULT_OK, Intent().setData(uri)))
     return uri
-}
-
-/**
- * Decide what a picked picture is found to hold.
- *
- * The decoder is faked for the same reason the extractors are: producing a real QR photo
- * an emulator will decode is a test about ML Kit, not about Odo. Everything above the port
- * — the copy into storage, the routing, the pay screen — is the real thing.
- */
-internal fun installQrImageDecoder(payload: String?) {
-    GlobalContext.get().loadModules(
-        listOf(module { single<QrImageDecoder> { QrImageDecoder { payload } } }),
-        allowOverride = true,
-    )
 }
 
 /** Tap the gallery affordance on the viewfinder. */

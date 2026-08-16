@@ -1,9 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Mirrors core:designsystem's OdoPalette.DarkAccent ("odometer-orange") as a raw hex: an
-    Android resource cannot reference a Compose Color constant in another module. Used only
-    to tint the document-reminder notification.
+    Mirrors core:designsystem's OdoPalette as raw hex: an Android resource cannot reference a
+    Compose Color constant in another module.
+
+    **This file is the light-mode set; `values-night` holds the dark one.** A notification is
+    drawn by the system, on the system's background, so it follows the *phone's* dark-mode
+    setting rather than the app's theme. The brand look is monochrome and high contrast, which
+    means it has to invert between the two: a white pill is invisible on a white shade.
 -->
 <resources>
     <color name="document_reminder_accent">#E8743B</color>
+
+    <!-- The same accent for the detected-fill notification's icon tint. One brand colour, so a
+         reminder and a detected fill read as the same app in a crowded shade. -->
+    <color name="refuel_detected_accent">#E8743B</color>
+
+    <!-- Detected-fill notification content. Light shade: ink on paper. -->
+    <color name="refuel_notification_text">#0A0A0A</color>
+    <color name="refuel_notification_text_dim">#4B5563</color>
+
+    <!-- The primary action, drawn as the inverse of the surface it sits on — the design
+         system's own filled-button treatment, which is a solid block of the text colour with
+         the background colour as its label. -->
+    <color name="refuel_notification_cta_fill">#0A0A0A</color>
+    <color name="refuel_notification_cta_label">#FFFFFF</color>
+
+    <!-- The secondary action's hairline. Translucent so it reads as an edge rather than a
+         second filled button competing with the first. -->
+    <color name="refuel_notification_outline">#33000000</color>
 </resources>

@@ -25,8 +25,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * between any two of those is what tells us which step is broken.
  *
  * **No PII.** Counts, types, confidence numbers, booleans and error *type* names only — never
- * a workshop name, an amount, an odometer reading, a UPI address or a photo. A payment is
- * reported by its transaction reference and never by what it was for.
+ * a workshop name, an amount, an odometer reading or a photo.
  *
  * Every method is fire-and-forget: nothing returns a decision, and the wrapping methods hand
  * back their block's result untouched, so instrumentation cannot change what a screen does.
@@ -193,6 +192,40 @@ internal class BillScannerTelemetry(
         result
     }
 
+    /**
+     * The pump-display counterpart.
+     *
+     * [readCount] and [crossChecked] are here rather than a confidence percent because that
+     * is the only honest measure this reader has: how many of the three numbers came back,
+     * and whether they agreed with each other. It is also the reader whose accuracy is least
+     * certain — seven-segment digits are not what the recogniser was trained on — so these
+     * two numbers are what say whether the mode is worth keeping.
+     */
+    suspend fun <T> pumpExtraction(
+        read: suspend () -> Either<DomainError, T>,
+        readCount: (T) -> Int,
+        crossChecked: (T) -> Boolean,
+    ): Either<DomainError, T> = traced(Trace.EXTRACT_PUMP) { span ->
+        val result = read()
+        result.fold(
+            ifLeft = { error ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                val fields = mapOf(Key.ERRORS to error.typeName())
+                analytics.track(Event.EXTRACTION_FAILED, fields)
+                logger.error(TAG, Event.EXTRACTION_FAILED, tc = currentTraceContext().toLog(), fields = fields)
+            },
+            ifRight = { reading ->
+                val fields = mapOf(
+                    Key.FIELDS_READ to readCount(reading),
+                    Key.CROSS_CHECKED to crossChecked(reading),
+                )
+                analytics.track(Event.PUMP_EXTRACTED, fields)
+                logger.info(TAG, Event.PUMP_EXTRACTED, tc = currentTraceContext().toLog(), fields = fields)
+            },
+        )
+        result
+    }
+
     /** The document counterpart. [hasExpiry] is the only field that decides whether it is useful. */
     suspend fun <T> documentExtraction(
         read: suspend () -> Either<DomainError, T>,
@@ -264,73 +297,10 @@ internal class BillScannerTelemetry(
 
     /* ------------------------------ Payments ------------------------------ */
 
-    /** A payment QR was read and understood. */
-    fun paymentQrParsed(hasAmount: Boolean) {
-        val fields = mapOf(Key.QR_HAS_AMOUNT to hasAmount)
-        analytics.track(Event.PAYMENT_QR_PARSED, fields)
-        logger.info(TAG, Event.PAYMENT_QR_PARSED, tc = flowTrace.toLog(), fields = fields)
-    }
 
-    /**
-     * A code was read but is not one Odo can pay.
-     *
-     * Counted because it is demand, not noise: most of these will be EMVCo/Bharat QRs, which
-     * are deliberately refused today, and how often owners point at one is what decides
-     * whether that grammar is worth supporting.
-     */
-    fun paymentQrRejected(reason: String) {
-        val fields = mapOf(Key.ERRORS to reason)
-        analytics.track(Event.PAYMENT_QR_REJECTED, fields)
-        logger.info(TAG, Event.PAYMENT_QR_REJECTED, tc = flowTrace.toLog(), fields = fields)
-    }
 
-    /**
-     * The owner was handed off to a UPI app.
-     *
-     * Counted without the amount, the payee or any reference. What the dashboard needs is how
-     * many hand-offs happen and how they end; the details of a single payment are the owner's
-     * and stay on the device.
-     */
-    fun paymentInitiated() {
-        analytics.track(Event.PAYMENT_INITIATED)
-        logger.info(TAG, Event.PAYMENT_INITIATED, tc = flowTrace.toLog())
-    }
 
-    /**
-     * How the payment ended, by status only.
-     *
-     * The bank reference is deliberately left out. It identifies a real payment on a real
-     * account, so it belongs in the fill record on the owner's device and nowhere else. The
-     * trace context already ties this event to the rest of the flow, which is what a dashboard
-     * needs; anyone diagnosing one owner's payment has the reference on the fill itself.
-     */
-    fun paymentSettled(status: String) {
-        val fields = mapOf(Key.STATUS to status)
-        analytics.track(Event.PAYMENT_SETTLED, fields)
-        logger.info(TAG, Event.PAYMENT_SETTLED, tc = flowTrace.toLog(), fields = fields)
-    }
 
-    /** Times the write of a fuel fill. Only ever called after a confirmed payment. */
-    suspend fun <T> fillSave(
-        write: suspend () -> EitherNel<DomainError, T>,
-    ): EitherNel<DomainError, T> = traced(Trace.SAVE_FILL) { span ->
-        val result = write()
-        result.fold(
-            ifLeft = { errors ->
-                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to errors.typeNames())
-                analytics.track(Event.FILL_SAVE_FAILED, fields)
-                // A fill that fails to save after the money left is the worst state this
-                // feature can reach: the owner has paid and Odo has no record of it.
-                logger.error(TAG, Event.FILL_SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
-            },
-            ifRight = {
-                analytics.track(Event.FILL_SAVED)
-                logger.info(TAG, Event.FILL_SAVED, tc = currentTraceContext().toLog())
-            },
-        )
-        result
-    }
 
     /* ------------------------------ Plumbing ------------------------------ */
 
@@ -367,6 +337,18 @@ internal class BillScannerTelemetry(
         const val UNKNOWN = "Unknown"
     }
 
+    /**
+     * The free-scan pill was tapped.
+     *
+     * A gate-hit: it counts owners who noticed the limit, whether or not they go on to
+     * subscribe. How often a cap is looked at is what says whether it was worth having.
+     */
+    fun quotaTapped(remaining: Int) {
+        val fields = mapOf(Key.REMAINING to remaining)
+        analytics.track(Event.QUOTA_TAPPED, fields)
+        logger.info(TAG, Event.QUOTA_TAPPED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /*
      * The feature's observability taxonomy. These names are what a dashboard queries, so they
      * are shipped contracts: reuse one rather than inventing a synonym, and do not rename one
@@ -379,6 +361,7 @@ internal class BillScannerTelemetry(
         const val CAMERA_DECLINED = "scanner_camera_declined"
         const val READ_FAILED = "scanner_read_failed"
         const val SCANNER_OPENED = "scanner_opened"
+        const val QUOTA_TAPPED = "scanner_quota_tapped"
         const val TARGET_SWITCHED = "scanner_target_switched"
         const val PHOTO_CAPTURED = "scanner_photo_captured"
         const val PHOTO_CROPPED = "scanner_photo_cropped"
@@ -390,16 +373,11 @@ internal class BillScannerTelemetry(
         const val CAMERA_FAILED = "scanner_camera_failed"
         const val BILL_EXTRACTED = "scanner_bill_extracted"
         const val DOCUMENT_EXTRACTED = "scanner_document_extracted"
+        const val PUMP_EXTRACTED = "scanner_pump_extracted"
         const val EXTRACTION_FAILED = "scanner_extraction_failed"
         const val BILL_SAVED = "scanner_bill_saved"
         const val DOCUMENT_SAVED = "scanner_document_saved"
         const val SAVE_FAILED = "scanner_save_failed"
-        const val PAYMENT_QR_PARSED = "scanner_payment_qr_parsed"
-        const val PAYMENT_QR_REJECTED = "scanner_payment_qr_rejected"
-        const val PAYMENT_INITIATED = "scanner_payment_initiated"
-        const val PAYMENT_SETTLED = "scanner_payment_settled"
-        const val FILL_SAVED = "scanner_fill_saved"
-        const val FILL_SAVE_FAILED = "scanner_fill_save_failed"
     }
 
     /** Span names for the feature's async operations. */
@@ -407,14 +385,15 @@ internal class BillScannerTelemetry(
         const val GALLERY_IMPORT = "scanner_gallery_import"
         const val EXTRACT_BILL = "scanner_extract_bill"
         const val EXTRACT_DOCUMENT = "scanner_extract_document"
+        const val EXTRACT_PUMP = "scanner_extract_pump"
         const val SAVE_BILL = "scanner_save_bill"
         const val SAVE_DOCUMENT = "scanner_save_document"
-        const val SAVE_FILL = "scanner_save_fill"
     }
 
     /** Property names carried by the events and spans above. */
     object Key {
         const val TARGET = "target"
+        const val REMAINING = "remaining"
         const val STATUS = "status"
         const val REASON = "reason"
         const val SOURCE = "source"
@@ -427,6 +406,8 @@ internal class BillScannerTelemetry(
         const val APPLIED = "applied"
         const val HAS_ODOMETER = "has_odometer"
         const val HAS_EXPIRY = "has_expiry"
+        const val FIELDS_READ = "fields_read"
+        const val CROSS_CHECKED = "cross_checked"
         const val EDITED = "edited"
         const val TYPE = "type"
         const val ORIGIN = "origin"

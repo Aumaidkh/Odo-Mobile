@@ -11,6 +11,12 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.cost.fuel.FuelPrice
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
+import com.hopcape.odo.core.domain.cost.model.FuelFill
+import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
+import com.hopcape.odo.core.domain.refuel.DetectionApp
+import com.hopcape.odo.core.domain.refuel.IgnoredMerchant
+import com.hopcape.odo.core.domain.refuel.RefuelDetectionSettings
+import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentSource
@@ -248,6 +254,41 @@ internal class FakeDocumentRepository(documents: List<Document> = emptyList()) :
 
     fun emit(documents: List<Document>) {
         stored.value = documents
+    }
+}
+
+/** The car's fills, newest first, as Home's recent row reads them. */
+/**
+ * Detection settings, for the Home card that offers automatic logging.
+ *
+ * Defaults to detection already on, so the offer card is absent unless a test asks for it —
+ * every existing assertion about Home's contents was written before the card existed.
+ */
+internal class FakeRefuelDetectionStore(
+    private val settings: RefuelDetectionSettings = RefuelDetectionSettings(detectEnabled = true),
+) : RefuelDetectionStore {
+    override fun observeSettings(): Flow<RefuelDetectionSettings> = flowOf(settings)
+    override suspend fun settings(): RefuelDetectionSettings = settings
+    override suspend fun saveSettings(settings: RefuelDetectionSettings) = Unit
+    override fun observeApps(): Flow<List<DetectionApp>> = flowOf(emptyList())
+    override suspend fun setAppEnabled(packageName: String, enabled: Boolean) = Unit
+    override suspend fun registerApp(packageName: String, enabledByDefault: Boolean) = Unit
+    override fun observeIgnoredMerchants(): Flow<List<IgnoredMerchant>> = flowOf(emptyList())
+    override suspend fun ignoredMerchantKeys(): Set<String> = emptySet()
+    override suspend fun ignoreMerchant(merchant: String) = Unit
+    override suspend fun unignoreMerchant(merchantKey: String) = Unit
+}
+
+internal class FakeFuelFillRepository(fills: List<FuelFill> = emptyList()) : FuelFillRepository {
+    private val stored = MutableStateFlow(fills)
+
+    override suspend fun add(fill: FuelFill): Either<DomainError, FuelFill> = fill.right()
+    override fun observeForCar(carId: CarId): Flow<List<FuelFill>> = stored
+    override suspend fun latestForCar(carId: CarId): Either<DomainError, FuelFill?> =
+        stored.value.firstOrNull().right()
+
+    fun emit(fills: List<FuelFill>) {
+        stored.value = fills
     }
 }
 

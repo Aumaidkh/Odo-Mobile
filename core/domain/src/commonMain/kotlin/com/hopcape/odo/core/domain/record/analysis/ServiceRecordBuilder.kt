@@ -75,6 +75,10 @@ object ServiceRecordBuilder {
         today: LocalDate,
         zone: TimeZone,
     ): ServiceRecord {
+        // Fills are deliberately not passed in. The printed record is what a buyer reads at
+        // resale, and it is an account of how the car was looked after — a year of refuelling
+        // is a hundred rows that say nothing about that, and they would bury the services
+        // that do. The feed on screen shows them; the document does not.
         val rows = ActivityFeedBuilder.build(car, entries, documents, scores, zone)
             .filterNot { it is ActivityEvent.ScoreChanged }
             .map { event -> RecordRow(event = event, status = event.status()) }
@@ -135,8 +139,10 @@ object ServiceRecordBuilder {
         // The owner uploaded the paper, so there is something to check the line against.
         is ActivityEvent.DocumentFiled -> RecordStatus.VERIFIED
         is ActivityEvent.CarAdded -> RecordStatus.SELF_REPORTED
-        // Filtered out before this is reached; kept exhaustive so adding an event kind is a
+        // Neither of these reaches a printed row — one is filtered out above, the other is
+        // never built into the feed this reads. Kept exhaustive so adding an event kind is a
         // compile error here rather than a silently unbadged row.
         is ActivityEvent.ScoreChanged -> RecordStatus.SELF_REPORTED
+        is ActivityEvent.FuelFilled -> RecordStatus.SELF_REPORTED
     }
 }

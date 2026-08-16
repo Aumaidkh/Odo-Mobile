@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.hopcape.odo.core.common.FeatureFlags
-import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoButton
-import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -18,16 +15,13 @@ import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.profile.presentation.ProfileSheet
-import com.hopcape.odo.feature.profile.presentation.ProfileTelemetry
 import com.hopcape.odo.feature.profile.resources.Res
-import com.hopcape.odo.feature.profile.resources.pf_coming_soon
 import com.hopcape.odo.feature.profile.resources.pf_export
 import com.hopcape.odo.feature.profile.resources.pf_export_account
 import com.hopcape.odo.feature.profile.resources.pf_export_docs
 import com.hopcape.odo.feature.profile.resources.pf_export_history
 import com.hopcape.odo.feature.profile.resources.pf_export_note
 import com.hopcape.odo.feature.profile.resources.pf_export_pdf
-import com.hopcape.odo.feature.profile.resources.pf_export_request
 import com.hopcape.odo.feature.profile.resources.pf_export_sub
 import org.jetbrains.compose.resources.stringResource
 
@@ -38,15 +32,13 @@ import org.jetbrains.compose.resources.stringResource
  * of a record whose point is being complete, and a checkbox that changed nothing would be
  * a control that lies.
  *
- * Both buttons open the paywall. The export is the Resale Passport (Phase 2B, ₹249), so
- * this sheet's job today is to say what it would produce and take the owner to where it is
- * bought — which is also the only honest way to count demand for it.
- *
- * While `FeatureFlags.PAYWALL_ENABLED` is false there is nowhere to take them: the buttons
- * are disabled under a "coming soon" badge, and [onUpgrade] is not called.
+ * One button now, not two. Both used to open the paywall on the way to an export that did
+ * not exist; the record PDF does exist, so this opens it. Whether the owner may have it is
+ * the share sheet's to decide — it is the one place that knows, and it is reached from the
+ * timeline and the ledger too.
  */
 @Composable
-internal fun ExportDataSheetContent(onUpgrade: (target: String) -> Unit) {
+internal fun ExportDataSheetContent(onExport: () -> Unit) {
     ProfileSheet {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(stringResource(Res.string.pf_export), style = OdoTheme.typography.heading)
@@ -61,27 +53,11 @@ internal fun ExportDataSheetContent(onUpgrade: (target: String) -> Unit) {
                 OdoText(stringResource(Res.string.pf_export_note), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
             }
         }
-        if (!FeatureFlags.PAYWALL_ENABLED) {
-            OdoBadge(
-                stringResource(Res.string.pf_coming_soon),
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            OdoButton(
-                stringResource(Res.string.pf_export_pdf),
-                onClick = { onUpgrade(ProfileTelemetry.ExportTarget.PDF) },
-                modifier = Modifier.weight(1f),
-                variant = OdoButtonVariant.Secondary,
-                enabled = FeatureFlags.PAYWALL_ENABLED,
-            )
-            OdoButton(
-                stringResource(Res.string.pf_export_request),
-                onClick = { onUpgrade(ProfileTelemetry.ExportTarget.FULL) },
-                modifier = Modifier.weight(1f),
-                enabled = FeatureFlags.PAYWALL_ENABLED,
-            )
-        }
+        OdoButton(
+            stringResource(Res.string.pf_export_pdf),
+            onClick = onExport,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

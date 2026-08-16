@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.profile.domain.model
 
 import com.hopcape.odo.core.domain.settings.model.AppSettings
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
 
 /**
  * Everything the profile screens read, in one value.
@@ -25,6 +26,9 @@ internal data class ProfileSnapshot(
     val phoneNumber: String?,
     val avatarPath: String?,
     val isPro: Boolean,
+
+    /** The live subscription, or null on the free plan. Only the plan card reads it. */
+    val subscription: SubscriptionState?,
     val isSignedIn: Boolean,
     val settings: AppSettings,
 )
