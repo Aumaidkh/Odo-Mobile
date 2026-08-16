@@ -340,10 +340,13 @@ private fun ReadyOffer(state: PaywallUiState, offer: PaywallOffer, onEvent: (Pay
 
 @Composable
 private fun PlanSelector(offer: PaywallOffer, enabled: Boolean, onSelect: (String) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+    // Stacked, not side by side. Three plans in a row squeeze each card to a third of the
+    // screen, which is not enough for a price and a per-month line without wrapping — and
+    // the offering decides how many there are, so the layout cannot assume two.
+    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         offer.plans.forEach { plan ->
             PlanCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 plan = plan,
                 selected = plan.id == offer.selectedPlanId,
                 enabled = enabled,
@@ -373,42 +376,44 @@ private fun PlanCard(
         tween(220),
         label = "planBg",
     )
-    Box(modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(OdoTheme.shapes.card)
-                .background(container)
-                .border(if (selected) 2.dp else 1.dp, borderColor, OdoTheme.shapes.card)
-                .clickable(enabled = enabled, onClick = onClick)
-                .padding(OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OdoText(
-                    planTitle(plan.period),
-                    style = OdoTheme.typography.label,
-                    color = OdoTheme.colors.textDim,
-                    modifier = Modifier.weight(1f),
-                )
-                PlanRadio(selected)
+    Row(
+        modifier = modifier
+            .clip(OdoTheme.shapes.card)
+            .background(container)
+            .border(if (selected) 2.dp else 1.dp, borderColor, OdoTheme.shapes.card)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(OdoTheme.spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Leading, the way a list of choices reads: the control the owner is picking with
+        // comes before what they are picking.
+        PlanRadio(selected)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OdoText(planTitle(plan.period), style = OdoTheme.typography.label)
+                // Inline rather than floating above the card: a pill hanging off the top
+                // edge of a full-width row has nothing to sit centred over.
+                if (badge != null) {
+                    OdoText(
+                        badge,
+                        style = OdoTheme.typography.caption,
+                        color = OdoTheme.colors.bg,
+                        modifier = Modifier
+                            .clip(OdoTheme.shapes.pill)
+                            .background(OdoTheme.colors.success)
+                            .padding(horizontal = OdoTheme.spacing.sm, vertical = 2.dp),
+                    )
+                }
             }
-            OdoText(plan.price, style = OdoTheme.typography.heading.copy(fontSize = 26.sp))
             OdoText(planPeriod(plan), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
-        if (badge != null) {
-            OdoText(
-                badge,
-                style = OdoTheme.typography.caption,
-                color = OdoTheme.colors.bg,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = (-10).dp)
-                    .clip(OdoTheme.shapes.pill)
-                    .background(OdoTheme.colors.success)
-                    .padding(horizontal = OdoTheme.spacing.sm, vertical = 2.dp),
-            )
-        }
+        // The price is the thing being compared, so it sits where the eye scans down a
+        // stacked list: the right edge, on one line for every row.
+        OdoText(plan.price, style = OdoTheme.typography.heading)
     }
 }
 

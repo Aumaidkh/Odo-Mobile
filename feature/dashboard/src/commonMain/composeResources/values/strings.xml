@@ -30,8 +30,8 @@
     <string name="hm_running_cost">RUNNING COST</string>
     <!-- The unit the running cost is quoted per, e.g. "/km". -->
     <string name="hm_per_unit">/%1$s</string>
-    <string name="hm_cost_above">%1$d%% above last quarter</string>
-    <string name="hm_cost_below">%1$d%% below last quarter</string>
+    <string name="hm_cost_above">%1$d% above last quarter</string>
+    <string name="hm_cost_below">%1$d% below last quarter</string>
     <string name="hm_cost_flat">Same as last quarter</string>
     <string name="hm_cost_no_trend">No comparison yet</string>
     <string name="hm_cost_not_enough">Not enough distance yet</string>
@@ -65,8 +65,8 @@
     <string name="hm_insight_eyebrow">ODO INSIGHT</string>
     <string name="hm_insight_resale_eyebrow">RESALE READY</string>
     <string name="hm_insight_resale">All %1$d services verified — your record beats most listings.</string>
-    <string name="hm_insight_cost_up">Running costs are %1$d%% higher than last quarter.</string>
-    <string name="hm_insight_cost_down">Running costs are %1$d%% lower than last quarter.</string>
+    <string name="hm_insight_cost_up">Running costs are %1$d% higher than last quarter.</string>
+    <string name="hm_insight_cost_down">Running costs are %1$d% lower than last quarter.</string>
     <string name="hm_insight_no_bills">%1$d services logged with no bill attached — scan one to unlock fairness checks.</string>
     <string name="hm_insight_no_bills_one">Your one logged service has no bill attached — scan it to unlock fairness checks.</string>
     <string name="hm_insight_missing_doc">%1$s is missing from your vault — adding it lifts your score.</string>

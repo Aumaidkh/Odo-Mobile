@@ -16,6 +16,7 @@ import com.hopcape.odo.feature.paywall.resources.pw_error_store_unavailable
 
 private const val MONTHLY_ID = "\$rc_monthly"
 private const val ANNUAL_ID = "\$rc_annual"
+private const val LIFETIME_ID = "\$rc_lifetime"
 
 private fun offer(selected: String = ANNUAL_ID, trialDays: Int? = 7) = PaywallOffer(
     plans = listOf(
@@ -29,9 +30,18 @@ private fun offer(selected: String = ANNUAL_ID, trialDays: Int? = 7) = PaywallOf
         PaywallPlanCard(
             id = ANNUAL_ID,
             period = BillingPeriod.ANNUAL,
-            price = "₹1,490.00",
-            pricePerMonth = "₹124.17",
+            price = "₹499.00",
+            pricePerMonth = "₹41.58",
             trialDays = trialDays,
+        ),
+        // Growth Plan v3's anchor (#245). Here so the previews show what three stacked
+        // rows actually look like — the case the side-by-side layout could not hold.
+        PaywallPlanCard(
+            id = LIFETIME_ID,
+            period = BillingPeriod.LIFETIME,
+            price = "₹1,299.00",
+            pricePerMonth = "₹1,299.00",
+            trialDays = null,
         ),
     ),
     selectedPlanId = selected,

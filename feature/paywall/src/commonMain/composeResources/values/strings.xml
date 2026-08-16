@@ -33,7 +33,7 @@
     <string name="pw_plan_monthly_period">per month</string>
     <string name="pw_plan_annual">Annual</string>
     <string name="pw_plan_annual_period">≈ %1$s / mo</string>
-    <string name="pw_plan_annual_badge">SAVE %1$d%%</string>
+    <string name="pw_plan_annual_badge">SAVE %1$d%</string>
 
     <!-- CTA. The price is the store's own string, so both take it as an argument. -->
     <string name="pw_cta">Start Pro · %1$s</string>
