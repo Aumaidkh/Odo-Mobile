@@ -44,3 +44,37 @@ incrementMonth:
 UPDATE record_export_usage
 SET export_count = export_count + 1
 WHERE month = :month;
+
+-- Exports bought one at a time and not yet spent (#246). Growth Plan v3 sells the record
+-- PDF for ₹99 once as well as inside Pro, and owning "one export" is a balance rather than
+-- a plan — it is bought, spent, and buyable again, which `Entitlements` cannot express.
+--
+-- One pinned row rather than a row per purchase: the only question ever asked is how many
+-- are left, and a ledger would be history nobody reads. Device-local and unsynced, matching
+-- the table above.
+CREATE TABLE record_export_credits (
+    id        INTEGER NOT NULL PRIMARY KEY,
+    remaining INTEGER NOT NULL
+);
+
+creditsRemaining:
+SELECT remaining
+FROM record_export_credits
+WHERE id = 1;
+
+-- Insert-then-update, not UPSERT: minSdk 26 ships SQLite 3.18.
+startCredits:
+INSERT OR IGNORE INTO record_export_credits (id, remaining)
+VALUES (1, 0);
+
+grantCredit:
+UPDATE record_export_credits
+SET remaining = remaining + 1
+WHERE id = 1;
+
+-- Guarded so a balance can never go negative: two shares racing each other both call this
+-- and only the one that finds a credit takes it.
+spendCredit:
+UPDATE record_export_credits
+SET remaining = remaining - 1
+WHERE id = 1 AND remaining > 0;

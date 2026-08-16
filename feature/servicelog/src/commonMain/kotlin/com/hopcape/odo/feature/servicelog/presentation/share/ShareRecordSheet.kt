@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
@@ -31,6 +33,11 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.servicelog.resources.Res
+import com.hopcape.odo.feature.servicelog.resources.sl_export_offer_title
+import com.hopcape.odo.feature.servicelog.resources.sl_export_offer_body
+import com.hopcape.odo.feature.servicelog.resources.sl_export_offer_buy
+import com.hopcape.odo.feature.servicelog.resources.sl_export_offer_note
+import com.hopcape.odo.feature.servicelog.resources.sl_export_offer_pro
 import com.hopcape.odo.feature.servicelog.resources.sl_detail_share
 import com.hopcape.odo.feature.servicelog.resources.sl_share_bill_subtitle
 import com.hopcape.odo.feature.servicelog.resources.sl_share_download_pdf
@@ -69,6 +76,9 @@ internal fun ShareRecordSheetContent(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         Header(state.content)
+
+        // Out of free exports: both routes, priced, before either is tapped (#246).
+        state.exportOffer?.let { offer -> ExportOffer(offer, onEvent) }
 
         Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
             ShareTargetButton(
@@ -115,6 +125,50 @@ internal fun ShareRecordSheetContent(
                 text = stringResource(Res.string.sl_share_failed),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.danger,
+            )
+        }
+    }
+}
+
+/**
+ * What an owner sees once the free exports are spent (#246).
+ *
+ * Both routes on one card, each with its price, rather than a jump straight to the paywall:
+ * someone selling their car wants this PDF once and will never want a subscription, and the
+ * only thing the app could say to them before was "subscribe".
+ *
+ * The one-off button is only drawn when the store actually returned a price. A button that
+ * cannot name what it costs is one nobody should be asked to tap.
+ */
+@Composable
+private fun ExportOffer(offer: ShareRecordUiState.ExportOffer, onEvent: (ShareRecordEvent) -> Unit) {
+    OdoCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            OdoText(stringResource(Res.string.sl_export_offer_title), style = OdoTheme.typography.label)
+            OdoText(
+                stringResource(Res.string.sl_export_offer_body),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textDim,
+            )
+            offer.oneTimePrice?.let { price ->
+                OdoButton(
+                    text = stringResource(Res.string.sl_export_offer_buy, price),
+                    onClick = { onEvent(ShareRecordEvent.BuyExportClicked) },
+                    modifier = Modifier.fillMaxWidth(),
+                    loading = offer.buying,
+                )
+                OdoText(
+                    stringResource(Res.string.sl_export_offer_note),
+                    style = OdoTheme.typography.caption,
+                    color = OdoTheme.colors.textMuted,
+                )
+            }
+            OdoButton(
+                text = stringResource(Res.string.sl_export_offer_pro),
+                onClick = { onEvent(ShareRecordEvent.UnlockWithProClicked) },
+                modifier = Modifier.fillMaxWidth(),
+                variant = OdoButtonVariant.Secondary,
+                enabled = !offer.buying,
             )
         }
     }
