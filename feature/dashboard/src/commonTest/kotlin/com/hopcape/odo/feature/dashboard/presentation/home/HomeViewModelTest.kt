@@ -23,6 +23,9 @@ import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
 import com.hopcape.odo.feature.dashboard.FixedClock
 import com.hopcape.odo.feature.dashboard.TEST_CAR
 import com.hopcape.odo.feature.dashboard.currentOdometerFrom
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.core.triptracker.TripTracker
@@ -277,7 +280,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun autoDetectTapped_opensEnrolmentWhenUnlocked() = runTest {
+    fun autoDetectTapped_opensEnrolmentWhenUnlocked() = runTest(dispatcher) {
         val vm = viewModel(isPro = true)
         vm.state.first { it.content is Loadable.Ready }
         vm.onEvent(HomeEvent.AutoDetectTapped)
@@ -285,7 +288,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun autoOdometerOffer_shownWhileNotSetUp_andGoneOnceEnrolledAndOn() = runTest {
+    fun autoOdometerOffer_shownWhileNotSetUp_andGoneOnceEnrolledAndOn() = runTest(dispatcher) {
         val offered = viewModel(bond = null, trackingEnabled = false)
         assertTrue(offered.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
 
@@ -297,7 +300,68 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun autoOdometerTapped_opensTheEducationScreen() = runTest {
+    fun scanShowcase_grantedOnAFreshDeviceWithACar_andNothingLogged() = runTest(dispatcher) {
+        val vm = viewModel(entries = emptyList(), documents = emptyList())
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready && it.scanShowcase }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcase_notGranted_onceSomethingIsLogged() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcase_notGranted_whenAlreadySeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore().apply { seen += ShowcaseHookId.SCAN_BUTTON }
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcaseDismissed_hidesIt_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseDismissed)
+
+        assertFalse(vm.state.first { !it.scanShowcase }.scanShowcase)
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.SCAN_BUTTON in seen.seen)
+    }
+
+    @Test
+    fun scanShowcaseActedOn_opensTheScanner_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseActedOn)
+
+        assertIs<HomeEffect.OpenScanner>(vm.effects.first())
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.SCAN_BUTTON in seen.seen)
+    }
+
+    @Test
+    fun scanShowcaseLeft_releasesWithoutSeen_soTheNextVisitShowsItAgain() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseLeft)
+
+        assertTrue(seen.seen.isEmpty())
+        // The same session's next visit re-requests and is granted again.
+        assertTrue(vm.state.first { it.scanShowcase }.scanShowcase)
+    }
+
+    @Test
+    fun autoOdometerTapped_opensTheEducationScreen() = runTest(dispatcher) {
         val vm = viewModel()
         vm.state.first { it.content is Loadable.Ready }
         vm.onEvent(HomeEvent.AutoOdometerTapped)
@@ -314,6 +378,7 @@ class HomeViewModelTest {
         detectedFillsUsed: Int = 0,
         bond: VehicleBond? = null,
         trackingEnabled: Boolean = false,
+        seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -333,6 +398,7 @@ class HomeViewModelTest {
         smartRefuel = smartRefuelAllowance(used = detectedFillsUsed, isPro = isPro),
         bonds = FakeVehicleBondStore(bond),
         tracker = FakeTripTracker(enabled = trackingEnabled),
+        showcase = ShowcaseArbiter(seenStore),
         telemetry = telemetry(analytics),
     )
 
@@ -373,6 +439,16 @@ class HomeViewModelTest {
 
         override fun setConsent(status: ConsentStatus) = Unit
         override fun flush() = Unit
+    }
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
     }
 
     private class FakeVehicleBondStore(private val bond: VehicleBond?) : VehicleBondStore {

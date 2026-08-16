@@ -66,6 +66,10 @@ import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
+import com.hopcape.odo.feature.dashboard.resources.hm_scan_showcase
+import com.hopcape.odo.feature.dashboard.resources.hm_showcase_dismiss
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.feature.dashboard.presentation.shell.LocalScanCoachMarkAnchor
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
@@ -169,6 +173,21 @@ internal fun HomeScreen(
                 is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, state.offerAutoOdometer, onEvent)
             }
         }
+    }
+
+    // The SCAN coach mark (#228). A Popup, so where it sits in this tree is irrelevant —
+    // it overlays the whole window, bottom bar included. The anchor is the shell's SCAN
+    // tile, handed down through the CompositionLocal; null outside the shell (previews),
+    // in which case there is nothing to point at and nothing renders.
+    val scanAnchor = LocalScanCoachMarkAnchor.current
+    if (state.scanShowcase && scanAnchor != null) {
+        OdoCoachMark(
+            text = stringResource(Res.string.hm_scan_showcase),
+            dismissLabel = stringResource(Res.string.hm_showcase_dismiss),
+            anchor = scanAnchor,
+            onDismiss = { onEvent(HomeEvent.ScanShowcaseDismissed) },
+            onAnchorTap = { onEvent(HomeEvent.ScanShowcaseActedOn) },
+        )
     }
 }
 

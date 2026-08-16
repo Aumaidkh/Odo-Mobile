@@ -137,4 +137,6 @@
     <string name="hm_auto_detect_body">Let Odo spot the payment at a pump and draft the entry. See what it reads first.</string>
     <string name="hm_auto_odometer_title">Keep your odometer current</string>
     <string name="hm_auto_odometer_body">Odo can log every drive on its own — no typing readings. See how it works.</string>
+    <string name="hm_scan_showcase">A photo of a bill logs the service — and checks whether the price was fair.</string>
+    <string name="hm_showcase_dismiss">Got it</string>
 </resources>

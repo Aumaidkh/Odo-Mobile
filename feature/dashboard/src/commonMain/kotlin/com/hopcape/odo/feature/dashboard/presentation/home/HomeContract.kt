@@ -43,6 +43,15 @@ internal sealed interface HomeEvent {
 
     /** "Add your car" on the no-car state. */
     data object AddCarTapped : HomeEvent
+
+    /** The SCAN coach mark was tapped away. Seen forever (#228). */
+    data object ScanShowcaseDismissed : HomeEvent
+
+    /** The SCAN coach mark's cutout was tapped — open the scanner it points at. Seen forever. */
+    data object ScanShowcaseActedOn : HomeEvent
+
+    /** Home left composition while the SCAN coach mark was up — release the grant, not seen. */
+    data object ScanShowcaseLeft : HomeEvent
 }
 
 /** One-shot handoffs the route host performs. */

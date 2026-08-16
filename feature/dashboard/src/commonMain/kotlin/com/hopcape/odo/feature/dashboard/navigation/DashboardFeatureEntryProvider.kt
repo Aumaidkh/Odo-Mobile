@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.dashboard.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
@@ -11,6 +12,7 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeEffect
+import com.hopcape.odo.feature.dashboard.presentation.home.HomeEvent
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeScreen
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -39,6 +41,13 @@ internal class DashboardFeatureEntryProvider(
 internal fun HomeRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Home leaving composition (tab switch, the trip-logged redirect) while the SCAN
+    // coach mark is up must release the arbiter's grant without burning the hook's one
+    // showing — the owner never answered it (#228).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onEvent(HomeEvent.ScanShowcaseLeft) }
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {

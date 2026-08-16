@@ -37,6 +37,14 @@ internal data class HomeUiState(
     val offerAutoDetect: Boolean = false,
 
     /**
+     * Whether the SCAN coach mark is up (#228) — granted by the `ShowcaseArbiter` when
+     * this is a first-run device with a car and nothing logged, held until the owner
+     * answers it. Beside [content] for the same reason as the offers: it is device
+     * state, not car state.
+     */
+    val scanShowcase: Boolean = false,
+
+    /**
      * Whether to pitch the auto odometer.
      *
      * Same reasoning as [offerAutoDetect]: enrollment lives behind the garage card, and a
