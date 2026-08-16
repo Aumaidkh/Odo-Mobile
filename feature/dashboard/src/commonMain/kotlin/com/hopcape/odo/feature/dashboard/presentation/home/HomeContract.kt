@@ -35,6 +35,9 @@ internal sealed interface HomeEvent {
     /** "Log fills automatically" — opens the explanation, not the permission. */
     data object AutoDetectTapped : HomeEvent
 
+    /** The auto-odometer offer card — opens the education screen, not the permission. */
+    data object AutoOdometerTapped : HomeEvent
+
     /** The checklist's documents row. */
     data object AddDocumentsTapped : HomeEvent
 
@@ -74,6 +77,9 @@ internal sealed interface HomeEffect {
 
     /** Open the auto-detect opt-in, which explains what would be read before asking. */
     data object OpenAutoDetect : HomeEffect
+
+    /** Open the auto-odometer education screen — enrollment's front door. */
+    data object OpenAutoOdometer : HomeEffect
 
     /** Automatic logging was tapped by an owner who does not have it. */
     data object OpenPaywall : HomeEffect

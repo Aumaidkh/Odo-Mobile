@@ -14,44 +14,37 @@ object FeatureFlags {
     /**
      * Whether the app tracks drives on its own and keeps the odometer current from them.
      *
-     * False for 1.0. The whole feature is written and tested — `:core:triptracker`'s engine,
-     * `:feature:auto-odometer`'s five screens, the garage card — but shipping it means asking
-     * a first-time owner for background location, activity recognition and Bluetooth before
-     * they have any reason to trust the app with them. 1.0 asks for none of the three: they
-     * are not in the Android manifest at all, so even a code path that slipped through would
-     * be denied by the platform rather than half-working.
+     * True. The garage shows the auto-odometer card and its status tile, enrollment is
+     * reachable from there, and a finished trip redirects to the trip-logged screen.
      *
-     * While this is false: the garage never shows the auto-odometer card or its status tile,
-     * so there is no way into enrollment, and with no enrollment nothing ever calls
-     * `TripTracker.setEnabled(true)`. The trip-logged redirect is off as well, so a trip row
-     * that somehow existed would not take over the screen. The routes stay registered and the
-     * Koin graph stays wired — unreachable, not removed.
-     *
-     * Flip it to true when the permission story is ready. Nothing here is rewritten.
+     * The feature needs background location, activity recognition and Bluetooth. All three
+     * are asked for at runtime, in context — the owner reaches them through enrollment, not
+     * at launch — and the permissions are declared in the Android manifest again.
      *
      * **Finding every site.** A project-wide search for `AUTO_ODOMETER_ENABLED` lists them,
      * and deleting this constant fails the build at each one:
      *
      * - `ObserveAutoOdometerCardState` (garage) — the one choke point for the card *and* the
-     *   status tile. Returns `Hidden`, so no card, no tap, no telemetry, no navigation.
+     *   status tile. With the flag off it returns `Hidden`: no card, no tap, no navigation.
      * - `shouldRedirectToTripLogged` (`:shared`) — the app-shell redirect to M6.
-     * - `AutoOdometerEndToEndTest` — each flow test is skipped by `assumeTrue`, with an
+     * - `AutoOdometerEndToEndTest` — each flow test is guarded by `assumeTrue`, with an
      *   `assumeFalse` twin asserting the garage card is absent. `AggregateOdometerVerification
-     *   Test` is skipped the same way. Both compile either way.
+     *   Test` is guarded the same way. Both compile either way.
      *
-     * **Two things the search does not find**, because they are not Kotlin:
+     * **Two things the search does not find**, because they are not Kotlin. Turning this flag
+     * off again means emptying both, together:
      *
      * - `androidApp/src/main/AndroidManifest.xml` — `ACCESS_FINE_LOCATION`,
      *   `ACCESS_COARSE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `ACTIVITY_RECOGNITION`,
-     *   `BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_LOCATION` were all
-     *   removed. `POST_NOTIFICATIONS` stays — document reminders use it.
+     *   `BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_LOCATION`.
+     *   `POST_NOTIFICATIONS` stays either way — document reminders use it.
      * - `core/triptracker/src/androidMain/AndroidManifest.xml` — the foreground service and
-     *   the two broadcast receivers were removed. They had to go with the permissions: a
-     *   service typed `location` without `FOREGROUND_SERVICE_LOCATION` is a lint error, and a
-     *   manifest-declared receiver would keep waking the process for a car that nothing is
-     *   listening for. Both files carry a comment pointing back here.
+     *   the two broadcast receivers. They have to move with the permissions: a service typed
+     *   `location` without `FOREGROUND_SERVICE_LOCATION` is a lint error, and a
+     *   manifest-declared receiver with the feature off would keep waking the process for a
+     *   car that nothing is listening for.
      */
-    const val AUTO_ODOMETER_ENABLED = false
+    const val AUTO_ODOMETER_ENABLED = true
 
     /**
      * Whether Odo reads payment notifications to detect a fill on its own.

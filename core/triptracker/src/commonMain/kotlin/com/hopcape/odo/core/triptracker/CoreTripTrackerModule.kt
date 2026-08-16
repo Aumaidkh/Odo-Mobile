@@ -50,7 +50,7 @@ val coreTripTrackerModule = module {
 
     single {
         TripTrackerEngine(
-            locationProvider = get(),
+            locationProvider = { get() },
             motionSource = get(),
             presenceSource = get(),
             foregroundSession = get(),
@@ -68,6 +68,6 @@ val coreTripTrackerModule = module {
         )
     }
 
-    single { DefaultTripTracker(engine = get(), telemetry = get()) }
+    single { DefaultTripTracker(engine = get(), telemetry = get(), vehicleBondStore = get(), settings = get()) }
     single<TripTracker> { get<DefaultTripTracker>() }
 }

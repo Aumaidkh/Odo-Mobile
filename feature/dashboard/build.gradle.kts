@@ -31,6 +31,10 @@ kotlin {
             // The aggregation use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
+            // The auto-odometer engine's public ports (TripTracker, VehicleBondStore) —
+            // read for the Home discoverability card, same precedent as :feature:garage:
+            // ports from a :core: module, never an import of :feature:auto-odometer.
+            implementation(projects.core.triptracker)
             // Observability: structured logging + product analytics, instrumented at
             // the presentation layer (domain stays pure). Interfaces injected; the
             // single config is owned by the app bootstrap.

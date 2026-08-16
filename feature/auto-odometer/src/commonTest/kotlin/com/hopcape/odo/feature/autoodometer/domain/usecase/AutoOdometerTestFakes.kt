@@ -224,6 +224,12 @@ internal class FakeTripTracker(enabled: Boolean = false) : TripTracker {
         enabledFlow.value = enabled
     }
 
+    override suspend fun armFromPersistedState() {
+        armCalls++
+    }
+
+    var armCalls = 0
+
     override val isEnabled: Flow<Boolean> get() = enabledFlow
     override val status: Flow<TrackingStatus> get() = statusFlow
 

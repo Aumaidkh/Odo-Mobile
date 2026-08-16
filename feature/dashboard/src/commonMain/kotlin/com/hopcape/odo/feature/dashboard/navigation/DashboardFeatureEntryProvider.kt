@@ -58,6 +58,7 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
             HomeEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
             HomeEffect.OpenLogFill -> navigationManager.navigateTo(OdoDestination.Refuel.Log)
             HomeEffect.OpenAutoDetect -> navigationManager.navigateTo(OdoDestination.Refuel.AutoDetect)
+            HomeEffect.OpenAutoOdometer -> navigationManager.navigateTo(OdoDestination.AutoOdometer.Education())
             HomeEffect.OpenAddDocument -> navigationManager.navigateTo(OdoDestination.Documents.Add())
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
             HomeEffect.OpenPaywall ->

@@ -131,6 +131,26 @@ class TripStateMachineTest {
         )
     }
 
+    // ---- pending stop freezes the session ----
+
+    /**
+     * The walking-after-ignition-off regression (field report, 2026-08-16): fixes that
+     * arrive during the stitch window must not touch the session — not its distance (the
+     * owner is on foot, not driving) and not its lastGoodFix (the parked spot must not
+     * drift along with the walk). AutoOdometerTrackingBugsTest covers the same rule end
+     * to end.
+     */
+    @Test
+    fun pendingStopFix_leavesTheSessionFrozen() {
+        val original = session(distanceMeters = 500)
+        val pending = TripPhase.PendingStop(original, t0 + config.stitchWindow)
+
+        val result = go(pending, fixEvent(sample(t0 + 10.seconds), addedMeters = 40), t0 + 10.seconds)
+
+        assertEquals(pending, result.newState)
+        assertTrue(result.effects.isEmpty())
+    }
+
     // ---- stitch expiry finalizes ----
 
     @Test

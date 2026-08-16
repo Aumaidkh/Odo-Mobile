@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -162,10 +163,18 @@ internal class SettingsViewModel(
         }
     }
 
-    /** A direct mirror of `TripTracker.isEnabled` — not routed through Pause/ResumeTracking (plan §4.2). */
+    /**
+     * A direct mirror of `TripTracker.isEnabled` — not routed through Pause/ResumeTracking
+     * (plan §4.2). The choice is persisted too: `trackerEnabled` is what
+     * `TripTracker.armFromPersistedState` reads at cold start, so a toggle that only
+     * flipped the in-memory flag would be undone (off) or overridden (on) by the next
+     * process death.
+     */
     private fun toggleTapped() {
         val next = !_state.value.trackingEnabled
         viewModelScope.launch(telemetry.op(TRACE_TOGGLE)) {
+            val current = settings.observe().first()
+            settings.save(current.copy(trackerEnabled = next))
             tracker.setEnabled(next)
             telemetry.trackingToggled(next)
         }

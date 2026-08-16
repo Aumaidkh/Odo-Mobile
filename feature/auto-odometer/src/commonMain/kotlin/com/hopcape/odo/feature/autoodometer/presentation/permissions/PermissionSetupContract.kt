@@ -9,20 +9,31 @@ import com.hopcape.odo.core.triptracker.TriggerMode
  * [required] marks whether this step gates completion. Notifications is soft-required — the
  * feature keeps working without it (`TrackingReadiness.canTrack` never reads it, see
  * `:core:triptracker`'s `TrackingReadiness`) — so a declined or blocked notifications step
- * still lets the checklist finish. Fine location (and activity recognition on the NO_STEREO
- * path) are load-bearing: without them there is nothing for the engine to track with, so the
- * checklist stays on that step until it is granted.
+ * still lets the checklist finish. Fine location, background location (and activity
+ * recognition on the NO_STEREO path) are load-bearing: without them there is nothing for
+ * the engine to track with, so the checklist stays on that step until it is granted.
+ *
+ * [BACKGROUND_LOCATION] comes strictly after [FINE_LOCATION], never bundled with it —
+ * Android 11+ refuses a combined ask outright, and Play's location policy expects the
+ * incremental order. The step's priming card is the in-app rationale the policy requires
+ * before the system's own screen: on Android 11+ the request opens the app's location
+ * settings page (there is no dialog any more), where the owner picks "Allow all the time".
+ * Without it a trip only ever starts with the app open, which defeats the feature — this
+ * used to be deferred to the trip-logged screen as an upgrade prompt, and field use showed
+ * owners never got there: the first background trip silently never started.
  */
 internal enum class PermissionSetupStep(val required: Boolean) {
     NOTIFICATIONS(required = false),
     FINE_LOCATION(required = true),
+    BACKGROUND_LOCATION(required = true),
     ACTIVITY_RECOGNITION(required = true),
 }
 
-/** Builds the step order for [mode] — 2 steps for STEREO, 3 for NO_STEREO (plan §5). */
+/** Builds the step order for [mode] — 3 steps for STEREO, 4 for NO_STEREO (plan §5). */
 internal fun stepsFor(mode: TriggerMode): List<PermissionSetupStep> = buildList {
     add(PermissionSetupStep.NOTIFICATIONS)
     add(PermissionSetupStep.FINE_LOCATION)
+    add(PermissionSetupStep.BACKGROUND_LOCATION)
     if (mode == TriggerMode.NO_STEREO) add(PermissionSetupStep.ACTIVITY_RECOGNITION)
 }
 

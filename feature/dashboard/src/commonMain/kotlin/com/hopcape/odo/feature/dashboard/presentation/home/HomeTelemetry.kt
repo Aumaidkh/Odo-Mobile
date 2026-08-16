@@ -113,6 +113,12 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.AUTO_DETECT_PAYWALLED, tc = flowTrace.toLog())
     }
 
+    /** The auto-odometer offer card — the funnel's dashboard entry, distinct from the garage card's. */
+    fun autoOdometerTapped() {
+        analytics.track(Event.AUTO_ODOMETER_TAPPED, emptyMap())
+        logger.info(TAG, Event.AUTO_ODOMETER_TAPPED, tc = flowTrace.toLog())
+    }
+
     /** "Add your car" from the no-car state — setup never finished, and this is the way back. */
     fun addCarTapped() {
         analytics.track(Event.ADD_CAR_TAPPED, emptyMap())
@@ -158,6 +164,7 @@ internal class HomeTelemetry(
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"
         const val ADD_CAR_TAPPED = "home_add_car_tapped"
         const val AUTO_DETECT_PAYWALLED = "home_auto_detect_paywalled"
+        const val AUTO_ODOMETER_TAPPED = "home_auto_odometer_tapped"
         const val READ_FAILED = "home_read_failed"
     }
 

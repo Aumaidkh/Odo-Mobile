@@ -45,6 +45,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
+import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
@@ -63,6 +64,8 @@ import com.hopcape.odo.feature.dashboard.resources.Res
 import com.hopcape.odo.feature.dashboard.resources.db_score_none
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
@@ -163,7 +166,7 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, state.offerAutoOdometer, onEvent)
             }
         }
     }
@@ -174,13 +177,14 @@ private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
     autoDetectLocked: Boolean,
+    offerAutoOdometer: Boolean,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, offerAutoOdometer, onEvent)
     }
 }
 
@@ -285,11 +289,13 @@ private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
     autoDetectLocked: Boolean,
+    offerAutoOdometer: Boolean,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HealthCard(content, onEvent)
     FuelCard(content.tank, onEvent)
     if (offerAutoDetect) AutoDetectOffer(autoDetectLocked, onEvent)
+    if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
     content.insight?.let { InsightCard(it) }
@@ -349,6 +355,55 @@ private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
                 }
                 OdoText(
                     stringResource(Res.string.hm_auto_detect_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
+        }
+    }
+}
+
+/**
+ * The auto odometer's second doorway — [AutoDetectOffer]'s twin, same reasoning.
+ *
+ * Enrollment's home is the garage card, but the garage is a tab most owners visit less
+ * often than this one, and a feature discoverable from a single slot is a feature that
+ * mostly goes unmet. It opens the education screen — what would be tracked and when,
+ * before any permission — and leaves the dashboard on its own once tracking is set up.
+ */
+@Composable
+private fun AutoOdometerOffer(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_ODOMETER_OFFER),
+        onClick = { onEvent(HomeEvent.AutoOdometerTapped) },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoIcon(
+                IcSpeedometer,
+                contentDescription = null,
+                tint = OdoTheme.colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
+                OdoText(
+                    stringResource(Res.string.hm_auto_odometer_title),
+                    style = OdoTheme.typography.label,
+                )
+                OdoText(
+                    stringResource(Res.string.hm_auto_odometer_body),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )

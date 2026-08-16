@@ -10,6 +10,8 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
+import com.hopcape.odo.core.triptracker.TripTracker
+import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.feature.dashboard.domain.model.HomeSnapshot
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
@@ -47,6 +49,8 @@ internal class HomeViewModel(
     observeHome: ObserveHomeUseCase,
     private val detection: RefuelDetectionStore,
     private val smartRefuel: SmartRefuelAllowance,
+    private val bonds: VehicleBondStore,
+    private val tracker: TripTracker,
     private val telemetry: HomeTelemetry,
 ) : ViewModel() {
 
@@ -85,6 +89,8 @@ internal class HomeViewModel(
         // it is the only place the feature is discoverable — so the plan decides what the tap
         // does, not whether the card exists.
         .combine(autoDetectLocked()) { ui, locked -> ui.copy(autoDetectLocked = locked) }
+        // Same shape as the auto-detect offer: device state, not car state.
+        .combine(offerAutoOdometer()) { ui, offer -> ui.copy(offerAutoOdometer = offer) }
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -125,6 +131,22 @@ internal class HomeViewModel(
             detection.observeSettings().map { !it.detectEnabled }.catch { emit(false) }
         }
 
+    /**
+     * Whether the auto odometer is worth pitching: built, and not already set up.
+     *
+     * "Set up" is the same fact the garage's `ObserveAutoOdometerCardState` reads — a bond
+     * exists and tracking is on. [VehicleBondStore.bond] is a plain suspend getter (no
+     * bond-change stream exists), re-read whenever the enabled flag moves — which is
+     * exactly when enrollment finishes, so the card leaves the dashboard on its own.
+     * A failed read hides the offer: a card is not worth a crashed dashboard.
+     */
+    private fun offerAutoOdometer(): Flow<Boolean> =
+        if (!FeatureFlags.AUTO_ODOMETER_ENABLED) {
+            flowOf(false)
+        } else {
+            tracker.isEnabled.map { enabled -> !(enabled && bonds.bond() != null) }.catch { emit(false) }
+        }
+
     fun onEvent(event: HomeEvent) = when (event) {
         HomeEvent.BreakdownTapped -> {
             telemetry.breakdownOpened()
@@ -158,6 +180,11 @@ internal class HomeViewModel(
             } else {
                 send(HomeEffect.OpenAutoDetect)
             }
+
+        HomeEvent.AutoOdometerTapped -> {
+            telemetry.autoOdometerTapped()
+            send(HomeEffect.OpenAutoOdometer)
+        }
 
         HomeEvent.AddDocumentsTapped -> {
             telemetry.addDocumentsTapped()
