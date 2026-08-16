@@ -251,6 +251,7 @@ internal class FakeTripTracker(enabled: Boolean = false) : TripTracker {
     override suspend fun setEnabled(enabled: Boolean) {
         enabledFlow.value = enabled
     }
+    override suspend fun armFromPersistedState() = Unit
     override val isEnabled: Flow<Boolean> get() = enabledFlow
     override val status: Flow<TrackingStatus> get() = flowOf(TrackingStatus.Disabled)
     override suspend fun pauseActiveTrip() = Unit
