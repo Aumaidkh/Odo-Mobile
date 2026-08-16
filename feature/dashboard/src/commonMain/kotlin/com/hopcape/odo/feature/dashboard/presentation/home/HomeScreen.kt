@@ -177,7 +177,7 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, state.offerAutoOdometer, healthAnchor, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, onEvent)
             }
         }
     }
@@ -218,7 +218,6 @@ internal fun HomeScreen(
 private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
-    autoDetectLocked: Boolean,
     offerAutoOdometer: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
@@ -227,7 +226,7 @@ private fun HomeBody(
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, offerAutoOdometer, healthAnchor, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, offerAutoOdometer, healthAnchor, onEvent)
     }
 }
 
@@ -331,14 +330,13 @@ private fun CircleButton(
 private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
-    autoDetectLocked: Boolean,
     offerAutoOdometer: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HealthCard(content, onEvent, Modifier.coachMarkAnchor(healthAnchor))
     FuelCard(content.tank, onEvent)
-    if (offerAutoDetect) AutoDetectOffer(autoDetectLocked, onEvent)
+    if (offerAutoDetect) AutoDetectOffer(onEvent)
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
@@ -356,10 +354,11 @@ private fun ScoredContent(
  * read and what would not, and the system's own prompt only after they have chosen to go on;
  * a card that asked for notification access on tap would be asking before it explained.
  *
- * Gone the moment detection is on, so it is an offer rather than an advert.
+ * Gone the moment detection is on, so it is an offer rather than an advert. Never carries a
+ * Pro badge: automatic logging is free (#251), so there is nothing here to sell.
  */
 @Composable
-private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
+private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
     OdoCard(
         modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_DETECT_OFFER),
         onClick = { onEvent(HomeEvent.AutoDetectTapped) },
@@ -379,24 +378,10 @@ private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
                 Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OdoText(
-                        stringResource(Res.string.hm_auto_detect_title),
-                        style = OdoTheme.typography.label,
-                    )
-                    // Named before it is tapped. A card that opens a paywall without saying
-                    // so first reads as a trick, and the owner who cannot buy today should be
-                    // able to skip it without spending a tap to find out.
-                    if (locked) {
-                        OdoBadge(
-                            text = stringResource(Res.string.hm_badge_pro),
-                            tone = OdoBadgeTone.Accent,
-                        )
-                    }
-                }
+                OdoText(
+                    stringResource(Res.string.hm_auto_detect_title),
+                    style = OdoTheme.typography.label,
+                )
                 OdoText(
                     stringResource(Res.string.hm_auto_detect_body),
                     style = OdoTheme.typography.bodySmall,

@@ -19,21 +19,35 @@ package com.hopcape.odo.core.domain.entitlement
 object PlanLimits {
 
     /**
-     * The free plan. PRD §pricing: three documents in the vault, three scans a month, and
-     * neither the health-score breakdown nor the record export.
+     * The free plan (Growth Plan v3, #244): three documents in the vault, five scans ever,
+     * and neither the health-score breakdown nor the record export.
+     *
+     * **What is deliberately absent.** Growth Plan v3 names three things that must never be
+     * gated, and the way to keep a promise like that is to make breaking it visible:
+     *
+     * - **Reminders** (#249). They are the retention engine and the affiliate engine both —
+     *   the insurance/PUC referral revenue hangs off the expiry reminder, so a gated
+     *   reminder is a gated referral. `PlanLimitsTest` fails if a reminder-shaped entry
+     *   appears in [ProFeature], which is the only thing standing between this rule and
+     *   someone in a hurry six months from now.
+     * - **Auto odometer** and **refuel logging**, automatic channel included. They are the
+     *   habit engines: capping them stops the habit forming for exactly the owners who have
+     *   not paid yet, which are the ones the habit was meant to convert. Detection used to
+     *   be `SMART_REFUEL_DETECT to Quota.UpTo(10)` and the cap was enforced by releasing the
+     *   notification-listener binding — an owner who granted the most sensitive permission
+     *   on the phone quietly stopped getting what they granted it for. Removed in #251.
      */
     private val FREE_PLAN: Map<ProFeature, Quota> = mapOf(
         ProFeature.DOCUMENTS to Quota.UpTo(3),
-        ProFeature.BILL_SCANS to Quota.UpTo(3),
+        // Lifetime, not monthly (#248). Three a month never fired: an owner services a car
+        // three or four times a *year*, so the cap existed and was never reached. The fix is
+        // the period rather than the number — five is the first service, the RC and the
+        // insurance, which is a real taste that runs out inside the first year.
+        ProFeature.BILL_SCANS to Quota.UpTo(5),
         ProFeature.HEALTH_BREAKDOWN to Quota.None,
-        // Lifetime, like the smart-refuel allowance and for the same reason: an owner exports
-        // a record when they are selling the car or handing it to a workshop, which is a
-        // handful of times ever. A monthly three would never bind.
+        // Lifetime, for the same reason: an owner exports a record when they are selling the
+        // car or handing it to a workshop, which is a handful of times ever.
         ProFeature.RECORD_EXPORT to Quota.UpTo(3),
-        // Lifetime, not monthly. An owner refuels a handful of times a month, so ten a month
-        // would never be reached — the cap would exist and never bind. Ten in total is a
-        // taste of automatic logging that runs out.
-        ProFeature.SMART_REFUEL_DETECT to Quota.UpTo(10),
     )
 
     /** What [plan] permits of [feature]. */

@@ -17,7 +17,7 @@ enum class ProFeature {
     /** Documents kept in the vault. Counted — the free plan holds a few. */
     DOCUMENTS,
 
-    /** Bill and document scans. Counted per calendar month. */
+    /** Bill and document scans. Counted for the lifetime of the install, not per month. */
     BILL_SCANS,
 
     /** The factor breakdown behind the health score. On/off. */
@@ -25,14 +25,4 @@ enum class ProFeature {
 
     /** Exporting the car's record as a PDF. On/off. */
     RECORD_EXPORT,
-
-    /**
-     * Automatic fuel logging — Odo reading a pump payment and drafting the fill. On/off.
-     *
-     * Only the *automatic* channel. Logging a fill by hand, from a photo of the pump display,
-     * or from the owner's own history stays free and stays on the dashboard, because a fill
-     * that goes unlogged costs the owner the running-cost figure they came for. What Pro sells
-     * is not being asked at all.
-     */
-    SMART_REFUEL_DETECT,
 }

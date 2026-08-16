@@ -66,18 +66,6 @@ internal data class HomeUiState(
      */
     val offerAutoOdometer: Boolean = false,
 
-    /**
-     * Whether automatic logging is behind Pro for this owner.
-     *
-     * Shown rather than hidden when locked, and that is the point: the card is the only place
-     * automatic logging is discoverable, so hiding it from free owners would mean nobody ever
-     * learns the thing Pro sells. Locked, it carries a badge and opens the paywall; unlocked,
-     * it opens the explanation as before.
-     *
-     * "Log a fill" above it is untouched either way. Logging by hand stays free, so the
-     * dashboard always answers "can I record this fill?" with yes.
-     */
-    val autoDetectLocked: Boolean = false,
 )
 
 /** A loaded dashboard. */
