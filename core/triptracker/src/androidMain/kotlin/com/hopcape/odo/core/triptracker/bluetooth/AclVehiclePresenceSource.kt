@@ -15,6 +15,13 @@ internal class AclVehiclePresenceSource : VehiclePresenceSource {
 
     private val events = MutableSharedFlow<VehiclePresence>(extraBufferCapacity = EVENT_BUFFER)
 
+    /**
+     * Live collector count. The test harness waits on this before emitting: [onPresence]
+     * drops the event when nothing collects yet (no replay, deliberately — see the KDoc
+     * above), and the engine's own subscription starts asynchronously after enable.
+     */
+    internal val subscriptionCount get() = events.subscriptionCount
+
     override fun presence(): Flow<VehiclePresence> = events
 
     fun onPresence(presence: VehiclePresence) {
