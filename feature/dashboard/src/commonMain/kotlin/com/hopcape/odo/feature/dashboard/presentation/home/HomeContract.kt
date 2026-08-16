@@ -52,6 +52,15 @@ internal sealed interface HomeEvent {
 
     /** Home left composition while the SCAN coach mark was up — release the grant, not seen. */
     data object ScanShowcaseLeft : HomeEvent
+
+    /** The health-score coach mark was tapped away. Seen forever (#232). */
+    data object HealthShowcaseDismissed : HomeEvent
+
+    /** The health coach mark's cutout was tapped — open the breakdown it points at. Seen forever. */
+    data object HealthShowcaseActedOn : HomeEvent
+
+    /** Home left composition while the health coach mark was up — release the grant, not seen. */
+    data object HealthShowcaseLeft : HomeEvent
 }
 
 /** One-shot handoffs the route host performs. */

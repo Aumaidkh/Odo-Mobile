@@ -46,7 +46,10 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
     // coach mark is up must release the arbiter's grant without burning the hook's one
     // showing — the owner never answered it (#228).
     DisposableEffect(Unit) {
-        onDispose { viewModel.onEvent(HomeEvent.ScanShowcaseLeft) }
+        onDispose {
+            viewModel.onEvent(HomeEvent.ScanShowcaseLeft)
+            viewModel.onEvent(HomeEvent.HealthShowcaseLeft)
+        }
     }
 
     CollectEffects(viewModel.effects) { effect ->

@@ -18,6 +18,14 @@ internal data class TimelineUiState(
     /** No active car — setup incomplete or the car was removed. A nudge, not a spinner:
      *  there is no read in flight, so a loader would spin forever. */
     val noCar: Boolean = false,
+    /**
+     * Whether the record-export coach mark is up (#233) — granted only once the record is
+     * worth showing (three or more verified services); a document with two rows in it
+     * argues against the feature rather than for it.
+     */
+    val recordShowcase: Boolean = false,
+    /** Read only to pick the coach mark's copy — Pro never sees a plan named, free does. */
+    val proPlan: Boolean = false,
 )
 
 /** A loaded timeline. */

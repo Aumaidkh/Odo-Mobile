@@ -10,6 +10,8 @@ import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Plan
 import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
 import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.triptracker.TripTracker
@@ -56,6 +58,7 @@ internal class HomeViewModel(
     private val bonds: VehicleBondStore,
     private val tracker: TripTracker,
     private val showcase: ShowcaseArbiter,
+    private val entitlements: EntitlementSource,
     private val telemetry: HomeTelemetry,
 ) : ViewModel() {
 
@@ -64,6 +67,11 @@ internal class HomeViewModel(
 
     /** One ask per visit — reset when the surface is left, so the next visit may ask again. */
     private var scanShowcaseRequested = false
+
+    /** True while the health coach mark holds the arbiter's grant (#232). */
+    private val healthShowcaseVisible = MutableStateFlow(false)
+
+    private var healthShowcaseRequested = false
 
     private val _effects = Channel<HomeEffect>(Channel.BUFFERED)
     val effects: Flow<HomeEffect> = _effects.receiveAsFlow()
@@ -103,7 +111,13 @@ internal class HomeViewModel(
         // Same shape as the auto-detect offer: device state, not car state.
         .combine(offerAutoOdometer()) { ui, offer -> ui.copy(offerAutoOdometer = offer) }
         .combine(scanShowcaseVisible) { ui, visible -> ui.copy(scanShowcase = visible) }
+        .combine(healthShowcaseVisible) { ui, visible -> ui.copy(healthShowcase = visible) }
+        // Read only to pick the Pro-gated coach marks' copy — never to hide them.
+        .combine(entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }) { ui, pro ->
+            ui.copy(proPlan = pro)
+        }
         .onEach(::maybeRequestScanShowcase)
+        .onEach(::maybeRequestHealthShowcase)
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -150,6 +164,23 @@ internal class HomeViewModel(
         scanShowcaseRequested = true
         if (showcase.request(ShowcaseHookId.SCAN_BUTTON)) {
             scanShowcaseVisible.value = true
+        }
+    }
+
+    /**
+     * The health hook's due-condition (#232): the score is on screen — the scored
+     * dashboard, not the checklist. What the number responds to is a screen away, and
+     * nothing else suggests it is actionable. If the SCAN hook is also due on the same
+     * frame, the arbiter grants exactly one; the other waits for its next visit.
+     */
+    private suspend fun maybeRequestHealthShowcase(ui: HomeUiState) {
+        if (healthShowcaseRequested) return
+        val content = ui.content.valueOrNull ?: return
+        val due = !content.hasNoCar && !content.isNewUser
+        if (!due) return
+        healthShowcaseRequested = true
+        if (showcase.request(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN)) {
+            healthShowcaseVisible.value = true
         }
     }
 
@@ -242,6 +273,24 @@ internal class HomeViewModel(
             if (scanShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.SCAN_BUTTON)
             scanShowcaseVisible.value = false
             scanShowcaseRequested = false
+        }
+
+        HomeEvent.HealthShowcaseDismissed -> {
+            healthShowcaseVisible.value = false
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN) }
+            Unit
+        }
+
+        HomeEvent.HealthShowcaseActedOn -> {
+            healthShowcaseVisible.value = false
+            viewModelScope.launch { showcase.actedOn(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN) }
+            send(HomeEffect.OpenHealthScore)
+        }
+
+        HomeEvent.HealthShowcaseLeft -> {
+            if (healthShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN)
+            healthShowcaseVisible.value = false
+            healthShowcaseRequested = false
         }
     }
 

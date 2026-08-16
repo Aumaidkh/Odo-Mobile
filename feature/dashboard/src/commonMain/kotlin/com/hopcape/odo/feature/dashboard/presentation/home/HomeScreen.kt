@@ -68,8 +68,13 @@ import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_showcase
 import com.hopcape.odo.feature.dashboard.resources.hm_showcase_dismiss
+import com.hopcape.odo.core.designsystem.component.CoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.feature.dashboard.presentation.shell.LocalScanCoachMarkAnchor
+import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase
+import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase_free
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
@@ -141,6 +146,8 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val content = (state.content as? Loadable.Ready)?.value
+    // The health card writes its bounds here for the #232 coach mark.
+    val healthAnchor = rememberCoachMarkAnchorState()
     OdoScreen(
         modifier = modifier.testTag(HomeTestTags.SCREEN),
         bottomBar = {
@@ -170,7 +177,7 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, state.offerAutoOdometer, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, state.offerAutoOdometer, healthAnchor, onEvent)
             }
         }
     }
@@ -189,6 +196,22 @@ internal fun HomeScreen(
             onAnchorTap = { onEvent(HomeEvent.ScanShowcaseActedOn) },
         )
     }
+
+    // The health-score coach mark (#232). The breakdown is Pro-gated, so the copy obeys
+    // the epic's rule: a free owner is told it is included with Pro before they tap; a
+    // Pro owner never sees a plan mentioned. Only one of the two Home marks can hold the
+    // arbiter's grant, so these never stack.
+    if (state.healthShowcase) {
+        OdoCoachMark(
+            text = stringResource(
+                if (state.proPlan) Res.string.hm_health_showcase else Res.string.hm_health_showcase_free,
+            ),
+            dismissLabel = stringResource(Res.string.hm_showcase_dismiss),
+            anchor = healthAnchor,
+            onDismiss = { onEvent(HomeEvent.HealthShowcaseDismissed) },
+            onAnchorTap = { onEvent(HomeEvent.HealthShowcaseActedOn) },
+        )
+    }
 }
 
 @Composable
@@ -197,13 +220,14 @@ private fun HomeBody(
     offerAutoDetect: Boolean,
     autoDetectLocked: Boolean,
     offerAutoOdometer: Boolean,
+    healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, offerAutoOdometer, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, offerAutoOdometer, healthAnchor, onEvent)
     }
 }
 
@@ -309,9 +333,10 @@ private fun ScoredContent(
     offerAutoDetect: Boolean,
     autoDetectLocked: Boolean,
     offerAutoOdometer: Boolean,
+    healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    HealthCard(content, onEvent)
+    HealthCard(content, onEvent, Modifier.coachMarkAnchor(healthAnchor))
     FuelCard(content.tank, onEvent)
     if (offerAutoDetect) AutoDetectOffer(autoDetectLocked, onEvent)
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
@@ -565,8 +590,12 @@ private fun fuelQuantity(tank: TankStatus): String {
 }
 
 @Composable
-private fun HealthCard(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
-    OdoCard(modifier = Modifier.testTag(HomeTestTags.HEALTH_CARD)) {
+private fun HealthCard(
+    content: HomeContent,
+    onEvent: (HomeEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoCard(modifier = modifier.testTag(HomeTestTags.HEALTH_CARD)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
             verticalAlignment = Alignment.CenterVertically,

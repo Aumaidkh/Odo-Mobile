@@ -44,6 +44,17 @@ internal data class HomeUiState(
      */
     val scanShowcase: Boolean = false,
 
+    /** Whether the health-score coach mark is up (#232) — granted on the first scored dashboard. */
+    val healthShowcase: Boolean = false,
+
+    /**
+     * Whether the owner's plan is Pro — read only to pick the health coach mark's copy.
+     * The epic's rule: a hook pointing at a gated feature says so in its own words (a
+     * free owner is told the breakdown is included with Pro), and a Pro owner never sees
+     * a plan mentioned.
+     */
+    val proPlan: Boolean = false,
+
     /**
      * Whether to pitch the auto odometer.
      *

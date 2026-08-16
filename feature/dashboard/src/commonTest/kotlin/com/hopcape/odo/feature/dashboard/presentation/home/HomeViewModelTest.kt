@@ -52,6 +52,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.entitlement.Plan
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -361,6 +363,41 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun healthShowcase_grantedOnTheFirstScoredDashboard() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready && it.healthShowcase }.healthShowcase)
+    }
+
+    @Test
+    fun healthShowcase_notGranted_beforeAnythingIsScored() = runTest(dispatcher) {
+        val vm = viewModel(entries = emptyList(), documents = emptyList())
+        vm.state.first { it.content is Loadable.Ready }
+
+        assertFalse(vm.state.value.healthShowcase)
+    }
+
+    @Test
+    fun healthShowcaseActedOn_opensTheBreakdown_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(seenStore = seen)
+        vm.state.first { it.healthShowcase }
+
+        vm.onEvent(HomeEvent.HealthShowcaseActedOn)
+
+        assertIs<HomeEffect.OpenHealthScore>(vm.effects.first())
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN in seen.seen)
+    }
+
+    @Test
+    fun proPlan_isCarriedForTheProCopyVariant() = runTest(dispatcher) {
+        val vm = viewModel(isPro = true)
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready }.proPlan)
+    }
+
+    @Test
     fun autoOdometerTapped_opensTheEducationScreen() = runTest(dispatcher) {
         val vm = viewModel()
         vm.state.first { it.content is Loadable.Ready }
@@ -399,8 +436,16 @@ class HomeViewModelTest {
         bonds = FakeVehicleBondStore(bond),
         tracker = FakeTripTracker(enabled = trackingEnabled),
         showcase = ShowcaseArbiter(seenStore),
+        entitlements = FakeEntitlementSource(isPro = isPro),
         telemetry = telemetry(analytics),
     )
+
+    private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
+        override fun observe(): Flow<Entitlements> =
+            flowOf(Entitlements(plan = if (isPro) Plan.PRO else Plan.FREE))
+
+        override suspend fun refresh() = Unit
+    }
 
     /** A [SmartRefuelAllowance] that stands still on one plan and one tally. */
     private fun smartRefuelAllowance(used: Int, isPro: Boolean) = SmartRefuelAllowance {

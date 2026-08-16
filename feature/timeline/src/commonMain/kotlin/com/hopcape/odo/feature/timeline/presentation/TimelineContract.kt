@@ -11,6 +11,15 @@ internal sealed interface TimelineEvent {
     /** The share button in the header. */
     data object ShareTapped : TimelineEvent
 
+    /** The record coach mark was tapped away. Seen forever (#233). */
+    data object RecordShowcaseDismissed : TimelineEvent
+
+    /** The record coach mark's cutout (the share button) was tapped — open the share. Seen forever. */
+    data object RecordShowcaseActedOn : TimelineEvent
+
+    /** The screen left composition while the coach mark was up — release the grant, not seen. */
+    data object RecordShowcaseLeft : TimelineEvent
+
     /** A service card — opens that entry's detail. */
     data class ServiceTapped(val id: ServiceLogId) : TimelineEvent
 
