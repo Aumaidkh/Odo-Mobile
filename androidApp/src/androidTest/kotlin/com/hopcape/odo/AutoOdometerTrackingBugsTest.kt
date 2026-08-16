@@ -74,6 +74,7 @@ class AutoOdometerTrackingBugsTest {
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.POST_NOTIFICATIONS,
                 Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
             )
         } else {
             TestRule { base, _ -> base }

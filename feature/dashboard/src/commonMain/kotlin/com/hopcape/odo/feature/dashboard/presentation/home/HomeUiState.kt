@@ -37,6 +37,17 @@ internal data class HomeUiState(
     val offerAutoDetect: Boolean = false,
 
     /**
+     * Whether to pitch the auto odometer.
+     *
+     * Same reasoning as [offerAutoDetect]: enrollment lives behind the garage card, and a
+     * feature discoverable from one slot on one tab is a feature most owners never meet.
+     * True while the feature is available and not set up; gone the moment a bond exists
+     * and tracking is on, so it is an offer rather than an advert. The card opens the
+     * education screen — the same entry the garage card uses — never a permission.
+     */
+    val offerAutoOdometer: Boolean = false,
+
+    /**
      * Whether automatic logging is behind Pro for this owner.
      *
      * Shown rather than hidden when locked, and that is the point: the card is the only place

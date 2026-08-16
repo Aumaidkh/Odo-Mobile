@@ -23,6 +23,11 @@ import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
 import com.hopcape.odo.feature.dashboard.FixedClock
 import com.hopcape.odo.feature.dashboard.TEST_CAR
 import com.hopcape.odo.feature.dashboard.currentOdometerFrom
+import com.hopcape.odo.core.triptracker.TrackingStatus
+import com.hopcape.odo.core.triptracker.TriggerMode
+import com.hopcape.odo.core.triptracker.TripTracker
+import com.hopcape.odo.core.triptracker.VehicleBond
+import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 import com.hopcape.odo.feature.dashboard.testDocument
@@ -45,6 +50,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.hopcape.odo.core.domain.entitlement.Plan
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.assertFalse
 import com.hopcape.odo.core.domain.entitlement.ProFeature
@@ -277,6 +284,26 @@ class HomeViewModelTest {
         assertIs<HomeEffect.OpenAutoDetect>(vm.effects.first())
     }
 
+    @Test
+    fun autoOdometerOffer_shownWhileNotSetUp_andGoneOnceEnrolledAndOn() = runTest {
+        val offered = viewModel(bond = null, trackingEnabled = false)
+        assertTrue(offered.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
+
+        val setUp = viewModel(
+            bond = VehicleBond(carId = TEST_CAR, bluetoothId = "bt-1", triggerMode = TriggerMode.STEREO),
+            trackingEnabled = true,
+        )
+        assertFalse(setUp.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
+    }
+
+    @Test
+    fun autoOdometerTapped_opensTheEducationScreen() = runTest {
+        val vm = viewModel()
+        vm.state.first { it.content is Loadable.Ready }
+        vm.onEvent(HomeEvent.AutoOdometerTapped)
+        assertIs<HomeEffect.OpenAutoOdometer>(vm.effects.first())
+    }
+
     private fun viewModel(
         carId: CarId? = TEST_CAR,
         entries: List<ServiceLogEntry> = this.entries,
@@ -285,6 +312,8 @@ class HomeViewModelTest {
         analytics: RecordingAnalytics = RecordingAnalytics(),
         isPro: Boolean = false,
         detectedFillsUsed: Int = 0,
+        bond: VehicleBond? = null,
+        trackingEnabled: Boolean = false,
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -302,6 +331,8 @@ class HomeViewModelTest {
         ),
         detection = FakeRefuelDetectionStore(),
         smartRefuel = smartRefuelAllowance(used = detectedFillsUsed, isPro = isPro),
+        bonds = FakeVehicleBondStore(bond),
+        tracker = FakeTripTracker(enabled = trackingEnabled),
         telemetry = telemetry(analytics),
     )
 
@@ -342,5 +373,26 @@ class HomeViewModelTest {
 
         override fun setConsent(status: ConsentStatus) = Unit
         override fun flush() = Unit
+    }
+
+    private class FakeVehicleBondStore(private val bond: VehicleBond?) : VehicleBondStore {
+        override suspend fun bond(): VehicleBond? = bond
+        override suspend fun saveBond(bond: VehicleBond) = Unit
+        override suspend fun clearBond() = Unit
+    }
+
+    private class FakeTripTracker(enabled: Boolean) : TripTracker {
+        private val enabledFlow = MutableStateFlow(enabled)
+        override suspend fun setEnabled(enabled: Boolean) {
+            enabledFlow.value = enabled
+        }
+
+        override suspend fun armFromPersistedState() = Unit
+        override val isEnabled: Flow<Boolean> get() = enabledFlow
+        override val status: Flow<TrackingStatus> get() = flowOf(TrackingStatus.Disabled)
+        override suspend fun pauseActiveTrip() = Unit
+        override suspend fun resumeActiveTrip() = Unit
+        override suspend fun discardActiveTrip() = Unit
+        override suspend fun startIfConnected() = Unit
     }
 }

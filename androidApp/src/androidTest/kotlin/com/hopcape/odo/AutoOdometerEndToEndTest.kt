@@ -30,7 +30,8 @@ import org.junit.runner.RunWith
  * card/status-tile aggregation.
  *
  * **Why no system permission dialog is ever tapped.** `BLUETOOTH_CONNECT`,
- * `POST_NOTIFICATIONS` and `ACCESS_FINE_LOCATION` are granted for the whole class, the same
+ * `POST_NOTIFICATIONS`, `ACCESS_FINE_LOCATION` and `ACCESS_BACKGROUND_LOCATION` are
+ * granted for the whole class, the same
  * choice [BillScannerEndToEndTest] makes for `CAMERA` — an instrumented test cannot drive an
  * OS dialog reliably across versions, and what Odo owns is the screen in front of it. With
  * every step already granted, the permission checklist (M4) advances itself the moment each
@@ -78,6 +79,7 @@ class AutoOdometerEndToEndTest {
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.POST_NOTIFICATIONS,
                 Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
             )
         } else {
             TestRule { base, _ -> base }

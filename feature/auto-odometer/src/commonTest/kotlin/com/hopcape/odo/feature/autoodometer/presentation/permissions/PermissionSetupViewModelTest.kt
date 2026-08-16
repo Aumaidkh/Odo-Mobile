@@ -99,21 +99,26 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun stereoMode_buildsTheTwoStepSequence() = runTest {
+    fun stereoMode_buildsTheThreeStepSequence() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
 
         assertEquals(
-            listOf(PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION),
+            listOf(PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION),
             h.vm.state.value.steps.map { it.step },
         )
     }
 
     @Test
-    fun noStereoMode_buildsTheThreeStepSequence_withActivityRecognitionLast() = runTest {
+    fun noStereoMode_buildsTheFourStepSequence_withActivityRecognitionLast() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
 
         assertEquals(
-            listOf(PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.ACTIVITY_RECOGNITION),
+            listOf(
+                PermissionSetupStep.NOTIFICATIONS,
+                PermissionSetupStep.FINE_LOCATION,
+                PermissionSetupStep.BACKGROUND_LOCATION,
+                PermissionSetupStep.ACTIVITY_RECOGNITION,
+            ),
             h.vm.state.value.steps.map { it.step },
         )
     }
@@ -124,6 +129,7 @@ class PermissionSetupViewModelTest {
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
 
         assertTrue(h.fakes.bonds.saved.isEmpty(), "STEREO already enrolled at the device picker (F5)")
         assertTrue(h.fakes.tracker.enabled)
@@ -137,6 +143,7 @@ class PermissionSetupViewModelTest {
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
 
         assertEquals(
@@ -158,6 +165,7 @@ class PermissionSetupViewModelTest {
         h.vm.onEvent(PermissionSetupEvent.SkipTapped)
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
 
         assertEquals(TEST_CAR, h.fakes.bonds.saved.single().carId)
@@ -180,10 +188,25 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
+    fun backgroundLocationBlocked_doesNotComplete_andOffersNoSkip() = runTest {
+        val h = harness(mode = TriggerMode.STEREO)
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Blocked))
+
+        assertEquals(PermissionSetupStep.BACKGROUND_LOCATION, h.vm.state.value.current?.step)
+        assertTrue(h.vm.state.value.currentBlocked)
+        assertFalse(h.vm.state.value.showSkip, "background location is required — a trip cannot start with the app closed without it")
+        assertFalse(h.fakes.tracker.enabled)
+    }
+
+    @Test
     fun noStereo_activityRecognitionBlocked_doesNotComplete() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Blocked))
 
@@ -240,9 +263,9 @@ class PermissionSetupViewModelTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
-        assertEquals(PermissionSetupStep.ACTIVITY_RECOGNITION, h.vm.state.value.current?.step)
+        assertEquals(PermissionSetupStep.BACKGROUND_LOCATION, h.vm.state.value.current?.step)
 
-        // Fine location was revoked from system settings while the owner sat on the AR step —
+        // Fine location was revoked from system settings while the owner sat on the next step —
         // the checklist must not keep trusting the stale "granted" answer that let it move on.
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Askable))
 
@@ -260,6 +283,7 @@ class PermissionSetupViewModelTest {
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
 
         assertTrue(h.fakes.bonds.saved.isEmpty())
@@ -304,6 +328,7 @@ class PermissionSetupViewModelTest {
 
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
 
         assertEquals(1, crash.recorded.size)
