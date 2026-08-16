@@ -166,7 +166,7 @@ private class RecordingScanUsage : ScanUsage {
     var recorded = 0
         private set
 
-    override suspend fun usedThisMonth(): Int = recorded
+    override suspend fun used(): Int = recorded
 
     override suspend fun recordScan() {
         recorded++

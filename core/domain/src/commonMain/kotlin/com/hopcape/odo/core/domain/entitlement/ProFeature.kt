@@ -17,7 +17,7 @@ enum class ProFeature {
     /** Documents kept in the vault. Counted — the free plan holds a few. */
     DOCUMENTS,
 
-    /** Bill and document scans. Counted per calendar month. */
+    /** Bill and document scans. Counted for the lifetime of the install, not per month. */
     BILL_SCANS,
 
     /** The factor breakdown behind the health score. On/off. */
@@ -27,12 +27,22 @@ enum class ProFeature {
     RECORD_EXPORT,
 
     /**
-     * Automatic fuel logging — Odo reading a pump payment and drafting the fill. On/off.
+     * The running-cost analysis: the Costs tab's per-category breakdown, the spend chart
+     * and the mileage trend. On/off.
      *
-     * Only the *automatic* channel. Logging a fill by hand, from a photo of the pump display,
-     * or from the owner's own history stays free and stays on the dashboard, because a fill
-     * that goes unlogged costs the owner the running-cost figure they came for. What Pro sells
-     * is not being asked at all.
+     * **Not the running-cost figure itself.** The ₹/km tile on Home stays free (#247): it
+     * has been on the owner's home screen since install, and taking a number away that
+     * someone has read every week is the one move in this re-shape that would read as a
+     * bait-and-switch. What Pro sells is the arithmetic behind it, not the answer.
      */
-    SMART_REFUEL_DETECT,
+    COST_ANALYSIS,
+
+    /**
+     * How the health score has moved over time — the trend against a month ago. On/off.
+     *
+     * The score itself is never gated, and neither is the timeline's record of what changed
+     * it: the timeline is the car's history, not an analysis of it. This is the derived
+     * comparison, which is an output in the plan's sense.
+     */
+    SCORE_HISTORY,
 }

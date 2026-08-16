@@ -34,6 +34,7 @@ import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
+import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
 import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcShare
@@ -53,6 +54,7 @@ import com.hopcape.odo.feature.profile.resources.pf_appear_dark
 import com.hopcape.odo.feature.profile.resources.pf_appear_light
 import com.hopcape.odo.feature.profile.resources.pf_appear_system
 import com.hopcape.odo.feature.profile.resources.pf_appearance
+import com.hopcape.odo.feature.profile.resources.pf_show_around
 import com.hopcape.odo.feature.profile.resources.pf_cd_back
 import com.hopcape.odo.feature.profile.resources.pf_city_missing
 import com.hopcape.odo.feature.profile.resources.pf_data_privacy
@@ -122,6 +124,7 @@ internal fun ProfileScreen(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowAround: () -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
@@ -164,6 +167,7 @@ internal fun ProfileScreen(
                 onHelp = onHelp,
                 onSignIn = onSignIn,
                 onSignOut = onSignOut,
+                onShowAround = onShowAround,
             )
         }
     }
@@ -187,6 +191,7 @@ private fun ProfileContentColumn(
     onHelp: () -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
+    onShowAround: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -223,6 +228,16 @@ private fun ProfileContentColumn(
                 onClick = onAppearance,
                 value = content.theme.label(),
                 testTag = ProfileTestTags.APPEARANCE_ROW,
+            )
+            RowDivider()
+            // #234: clears the coach marks' seen record. Each hook then fires again on its
+            // own surface at its own moment — deliberately not a tour, and deliberately
+            // nothing appears here.
+            SettingsRow(
+                icon = IcLightbulbFilled,
+                title = stringResource(Res.string.pf_show_around),
+                onClick = onShowAround,
+                showChevron = false,
             )
         }
 

@@ -29,7 +29,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
 import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
+import com.hopcape.odo.core.domain.subscription.OneTimeProducts
+import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 
 /**
  * State holder for the "share verified record" sheet.
@@ -55,6 +58,8 @@ internal class ShareRecordViewModel(
     private val observeDetail: ObserveEntryDetailUseCase,
     private val entitlements: EntitlementSource,
     private val exportUsage: RecordExportUsage,
+    private val exportCredits: ExportCredits,
+    private val oneTimePurchaser: OneTimePurchaser,
     private val documents: ServiceRecordDocumentFactory,
     private val bills: ServiceBillDocumentFactory,
     private val files: PlatformFileStore,
@@ -107,6 +112,15 @@ internal class ShareRecordViewModel(
     fun onEvent(event: ShareRecordEvent) = when (event) {
         is ShareRecordEvent.ShareViaClicked -> share(event.target)
         is ShareRecordEvent.Rendered -> onRendered(event.bytes, event.target)
+        ShareRecordEvent.BuyExportClicked -> buyExport()
+        ShareRecordEvent.UnlockWithProClicked -> {
+            _state.update { it.copy(exportOffer = null) }
+            emit(ShareRecordEffect.OpenPaywall)
+        }
+        ShareRecordEvent.ExportOfferDismissed -> {
+            pendingTarget = null
+            _state.update { it.copy(exportOffer = null) }
+        }
     }
 
     /**
@@ -134,16 +148,66 @@ internal class ShareRecordViewModel(
                 // export; charging a second time because they also wanted to email what they
                 // just sent on WhatsApp would be charging for the share sheet, not the export.
                 val quota = entitlements.observe().first().quotaFor(ProFeature.RECORD_EXPORT)
-                if (writtenKey != null || quota.allowsAnother(exportUsage.used())) {
-                    startShare(target, record)
-                } else {
-                    telemetry.recordExportLocked()
-                    emit(ShareRecordEffect.OpenPaywall)
+                when {
+                    writtenKey != null || quota.allowsAnother(exportUsage.used()) -> startShare(target, record)
+
+                    // A credit bought earlier is spent here, at the same moment a free
+                    // export would have been — one PDF, which is what the purchase copy
+                    // says. Spending is guarded in storage, so two shares racing cannot
+                    // both take the last one.
+                    exportCredits.spend() -> startShare(target, record)
+
+                    // Out of both. Rather than sending them straight to a subscription,
+                    // offer the one-off too (#246): someone selling their car wants this
+                    // PDF once and will never want a plan.
+                    else -> {
+                        telemetry.recordExportLocked()
+                        pendingTarget = target
+                        _state.update {
+                            it.copy(
+                                exportOffer = ShareRecordUiState.ExportOffer(
+                                    oneTimePrice = oneTimePurchaser.priceOf(OneTimeProducts.RECORD_EXPORT),
+                                ),
+                            )
+                        }
+                    }
                 }
             }
             return
         }
         startShare(target, record)
+    }
+
+    /** Which target the owner asked for before they were told they were out of exports. */
+    private var pendingTarget: ShareTarget? = null
+
+    /**
+     * Buy one export, then take the share they originally asked for.
+     *
+     * The credit is granted and immediately spent rather than left on the balance: the
+     * owner tapped a share target, was told the price, and paid — stopping there to make
+     * them tap the target again would be the app taking their money and then asking what
+     * they wanted.
+     */
+    private fun buyExport() {
+        val record = record ?: return
+        val target = pendingTarget ?: return
+        _state.update { it.copy(exportOffer = it.exportOffer?.copy(buying = true)) }
+        viewModelScope.launch {
+            oneTimePurchaser.purchase(OneTimeProducts.RECORD_EXPORT).fold(
+                ifLeft = {
+                    // Cancelling is the common ending and is not an error; either way the
+                    // offer goes away rather than sitting there mid-purchase.
+                    _state.update { state -> state.copy(exportOffer = state.exportOffer?.copy(buying = false)) }
+                },
+                ifRight = {
+                    exportCredits.grant()
+                    exportCredits.spend()
+                    _state.update { state -> state.copy(exportOffer = null) }
+                    startShare(target, record)
+                },
+            )
+        }
     }
 
     /** The share itself, once it is allowed. */

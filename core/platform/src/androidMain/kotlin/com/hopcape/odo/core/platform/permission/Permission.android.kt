@@ -155,6 +155,13 @@ internal fun readPermissionStatus(
     if (!isRuntimePermission(permission, Build.VERSION.SDK_INT)) {
         return notificationStatus(NotificationManagerCompat.from(context).areNotificationsEnabled())
     }
+    // Below Android 10 there is no separate background-location permission — fine location
+    // covers the background too, and `checkSelfPermission` reports the platform-unknown
+    // permission as denied forever. Mirror fine location's status instead, so a checklist
+    // step for it resolves itself on those phones.
+    if (permission == PlatformPermission.ACCESS_BACKGROUND_LOCATION && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        return readPermissionStatus(context, activity, PlatformPermission.ACCESS_FINE_LOCATION)
+    }
     return when {
         context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED ->
             PermissionStatus.Granted

@@ -105,9 +105,11 @@ object PlatformPermission {
     const val ACTIVITY_RECOGNITION: String = "android.permission.ACTIVITY_RECOGNITION"
 
     /**
-     * "Allow all the time" location — the M4 funnel deliberately never asks for this; it is
-     * requested later on the first trip-logged screen (plan §5 step 5, built in F7). Declared
-     * here now so that screen doesn't need its own raw manifest string.
+     * "Allow all the time" location — what lets a trip start with the app closed. Asked in
+     * the M4 checklist as its own step, strictly after [ACCESS_FINE_LOCATION] (Android 11+
+     * refuses a combined ask, and Play's policy expects the incremental order). The
+     * trip-logged screen keeps its upgrade prompt as the safety net for anyone who slipped
+     * past setup without it.
      */
     const val ACCESS_BACKGROUND_LOCATION: String = "android.permission.ACCESS_BACKGROUND_LOCATION"
 }

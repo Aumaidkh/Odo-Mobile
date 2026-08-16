@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.navigation.OdoDestination
 
@@ -38,6 +40,10 @@ fun OdoAppScaffold(
     val tabs = OdoDestination.topLevel
     val selected = (currentDestination as? OdoDestination.TopLevel)?.takeIf { it in tabs }
 
+    // The SCAN tile's coach-mark anchor (#228): the tile writes its bounds here, Home
+    // reads them through LocalScanCoachMarkAnchor to point its coach mark at the bar.
+    val scanAnchor = rememberCoachMarkAnchorState()
+
     Scaffold(
         modifier = modifier,
         containerColor = OdoTheme.colors.bg,
@@ -57,9 +63,14 @@ fun OdoAppScaffold(
                     selected = selected,
                     onSelectTab = onSelectTab,
                     onScan = onScan,
+                    scanAnchor = scanAnchor,
                 )
             }
         },
-        content = content,
+        content = { padding ->
+            CompositionLocalProvider(LocalScanCoachMarkAnchor provides scanAnchor) {
+                content(padding)
+            }
+        },
     )
 }

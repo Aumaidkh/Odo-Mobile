@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.feature.documentvault.domain.usecase.DocumentVaultSnapshot
 import com.hopcape.odo.feature.documentvault.domain.usecase.ObserveDocumentVaultUseCase
 import com.hopcape.odo.feature.documentvault.domain.usecase.VaultSlot
@@ -15,11 +17,14 @@ import com.hopcape.odo.feature.documentvault.resources.dv_error_load_failed
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -36,8 +41,15 @@ import kotlinx.coroutines.flow.stateIn
 internal class DocumentVaultViewModel(
     activeCar: ActiveCarProvider,
     observeVault: ObserveDocumentVaultUseCase,
+    private val showcase: ShowcaseArbiter,
     private val telemetry: DocumentVaultTelemetry,
 ) : ViewModel() {
+
+    /** True while the reminders coach mark holds the arbiter's grant (#231). */
+    private val vaultShowcaseVisible = MutableStateFlow(false)
+
+    /** One ask per visit — reset when the surface is left, so the next visit may ask again. */
+    private var vaultShowcaseRequested = false
 
     private val _effects = Channel<DocumentVaultEffect>(Channel.BUFFERED)
     val effects: Flow<DocumentVaultEffect> = _effects.receiveAsFlow()
@@ -59,6 +71,8 @@ internal class DocumentVaultViewModel(
             // vault that has no car, so the screen keeps waiting.
             if (carId == null) flowOf(DocumentVaultUiState()) else observeVault(carId).map(::toUiState)
         }
+        .combine(vaultShowcaseVisible) { ui, visible -> ui.copy(vaultShowcase = visible) }
+        .onEach(::maybeRequestVaultShowcase)
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(DocumentVaultTelemetry.Screen.VAULT, cause)
@@ -76,6 +90,42 @@ internal class DocumentVaultViewModel(
         is DocumentVaultEvent.AddTapped -> emit(DocumentVaultEffect.OpenAdd(event.type))
         DocumentVaultEvent.AddAnyTapped -> emit(DocumentVaultEffect.OpenAdd(prefillType = null))
         DocumentVaultEvent.BackTapped -> emit(DocumentVaultEffect.NavigateBack)
+
+        DocumentVaultEvent.VaultShowcaseDismissed -> {
+            vaultShowcaseVisible.value = false
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.DOCUMENT_REMINDERS) }
+            Unit
+        }
+
+        DocumentVaultEvent.VaultShowcaseActedOn -> {
+            vaultShowcaseVisible.value = false
+            viewModelScope.launch { showcase.actedOn(ShowcaseHookId.DOCUMENT_REMINDERS) }
+            emit(DocumentVaultEffect.OpenAdd(prefillType = null))
+        }
+
+        // Not seen: the owner never answered — a navigation did. The hook keeps its one
+        // showing, and the reset lets the next visit ask again.
+        DocumentVaultEvent.VaultShowcaseLeft -> {
+            if (vaultShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.DOCUMENT_REMINDERS)
+            vaultShowcaseVisible.value = false
+            vaultShowcaseRequested = false
+        }
+    }
+
+    /**
+     * The reminders hook's due-condition (#231): at most one document on file — the empty
+     * vault, or the first paper just saved (whichever the owner meets first; seen-once
+     * keeps it to one showing total). The payoff being taught is that filing sets an
+     * alarm; it says nothing about the free plan's cap, on purpose.
+     */
+    private suspend fun maybeRequestVaultShowcase(ui: DocumentVaultUiState) {
+        if (vaultShowcaseRequested) return
+        val content = (ui.content as? Loadable.Ready)?.value ?: return
+        if (content.rows.filterIsInstance<DocumentRow.OnFile>().size > 1) return
+        vaultShowcaseRequested = true
+        if (showcase.request(ShowcaseHookId.DOCUMENT_REMINDERS)) {
+            vaultShowcaseVisible.value = true
+        }
     }
 
     private fun emit(effect: DocumentVaultEffect) {

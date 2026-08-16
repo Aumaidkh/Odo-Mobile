@@ -36,6 +36,7 @@ val dashboardAnalyticsEvents: List<EventSchema> = listOf(
     EventSchema(HomeTelemetry.Event.ADD_DOCUMENTS_TAPPED, emptyMap()),
     EventSchema(HomeTelemetry.Event.ADD_CAR_TAPPED, emptyMap()),
     EventSchema(HomeTelemetry.Event.AUTO_DETECT_PAYWALLED, emptyMap()),
+    EventSchema(HomeTelemetry.Event.AUTO_ODOMETER_TAPPED, emptyMap()),
     EventSchema(
         HomeTelemetry.Event.READ_FAILED,
         mapOf(HomeTelemetry.Key.REASON to PropertyType.STRING),

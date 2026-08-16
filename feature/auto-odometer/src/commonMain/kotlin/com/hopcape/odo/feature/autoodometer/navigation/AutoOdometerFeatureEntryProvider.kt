@@ -193,6 +193,9 @@ internal fun AutoOdometerPermissionSetupRoute(
 
     val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
     val location = rememberPermissionController(PlatformPermission.ACCESS_FINE_LOCATION)
+    // Both modes: canTrack requires it, and it is what lets a trip start with the app
+    // closed. Its step sits strictly after FINE_LOCATION — Android refuses a combined ask.
+    val backgroundLocation = rememberPermissionController(PlatformPermission.ACCESS_BACKGROUND_LOCATION)
     val activityRecognition = if (mode == TriggerMode.NO_STEREO) {
         rememberPermissionController(PlatformPermission.ACTIVITY_RECOGNITION)
     } else {
@@ -205,6 +208,11 @@ internal fun AutoOdometerPermissionSetupRoute(
     LaunchedEffect(location.status) {
         viewModel.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, location.status))
     }
+    LaunchedEffect(backgroundLocation.status) {
+        viewModel.onEvent(
+            PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, backgroundLocation.status),
+        )
+    }
     if (activityRecognition != null) {
         LaunchedEffect(activityRecognition.status) {
             viewModel.onEvent(
@@ -216,6 +224,7 @@ internal fun AutoOdometerPermissionSetupRoute(
     fun controllerFor(step: PermissionSetupStep) = when (step) {
         PermissionSetupStep.NOTIFICATIONS -> notifications
         PermissionSetupStep.FINE_LOCATION -> location
+        PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
             activityRecognition ?: error("no ACTIVITY_RECOGNITION controller mounted for $mode")
     }

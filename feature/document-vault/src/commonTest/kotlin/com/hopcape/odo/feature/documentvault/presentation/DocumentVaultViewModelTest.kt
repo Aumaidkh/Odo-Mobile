@@ -2,6 +2,9 @@ package com.hopcape.odo.feature.documentvault.presentation
 
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.feature.documentvault.FakeActiveCarProvider
 import com.hopcape.odo.feature.documentvault.FakeDocumentRepository
@@ -55,8 +58,37 @@ class DocumentVaultViewModelTest {
             clock = TEST_CLOCK,
             timeZone = TimeZone.UTC,
         ),
+        showcase = ShowcaseArbiter(FakeShowcaseSeenStore()),
         telemetry = testTelemetry(analytics),
     )
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
+    @Test
+    fun anEmptyVault_raisesTheRemindersShowcase() = runTest(dispatcher) {
+        val viewModel = viewModel()
+
+        assertTrue(viewModel.state.first { it.vaultShowcase }.vaultShowcase)
+    }
+
+    @Test
+    fun aFilledVault_neverRaisesTheRemindersShowcase() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            document("d1", DocumentType.INSURANCE, LocalDate(2027, 7, 3)),
+            document("d2", DocumentType.PUC, LocalDate(2026, 11, 12)),
+        )
+        viewModel.content()
+
+        assertEquals(false, viewModel.state.value.vaultShowcase)
+    }
 
     private suspend fun DocumentVaultViewModel.content() =
         assertIs<Loadable.Ready<*>>(state.first { it.content is Loadable.Ready }.content).value

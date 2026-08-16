@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.timeline.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
@@ -13,6 +14,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.timeline.presentation.TimelineEffect
+import com.hopcape.odo.feature.timeline.presentation.TimelineEvent
 import com.hopcape.odo.feature.timeline.presentation.TimelineScreen
 import com.hopcape.odo.feature.timeline.presentation.TimelineViewModel
 import com.hopcape.odo.feature.timeline.presentation.sheets.TimelineFilterSheetContent
@@ -42,6 +44,12 @@ internal class TimelineFeatureEntryProvider(
 internal fun TimelineRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<TimelineViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Leaving while the record coach mark is up releases the arbiter's grant without
+    // burning the hook's one showing — the owner never answered it (#233).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onEvent(TimelineEvent.RecordShowcaseLeft) }
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {

@@ -31,10 +31,10 @@ import com.hopcape.odo.core.data.fairness.FakeOverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.EntitlementDocumentAllowance
 import com.hopcape.odo.core.data.entitlement.EntitlementScanAllowance
-import com.hopcape.odo.core.data.entitlement.EntitlementSmartRefuelAllowance
+import com.hopcape.odo.core.data.record.LocalExportCredits
 import com.hopcape.odo.core.data.record.LocalRecordExportUsage
+import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
 import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
 import com.hopcape.odo.core.data.entitlement.FreePlanEntitlementSource
 import com.hopcape.odo.core.data.subscription.NoopSubscriptionIdentity
 import com.hopcape.odo.core.data.fairness.OverchargeReportRepositoryImpl
@@ -88,6 +88,9 @@ import com.hopcape.odo.core.domain.reminder.repository.ReminderRepository
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.data.showcase.observability.ShowcaseTelemetryImpl
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseTelemetry
 import com.hopcape.odo.core.domain.trip.repository.TripRepository
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
@@ -117,6 +120,11 @@ val coreDataModule = module {
     // Device settings — theme, units, notification topics. Deliberately no scheduler:
     // `app_settings` mirrors no server table, so there is nothing to push.
     single<AppSettingsRepository> { AppSettingsRepositoryImpl(local = get(), telemetry = get()) }
+    // The coach marks' one-at-a-time rule (#227). A `single` because "exactly one grant"
+    // is a statement about the app; the store behind it is a platform binding. The
+    // telemetry is what makes the whole showcase's premise checkable (#235).
+    single<ShowcaseTelemetry> { ShowcaseTelemetryImpl(logger = get(), analytics = get()) }
+    single { ShowcaseArbiter(store = get(), telemetry = get()) }
     // Automatically-detected drives. TripSyncable (databaseInfrastructureModule) drains the
     // outbox now, but this repository still has no scheduler — a write only requests a sync
     // once something needs the result sooner than the next scheduled run, and nothing does
@@ -228,9 +236,8 @@ val coreDataModule = module {
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
     single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
     single<RecordExportUsage> { LocalRecordExportUsage(local = get(), clock = get()) }
-    single<SmartRefuelAllowance> {
-        EntitlementSmartRefuelAllowance(entitlements = get(), activeCar = get(), fills = get())
-    }
+    // Bought-and-unspent one-off exports (#246), beside the tally they are spent against.
+    single<ExportCredits> { LocalExportCredits(local = get()) }
     // The tally the cap is measured against. Device-local: nothing counts a scan but the
     // phone that ran it.
     single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }

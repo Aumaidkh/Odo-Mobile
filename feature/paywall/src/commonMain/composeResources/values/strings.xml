@@ -33,7 +33,7 @@
     <string name="pw_plan_monthly_period">per month</string>
     <string name="pw_plan_annual">Annual</string>
     <string name="pw_plan_annual_period">≈ %1$s / mo</string>
-    <string name="pw_plan_annual_badge">SAVE %1$d%%</string>
+    <string name="pw_plan_annual_badge">SAVE %1$d%</string>
 
     <!-- CTA. The price is the store's own string, so both take it as an argument. -->
     <string name="pw_cta">Start Pro · %1$s</string>
@@ -47,6 +47,11 @@
     -->
     <string name="pw_terms_trial">%1$d days free, then %2$s. Renews automatically until you cancel.</string>
     <string name="pw_terms">%1$s, billed %2$s. Renews automatically until you cancel.</string>
+    <!-- A one-off purchase has no renewal, so it gets its own sentence rather than the
+         "renews automatically" one Play requires for subscriptions (#245). -->
+    <string name="pw_terms_lifetime">%1$s, once. No subscription and nothing to cancel.</string>
+    <string name="pw_plan_lifetime">Lifetime</string>
+    <string name="pw_plan_lifetime_period">One payment, yours for good</string>
     <string name="pw_period_monthly">monthly</string>
     <string name="pw_period_annual">annually</string>
 

@@ -35,11 +35,32 @@ internal sealed interface HomeEvent {
     /** "Log fills automatically" — opens the explanation, not the permission. */
     data object AutoDetectTapped : HomeEvent
 
+    /** The auto-odometer offer card — opens the education screen, not the permission. */
+    data object AutoOdometerTapped : HomeEvent
+
     /** The checklist's documents row. */
     data object AddDocumentsTapped : HomeEvent
 
     /** "Add your car" on the no-car state. */
     data object AddCarTapped : HomeEvent
+
+    /** The SCAN coach mark was tapped away. Seen forever (#228). */
+    data object ScanShowcaseDismissed : HomeEvent
+
+    /** The SCAN coach mark's cutout was tapped — open the scanner it points at. Seen forever. */
+    data object ScanShowcaseActedOn : HomeEvent
+
+    /** Home left composition while the SCAN coach mark was up — release the grant, not seen. */
+    data object ScanShowcaseLeft : HomeEvent
+
+    /** The health-score coach mark was tapped away. Seen forever (#232). */
+    data object HealthShowcaseDismissed : HomeEvent
+
+    /** The health coach mark's cutout was tapped — open the breakdown it points at. Seen forever. */
+    data object HealthShowcaseActedOn : HomeEvent
+
+    /** Home left composition while the health coach mark was up — release the grant, not seen. */
+    data object HealthShowcaseLeft : HomeEvent
 }
 
 /** One-shot handoffs the route host performs. */
@@ -74,6 +95,9 @@ internal sealed interface HomeEffect {
 
     /** Open the auto-detect opt-in, which explains what would be read before asking. */
     data object OpenAutoDetect : HomeEffect
+
+    /** Open the auto-odometer education screen — enrollment's front door. */
+    data object OpenAutoOdometer : HomeEffect
 
     /** Automatic logging was tapped by an owner who does not have it. */
     data object OpenPaywall : HomeEffect

@@ -54,14 +54,17 @@ class RemainingUseCasesTest {
     }
 
     @Test
-    fun completeSetup_enablesTracking_andStartsIfConnected() = runTest {
+    fun completeSetup_enablesTracking_persistsTheToggle_andStartsIfConnected() = runTest {
         val tracker = FakeTripTracker(enabled = false)
-        val complete = CompleteSetup(tracker)
+        val settings = FakeAppSettingsRepository()
+        val complete = CompleteSetup(tracker, settings)
 
         complete()
 
         assertEquals(true, tracker.enabledFlow.value)
         assertEquals(1, tracker.startIfConnectedCalls)
+        // The persisted flag is what armFromPersistedState reads after a process death.
+        assertEquals(true, settings.settings.value.trackerEnabled)
     }
 
     @Test

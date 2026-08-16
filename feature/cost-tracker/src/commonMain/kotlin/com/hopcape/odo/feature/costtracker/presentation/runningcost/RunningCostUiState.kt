@@ -99,4 +99,18 @@ internal data class RunningCostUiState(
     /** No active car — setup incomplete or the car was removed. A nudge, not a spinner:
      *  there is no read in flight, so a loader would spin forever. */
     val noCar: Boolean = false,
+    /**
+     * Whether the analysis below the headline is behind Pro (#247).
+     *
+     * The headline ₹/km is never locked — it is the same figure Home's tile shows, and
+     * that tile stays free. What Pro sells is everything under it: the per-category
+     * breakdown, the spend chart, the mileage trend and the summary.
+     */
+    val analysisLocked: Boolean = false,
+    /**
+     * Whether the odometer coach mark is up (#229) — granted while the headline reads
+     * "not enough yet", the one moment the owner is looking at the consequence of a
+     * stale reading and the explanation means anything.
+     */
+    val odometerShowcase: Boolean = false,
 )

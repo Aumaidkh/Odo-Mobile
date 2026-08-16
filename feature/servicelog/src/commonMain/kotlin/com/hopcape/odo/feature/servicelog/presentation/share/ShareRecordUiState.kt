@@ -39,9 +39,25 @@ internal sealed interface ExportUiState {
 internal data class ShareRecordUiState(
     val content: Content = Content.Loading,
     val export: ExportUiState = ExportUiState.Idle,
+    /**
+     * Shown when the free exports are spent (#246): Growth Plan v3 sells the record two
+     * ways, and someone selling their car wants the PDF once and will never want a
+     * subscription. Null until they actually run out — nothing is offered before it is
+     * needed. [oneTimePrice] is the store's own formatted string, null when the store has
+     * no such product, in which case only the Pro route is offered.
+     */
+    val exportOffer: ExportOffer? = null,
 ) {
     /** True while a document is being produced — every target is disabled. */
     val isBusy: Boolean get() = export is ExportUiState.Rendering
+
+    /** The two ways to pay for a record export, once the free ones are gone (#246). */
+    data class ExportOffer(
+        /** The store's price for a single export, e.g. "₹99". Null when it cannot be sold. */
+        val oneTimePrice: String?,
+        /** True while the store's purchase sheet is open. */
+        val buying: Boolean = false,
+    )
 
     sealed interface Content {
         data object Loading : Content

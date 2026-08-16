@@ -2,6 +2,11 @@
     <string name="tl_title">Timeline</string>
     <string name="tl_cd_filter">Filter timeline</string>
     <string name="tl_cd_share">Share timeline</string>
+
+    <!-- The record-export coach mark (#233) — Pro variant names no plan; free names the gate. -->
+    <string name="tl_record_showcase">This record can leave as one PDF a buyer or a workshop will actually read.</string>
+    <string name="tl_record_showcase_free">This record can leave as one PDF a buyer will actually read — the full export is included with Pro.</string>
+    <string name="tl_showcase_dismiss">Got it</string>
     <!-- Header line: car · how much history there is. %3$d is the earliest year on the feed. -->
     <string name="tl_subtitle">%1$s · %2$d events since %3$d</string>
     <string name="tl_subtitle_new">%1$s · your car’s story starts here</string>

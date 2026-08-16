@@ -1,20 +1,21 @@
 package com.hopcape.odo.core.domain.scan.entitlement
 
 /**
- * How many scans the owner has spent in the period the cap applies to.
+ * How many scans the owner has spent against the cap.
  *
  * Separate from [ScanAllowance], which says how many the plan permits. One is the plan and
  * the other is the tally, they come from different places, and the screen needs both to say
- * "2 of 3 free".
+ * "2 of 5 free".
  *
- * Which period "this" month is, is the implementation's to know — the caller has no business
- * deciding when a cap resets, and every caller deciding separately is how two screens end up
- * disagreeing about it.
+ * The count is a lifetime one (#248). It was per calendar month, which meant the cap never
+ * bound — an owner services a car three or four times a *year*. Which period the cap applies
+ * to is the implementation's to know: the caller has no business deciding when a cap resets,
+ * and every caller deciding separately is how two screens end up disagreeing about it.
  */
 interface ScanUsage {
 
-    /** Scans spent in the current period. Zero at the start of one. */
-    suspend fun usedThisMonth(): Int
+    /** Scans spent so far. Zero before the first one. */
+    suspend fun used(): Int
 
     /**
      * Count one scan against the current period.

@@ -25,6 +25,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -130,6 +132,7 @@ class DeleteAccountViewModelTest {
                     profiles = profiles,
                     settings = FakeSettingsRepository(),
                     files = files,
+                    showcaseSeen = FakeShowcaseSeenStore(),
                 ),
                 verifier = verifier,
             ),
@@ -397,4 +400,14 @@ class DeleteAccountViewModelTest {
         assertEquals(DeleteAccountEffect.Deleted, effect)
         assertEquals(1, cars.softDeleted.size)
     }
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
 }

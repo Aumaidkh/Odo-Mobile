@@ -319,7 +319,7 @@ class TripTrackerEngineTest {
         val telemetry = TripTrackerTelemetry(logger = NoopLogger, analytics = NoopAnalytics, tracer = NoopTracer, crash = NoopCrash)
 
         val engine = TripTrackerEngine(
-            locationProvider = FakeLocationProvider(fixes),
+            locationProvider = { FakeLocationProvider(fixes) },
             motionSource = FakeMotionActivitySource(motion),
             presenceSource = FakeVehiclePresenceSource(presence),
             foregroundSession = foregroundSession,
