@@ -37,20 +37,44 @@ internal data class HomeUiState(
     val offerAutoDetect: Boolean = false,
 
     /**
-     * Whether automatic logging is behind Pro for this owner.
-     *
-     * Shown rather than hidden when locked, and that is the point: the card is the only place
-     * automatic logging is discoverable, so hiding it from free owners would mean nobody ever
-     * learns the thing Pro sells. Locked, it carries a badge and opens the paywall; unlocked,
-     * it opens the explanation as before.
-     *
-     * "Log a fill" above it is untouched either way. Logging by hand stays free, so the
-     * dashboard always answers "can I record this fill?" with yes.
+     * Whether the SCAN coach mark is up (#228) — granted by the `ShowcaseArbiter` when
+     * this is a first-run device with a car and nothing logged, held until the owner
+     * answers it. Beside [content] for the same reason as the offers: it is device
+     * state, not car state.
      */
-    val autoDetectLocked: Boolean = false,
+    val scanShowcase: Boolean = false,
+
+    /** Whether the health-score coach mark is up (#232) — granted on the first scored dashboard. */
+    val healthShowcase: Boolean = false,
+
+    /**
+     * Whether the owner's plan is Pro — read only to pick the health coach mark's copy.
+     * The epic's rule: a hook pointing at a gated feature says so in its own words (a
+     * free owner is told the breakdown is included with Pro), and a Pro owner never sees
+     * a plan mentioned.
+     */
+    val proPlan: Boolean = false,
+
+    /**
+     * Whether to pitch the auto odometer.
+     *
+     * Same reasoning as [offerAutoDetect]: enrollment lives behind the garage card, and a
+     * feature discoverable from one slot on one tab is a feature most owners never meet.
+     * True while the feature is available and not set up; gone the moment a bond exists
+     * and tracking is on, so it is an offer rather than an advert. The card opens the
+     * education screen — the same entry the garage card uses — never a permission.
+     */
+    val offerAutoOdometer: Boolean = false,
+
 )
 
 /** A loaded dashboard. */
+/** Blanks the score's trend line, leaving everything else — see `ProFeature.SCORE_HISTORY`. */
+internal fun HomeUiState.withoutScoreHistory(): HomeUiState = when (val c = content) {
+    is Loadable.Ready -> copy(content = Loadable.Ready(c.value.copy(scoreDelta = null)))
+    else -> this
+}
+
 @Immutable
 internal data class HomeContent(
     /** The owner's name for the greeting; empty falls back to a generic hello. */

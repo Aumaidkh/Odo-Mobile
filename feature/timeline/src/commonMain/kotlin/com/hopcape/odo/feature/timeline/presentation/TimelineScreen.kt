@@ -33,6 +33,9 @@ import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoEmptyState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -64,6 +67,9 @@ import com.hopcape.odo.feature.timeline.resources.tl_add_bill
 import com.hopcape.odo.feature.timeline.resources.tl_badge_verified
 import com.hopcape.odo.feature.timeline.resources.tl_cd_filter
 import com.hopcape.odo.feature.timeline.resources.tl_cd_share
+import com.hopcape.odo.feature.timeline.resources.tl_record_showcase
+import com.hopcape.odo.feature.timeline.resources.tl_record_showcase_free
+import com.hopcape.odo.feature.timeline.resources.tl_showcase_dismiss
 import com.hopcape.odo.feature.timeline.resources.tl_empty_action
 import com.hopcape.odo.feature.timeline.resources.tl_empty_body
 import com.hopcape.odo.feature.timeline.resources.tl_empty_title
@@ -102,6 +108,8 @@ internal fun TimelineScreen(
     onEvent: (TimelineEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The share button writes its bounds here for the #233 coach mark.
+    val shareAnchor = rememberCoachMarkAnchorState()
     OdoScreen(
         modifier = modifier,
         title = stringResource(Res.string.tl_title),
@@ -116,7 +124,7 @@ internal fun TimelineScreen(
                 IcShare,
                 contentDescription = stringResource(Res.string.tl_cd_share),
                 onClick = { onEvent(TimelineEvent.ShareTapped) },
-                modifier = Modifier.testTag(TimelineTestTags.SHARE_BUTTON),
+                modifier = Modifier.testTag(TimelineTestTags.SHARE_BUTTON).coachMarkAnchor(shareAnchor),
             )
         },
     ) { padding ->
@@ -168,6 +176,21 @@ internal fun TimelineScreen(
                 contentPadding = padding,
             )
         }
+    }
+
+    // The record-export coach mark (#233). The export is Pro-gated, so the copy obeys the
+    // epic's rule: a free owner is told what it costs before they tap, never after; a Pro
+    // owner sees no plan mentioned. Tapping the cutout opens the share it points at.
+    if (state.recordShowcase) {
+        OdoCoachMark(
+            text = stringResource(
+                if (state.proPlan) Res.string.tl_record_showcase else Res.string.tl_record_showcase_free,
+            ),
+            dismissLabel = stringResource(Res.string.tl_showcase_dismiss),
+            anchor = shareAnchor,
+            onDismiss = { onEvent(TimelineEvent.RecordShowcaseDismissed) },
+            onAnchorTap = { onEvent(TimelineEvent.RecordShowcaseActedOn) },
+        )
     }
 }
 

@@ -19,8 +19,10 @@ import com.hopcape.odo.core.platform.notification.NotificationAccess
 import com.hopcape.odo.core.platform.notification.PaymentNotices
 import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.platform.showcase.DefaultsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.IosSmsAppSignature
 import com.hopcape.odo.core.platform.sms.IosSmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsAppSignature
@@ -69,6 +71,7 @@ val corePlatformIosModule = module {
     // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }
+    single<ShowcaseSeenStore> { DefaultsShowcaseSeenStore() }
 
     // iOS has no WorkManager, so sync runs in-process on an app-lifetime scope. That covers
     // every foreground trigger — launch, a local write, pull-to-refresh — which is what

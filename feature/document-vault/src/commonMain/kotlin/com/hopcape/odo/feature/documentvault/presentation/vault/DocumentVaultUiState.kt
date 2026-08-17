@@ -17,6 +17,12 @@ import kotlinx.datetime.LocalDate
 @Immutable
 internal data class DocumentVaultUiState(
     val content: Loadable<VaultContent> = Loadable.Loading,
+    /**
+     * Whether the reminders coach mark is up (#231) — granted while the vault holds at
+     * most one document, the stretch where the owner is still deciding whether filing
+     * papers is worth the effort and the reminder payoff is invisible.
+     */
+    val vaultShowcase: Boolean = false,
 )
 
 /** The vault's rows plus the header they add up to. */

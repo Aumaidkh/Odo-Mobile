@@ -107,6 +107,7 @@ val serviceLogModule = module {
             deleteLog = get(),
             attachBillPhoto = get(),
             recordFairness = get(),
+            showcase = get(),
             telemetry = get(),
         )
     }
@@ -144,6 +145,8 @@ val serviceLogModule = module {
             observeDetail = get(),
             entitlements = get(),
             exportUsage = get(),
+            exportCredits = get(),
+            oneTimePurchaser = get(),
             documents = get(),
             bills = get(),
             files = get(),

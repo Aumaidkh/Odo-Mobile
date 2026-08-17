@@ -25,8 +25,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
-import kotlinx.coroutines.flow.combine
 
 /**
  * The long-lived half of detection: it watches for payments and decides what the owner sees.
@@ -57,7 +55,6 @@ class RefuelDetectionWorker internal constructor(
     private val activeCar: ActiveCarProvider,
     private val pending: PendingFillStore,
     private val access: NotificationAccess,
-    private val allowance: SmartRefuelAllowance,
     private val clock: Clock,
     private val copy: DetectionCopy,
 ) {
@@ -110,30 +107,24 @@ class RefuelDetectionWorker internal constructor(
         // The service reads this list inside a callback that cannot suspend, so it is pushed
         // to the platform whenever the settings change rather than read on demand.
         scope.launch {
-            // Combined with the allowance, not just the setting. Automatic detection is
-            // capped on the free plan and uncapped on Pro, and the enrolment screen is not
-            // the only way in — a deep link reaches it directly. Enforcing here means the
-            // gate holds wherever the setting was turned on, and it keeps holding: spending
-            // the last free detection, or a subscription lapsing, releases the binding on the
-            // next emission rather than at the next launch.
-            //
-            // The allowance re-emits when a fill is written, so the tenth detected fill is
-            // what closes the door — the app stops reading notifications the moment it stops
-            // being entitled to, rather than at the next launch.
+            // The owner's own switch is the only thing that decides this now (#251).
+            // Detection used to be capped on the free plan and the cap was enforced right
+            // here, by releasing the binding once the tenth detected fill landed — an owner
+            // who granted notification access quietly stopped getting what they granted it
+            // for, with nothing in the opt-in copy having said so. Growth Plan v3 forbids
+            // gating refuel logging at all: it is a habit engine, it costs nothing to run,
+            // and capping it stops the habit forming for exactly the owners who have not
+            // paid yet.
             detection.observeApps()
-                .combine(allowance.observe()) { apps, limit ->
-                    apps to limit.allowsAnother
-                }
-                .collectLatest { (apps, granted) ->
+                .collectLatest { apps ->
                     val enabled = apps.filter { it.enabled }.map { it.packageName }.toSet()
                     val settings = detection.settings()
-                    val on = settings.detectEnabled && granted
+                    val on = settings.detectEnabled
                     val watched = if (on) enabled else emptySet()
                     HLogger.tag(TAG).d(
                         "detect_roster",
                         mapOf(
                             "enabled" to settings.detectEnabled,
-                            "granted" to granted,
                             "count" to watched.size,
                         ),
                     )

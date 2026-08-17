@@ -68,7 +68,7 @@ val documentVaultModule = module {
     // screen of that visit shares its flow id.
     factory { DocumentVaultTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
-    viewModel { DocumentVaultViewModel(activeCar = get(), observeVault = get(), telemetry = get()) }
+    viewModel { DocumentVaultViewModel(activeCar = get(), observeVault = get(), showcase = get(), telemetry = get()) }
     viewModel { params ->
         DocumentDetailViewModel(
             documentId = params.get<DocumentId>(),

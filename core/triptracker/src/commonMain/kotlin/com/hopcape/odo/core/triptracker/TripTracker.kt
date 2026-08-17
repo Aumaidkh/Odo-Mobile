@@ -7,6 +7,17 @@ interface TripTracker {
     /** Turns automatic tracking on or off. Off = all signal sources released. */
     suspend fun setEnabled(enabled: Boolean)
 
+    /**
+     * Enables tracking from persisted state alone — the cold-start path. After process
+     * death nothing in the UI has run, so the app process (on start) and the
+     * manifest-declared receivers (on a wake) call this before delivering a signal.
+     *
+     * No-ops unless the owner's stored intent says tracking should be on: a bond exists,
+     * the persisted `trackerEnabled` toggle is true, and no pause marker is set.
+     * Idempotent — already-enabled is a no-op, so callers never need to check first.
+     */
+    suspend fun armFromPersistedState()
+
     val isEnabled: Flow<Boolean>
 
     /** What the engine is doing right now, for the feature module's status UI. */

@@ -45,6 +45,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
+import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
@@ -63,6 +64,17 @@ import com.hopcape.odo.feature.dashboard.resources.Res
 import com.hopcape.odo.feature.dashboard.resources.db_score_none
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
+import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
+import com.hopcape.odo.feature.dashboard.resources.hm_scan_showcase
+import com.hopcape.odo.feature.dashboard.resources.hm_showcase_dismiss
+import com.hopcape.odo.core.designsystem.component.CoachMarkAnchorState
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
+import com.hopcape.odo.feature.dashboard.presentation.shell.LocalScanCoachMarkAnchor
+import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase
+import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase_free
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
@@ -134,6 +146,8 @@ internal fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val content = (state.content as? Loadable.Ready)?.value
+    // The health card writes its bounds here for the #232 coach mark.
+    val healthAnchor = rememberCoachMarkAnchorState()
     OdoScreen(
         modifier = modifier.testTag(HomeTestTags.SCREEN),
         bottomBar = {
@@ -163,9 +177,40 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.autoDetectLocked, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, onEvent)
             }
         }
+    }
+
+    // The SCAN coach mark (#228). A Popup, so where it sits in this tree is irrelevant —
+    // it overlays the whole window, bottom bar included. The anchor is the shell's SCAN
+    // tile, handed down through the CompositionLocal; null outside the shell (previews),
+    // in which case there is nothing to point at and nothing renders.
+    val scanAnchor = LocalScanCoachMarkAnchor.current
+    if (state.scanShowcase && scanAnchor != null) {
+        OdoCoachMark(
+            text = stringResource(Res.string.hm_scan_showcase),
+            dismissLabel = stringResource(Res.string.hm_showcase_dismiss),
+            anchor = scanAnchor,
+            onDismiss = { onEvent(HomeEvent.ScanShowcaseDismissed) },
+            onAnchorTap = { onEvent(HomeEvent.ScanShowcaseActedOn) },
+        )
+    }
+
+    // The health-score coach mark (#232). The breakdown is Pro-gated, so the copy obeys
+    // the epic's rule: a free owner is told it is included with Pro before they tap; a
+    // Pro owner never sees a plan mentioned. Only one of the two Home marks can hold the
+    // arbiter's grant, so these never stack.
+    if (state.healthShowcase) {
+        OdoCoachMark(
+            text = stringResource(
+                if (state.proPlan) Res.string.hm_health_showcase else Res.string.hm_health_showcase_free,
+            ),
+            dismissLabel = stringResource(Res.string.hm_showcase_dismiss),
+            anchor = healthAnchor,
+            onDismiss = { onEvent(HomeEvent.HealthShowcaseDismissed) },
+            onAnchorTap = { onEvent(HomeEvent.HealthShowcaseActedOn) },
+        )
     }
 }
 
@@ -173,14 +218,15 @@ internal fun HomeScreen(
 private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
-    autoDetectLocked: Boolean,
+    offerAutoOdometer: Boolean,
+    healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, autoDetectLocked, onEvent)
+        else -> ScoredContent(content, offerAutoDetect, offerAutoOdometer, healthAnchor, onEvent)
     }
 }
 
@@ -284,12 +330,14 @@ private fun CircleButton(
 private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
-    autoDetectLocked: Boolean,
+    offerAutoOdometer: Boolean,
+    healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    HealthCard(content, onEvent)
+    HealthCard(content, onEvent, Modifier.coachMarkAnchor(healthAnchor))
     FuelCard(content.tank, onEvent)
-    if (offerAutoDetect) AutoDetectOffer(autoDetectLocked, onEvent)
+    if (offerAutoDetect) AutoDetectOffer(onEvent)
+    if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
     content.insight?.let { InsightCard(it) }
@@ -306,10 +354,11 @@ private fun ScoredContent(
  * read and what would not, and the system's own prompt only after they have chosen to go on;
  * a card that asked for notification access on tap would be asking before it explained.
  *
- * Gone the moment detection is on, so it is an offer rather than an advert.
+ * Gone the moment detection is on, so it is an offer rather than an advert. Never carries a
+ * Pro badge: automatic logging is free (#251), so there is nothing here to sell.
  */
 @Composable
-private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
+private fun AutoDetectOffer(onEvent: (HomeEvent) -> Unit) {
     OdoCard(
         modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_DETECT_OFFER),
         onClick = { onEvent(HomeEvent.AutoDetectTapped) },
@@ -329,26 +378,61 @@ private fun AutoDetectOffer(locked: Boolean, onEvent: (HomeEvent) -> Unit) {
                 Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OdoText(
-                        stringResource(Res.string.hm_auto_detect_title),
-                        style = OdoTheme.typography.label,
-                    )
-                    // Named before it is tapped. A card that opens a paywall without saying
-                    // so first reads as a trick, and the owner who cannot buy today should be
-                    // able to skip it without spending a tap to find out.
-                    if (locked) {
-                        OdoBadge(
-                            text = stringResource(Res.string.hm_badge_pro),
-                            tone = OdoBadgeTone.Accent,
-                        )
-                    }
-                }
+                OdoText(
+                    stringResource(Res.string.hm_auto_detect_title),
+                    style = OdoTheme.typography.label,
+                )
                 OdoText(
                     stringResource(Res.string.hm_auto_detect_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
+        }
+    }
+}
+
+/**
+ * The auto odometer's second doorway — [AutoDetectOffer]'s twin, same reasoning.
+ *
+ * Enrollment's home is the garage card, but the garage is a tab most owners visit less
+ * often than this one, and a feature discoverable from a single slot is a feature that
+ * mostly goes unmet. It opens the education screen — what would be tracked and when,
+ * before any permission — and leaves the dashboard on its own once tracking is set up.
+ */
+@Composable
+private fun AutoOdometerOffer(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.AUTO_ODOMETER_OFFER),
+        onClick = { onEvent(HomeEvent.AutoOdometerTapped) },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoIcon(
+                IcSpeedometer,
+                contentDescription = null,
+                tint = OdoTheme.colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
+                OdoText(
+                    stringResource(Res.string.hm_auto_odometer_title),
+                    style = OdoTheme.typography.label,
+                )
+                OdoText(
+                    stringResource(Res.string.hm_auto_odometer_body),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )
@@ -491,8 +575,12 @@ private fun fuelQuantity(tank: TankStatus): String {
 }
 
 @Composable
-private fun HealthCard(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
-    OdoCard(modifier = Modifier.testTag(HomeTestTags.HEALTH_CARD)) {
+private fun HealthCard(
+    content: HomeContent,
+    onEvent: (HomeEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoCard(modifier = modifier.testTag(HomeTestTags.HEALTH_CARD)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
             verticalAlignment = Alignment.CenterVertically,

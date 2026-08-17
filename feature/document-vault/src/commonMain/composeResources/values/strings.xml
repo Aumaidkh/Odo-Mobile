@@ -36,6 +36,10 @@
     <string name="dv_action_renew">Renew</string>
     <string name="dv_reminder">We’ll remind you %1$d days before it expires</string>
     <string name="dv_add_document">Add a document</string>
+
+    <!-- The reminders coach mark (#231) — the payoff invisible at upload time. -->
+    <string name="dv_vault_showcase">Filing a paper here sets an alarm — Odo chases the renewal so you don’t have to remember it.</string>
+    <string name="dv_showcase_dismiss">Got it</string>
     <string name="dv_error_load_failed">Could not read your documents. Pull down to try again.</string>
     <string name="dv_error_write_failed">Something went wrong. Please try again.</string>
     <string name="dv_error_limit_reached">Your free plan stores %1$d documents. Delete one to add another.</string>

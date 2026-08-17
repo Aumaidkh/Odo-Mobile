@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.servicelog.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -121,6 +122,12 @@ internal fun ServiceLogDetailRoute(
         parametersOf(CarId(key.carId), ServiceLogId(key.logId))
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Leaving while the fairness coach mark is up releases the arbiter's grant without
+    // burning the hook's one showing — the owner never answered it (#230).
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onEvent(ServiceLogDetailEvent.FairnessShowcaseLeft) }
+    }
     // Held here because a picker is a platform activity, not a ViewModel call: the launcher
     // has to be remembered in the composition that will still be alive when it returns.
     val launchBillPicker = rememberFilePicker { pickedRef ->

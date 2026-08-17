@@ -85,6 +85,10 @@
     <!-- Turning a self-reported entry into a verified one, and checking its price. -->
     <string name="sl_detail_attach_bill">Add a bill to verify</string>
     <string name="sl_detail_check_fairness">Check fairness</string>
+
+    <!-- The fairness coach mark (#230) — the differentiator, pitched on the owner's own bill. -->
+    <string name="sl_fairness_showcase">Odo can tell you whether this price was fair, checked against what others in your city paid.</string>
+    <string name="sl_showcase_dismiss">Got it</string>
     <!-- The entry has no priced lines and covers more than one job, so one total cannot be
          compared job by job. -->
     <string name="sl_detail_fairness_unavailable">This bill can’t be compared — it has one total covering more than one job, with no itemised charges to check against city prices.</string>
@@ -112,6 +116,13 @@
     <!-- Share verified record sheet -->
     <string name="sl_share_subtitle">%1$s · %2$d of %3$d services verified</string>
     <string name="sl_share_bill_subtitle">%1$s · %2$s · %3$s</string>
+    <!-- Out of free exports (#246). Says what each route costs before the tap, and what a
+         single purchase actually buys — one PDF, so nothing is discovered afterwards. -->
+    <string name="sl_export_offer_title">You\'ve used your free exports</string>
+    <string name="sl_export_offer_body">Buy this one export, or get them unlimited with Pro.</string>
+    <string name="sl_export_offer_buy">Buy this export · %1$s</string>
+    <string name="sl_export_offer_pro">Unlock with Pro</string>
+    <string name="sl_export_offer_note">One payment, one PDF — the record as it stands today.</string>
     <string name="sl_share_whatsapp">WhatsApp</string>
     <string name="sl_share_email">Email</string>
     <string name="sl_share_more">More</string>

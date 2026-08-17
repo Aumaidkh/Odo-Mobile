@@ -28,6 +28,9 @@ object CostTrackerTestTags {
     /** The sheet's price field, which collapses to a label every fuel type shares. */
     const val FUEL_RATE_FIELD: String = "cost_fuel_rate_field"
 
+    /** The locked analysis block shown to a free owner (#247). */
+    const val PAYWALL: String = "cost_paywall"
+
     /** One bucket's row in the "where it goes" breakdown. */
     fun categoryRow(category: SpendCategory): String = "cost_category_row_${category.name}"
 }

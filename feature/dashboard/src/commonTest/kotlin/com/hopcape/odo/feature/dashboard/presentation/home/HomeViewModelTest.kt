@@ -23,6 +23,14 @@ import com.hopcape.odo.feature.dashboard.FakeServiceLogRepository
 import com.hopcape.odo.feature.dashboard.FixedClock
 import com.hopcape.odo.feature.dashboard.TEST_CAR
 import com.hopcape.odo.feature.dashboard.currentOdometerFrom
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
+import com.hopcape.odo.core.triptracker.TrackingStatus
+import com.hopcape.odo.core.triptracker.TriggerMode
+import com.hopcape.odo.core.triptracker.TripTracker
+import com.hopcape.odo.core.triptracker.VehicleBond
+import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
 import com.hopcape.odo.feature.dashboard.testDocument
@@ -44,13 +52,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.entitlement.Plan
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.assertFalse
-import com.hopcape.odo.core.domain.entitlement.ProFeature
-import com.hopcape.odo.core.domain.entitlement.PlanLimits
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelAllowance
-import com.hopcape.odo.core.domain.refuel.entitlement.SmartRefuelLimit
 
 class HomeViewModelTest {
 
@@ -243,38 +251,142 @@ class HomeViewModelTest {
 
     /* ------------------------- fixtures ------------------------- */
 
+    /**
+     * #251: automatic logging is never gated, so the card always opens the explanation —
+     * on the free plan, and however many fills have already been detected.
+     */
     @Test
-    fun autoDetect_isOpenOnTheFreePlanUntilTheAllowanceRunsOut() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 9)
-        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetect_locksWhenTheFreeAllowanceIsSpent() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
-        assertTrue(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetect_staysUnlockedOnProPastTheFreeCap() = runTest {
-        val vm = viewModel(isPro = true, detectedFillsUsed = 50)
-        assertFalse(vm.state.first { it.content is Loadable.Ready }.autoDetectLocked)
-    }
-
-    @Test
-    fun autoDetectTapped_opensThePaywallWhenLocked() = runTest {
-        val vm = viewModel(isPro = false, detectedFillsUsed = 10)
+    fun autoDetectTapped_alwaysOpensTheExplanation_neverAPaywall() = runTest(dispatcher) {
+        val vm = viewModel(isPro = false, detectedFillsUsed = 50)
         vm.state.first { it.content is Loadable.Ready }
+
         vm.onEvent(HomeEvent.AutoDetectTapped)
-        assertIs<HomeEffect.OpenPaywall>(vm.effects.first())
+
+        assertIs<HomeEffect.OpenAutoDetect>(vm.effects.first())
     }
 
     @Test
-    fun autoDetectTapped_opensEnrolmentWhenUnlocked() = runTest {
+    fun autoDetectTapped_opensEnrolmentWhenUnlocked() = runTest(dispatcher) {
         val vm = viewModel(isPro = true)
         vm.state.first { it.content is Loadable.Ready }
         vm.onEvent(HomeEvent.AutoDetectTapped)
         assertIs<HomeEffect.OpenAutoDetect>(vm.effects.first())
+    }
+
+    @Test
+    fun autoOdometerOffer_shownWhileNotSetUp_andGoneOnceEnrolledAndOn() = runTest(dispatcher) {
+        val offered = viewModel(bond = null, trackingEnabled = false)
+        assertTrue(offered.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
+
+        val setUp = viewModel(
+            bond = VehicleBond(carId = TEST_CAR, bluetoothId = "bt-1", triggerMode = TriggerMode.STEREO),
+            trackingEnabled = true,
+        )
+        assertFalse(setUp.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
+    }
+
+    @Test
+    fun scanShowcase_grantedOnAFreshDeviceWithACar_andNothingLogged() = runTest(dispatcher) {
+        val vm = viewModel(entries = emptyList(), documents = emptyList())
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready && it.scanShowcase }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcase_notGranted_onceSomethingIsLogged() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcase_notGranted_whenAlreadySeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore().apply { seen += ShowcaseHookId.SCAN_BUTTON }
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.scanShowcase)
+    }
+
+    @Test
+    fun scanShowcaseDismissed_hidesIt_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseDismissed)
+
+        assertFalse(vm.state.first { !it.scanShowcase }.scanShowcase)
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.SCAN_BUTTON in seen.seen)
+    }
+
+    @Test
+    fun scanShowcaseActedOn_opensTheScanner_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseActedOn)
+
+        assertIs<HomeEffect.OpenScanner>(vm.effects.first())
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.SCAN_BUTTON in seen.seen)
+    }
+
+    @Test
+    fun scanShowcaseLeft_releasesWithoutSeen_soTheNextVisitShowsItAgain() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(entries = emptyList(), documents = emptyList(), seenStore = seen)
+        vm.state.first { it.scanShowcase }
+
+        vm.onEvent(HomeEvent.ScanShowcaseLeft)
+
+        assertTrue(seen.seen.isEmpty())
+        // The same session's next visit re-requests and is granted again.
+        assertTrue(vm.state.first { it.scanShowcase }.scanShowcase)
+    }
+
+    @Test
+    fun healthShowcase_grantedOnTheFirstScoredDashboard() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready && it.healthShowcase }.healthShowcase)
+    }
+
+    @Test
+    fun healthShowcase_notGranted_beforeAnythingIsScored() = runTest(dispatcher) {
+        val vm = viewModel(entries = emptyList(), documents = emptyList())
+        vm.state.first { it.content is Loadable.Ready }
+
+        assertFalse(vm.state.value.healthShowcase)
+    }
+
+    @Test
+    fun healthShowcaseActedOn_opensTheBreakdown_andWritesSeen() = runTest(dispatcher) {
+        val seen = FakeShowcaseSeenStore()
+        val vm = viewModel(seenStore = seen)
+        vm.state.first { it.healthShowcase }
+
+        vm.onEvent(HomeEvent.HealthShowcaseActedOn)
+
+        assertIs<HomeEffect.OpenHealthScore>(vm.effects.first())
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN in seen.seen)
+    }
+
+    @Test
+    fun proPlan_isCarriedForTheProCopyVariant() = runTest(dispatcher) {
+        val vm = viewModel(isPro = true)
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready }.proPlan)
+    }
+
+    @Test
+    fun autoOdometerTapped_opensTheEducationScreen() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.state.first { it.content is Loadable.Ready }
+        vm.onEvent(HomeEvent.AutoOdometerTapped)
+        assertIs<HomeEffect.OpenAutoOdometer>(vm.effects.first())
     }
 
     private fun viewModel(
@@ -285,6 +397,9 @@ class HomeViewModelTest {
         analytics: RecordingAnalytics = RecordingAnalytics(),
         isPro: Boolean = false,
         detectedFillsUsed: Int = 0,
+        bond: VehicleBond? = null,
+        trackingEnabled: Boolean = false,
+        seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -301,18 +416,18 @@ class HomeViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         detection = FakeRefuelDetectionStore(),
-        smartRefuel = smartRefuelAllowance(used = detectedFillsUsed, isPro = isPro),
+        bonds = FakeVehicleBondStore(bond),
+        tracker = FakeTripTracker(enabled = trackingEnabled),
+        showcase = ShowcaseArbiter(seenStore),
+        entitlements = FakeEntitlementSource(isPro = isPro),
         telemetry = telemetry(analytics),
     )
 
-    /** A [SmartRefuelAllowance] that stands still on one plan and one tally. */
-    private fun smartRefuelAllowance(used: Int, isPro: Boolean) = SmartRefuelAllowance {
-        flowOf(
-            SmartRefuelLimit(
-                used = used,
-                quota = PlanLimits.quota(if (isPro) Plan.PRO else Plan.FREE, ProFeature.SMART_REFUEL_DETECT),
-            ),
-        )
+    private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
+        override fun observe(): Flow<Entitlements> =
+            flowOf(Entitlements(plan = if (isPro) Plan.PRO else Plan.FREE))
+
+        override suspend fun refresh() = Unit
     }
 
     private fun telemetry(analytics: RecordingAnalytics) = HomeTelemetry(
@@ -342,5 +457,36 @@ class HomeViewModelTest {
 
         override fun setConsent(status: ConsentStatus) = Unit
         override fun flush() = Unit
+    }
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
+    private class FakeVehicleBondStore(private val bond: VehicleBond?) : VehicleBondStore {
+        override suspend fun bond(): VehicleBond? = bond
+        override suspend fun saveBond(bond: VehicleBond) = Unit
+        override suspend fun clearBond() = Unit
+    }
+
+    private class FakeTripTracker(enabled: Boolean) : TripTracker {
+        private val enabledFlow = MutableStateFlow(enabled)
+        override suspend fun setEnabled(enabled: Boolean) {
+            enabledFlow.value = enabled
+        }
+
+        override suspend fun armFromPersistedState() = Unit
+        override val isEnabled: Flow<Boolean> get() = enabledFlow
+        override val status: Flow<TrackingStatus> get() = flowOf(TrackingStatus.Disabled)
+        override suspend fun pauseActiveTrip() = Unit
+        override suspend fun resumeActiveTrip() = Unit
+        override suspend fun discardActiveTrip() = Unit
+        override suspend fun startIfConnected() = Unit
     }
 }

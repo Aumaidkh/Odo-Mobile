@@ -29,7 +29,9 @@ import com.hopcape.odo.feature.timeline.testEntry
 import com.hopcape.odo.feature.timeline.testSnapshot
 import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -39,6 +41,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
+import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
+import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -238,6 +246,31 @@ class TimelineViewModelTest {
         assertEquals(true, applied.second[TimelineTelemetry.Key.ONLY_FLAGGED])
     }
 
+    @Test
+    fun threeVerifiedServices_raiseTheRecordShowcase_andActingOpensTheShare() = runTest(dispatcher) {
+        val vm = viewModel(
+            entries = listOf(
+                testEntry("v1", LocalDate(2026, 7, 12), verified = true),
+                testEntry("v2", LocalDate(2026, 6, 21), verified = true),
+                testEntry("v3", LocalDate(2026, 5, 2), verified = true),
+            ),
+        )
+
+        assertTrue(vm.state.first { it.recordShowcase }.recordShowcase)
+
+        vm.onEvent(TimelineEvent.RecordShowcaseActedOn)
+
+        assertIs<TimelineEffect.ShareRecord>(vm.effects.first())
+    }
+
+    @Test
+    fun oneVerifiedService_neverRaisesTheRecordShowcase() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.state.first { it.content is Loadable.Ready }
+
+        assertEquals(false, vm.state.value.recordShowcase)
+    }
+
     /* ------------------------- fixtures ------------------------- */
 
     private fun viewModel(
@@ -259,8 +292,27 @@ class TimelineViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         filters = filters,
+        showcase = ShowcaseArbiter(FakeShowcaseSeenStore()),
+        entitlements = FakeEntitlementSource(),
         telemetry = telemetry(analytics),
     )
+
+    private class FakeShowcaseSeenStore : ShowcaseSeenStore {
+        val seen = mutableSetOf<ShowcaseHookId>()
+        override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen
+        override suspend fun markSeen(hook: ShowcaseHookId) {
+            seen += hook
+        }
+
+        override suspend fun clearAll() = seen.clear()
+    }
+
+    private class FakeEntitlementSource(private val isPro: Boolean = false) : EntitlementSource {
+        override fun observe(): Flow<Entitlements> =
+            flowOf(Entitlements(plan = if (isPro) Plan.PRO else Plan.FREE))
+
+        override suspend fun refresh() = Unit
+    }
 
     private fun filterViewModel(
         filters: TimelineFilterStore = TimelineFilterStore(),

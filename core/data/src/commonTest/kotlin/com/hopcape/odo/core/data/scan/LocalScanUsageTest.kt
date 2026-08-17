@@ -33,12 +33,16 @@ class LocalScanUsageTest {
         assertEquals(setOf("2026-01"), store.counts.keys)
     }
 
+    /**
+     * The cap is a lifetime one (#248), so a new month is not a fresh allowance — the rows
+     * are still keyed by month, but the total sums across all of them.
+     */
     @Test
-    fun aNewMonthStartsFromZeroWithoutAnythingResettingIt() = runTest {
+    fun aNewMonthDoesNotResetTheCount() = runTest {
         repeat(3) { usageAt("2026-08-31T18:00:00Z").recordScan() }
+        usageAt("2026-09-01T06:00:00Z").recordScan()
 
-        assertEquals(3, usageAt("2026-08-31T18:00:00Z").usedThisMonth())
-        assertEquals(0, usageAt("2026-09-01T06:00:00Z").usedThisMonth())
+        assertEquals(4, usageAt("2026-09-01T06:00:00Z").used())
     }
 
     @Test
@@ -56,6 +60,8 @@ class LocalScanUsageTest {
 
 private class FakeScanUsageStore : ScanUsageLocalDataSource {
     val counts = mutableMapOf<String, Int>()
+
+    override suspend fun countAllTime(): Int = counts.values.sum()
 
     override suspend fun countFor(month: String): Int = counts[month] ?: 0
 

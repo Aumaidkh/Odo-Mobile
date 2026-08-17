@@ -20,6 +20,13 @@ CREATE TABLE scan_usage (
     scan_count INTEGER NOT NULL
 );
 
+-- The cap in force is a lifetime one (#248), so the total is a SUM across every month.
+-- The rows stay per-month: it costs nothing, needs no migration, and keeps the monthly
+-- figure available if it is ever wanted.
+countAllTime:
+SELECT sum(scan_count) AS total
+FROM scan_usage;
+
 countForMonth:
 SELECT scan_count
 FROM scan_usage

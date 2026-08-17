@@ -30,8 +30,8 @@
     <string name="hm_running_cost">RUNNING COST</string>
     <!-- The unit the running cost is quoted per, e.g. "/km". -->
     <string name="hm_per_unit">/%1$s</string>
-    <string name="hm_cost_above">%1$d%% above last quarter</string>
-    <string name="hm_cost_below">%1$d%% below last quarter</string>
+    <string name="hm_cost_above">%1$d% above last quarter</string>
+    <string name="hm_cost_below">%1$d% below last quarter</string>
     <string name="hm_cost_flat">Same as last quarter</string>
     <string name="hm_cost_no_trend">No comparison yet</string>
     <string name="hm_cost_not_enough">Not enough distance yet</string>
@@ -65,8 +65,8 @@
     <string name="hm_insight_eyebrow">ODO INSIGHT</string>
     <string name="hm_insight_resale_eyebrow">RESALE READY</string>
     <string name="hm_insight_resale">All %1$d services verified — your record beats most listings.</string>
-    <string name="hm_insight_cost_up">Running costs are %1$d%% higher than last quarter.</string>
-    <string name="hm_insight_cost_down">Running costs are %1$d%% lower than last quarter.</string>
+    <string name="hm_insight_cost_up">Running costs are %1$d% higher than last quarter.</string>
+    <string name="hm_insight_cost_down">Running costs are %1$d% lower than last quarter.</string>
     <string name="hm_insight_no_bills">%1$d services logged with no bill attached — scan one to unlock fairness checks.</string>
     <string name="hm_insight_no_bills_one">Your one logged service has no bill attached — scan it to unlock fairness checks.</string>
     <string name="hm_insight_missing_doc">%1$s is missing from your vault — adding it lifts your score.</string>
@@ -135,4 +135,11 @@
     <string name="hm_badge_pro">PRO</string>
     <string name="hm_auto_detect_title">Log fills automatically</string>
     <string name="hm_auto_detect_body">Let Odo spot the payment at a pump and draft the entry. See what it reads first.</string>
+    <string name="hm_auto_odometer_title">Keep your odometer current</string>
+    <string name="hm_auto_odometer_body">Odo can log every drive on its own — no typing readings. See how it works.</string>
+    <string name="hm_scan_showcase">A photo of a bill logs the service — and checks whether the price was fair.</string>
+    <string name="hm_showcase_dismiss">Got it</string>
+    <!-- #232 — the Pro variant never mentions a plan; the free variant names the gate up front. -->
+    <string name="hm_health_showcase">This score responds to what you log. The breakdown shows exactly what would move it.</string>
+    <string name="hm_health_showcase_free">This score responds to what you log. The breakdown showing what would move it is included with Pro.</string>
 </resources>

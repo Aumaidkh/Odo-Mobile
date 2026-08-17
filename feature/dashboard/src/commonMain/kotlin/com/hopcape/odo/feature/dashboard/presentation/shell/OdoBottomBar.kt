@@ -27,8 +27,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hopcape.odo.core.designsystem.component.CoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcClock
@@ -65,6 +67,7 @@ internal fun OdoBottomBar(
     onSelectTab: (OdoDestination.TopLevel) -> Unit,
     onScan: () -> Unit,
     modifier: Modifier = Modifier,
+    scanAnchor: CoachMarkAnchorState? = null,
 ) {
     val colors = OdoTheme.colors
     // Split the tabs into the left and right clusters flanking the Scan tile.
@@ -96,7 +99,10 @@ internal fun OdoBottomBar(
         // The Scan tile straddles the bar's top edge, lifted above it.
         ScanTile(
             onClick = onScan,
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = -ScanLift),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = -ScanLift)
+                .let { if (scanAnchor != null) it.coachMarkAnchor(scanAnchor) else it },
         )
     }
 }

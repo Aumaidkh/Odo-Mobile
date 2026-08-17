@@ -31,6 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
+import com.hopcape.odo.core.designsystem.component.OdoCoachMark
+import com.hopcape.odo.core.designsystem.component.coachMarkAnchor
+import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
@@ -58,6 +61,8 @@ import com.hopcape.odo.feature.documentvault.presentation.state.Loadable
 import com.hopcape.odo.feature.documentvault.resources.Res
 import com.hopcape.odo.feature.documentvault.resources.dv_action_add
 import com.hopcape.odo.feature.documentvault.resources.dv_add_document
+import com.hopcape.odo.feature.documentvault.resources.dv_showcase_dismiss
+import com.hopcape.odo.feature.documentvault.resources.dv_vault_showcase
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_insurance
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_licence
 import com.hopcape.odo.feature.documentvault.resources.dv_doc_loan
@@ -100,13 +105,18 @@ internal fun DocumentVaultScreen(
     onAddDocument: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowcaseDismiss: () -> Unit = {},
+    onShowcaseActedOn: () -> Unit = {},
 ) {
+    // The reminders coach mark's anchor (#231) — the add bar, because that is the action
+    // the payoff hangs off whether the vault is empty or holds its first paper.
+    val addBarAnchor = rememberCoachMarkAnchorState()
     OdoScreen(
         modifier = modifier,
         title = stringResource(Res.string.dv_title),
         onBack = onBack,
         backContentDescription = stringResource(Res.string.dv_cd_back),
-        bottomBar = { AddDocumentBar(onAddDocument) },
+        bottomBar = { AddDocumentBar(onAddDocument, Modifier.coachMarkAnchor(addBarAnchor)) },
     ) { padding ->
         when (val content = state.content) {
             Loadable.Loading -> Box(
@@ -140,6 +150,18 @@ internal fun DocumentVaultScreen(
                 }
             }
         }
+    }
+
+    // The reminders coach mark (#231): filing a paper is setting an alarm, and that payoff
+    // is invisible at upload time. Tapping the cutout opens the add flow it points at.
+    if (state.vaultShowcase) {
+        OdoCoachMark(
+            text = stringResource(Res.string.dv_vault_showcase),
+            dismissLabel = stringResource(Res.string.dv_showcase_dismiss),
+            anchor = addBarAnchor,
+            onDismiss = onShowcaseDismiss,
+            onAnchorTap = onShowcaseActedOn,
+        )
     }
 }
 
@@ -274,10 +296,10 @@ private fun IconChip(icon: ImageVector, tone: Color) {
 }
 
 @Composable
-private fun AddDocumentBar(onClick: () -> Unit) {
+private fun AddDocumentBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val border = OdoTheme.colors.border
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .background(OdoTheme.colors.bg)
             .navigationBarsPadding()

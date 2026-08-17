@@ -43,8 +43,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
+import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
 
@@ -115,6 +119,8 @@ class ShareRecordViewModelTest {
         ),
         observeDetail = ObserveEntryDetailUseCase(observeFeed = ObserveServiceLogFeedUseCase(logs = logs)),
         entitlements = entitlementsOf(isPro),
+        exportCredits = FakeExportCredits(),
+        oneTimePurchaser = FakeOneTimePurchaser(),
         exportUsage = FakeRecordExportUsage(used = exportsUsed),
         documents = { record -> ServiceRecordDocument(html = "<!doctype html>${record.carName}", name = "${record.carName} service record") },
         bills = { record, entry -> ServiceRecordDocument(html = "<!doctype html>bill:${entry.id.value}", name = "${record.carName} service bill") },
@@ -162,19 +168,52 @@ class ShareRecordViewModelTest {
         )
     }
 
+    /**
+     * #246: out of free exports is no longer a one-way trip to a subscription. Both routes
+     * are offered, priced, and nothing is rendered until one is taken.
+     */
     @Test
-    fun `a free owner who has spent the allowance is sent to the paywall`() = runTest {
+    fun `a free owner who has spent the allowance is offered both routes`() = runTest {
         val files = RecordingFileStore()
         val viewModel = viewModel(files = files, isPro = false, exportsUsed = 3)
+        advanceUntilIdle()
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+
+        val offer = assertNotNull(viewModel.state.value.exportOffer)
+        assertEquals("Rs. 99", offer.oneTimePrice)
+        assertTrue(files.written.isEmpty(), "nothing is rendered for an export that is not allowed")
+    }
+
+    @Test
+    fun `the Pro route from that offer opens the paywall`() = runTest {
+        val viewModel = viewModel(isPro = false, exportsUsed = 3)
         advanceUntilIdle()
         val effects = mutableListOf<ShareRecordEffect>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
 
         viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
         advanceUntilIdle()
+        viewModel.onEvent(ShareRecordEvent.UnlockWithProClicked)
+        advanceUntilIdle()
 
         assertEquals(listOf<ShareRecordEffect>(ShareRecordEffect.OpenPaywall), effects)
-        assertTrue(files.written.isEmpty(), "nothing is rendered for an export that is not allowed")
+    }
+
+    /** Buying takes the share they originally asked for, rather than making them tap again. */
+    @Test
+    fun `buying one export spends it immediately and renders the share`() = runTest {
+        val files = RecordingFileStore()
+        val viewModel = viewModel(files = files, isPro = false, exportsUsed = 3)
+        advanceUntilIdle()
+
+        viewModel.onEvent(ShareRecordEvent.ShareViaClicked(ShareTarget.DOWNLOAD))
+        advanceUntilIdle()
+        viewModel.onEvent(ShareRecordEvent.BuyExportClicked)
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.exportOffer, "the offer closes once it is answered")
     }
 
     @Test
@@ -444,4 +483,20 @@ class ShareRecordViewModelTest {
             "there is no record to print",
         )
     }
+    /** No credits bought, and nothing here spends one — the free-allowance path is what these test. */
+    private class FakeExportCredits : ExportCredits {
+        var granted = 0
+        override suspend fun available(): Int = granted
+        override suspend fun grant() {
+            granted++
+        }
+
+        override suspend fun spend(): Boolean = if (granted > 0) { granted--; true } else false
+    }
+
+    private class FakeOneTimePurchaser : OneTimePurchaser {
+        override suspend fun purchase(productId: String) = Unit.right()
+        override suspend fun priceOf(productId: String): String = "Rs. 99"
+    }
+
 }

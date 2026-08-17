@@ -355,13 +355,14 @@ internal object TripStateMachine {
             )
             TripEvent.PresenceConnected -> resumeFromStitch(state)
             is TripEvent.Motion -> if (event.kind == MotionKind.IN_VEHICLE) resumeFromStitch(state) else Transition(state, emptyList())
-            is TripEvent.Fix -> {
-                val session = state.session.copy(
-                    distanceMeters = state.session.distanceMeters + event.integration.addedMeters,
-                    lastGoodFix = event.sample,
-                )
-                Transition(state.copy(session = session), emptyList())
-            }
+            // The session stays frozen exactly as it stood at stop entry. Metres measured
+            // during the stitch window belong to whatever the owner is doing after
+            // ignition-off — walking away, most of the time — not to the trip, and
+            // `lastGoodFix` is the parked spot, which must not drift along on foot. A
+            // stitch resume loses nothing real: the integrator's own cursor keeps
+            // advancing with every fix, so tracking continues from the current position
+            // with no jump, and only the stopped-window metres stay excluded.
+            is TripEvent.Fix -> Transition(state, emptyList())
             else -> Transition(state, emptyList())
         }
 

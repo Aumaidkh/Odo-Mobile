@@ -23,6 +23,7 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCar
+import com.hopcape.odo.core.designsystem.icons.IcClock
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -33,6 +34,8 @@ import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.feature.autoodometer.resources.Res
 import com.hopcape.odo.feature.autoodometer.resources.ao_cd_back
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_cta
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_denied_row
@@ -187,18 +190,21 @@ private val ICON_BADGE_SIZE = 48.dp
 private fun stepIcon(step: PermissionSetupStep): ImageVector = when (step) {
     PermissionSetupStep.NOTIFICATIONS -> IcBellFilled
     PermissionSetupStep.FINE_LOCATION -> IcCar
+    PermissionSetupStep.BACKGROUND_LOCATION -> IcClock
     PermissionSetupStep.ACTIVITY_RECOGNITION -> IcSpeedometer
 }
 
 private fun stepTitle(step: PermissionSetupStep): StringResource = when (step) {
     PermissionSetupStep.NOTIFICATIONS -> Res.string.ao_permissions_notifications_title
     PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
+    PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
     PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
 }
 
 private fun stepBody(step: PermissionSetupStep): StringResource = when (step) {
     PermissionSetupStep.NOTIFICATIONS -> Res.string.ao_permissions_notifications_body
     PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_body
+    PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_body
     PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_body
 }
 
