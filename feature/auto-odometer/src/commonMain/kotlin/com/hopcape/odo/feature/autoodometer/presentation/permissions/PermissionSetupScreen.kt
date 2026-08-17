@@ -130,7 +130,7 @@ private fun StepProgress(stepNumber: Int, totalSteps: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
         OdoText(
             stringResource(Res.string.ao_permissions_step_progress, stepNumber, totalSteps),
-            style = OdoTheme.typography.caption,
+            style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textMuted,
         )
     }
@@ -146,9 +146,13 @@ private fun PrimingCard(step: PermissionSetupStep) {
             IconBadge(stepIcon(step))
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(stringResource(stepTitle(step)), style = OdoTheme.typography.heading)
+                // Body size, not bodySmall: this paragraph is the rationale the owner has to
+                // read and act on before the system's own screen appears, usually standing at
+                // the car. It is the copy the whole feature depends on, so it gets the
+                // readable size rather than the supporting one.
                 OdoText(
                     stringResource(stepBody(step)),
-                    style = OdoTheme.typography.bodySmall,
+                    style = OdoTheme.typography.body,
                     color = OdoTheme.colors.textDim,
                 )
             }

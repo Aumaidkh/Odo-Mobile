@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -25,9 +27,12 @@ import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
+import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
+import com.hopcape.odo.core.designsystem.resources.Res
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import org.jetbrains.compose.resources.stringResource
 
 /** One thing the owner gets by granting the permission. */
 @Immutable
@@ -191,7 +196,7 @@ private fun BenefitRow(benefit: OdoPermissionBenefit) {
             OdoText(text = benefit.title, style = OdoTheme.typography.heading)
             OdoText(
                 text = benefit.description,
-                style = OdoTheme.typography.bodySmall,
+                style = OdoTheme.typography.body,
                 color = OdoTheme.colors.textDim,
             )
         }
@@ -214,7 +219,7 @@ private fun AssuranceRow(assurance: OdoPermissionAssurance) {
         )
         OdoText(
             text = assurance.text,
-            style = OdoTheme.typography.bodySmall,
+            style = OdoTheme.typography.body,
             color = OdoTheme.colors.textDim,
         )
     }
@@ -300,6 +305,30 @@ fun OdoPermissionNudge(
 
 private val HERO_TILE = 72.dp
 private val BENEFIT_TILE = 44.dp
+
+@OdoThemePreviews
+@Composable
+private fun OdoPermissionNudgePreview() = OdoPreview(padded = false){
+    Column {
+        OdoPermissionNudge(
+            icon = IcWarning,
+            message = "Location was denied — turn it on in Settings to finish setup",
+            actionLabel = "Open Settings",
+            // Mirrors the bottom bar's primary CTA — a second way to reach the same retry/settings
+            // action from where the owner's eyes already are, not a separate path.
+            onAction = {},
+        )
+        Spacer(Modifier.height(40.dp))
+        OdoPermissionNudge(
+            icon = IcWarning,
+            message = "Location was denied — turn it on in Settings to finish setup",
+            actionLabel = "Allow",
+            // Mirrors the bottom bar's primary CTA — a second way to reach the same retry/settings
+            // action from where the owner's eyes already are, not a separate path.
+            onAction = {},
+        )
+    }
+}
 
 @OdoThemePreviews
 @Composable

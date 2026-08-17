@@ -49,13 +49,13 @@
     <string name="ao_permissions_title">One last thing</string>
     <string name="ao_permissions_step_progress">Step %1$d of %2$d</string>
     <string name="ao_permissions_notifications_title">Notifications</string>
-    <string name="ao_permissions_notifications_body">You’ll see a quiet card while driving, so you always know Odo is tracking.</string>
+    <string name="ao_permissions_notifications_body">While Odo is recording a drive, it shows a notification that stays until the drive ends. That is how you know tracking is on, and you can stop the drive from there without opening the app.</string>
     <string name="ao_permissions_location_title">Location</string>
-    <string name="ao_permissions_location_body">Odo needs your location to measure each drive. Allow it while using the app — the next step makes it work with the app closed.</string>
+    <string name="ao_permissions_location_body">Odo uses your phone’s location to measure how far you drive — that is where the kilometres come from. On the next screen, choose “While using the app”. Odo reads location only during a drive, and the route stays on your phone.</string>
     <string name="ao_permissions_background_title">Location, all the time</string>
-    <string name="ao_permissions_background_body">Trips start on their own, even with Odo closed — Android calls that “Allow all the time”. Choose it on the next screen. Odo only reads location during a drive, and it never leaves your phone.</string>
+    <string name="ao_permissions_background_body">Right now a drive is recorded only while Odo is open on your screen. To record one with your phone in your pocket, Android needs a second setting: “Allow all the time”. The next screen is Android’s own — choose it there. Odo still reads location only while you are driving.</string>
     <string name="ao_permissions_activity_title">Activity access</string>
-    <string name="ao_permissions_activity_body">Odo needs to notice when you’re driving, not just walking or on a train.</string>
+    <string name="ao_permissions_activity_body">Odo checks your phone’s motion to tell a drive apart from a walk or a car ride. That is how a trip starts when your car has no Bluetooth to connect to. Odo reads motion only to spot the start and end of a drive.</string>
     <string name="ao_permissions_denied_row">%1$s was denied — turn it on in Settings to finish setup.</string>
     <string name="ao_permissions_open_settings">Open settings</string>
     <string name="ao_permissions_skip">Skip for now</string>
