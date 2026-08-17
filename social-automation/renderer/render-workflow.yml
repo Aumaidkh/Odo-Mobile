@@ -1,0 +1,31 @@
+# Copy to .github/workflows/social-render.yml when activating (S4).
+# Requires repo secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+#                        TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+name: social-render
+
+on:
+  schedule:
+    # 15 min after each generate cron: 09:15 / 14:15 / 19:15 IST.
+    - cron: "45 3 * * *"
+    - cron: "45 8 * * *"
+    - cron: "45 13 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: social-automation/renderer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: node render.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
