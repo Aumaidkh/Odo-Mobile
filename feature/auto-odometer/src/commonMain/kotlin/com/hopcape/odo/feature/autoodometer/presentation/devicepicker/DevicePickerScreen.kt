@@ -37,6 +37,9 @@ import com.hopcape.odo.feature.autoodometer.resources.ao_picker_category_car_aud
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_category_headset
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_category_other
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_category_wearable
+import com.hopcape.odo.feature.autoodometer.resources.ao_picker_bluetooth_off_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_picker_bluetooth_off_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_picker_bluetooth_off_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_cta
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_hint
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_no_bluetooth
@@ -69,6 +72,7 @@ internal fun DevicePickerScreen(
     onUseTapped: () -> Unit,
     onNoBluetoothTapped: () -> Unit,
     onGrantPermission: () -> Unit,
+    onTurnOnBluetooth: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,6 +124,7 @@ internal fun DevicePickerScreen(
             when {
                 state.permission != PermissionStatus.Granted -> PermissionNudgeCard(state, onGrantPermission)
                 devices is DeviceListLoad.Loading -> LoadingRow()
+                devices is DeviceListLoad.BluetoothOff -> BluetoothOffCard(onTurnOnBluetooth)
                 devices is DeviceListLoad.Ready -> DeviceSections(
                     load = devices,
                     selectedId = state.selectedId,
@@ -152,6 +157,33 @@ private fun PermissionNudgeCard(state: DevicePickerUiState, onGrantPermission: (
 private fun LoadingRow() {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         OdoLoadingIndicator()
+    }
+}
+
+/**
+ * The radio-off state. Says what is wrong, why Odo wants Bluetooth at all, and offers the one
+ * action that fixes it — in place of a list that would otherwise be blank for a reason the
+ * owner has no way to guess.
+ */
+@Composable
+private fun BluetoothOffCard(onTurnOnBluetooth: () -> Unit) {
+    OdoCard {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            OdoText(
+                stringResource(Res.string.ao_picker_bluetooth_off_title),
+                style = OdoTheme.typography.heading,
+            )
+            OdoText(
+                stringResource(Res.string.ao_picker_bluetooth_off_body),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+            )
+            OdoButton(
+                text = stringResource(Res.string.ao_picker_bluetooth_off_cta),
+                onClick = onTurnOnBluetooth,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -246,6 +278,7 @@ private fun DevicePickerScreenLoadingPreview() = OdoPreview(padded = false) {
         onDeviceSelected = {},
         onUseTapped = {},
         onNoBluetoothTapped = {},
+        onTurnOnBluetooth = {},
         onGrantPermission = {},
         onBack = {},
     )
@@ -271,6 +304,7 @@ private fun DevicePickerScreenGrantedPreview() = OdoPreview(padded = false) {
         onDeviceSelected = {},
         onUseTapped = {},
         onNoBluetoothTapped = {},
+        onTurnOnBluetooth = {},
         onGrantPermission = {},
         onBack = {},
     )
@@ -287,6 +321,7 @@ private fun DevicePickerScreenEmptyPreview() = OdoPreview(padded = false) {
         onDeviceSelected = {},
         onUseTapped = {},
         onNoBluetoothTapped = {},
+        onTurnOnBluetooth = {},
         onGrantPermission = {},
         onBack = {},
     )
@@ -300,6 +335,7 @@ private fun DevicePickerScreenBlockedPreview() = OdoPreview(padded = false) {
         onDeviceSelected = {},
         onUseTapped = {},
         onNoBluetoothTapped = {},
+        onTurnOnBluetooth = {},
         onGrantPermission = {},
         onBack = {},
     )

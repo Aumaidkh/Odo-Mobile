@@ -7,6 +7,19 @@ package com.hopcape.odo.core.triptracker
  */
 interface BondedDeviceCatalog {
     suspend fun devices(): List<BondedDevice>
+
+    /**
+     * Whether the phone's Bluetooth radio is on.
+     *
+     * [devices] cannot tell the difference on its own: a switched-off adapter reports no
+     * bonded devices, which reads exactly like a phone that has never paired with anything.
+     * The picker needs to tell those apart — one is a dead end, the other is one tap from
+     * being fixed.
+     *
+     * Defaults to true so an implementation on a platform without a radio to switch, or a
+     * test fake that does not care, is unaffected.
+     */
+    suspend fun isBluetoothOn(): Boolean = true
 }
 
 data class BondedDevice(

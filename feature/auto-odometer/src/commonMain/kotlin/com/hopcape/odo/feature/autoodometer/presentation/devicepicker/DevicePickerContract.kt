@@ -3,11 +3,21 @@ package com.hopcape.odo.feature.autoodometer.presentation.devicepicker
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.BondedDevice
 
-/** The device list read, as the two states the owner sees: the wait, and the grouped result. */
+/** The device list read, as the states the owner sees: the wait, the radio being off, and the grouped result. */
 internal sealed interface DeviceListLoad {
 
     /** [com.hopcape.odo.core.triptracker.BondedDeviceCatalog.devices] has not answered yet. */
     data object Loading : DeviceListLoad
+
+    /**
+     * The phone's Bluetooth is switched off.
+     *
+     * Worth its own state rather than an empty list: with the radio off there is nothing to
+     * pick and nothing the hint card's advice ("start your car so the stereo connects") can
+     * do about it, because the problem is on the phone rather than in the car. This is also
+     * the one empty-looking case the owner can fix in a tap.
+     */
+    data object BluetoothOff : DeviceListLoad
 
     /**
      * The grouped result. [connectedNow] holds the bonded, currently-connected car-audio
@@ -58,6 +68,16 @@ internal sealed interface DevicePickerEvent {
 
     /** The owner chose "Not now" on the rationale. */
     data object PermissionDeclined : DevicePickerEvent
+
+    /** "Turn on Bluetooth" on the radio-off card. */
+    data object BluetoothSettingsRequested : DevicePickerEvent
+
+    /**
+     * The screen came back to the foreground. The owner may have switched the radio on while
+     * they were away, and nothing else would notice: the catalog is read once and there is no
+     * adapter-state subscription behind it.
+     */
+    data object Resumed : DevicePickerEvent
 
     /** A device row was tapped. */
     data class DeviceSelected(val deviceId: String) : DevicePickerEvent
