@@ -61,6 +61,9 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import com.hopcape.odo.core.triptracker.DefaultTripTracker
+import com.hopcape.odo.core.triptracker.TripTracker
+import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -301,6 +304,70 @@ class TripTrackerEngineTest {
         assertTrue(env.engine.status.value !is TrackingStatus.Tracking)
     }
 
+    /**
+     * #271: presence only ever arrives as an ACL broadcast, so a process that comes up while
+     * the phone is already connected to the car had nothing to react to. Arming has to look at
+     * the current connection itself, not just wait.
+     */
+    @Test
+    fun armFromPersistedState_startsWhenTheCarIsAlreadyConnected() = runTest {
+        val catalog = FakeBondedDeviceCatalog(
+            listOf(BondedDevice(id = "aa:bb", name = "Car Stereo", category = DeviceCategory.CAR_AUDIO, isConnectedNow = true)),
+        )
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        env.engine.observeCar()
+        env.advance()
+        val tracker = env.tracker(trackerEnabled = true)
+
+        tracker.armFromPersistedState()
+        env.advance()
+
+        // No connect broadcast was ever emitted — only the speed gate is left to satisfy.
+        for (tick in 0..2) {
+            env.fixes.emit(TraceBuilder.sample(tick = tick, lat = 19.00, lon = 72.80, accuracyM = 10f, speedMps = 30f))
+            env.advance()
+        }
+        assertTrue(env.engine.status.value is TrackingStatus.Tracking)
+    }
+
+    @Test
+    fun armFromPersistedState_staysIdleWhenTheCarIsNotConnected() = runTest {
+        val catalog = FakeBondedDeviceCatalog(
+            listOf(BondedDevice(id = "aa:bb", name = "Car Stereo", category = DeviceCategory.CAR_AUDIO, isConnectedNow = false)),
+        )
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        env.engine.observeCar()
+        env.advance()
+        val tracker = env.tracker(trackerEnabled = true)
+
+        tracker.armFromPersistedState()
+        env.advance()
+        for (tick in 0..2) {
+            env.fixes.emit(TraceBuilder.sample(tick = tick, lat = 19.00, lon = 72.80, accuracyM = 10f, speedMps = 30f))
+            env.advance()
+        }
+
+        assertTrue(env.engine.status.value !is TrackingStatus.Tracking, "a parked car must not start a trip")
+    }
+
+    /** Stored intent is off — arming must not enable the engine, let alone look for a car. */
+    @Test
+    fun armFromPersistedState_doesNothingWhenTrackingWasTurnedOff() = runTest {
+        val catalog = FakeBondedDeviceCatalog(
+            listOf(BondedDevice(id = "aa:bb", name = "Car Stereo", category = DeviceCategory.CAR_AUDIO, isConnectedNow = true)),
+        )
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        env.engine.observeCar()
+        env.advance()
+        val tracker = env.tracker(trackerEnabled = false)
+
+        tracker.armFromPersistedState()
+        env.advance()
+
+        assertFalse(tracker.isEnabled.value)
+        assertTrue(env.engine.status.value !is TrackingStatus.Tracking)
+    }
+
     // ---- test harness ----
 
     private inner class Env(
@@ -346,6 +413,14 @@ class TripTrackerEngineTest {
             // cancels them at all — runTest would otherwise fail on leftover jobs.
             scope = scope.backgroundScope,
             now = { baseInstant + scope.currentTime.milliseconds },
+        )
+
+        /** [DefaultTripTracker] wired to this Env's engine, with [trackerEnabled] as stored intent. */
+        fun tracker(trackerEnabled: Boolean): DefaultTripTracker = DefaultTripTracker(
+            engine = engine,
+            telemetry = telemetry,
+            vehicleBondStore = FakeVehicleBondStore(bond = VehicleBond(car.id, "aa:bb", TriggerMode.STEREO)),
+            settings = StoredTrackerIntent(trackerEnabled),
         )
 
         suspend fun enableAndSettleCar() {
@@ -537,4 +612,14 @@ private object NoopCrash : CrashRecorder {
     override fun leaveBreadcrumb(tag: String, message: String) = Unit
     override fun setCustomKey(key: String, value: Any?) = Unit
     override fun setUserId(userId: String?) = Unit
+}
+
+/** Stored auto-odometer intent, as [DefaultTripTracker.armFromPersistedState] reads it. */
+private class StoredTrackerIntent(trackerEnabled: Boolean) : AppSettingsRepository {
+    private val stored = MutableStateFlow(AppSettings.Default.copy(trackerEnabled = trackerEnabled))
+    override fun observe(): Flow<AppSettings> = stored
+    override suspend fun save(settings: AppSettings): Either<DomainError, AppSettings> {
+        stored.value = settings
+        return settings.right()
+    }
 }
