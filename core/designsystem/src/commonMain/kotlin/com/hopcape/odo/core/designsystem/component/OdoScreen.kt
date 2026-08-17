@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -23,7 +25,9 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
  * module. It centralises, in one place, everything a screen otherwise re-wires:
  *
  *  - brand background ([OdoTheme] `colors.bg`) and default content colour,
- *  - system-bar / display-cutout insets (via the underlying Material [Scaffold]),
+ *  - system-bar / display-cutout insets: the content via the underlying Material
+ *    [Scaffold], plus status-bar padding on the [topBar] slot and navigation-bar
+ *    padding on the [bottomBar] slot (Scaffold leaves those slots to the caller),
  *  - the optional [OdoTopBar] header (just pass a `title` + optional `onBack`),
  *  - bottom bar / FAB / snackbar slots,
  *  - the default horizontal screen-edge padding (`spacing.screenEdge`).
@@ -82,8 +86,16 @@ fun OdoScreen(
 ) {
     Scaffold(
         modifier = modifier,
-        topBar = topBar,
-        bottomBar = bottomBar,
+        // Material's Scaffold only insets the *content* slot; the top and bottom bar
+        // slots draw right up to the screen edges. A Material TopAppBar pads itself, but
+        // the custom Rows/Columns feature screens pass here (a close button, a CTA
+        // column) do not — so with 3-button navigation the CTA sat under the system nav
+        // bar and a close button under the status bar. Pad both slots here, once. The
+        // inset modifiers consume what they apply, so a screen that already pads its own
+        // bar (or a TopAppBar) is not padded twice, and a screen hosted under the app
+        // shell — which has consumed the nav inset already — gets nothing extra.
+        topBar = { Box(Modifier.statusBarsPadding()) { topBar() } },
+        bottomBar = { Box(Modifier.navigationBarsPadding()) { bottomBar() } },
         floatingActionButton = floatingActionButton,
         floatingActionButtonPosition = floatingActionButtonPosition,
         snackbarHost = { snackbarHostState?.let { SnackbarHost(it) } },

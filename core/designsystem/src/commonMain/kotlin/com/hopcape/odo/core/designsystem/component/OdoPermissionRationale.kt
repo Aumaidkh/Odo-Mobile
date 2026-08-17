@@ -118,12 +118,18 @@ fun OdoPermissionRationale(
             }
         },
         bottomBar = {
+            // The dismiss button is text-only, so its 48dp touch target already leaves
+            // ~14dp of empty space under the label. Full `lg` on top of that read as a
+            // floating band above an opaque 3-button navigation bar, so the bottom edge
+            // gets `sm` and the visible gap lands where a filled button's `lg` would.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        horizontal = OdoTheme.spacing.screenEdge,
-                        vertical = OdoTheme.spacing.lg,
+                        start = OdoTheme.spacing.screenEdge,
+                        end = OdoTheme.spacing.screenEdge,
+                        top = OdoTheme.spacing.lg,
+                        bottom = OdoTheme.spacing.sm,
                     ),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
