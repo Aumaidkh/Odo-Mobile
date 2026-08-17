@@ -56,6 +56,8 @@
     <string name="ao_permissions_background_body">Right now a drive is recorded only while Odo is open on your screen. To record one with your phone in your pocket, Android needs a second setting: “Allow all the time”. The next screen is Android’s own — choose it there. Odo still reads location only while you are driving.</string>
     <string name="ao_permissions_activity_title">Activity access</string>
     <string name="ao_permissions_activity_body">Odo checks your phone’s motion to tell a drive apart from a walk or a car ride. That is how a trip starts when your car has no Bluetooth to connect to. Odo reads motion only to spot the start and end of a drive.</string>
+    <string name="ao_permissions_autostart_title">Let Odo start on its own</string>
+    <string name="ao_permissions_autostart_body">Your phone’s brand keeps its own switch for which apps may start on their own, and it is off by default. While it is off, your phone will not wake Odo when your car connects — no permission above can fix that. The next screen is your phone’s settings: find Odo in the list and turn it on.</string>
     <string name="ao_permissions_denied_row">%1$s was denied — turn it on in Settings to finish setup.</string>
     <string name="ao_permissions_open_settings">Open settings</string>
     <string name="ao_permissions_skip">Skip for now</string>
