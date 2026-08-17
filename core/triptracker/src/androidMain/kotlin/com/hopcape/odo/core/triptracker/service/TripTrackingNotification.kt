@@ -57,7 +57,12 @@ internal object TripTrackingNotification {
             .setContentIntent(openAppIntent(context))
             .build()
 
-    /** The status-avatar bitmap [buildLive]'s large icon needs — vector, rasterized once per build. */
+    /**
+     * Odo's app icon as [buildLive]'s large icon — vector, rasterized once per build.
+     *
+     * This is the only slot in the notification that keeps its own colours; the small icon is
+     * reduced to a silhouette and tinted, so the app icon can only appear as itself here.
+     */
     private fun largeIcon(context: Context) =
         ContextCompat.getDrawable(context, R.drawable.ic_notification_trip_large)?.toBitmap()
 
