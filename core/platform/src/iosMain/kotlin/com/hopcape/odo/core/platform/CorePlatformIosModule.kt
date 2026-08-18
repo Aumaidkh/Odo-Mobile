@@ -1,3 +1,5 @@
+import com.hopcape.odo.core.platform.bluetooth.IosSystemBluetoothSettings
+import com.hopcape.odo.core.platform.bluetooth.SystemBluetoothSettings
 package com.hopcape.odo.core.platform
 
 import com.hopcape.odo.core.platform.app.AppInfo
@@ -62,6 +64,7 @@ val corePlatformIosModule = module {
     single<NotificationAccess> { IosNotificationAccess() }
     single<DetectedFillNotifier> { IosDetectedFillNotifier() }
     single<BackgroundStartAccess> { IosBackgroundStartAccess() }
+    single<SystemBluetoothSettings> { IosSystemBluetoothSettings() }
     // Nothing ever publishes into it on iOS — there is no way to read another app's
     // notifications — so the flow simply never emits.
     single<PaymentNoticeSource> { PaymentNotices }

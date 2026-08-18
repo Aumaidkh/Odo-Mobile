@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,6 +36,8 @@ import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.feature.autoodometer.resources.Res
 import com.hopcape.odo.feature.autoodometer.resources.ao_cd_back
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_title
@@ -84,7 +88,7 @@ internal fun PermissionSetupScreen(
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
                 OdoButton(
-                    text = if (state.currentBlocked) {
+                    text = if (state.currentOpensSettings) {
                         stringResource(Res.string.ao_permissions_open_settings)
                     } else {
                         stringResource(Res.string.ao_permissions_cta)
@@ -105,10 +109,14 @@ internal fun PermissionSetupScreen(
             }
         },
     ) { padding ->
+        // Scrollable for the same reason OdoPermissionRationale is: the rationale is body-sized
+        // now and the owner's text size can double, and the autostart step's card is the tallest
+        // of them. Without this the card's last lines are simply unreachable on a short screen.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xl),
         ) {
@@ -130,7 +138,7 @@ private fun StepProgress(stepNumber: Int, totalSteps: Int) {
     Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
         OdoText(
             stringResource(Res.string.ao_permissions_step_progress, stepNumber, totalSteps),
-            style = OdoTheme.typography.caption,
+            style = OdoTheme.typography.bodySmall,
             color = OdoTheme.colors.textMuted,
         )
     }
@@ -146,9 +154,13 @@ private fun PrimingCard(step: PermissionSetupStep) {
             IconBadge(stepIcon(step))
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 OdoText(stringResource(stepTitle(step)), style = OdoTheme.typography.heading)
+                // Body size, not bodySmall: this paragraph is the rationale the owner has to
+                // read and act on before the system's own screen appears, usually standing at
+                // the car. It is the copy the whole feature depends on, so it gets the
+                // readable size rather than the supporting one.
                 OdoText(
                     stringResource(stepBody(step)),
-                    style = OdoTheme.typography.bodySmall,
+                    style = OdoTheme.typography.body,
                     color = OdoTheme.colors.textDim,
                 )
             }
@@ -192,6 +204,7 @@ private fun stepIcon(step: PermissionSetupStep): ImageVector = when (step) {
     PermissionSetupStep.FINE_LOCATION -> IcCar
     PermissionSetupStep.BACKGROUND_LOCATION -> IcClock
     PermissionSetupStep.ACTIVITY_RECOGNITION -> IcSpeedometer
+    PermissionSetupStep.AUTOSTART -> IcWarning
 }
 
 private fun stepTitle(step: PermissionSetupStep): StringResource = when (step) {
@@ -199,6 +212,7 @@ private fun stepTitle(step: PermissionSetupStep): StringResource = when (step) {
     PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
     PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
     PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
+    PermissionSetupStep.AUTOSTART -> Res.string.ao_permissions_autostart_title
 }
 
 private fun stepBody(step: PermissionSetupStep): StringResource = when (step) {
@@ -206,6 +220,7 @@ private fun stepBody(step: PermissionSetupStep): StringResource = when (step) {
     PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_body
     PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_body
     PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_body
+    PermissionSetupStep.AUTOSTART -> Res.string.ao_permissions_autostart_body
 }
 
 @OdoThemePreviews

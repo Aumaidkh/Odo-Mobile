@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.BondedDevice
+import com.hopcape.odo.core.platform.bluetooth.SystemBluetoothSettings
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
  */
 internal class DevicePickerViewModel(
     private val catalog: BondedDeviceCatalog,
+    private val bluetoothSettings: SystemBluetoothSettings,
     private val enroll: EnrollTriggerDevice,
     private val activeCar: ActiveCarProvider,
     private val telemetry: AutoOdometerTelemetry,
@@ -45,6 +47,8 @@ internal class DevicePickerViewModel(
     fun onEvent(event: DevicePickerEvent) {
         when (event) {
             is DevicePickerEvent.PermissionChanged -> permissionChanged(event.status)
+            DevicePickerEvent.BluetoothSettingsRequested -> bluetoothSettingsRequested()
+            DevicePickerEvent.Resumed -> resumed()
             DevicePickerEvent.PermissionDeclined -> _state.update { it.copy(rationaleDismissed = true) }
             is DevicePickerEvent.DeviceSelected -> _state.update { it.copy(selectedId = event.deviceId) }
             DevicePickerEvent.UseTapped -> useTapped()
@@ -72,10 +76,34 @@ internal class DevicePickerViewModel(
      */
     private fun loadDevices() {
         viewModelScope.launch(telemetry.op(TRACE_LOAD_DEVICES)) {
+            if (!isBluetoothOn()) {
+                _state.update { it.copy(devices = DeviceListLoad.BluetoothOff) }
+                return@launch
+            }
             val devices = readBondedDevices()
             val (connectedNow, other) = groupByConnection(devices)
             applyLoadedDevices(connectedNow, other)
         }
+    }
+
+    /** A failed read is treated as "on", so a catalog problem shows the list's own empty case rather than blaming the radio. */
+    private suspend fun isBluetoothOn(): Boolean =
+        runCatching { catalog.isBluetoothOn() }
+            .onFailure { telemetry.nonFatal(it, stage = STAGE_CATALOG_READ) }
+            .getOrDefault(true)
+
+    private fun bluetoothSettingsRequested() {
+        bluetoothSettings.open()
+    }
+
+    /**
+     * Re-read on the way back from the Bluetooth settings page. Only from the radio-off state:
+     * a list that already loaded must not be thrown away and rebuilt every time the screen
+     * comes forward, which would drop the owner's selection.
+     */
+    private fun resumed() {
+        if (_state.value.devices !is DeviceListLoad.BluetoothOff) return
+        loadDevices()
     }
 
     /** A failed read degrades to an empty result rather than an error state (see [loadDevices]'s own doc). */

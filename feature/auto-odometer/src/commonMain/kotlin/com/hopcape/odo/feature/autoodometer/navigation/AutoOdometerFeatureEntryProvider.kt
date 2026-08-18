@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -33,6 +35,7 @@ import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionS
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupScreen
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupStep
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupViewModel
+import com.hopcape.odo.feature.autoodometer.presentation.permissions.isPermission
 import com.hopcape.odo.feature.autoodometer.presentation.settings.ReadinessIssue
 import com.hopcape.odo.feature.autoodometer.presentation.settings.SettingsEffect
 import com.hopcape.odo.feature.autoodometer.presentation.settings.SettingsEvent
@@ -128,6 +131,10 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
         viewModel.onEvent(DevicePickerEvent.PermissionChanged(permission.status))
     }
 
+    // The owner may have switched the radio on while they were away on the settings page;
+    // nothing else would notice, since the catalog is read once with no adapter subscription.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onEvent(DevicePickerEvent.Resumed) }
+
     val grant = {
         if (permission.status == PermissionStatus.Blocked) {
             permission.openAppSettings()
@@ -169,6 +176,7 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
         onDeviceSelected = { viewModel.onEvent(DevicePickerEvent.DeviceSelected(it)) },
         onUseTapped = { viewModel.onEvent(DevicePickerEvent.UseTapped) },
         onNoBluetoothTapped = { viewModel.onEvent(DevicePickerEvent.NoBluetoothTapped) },
+        onTurnOnBluetooth = { viewModel.onEvent(DevicePickerEvent.BluetoothSettingsRequested) },
         onGrantPermission = grant,
         onBack = { viewModel.onEvent(DevicePickerEvent.BackTapped) },
     )
@@ -227,6 +235,10 @@ internal fun AutoOdometerPermissionSetupRoute(
         PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
             activityRecognition ?: error("no ACTIVITY_RECOGNITION controller mounted for $mode")
+
+        // Not an Android permission — the ViewModel opens the manufacturer's page itself, so
+        // onContinue never asks for a controller here.
+        PermissionSetupStep.AUTOSTART -> error("AUTOSTART has no permission controller")
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -249,8 +261,10 @@ internal fun AutoOdometerPermissionSetupRoute(
             val step = state.current?.step
             if (step != null) {
                 viewModel.onEvent(PermissionSetupEvent.ContinueTapped)
-                val controller = controllerFor(step)
-                if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+                if (step.isPermission) {
+                    val controller = controllerFor(step)
+                    if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+                }
             }
         },
         onSkip = { viewModel.onEvent(PermissionSetupEvent.SkipTapped) },

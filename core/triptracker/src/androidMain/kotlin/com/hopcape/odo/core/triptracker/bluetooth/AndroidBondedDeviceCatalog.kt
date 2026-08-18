@@ -29,6 +29,13 @@ internal class AndroidBondedDeviceCatalog(
     private val context: Context,
     private val telemetry: TripTrackerTelemetry,
 ) : BondedDeviceCatalog {
+    /**
+     * Read without asking for `BLUETOOTH_CONNECT`: `isEnabled` needs no runtime permission,
+     * so the picker can say "your Bluetooth is off" even before the permission step has run.
+     */
+    override suspend fun isBluetoothOn(): Boolean =
+        BluetoothAdapter.getDefaultAdapter()?.isEnabled == true
+
     override suspend fun devices(): List<BondedDevice> {
         if (!context.hasBluetoothConnectPermission()) {
             telemetry.catalogPermissionMissing()
