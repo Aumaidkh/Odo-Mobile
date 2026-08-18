@@ -6,6 +6,7 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.triptracker.TrackingReadiness
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -66,6 +67,7 @@ internal class SettingsViewModel(
     private val deleteAllTripData: DeleteAllTripData,
     private val settings: AppSettingsRepository,
     private val activeCar: ActiveCarProvider,
+    private val backgroundStart: BackgroundStartAccess,
     private val clock: Clock,
     private val telemetry: AutoOdometerTelemetry,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -113,6 +115,9 @@ internal class SettingsViewModel(
                         hasBond = snapshot.hasBond,
                         pausedUntil = snapshot.pausedUntil,
                         readinessIssues = issuesFor(snapshot.mode, lastReadiness),
+                        // Only while tracking is on: on a phone with the feature off this is
+                        // advice about a problem the owner does not have yet.
+                        showAutostartAdvice = snapshot.enabled && backgroundStart.needsAttention(),
                     )
                 }
             }
@@ -154,6 +159,7 @@ internal class SettingsViewModel(
             SettingsEvent.ToggleTapped -> toggleTapped()
             SettingsEvent.ResumeTapped -> resumeTapped()
             SettingsEvent.ChangeDeviceTapped -> send(SettingsEffect.NavigateToDevicePicker)
+            SettingsEvent.AutostartAdviceTapped -> backgroundStart.open()
             SettingsEvent.PauseWeekTapped -> pauseWeekTapped()
             SettingsEvent.DeleteTapped -> _state.update { it.copy(showDeleteConfirm = true) }
             SettingsEvent.DeleteConfirmed -> deleteConfirmed()

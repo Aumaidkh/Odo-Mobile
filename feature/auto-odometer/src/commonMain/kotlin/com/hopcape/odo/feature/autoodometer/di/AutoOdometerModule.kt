@@ -132,6 +132,7 @@ val autoOdometerModule = module {
             deleteAllTripData = get(),
             settings = get(),
             activeCar = get(),
+            backgroundStart = get(),
             clock = get(),
             telemetry = get(),
         )

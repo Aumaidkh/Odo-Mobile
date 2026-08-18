@@ -53,6 +53,17 @@ internal data class SettingsUiState(
     val monthlyDistanceKm: Int = 0,
     val pausedUntil: LocalDate? = null,
     val readinessIssues: List<ReadinessIssue> = emptyList(),
+    /**
+     * Whether to show the autostart advice — this phone's brand holds background starts
+     * behind a switch of its own and tracking is on, so Odo may be being blocked from
+     * waking without anything here being wrong.
+     *
+     * Deliberately not a [ReadinessIssue]: those are read from `TrackingReadiness` and state
+     * facts ("background location was turned off"). No API reads the manufacturer's switch,
+     * so this can only be phrased as a possibility, and phrasing it as a fact would be a
+     * claim Odo cannot support.
+     */
+    val showAutostartAdvice: Boolean = false,
     val showDeleteConfirm: Boolean = false,
     val deleting: Boolean = false,
 ) {
@@ -73,6 +84,9 @@ internal sealed interface SettingsEvent {
 
     /** "Pause for a week". */
     data object PauseWeekTapped : SettingsEvent
+
+    /** The autostart advice's action — opens the manufacturer's own page. */
+    data object AutostartAdviceTapped : SettingsEvent
 
     /** "Delete all trip data" — opens the confirm dialog. */
     data object DeleteTapped : SettingsEvent

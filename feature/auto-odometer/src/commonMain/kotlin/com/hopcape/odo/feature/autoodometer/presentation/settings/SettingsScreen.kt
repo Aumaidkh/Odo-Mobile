@@ -48,6 +48,9 @@ import com.hopcape.odo.feature.autoodometer.resources.ao_settings_delete_confirm
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_delete_confirm_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_background_location
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_bluetooth
+import com.hopcape.odo.feature.autoodometer.resources.ao_settings_autostart_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_settings_autostart_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_settings_autostart_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_row
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_footer
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_logs_to
@@ -90,6 +93,7 @@ internal fun SettingsScreen(
     onDeleteConfirm: () -> Unit,
     onDeleteDismiss: () -> Unit,
     onFixIt: (ReadinessIssue) -> Unit,
+    onAutostartAdvice: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -119,6 +123,10 @@ internal fun SettingsScreen(
                         FixItRow(issue = issue, onAction = { onFixIt(issue) })
                     }
                 }
+            }
+
+            if (state.showAutostartAdvice) {
+                AutostartAdviceCard(onAutostartAdvice)
             }
 
             if (state.hasBond) {
@@ -186,6 +194,34 @@ private fun PausedCard(state: SettingsUiState, onResume: () -> Unit) {
             onClick = onResume,
             variant = OdoButtonVariant.Secondary,
         )
+    }
+}
+
+/**
+ * The autostart advice — a card rather than a [FixItRow], because a fix-it row states that a
+ * named permission was turned off, and this cannot state anything. The manufacturer's switch
+ * is unreadable, so the copy says what may be happening and leaves the checking to the owner.
+ */
+@Composable
+private fun AutostartAdviceCard(onAction: () -> Unit) {
+    OdoCard {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            OdoText(
+                stringResource(Res.string.ao_settings_autostart_title),
+                style = OdoTheme.typography.heading,
+            )
+            OdoText(
+                stringResource(Res.string.ao_settings_autostart_body),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+            )
+            OdoButton(
+                text = stringResource(Res.string.ao_settings_autostart_cta),
+                onClick = onAction,
+                variant = OdoButtonVariant.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -313,6 +349,7 @@ private fun SettingsScreenTrackingPreview() = OdoPreview(padded = false) {
         onDeleteConfirm = {},
         onDeleteDismiss = {},
         onFixIt = {},
+        onAutostartAdvice = {},
         onBack = {},
     )
 }
@@ -338,6 +375,7 @@ private fun SettingsScreenStandbyPreview() = OdoPreview(padded = false) {
         onDeleteConfirm = {},
         onDeleteDismiss = {},
         onFixIt = {},
+        onAutostartAdvice = {},
         onBack = {},
     )
 }
@@ -355,6 +393,7 @@ private fun SettingsScreenDisabledPreview() = OdoPreview(padded = false) {
         onDeleteConfirm = {},
         onDeleteDismiss = {},
         onFixIt = {},
+        onAutostartAdvice = {},
         onBack = {},
     )
 }
@@ -380,6 +419,7 @@ private fun SettingsScreenPausedPreview() = OdoPreview(padded = false) {
         onDeleteConfirm = {},
         onDeleteDismiss = {},
         onFixIt = {},
+        onAutostartAdvice = {},
         onBack = {},
     )
 }
@@ -405,6 +445,7 @@ private fun SettingsScreenFixItRowsPreview() = OdoPreview(padded = false) {
         onDeleteConfirm = {},
         onDeleteDismiss = {},
         onFixIt = {},
+        onAutostartAdvice = {},
         onBack = {},
     )
 }

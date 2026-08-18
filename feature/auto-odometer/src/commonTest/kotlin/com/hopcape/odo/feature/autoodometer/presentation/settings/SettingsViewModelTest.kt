@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.autoodometer.presentation.settings
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.core.triptracker.VehicleBond
@@ -25,6 +26,7 @@ import com.hopcape.odo.feature.autoodometer.presentation.testTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
@@ -67,6 +69,7 @@ class SettingsViewModelTest {
         carId: CarId? = TEST_CAR,
         clock: FixedClock = FixedClock(now),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        needsAutostart: Boolean = false,
     ): Harness {
         val vm = SettingsViewModel(
             tracker = tracker,
@@ -81,6 +84,7 @@ class SettingsViewModelTest {
             resumeTracking = ResumeTracking(settings = settings, tracker = tracker),
             deleteAllTripData = DeleteAllTripData(trips = trips),
             settings = settings,
+            backgroundStart = FakeBackgroundStart(needsAttention = needsAutostart),
             activeCar = FakeActiveCarProvider(carId),
             clock = clock,
             telemetry = testTelemetry(analytics),
@@ -215,5 +219,44 @@ class SettingsViewModelTest {
 
         assertFalse(h.vm.state.value.loading)
         assertTrue(h.analytics.events.any { it.first == AutoOdometerTelemetry.Event.NO_ACTIVE_CAR })
+    }
+
+    @Test
+    fun restrictiveManufacturer_withTrackingOn_showsTheAutostartAdvice() = runTest {
+        val h = harness(tracker = FakeTripTracker(enabled = true), needsAutostart = true)
+        advanceUntilIdle()
+
+        assertTrue(h.vm.state.value.showAutostartAdvice)
+    }
+
+    /** Tracking is off, so this is advice about a problem the owner does not have yet. */
+    @Test
+    fun restrictiveManufacturer_withTrackingOff_staysQuiet() = runTest {
+        val h = harness(tracker = FakeTripTracker(enabled = false), needsAutostart = true)
+        advanceUntilIdle()
+
+        assertFalse(h.vm.state.value.showAutostartAdvice)
+    }
+
+    @Test
+    fun stockManufacturer_neverShowsTheAutostartAdvice() = runTest {
+        val h = harness(tracker = FakeTripTracker(enabled = true), needsAutostart = false)
+        advanceUntilIdle()
+
+        assertFalse(h.vm.state.value.showAutostartAdvice)
+    }
+
+}
+
+/** The manufacturer's autostart page, as the settings screen sees it. */
+private class FakeBackgroundStart(private val needsAttention: Boolean) : BackgroundStartAccess {
+    var openCount = 0
+        private set
+
+    override fun needsAttention(): Boolean = needsAttention
+
+    override fun open(): Boolean {
+        openCount++
+        return true
     }
 }

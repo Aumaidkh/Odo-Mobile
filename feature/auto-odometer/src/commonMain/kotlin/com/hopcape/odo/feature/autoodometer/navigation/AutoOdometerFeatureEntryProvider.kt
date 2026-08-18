@@ -380,6 +380,7 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
         onDelete = { viewModel.onEvent(SettingsEvent.DeleteTapped) },
         onDeleteConfirm = { viewModel.onEvent(SettingsEvent.DeleteConfirmed) },
         onDeleteDismiss = { viewModel.onEvent(SettingsEvent.DeleteDismissed) },
+        onAutostartAdvice = { viewModel.onEvent(SettingsEvent.AutostartAdviceTapped) },
         onFixIt = { issue ->
             val controller = controllerFor(issue)
             if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()

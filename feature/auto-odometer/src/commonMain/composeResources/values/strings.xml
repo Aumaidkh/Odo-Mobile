@@ -129,6 +129,9 @@
     <string name="ao_settings_delete_confirm_cta">Delete</string>
     <string name="ao_settings_delete_confirm_cancel">Cancel</string>
     <string name="ao_settings_footer">Turning this off never deletes readings you’ve already logged.</string>
+    <string name="ao_settings_autostart_title">Drives not showing up?</string>
+    <string name="ao_settings_autostart_body">Your phone’s brand keeps its own switch for which apps may start on their own. If it is off for Odo, your phone will not wake it when your car connects and the drive goes unrecorded. Odo cannot read that switch, so it cannot tell you which way it is set — worth checking if trips are missing.</string>
+    <string name="ao_settings_autostart_cta">Check the setting</string>
     <string name="ao_settings_fix_it_row">%1$s needs your attention — tap to fix it.</string>
     <string name="ao_settings_fix_it_background_location">Background location</string>
     <string name="ao_settings_fix_it_bluetooth">Bluetooth</string>
