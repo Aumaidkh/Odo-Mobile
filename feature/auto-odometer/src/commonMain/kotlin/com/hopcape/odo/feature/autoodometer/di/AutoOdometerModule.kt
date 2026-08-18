@@ -92,6 +92,7 @@ val autoOdometerModule = module {
             enrollTriggerDevice = get(),
             completeSetup = get(),
             activeCar = get(),
+            backgroundStart = get(),
             telemetry = get(),
         )
     }

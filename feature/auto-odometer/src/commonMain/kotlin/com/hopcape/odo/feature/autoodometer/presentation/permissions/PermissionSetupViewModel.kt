@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.autoodometer.presentation.permissions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup
@@ -38,11 +39,16 @@ internal class PermissionSetupViewModel(
     private val enrollTriggerDevice: EnrollTriggerDevice,
     private val completeSetup: CompleteSetup,
     private val activeCar: ActiveCarProvider,
+    private val backgroundStart: BackgroundStartAccess,
     private val telemetry: AutoOdometerTelemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        PermissionSetupUiState(mode = mode, steps = stepsFor(mode).map { PermissionStepState(step = it) }),
+        PermissionSetupUiState(
+            mode = mode,
+            steps = stepsFor(mode, needsAutostart = backgroundStart.needsAttention())
+                .map { PermissionStepState(step = it) },
+        ),
     )
     val state: StateFlow<PermissionSetupUiState> = _state.asStateFlow()
 
@@ -93,15 +99,32 @@ internal class PermissionSetupViewModel(
 
     /**
      * The primary CTA. Marks [current][PermissionSetupUiState.current] as attempted so a
-     * non-grant answer shows the denial row instead of the priming card again; the actual
-     * system dialog / settings hand-off is fired by the route host, which is the only layer
-     * holding the platform controller.
+     * non-grant answer shows the denial row instead of the priming card again; for a permission
+     * step the actual system dialog / settings hand-off is fired by the route host, which is
+     * the only layer holding the platform controller. Autostart has no controller and is
+     * handled here — see [openAutostartPage].
      */
     private fun continueTapped() {
         val index = _state.value.currentIndex
-        if (_state.value.current == null) return
+        val current = _state.value.current ?: return
         _state.update { s -> s.copy(steps = s.steps.replaceAskedOnce(index)) }
+        if (!current.step.isPermission) openAutostartPage(index)
     }
+
+    /**
+     * Autostart is the one step with no answer to wait for: the manufacturer's switch cannot be
+     * read back, so the checklist opens the page and moves on rather than parking on a step it
+     * can never resolve. [BackgroundStartAccess.open] reports whether any page was found —
+     * false means this build hid it somewhere the intents do not reach, which is recorded and
+     * otherwise treated the same, since staying here would strand the owner either way.
+     */
+    private fun openAutostartPage(index: Int) {
+        val opened = backgroundStart.open()
+        telemetry.permissionAnswered(step = PermissionSetupStep.AUTOSTART.name, status = autostartOutcome(opened))
+        advanceFrom(index)
+    }
+
+    private fun autostartOutcome(opened: Boolean): String = if (opened) OUTCOME_OPENED else OUTCOME_NO_PAGE
 
     private fun skipTapped() {
         val current = _state.value.current ?: return
@@ -168,6 +191,8 @@ internal class PermissionSetupViewModel(
     private companion object {
         const val TRACE_COMPLETE = "complete_setup"
         const val STAGE_ENROLL = "enroll_trigger_device"
+        const val OUTCOME_OPENED = "OPENED"
+        const val OUTCOME_NO_PAGE = "NO_PAGE"
     }
 }
 

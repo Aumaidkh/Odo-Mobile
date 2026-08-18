@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.autoodometer.presentation.permissions
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -76,6 +77,25 @@ class PermissionSetupViewModelTest {
         val tracker = OrderedTripTracker(callOrder)
     }
 
+    /**
+     * Stands in for the manufacturer's autostart page. [needsAttention] decides whether the
+     * step is built at all; [opens] is what the page-opening intent reports back.
+     */
+    private class FakeBackgroundStartAccess(
+        private val needsAttention: Boolean = false,
+        private val opens: Boolean = true,
+    ) : BackgroundStartAccess {
+        var openCount = 0
+            private set
+
+        override fun needsAttention(): Boolean = needsAttention
+
+        override fun open(): Boolean {
+            openCount++
+            return opens
+        }
+    }
+
     private class Harness(
         val vm: PermissionSetupViewModel,
         val fakes: OrderedFakes,
@@ -86,6 +106,7 @@ class PermissionSetupViewModelTest {
         mode: TriggerMode,
         carId: CarId? = TEST_CAR,
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        backgroundStart: FakeBackgroundStartAccess = FakeBackgroundStartAccess(),
     ): Harness {
         val fakes = OrderedFakes()
         val vm = PermissionSetupViewModel(
@@ -93,6 +114,7 @@ class PermissionSetupViewModelTest {
             enrollTriggerDevice = EnrollTriggerDevice(bonds = fakes.bonds),
             completeSetup = CompleteSetup(tracker = fakes.tracker, settings = FakeAppSettingsRepository()),
             activeCar = FakeActiveCarProvider(carId),
+            backgroundStart = backgroundStart,
             telemetry = testTelemetry(analytics),
         )
         return Harness(vm, fakes, analytics)
@@ -323,6 +345,7 @@ class PermissionSetupViewModelTest {
             enrollTriggerDevice = EnrollTriggerDevice(bonds = ThrowingBondStore()),
             completeSetup = CompleteSetup(tracker = tracker, settings = FakeAppSettingsRepository()),
             activeCar = FakeActiveCarProvider(TEST_CAR),
+            backgroundStart = FakeBackgroundStartAccess(),
             telemetry = testTelemetry(crash = crash),
         )
 
@@ -335,4 +358,71 @@ class PermissionSetupViewModelTest {
         assertFalse(tracker.enabled, "must not complete setup on a bond that failed to save")
         assertFalse(vm.state.value.completing)
     }
+
+    @Test
+    fun restrictiveManufacturer_appendsTheAutostartStepLast() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+
+        assertEquals(
+            listOf(
+                PermissionSetupStep.NOTIFICATIONS,
+                PermissionSetupStep.FINE_LOCATION,
+                PermissionSetupStep.BACKGROUND_LOCATION,
+                PermissionSetupStep.AUTOSTART,
+            ),
+            h.vm.state.value.steps.map { it.step },
+        )
+    }
+
+    @Test
+    fun stockManufacturer_hasNoAutostartStep() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = false))
+
+        assertFalse(h.vm.state.value.steps.any { it.step == PermissionSetupStep.AUTOSTART })
+    }
+
+    @Test
+    fun autostartStep_opensTheManufacturerPageAndCompletesSetup() = runTest {
+        val backgroundStart = FakeBackgroundStartAccess(needsAttention = true)
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = backgroundStart)
+        grantThrough(h.vm, PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION)
+        assertEquals(PermissionSetupStep.AUTOSTART, h.vm.state.value.current?.step)
+
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        assertEquals(1, backgroundStart.openCount)
+        assertEquals(null, h.vm.state.value.current)
+        assertTrue(h.vm.state.value.completing)
+    }
+
+    /**
+     * The page could not be found on this build. The checklist must still finish — parking on a
+     * step whose answer Odo can never read would strand the owner with no way forward.
+     */
+    @Test
+    fun autostartStep_completesEvenWhenNoPageCouldBeOpened() = runTest {
+        val backgroundStart = FakeBackgroundStartAccess(needsAttention = true, opens = false)
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = backgroundStart)
+        grantThrough(h.vm, PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION)
+
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        assertEquals(null, h.vm.state.value.current)
+    }
+
+    /** Autostart offers a way past from the first frame: there is no denial row to wait for. */
+    @Test
+    fun autostartStep_offersSkipImmediately() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+        grantThrough(h.vm, PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION)
+
+        assertTrue(h.vm.state.value.showSkip)
+        assertFalse(h.vm.state.value.showDenialRow)
+        assertTrue(h.vm.state.value.currentOpensSettings)
+    }
+
+    private fun grantThrough(vm: PermissionSetupViewModel, vararg steps: PermissionSetupStep) {
+        steps.forEach { vm.onEvent(PermissionSetupEvent.StatusObserved(it, PermissionStatus.Granted)) }
+    }
+
 }

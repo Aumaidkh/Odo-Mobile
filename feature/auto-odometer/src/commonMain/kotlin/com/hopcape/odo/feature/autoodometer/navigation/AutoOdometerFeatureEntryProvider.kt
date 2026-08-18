@@ -33,6 +33,7 @@ import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionS
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupScreen
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupStep
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupViewModel
+import com.hopcape.odo.feature.autoodometer.presentation.permissions.isPermission
 import com.hopcape.odo.feature.autoodometer.presentation.settings.ReadinessIssue
 import com.hopcape.odo.feature.autoodometer.presentation.settings.SettingsEffect
 import com.hopcape.odo.feature.autoodometer.presentation.settings.SettingsEvent
@@ -227,6 +228,10 @@ internal fun AutoOdometerPermissionSetupRoute(
         PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
             activityRecognition ?: error("no ACTIVITY_RECOGNITION controller mounted for $mode")
+
+        // Not an Android permission — the ViewModel opens the manufacturer's page itself, so
+        // onContinue never asks for a controller here.
+        PermissionSetupStep.AUTOSTART -> error("AUTOSTART has no permission controller")
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -249,8 +254,10 @@ internal fun AutoOdometerPermissionSetupRoute(
             val step = state.current?.step
             if (step != null) {
                 viewModel.onEvent(PermissionSetupEvent.ContinueTapped)
-                val controller = controllerFor(step)
-                if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+                if (step.isPermission) {
+                    val controller = controllerFor(step)
+                    if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+                }
             }
         },
         onSkip = { viewModel.onEvent(PermissionSetupEvent.SkipTapped) },

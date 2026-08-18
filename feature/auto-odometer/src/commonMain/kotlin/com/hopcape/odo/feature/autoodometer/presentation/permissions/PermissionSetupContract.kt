@@ -27,14 +27,36 @@ internal enum class PermissionSetupStep(val required: Boolean) {
     FINE_LOCATION(required = true),
     BACKGROUND_LOCATION(required = true),
     ACTIVITY_RECOGNITION(required = true),
+    AUTOSTART(required = false),
 }
 
-/** Builds the step order for [mode] — 3 steps for STEREO, 4 for NO_STEREO (plan §5). */
-internal fun stepsFor(mode: TriggerMode): List<PermissionSetupStep> = buildList {
+/**
+ * [AUTOSTART] is not an Android permission and does not behave like one.
+ *
+ * Several manufacturers hold background starts behind a switch of their own, off by default
+ * (see `BackgroundStartAccess`). While it is off, the OS refuses to wake Odo for the
+ * Bluetooth broadcast, so the engine never arms and every permission above this one is
+ * granted for nothing — the checklist reads all-green and no trip is ever recorded.
+ *
+ * There is no API that reads that switch, so this step can never be "granted" in the sense
+ * the rest of the checklist means. It carries no [PermissionStatus], its card is an
+ * explanation rather than a request, and tapping through it opens the manufacturer's page and
+ * moves on. It is last because it is the only step whose answer Odo cannot see, and optional
+ * because the owner must be able to finish setup without it.
+ */
+internal val PermissionSetupStep.isPermission: Boolean get() = this != PermissionSetupStep.AUTOSTART
+
+/**
+ * Builds the step order for [mode] — 3 steps for STEREO, 4 for NO_STEREO (plan §5), plus the
+ * autostart step when [needsAutostart] (this manufacturer holds background starts behind its
+ * own switch). Autostart goes last: it is advice about the device, not a request Odo makes.
+ */
+internal fun stepsFor(mode: TriggerMode, needsAutostart: Boolean = false): List<PermissionSetupStep> = buildList {
     add(PermissionSetupStep.NOTIFICATIONS)
     add(PermissionSetupStep.FINE_LOCATION)
     add(PermissionSetupStep.BACKGROUND_LOCATION)
     if (mode == TriggerMode.NO_STEREO) add(PermissionSetupStep.ACTIVITY_RECOGNITION)
+    if (needsAutostart) add(PermissionSetupStep.AUTOSTART)
 }
 
 /**
@@ -78,12 +100,25 @@ internal data class PermissionSetupUiState(
      * [current] is unambiguously not granted: permanently blocked (no ambiguity — always
      * shown), or asked at least once and still only [PermissionStatus.Askable] (a first-ever
      * read of that same status is the priming card, not a denial — see [PermissionStepState]).
+     *
+     * Never for [PermissionSetupStep.AUTOSTART]: its status is a placeholder nothing writes to,
+     * so "not granted" there would be a claim about a switch Odo cannot read.
      */
     val showDenialRow: Boolean
-        get() = current?.let { it.status != PermissionStatus.Granted && (it.status == PermissionStatus.Blocked || it.askedOnce) } == true
+        get() = current?.let {
+            it.step.isPermission && it.status != PermissionStatus.Granted &&
+                (it.status == PermissionStatus.Blocked || it.askedOnce)
+        } == true
 
-    /** Only an unresolved, optional step offers a way past it, and only once its row shows. */
-    val showSkip: Boolean get() = showDenialRow && current?.step?.required == false
+    /**
+     * A way past the step on screen. Optional permission steps offer it once their denial row
+     * shows; autostart offers it from the start, because there is no answer to wait for.
+     */
+    val showSkip: Boolean
+        get() = current?.let { !it.step.isPermission || (showDenialRow && !it.step.required) } == true
+
+    /** The primary CTA sends the owner to a settings page rather than a system prompt. */
+    val currentOpensSettings: Boolean get() = currentBlocked || current?.step?.isPermission == false
 }
 
 /** What the owner did on the permission checklist, as data. */
