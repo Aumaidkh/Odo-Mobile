@@ -37,6 +37,9 @@
     <string name="ao_picker_category_other">Other device</string>
     <string name="ao_picker_not_connected">%1$s · not connected</string>
     <string name="ao_picker_hint">Don’t see it? Start your car so the stereo connects, then come back.</string>
+    <string name="ao_picker_bluetooth_off_title">Your phone’s Bluetooth is off</string>
+    <string name="ao_picker_bluetooth_off_body">Odo knows a drive has started by noticing your car’s stereo connect, so it needs Bluetooth on to find your car in the first place. Turn it on and your paired devices will appear here.</string>
+    <string name="ao_picker_bluetooth_off_cta">Turn on Bluetooth</string>
     <string name="ao_picker_no_bluetooth">My car has no Bluetooth</string>
     <string name="ao_picker_cta">Use %1$s</string>
     <string name="ao_picker_permission_title">Odo needs Bluetooth</string>

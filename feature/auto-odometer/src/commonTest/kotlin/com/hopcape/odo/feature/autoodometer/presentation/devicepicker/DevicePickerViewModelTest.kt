@@ -1,8 +1,10 @@
 package com.hopcape.odo.feature.autoodometer.presentation.devicepicker
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.platform.bluetooth.SystemBluetoothSettings
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.BondedDevice
+import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.core.triptracker.VehicleBond
@@ -64,6 +66,7 @@ class DevicePickerViewModelTest {
         analytics: RecordingAnalytics = RecordingAnalytics(),
     ): Triple<DevicePickerViewModel, FakeVehicleBondStore, RecordingAnalytics> {
         val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
             catalog = FakeBondedDeviceCatalog(devices),
             enroll = EnrollTriggerDevice(bonds = bonds),
             activeCar = FakeActiveCarProvider(carId),
@@ -198,6 +201,7 @@ class DevicePickerViewModelTest {
     fun catalogReadThrows_recordsANonFatal_andDegradesToAnEmptyList() = runTest {
         val crash = RecordingCrash()
         val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
             catalog = FakeBondedDeviceCatalog(throwing = true),
             enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
             activeCar = FakeActiveCarProvider(TEST_CAR),
@@ -221,6 +225,7 @@ class DevicePickerViewModelTest {
         val crash = RecordingCrash()
         val bonds = FakeVehicleBondStore(throwing = true)
         val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
             catalog = FakeBondedDeviceCatalog(listOf(connectedStereo)),
             enroll = EnrollTriggerDevice(bonds = bonds),
             activeCar = FakeActiveCarProvider(TEST_CAR),
@@ -234,4 +239,94 @@ class DevicePickerViewModelTest {
         assertEquals(1, crash.recorded.size)
         assertFalse(vm.state.value.enrolling)
     }
+
+    @Test
+    fun bluetoothOff_showsTheRadioOffStateInsteadOfAnEmptyList() = runTest {
+        val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
+            catalog = FakeBondedDeviceCatalog(bluetoothOn = false),
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        assertEquals(DeviceListLoad.BluetoothOff, vm.state.value.devices)
+    }
+
+    @Test
+    fun turnOnBluetooth_sendsTheOwnerToTheSettingsPage() = runTest {
+        val settings = RecordingBluetoothSettings()
+        val vm = DevicePickerViewModel(
+            bluetoothSettings = settings,
+            catalog = FakeBondedDeviceCatalog(bluetoothOn = false),
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        vm.onEvent(DevicePickerEvent.BluetoothSettingsRequested)
+
+        assertEquals(1, settings.openCount)
+    }
+
+    /** Coming back from settings with the radio on has to produce the list, not the same dead end. */
+    @Test
+    fun resume_afterBluetoothIsTurnedOn_loadsTheList() = runTest {
+        val catalog = SwitchableBluetoothCatalog(listOf(connectedStereo))
+        val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
+            catalog = catalog,
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+        assertEquals(DeviceListLoad.BluetoothOff, vm.state.value.devices)
+
+        catalog.bluetoothOn = true
+        vm.onEvent(DevicePickerEvent.Resumed)
+
+        assertIs<DeviceListLoad.Ready>(vm.state.value.devices)
+    }
+
+    /** A loaded list must survive coming back to the screen — re-reading would drop the pick. */
+    @Test
+    fun resume_withAListAlreadyLoaded_doesNotReadAgain() = runTest {
+        val catalog = FakeBondedDeviceCatalog(listOf(connectedStereo))
+        val vm = DevicePickerViewModel(
+            bluetoothSettings = RecordingBluetoothSettings(),
+            catalog = catalog,
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+        val reads = catalog.callCount
+
+        vm.onEvent(DevicePickerEvent.Resumed)
+
+        assertEquals(reads, catalog.callCount)
+    }
+
+}
+
+/** Records whether the picker sent the owner to the Bluetooth settings page. */
+private class RecordingBluetoothSettings(private val opens: Boolean = true) : SystemBluetoothSettings {
+    var openCount = 0
+        private set
+
+    override fun open(): Boolean {
+        openCount++
+        return opens
+    }
+}
+
+/** A catalog whose radio can be switched on between reads, the way settings does it. */
+private class SwitchableBluetoothCatalog(private val devices: List<BondedDevice>) : BondedDeviceCatalog {
+    var bluetoothOn = false
+    override suspend fun isBluetoothOn(): Boolean = bluetoothOn
+    override suspend fun devices(): List<BondedDevice> = devices
 }

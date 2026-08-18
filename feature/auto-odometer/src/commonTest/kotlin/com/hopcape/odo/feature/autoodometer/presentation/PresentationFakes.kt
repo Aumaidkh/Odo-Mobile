@@ -106,9 +106,12 @@ internal class FakeActiveCarProvider(carId: CarId?) : ActiveCarProvider {
 internal class FakeBondedDeviceCatalog(
     private val devices: List<BondedDevice> = emptyList(),
     private val throwing: Boolean = false,
+    private val bluetoothOn: Boolean = true,
 ) : BondedDeviceCatalog {
     var callCount = 0
         private set
+
+    override suspend fun isBluetoothOn(): Boolean = bluetoothOn
 
     override suspend fun devices(): List<BondedDevice> {
         callCount++

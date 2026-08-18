@@ -2,6 +2,8 @@ package com.hopcape.odo.core.platform
 
 import android.app.Application
 import android.content.Context
+import com.hopcape.odo.core.platform.bluetooth.AndroidSystemBluetoothSettings
+import com.hopcape.odo.core.platform.bluetooth.SystemBluetoothSettings
 import com.hopcape.odo.core.platform.app.ActivityTracker
 import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AppInfo
@@ -69,6 +71,7 @@ val corePlatformAndroidModule = module {
     single<NotificationAccess> { AndroidNotificationAccess(context = get<Context>()) }
     single<DetectedFillNotifier> { AndroidDetectedFillNotifier(context = get<Context>()) }
     single<BackgroundStartAccess> { AndroidBackgroundStartAccess(context = get<Context>()) }
+    single<SystemBluetoothSettings> { AndroidSystemBluetoothSettings(context = get<Context>()) }
     // The listener service is constructed by the OS and cannot be injected, so the object it
     // publishes into is what the graph knows about.
     single<PaymentNoticeSource> { PaymentNotices }
