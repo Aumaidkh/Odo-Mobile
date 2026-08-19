@@ -20,6 +20,9 @@ kotlin {
             // Nav3 command bus + entry-provider registration. Features navigate
             // only through :core:navigation, never by importing another feature.
             implementation(projects.core.navigation)
+            // runCatchingCancellable/Suspend — the project's replacement for bare
+            // runCatching, which swallows CancellationException (see CLAUDE.md).
+            implementation(projects.core.common)
             // Branded UI atoms (OdoScreen, OdoCard, OdoOdometer…) + the Odo theme
             // tokens; re-exports Compose Material 3 transitively.
             implementation(projects.core.designsystem)
@@ -34,6 +37,7 @@ kotlin {
             // The permission seam (rememberPermissionController, the camera controller's
             // generalised form) the device picker gates BLUETOOTH_CONNECT behind — the
             // same module :feature:billscanner already depends on for the camera permission.
+            // rememberBluetoothEnabler, the radio's turn-it-on handoff, lives here too.
             implementation(projects.core.platform)
             // Observability: structured logging + product analytics + APM spans,
             // instrumented at the presentation layer (domain stays pure).

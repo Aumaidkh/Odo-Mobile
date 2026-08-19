@@ -45,6 +45,13 @@
     <string name="ao_picker_permission_blocked">Bluetooth access is off for Odo — open settings to pick your car.</string>
     <string name="ao_picker_permission_allow">Allow Bluetooth access</string>
     <string name="ao_picker_permission_dismiss">Not now</string>
+    <string name="ao_picker_bt_off_title">Your Bluetooth is off</string>
+    <string name="ao_picker_bt_off_body">Odo finds your car by watching for its stereo connecting over Bluetooth, so it needs the radio switched on to show your paired devices. It only ever reads devices you have already paired — it never searches for anything nearby, and none of it leaves your phone.</string>
+    <string name="ao_picker_bt_off_action">Turn on Bluetooth</string>
+    <string name="ao_picker_bt_sheet_title">Turn on Bluetooth?</string>
+    <string name="ao_picker_bt_sheet_body">Your phone will ask you to confirm. Odo uses Bluetooth only to notice when your car’s stereo connects, which is what starts a trip. You can turn it back off any time.</string>
+    <string name="ao_picker_bt_sheet_confirm">Turn it on</string>
+    <string name="ao_picker_bt_sheet_dismiss">Not now</string>
 
     <!-- Permission setup (M4): shared chrome -->
     <string name="ao_permissions_step_progress">%1$d of %2$d</string>
@@ -178,4 +185,6 @@
     <string name="ao_settings_fix_it_row">%1$s needs your attention — tap to fix it.</string>
     <string name="ao_settings_fix_it_background_location">Background location</string>
     <string name="ao_settings_fix_it_bluetooth">Bluetooth</string>
+    <string name="ao_settings_fix_it_bluetooth_off">Your phone’s Bluetooth</string>
+    <string name="ao_settings_fix_it_turn_on">Turn it on</string>
 </resources>
