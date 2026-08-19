@@ -27,6 +27,9 @@ internal class CompleteSetup(
         val current = settings.observe().first()
         settings.save(current.copy(trackerEnabled = true))
         tracker.setEnabled(true)
+        // Looks redundant now that setEnabled seeds presence itself, and is not: setEnabled
+        // returns early when the value has not changed, so re-running setup on a car whose
+        // tracking was already on would seed nothing without this.
         tracker.startIfConnected()
     }
 }

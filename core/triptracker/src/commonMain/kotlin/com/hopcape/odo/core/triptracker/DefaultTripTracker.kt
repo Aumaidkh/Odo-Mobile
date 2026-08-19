@@ -22,11 +22,31 @@ internal class DefaultTripTracker(
 
     private val enabled = MutableStateFlow(false)
 
+    /**
+     * Turns the engine on or off, and on the way on asks Android what the car is doing right
+     * now rather than only waiting to be told.
+     *
+     * Presence is otherwise event-only: `AclVehiclePresenceSource` carries nothing but ACL
+     * connect/disconnect broadcasts. Arming while the phone is already connected therefore
+     * used to mean waiting for a broadcast that had already fired — the owner got in the car,
+     * the stereo connected, and only then did anything arm, so the next connect was a whole
+     * drive away. That is issue #271, and it is the reason the seed lives here rather than at
+     * each caller: every way of arming runs through this one method (cold start and OS wake
+     * via [armFromPersistedState], finishing setup, resuming from a pause, the settings
+     * toggle), and the bug was a call site that forgot. One place cannot forget.
+     *
+     * [TripTrackerEngine.startIfConnected] raises the same `PresenceConnected` a broadcast
+     * would, so the speed gate still decides whether this is a drive — a car parked with the
+     * stereo on does not become a trip. Firing it a second time when the real broadcast
+     * arrives moments later costs nothing: the state machine treats a repeat in Standby as a
+     * no-op.
+     */
     override suspend fun setEnabled(enabled: Boolean) {
         if (this.enabled.value == enabled) return
         this.enabled.value = enabled
         engine.setEnabled(enabled)
         if (enabled) telemetry.enabled() else telemetry.disabled()
+        if (enabled) engine.startIfConnected()
     }
 
     override suspend fun armFromPersistedState() {
