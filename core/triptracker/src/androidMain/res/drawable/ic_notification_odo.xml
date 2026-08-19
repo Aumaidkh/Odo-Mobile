@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The trip-tracking notification's small icon — Odo's own gauge mark, the same two arcs
+    as the launcher's `ic_launcher_foreground`, so the status bar shows the app's mark
+    rather than a glyph that only exists here.
+
+    Both arcs are drawn white because a notification's small icon is a silhouette: Android
+    keeps only the alpha channel and re-tints every pixel with the notification's accent
+    colour, so the launcher's grey-over-black pair would read as one shape regardless.
+    Drawing both anyway keeps the union — the slightly longer outer sweep is what makes the
+    mark read as Odo's gauge and not a plain ring.
+
+    Scaled up from the launcher's 0.77: the adaptive-icon safe zone it was sized for does
+    not apply to a 24dp status-bar glyph, which should fill its box instead.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateY="-4">
+        <path
+            android:pathData="M153.314,395.47C130.196,374.824 113.822,347.703 106.319,317.631C98.8164,287.558 100.532,255.924 111.242,226.839C121.952,197.754 141.163,172.562 166.377,154.538C191.592,136.513 221.644,126.488 252.63,125.766C283.616,125.044 314.103,133.658 340.13,150.489C366.156,167.32 386.519,191.59 398.572,220.144C410.626,248.699 413.812,280.219 407.718,310.608C401.624,340.998 386.531,368.852 364.4,390.551"
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="57"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M153.314,395.47C133.914,378.144 119.201,356.201 110.541,331.675C101.88,307.149 99.5511,280.833 103.77,255.167C107.989,229.501 118.62,205.316 134.676,184.853C150.733,164.39 171.695,148.311 195.621,138.108C219.547,127.905 245.661,123.907 271.543,126.485C297.426,129.063 322.238,138.134 343.681,152.856C365.124,167.578 382.503,187.476 394.208,210.704C405.912,233.932 411.563,259.74 410.636,285.734"
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="57"
+            android:strokeLineCap="round" />
+    </group>
+</vector>
