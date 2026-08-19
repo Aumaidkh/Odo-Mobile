@@ -1,47 +1,102 @@
 package com.hopcape.odo.feature.refuel.presentation.autodetect
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoListItem
+import com.hopcape.odo.core.designsystem.component.OdoPermissionAssurance
+import com.hopcape.odo.core.designsystem.component.OdoPermissionAssuranceKind
+import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
+import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
+import com.hopcape.odo.core.designsystem.component.OdoSystemToggleRow
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcBellFilled
+import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
+import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
+import com.hopcape.odo.core.designsystem.icons.IcLockFilled
+import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.refuel.DetectionApp
 import com.hopcape.odo.core.platform.permission.PermissionStatus
-import com.hopcape.odo.core.platform.permission.isGranted
 import com.hopcape.odo.feature.refuel.resources.Res
+import com.hopcape.odo.feature.refuel.resources.rf_access_body
+import com.hopcape.odo.feature.refuel.resources.rf_access_handoff_body
+import com.hopcape.odo.feature.refuel.resources.rf_access_handoff_instruction
+import com.hopcape.odo.feature.refuel.resources.rf_access_handoff_note
+import com.hopcape.odo.feature.refuel.resources.rf_access_handoff_screen
+import com.hopcape.odo.feature.refuel.resources.rf_access_handoff_title
+import com.hopcape.odo.feature.refuel.resources.rf_access_label
+import com.hopcape.odo.feature.refuel.resources.rf_access_no_others
+import com.hopcape.odo.feature.refuel.resources.rf_access_no_sms
+import com.hopcape.odo.feature.refuel.resources.rf_access_title
+import com.hopcape.odo.feature.refuel.resources.rf_access_yes_amount
+import com.hopcape.odo.feature.refuel.resources.rf_access_yes_apps
+import com.hopcape.odo.feature.refuel.resources.rf_autodetect_title
 import com.hopcape.odo.feature.refuel.resources.rf_autostart_action
 import com.hopcape.odo.feature.refuel.resources.rf_autostart_body
-import com.hopcape.odo.feature.refuel.resources.rf_autostart_heading
-import com.hopcape.odo.feature.refuel.resources.rf_autostart_intro
-import com.hopcape.odo.feature.refuel.resources.rf_autostart_skip
 import com.hopcape.odo.feature.refuel.resources.rf_autostart_done
 import com.hopcape.odo.feature.refuel.resources.rf_autostart_title
-import com.hopcape.odo.feature.refuel.resources.rf_autodetect_title
+import com.hopcape.odo.feature.refuel.resources.rf_background_body
+import com.hopcape.odo.feature.refuel.resources.rf_background_cta
+import com.hopcape.odo.feature.refuel.resources.rf_background_handoff_body
+import com.hopcape.odo.feature.refuel.resources.rf_background_handoff_instruction
+import com.hopcape.odo.feature.refuel.resources.rf_background_handoff_note
+import com.hopcape.odo.feature.refuel.resources.rf_background_handoff_screen
+import com.hopcape.odo.feature.refuel.resources.rf_background_handoff_title
+import com.hopcape.odo.feature.refuel.resources.rf_background_label
+import com.hopcape.odo.feature.refuel.resources.rf_background_no_idle
+import com.hopcape.odo.feature.refuel.resources.rf_background_no_running
+import com.hopcape.odo.feature.refuel.resources.rf_background_preview_header
+import com.hopcape.odo.feature.refuel.resources.rf_background_skip
+import com.hopcape.odo.feature.refuel.resources.rf_background_title
+import com.hopcape.odo.feature.refuel.resources.rf_background_yes_sleep
+import com.hopcape.odo.feature.refuel.resources.rf_background_yes_wake
+import com.hopcape.odo.feature.refuel.resources.rf_cd_back
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_app_maps
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_app_odo
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_app_phonepe
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_app_swiggy
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_app_whatsapp
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_eyebrow
+import com.hopcape.odo.feature.refuel.resources.rf_handoff_preview_label
+import com.hopcape.odo.feature.refuel.resources.rf_notification_confirm
+import com.hopcape.odo.feature.refuel.resources.rf_notification_edit
+import com.hopcape.odo.feature.refuel.resources.rf_notification_title
 import com.hopcape.odo.feature.refuel.resources.rf_optin_body
 import com.hopcape.odo.feature.refuel.resources.rf_optin_continue
 import com.hopcape.odo.feature.refuel.resources.rf_optin_cta
-import com.hopcape.odo.feature.refuel.resources.rf_optin_never_others
-import com.hopcape.odo.feature.refuel.resources.rf_optin_never_payment
+import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_access
+import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_notify
+import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_notify_blocked
+import com.hopcape.odo.feature.refuel.resources.rf_optin_needs_note
+import com.hopcape.odo.feature.refuel.resources.rf_optin_needs_note_one
+import com.hopcape.odo.feature.refuel.resources.rf_optin_no_marketing
 import com.hopcape.odo.feature.refuel.resources.rf_optin_not_now
-import com.hopcape.odo.feature.refuel.resources.rf_optin_on_device
-import com.hopcape.odo.feature.refuel.resources.rf_optin_reads_amount
-import com.hopcape.odo.feature.refuel.resources.rf_optin_reads_fuel_only
+import com.hopcape.odo.feature.refuel.resources.rf_optin_preview_body
+import com.hopcape.odo.feature.refuel.resources.rf_optin_preview_label
 import com.hopcape.odo.feature.refuel.resources.rf_optin_title
 import com.hopcape.odo.feature.refuel.resources.rf_settings_apps
 import com.hopcape.odo.feature.refuel.resources.rf_settings_behaviour
@@ -58,33 +113,21 @@ import com.hopcape.odo.feature.refuel.resources.rf_settings_notify_missing
 import com.hopcape.odo.feature.refuel.resources.rf_settings_permission_missing
 import com.hopcape.odo.feature.refuel.resources.rf_settings_permission_open
 import com.hopcape.odo.feature.refuel.resources.rf_settings_predict
-import com.hopcape.odo.feature.refuel.resources.rf_warning_body
-import com.hopcape.odo.feature.refuel.resources.rf_warning_how
-import com.hopcape.odo.feature.refuel.resources.rf_warning_scope
-import com.hopcape.odo.feature.refuel.resources.rf_warning_sms
-import com.hopcape.odo.feature.refuel.resources.rf_warning_title
-import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_access
-import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_notify
-import com.hopcape.odo.feature.refuel.resources.rf_optin_cta_notify_blocked
-import com.hopcape.odo.feature.refuel.resources.rf_setup_heading
-import com.hopcape.odo.feature.refuel.resources.rf_setup_intro
-import com.hopcape.odo.feature.refuel.resources.rf_setup_label
-import com.hopcape.odo.feature.refuel.resources.rf_setup_notify_blocked
-import com.hopcape.odo.feature.refuel.resources.rf_setup_notify_body
-import com.hopcape.odo.feature.refuel.resources.rf_setup_notify_title
-import com.hopcape.odo.feature.refuel.resources.rf_setup_read_body
-import com.hopcape.odo.feature.refuel.resources.rf_setup_read_title
-import com.hopcape.odo.feature.refuel.resources.rf_setup_state_done
-import com.hopcape.odo.feature.refuel.resources.rf_setup_state_pending
+import com.hopcape.odo.feature.refuel.resources.rf_step_next
+import com.hopcape.odo.feature.refuel.resources.rf_step_of
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * The auto-detect opt-in, and the settings it becomes once it is on.
  *
- * The opt-in has to earn a permission whose own system dialog says Odo will be able to read
- * all notifications, including message text. The only fair answer to that is to say first,
- * in Odo's own words, what it will actually read and what it will not — and to say that
- * nothing leaves the phone, because that is the part the system dialog cannot tell anyone.
+ * The opt-in has to earn a permission whose own system dialog says Odo will be able to read all
+ * notifications, including message text. The only fair answer to that is to say first, in Odo's
+ * own words, what it will actually read and what it will not — and to say that nothing leaves the
+ * phone, because that is the part the system dialog cannot tell anyone.
+ *
+ * One question per screen, in the order the owner would ask them: what is this for, then each
+ * switch it needs, and for the two that end in a system settings page, what that page looks like
+ * before they are sent to it.
  */
 @Composable
 internal fun AutoDetectScreen(
@@ -93,275 +136,422 @@ internal fun AutoDetectScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OdoScreen(
+    if (state.optedIn) {
+        SettingsScreen(state = state, onEvent = onEvent, onBack = onBack, modifier = modifier)
+        return
+    }
+    when (state.page) {
+        AutoDetectPage.Why -> WhyPage(state, onEvent, modifier)
+        AutoDetectPage.Access -> AccessPage(state, onEvent, modifier)
+        AutoDetectPage.AccessHandoff -> AccessHandoffPage(onEvent, modifier)
+        AutoDetectPage.Background -> BackgroundPage(state, onEvent, modifier)
+        AutoDetectPage.BackgroundHandoff -> BackgroundHandoffPage(onEvent, modifier)
+    }
+}
+
+/**
+ * Page one: what the owner gets, with no permission named.
+ *
+ * Nothing here is a switch, deliberately. This page has one job — letting the owner decide
+ * whether they want the feature at all — and a list of Android permissions on the same screen
+ * turns that decision into a form to get through. What it does say is how many switches are
+ * coming, because a flow that reveals its length one screen at a time feels like it is growing.
+ */
+@Composable
+private fun WhyPage(
+    state: AutoDetectUiState,
+    onEvent: (AutoDetectEvent) -> Unit,
+    modifier: Modifier,
+) {
+    val pending = state.pendingSteps
+    OdoPermissionRationale(
         modifier = modifier,
-        title = stringResource(Res.string.rf_autodetect_title),
-        // On the second opt-in page, back is a step back through the explanation rather than
-        // out of it. Leaving the screen from there would make the owner re-read page one to
-        // reach the button they were already looking at.
-        onBack = if (!state.optedIn && state.optInPage != AutoDetectOptInPage.Why) {
-            { onEvent(AutoDetectEvent.OptInBacked) }
+        icon = IcBellOutlined,
+        title = stringResource(Res.string.rf_optin_title),
+        subtitle = stringResource(Res.string.rf_optin_body),
+        benefits = emptyList(),
+        assurances = emptyList(),
+        // Nothing left to grant — usually a phone that granted both permissions elsewhere — so
+        // this tap really does turn the feature on and has to say so.
+        confirmLabel = if (pending.isEmpty()) {
+            stringResource(Res.string.rf_optin_cta)
         } else {
-            onBack
+            stringResource(Res.string.rf_optin_continue)
         },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = OdoTheme.spacing.lg, vertical = OdoTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            when {
-                state.optedIn -> SettingsBody(state, onEvent)
-                state.optInPage == AutoDetectOptInPage.Why -> WhyBody(onEvent)
-                state.optInPage == AutoDetectOptInPage.Permissions -> PermissionsBody(state, onEvent)
-                else -> AutostartBody(state, onEvent)
+        onConfirm = { onEvent(AutoDetectEvent.ContinueTapped) },
+        dismissLabel = stringResource(Res.string.rf_optin_not_now),
+        onDismiss = { onEvent(AutoDetectEvent.NotNowTapped) },
+        screenTitle = stringResource(Res.string.rf_autodetect_title),
+        onBack = { onEvent(AutoDetectEvent.BackTapped) },
+        backContentDescription = stringResource(Res.string.rf_cd_back),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.cardGap)) {
+            DraftPreview()
+            OptInNote(pending.size)
+        }
+    }
+}
+
+/**
+ * Step one: the permission detection actually runs on.
+ *
+ * Its primary button does not ask for anything. It moves to [AccessHandoffPage], because this
+ * permission has no dialog — only a settings page the owner walks to — and being told what that
+ * page looks like is worth more than being dropped on it a moment sooner.
+ */
+@Composable
+private fun AccessPage(
+    state: AutoDetectUiState,
+    onEvent: (AutoDetectEvent) -> Unit,
+    modifier: Modifier,
+) {
+    StepRationale(
+        state = state,
+        modifier = modifier,
+        icon = IcEyeFilled,
+        title = stringResource(Res.string.rf_access_title),
+        subtitle = stringResource(Res.string.rf_access_body),
+        assurancesLabel = stringResource(Res.string.rf_access_label),
+        assurances = listOf(
+            included(stringResource(Res.string.rf_access_yes_amount)),
+            included(stringResource(Res.string.rf_access_yes_apps)),
+            excluded(stringResource(Res.string.rf_access_no_others)),
+            excluded(stringResource(Res.string.rf_access_no_sms)),
+        ),
+        confirmLabel = stringResource(Res.string.rf_step_next),
+        dismissLabel = stringResource(Res.string.rf_optin_not_now),
+        onDismiss = { onEvent(AutoDetectEvent.NotNowTapped) },
+        onEvent = onEvent,
+    )
+}
+
+/**
+ * What the notification-access page will say, said first and in Odo's own words.
+ *
+ * Android has a single switch for notification access, so its consent screen enumerates
+ * everything the permission class can cover rather than what this app does — and some OEMs dress
+ * that up with a red danger sign and a risk checkbox. Nothing in the app can restyle or suppress
+ * that screen; the only thing that helps is arriving at it already knowing what it says.
+ *
+ * The "Read all SMS" line is called out by name because it is the one that reads as a lie about
+ * Odo. It is checkable: Odo declares no SMS permission at all, so anyone who doubts this can open
+ * the app's permissions and see for themselves. Pointing at the receipt is worth more than asking
+ * to be believed.
+ */
+@Composable
+private fun AccessHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: Modifier) {
+    OdoSystemHandoff(
+        modifier = modifier,
+        screenTitle = stringResource(Res.string.rf_access_handoff_screen),
+        onBack = { onEvent(AutoDetectEvent.BackTapped) },
+        backContentDescription = stringResource(Res.string.rf_cd_back),
+        eyebrow = stringResource(Res.string.rf_handoff_eyebrow),
+        title = stringResource(Res.string.rf_access_handoff_title),
+        body = stringResource(Res.string.rf_access_handoff_body),
+        instruction = stringResource(Res.string.rf_access_handoff_instruction),
+        previewLabel = stringResource(Res.string.rf_handoff_preview_label),
+        previewHeader = stringResource(Res.string.rf_access_handoff_screen),
+        previewRows = listOf(
+            toggleRow(stringResource(Res.string.rf_handoff_app_whatsapp), on = true),
+            toggleRow(stringResource(Res.string.rf_handoff_app_odo), on = false, ours = true),
+            toggleRow(stringResource(Res.string.rf_handoff_app_swiggy), on = false),
+        ),
+        previewNote = stringResource(Res.string.rf_access_handoff_note),
+        confirmLabel = stringResource(Res.string.rf_optin_cta_access),
+        onConfirm = { onEvent(AutoDetectEvent.ContinueTapped) },
+        dismissLabel = stringResource(Res.string.rf_optin_not_now),
+        onDismiss = { onEvent(AutoDetectEvent.NotNowTapped) },
+    )
+}
+
+/**
+ * Step two: the one thing on this screen the app cannot ask for.
+ *
+ * Every phone sleeps apps to save battery, and a sleeping Odo does not see the payment
+ * notification at all. Some manufacturers go further and refuse to start it in the background
+ * even when the listener is enabled — which is invisible, because every switch in the app still
+ * reads "on".
+ *
+ * Its dismiss really does turn detection on. Both Android permissions are already granted by the
+ * time this page exists, so an owner who backed out here would have granted the sensitive one
+ * and got nothing at all for it.
+ */
+@Composable
+private fun BackgroundPage(
+    state: AutoDetectUiState,
+    onEvent: (AutoDetectEvent) -> Unit,
+    modifier: Modifier,
+) {
+    StepRationale(
+        state = state,
+        modifier = modifier,
+        icon = IcSpeedometer,
+        title = stringResource(Res.string.rf_background_title),
+        subtitle = stringResource(Res.string.rf_background_body),
+        assurancesLabel = stringResource(Res.string.rf_background_label),
+        assurances = listOf(
+            included(stringResource(Res.string.rf_background_yes_wake)),
+            included(stringResource(Res.string.rf_background_yes_sleep)),
+            excluded(stringResource(Res.string.rf_background_no_running)),
+            excluded(stringResource(Res.string.rf_background_no_idle)),
+        ),
+        confirmLabel = stringResource(Res.string.rf_step_next),
+        dismissLabel = stringResource(Res.string.rf_background_skip),
+        onDismiss = { onEvent(AutoDetectEvent.BackgroundSkipped) },
+        onEvent = onEvent,
+    )
+}
+
+/**
+ * Where the background setting lives, which is nowhere in particular.
+ *
+ * Each skin names it differently and buries it somewhere else, so the page cannot promise a
+ * route — only that Odo will open the closest thing this phone has, and that the row to look for
+ * is Odo's own.
+ */
+@Composable
+private fun BackgroundHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: Modifier) {
+    OdoSystemHandoff(
+        modifier = modifier,
+        screenTitle = stringResource(Res.string.rf_background_handoff_screen),
+        onBack = { onEvent(AutoDetectEvent.BackTapped) },
+        backContentDescription = stringResource(Res.string.rf_cd_back),
+        eyebrow = stringResource(Res.string.rf_handoff_eyebrow),
+        title = stringResource(Res.string.rf_background_handoff_title),
+        body = stringResource(Res.string.rf_background_handoff_body),
+        instruction = stringResource(Res.string.rf_background_handoff_instruction),
+        previewLabel = stringResource(Res.string.rf_handoff_preview_label),
+        previewHeader = stringResource(Res.string.rf_background_preview_header),
+        previewRows = listOf(
+            toggleRow(stringResource(Res.string.rf_handoff_app_maps), on = true),
+            toggleRow(stringResource(Res.string.rf_handoff_app_odo), on = false, ours = true),
+            toggleRow(stringResource(Res.string.rf_handoff_app_phonepe), on = true),
+        ),
+        previewNote = stringResource(Res.string.rf_background_handoff_note),
+        confirmLabel = stringResource(Res.string.rf_background_cta),
+        onConfirm = { onEvent(AutoDetectEvent.ContinueTapped) },
+        dismissLabel = stringResource(Res.string.rf_background_skip),
+        onDismiss = { onEvent(AutoDetectEvent.BackgroundSkipped) },
+    )
+}
+
+/**
+ * The shape every numbered ask shares: the counter, the icon, the claim, and the limits.
+ *
+ * One function rather than a copy per ask, so the two cannot drift apart. They are read in a row
+ * by someone deciding whether to trust the app, and a step that looks different from the one
+ * before it reads as a different app asking.
+ */
+@Composable
+private fun StepRationale(
+    state: AutoDetectUiState,
+    modifier: Modifier,
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    assurancesLabel: String,
+    assurances: List<OdoPermissionAssurance>,
+    confirmLabel: String,
+    dismissLabel: String,
+    onDismiss: () -> Unit,
+    onEvent: (AutoDetectEvent) -> Unit,
+) {
+    OdoPermissionRationale(
+        modifier = modifier,
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        benefits = emptyList(),
+        assurances = assurances,
+        assurancesLabel = assurancesLabel,
+        confirmLabel = confirmLabel,
+        onConfirm = { onEvent(AutoDetectEvent.ContinueTapped) },
+        dismissLabel = dismissLabel,
+        onDismiss = onDismiss,
+        screenTitle = stringResource(Res.string.rf_autodetect_title),
+        onBack = { onEvent(AutoDetectEvent.BackTapped) },
+        backContentDescription = stringResource(Res.string.rf_cd_back),
+        stepCurrent = state.stepNumber,
+        stepTotal = state.stepTotal,
+        stepLabel = stringResource(Res.string.rf_step_of, state.stepNumber, state.stepTotal),
+    )
+}
+
+/**
+ * A picture of the notification the feature produces, on the page that offers the feature.
+ *
+ * The whole pitch is "you will get one of these and tap once", and that is far easier to show
+ * than to describe. Its numbers are an example, not the owner's data.
+ */
+@Composable
+private fun DraftPreview() {
+    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+        OdoText(
+            text = stringResource(Res.string.rf_optin_preview_label),
+            style = OdoTheme.typography.caption,
+            color = OdoTheme.colors.textMuted,
+        )
+        OdoCard(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(PREVIEW_TILE)
+                        .clip(OdoTheme.shapes.small)
+                        .background(OdoTheme.colors.accent),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    OdoIcon(
+                        imageVector = IcBellFilled,
+                        contentDescription = null,
+                        tint = OdoTheme.colors.onAccent,
+                        size = OdoTheme.iconSizes.small,
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                    OdoText(
+                        text = stringResource(Res.string.rf_notification_title),
+                        style = OdoTheme.typography.label,
+                    )
+                    OdoText(
+                        text = stringResource(Res.string.rf_optin_preview_body),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            ) {
+                FakeAction(
+                    text = stringResource(Res.string.rf_notification_confirm),
+                    filled = true,
+                    modifier = Modifier.weight(1f),
+                )
+                FakeAction(
+                    text = stringResource(Res.string.rf_notification_edit),
+                    filled = false,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
 }
 
 /**
- * Page one: what detection does, and what it will never touch.
+ * A button in the drawing, which cannot be pressed.
  *
- * No permission is named here on purpose. This page has one job — letting the owner decide
- * whether they want the feature at all — and a list of Android switches on the same screen
- * turns that decision into a form to get through.
+ * [OdoButton] would offer a tap that does nothing and announce itself as pressable to a screen
+ * reader. This is a shape with a label, on a card that is explicitly an example.
  */
 @Composable
-private fun WhyBody(onEvent: (AutoDetectEvent) -> Unit) {
-    OdoText(stringResource(Res.string.rf_optin_title), style = OdoTheme.typography.title)
-    OdoText(
-        stringResource(Res.string.rf_optin_body),
-        style = OdoTheme.typography.body,
-        color = OdoTheme.colors.textDim,
-    )
-
-    OdoCard(modifier = Modifier.fillMaxWidth()) {
-        Promise(stringResource(Res.string.rf_optin_reads_amount), kept = true)
-        Promise(stringResource(Res.string.rf_optin_reads_fuel_only), kept = true)
-        Promise(stringResource(Res.string.rf_optin_never_others), kept = false)
-        Promise(stringResource(Res.string.rf_optin_never_payment), kept = false)
-    }
-
-    OdoText(
-        stringResource(Res.string.rf_optin_on_device),
-        style = OdoTheme.typography.caption,
-        color = OdoTheme.colors.textMuted,
-    )
-
-    // Names the next page rather than promising the feature is on. Nothing is switched on by
-    // this tap, and a button that implied otherwise would be the same lie the old one told.
-    OdoButton(
-        text = stringResource(Res.string.rf_optin_continue),
-        onClick = { onEvent(AutoDetectEvent.OptInAdvanced) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OdoButton(
-        text = stringResource(Res.string.rf_optin_not_now),
-        onClick = { onEvent(AutoDetectEvent.NotNowTapped) },
-        variant = OdoButtonVariant.Tertiary,
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-/**
- * Page two: the two Android notification permissions, and nothing else.
- *
- * Autostart used to sit here as a third checklist row and a card. It has its own page now,
- * because it is a different kind of thing: these two Odo can ask for and then read back, while
- * autostart is an OEM setting no API can request or check. Listing an unverifiable step
- * alongside verifiable ones made the whole list read as approximate, and it padded the one
- * screen that has to be read carefully.
- */
-@Composable
-private fun PermissionsBody(state: AutoDetectUiState, onEvent: (AutoDetectEvent) -> Unit) {
-    OdoText(stringResource(Res.string.rf_setup_heading), style = OdoTheme.typography.title)
-    OdoText(
-        stringResource(Res.string.rf_setup_intro),
-        style = OdoTheme.typography.body,
-        color = OdoTheme.colors.textDim,
-    )
-
-    SetupChecklist(state)
-
-    // Only on the step it is about. Shown a step earlier it would be a warning about a screen
-    // the owner has not been sent to yet, which is its own kind of alarming.
-    if (state.setupStep == AutoDetectSetupStep.NotificationAccess) SystemWarningCard()
-
-    OdoButton(
-        text = state.primaryActionLabel(),
-        onClick = { onEvent(AutoDetectEvent.SetupContinued) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OdoButton(
-        text = stringResource(Res.string.rf_optin_not_now),
-        onClick = { onEvent(AutoDetectEvent.NotNowTapped) },
-        variant = OdoButtonVariant.Tertiary,
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-/**
- * Page three: the manufacturer's autostart switch, on the phones that have one.
- *
- * Reached only after both permissions are granted, and only where [AutoDetectUiState.needsAutostart].
- * It comes *before* detection is switched on rather than after, because a feature announced as
- * working and then silenced by the OS the next time the phone reclaims the app is worse than
- * one more screen.
- *
- * Both buttons turn detection on. Nothing here can be verified — no API reports that setting —
- * so the owner is never held on this page: [Res.string.rf_autostart_skip] is an honest way past
- * it, and the same advice comes back in the settings body until they say they have dealt with
- * it. A gate on something unreadable would never clear.
- */
-@Composable
-private fun AutostartBody(state: AutoDetectUiState, onEvent: (AutoDetectEvent) -> Unit) {
-    OdoText(stringResource(Res.string.rf_autostart_heading), style = OdoTheme.typography.title)
-    OdoText(
-        stringResource(Res.string.rf_autostart_intro),
-        style = OdoTheme.typography.body,
-        color = OdoTheme.colors.textDim,
-    )
-
-    AutostartCard(onEvent)
-
-    OdoButton(
-        text = stringResource(Res.string.rf_optin_cta),
-        onClick = { onEvent(AutoDetectEvent.SetupContinued) },
-        enabled = state.permissionsSettled,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OdoButton(
-        text = stringResource(Res.string.rf_autostart_skip),
-        onClick = { onEvent(AutoDetectEvent.SetupContinued) },
-        variant = OdoButtonVariant.Tertiary,
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-/**
- * What the primary button says it will do, which is what it does.
- *
- * It used to read "Turn on auto-detect" and open a system permission page instead. A button
- * that names one thing and performs another is the fastest way to lose the benefit of the
- * doubt on the exact screen that is asking for it.
- */
-@Composable
-private fun AutoDetectUiState.primaryActionLabel(): String = when (setupStep) {
-    AutoDetectSetupStep.PostNotifications -> if (notifyBlocked) {
-        stringResource(Res.string.rf_optin_cta_notify_blocked)
-    } else {
-        stringResource(Res.string.rf_optin_cta_notify)
-    }
-
-    AutoDetectSetupStep.NotificationAccess -> stringResource(Res.string.rf_optin_cta_access)
-    AutoDetectSetupStep.Ready -> stringResource(Res.string.rf_optin_cta)
-}
-
-/**
- * The two permissions, in the order they are asked for, each with what it is for.
- *
- * Both are shown from the start rather than one at a time. "Allow notifications" is a small
- * ask and an owner who grants it expecting to be done is entitled to know, before they tap,
- * that a second and much larger one is coming. Step 2's own copy is where the difference
- * between posting a notification and reading one gets spelled out.
- */
-@Composable
-private fun SetupChecklist(state: AutoDetectUiState) {
-    SectionLabel(stringResource(Res.string.rf_setup_label))
-    OdoCard(modifier = Modifier.fillMaxWidth()) {
-        SetupRow(
-            title = stringResource(Res.string.rf_setup_notify_title),
-            body = if (state.notifyBlocked) {
-                stringResource(Res.string.rf_setup_notify_blocked)
-            } else {
-                stringResource(Res.string.rf_setup_notify_body)
-            },
-            state = when {
-                state.notifyStatus.isGranted -> SetupRowState.Done
-                else -> SetupRowState.Pending
-            },
-        )
-        SetupRow(
-            title = stringResource(Res.string.rf_setup_read_title),
-            body = stringResource(Res.string.rf_setup_read_body),
-            state = if (state.accessGranted) SetupRowState.Done else SetupRowState.Pending,
+private fun FakeAction(text: String, filled: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(OdoTheme.shapes.pill)
+            .background(if (filled) OdoTheme.colors.text else OdoTheme.colors.surfaceRaised)
+            .padding(vertical = OdoTheme.spacing.sm),
+        contentAlignment = Alignment.Center,
+    ) {
+        OdoText(
+            text = text,
+            style = OdoTheme.typography.label,
+            color = if (filled) OdoTheme.colors.bg else OdoTheme.colors.text,
+            textAlign = TextAlign.Center,
         )
     }
 }
 
 /**
- * What the OS is about to say, said first and in Odo's own words.
+ * What agreeing to this commits the owner to, before the first switch is asked for.
  *
- * Android has a single switch for notification access, so its consent screen enumerates
- * everything the permission class can cover rather than what this app does — and some OEMs
- * dress that up with a red danger sign and a risk checkbox. Nothing in the app can restyle or
- * suppress that screen; the only thing that helps is arriving at it already knowing what it
- * says and why.
+ * Two things, and both belong here rather than on a page of their own. How many switches are
+ * coming, because a permission flow that says nothing about its own length is the one people
+ * abandon on screen two — there is no way to tell whether it ever ends. And what Odo will and
+ * will not send them, which is the only part of the notifications permission that needs saying
+ * once the drawn notification above has shown what it is for.
  *
- * The "Read all SMS" line is called out by name because it is the one that reads as a lie
- * about Odo. It is checkable: Odo declares no SMS permission at all, so anyone who doubts
- * this can open the app's permissions and see for themselves. Pointing at the receipt is
- * worth more than asking to be believed.
+ * [count] can be zero, on a phone where everything is already granted. The line about switches
+ * is dropped then; the promise is not, because it is still what they are agreeing to.
  */
 @Composable
-private fun SystemWarningCard() {
-    OdoCard(modifier = Modifier.fillMaxWidth()) {
-        OdoText(stringResource(Res.string.rf_warning_title), style = OdoTheme.typography.label)
-        OdoText(
-            stringResource(Res.string.rf_warning_body),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
-        )
-        OdoText(
-            stringResource(Res.string.rf_warning_sms),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
-        )
-        OdoText(
-            stringResource(Res.string.rf_warning_scope),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
-        )
-        OdoText(
-            stringResource(Res.string.rf_warning_how),
-            style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.text,
-        )
-    }
-}
-
-/**
- * How a setup row reports itself.
- *
- * Two states only, because every row on this list is an Android permission Odo can read back.
- * There used to be an `Unchecked` for autostart, which no API reports — that step has its own
- * page now, and an unverifiable row no longer sits among verifiable ones pretending to be one.
- */
-private enum class SetupRowState { Done, Pending }
-
-@Composable
-private fun SetupRow(title: String, body: String, state: SetupRowState) {
-    OdoListItem(
-        headline = title,
-        supporting = body,
-        trailing = {
-            OdoText(
-                text = when (state) {
-                    SetupRowState.Done -> stringResource(Res.string.rf_setup_state_done)
-                    SetupRowState.Pending -> stringResource(Res.string.rf_setup_state_pending)
-                },
-                style = OdoTheme.typography.caption,
-                color = when (state) {
-                    SetupRowState.Done -> OdoTheme.colors.success
-                    SetupRowState.Pending -> OdoTheme.colors.textDim
-                },
+private fun OptInNote(count: Int) {
+    OdoCard(modifier = Modifier.fillMaxWidth(), color = OdoTheme.colors.surfaceRaised) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        ) {
+            OdoIcon(
+                imageVector = IcLockFilled,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+                modifier = Modifier.padding(top = OdoTheme.spacing.xs),
             )
-        },
-    )
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                if (count > 0) {
+                    OdoText(
+                        text = if (count == 1) {
+                            stringResource(Res.string.rf_optin_needs_note_one)
+                        } else {
+                            stringResource(Res.string.rf_optin_needs_note, count)
+                        },
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+                OdoText(
+                    text = stringResource(Res.string.rf_optin_no_marketing),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+        }
+    }
+}
+
+private fun included(text: String) =
+    OdoPermissionAssurance(text = text, kind = OdoPermissionAssuranceKind.Included)
+
+private fun excluded(text: String) =
+    OdoPermissionAssurance(text = text, kind = OdoPermissionAssuranceKind.Excluded)
+
+/** A row of the drawn system screen. The initial stands in for an app icon Odo cannot use. */
+private fun toggleRow(label: String, on: Boolean, ours: Boolean = false) = OdoSystemToggleRow(
+    initial = label.take(1),
+    label = label,
+    on = on,
+    highlighted = ours,
+)
+
+@Composable
+private fun SettingsScreen(
+    state: AutoDetectUiState,
+    onEvent: (AutoDetectEvent) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoScreen(
+        modifier = modifier,
+        title = stringResource(Res.string.rf_autodetect_title),
+        onBack = onBack,
+        backContentDescription = stringResource(Res.string.rf_cd_back),
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = OdoTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        ) {
+            SettingsBody(state, onEvent)
+        }
+    }
 }
 
 @Composable
@@ -381,7 +571,7 @@ private fun SettingsBody(state: AutoDetectUiState, onEvent: (AutoDetectEvent) ->
                 } else {
                     stringResource(Res.string.rf_optin_cta_notify)
                 },
-                onClick = { onEvent(AutoDetectEvent.SetupContinued) },
+                onClick = { onEvent(AutoDetectEvent.NotifyFixTapped) },
                 variant = OdoButtonVariant.Secondary,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -486,13 +676,12 @@ private fun SettingsBody(state: AutoDetectUiState, onEvent: (AutoDetectEvent) ->
 }
 
 /**
- * The one thing on this screen the app cannot do anything about.
+ * The standing reminder about the manufacturer's autostart switch.
  *
- * On these phones a separate autostart switch decides whether Odo may be started in the
- * background at all. While it is off the system refuses to start the app, the listener never
- * binds, and detection stops the moment the owner closes Odo — with every switch on this
- * screen still reading "on". Saying so plainly is the only honest option; the button just
- * shortens the walk.
+ * On these phones a separate switch decides whether Odo may be started in the background at all.
+ * While it is off the system refuses to start the app, the listener never binds, and detection
+ * stops the moment the owner closes Odo — with every switch on this screen still reading "on".
+ * Saying so plainly is the only honest option; the button just shortens the walk.
  */
 @Composable
 private fun AutostartCard(onEvent: (AutoDetectEvent) -> Unit) {
@@ -509,9 +698,9 @@ private fun AutostartCard(onEvent: (AutoDetectEvent) -> Unit) {
             variant = OdoButtonVariant.Secondary,
             modifier = Modifier.fillMaxWidth(),
         )
-        // The only way this card can ever go away. Nothing can read the setting it is about,
-        // so the owner saying "done" is the signal — and advice with no way out is advice
-        // that trains people to ignore the screen it is on.
+        // The only way this card can ever go away. Nothing can read the setting it is about, so
+        // the owner saying "done" is the signal — and advice with no way out is advice that
+        // trains people to ignore the screen it is on.
         OdoButton(
             text = stringResource(Res.string.rf_autostart_done),
             onClick = { onEvent(AutoDetectEvent.AutostartAcknowledged) },
@@ -541,27 +730,6 @@ private fun SwitchRow(
     )
 }
 
-/** One line of the opt-in's promise list. [kept] separates what Odo does from what it never does. */
-@Composable
-private fun Promise(text: String, kept: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OdoText(
-            text = if (kept) "+" else "—",
-            style = OdoTheme.typography.label,
-            color = if (kept) OdoTheme.colors.success else OdoTheme.colors.textMuted,
-        )
-        OdoText(
-            text = text,
-            style = OdoTheme.typography.bodySmall,
-            color = if (kept) OdoTheme.colors.text else OdoTheme.colors.textDim,
-        )
-    }
-}
-
 /**
  * The app's name as the owner would recognise it.
  *
@@ -575,23 +743,58 @@ private fun DetectionApp.displayName(): String = when (packageName) {
     else -> packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
 }
 
-/** Page one — the pitch and the promises, with no permission named. */
+private val PREVIEW_TILE = 32.dp
+
+/** Page one — the outcome and the drawn notification, with no permission named. */
 @OdoThemePreviews
 @Composable
-private fun AutoDetectOptInPreview() = OdoPreview {
+private fun AutoDetectWhyPreview() = OdoPreview(padded = false) {
     AutoDetectScreen(state = AutoDetectUiState(loading = false), onEvent = {}, onBack = {})
 }
 
-/** Page two, mid-chain on a phone with an autostart switch — where the OEM warning shows. */
+/** Step one of two, where the counter and the assurance card carry the argument. */
 @OdoThemePreviews
 @Composable
-private fun AutoDetectOptInNeedsAccessPreview() = OdoPreview {
+private fun AutoDetectAccessPreview() = OdoPreview(padded = false) {
     AutoDetectScreen(
         state = AutoDetectUiState(
             loading = false,
-            optInPage = AutoDetectOptInPage.Permissions,
             notifyStatus = PermissionStatus.Granted,
-            needsAutostart = true,
+            page = AutoDetectPage.Access,
+            steps = listOf(AutoDetectStep.Access, AutoDetectStep.Background),
+        ),
+        onEvent = {},
+        onBack = {},
+    )
+}
+
+/** The forewarning about the notification-access page. */
+@OdoThemePreviews
+@Composable
+private fun AutoDetectAccessHandoffPreview() = OdoPreview(padded = false) {
+    AutoDetectScreen(
+        state = AutoDetectUiState(
+            loading = false,
+            notifyStatus = PermissionStatus.Granted,
+            page = AutoDetectPage.AccessHandoff,
+            steps = listOf(AutoDetectStep.Access, AutoDetectStep.Background),
+        ),
+        onEvent = {},
+        onBack = {},
+    )
+}
+
+/** The last step, and the only one nothing can verify. */
+@OdoThemePreviews
+@Composable
+private fun AutoDetectBackgroundPreview() = OdoPreview(padded = false) {
+    AutoDetectScreen(
+        state = AutoDetectUiState(
+            loading = false,
+            notifyStatus = PermissionStatus.Granted,
+            accessGranted = true,
+            page = AutoDetectPage.Background,
+            steps = listOf(AutoDetectStep.Background),
         ),
         onEvent = {},
         onBack = {},
@@ -600,7 +803,7 @@ private fun AutoDetectOptInNeedsAccessPreview() = OdoPreview {
 
 @OdoThemePreviews
 @Composable
-private fun AutoDetectSettingsPreview() = OdoPreview {
+private fun AutoDetectSettingsPreview() = OdoPreview(padded = false) {
     AutoDetectScreen(
         state = AutoDetectUiState(
             loading = false,
