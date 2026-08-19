@@ -102,8 +102,8 @@ class AutoDetectSetupStepTest {
     fun theCounterNumbersThePageWithinTheStepsThisRunWillMake() {
         val onAccess = state(page = AutoDetectPage.Access, steps = bothSteps)
 
-        assertEquals(1, onAccess.stepNumber)
-        assertEquals(2, onAccess.stepTotal)
+        assertEquals(1, onAccess.stepNumberOf(AutoDetectPage.Access))
+        assertEquals(2, onAccess.stepTotalOf(AutoDetectPage.Access))
     }
 
     @Test
@@ -112,8 +112,8 @@ class AutoDetectSetupStepTest {
         // one would make the flow look longer every time it explained itself.
         val handoff = state(page = AutoDetectPage.AccessHandoff, steps = bothSteps)
 
-        assertEquals(1, handoff.stepNumber)
-        assertEquals(2, handoff.stepTotal)
+        assertEquals(1, handoff.stepNumberOf(AutoDetectPage.AccessHandoff))
+        assertEquals(2, handoff.stepTotalOf(AutoDetectPage.AccessHandoff))
     }
 
     @Test
@@ -123,13 +123,13 @@ class AutoDetectSetupStepTest {
         val steps = listOf(AutoDetectStep.Background)
         val onBackground = state(page = AutoDetectPage.Background, steps = steps)
 
-        assertEquals(1, onBackground.stepNumber)
-        assertEquals(1, onBackground.stepTotal)
+        assertEquals(1, onBackground.stepNumberOf(AutoDetectPage.Background))
+        assertEquals(1, onBackground.stepTotalOf(AutoDetectPage.Background))
     }
 
     @Test
     fun thePitchPageHasNoCounter() {
-        assertEquals(0, state(page = AutoDetectPage.Why, steps = bothSteps).stepTotal)
+        assertEquals(0, state(steps = bothSteps).stepTotalOf(AutoDetectPage.Why))
     }
 
     @Test

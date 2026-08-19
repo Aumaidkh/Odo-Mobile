@@ -245,11 +245,18 @@ internal data class AutoDetectUiState(
      */
     val notifyAskPending: Boolean get() = notifyStatus == PermissionStatus.Askable
 
-    /** 1-based position of the page on screen among [steps]; 0 on a page that is not a step. */
-    val stepNumber: Int get() = steps.indexOf(page.step).let { if (it < 0) 0 else it + 1 }
+    /**
+     * 1-based position of [page] among [steps]; 0 on a page that is not a step.
+     *
+     * Takes the page rather than reading [AutoDetectUiState.page], because a page mid-transition
+     * is still composed after the state has moved on — reading the live one would renumber the
+     * outgoing page while it slid away.
+     */
+    fun stepNumberOf(page: AutoDetectPage): Int =
+        steps.indexOf(page.step).let { if (it < 0) 0 else it + 1 }
 
     /** How many asks the counter is out of. Zero on [AutoDetectPage.Why], which has no counter. */
-    val stepTotal: Int get() = if (page.step == null) 0 else steps.size
+    fun stepTotalOf(page: AutoDetectPage): Int = if (page.step == null) 0 else steps.size
 
     /**
      * Where back goes from here, or null when back should leave the screen.

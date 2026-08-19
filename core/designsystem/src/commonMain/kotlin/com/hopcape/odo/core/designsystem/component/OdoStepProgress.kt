@@ -1,10 +1,12 @@
 package com.hopcape.odo.core.designsystem.component
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -69,17 +71,38 @@ fun OdoStepProgress(
     }
 }
 
+/**
+ * One step's worth of the bar: an empty track with a fill that sweeps across it.
+ *
+ * A sweep rather than a colour swap, which is what this was. Both animate, but a segment that
+ * simply brightens says "this is now true" while one that fills says "you moved", and the second
+ * is the thing the owner is looking at the bar to find out. It runs on the same timing as the
+ * page slide beside it, so the two read as one movement rather than two.
+ */
 @Composable
 private fun Segment(filled: Boolean, modifier: Modifier = Modifier) {
-    val color by animateColorAsState(
-        targetValue = if (filled) OdoTheme.colors.text else OdoTheme.colors.border,
+    val fill by animateFloatAsState(
+        targetValue = if (filled) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = OdoTheme.motion.flowMillis,
+            easing = OdoTheme.motion.easeFlow,
+        ),
+        label = "segmentFill",
     )
     Box(
         modifier = modifier
             .height(SEGMENT_HEIGHT)
             .clip(OdoTheme.shapes.pill)
-            .background(color),
-    )
+            .background(OdoTheme.colors.border),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(fill)
+                .clip(OdoTheme.shapes.pill)
+                .background(OdoTheme.colors.text),
+        )
+    }
 }
 
 private val SEGMENT_HEIGHT = 3.dp

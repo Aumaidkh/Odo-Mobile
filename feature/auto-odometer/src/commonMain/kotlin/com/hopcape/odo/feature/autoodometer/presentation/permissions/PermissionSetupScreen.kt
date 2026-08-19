@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -14,6 +15,7 @@ import com.hopcape.odo.core.designsystem.component.OdoPermissionAssurance
 import com.hopcape.odo.core.designsystem.component.OdoPermissionAssuranceKind
 import com.hopcape.odo.core.designsystem.component.OdoPermissionNudge
 import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
+import com.hopcape.odo.core.designsystem.component.OdoStepTransition
 import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
 import com.hopcape.odo.core.designsystem.component.OdoSystemRow
 import com.hopcape.odo.core.designsystem.component.OdoSystemRowControl
@@ -108,25 +110,66 @@ internal fun PermissionSetupScreen(
     modifier: Modifier = Modifier,
 ) {
     val current = state.current ?: return
-    if (state.showHandoff) {
-        HandoffPage(current.step, onContinue, onSkip, onBack, modifier)
-        return
+    // Everything a page draws is frozen into this, rather than read from `state` inside the
+    // page: while the transition runs the outgoing page is still composed, and one reading live
+    // state would renumber its counter and drop its denial row on the way out.
+    val page = SetupPage(
+        step = current.step,
+        index = state.currentIndex,
+        total = state.totalSteps,
+        handoff = state.showHandoff,
+        blocked = state.currentBlocked,
+        showDenial = state.showDenialRow,
+        showSkip = state.showSkip,
+    )
+    OdoStepTransition(
+        target = page,
+        // Two pages per step, the drawing second — so back off a drawing animates backwards and
+        // moving to the next step animates forwards, with nothing else to track.
+        position = page.index * PAGES_PER_STEP + if (page.handoff) 1 else 0,
+        modifier = modifier,
+        label = "permissionSetupPage",
+    ) { target ->
+        if (target.handoff) {
+            HandoffPage(target, onContinue, onSkip, onBack)
+        } else {
+            RationalePage(state.mode, state.recentDrives, target, onContinue, onSkip, onBack)
+        }
     }
-    RationalePage(state, current.step, onContinue, onSkip, onBack, modifier)
 }
+
+/**
+ * One page of the flow, as the page itself sees it.
+ *
+ * A snapshot rather than a view of [PermissionSetupUiState]: two of these exist at once during a
+ * transition, and the one on its way out has to keep saying what it said.
+ */
+@Immutable
+private data class SetupPage(
+    val step: PermissionSetupStep,
+    val index: Int,
+    val total: Int,
+    val handoff: Boolean,
+    val blocked: Boolean,
+    val showDenial: Boolean,
+    val showSkip: Boolean,
+)
+
+/** A rationale and its drawing of the system screen, in that order. */
+private const val PAGES_PER_STEP = 2
 
 /** A step's own page: the counter, what it is for, and what it does not reach. */
 @Composable
 private fun RationalePage(
-    state: PermissionSetupUiState,
-    step: PermissionSetupStep,
+    mode: TriggerMode,
+    recentDrives: List<RecentDrive>,
+    page: SetupPage,
     onContinue: () -> Unit,
     onSkip: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier,
 ) {
+    val step = page.step
     OdoPermissionRationale(
-        modifier = modifier,
         icon = step.icon(),
         title = stringResource(
             when (step) {
@@ -135,7 +178,7 @@ private fun RationalePage(
                 PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
             },
         ),
-        subtitle = subtitleFor(step, state.recentDrives),
+        subtitle = subtitleFor(step, recentDrives),
         benefits = emptyList(),
         assurancesLabel = stringResource(
             when (step) {
@@ -144,36 +187,36 @@ private fun RationalePage(
                 PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_label
             },
         ),
-        assurances = assurancesFor(step, state.mode),
-        confirmLabel = primaryLabel(step, state.currentBlocked),
+        assurances = assurancesFor(step, mode),
+        confirmLabel = primaryLabel(step, page.blocked),
         onConfirm = onContinue,
         // Only the optional step offers a way past it. On the others the dismiss leaves the
         // whole flow, which is what "not now" has always meant here.
-        dismissLabel = if (state.showSkip) {
+        dismissLabel = if (page.showSkip) {
             stringResource(Res.string.ao_permissions_background_skip)
         } else {
             stringResource(Res.string.ao_permissions_dismiss)
         },
-        onDismiss = if (state.showSkip) onSkip else onBack,
+        onDismiss = if (page.showSkip) onSkip else onBack,
         screenTitle = stringResource(Res.string.ao_flow_title),
         onBack = onBack,
         backContentDescription = stringResource(Res.string.ao_cd_back),
-        stepCurrent = state.stepNumber,
-        stepTotal = state.totalSteps,
+        stepCurrent = page.index + 1,
+        stepTotal = page.total,
         stepLabel = stringResource(
             Res.string.ao_permissions_step_progress,
-            state.stepNumber,
-            state.totalSteps,
+            page.index + 1,
+            page.total,
         ),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.cardGap)) {
             // Their own record, and only where it is the argument being made. On a first-time
             // setup there is nothing here — the car has not moved yet.
-            if (step == PermissionSetupStep.BACKGROUND_LOCATION && state.recentDrives.isNotEmpty()) {
-                RecentDrivesCard(state.recentDrives)
+            if (step == PermissionSetupStep.BACKGROUND_LOCATION && recentDrives.isNotEmpty()) {
+                RecentDrivesCard(recentDrives)
             }
-            if (state.showDenialRow) {
-                DenialRow(step = step, blocked = state.currentBlocked, onAction = onContinue)
+            if (page.showDenial) {
+                DenialRow(step = step, blocked = page.blocked, onAction = onContinue)
             }
         }
     }
@@ -182,15 +225,13 @@ private fun RationalePage(
 /** The drawing of the system screen this step ends on, shown immediately before the handoff. */
 @Composable
 private fun HandoffPage(
-    step: PermissionSetupStep,
+    page: SetupPage,
     onContinue: () -> Unit,
     onSkip: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier,
 ) {
-    val background = step == PermissionSetupStep.BACKGROUND_LOCATION
+    val background = page.step == PermissionSetupStep.BACKGROUND_LOCATION
     OdoSystemHandoff(
-        modifier = modifier,
         screenTitle = stringResource(
             if (background) {
                 Res.string.ao_background_handoff_screen

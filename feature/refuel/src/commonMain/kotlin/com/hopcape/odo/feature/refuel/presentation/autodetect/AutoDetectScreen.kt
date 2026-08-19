@@ -27,6 +27,7 @@ import com.hopcape.odo.core.designsystem.component.OdoPermissionAssurance
 import com.hopcape.odo.core.designsystem.component.OdoPermissionAssuranceKind
 import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
 import com.hopcape.odo.core.designsystem.component.OdoScreen
+import com.hopcape.odo.core.designsystem.component.OdoStepTransition
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
 import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
 import com.hopcape.odo.core.designsystem.component.OdoSystemRow
@@ -140,12 +141,21 @@ internal fun AutoDetectScreen(
         SettingsScreen(state = state, onEvent = onEvent, onBack = onBack, modifier = modifier)
         return
     }
-    when (state.page) {
-        AutoDetectPage.Why -> WhyPage(state, onEvent, modifier)
-        AutoDetectPage.Access -> AccessPage(state, onEvent, modifier)
-        AutoDetectPage.AccessHandoff -> AccessHandoffPage(onEvent, modifier)
-        AutoDetectPage.Background -> BackgroundPage(state, onEvent, modifier)
-        AutoDetectPage.BackgroundHandoff -> BackgroundHandoffPage(onEvent, modifier)
+    // The pages are one destination, so nothing else animates them. Position comes from the
+    // enum's own order, which is the order the flow walks them in.
+    OdoStepTransition(
+        target = state.page,
+        position = state.page.ordinal,
+        modifier = modifier,
+        label = "autoDetectPage",
+    ) { page ->
+        when (page) {
+            AutoDetectPage.Why -> WhyPage(state, onEvent)
+            AutoDetectPage.Access -> AccessPage(state, page, onEvent)
+            AutoDetectPage.AccessHandoff -> AccessHandoffPage(onEvent)
+            AutoDetectPage.Background -> BackgroundPage(state, page, onEvent)
+            AutoDetectPage.BackgroundHandoff -> BackgroundHandoffPage(onEvent)
+        }
     }
 }
 
@@ -158,14 +168,9 @@ internal fun AutoDetectScreen(
  * coming, because a flow that reveals its length one screen at a time feels like it is growing.
  */
 @Composable
-private fun WhyPage(
-    state: AutoDetectUiState,
-    onEvent: (AutoDetectEvent) -> Unit,
-    modifier: Modifier,
-) {
+private fun WhyPage(state: AutoDetectUiState, onEvent: (AutoDetectEvent) -> Unit) {
     val pending = state.pendingSteps
     OdoPermissionRationale(
-        modifier = modifier,
         icon = IcBellOutlined,
         title = stringResource(Res.string.rf_optin_title),
         subtitle = stringResource(Res.string.rf_optin_body),
@@ -202,12 +207,12 @@ private fun WhyPage(
 @Composable
 private fun AccessPage(
     state: AutoDetectUiState,
+    page: AutoDetectPage,
     onEvent: (AutoDetectEvent) -> Unit,
-    modifier: Modifier,
 ) {
     StepRationale(
         state = state,
-        modifier = modifier,
+        page = page,
         icon = IcEyeFilled,
         title = stringResource(Res.string.rf_access_title),
         subtitle = stringResource(Res.string.rf_access_body),
@@ -239,9 +244,8 @@ private fun AccessPage(
  * to be believed.
  */
 @Composable
-private fun AccessHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: Modifier) {
+private fun AccessHandoffPage(onEvent: (AutoDetectEvent) -> Unit) {
     OdoSystemHandoff(
-        modifier = modifier,
         screenTitle = stringResource(Res.string.rf_access_handoff_screen),
         onBack = { onEvent(AutoDetectEvent.BackTapped) },
         backContentDescription = stringResource(Res.string.rf_cd_back),
@@ -279,12 +283,12 @@ private fun AccessHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: Modi
 @Composable
 private fun BackgroundPage(
     state: AutoDetectUiState,
+    page: AutoDetectPage,
     onEvent: (AutoDetectEvent) -> Unit,
-    modifier: Modifier,
 ) {
     StepRationale(
         state = state,
-        modifier = modifier,
+        page = page,
         icon = IcSpeedometer,
         title = stringResource(Res.string.rf_background_title),
         subtitle = stringResource(Res.string.rf_background_body),
@@ -310,9 +314,8 @@ private fun BackgroundPage(
  * is Odo's own.
  */
 @Composable
-private fun BackgroundHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: Modifier) {
+private fun BackgroundHandoffPage(onEvent: (AutoDetectEvent) -> Unit) {
     OdoSystemHandoff(
-        modifier = modifier,
         screenTitle = stringResource(Res.string.rf_background_handoff_screen),
         onBack = { onEvent(AutoDetectEvent.BackTapped) },
         backContentDescription = stringResource(Res.string.rf_cd_back),
@@ -345,7 +348,7 @@ private fun BackgroundHandoffPage(onEvent: (AutoDetectEvent) -> Unit, modifier: 
 @Composable
 private fun StepRationale(
     state: AutoDetectUiState,
-    modifier: Modifier,
+    page: AutoDetectPage,
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -356,8 +359,9 @@ private fun StepRationale(
     onDismiss: () -> Unit,
     onEvent: (AutoDetectEvent) -> Unit,
 ) {
+    val number = state.stepNumberOf(page)
+    val total = state.stepTotalOf(page)
     OdoPermissionRationale(
-        modifier = modifier,
         icon = icon,
         title = title,
         subtitle = subtitle,
@@ -371,9 +375,9 @@ private fun StepRationale(
         screenTitle = stringResource(Res.string.rf_autodetect_title),
         onBack = { onEvent(AutoDetectEvent.BackTapped) },
         backContentDescription = stringResource(Res.string.rf_cd_back),
-        stepCurrent = state.stepNumber,
-        stepTotal = state.stepTotal,
-        stepLabel = stringResource(Res.string.rf_step_of, state.stepNumber, state.stepTotal),
+        stepCurrent = number,
+        stepTotal = total,
+        stepLabel = stringResource(Res.string.rf_step_of, number, total),
     )
 }
 
