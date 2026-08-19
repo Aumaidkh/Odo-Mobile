@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The trip-tracking notification's small icon — Odo's own gauge mark, the same two arcs
-    as the launcher's `ic_launcher_foreground`, so the status bar shows the app's mark
-    rather than a glyph that only exists here.
+    Odo's gauge mark, as every notification this module posts shows in the status bar — the
+    same two arcs as the launcher's `ic_launcher_foreground`, so a reminder about a document
+    and a fuel bill Odo spotted both read as coming from the app the owner installed rather
+    than from whichever feature happens to have raised them.
 
     Both arcs are drawn white because a notification's small icon is a silhouette: Android
     keeps only the alpha channel and re-tints every pixel with the notification's accent
-    colour, so the launcher's grey-over-black pair would read as one shape regardless.
+    colour, so the launcher's grey-over-black pair would collapse into one shape regardless.
     Drawing both anyway keeps the union — the slightly longer outer sweep is what makes the
     mark read as Odo's gauge and not a plain ring.
 
     Scaled up from the launcher's 0.77: the adaptive-icon safe zone it was sized for does
     not apply to a 24dp status-bar glyph, which should fill its box instead.
 
-    A byte-for-byte twin of `:core:platform`'s drawable of the same name. The two modules
-    share no Android library between them, so there is nowhere to put one copy without
-    inventing a dependency edge for an icon. Change one, change the other.
+    A byte-for-byte twin of `:core:triptracker`'s drawable of the same name. The two modules
+    share no Android library between them — `:core:platform` depends on `:core:domain` and
+    `:core:sync`, `:core:triptracker` on `:core:domain` and `:core:common` — so there is
+    nowhere to put one copy without inventing a dependency edge for an icon. The same
+    trade-off `trip_tracking_accent` already documents for its raw hex. Change one, change
+    the other.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
