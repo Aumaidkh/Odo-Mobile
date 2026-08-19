@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClose
@@ -84,10 +85,11 @@ data class OdoPermissionAssurance(
  *
  * @param confirmLabel the primary action. Say what will happen ("Allow camera"), and change it
  *   to the settings wording when the system will no longer prompt.
- * @param screenTitle names the flow in a top bar with a back arrow, for a rationale that is one
- *   page of several. Left null the screen gets a bare close button instead, which is right for
- *   a rationale that stands on its own and wrong for one the owner should be able to step back
- *   through.
+ * @param screenTitle names the flow in a top bar, for a rationale that is one page of several.
+ *   Left null the screen gets a bare close button and no title, which is right for a rationale
+ *   that stands on its own and wrong for one the owner should be able to step back through.
+ * @param navigationIcon the glyph beside [screenTitle]. Pass `IcClose` on the page that opens a
+ *   flow — leaving from there abandons the whole thing rather than stepping back one screen.
  * @param stepTotal how many asks the flow has in all. Above zero it draws [OdoStepProgress], so
  *   an owner on the first of three is told so before they start rather than after.
  * @param assurancesLabel the small heading over the assurance card, e.g. "WHAT ODO READS". It
@@ -112,6 +114,7 @@ fun OdoPermissionRationale(
     screenTitle: String? = null,
     onBack: (() -> Unit)? = null,
     backContentDescription: String? = null,
+    navigationIcon: ImageVector = IcArrowLeft,
     stepCurrent: Int = 0,
     stepTotal: Int = 0,
     stepLabel: String = "",
@@ -126,6 +129,7 @@ fun OdoPermissionRationale(
                     title = screenTitle,
                     onBack = onBack,
                     backContentDescription = backContentDescription,
+                    navigationIcon = navigationIcon,
                 )
             } else if (onClose != null) {
                 Row(

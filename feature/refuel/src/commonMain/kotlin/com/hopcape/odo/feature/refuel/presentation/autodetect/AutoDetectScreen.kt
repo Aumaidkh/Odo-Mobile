@@ -29,7 +29,7 @@ import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
 import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
-import com.hopcape.odo.core.designsystem.component.OdoSystemToggleRow
+import com.hopcape.odo.core.designsystem.component.OdoSystemRow
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
@@ -521,10 +521,10 @@ private fun excluded(text: String) =
     OdoPermissionAssurance(text = text, kind = OdoPermissionAssuranceKind.Excluded)
 
 /** A row of the drawn system screen. The initial stands in for an app icon Odo cannot use. */
-private fun toggleRow(label: String, on: Boolean, ours: Boolean = false) = OdoSystemToggleRow(
-    initial = label.take(1),
+private fun toggleRow(label: String, on: Boolean, ours: Boolean = false) = OdoSystemRow(
     label = label,
     on = on,
+    initial = label.take(1),
     highlighted = ours,
 )
 

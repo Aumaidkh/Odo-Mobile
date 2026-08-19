@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -27,18 +28,32 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 
 /**
- * One row of the mocked-up system screen — an app, and whether its switch is on.
+ * What kind of control a drawn system row carries.
  *
- * @param initial the letter drawn in place of the app's icon. A real icon cannot be used:
- *   these are other people's apps and the drawing is an illustration, not a listing.
- * @param highlighted whether this is Odo's own row. Exactly one row should set it — the whole
- *   picture exists to say "this is the line you are looking for".
+ * The two shapes Android uses for the two shapes of question. A list of apps that are each
+ * independently on or off gets switches; a single choice between mutually exclusive options —
+ * how much location an app may have, say — gets radios. Drawing the wrong one makes the picture
+ * useless, because the owner is matching it against the real screen.
+ */
+enum class OdoSystemRowControl { Switch, Radio }
+
+/**
+ * One row of the mocked-up system screen.
+ *
+ * @param label the row's text, exactly as the system screen words it.
+ * @param on whether the switch reads on, or the radio is the selected one.
+ * @param initial the letter drawn in place of an app's icon, on rows that stand for an app. A
+ *   real icon cannot be used: these are other people's apps and this is an illustration, not a
+ *   listing. Null on a row that is an option rather than an app.
+ * @param highlighted the row the owner is being sent to find. At most one row should set it —
+ *   the whole picture exists to say "this is the line you are looking for".
  */
 @Immutable
-data class OdoSystemToggleRow(
-    val initial: String,
+data class OdoSystemRow(
     val label: String,
     val on: Boolean,
+    val initial: String? = null,
+    val control: OdoSystemRowControl = OdoSystemRowControl.Switch,
     val highlighted: Boolean = false,
 )
 
@@ -61,8 +76,9 @@ data class OdoSystemToggleRow(
  * re-read what they were told.
  *
  * @param eyebrow the small line above the title, e.g. "BEFORE YOU TAP". Pass it already cased.
- * @param instruction the one thing to do on the system page, stated as a single sentence.
- * @param previewRows the mocked-up list. One of them should be [OdoSystemToggleRow.highlighted].
+ * @param instruction the one thing to do on the system page, stated as a single sentence. Null
+ *   when the drawing says it on its own and a card would only repeat it.
+ * @param previewRows the mocked-up list. One of them should be [OdoSystemRow.highlighted].
  * @param previewNote the caption under the picture — where to say that the page differs by phone.
  */
 @Composable
@@ -73,10 +89,10 @@ fun OdoSystemHandoff(
     eyebrow: String,
     title: String,
     body: String,
-    instruction: String,
+    instruction: String?,
     previewLabel: String,
     previewHeader: String,
-    previewRows: List<OdoSystemToggleRow>,
+    previewRows: List<OdoSystemRow>,
     previewNote: String,
     confirmLabel: String,
     onConfirm: () -> Unit,
@@ -132,19 +148,21 @@ fun OdoSystemHandoff(
             }
 
             // The single action, pulled out of the body so it survives being skim-read.
-            OdoCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OdoIcon(
-                        imageVector = IcCheck,
-                        contentDescription = null,
-                        tint = OdoTheme.colors.success,
-                        size = OdoTheme.iconSizes.small,
-                    )
-                    OdoText(text = instruction, style = OdoTheme.typography.bodySmall)
+            if (instruction != null) {
+                OdoCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OdoIcon(
+                            imageVector = IcCheck,
+                            contentDescription = null,
+                            tint = OdoTheme.colors.success,
+                            size = OdoTheme.iconSizes.small,
+                        )
+                        OdoText(text = instruction, style = OdoTheme.typography.bodySmall)
+                    }
                 }
             }
 
@@ -200,7 +218,7 @@ private fun HandoffButtons(
  * them share — a list of apps, each with a switch.
  */
 @Composable
-private fun SystemScreenPicture(header: String, rows: List<OdoSystemToggleRow>) {
+private fun SystemScreenPicture(header: String, rows: List<OdoSystemRow>) {
     OdoCard(
         modifier = Modifier.fillMaxWidth(),
         color = OdoTheme.colors.bg,
@@ -230,7 +248,8 @@ private fun SystemScreenPicture(header: String, rows: List<OdoSystemToggleRow>) 
 }
 
 @Composable
-private fun PictureRow(row: OdoSystemToggleRow) {
+private fun PictureRow(row: OdoSystemRow) {
+    val radio = row.control == OdoSystemRowControl.Radio
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -245,36 +264,72 @@ private fun PictureRow(row: OdoSystemToggleRow) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(APP_TILE)
-                .clip(OdoTheme.shapes.small)
-                .background(
-                    if (row.highlighted) {
-                        OdoTheme.colors.accent
-                    } else {
-                        OdoTheme.colors.surfaceRaised
-                    },
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            OdoText(
-                text = row.initial,
-                style = OdoTheme.typography.label,
-                color = if (row.highlighted) {
-                    OdoTheme.colors.onAccent
-                } else {
-                    OdoTheme.colors.textMuted
-                },
-            )
-        }
+        // A radio sits at the head of its row on the real screen, where an app's icon would be
+        // on a switch list. Drawing it anywhere else would stop the picture matching.
+        if (radio) FakeRadio(on = row.on)
+        if (row.initial != null) AppTile(initial = row.initial, highlighted = row.highlighted)
         OdoText(
             text = row.label,
             style = OdoTheme.typography.bodySmall,
             color = if (row.highlighted) OdoTheme.colors.text else OdoTheme.colors.textDim,
             modifier = Modifier.weight(1f),
         )
-        FakeSwitch(on = row.on)
+        if (!radio) FakeSwitch(on = row.on)
+    }
+}
+
+@Composable
+private fun AppTile(initial: String, highlighted: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(APP_TILE)
+            .clip(OdoTheme.shapes.small)
+            .background(
+                if (highlighted) OdoTheme.colors.accent else OdoTheme.colors.surfaceRaised,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        OdoText(
+            text = initial,
+            style = OdoTheme.typography.label,
+            color = if (highlighted) OdoTheme.colors.onAccent else OdoTheme.colors.textMuted,
+        )
+    }
+}
+
+/**
+ * A radio that cannot be tapped, for the same reason [FakeSwitch] cannot.
+ *
+ * Drawn as a ring with a filled centre rather than reusing [OdoRadioButton], which is a control:
+ * it would offer a tap that does nothing and announce itself as selectable on a screen where
+ * nothing is.
+ */
+@Composable
+private fun FakeRadio(on: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(RADIO_SIZE)
+            .clip(CircleShape)
+            .background(if (on) OdoTheme.colors.text else OdoTheme.colors.surfaceRaised)
+            .padding(RADIO_RING),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(OdoTheme.colors.bg),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (on) {
+                Box(
+                    modifier = Modifier
+                        .size(RADIO_DOT)
+                        .clip(CircleShape)
+                        .background(OdoTheme.colors.text),
+                )
+            }
+        }
     }
 }
 
@@ -310,6 +365,9 @@ private val SWITCH_WIDTH = 40.dp
 private val SWITCH_HEIGHT = 24.dp
 private val SWITCH_KNOB = 16.dp
 private val SWITCH_INSET = 4.dp
+private val RADIO_SIZE = 22.dp
+private val RADIO_RING = 2.dp
+private val RADIO_DOT = 10.dp
 private const val TINT_ALPHA = 0.14f
 
 @OdoThemePreviews
@@ -327,9 +385,9 @@ private fun OdoSystemHandoffPreview() = OdoPreview(padded = false) {
         previewLabel = "WHAT YOU'LL SEE",
         previewHeader = "Notification access",
         previewRows = listOf(
-            OdoSystemToggleRow(initial = "W", label = "WhatsApp", on = true),
-            OdoSystemToggleRow(initial = "O", label = "Odo", on = false, highlighted = true),
-            OdoSystemToggleRow(initial = "S", label = "Swiggy", on = false),
+            OdoSystemRow(label = "WhatsApp", on = true, initial = "W"),
+            OdoSystemRow(label = "Odo", on = false, initial = "O", highlighted = true),
+            OdoSystemRow(label = "Swiggy", on = false, initial = "S"),
         ),
         previewNote = "Find Odo in the list and turn its switch on.",
         confirmLabel = "Open notification access",

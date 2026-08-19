@@ -10,6 +10,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -40,6 +41,15 @@ fun OdoTopBar(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     backContentDescription: String? = null,
+    /**
+     * The glyph in the navigation slot.
+     *
+     * An arrow means "one step back through something"; a cross means "leave this whole thing".
+     * A screen that ends a flow rather than stepping through it should say so here, and still
+     * keep its title — the two are separate questions and this is the one the bare
+     * [OdoCircularIconButton] top bar could not answer.
+     */
+    navigationIcon: ImageVector = IcArrowLeft,
     actions: @Composable RowScope.() -> Unit = {},
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(
         containerColor = OdoTheme.colors.bg,
@@ -62,7 +72,7 @@ fun OdoTopBar(
         navigationIcon = {
             if (onBack != null) {
                 OdoCircularIconButton(
-                    imageVector = IcArrowLeft,
+                    imageVector = navigationIcon,
                     contentDescription = backContentDescription,
                     onClick = onBack,
                     modifier = Modifier.padding(start = OdoTheme.spacing.xs),
