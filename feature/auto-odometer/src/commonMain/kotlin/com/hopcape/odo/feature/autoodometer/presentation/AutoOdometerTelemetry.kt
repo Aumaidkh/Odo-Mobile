@@ -53,6 +53,16 @@ internal class AutoOdometerTelemetry(
     /** The education screen was viewed, on the [mode] it opened with (STEREO/NO_STEREO). */
     fun educationViewed(mode: String) = analytics.track(Event.EDUCATION_VIEWED, mapOf(Key.MODE to mode))
 
+    /**
+     * The notification step was shown — which only happens when the system would still
+     * prompt, so this counts the owners who were actually asked rather than every visit.
+     */
+    fun notificationRationaleViewed() = analytics.track(Event.NOTIFY_RATIONALE_VIEWED)
+
+    /** The notification step was skipped without asking, because the OS had already answered. */
+    fun notificationStepSkipped(reason: String) =
+        analytics.track(Event.NOTIFY_STEP_SKIPPED, mapOf(Key.STATUS to reason))
+
     /** "My car has no Bluetooth" was tapped, switching the flow to the NO_STEREO branch. */
     fun noBtPathTaken() = analytics.track(Event.NO_BT_PATH_TAKEN)
 
@@ -162,6 +172,8 @@ internal class AutoOdometerTelemetry(
         const val CARD_CTA = "ao_card_cta"
         const val EDUCATION_VIEWED = "ao_education_viewed"
         const val NO_BT_PATH_TAKEN = "ao_no_bt_path_taken"
+        const val NOTIFY_RATIONALE_VIEWED = "ao_notify_rationale_viewed"
+        const val NOTIFY_STEP_SKIPPED = "ao_notify_step_skipped"
         const val BLUETOOTH_OFF_SEEN = "ao_bluetooth_off_seen"
         const val BLUETOOTH_ENABLE_REQUESTED = "ao_bluetooth_enable_requested"
         const val BLUETOOTH_ENABLE_DECLINED = "ao_bluetooth_enable_declined"

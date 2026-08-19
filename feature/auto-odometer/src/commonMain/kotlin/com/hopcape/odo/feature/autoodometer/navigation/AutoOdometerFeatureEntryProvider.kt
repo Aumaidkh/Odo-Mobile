@@ -13,6 +13,8 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isAutoOdometerFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.bluetooth.rememberBluetoothEnabler
 import com.hopcape.odo.core.platform.permission.PermissionStatus
@@ -29,6 +31,10 @@ import com.hopcape.odo.feature.autoodometer.presentation.education.EducationEffe
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationEvent
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationScreen
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationViewModel
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleEffect
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleEvent
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleScreen
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupEffect
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupEvent
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupScreen
@@ -59,6 +65,9 @@ internal class AutoOdometerFeatureEntryProvider(
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.AutoOdometer.Education> { key -> AutoOdometerEducationRoute(key, navigationManager) }
+        entry<OdoDestination.AutoOdometer.NotificationRationale> { key ->
+            AutoOdometerNotificationRationaleRoute(key, navigationManager)
+        }
         entry<OdoDestination.AutoOdometer.DevicePicker> { AutoOdometerDevicePickerRoute(navigationManager) }
         entry<OdoDestination.AutoOdometer.PermissionSetup> { key ->
             AutoOdometerPermissionSetupRoute(key, navigationManager)
@@ -83,15 +92,23 @@ internal fun AutoOdometerEducationRoute(
     val viewModel = koinViewModel<EducationViewModel> { parametersOf(mode) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // `POST_NOTIFICATIONS` has no page of its own. It is a one-tap dialog and this screen's
-    // third numbered line — "your odometer ticks up when you park" — is the notification it is
-    // for, so it is asked for on the way out of here rather than as a step of the checklist.
-    // Only when the system would actually prompt: hijacking "pair my car" into a trip to app
-    // settings is not a fair reading of that button.
+    // `POST_NOTIFICATIONS` is read here but never asked for here. The ask used to be fired on
+    // this screen's CTA, at the same moment it navigated, so Android drew its dialog over the
+    // Bluetooth rationale that had just been pushed — two permissions on screen at once, and
+    // the one being asked about had not been mentioned by anything the owner had read. The
+    // status only decides whether the notification step is worth pushing first.
     val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
+    LaunchedEffect(notifications.status) {
+        viewModel.onEvent(EducationEvent.NotificationStatusObserved(notifications.status))
+    }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            is EducationEffect.NavigateToNotificationRationale -> navigationManager.navigateTo(
+                OdoDestination.AutoOdometer.NotificationRationale(mode = effect.mode.toFlowMode()),
+            )
+
             EducationEffect.NavigateToDevicePicker ->
                 navigationManager.navigateTo(OdoDestination.AutoOdometer.DevicePicker)
 
@@ -106,11 +123,51 @@ internal fun AutoOdometerEducationRoute(
 
     EducationScreen(
         state = state,
-        onCtaClick = {
-            if (notifications.status == PermissionStatus.Askable) notifications.request()
-            viewModel.onEvent(EducationEvent.CtaTapped)
-        },
+        onCtaClick = { viewModel.onEvent(EducationEvent.CtaTapped) },
         onClose = { viewModel.onEvent(EducationEvent.CloseTapped) },
+    )
+}
+
+/**
+ * The notification step — Odo's case for `POST_NOTIFICATIONS`, then the system's own dialog.
+ *
+ * Only ever reached when that dialog will actually appear; the education route filters out
+ * both "already granted" and "will not ask again" before navigating here, so this screen never
+ * has to explain a permission the owner cannot change from it.
+ */
+@Composable
+internal fun AutoOdometerNotificationRationaleRoute(
+    key: OdoDestination.AutoOdometer.NotificationRationale,
+    navigationManager: NavigationManager,
+) {
+    val mode = key.mode.toTriggerMode()
+    val viewModel = koinViewModel<NotificationRationaleViewModel> { parametersOf(mode) }
+    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
+    LaunchedEffect(notifications.status) {
+        viewModel.onEvent(NotificationRationaleEvent.StatusObserved(notifications.status))
+    }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            NotificationRationaleEffect.RequestPermission -> notifications.request()
+
+            NotificationRationaleEffect.NavigateToDevicePicker ->
+                navigationManager.navigateTo(OdoDestination.AutoOdometer.DevicePicker)
+
+            is NotificationRationaleEffect.NavigateToPermissionSetup ->
+                navigationManager.navigateTo(
+                    OdoDestination.AutoOdometer.PermissionSetup(mode = effect.mode.toFlowMode()),
+                )
+
+            NotificationRationaleEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    NotificationRationaleScreen(
+        onAllow = { viewModel.onEvent(NotificationRationaleEvent.AllowTapped) },
+        onSkip = { viewModel.onEvent(NotificationRationaleEvent.SkipTapped) },
+        onBack = { viewModel.onEvent(NotificationRationaleEvent.BackTapped) },
     )
 }
 
@@ -259,12 +316,15 @@ internal fun AutoOdometerPermissionSetupRoute(
                 if (effect.blocked) controller.openAppSettings() else controller.request()
             }
 
-            // Clears the whole education/picker/permissions flow off the back stack rather than
-            // a single pop, which would land on the picker or education instead of the garage
-            // tab (docs/AUTO_ODOMETER_PLAN.md's locked navigation-flow decision).
-            PermissionSetupEffect.NavigateToGarage -> navigationManager.navigateTo(
+            // Every page of the setup run comes off together, then the garage goes on
+            // (docs/AUTO_ODOMETER_PLAN.md's locked navigation-flow decision to land there).
+            // `popUpTo(Garage.Home)` used to do this and only worked when the flow had been
+            // opened from the garage — started from the dashboard there was no Garage.Home on
+            // the stack to pop to, so the garage was pushed on top of the whole run and back
+            // walked the owner straight into the permission rationales again.
+            PermissionSetupEffect.NavigateToGarage -> navigationManager.finishFlow(
                 destination = OdoDestination.Garage.Home,
-                popUpTo = OdoDestination.Garage.Home,
+                belongsToFlow = ::isAutoOdometerFlowStep,
             )
         }
     }
