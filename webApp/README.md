@@ -13,17 +13,57 @@
 
 ## 1. What is here
 
-The module skeleton: the Wasm target, the host page, and a `main()` that mounts
-Compose over `<body>`. What it draws today is a wordmark and nothing else — the blog
-UI is a separate commit.
+The Wasm target, the host page, and the route layer. Every page in the design has a
+route and a branch in the shell; each branch draws a placeholder, because the UI is
+a separate pass.
 
 ```
 webApp/
 ├─ build.gradle.kts
-└─ src/wasmJsMain/
-   ├─ kotlin/com/hopcape/odo/web/blog/Main.kt   entry point + placeholder
-   └─ resources/index.html                      host page, loads odo-blog.js
+└─ src/
+   ├─ commonMain/kotlin/com/hopcape/odo/web/blog/
+   │  ├─ BlogApp.kt              the shell — one exhaustive branch per page
+   │  └─ routing/
+   │     ├─ BlogRoute.kt         every page, as a type
+   │     ├─ Routes.kt            the only place a URL becomes a route and back
+   │     └─ Router.kt            what a screen may know + an off-browser one
+   ├─ commonTest/…/RoutesTest.kt the URL round trip
+   └─ wasmJsMain/
+      ├─ kotlin/…/Main.kt                entry point
+      ├─ kotlin/…/routing/BrowserRouter.kt   history, popstate, the address bar
+      └─ resources/index.html            host page, loads odo-blog.js
 ```
+
+### Routes
+
+Public — dark, and the only part a crawler sees:
+
+| Path | Route | Design frame |
+| --- | --- | --- |
+| `/blog` | `Public.Index` | INDEX |
+| `/blog/<slug>` | `Public.Article` | ARTICLE |
+| `/blog/category/<slug>` | `Public.Category` | CATEGORY |
+| `/blog/author/<slug>` | `Public.Author` | AUTHOR |
+| `/blog/search?q=` | `Public.Search` | SEARCH |
+| anything else | `Public.NotFound` | 404 |
+
+Admin — light, signed in, linked from nowhere public:
+
+| Path | Route | Design frame |
+| --- | --- | --- |
+| `/blog/admin` | `Admin.SignIn` | LOGIN |
+| `/blog/admin/posts` | `Admin.Posts` | POSTS |
+| `/blog/admin/posts/new`, `/blog/admin/posts/<id>` | `Admin.Editor` | EDITOR |
+| `/blog/admin/media` | `Admin.Media` | MEDIA |
+| `/blog/admin/analytics` | `Admin.Analytics` | ANALYTICS |
+| `/blog/admin/settings` | `Admin.Settings` | — |
+
+Publish/SEO, slug conflict, insert image, unsaved changes, published and unpublish
+are **overlays on the editor**, not routes: none of them is a place to land, and
+giving them URLs would put a reader on a confirm dialog with no post behind it.
+
+Post URLs are flat, so `category`, `author`, `search` and `admin` cannot be post
+slugs — `RESERVED_SLUGS` names them, and the content pipeline has to reject them.
 
 ## 2. Why it is not `odo.kmp.library`
 
