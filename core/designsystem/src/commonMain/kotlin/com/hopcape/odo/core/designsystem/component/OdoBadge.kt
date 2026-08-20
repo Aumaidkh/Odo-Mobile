@@ -69,7 +69,9 @@ fun OdoBadge(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             leadingIcon?.invoke()
-            OdoText(text, style = OdoTheme.typography.caption)
+            // A pill label never wraps: when a row starves the badge of width (large
+            // font scale), the text would otherwise stack one letter per line.
+            OdoText(text, style = OdoTheme.typography.caption, maxLines = 1, softWrap = false)
         }
     }
 }

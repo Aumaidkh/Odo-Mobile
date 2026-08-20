@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
@@ -277,15 +276,18 @@ private fun ServiceLogEmpty(
                     }
                 },
                 action = {
-                    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                    // Both CTAs centre on the same axis: whichever is wider (which flips
+                    // under a large font scale) the narrower one stays centred instead of
+                    // hugging the block's left edge.
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                    ) {
                         OdoButton(text = stringResource(Res.string.sl_action_scan), onClick = onScanBill)
                         OdoButton(
                             text = stringResource(Res.string.sl_action_enter_manually),
                             onClick = onAddLog,
                             variant = OdoButtonVariant.Tertiary,
-                            modifier = Modifier
-                                .align(Alignment.Start)
-                                .offset(x = (-12).dp),
                         )
                     }
                 },
