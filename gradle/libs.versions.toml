@@ -74,6 +74,10 @@ kotlinxDatetime = "0.7.1"
 # hold a structured value (e.g. a stored fairness verdict). Never applied to
 # :core:domain: the shared kernel stays free of framework annotations.
 kotlinxSerialization = "1.9.0"
+# kotlinx-browser — the DOM/BOM externals (window, document, history) that the
+# Kotlin stdlib stopped shipping for Wasm. :webApp only, for URL routing and the
+# document title; nothing on the mobile side can see it.
+kotlinxBrowser = "0.3"
 
 # Ktor — the HTTP client :infrastructure:supabase uses to talk to PostgREST and
 # Storage. Deliberately plain Ktor rather than supabase-kt: every supabase-kt
@@ -179,6 +183,11 @@ sqldelight-sqlite-driver = { module = "app.cash.sqldelight:sqlite-driver", versi
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 # kotlinx-serialization — JSON for :core:data DTOs and structured columns.
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# kotlinx-browser — :webApp only. Kotlin/Wasm has no `kotlinx.browser` in the
+# stdlib, so `window.location`, `history.pushState` and the popstate listener the
+# blog routes on come from here.
+kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 
 # Ktor client — :infrastructure:supabase only. `ktor-client-core` carries the
 # HttpTimeout and HttpRequestRetry plugins, so no extra artifact is needed for
