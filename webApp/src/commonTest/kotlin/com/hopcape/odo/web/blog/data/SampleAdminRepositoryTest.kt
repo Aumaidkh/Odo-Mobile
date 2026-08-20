@@ -31,11 +31,11 @@ class SampleAdminRepositoryTest {
     @Test
     fun `a published post opens with its title and body`() = runTest {
         val admin = signedIn()
-        val draft = admin.draft("challan-kaise-check-karein").getOrNull()
+        val draft = admin.draft("how-to-check-challans").getOrNull()
         assertNotNull(draft, "the post the design's table links to has to open")
-        assertEquals("Challan kaise check karein — poori guide", draft.title)
+        assertEquals("How to check your challans — the full guide", draft.title)
         assertTrue(draft.body.isNotEmpty(), "an opened post has to arrive with its body")
-        assertEquals("challan-kaise-check-karein", draft.seo.slug)
+        assertEquals("how-to-check-challans", draft.seo.slug)
     }
 
     @Test
@@ -69,7 +69,7 @@ class SampleAdminRepositoryTest {
         val admin = signedIn()
         val fresh = admin.draft(null).getOrNull()!!
         val outcome = admin.publish(
-            fresh.copy(title = "Something else", seo = fresh.seo.copy(slug = "puc-expire")),
+            fresh.copy(title = "Something else", seo = fresh.seo.copy(slug = "expired-puc")),
         ).getOrNull()
         assertTrue(
             outcome is com.hopcape.odo.web.blog.domain.model.PublishOutcome.SlugTaken,

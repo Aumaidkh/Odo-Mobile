@@ -43,7 +43,7 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
     // contents link that changed every time somebody fixed a typo in a heading
     // would break every URL anybody had shared to that section.
     BlockKind.HEADING -> ArticleBlock.Section(id = "section", text = "")
-    BlockKind.CALLOUT -> ArticleBlock.Callout(label = "DHYAN DEIN", runs = emptyList())
+    BlockKind.CALLOUT -> ArticleBlock.Callout(label = "WORTH KNOWING", runs = emptyList())
 }
 
 /** Runs to text, with `**` around the bold ones. */

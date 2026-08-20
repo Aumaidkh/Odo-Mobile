@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.http.HttpHeaders
 import io.ktor.http.ContentType
+import io.ktor.http.content.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -62,6 +63,97 @@ class FirebaseAuthRepositoryTest {
         assertEquals("rahul-deshmukh", session?.authorSlug)
         assertEquals("R", session?.initial)
         assertEquals("refresh-1", tokens.refreshToken)
+    }
+
+    @Test
+    fun `the sign-in request asks for a refresh token`() = runTest {
+        // The bug this pins: `returnSecureToken` sits at its default, and
+        // kotlinx-serialization does not write defaults unless told to. Firebase
+        // honours the omission and answers without a refresh token, at which point
+        // the parser reports a missing field and every finger points at the
+        // response. Nothing in a canned-response test can catch that — the request
+        // is what has to be looked at.
+        var sent: String? = null
+        val engine = MockEngine { request ->
+            sent = (request.body as TextContent).text
+            respond(
+                """{"idToken":"id-1","refreshToken":"refresh-1","email":"rahul@odoapp.in"}""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+
+        repository(engine = engine).signIn("rahul@odoapp.in", "hunter2")
+
+        assertTrue(
+            sent?.contains(""""returnSecureToken":true""") == true,
+            "the request went out without returnSecureToken: $sent",
+        )
+    }
+
+    @Test
+    fun `the refresh request carries its grant type`() = runTest {
+        // Restoring a session is two calls — refresh, then look the account up —
+        // so every body is collected and the assertion names the one it means.
+        // Keeping only the last would silently check the wrong request.
+        val sent = mutableListOf<String>()
+        var call = 0
+        val engine = MockEngine { request ->
+            sent += (request.body as TextContent).text
+            val body = if (call++ == 0) {
+                """{"id_token":"id-2","refresh_token":"refresh-2"}"""
+            } else {
+                """{"users":[{"email":"rahul@odoapp.in","displayName":"Rahul"}]}"""
+            }
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+        }
+
+        repository(engine = engine, tokens = MemoryTokens(refreshToken = "refresh-1")).session()
+
+        // Same trap as the sign-in request: grant_type sits at its default.
+        assertTrue(
+            sent.firstOrNull()?.contains(""""grant_type":"refresh_token"""") == true,
+            "the refresh went out without a grant type: ${sent.firstOrNull()}",
+        )
+    }
+
+    @Test
+    fun `the exact response Firebase sends is readable`() = runTest {
+        // Copied from a real signInWithPassword call, extra keys and all.
+        val tokens = MemoryTokens()
+        val auth = repository(
+            tokens = tokens,
+            authors = setOf("zahid@gmail.com"),
+            engine = json(
+                """
+                {"kind":"identitytoolkit#VerifyPasswordResponse",
+                 "localId":"wfqGt82KTPhqAr2ZKFvuxYpMwFg2",
+                 "email":"zahid@gmail.com",
+                 "displayName":"",
+                 "idToken":"eyJhbGciOiJSUzI1NiJ9.payload.signature",
+                 "registered":true,
+                 "refreshToken":"AMf-vByIbdUQdOcxD8mpl8SYfFN56qFZ",
+                 "expiresIn":"3600"}
+                """.trimIndent(),
+            ),
+        )
+
+        val result = auth.signIn("zahid@gmail.com", "12341234")
+
+        assertTrue(result.isRight(), "real payload was rejected: ${result.leftOrNull()}")
+        assertEquals("zahid", result.getOrNull()?.name)
+    }
+
+    @Test
+    fun `an empty author list says so instead of blaming the account`() = runTest {
+        val auth = repository(
+            authors = emptySet(),
+            engine = json("""{"idToken":"id-1","refreshToken":"refresh-1","email":"anyone@odoapp.in"}"""),
+        )
+        assertEquals(
+            com.hopcape.odo.web.blog.domain.BlogError.NoAuthorsConfigured,
+            auth.signIn("anyone@odoapp.in", "hunter2").leftOrNull(),
+        )
     }
 
     @Test

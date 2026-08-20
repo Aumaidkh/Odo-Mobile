@@ -16,14 +16,14 @@ class RoutesTest {
     @Test
     fun `a single segment is a post`() {
         assertEquals(
-            Public.Article("challan-kaise-check-karein"),
-            routeOf("/challan-kaise-check-karein"),
+            Public.Article("how-to-check-challans"),
+            routeOf("/how-to-check-challans"),
         )
     }
 
     @Test
     fun `a trailing slash is the same page`() {
-        assertEquals(Public.Article("puc-expire"), routeOf("/puc-expire/"))
+        assertEquals(Public.Article("expired-puc"), routeOf("/expired-puc/"))
     }
 
     @Test
@@ -55,8 +55,8 @@ class RoutesTest {
 
     @Test
     fun `a search term survives its encoding`() {
-        val route = Public.Search("challan kaise check karein")
-        assertEquals("/search?q=challan%20kaise%20check%20karein", route.location())
+        val route = Public.Search("how to check challans")
+        assertEquals("/search?q=how%20to%20check%20challans", route.location())
         assertEquals(route, roundTrip(route))
     }
 
@@ -78,7 +78,7 @@ class RoutesTest {
     @Test
     fun `a post that was never saved has no id`() {
         assertEquals(Admin.Editor(null), routeOf("/admin/posts/new"))
-        assertEquals(Admin.Editor("puc-expire"), routeOf("/admin/posts/puc-expire"))
+        assertEquals(Admin.Editor("expired-puc"), routeOf("/admin/posts/expired-puc"))
     }
 
     @Test
@@ -103,7 +103,7 @@ class RoutesTest {
         // asking it to round-trip is asking a broken URL to become a valid one.
         val routes = listOf(
             Public.Index,
-            Public.Article("brake-pads-price"),
+            Public.Article("brake-pad-prices"),
             Public.Category("service-costs"),
             Public.Author("rahul-deshmukh"),
             Public.Search("challan"),
@@ -111,7 +111,7 @@ class RoutesTest {
             Admin.SignIn,
             Admin.Posts,
             Admin.Editor(null),
-            Admin.Editor("puc-expire"),
+            Admin.Editor("expired-puc"),
             Admin.Media,
             Admin.Analytics,
             Admin.Settings,
@@ -124,7 +124,7 @@ class RoutesTest {
     @Test
     fun `the base path is read from where the app was loaded`() {
         assertEquals("/blog", basePathOf("/blog"))
-        assertEquals("/blog", basePathOf("/blog/challan-kaise-check-karein"))
+        assertEquals("/blog", basePathOf("/blog/how-to-check-challans"))
         // The Gradle dev server serves the app at the root.
         assertEquals("", basePathOf("/"))
         // A different site that merely starts with the same letters is not us.

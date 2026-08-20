@@ -83,7 +83,7 @@ sealed interface ArticleBlock {
     @Immutable
     data class Paragraph(val runs: List<TextRun>) : ArticleBlock
 
-    /** The boxed aside — "DHYAN DEIN" in the design. [label] is its eyebrow. */
+    /** The boxed aside. [label] is its eyebrow — "WORTH KNOWING" and the like. */
     @Immutable
     data class Callout(val label: String, val runs: List<TextRun>) : ArticleBlock
 
@@ -109,7 +109,7 @@ data class Article(
     val summary: PostSummary,
     val author: Author,
     val body: List<ArticleBlock>,
-    /** The two cards under "Aage padhein". */
+    /** The two cards under "Read next". */
     val readNext: List<PostSummary>,
 ) {
     /**

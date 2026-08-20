@@ -10,6 +10,7 @@ import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_error_generic
 import com.hopcape.odo.web.blog.resources.bl_error_not_found
 import com.hopcape.odo.web.blog.resources.bl_error_offline
+import com.hopcape.odo.web.blog.resources.bl_admin_no_authors
 import com.hopcape.odo.web.blog.resources.bl_admin_not_an_author
 import com.hopcape.odo.web.blog.resources.bl_admin_sign_in_unavailable
 import com.hopcape.odo.web.blog.resources.bl_admin_signed_out
@@ -40,7 +41,7 @@ fun <T> ViewModel.loadInto(
 /**
  * What to tell the reader.
  *
- * Deliberately vague about the cause. "Ye load nahi ho paya" is more useful than
+ * Deliberately vague about the cause. "This did not load" is more useful than
  * a status code to everybody who will ever read it, and the detail that would
  * help a developer belongs in a log, not on a page.
  */
@@ -49,6 +50,7 @@ fun BlogError.asUiText(): UiText = when (this) {
     BlogError.NotFound -> UiText.Resource(Res.string.bl_error_not_found)
     BlogError.NotSignedIn -> UiText.Resource(Res.string.bl_admin_signed_out)
     BlogError.NotAnAuthor -> UiText.Resource(Res.string.bl_admin_not_an_author)
+    BlogError.NoAuthorsConfigured -> UiText.Resource(Res.string.bl_admin_no_authors)
     BlogError.SignInUnavailable -> UiText.Resource(Res.string.bl_admin_sign_in_unavailable)
     is BlogError.SignInRejected -> UiText.Resource(Res.string.bl_error_generic)
     is BlogError.Unexpected -> UiText.Resource(Res.string.bl_error_generic)
@@ -67,6 +69,7 @@ val BlogError.isRetryable: Boolean
         BlogError.NotFound,
         BlogError.NotSignedIn,
         BlogError.NotAnAuthor,
+        BlogError.NoAuthorsConfigured,
         BlogError.SignInUnavailable,
         is BlogError.SignInRejected,
         -> false

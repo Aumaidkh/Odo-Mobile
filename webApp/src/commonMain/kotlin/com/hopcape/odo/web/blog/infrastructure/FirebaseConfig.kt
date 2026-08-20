@@ -29,11 +29,13 @@ object FirebaseConfig {
      * sample data. When the CMS gets a backend, that backend refuses a token
      * without the claim and this list stops mattering.
      *
-     * Empty on purpose. An empty list lets nobody in, which is the safe way to
-     * be wrong; the alternative — an empty list meaning "everybody" — is a
-     * mistake that looks like it is working.
+     * Add an address here to let it publish. An empty list lets nobody in, which
+     * is the safe way to be wrong; the alternative — an empty list meaning
+     * "everybody" — is a mistake that looks like it is working.
      */
-    val AUTHOR_EMAILS: Set<String> = emptySet()
+    val AUTHOR_EMAILS: Set<String> = setOf(
+        "zahid@gmail.com",
+    )
 
     /** Where a password is exchanged for tokens. */
     const val SIGN_IN_ENDPOINT: String =

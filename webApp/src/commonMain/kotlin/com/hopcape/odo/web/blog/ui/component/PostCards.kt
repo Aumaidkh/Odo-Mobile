@@ -176,7 +176,7 @@ fun LocalDate.formatted(): String {
  * Bolds the searched-for words inside a title.
  *
  * Matches whole words case-insensitively, so searching "challan" marks it inside
- * "Challan kaise check karein" without also marking the "chal" in something else.
+ * "How to check your challans" without also marking the "chal" in something else.
  */
 private fun String.withHighlight(term: String?): AnnotatedString {
     if (term.isNullOrBlank()) return AnnotatedString(this)

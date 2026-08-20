@@ -53,13 +53,13 @@ class EditorWiringTest {
         val koin = org.koin.core.context.GlobalContext.get()
         koin.get<AuthRepository>().signIn(SampleContent.SIGN_IN_EMAIL, SampleContent.SIGN_IN_PASSWORD)
 
-        val slug = "challan-kaise-check-karein"
+        val slug = "how-to-check-challans"
         val viewModel = koin.get<EditorViewModel> { parametersOf(slug) }
         advanceUntilIdle()
 
         val state = viewModel.state.value
         assertEquals(
-            "Challan kaise check karein — poori guide",
+            "How to check your challans — the full guide",
             state.title,
             "the editor opened a different post than the row that was clicked",
         )

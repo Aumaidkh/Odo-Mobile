@@ -15,7 +15,7 @@ import com.hopcape.odo.web.blog.routing.BlogRoute.Public
 /**
  * The first path segments that belong to the app rather than to a post.
  *
- * A post's URL is flat — `/blog/challan-kaise-check-karein` — so a post whose
+ * A post's URL is flat — `/blog/how-to-check-challans` — so a post whose
  * slug were `search` would take the search page's URL. The content pipeline has
  * to reject these, and [routeOf] resolves them in the app's favour either way:
  * a broken link is better than a page that cannot be reached at all.

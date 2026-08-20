@@ -60,7 +60,7 @@ interface BlogRepository {
     suspend fun subscribe(email: String): Either<BlogError, Unit>
 
     /**
-     * "Koi topic chahiye jo yahan nahi hai?" on an empty search.
+     * "Want a topic that is not here?" on an empty search.
      *
      * Carries [query] as well as the address: a request with no idea what was
      * being looked for is a mailing-list signup, not a topic request.

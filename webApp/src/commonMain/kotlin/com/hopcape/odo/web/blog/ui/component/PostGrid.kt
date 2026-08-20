@@ -39,16 +39,15 @@ fun PostGrid(
                 onClick = { onOpen(post) },
                 highlight = highlight,
                 // weight rather than a fixed width, so the last row of an odd
-                // list still lines its card up with the column above it; and
-                // fillMaxRowHeight so a two-line title does not leave the card
-                // beside it standing shorter.
+                // list still lines its card up with the column above it.
                 //
-                // Only when there is something to match. A lone card in a row
-                // whose other cell is a filler Spacer has no sibling to take its
-                // height from, and stretches to whatever the row was offered.
-                modifier = Modifier
-                    .weight(1f)
-                    .then(if (posts.size > 1) Modifier.fillMaxRowHeight() else Modifier),
+                // Deliberately no `fillMaxRowHeight()`. It was here to stop a
+                // two-line title leaving the card beside it standing shorter, and
+                // inside a scrolling column — where the incoming height is
+                // unbounded — it stretched every card to fill the viewport
+                // instead. Cards of slightly different heights is the smaller
+                // problem by a distance.
+                modifier = Modifier.weight(1f),
             )
         }
         // An odd count would otherwise stretch the final card across the row.

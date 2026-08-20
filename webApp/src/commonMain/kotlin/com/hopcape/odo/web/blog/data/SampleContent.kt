@@ -15,10 +15,13 @@ import kotlinx.datetime.LocalDate
 /**
  * The corpus the sample repositories serve.
  *
- * Every word of it is the design's own copy, and that is the point: a screen
- * built against invented lorem looks finished until real Hinglish lands in it
- * and every line wraps somewhere else. These are the posts the frames were drawn
- * with, at the lengths they were drawn at.
+ * These are the design's own posts, at the lengths the frames were drawn at,
+ * translated into English along with the rest of the interface. A screen built
+ * against invented lorem looks finished until real copy lands in it and every
+ * line wraps somewhere else.
+ *
+ * What an author actually publishes is their choice and arrives as data — none
+ * of it comes from here.
  *
  * It is also the only file that has to disappear when Supabase arrives — nothing
  * above the repositories imports it, so deleting it takes the sample data out and
@@ -34,11 +37,11 @@ internal object SampleContent {
     // actually filed here, so a category can never advertise articles that were
     // never written.
 
-    val challans = Category("challans", "Challans", "E-challan, court cases aur payment")
-    val serviceCosts = Category("service-costs", "Service costs", "Asli bills se nikale gaye rates")
-    val documents = Category("documents", "Documents", "RC, insurance, PUC aur renewals")
-    val resale = Category("resale", "Resale", "Bechne se pehle aur bechte waqt")
-    val fuel = Category("fuel", "Fuel", "Mileage, running cost aur fuel logging")
+    val challans = Category("challans", "Challans", "E-challans, court cases and payment")
+    val serviceCosts = Category("service-costs", "Service costs", "Rates taken from real bills")
+    val documents = Category("documents", "Documents", "RC, insurance, PUC and renewals")
+    val resale = Category("resale", "Resale", "Before you sell, and while you are selling")
+    val fuel = Category("fuel", "Fuel", "Mileage, running cost and fuel logging")
 
     val categories: List<Category> = listOf(challans, serviceCosts, documents, resale, fuel)
 
@@ -48,8 +51,8 @@ internal object SampleContent {
         slug = "rahul-deshmukh",
         name = "Rahul Deshmukh",
         initial = "R",
-        bio = "Odo ka co-founder. Pune me ek 2020 Swift chalata hoon, aur pichle chaar saal se " +
-            "har bill scan karta hoon — yehi se ye app bani.",
+        bio = "Co-founder of Odo. I drive a 2020 Swift in Pune and have scanned every bill " +
+            "for the last four years — which is where this app came from.",
         articleCount = 9,
         topics = "Challans · Costs · Resale",
         since = "March 2025",
@@ -60,73 +63,73 @@ internal object SampleContent {
 
     val posts: List<PostSummary> = listOf(
         PostSummary(
-            slug = "challan-kaise-check-karein",
-            title = "Challan kaise check karein — poori guide",
-            dek = "Parivahan, state portals aur apps — sab tarike, aur har ek me kya galat ho sakta hai.",
+            slug = "how-to-check-challans",
+            title = "How to check your challans — the full guide",
+            dek = "Parivahan, state portals and apps — every route, and what each one misses.",
             category = challans,
             publishedOn = LocalDate(2026, 8, 18),
             readingMinutes = 8,
         ),
         PostSummary(
-            slug = "naye-tyres-ka-price",
-            title = "Naye tyres ka sahi price kya hai",
-            dek = "Brand, size aur city ke hisaab se — asli bills se.",
+            slug = "new-tyre-prices",
+            title = "What new tyres should actually cost",
+            dek = "By brand, size and city — from real bills.",
             category = serviceCosts,
             publishedOn = LocalDate(2026, 8, 14),
             readingMinutes = 5,
         ),
         PostSummary(
-            slug = "brake-pads-price",
-            title = "Brake pads ka sahi price kya hai?",
-            dek = "Pune, Delhi aur Mumbai ke asli rates — 240 verified bills se.",
+            slug = "brake-pad-prices",
+            title = "What should brake pads cost?",
+            dek = "Real rates from Pune, Delhi and Mumbai — from 240 verified bills.",
             category = serviceCosts,
             publishedOn = LocalDate(2026, 8, 11),
             readingMinutes = 5,
         ),
         PostSummary(
-            slug = "court-case-wala-challan",
-            title = "Court case wala challan kya hota hai",
-            dek = "90 din ke baad kya badalta hai, aur kya karna padta hai.",
+            slug = "challans-that-go-to-court",
+            title = "When a challan goes to court",
+            dek = "What changes after 90 days, and what you have to do about it.",
             category = challans,
             publishedOn = LocalDate(2026, 8, 9),
             readingMinutes = 5,
         ),
         PostSummary(
-            slug = "puc-expire",
-            title = "PUC expire ho gaya — ab kya?",
-            dek = "Fine kitna, renew kaise, aur kitna time lagta hai.",
+            slug = "expired-puc",
+            title = "Your PUC expired — now what?",
+            dek = "What the fine is, how to renew, and how long it takes.",
             category = documents,
             publishedOn = LocalDate(2026, 8, 4),
             readingMinutes = 4,
         ),
         PostSummary(
-            slug = "galat-challan-dispute",
-            title = "Galat challan aa gaya — dispute kaise karein",
-            dek = "Number plate mismatch se lekar wrong location tak.",
+            slug = "disputing-a-wrong-challan",
+            title = "A challan that is not yours — how to dispute it",
+            dek = "From a number-plate mismatch to a wrong location.",
             category = challans,
             publishedOn = LocalDate(2026, 8, 2),
             readingMinutes = 6,
         ),
         PostSummary(
-            slug = "bechne-se-pehle-5-cheezein",
-            title = "Bechne se pehle ye 5 cheezein",
-            dek = "Chhote kaam jo buyer ke saamne bade dikhte hain.",
+            slug = "five-things-before-selling",
+            title = "Five things to do before you sell",
+            dek = "Small jobs that look large to a buyer.",
             category = resale,
             publishedOn = LocalDate(2026, 7, 28),
             readingMinutes = 6,
         ),
         PostSummary(
-            slug = "mileage-kam-ho-rahi-hai",
-            title = "Mileage kam ho rahi hai?",
-            dek = "Sabse aam wajah tyre pressure hoti hai — aur woh free hai.",
+            slug = "losing-mileage",
+            title = "Losing mileage?",
+            dek = "The most common reason is tyre pressure — and that one is free.",
             category = fuel,
             publishedOn = LocalDate(2026, 7, 21),
             readingMinutes = 4,
         ),
         PostSummary(
-            slug = "wheel-alignment-kab",
-            title = "Wheel alignment kab karwana chahiye",
-            dek = "Signs jo batate hain ki ab time aa gaya.",
+            slug = "when-to-get-a-wheel-alignment",
+            title = "When to get a wheel alignment",
+            dek = "The signs that say it is time.",
             category = serviceCosts,
             publishedOn = LocalDate(2026, 7, 7),
             readingMinutes = 4,
@@ -135,28 +138,28 @@ internal object SampleContent {
 
     /** Views, for the CMS table and the analytics page. Only some posts have any. */
     val views: Map<String, Int> = mapOf(
-        "challan-kaise-check-karein" to 14_208,
-        "brake-pads-price" to 6_431,
-        "puc-expire" to 3_902,
-        "bechne-se-pehle-5-cheezein" to 2_588,
-        "court-case-wala-challan" to 1_744,
-        "naye-tyres-ka-price" to 1_120,
-        "galat-challan-dispute" to 903,
-        "mileage-kam-ho-rahi-hai" to 761,
-        "wheel-alignment-kab" to 405,
+        "how-to-check-challans" to 14_208,
+        "brake-pad-prices" to 6_431,
+        "expired-puc" to 3_902,
+        "five-things-before-selling" to 2_588,
+        "challans-that-go-to-court" to 1_744,
+        "new-tyre-prices" to 1_120,
+        "disputing-a-wrong-challan" to 903,
+        "losing-mileage" to 761,
+        "when-to-get-a-wheel-alignment" to 405,
     )
 
     /** "2 days ago" style labels. Text because a fake clock would be worse. */
     val updatedLabels: Map<String, String> = mapOf(
-        "challan-kaise-check-karein" to "2 days ago",
-        "naye-tyres-ka-price" to "6 days ago",
-        "brake-pads-price" to "9 days ago",
-        "court-case-wala-challan" to "11 days ago",
-        "puc-expire" to "16 days ago",
-        "galat-challan-dispute" to "18 days ago",
-        "bechne-se-pehle-5-cheezein" to "23 days ago",
-        "mileage-kam-ho-rahi-hai" to "1 month ago",
-        "wheel-alignment-kab" to "1 month ago",
+        "how-to-check-challans" to "2 days ago",
+        "new-tyre-prices" to "6 days ago",
+        "brake-pad-prices" to "9 days ago",
+        "challans-that-go-to-court" to "11 days ago",
+        "expired-puc" to "16 days ago",
+        "disputing-a-wrong-challan" to "18 days ago",
+        "five-things-before-selling" to "23 days ago",
+        "losing-mileage" to "1 month ago",
+        "when-to-get-a-wheel-alignment" to "1 month ago",
     )
 
     // ── Bodies ───────────────────────────────────────────────────────────────
@@ -171,66 +174,67 @@ internal object SampleContent {
     private val challanGuide: List<ArticleBlock> = listOf(
         ArticleBlock.Paragraph(
             plain(
-                "Zyadatar log ko pata hi nahi chalta ki unke naam pe challan hai. Camera se kata hua " +
-                    "challan aapke ghar nahi aata — woh seedha database me chala jaata hai, aur aapko tab " +
-                    "pata chalta hai jab insurance renew karwane jaate ho ya gaadi bechne.",
+                "Most people never find out that there is a challan in their name. A challan issued " +
+                    "by a camera does not arrive at your door — it goes straight into a database, and " +
+                    "you hear about it when you go to renew your insurance or sell the car.",
             ),
         ),
-        ArticleBlock.Section("challan-hota-kya-hai", "Challan hota kya hai"),
+        ArticleBlock.Section("what-a-challan-is", "What a challan is"),
         ArticleBlock.Paragraph(
             listOf(
-                TextRun("Do tarah ke hote hain. "),
-                TextRun("On-the-spot", bold = true),
-                TextRun(" — traffic police ne roka, receipt di. Aur "),
+                TextRun("There are two kinds. "),
+                TextRun("On the spot", bold = true),
+                TextRun(" — the traffic police stopped you and handed over a receipt. And an "),
                 TextRun("e-challan", bold = true),
-                TextRun(" — camera ne pakda, koi nahi roka, notice bas system me hai."),
+                TextRun(" — a camera caught it, nobody stopped you, and the notice only exists in the system."),
             ),
         ),
         ArticleBlock.Callout(
-            label = "DHYAN DEIN",
+            label = "WORTH KNOWING",
             runs = plain(
-                "E-challan 90 din tak na bhara jaaye toh kai states me woh court me chala jaata hai. " +
-                    "Phir online nahi bharta — court jaana padta hai.",
+                "An e-challan left unpaid for 90 days goes to court in several states. After that it " +
+                    "cannot be paid online — you have to appear in person.",
             ),
         ),
-        ArticleBlock.Section("parivahan-se-check-karna", "Parivahan se check karna"),
+        ArticleBlock.Section("checking-on-parivahan", "Checking on Parivahan"),
         ArticleBlock.Paragraph(
             plain(
-                "echallan.parivahan.gov.in kholein, gaadi ka number aur chassis ke aakhri 5 digit daalein, " +
-                    "OTP verify karein. Ye central database hai — par har state ka data isme same speed se " +
-                    "nahi aata.",
+                "Open echallan.parivahan.gov.in, enter the registration number and the last five digits " +
+                    "of the chassis number, then verify the OTP. This is the central database — but not " +
+                    "every state feeds it at the same speed.",
             ),
         ),
-        ArticleBlock.Section("state-portal-se", "State portal se"),
+        ArticleBlock.Section("checking-on-a-state-portal", "Checking on a state portal"),
         ArticleBlock.Paragraph(
             plain(
-                "Har state ka apna portal hai — Delhi ke liye delhitrafficpolice.nic.in, Maharashtra ke " +
-                    "liye mahatrafficechallan.gov.in. Ye aksar central database se tez hote hain, lekin sirf " +
-                    "usi state ke challan dikhate hain. Agar aapne doosre state me gaadi chalayi hai, wahan " +
-                    "ka challan yahan nahi milega.",
+                "Every state runs its own — delhitrafficpolice.nic.in for Delhi, " +
+                    "mahatrafficechallan.gov.in for Maharashtra. These are usually faster than the central " +
+                    "database, but they only show challans from that one state. Drive in another state and " +
+                    "what you picked up there will not appear here.",
             ),
         ),
-        ArticleBlock.Section("odo-se-ek-jagah", "Odo se — ek jagah"),
+        ArticleBlock.Section("checking-in-odo", "Checking in Odo — one place"),
         ArticleBlock.AppShowcase(
-            heading = "Odo me ye ek screen hai",
-            body = "Number daalein — Odo saare sources ek saath check karta hai aur poori list dikhata " +
-                "hai, saath me ye bhi ki data kitna purana hai.",
-            callToAction = "Odo download karein",
+            heading = "Odo has a screen for this",
+            body = "Enter the number and Odo checks every source at once, shows the whole list, and tells " +
+                "you how old the data behind it is.",
+            callToAction = "Download Odo",
         ),
-        ArticleBlock.Section("court-case-wale-challan", "Court case wale challan"),
+        ArticleBlock.Section("challans-in-court", "Challans that reach court"),
         ArticleBlock.Paragraph(
             plain(
-                "90 din ke baad kai states challan ko virtual court me bhej dete hain. Tab woh Parivahan " +
-                    "pe \"disposed\" ya \"court\" dikhta hai — matlab online payment band. Aapko e-court " +
-                    "portal pe jaana padta hai, aur kabhi-kabhi sunwai pe bhi. Amount bhi usually badh " +
-                    "jaati hai.",
+                "After 90 days several states move a challan to a virtual court. Parivahan then shows it " +
+                    "as \"disposed\" or \"court\", which means online payment is closed. You have to go " +
+                    "through the e-court portal instead, and sometimes attend a hearing. The amount usually " +
+                    "goes up too.",
             ),
         ),
-        ArticleBlock.Section("kitne-din-me-bharna-hai", "Kitne din me bharna hai"),
+        ArticleBlock.Section("how-long-you-have", "How long you have"),
         ArticleBlock.Paragraph(
             plain(
-                "Jitni jaldi ho sake. 60 din ke baad kai states late fee lagate hain, aur 90 din pe woh " +
-                    "court reference ban jaata hai — tab amount badh jaati hai aur process lamba ho jaata hai.",
+                "As little time as you can take. Several states add a late fee after 60 days, and at 90 " +
+                    "days it becomes a court reference — at which point the amount rises and the process " +
+                    "gets long.",
             ),
         ),
     )
@@ -242,16 +246,16 @@ internal object SampleContent {
      * renders, not so the sample corpus becomes a writing project.
      */
     val bodies: Map<String, List<ArticleBlock>> = buildMap {
-        put("challan-kaise-check-karein", challanGuide)
-        posts.filter { it.slug != "challan-kaise-check-karein" }.forEach { post ->
+        put("how-to-check-challans", challanGuide)
+        posts.filter { it.slug != "how-to-check-challans" }.forEach { post ->
             put(
                 post.slug,
                 listOf(
                     ArticleBlock.Paragraph(plain(post.dek)),
-                    ArticleBlock.Section("shuruaat", "Shuruaat"),
+                    ArticleBlock.Section("in-short", "In short"),
                     ArticleBlock.Paragraph(
                         plain(
-                            "Ye post abhi likhi ja rahi hai. Jab tak, upar wali line hi iska jawab hai.",
+                            "This one is still being written. Until it is, the line above is the answer.",
                         ),
                     ),
                 ),
@@ -271,13 +275,13 @@ internal object SampleContent {
 
     /** Three unpublished posts, so the drafts filter has something in it. */
     val drafts: List<Triple<String, String, String>> = listOf(
-        Triple("draft-insurance-resale", "Insurance claim ke baad resale value", "Today"),
-        Triple("draft-service-interval", "Service interval — company ka number sahi hai?", "3 days ago"),
-        Triple("draft-rto-transfer", "RTO transfer — kaunse papers lagte hain", "1 week ago"),
+        Triple("draft-insurance-resale", "Resale value after an insurance claim", "Today"),
+        Triple("draft-service-interval", "Service intervals — is the manufacturer's number right?", "3 days ago"),
+        Triple("draft-rto-transfer", "RTO transfer — which papers you need", "1 week ago"),
     )
 
     val media: List<MediaItem> = listOf(
-        MediaItem("challan-list.png", "/blog/assets/sample/challan-list.png", "Odo me challan list — 2 pending, Rs. 1,500"),
+        MediaItem("challan-list.png", "/blog/assets/sample/challan-list.png", "Challan list in Odo — 2 pending, Rs. 1,500"),
         MediaItem("lookup.png", "/blog/assets/sample/lookup.png"),
         MediaItem("clean-state.png", "/blog/assets/sample/clean-state.png"),
         MediaItem("costs.png", "/blog/assets/sample/costs.png"),
@@ -289,10 +293,10 @@ internal object SampleContent {
         searchSharePercent = 78,
         appInstalls = 1_146,
         topPosts = listOf(
-            TopPost("Challan kaise check karein", 14_208),
-            TopPost("Brake pads ka sahi price", 6_431),
-            TopPost("PUC expire ho gaya", 3_902),
-            TopPost("Bechne se pehle ye 5 cheezein", 2_588),
+            TopPost("How to check your challans", 14_208),
+            TopPost("What should brake pads cost?", 6_431),
+            TopPost("Your PUC expired", 3_902),
+            TopPost("Five things to do before you sell", 2_588),
         ),
     )
 

@@ -238,7 +238,7 @@ class EditorViewModel(
                     blocks = blocks + ArticleBlock.AppShowcase(
                         heading = "",
                         body = "",
-                        callToAction = "Odo download karein",
+                        callToAction = "Download Odo",
                         screenshot = event.item.url,
                     ),
                     sheet = EditorSheet.None,

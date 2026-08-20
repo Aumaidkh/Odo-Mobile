@@ -38,6 +38,17 @@ sealed interface BlogError {
     data object NotAnAuthor : BlogError
 
     /**
+     * The password was right and the author list is empty, so it turned everybody
+     * away.
+     *
+     * Separate from [NotAnAuthor] because they send you to different places. One
+     * is a decision about an account; this one is a setting nobody has filled in,
+     * and reporting it as the first sends whoever is holding the correct password
+     * looking at their own account.
+     */
+    data object NoAuthorsConfigured : BlogError
+
+    /**
      * Sign-in cannot be attempted at all — the provider is switched off for this
      * Firebase project.
      *

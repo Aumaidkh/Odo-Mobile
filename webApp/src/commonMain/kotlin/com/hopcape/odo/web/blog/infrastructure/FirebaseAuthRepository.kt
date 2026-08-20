@@ -92,7 +92,7 @@ class FirebaseAuthRepository(
     override suspend fun signIn(email: String, password: String): Either<BlogError, Session> {
         val response = post(
             url = "${FirebaseConfig.SIGN_IN_ENDPOINT}?key=$apiKey",
-            body = Json.encodeToString(
+            body = REQUESTS.encodeToString(
                 SignInRequest.serializer(),
                 SignInRequest(email.trim(), password),
             ),
@@ -109,7 +109,7 @@ class FirebaseAuthRepository(
             // Do not keep anything. A rejected account holding a live refresh
             // token would be signed in again by the next page load.
             tokens.refreshToken = null
-            return BlogError.NotAnAuthor.left()
+            return refusal().left()
         }
 
         val authenticated = Authenticated(
@@ -148,7 +148,7 @@ class FirebaseAuthRepository(
     private suspend fun restore(refreshToken: String): Either<BlogError, Authenticated> {
         val refreshed = post(
             url = "${FirebaseConfig.REFRESH_ENDPOINT}?key=$apiKey",
-            body = Json.encodeToString(
+            body = REQUESTS.encodeToString(
                 RefreshRequest.serializer(),
                 RefreshRequest(refreshToken = refreshToken),
             ),
@@ -168,7 +168,7 @@ class FirebaseAuthRepository(
         // stale by the time they are used.
         val looked = post(
             url = "${FirebaseConfig.LOOKUP_ENDPOINT}?key=$apiKey",
-            body = Json.encodeToString(
+            body = REQUESTS.encodeToString(
                 LookupRequest.serializer(),
                 LookupRequest(idToken = tokenBody.idToken),
             ),
@@ -181,7 +181,7 @@ class FirebaseAuthRepository(
 
         if (!account.email.isAuthor()) {
             tokens.refreshToken = null
-            return BlogError.NotAnAuthor.left()
+            return refusal().left()
         }
 
         val authenticated = Authenticated(
@@ -198,6 +198,17 @@ class FirebaseAuthRepository(
 
     private fun String.isAuthor(): Boolean =
         authors.any { it.equals(this, ignoreCase = true) }
+
+    /**
+     * Why an account with the right password was still turned away.
+     *
+     * An empty list refuses everybody, which is the safe way to be wrong and a
+     * confusing way to be told about it — "this account is not allowed to
+     * publish" reads as a decision somebody made about you. Saying which of the
+     * two it is costs one branch.
+     */
+    private fun refusal(): BlogError =
+        if (authors.isEmpty()) BlogError.NoAuthorsConfigured else BlogError.NotAnAuthor
 
     /**
      * The account, as the CMS talks about people.
@@ -269,6 +280,21 @@ class FirebaseAuthRepository(
          * would turn a successful sign-in into an unreadable response.
          */
         val LENIENT = Json { ignoreUnknownKeys = true }
+
+        /**
+         * Writes every field, including the ones sitting at their default.
+         *
+         * `encodeDefaults` is false by default, so `returnSecureToken = true` was
+         * silently dropped from the sign-in request. Firebase honours that: it
+         * answers without a refresh token, and the parser then reports
+         * `refreshToken` missing — which reads as a wrong model, or a truncated
+         * response, and sends you looking anywhere but at the request. The same
+         * would have taken `grant_type` off every refresh.
+         *
+         * Sending a default explicitly is also just correct for a wire format
+         * somebody else owns: the default is ours, not theirs.
+         */
+        val REQUESTS = Json { encodeDefaults = true }
     }
 }
 

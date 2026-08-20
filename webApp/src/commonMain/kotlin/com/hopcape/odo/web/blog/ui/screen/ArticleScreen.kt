@@ -41,7 +41,7 @@ import com.hopcape.odo.web.blog.ui.component.formatted
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
 
-/** The design's reading measure. Wider than this and long Hinglish lines get lost. */
+/** The design's reading measure. Wider than this and a line stops reading as prose. */
 private val MEASURE = 680.dp
 private val RAIL = 210.dp
 
