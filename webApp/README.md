@@ -108,6 +108,34 @@ supabase/seed_blog.sql                              the design's posts, once
 supabase/check-blog.sh                              asks the database what a stranger can see
 ```
 
+### Applying it
+
+Paste `supabase/blog_schema.sql` into the SQL editor and run it. It is the two
+migration files joined in order — the storage half calls `is_blog_author()`,
+which the first half defines — and every statement is idempotent, so running it
+twice is not a problem.
+
+Then `supabase/seed_blog.sql`, once, if you want the design's posts rather than an
+empty blog.
+
+The edge function is the one part with no SQL editor. It needs the CLI:
+
+```sh
+supabase secrets set --project-ref <ref> \
+  FIREBASE_PROJECT_ID=odo-mobile-ba9aa BLOG_AUTHOR_EMAILS=you@example.com
+supabase functions deploy blog-session --no-verify-jwt --project-ref <ref>
+```
+
+Then, always: `sh supabase/check-blog.sh`. It asks the project what a stranger can
+see and do, and fails if a table that should be shut answers back. Until it
+passes, nothing here has actually been verified — the Kotlin tests are mocked
+HTTP, which is the same blind spot that once hid a sign-in bug for a day.
+
+If you would rather the CLI ran the migrations: `supabase db push` takes
+`--linked` or `--db-url`, **not** `--project-ref`, and this project already
+carries migrations from before the blog existed — run `--dry-run` first and read
+what it says it will replay.
+
 **Reads are a policy, not a filter.** Every public call runs as `anon`, and the
 only rows that role can see are published ones. No query in the Kotlin says
 `status=eq.published`; that rule lives in one place, and a second copy is the one

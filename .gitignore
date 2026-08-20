@@ -67,9 +67,17 @@ keystore/
 !/supabase/README.md
 !/supabase/config.toml
 !/supabase/check-legal.sh
+!/supabase/check-blog.sh
+# Hand-authored, and a clone needs it: the blog is a nav over a black page until
+# somebody runs it.
+!/supabase/seed_blog.sql
 # `deno bundle` regenerates this from functions/legal on demand. A build output, and the
 # README says so — the seven files are the source of truth, not the pasted copy.
 /supabase/legal.bundle.js
+# The two migrations concatenated, for pasting into the SQL editor. Same reason:
+# regenerable from files that are tracked, so committing it would be committing a
+# second copy that can disagree with the first.
+/supabase/blog_schema.sql
 
 # Firebase Hosting: CLI cache, and the pages `web/build.ts` renders.
 .firebase/
