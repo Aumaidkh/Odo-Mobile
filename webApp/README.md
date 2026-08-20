@@ -93,14 +93,47 @@ The production bundle lands in `webApp/build/dist/wasmJs/productionExecutable/`.
 Kotlin/Wasm needs a browser that supports the garbage-collection proposal —
 Chrome 119+, Firefox 120+, Safari 18.2+.
 
-## 5. Publishing — not wired yet
+## 5. Signing in
+
+The CMS authenticates against Firebase Auth over its **REST API**, not the
+Firebase JS SDK. Kotlin/Wasm has no `@JsModule`, so the SDK would need an npm
+dependency, a hand-written JavaScript shim and Kotlin externals to reach it;
+password sign-in is three endpoints and no bundling. What the SDK would have done
+for free — refreshing the token, remembering the session — is two small pieces of
+`infrastructure/FirebaseAuthRepository.kt`.
+
+Two things have to be true before anybody can sign in, and neither is code:
+
+1. **Email/Password has to be enabled** on the Firebase project
+   (`odo-mobile-ba9aa`). It is off as this is written — the app signs users in by
+   phone — and the screen says so rather than pretending the password was wrong.
+2. **`FirebaseConfig.AUTHOR_EMAILS` has to name the authors.** It is empty, which
+   lets nobody in. That is deliberate: every account in this Firebase project is
+   an app user, so an empty list meaning "everybody" would open the CMS to anyone
+   who ever registered.
+
+That list is a gate on the screen, **not security** — anybody with a developer
+console gets past it. The real check is a custom claim minted server-side and
+rules on whatever stores the posts, and it belongs with the backend that does not
+exist yet.
+
+Two things that do not apply here but usually do: Firebase Auth's
+**authorized-domains** list governs the SDK's browser flows (Google, phone), not
+this one, so `odoapp.in` needs no entry for password sign-in. An **API-key
+referrer restriction** does apply, and has to allow both
+`identitytoolkit.googleapis.com` and `securetoken.googleapis.com` — refreshing
+goes to a different host from signing in.
+
+## 6. Publishing — not wired yet
 
 `odoapp.in` is the Firebase Hosting site `odo-landing`, configured in
 `landing/firebase.json`; `/blog` is free there today. Publishing this module means
 copying the distribution into `landing/public/blog/`, adding a rewrite so
 `/blog/**` serves the app's own `index.html`, and giving those paths a
 `'wasm-unsafe-eval'` script policy — the site's existing per-path CSP rules would
-otherwise block the bundle from starting.
+otherwise block the bundle from starting. `connect-src` has to allow
+`https://identitytoolkit.googleapis.com` and `https://securetoken.googleapis.com`
+as well, or the CMS cannot sign anybody in.
 
 Both hosting configs follow one rule that is easy to break: **header sources must
 not overlap.** A `**` rule wins over a specific one whichever order they appear in,

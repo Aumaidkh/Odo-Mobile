@@ -197,6 +197,9 @@ kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.re
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+# The browser engine — :webApp. OkHttp and Darwin, the two the app already has,
+# do not exist in a browser.
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 # MockEngine — drives the adapter tests without a network or a Supabase project.
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 

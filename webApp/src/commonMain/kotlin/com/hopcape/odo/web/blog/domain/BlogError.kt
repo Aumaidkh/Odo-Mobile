@@ -28,6 +28,25 @@ sealed interface BlogError {
     /** An admin call was made without a session, or with one that has expired. */
     data object NotSignedIn : BlogError
 
+    /**
+     * The credentials were right and the account still may not publish.
+     *
+     * A separate outcome from [SignInRejected] because it is not a typo: telling
+     * somebody their password was wrong when it was not sends them round a loop
+     * that cannot end.
+     */
+    data object NotAnAuthor : BlogError
+
+    /**
+     * Sign-in cannot be attempted at all — the provider is switched off for this
+     * Firebase project.
+     *
+     * Its own member because it is a configuration mistake rather than a failure:
+     * nothing the person at the keyboard does will fix it, so the screen has to
+     * say something other than "try again".
+     */
+    data object SignInUnavailable : BlogError
+
     /** Anything else. [cause] is for the log, never for the reader. */
     data class Unexpected(val cause: String? = null) : BlogError
 }

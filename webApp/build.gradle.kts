@@ -15,6 +15,9 @@ plugins {
     // that breaks silently — a link that parses but never formats is a page
     // nobody can reach — so it is the part with tests.
     alias(libs.plugins.odo.kmpTest)
+    // The Firebase Auth REST payloads. Applied directly, the way :core:data and
+    // :core:navigation do — there is nothing to configure beyond applying it.
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -50,16 +53,27 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             // koinViewModel() in the route hosts.
             implementation(libs.koin.composeViewmodel)
+            // Firebase Auth over its REST API. No ContentNegotiation, matching
+            // :infrastructure:supabase: the adapters decode with an explicit Json
+            // so a non-2xx body is inspected before anything parses it as success.
+            implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.serialization.json)
         }
         val wasmJsMain by getting {
             dependencies {
                 // window / document / history. Kotlin's stdlib carries no DOM
                 // bindings on Wasm, so even mounting Compose needs this.
                 implementation(libs.kotlinx.browser)
+                // The engine. Picked up by `HttpClient { }` with no engine named,
+                // because it is the only one on this module's classpath.
+                implementation(libs.ktor.client.js)
             }
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
+            // MockEngine — drives the Firebase adapter without a network or a
+            // Firebase project, the same way the Supabase adapters are tested.
+            implementation(libs.ktor.client.mock)
         }
     }
 }

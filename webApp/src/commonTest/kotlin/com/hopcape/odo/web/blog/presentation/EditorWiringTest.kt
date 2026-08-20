@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.presentation
 
+import com.hopcape.odo.web.blog.data.SampleAuthRepository
 import com.hopcape.odo.web.blog.data.SampleContent
 import com.hopcape.odo.web.blog.di.blogModule
 import com.hopcape.odo.web.blog.domain.AuthRepository
@@ -11,6 +12,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.koin.core.context.startKoin
+import org.koin.dsl.module
 import org.koin.core.context.stopKoin
 import org.koin.core.parameter.parametersOf
 import kotlin.test.AfterTest
@@ -35,7 +37,9 @@ class EditorWiringTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        startKoin { modules(blogModule) }
+        // The real module wires Firebase; a later module wins in Koin, so this
+        // swaps auth back to the sample one rather than reaching the network.
+        startKoin { modules(blogModule, module { single<AuthRepository> { SampleAuthRepository() } }) }
     }
 
     @AfterTest

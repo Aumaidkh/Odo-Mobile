@@ -88,6 +88,10 @@
     <string name="bl_admin_wrong_password">Wrong password. %1$d tries left.</string>
     <string name="bl_admin_wrong_password_locked">Wrong password. No tries left.</string>
     <string name="bl_admin_signed_out">Sign in to continue.</string>
+    <string name="bl_admin_not_an_author">Is account ko publish karne ki permission nahi hai.</string>
+    <!-- A configuration mistake, not a failure the person at the keyboard can fix:
+         Email/Password is switched off for this Firebase project. -->
+    <string name="bl_admin_sign_in_unavailable">Password sign-in is turned off for this project.</string>
 
     <!-- ── Admin · shell ──────────────────────────────────────────────────── -->
     <string name="bl_admin_nav_posts">Posts</string>

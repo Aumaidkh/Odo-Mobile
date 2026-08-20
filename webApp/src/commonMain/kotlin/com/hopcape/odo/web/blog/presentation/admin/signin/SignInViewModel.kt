@@ -5,13 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.AuthRepository
 import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.blog.presentation.asUiText
 import com.hopcape.odo.web.blog.presentation.state.FormField
 import com.hopcape.odo.web.blog.presentation.state.UiText
 import com.hopcape.odo.web.blog.presentation.state.textField
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_admin_wrong_password
 import com.hopcape.odo.web.blog.resources.bl_admin_wrong_password_locked
-import com.hopcape.odo.web.blog.resources.bl_error_generic
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,13 +101,18 @@ class SignInViewModel(
     }
 
     /**
-     * The countdown the design shows.
+     * The countdown the design shows, and everything else as it already reads.
      *
-     * Zero gets its own line rather than "0 tries left", which reads like a
-     * counter that has not been updated yet.
+     * Only the rejection is special-cased, because only it has a number in the
+     * copy. Everything else goes through the shared mapping — an account that is
+     * not an author and a project with password sign-in switched off each have
+     * their own line, and collapsing them into "this did not work" would throw
+     * away the one thing that tells somebody what to do about it.
      */
     private fun BlogError.asSignInText(): UiText = when {
-        this !is BlogError.SignInRejected -> UiText.Resource(Res.string.bl_error_generic)
+        this !is BlogError.SignInRejected -> asUiText()
+        // Zero gets its own line rather than "0 tries left", which reads like a
+        // counter that has not been updated yet.
         triesLeft == null || triesLeft <= 0 -> UiText.Resource(Res.string.bl_admin_wrong_password_locked)
         else -> UiText.Resource(Res.string.bl_admin_wrong_password, listOf(triesLeft))
     }

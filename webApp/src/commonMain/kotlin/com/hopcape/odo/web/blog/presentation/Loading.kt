@@ -10,6 +10,8 @@ import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_error_generic
 import com.hopcape.odo.web.blog.resources.bl_error_not_found
 import com.hopcape.odo.web.blog.resources.bl_error_offline
+import com.hopcape.odo.web.blog.resources.bl_admin_not_an_author
+import com.hopcape.odo.web.blog.resources.bl_admin_sign_in_unavailable
 import com.hopcape.odo.web.blog.resources.bl_admin_signed_out
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -46,6 +48,8 @@ fun BlogError.asUiText(): UiText = when (this) {
     BlogError.Offline -> UiText.Resource(Res.string.bl_error_offline)
     BlogError.NotFound -> UiText.Resource(Res.string.bl_error_not_found)
     BlogError.NotSignedIn -> UiText.Resource(Res.string.bl_admin_signed_out)
+    BlogError.NotAnAuthor -> UiText.Resource(Res.string.bl_admin_not_an_author)
+    BlogError.SignInUnavailable -> UiText.Resource(Res.string.bl_admin_sign_in_unavailable)
     is BlogError.SignInRejected -> UiText.Resource(Res.string.bl_error_generic)
     is BlogError.Unexpected -> UiText.Resource(Res.string.bl_error_generic)
 }
@@ -60,5 +64,10 @@ fun BlogError.asUiText(): UiText = when (this) {
 val BlogError.isRetryable: Boolean
     get() = when (this) {
         BlogError.Offline, is BlogError.Unexpected -> true
-        BlogError.NotFound, BlogError.NotSignedIn, is BlogError.SignInRejected -> false
+        BlogError.NotFound,
+        BlogError.NotSignedIn,
+        BlogError.NotAnAuthor,
+        BlogError.SignInUnavailable,
+        is BlogError.SignInRejected,
+        -> false
     }
