@@ -85,6 +85,16 @@ const WEB_CONFIG = Deno.env.get('FIREBASE_WEB_CONFIG') ?? JSON.stringify(ENVIRON
 const OUT = new URL('./public/', import.meta.url)
 
 /**
+ * The marketing site's copy, served at odoapp.in/legal/.
+ *
+ * The two sites are separate Firebase Hosting sites with separate configs, so a page reachable
+ * on one is not reachable on the other; the documents have to exist in both trees. They are
+ * written from the same markup in the same run, which is the only way the two copies cannot
+ * disagree about what the policy says.
+ */
+const LANDING_OUT = new URL('../landing/public/legal/', import.meta.url)
+
+/**
  * Every page, not only the two that were asked for.
  *
  * Each one's nav links to the others, so shipping a subset would mean shipping a privacy page
@@ -102,6 +112,28 @@ await Deno.mkdir(OUT, { recursive: true })
 for (const [name, markup] of Object.entries(PAGES)) {
   await Deno.writeTextFile(new URL(name, OUT), markup)
   console.log(`${name}  ${markup.length} bytes`)
+}
+
+// Only production is copied to the marketing site. A dev build writing there would leave a page
+// wired to the scratch project sitting on the public domain, and nothing in the HTML says which
+// environment it came from — the same trap `web/public` already carries, but on a page anyone
+// can reach from the store listing.
+//
+// The deletion page is written as `delete.html` because odoapp.in/legal/delete is the path we
+// publish. The pages' own nav links relatively to `delete-account`, so `landing/firebase.json`
+// redirects `/legal/delete-account` onto it; without that redirect the header on the privacy
+// page 404s.
+if (NAME === 'prod') {
+  const LANDING_PAGES: Record<string, string> = {
+    'terms.html': PAGES['terms.html'],
+    'privacy.html': PAGES['privacy.html'],
+    'delete.html': PAGES['delete-account.html'],
+  }
+  await Deno.mkdir(LANDING_OUT, { recursive: true })
+  for (const [name, markup] of Object.entries(LANDING_PAGES)) {
+    await Deno.writeTextFile(new URL(name, LANDING_OUT), markup)
+    console.log(`legal/${name}  ${markup.length} bytes`)
+  }
 }
 
 // `web/public` holds whichever environment was built last and nothing records which. Say so,
