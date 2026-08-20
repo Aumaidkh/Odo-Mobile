@@ -2,6 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!--
+    Where every relative URL on this page resolves from.
+
+    The app answers on paths of different depths — /blog, /blog/an-article,
+    /blog/category/fuel, /blog/admin/posts — and without this each of them
+    becomes a different base. Compose Resources asks for its string table as
+    `./composeResources/…`, so on a three-segment path it looks under
+    /blog/admin/ and gets a 404; the symptom is a page that renders its data and
+    none of its labels, which reads like a styling bug rather than a 404.
+  -->
+  <base href="/blog/">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Blog — Odo</title>
   <meta name="description" content="Notes on car ownership in India: service costs, fair prices, paperwork and what a car's history is worth.">
@@ -30,7 +41,14 @@
 <body>
 <div id="boot">ODO</div>
 
-<!-- Kotlin/Wasm emits an ES module, so `type="module"` is not optional. -->
-<script type="module" src="odo-blog.js"></script>
+<!--
+  Absolute, not relative. The app answers on paths of different depths — /blog/an-article
+  and /blog/category/fuel — and a relative src resolves against whichever one the reader
+  arrived at, so the deeper pages ask for a bundle that is not there and never start.
+  webApp/webpack.config.d/blog-base-path.js is what makes /blog/ true locally as well.
+
+  Kotlin/Wasm emits an ES module, so `type="module"` is not optional.
+-->
+<script type="module" src="/blog/odo-blog.js"></script>
 </body>
 </html>

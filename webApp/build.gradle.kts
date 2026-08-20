@@ -8,6 +8,9 @@ plugins {
     // The Compose UI surface (runtime/foundation/ui/material3) and the @Preview
     // annotations, into commonMain. Wasm inherits them from there.
     alias(libs.plugins.odo.composeMultiplatform)
+    // koin-core in commonMain, koin-test in commonTest. Same DI as every feature
+    // module, so swapping the sample repositories for real ones is one file.
+    alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest. The URL round trip is the part of this module
     // that breaks silently — a link that parses but never formats is a page
     // nobody can reach — so it is the part with tests.
@@ -35,6 +38,19 @@ kotlin {
     }
 
     sourceSets {
+        commonMain.dependencies {
+            // Either<BlogError, T> on every repository call — the same shape the
+            // app's ports have, so a Supabase implementation later reads like the
+            // ones in :infrastructure:supabase rather than like a web experiment.
+            implementation(libs.arrow.core)
+            // viewModelScope, and the flows the ViewModels expose.
+            implementation(libs.kotlinx.coroutines.core)
+            // LocalDate on a post. Dates here are only ever displayed, but storing
+            // them as text would put date formatting in the repository.
+            implementation(libs.kotlinx.datetime)
+            // koinViewModel() in the route hosts.
+            implementation(libs.koin.composeViewmodel)
+        }
         val wasmJsMain by getting {
             dependencies {
                 // window / document / history. Kotlin's stdlib carries no DOM
@@ -42,5 +58,17 @@ kotlin {
                 implementation(libs.kotlinx.browser)
             }
         }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
+}
+
+// Compose Multiplatform string resources. Same rule as every feature module: no
+// user-facing copy is written at a call site. `bl_` prefixes them, the way
+// :feature:servicelog uses `sl_`.
+compose.resources {
+    publicResClass = false
+    packageOfResClass = "com.hopcape.odo.web.blog.resources"
+    generateResClass = always
 }

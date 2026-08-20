@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the blog draws that did not come from an author.
+
+  Post titles, deks and bodies are content and belong to the repository; anything
+  in here is chrome — labels, empty states, buttons, the things that stay the same
+  whatever is published. The `bl_` prefix follows the same rule as `sl_` in
+  :feature:servicelog.
+
+  The public side is written the way the posts are, in Hinglish, because a reader
+  who arrived from a Hindi search should not hit an English interface around a
+  Hinglish answer. The CMS is in English: it is a tool with one user.
+-->
+<resources>
+
+    <!-- ── Chrome ─────────────────────────────────────────────────────────── -->
+    <string name="bl_brand">ODO</string>
+    <string name="bl_nav_blog">Blog</string>
+    <string name="bl_nav_search_placeholder">Search articles</string>
+    <string name="bl_nav_get_app">Get Odo</string>
+    <string name="bl_footer_note">Odo — apni gaadi ka poora record, ek jagah.</string>
+    <string name="bl_footer_privacy">Privacy</string>
+    <string name="bl_footer_terms">Terms</string>
+
+    <!-- ── Shared ─────────────────────────────────────────────────────────── -->
+    <string name="bl_reading_minutes">%1$d min read</string>
+    <string name="bl_all">All</string>
+    <string name="bl_loading">Ek second…</string>
+    <string name="bl_error_offline">Internet nahi mil raha.</string>
+    <string name="bl_error_generic">Ye load nahi ho paya.</string>
+    <string name="bl_error_not_found">Ye page nahi mila.</string>
+    <string name="bl_retry">Dobara koshish karein</string>
+    <string name="bl_email_placeholder">aap@email.com</string>
+    <string name="bl_email_invalid">Ye email theek nahi lag raha.</string>
+
+    <!-- ── Index ──────────────────────────────────────────────────────────── -->
+    <string name="bl_index_title">Car ownership, explained</string>
+    <string name="bl_index_dek">Challans, service prices, renewals aur resale — seedhi bhasha me, un logon ke liye jinke paas ek gaadi hai aur use theek rakhna hai.</string>
+
+    <!-- ── Article ────────────────────────────────────────────────────────── -->
+    <string name="bl_article_contents">CONTENTS</string>
+    <string name="bl_article_contents_count">Contents · %1$d sections</string>
+    <string name="bl_article_read_next">AAGE PADHEIN</string>
+    <string name="bl_article_cta_heading">Apne challan check karein</string>
+
+    <!-- ── Category ───────────────────────────────────────────────────────── -->
+    <string name="bl_category_eyebrow">CATEGORY</string>
+    <string name="bl_category_count_one">%1$s — abhi ek article.</string>
+    <string name="bl_category_count_many">%1$s — %2$d articles.</string>
+    <string name="bl_category_more_coming">Aur articles aa rahe hain</string>
+    <string name="bl_category_more_coming_dek">Is topic pe abhi aur likha ja raha hai.</string>
+
+    <!-- ── Subscribe ──────────────────────────────────────────────────────── -->
+    <string name="bl_subscribe_heading">Nayi post pe email chahiye?</string>
+    <string name="bl_subscribe_dek">Hafte me ek se zyada nahi. Kabhi bhi band kar sakte hain.</string>
+    <string name="bl_subscribe_action">Subscribe</string>
+    <string name="bl_subscribe_done">Ho gaya — pehli post pe email aayega.</string>
+
+    <!-- ── Search ─────────────────────────────────────────────────────────── -->
+    <string name="bl_search_results_count">%1$d results for</string>
+    <string name="bl_search_quoted">“%1$s”</string>
+    <string name="bl_search_empty_heading">Is pe abhi kuch nahi likha</string>
+    <string name="bl_search_empty_dek">“%1$s” pe koi article nahi mila. Ye rahe kuch jo aksar isi ke saath dhoondhe jaate hain.</string>
+    <string name="bl_search_prompt">Kya dhoondh rahe hain?</string>
+    <string name="bl_topic_request_heading">Koi topic chahiye jo yahan nahi hai?</string>
+    <string name="bl_topic_request_dek">Bata dijiye — hum likh denge.</string>
+    <string name="bl_topic_request_action">Bhejein</string>
+    <string name="bl_topic_request_done">Mil gaya. Shukriya.</string>
+
+    <!-- ── Author ─────────────────────────────────────────────────────────── -->
+    <string name="bl_author_articles">Articles</string>
+    <string name="bl_author_writes_about">Likhta hoon</string>
+    <string name="bl_author_since">Since</string>
+    <string name="bl_author_posts_heading">%1$s KE ARTICLES</string>
+
+    <!-- ── 404 ────────────────────────────────────────────────────────────── -->
+    <string name="bl_not_found_code">404</string>
+    <string name="bl_not_found_heading">Ye page hata diya gaya</string>
+    <string name="bl_not_found_dek">Ho sakta hai URL badal gaya ho. Neeche sabse zyada padhe jaane wale articles hain.</string>
+
+    <!-- ── Admin · sign in ────────────────────────────────────────────────── -->
+    <string name="bl_admin_sign_in_heading">Sign in to publish</string>
+    <string name="bl_admin_sign_in_dek">Authors only.</string>
+    <string name="bl_admin_email">Email</string>
+    <string name="bl_admin_password">Password</string>
+    <string name="bl_admin_sign_in">Sign in</string>
+    <string name="bl_admin_forgot">Forgot password?</string>
+    <string name="bl_admin_wrong_password">Wrong password. %1$d tries left.</string>
+    <string name="bl_admin_wrong_password_locked">Wrong password. No tries left.</string>
+    <string name="bl_admin_signed_out">Sign in to continue.</string>
+
+    <!-- ── Admin · shell ──────────────────────────────────────────────────── -->
+    <string name="bl_admin_nav_posts">Posts</string>
+    <string name="bl_admin_nav_media">Media</string>
+    <string name="bl_admin_nav_analytics">Analytics</string>
+    <string name="bl_admin_nav_settings">Settings</string>
+    <string name="bl_admin_sign_out">Sign out</string>
+
+    <!-- ── Admin · posts ──────────────────────────────────────────────────── -->
+    <string name="bl_admin_posts_title">Posts</string>
+    <string name="bl_admin_posts_new">New post</string>
+    <string name="bl_admin_filter_all">All · %1$d</string>
+    <string name="bl_admin_filter_published">Published · %1$d</string>
+    <string name="bl_admin_filter_drafts">Drafts · %1$d</string>
+    <string name="bl_admin_column_title">TITLE</string>
+    <string name="bl_admin_column_status">STATUS</string>
+    <string name="bl_admin_column_views">VIEWS</string>
+    <string name="bl_admin_column_updated">UPDATED</string>
+    <string name="bl_admin_status_published">Published</string>
+    <string name="bl_admin_status_draft">Draft</string>
+    <string name="bl_admin_no_slug">draft — no slug yet</string>
+    <string name="bl_admin_no_views">—</string>
+    <string name="bl_admin_slug_prefix">odoapp.in/blog/</string>
+
+    <!-- ── Admin · editor ─────────────────────────────────────────────────── -->
+    <string name="bl_editor_title_placeholder">Title</string>
+    <string name="bl_editor_body_placeholder">Yahan se likhna shuru karein…</string>
+    <string name="bl_editor_unsaved">New post · not saved</string>
+    <string name="bl_editor_saved">Draft · saved %1$s</string>
+    <!-- There is no clock in this module yet, so a saved draft says that it is
+         saved rather than guessing at how long ago. -->
+    <string name="bl_editor_saved_now">Draft · saved</string>
+    <string name="bl_editor_unsaved_changes">Draft · unsaved changes</string>
+    <!-- A word, not an arrow: Compose draws with a bundled fallback font that
+         has no glyph for "←", and a missing glyph renders as a box. -->
+    <string name="bl_editor_back">Posts</string>
+    <string name="bl_editor_save">Save</string>
+    <string name="bl_editor_image">Image</string>
+    <string name="bl_editor_paragraph">Para</string>
+    <string name="bl_editor_remove_block">Remove</string>
+    <string name="bl_editor_unpublish">Unpublish</string>
+    <string name="bl_editor_published_badge">Published</string>
+    <string name="bl_editor_saving">Saving…</string>
+    <string name="bl_editor_counts">%1$d words · %2$d min</string>
+    <string name="bl_editor_preview">Preview</string>
+    <string name="bl_editor_publish">Publish</string>
+    <string name="bl_editor_bold">B</string>
+    <string name="bl_editor_italic">I</string>
+    <string name="bl_editor_h2">H2</string>
+    <string name="bl_editor_h3">H3</string>
+    <string name="bl_editor_callout">Callout</string>
+    <string name="bl_editor_tip_label">TIP</string>
+    <string name="bl_editor_tip">Ek sawaal se shuru karein jo log Google pe type karte hain. Pehla paragraph hi jawab de de — Google wahi dikhata hai.</string>
+
+    <!-- ── Admin · publish sheet ──────────────────────────────────────────── -->
+    <string name="bl_publish_seo_title">SEO title</string>
+    <string name="bl_publish_slug">Slug</string>
+    <string name="bl_publish_meta">Meta description</string>
+    <string name="bl_publish_category">Category</string>
+    <string name="bl_publish_when">Publish</string>
+    <string name="bl_publish_now">Now</string>
+    <string name="bl_publish_counter">· %1$d / %2$d</string>
+    <string name="bl_publish_google_preview">GOOGLE PREVIEW</string>
+    <string name="bl_publish_save_draft">Save draft</string>
+    <string name="bl_publish_publish_now">Publish now</string>
+    <string name="bl_publish_breadcrumb">odoapp.in › blog › %1$s</string>
+
+    <!-- ── Admin · slug conflict ──────────────────────────────────────────── -->
+    <string name="bl_conflict_message">Ye slug pehle se use ho raha hai — “%1$s” me.</string>
+    <string name="bl_conflict_options">Do raste hain:</string>
+    <string name="bl_conflict_new_slug">Naya slug lein</string>
+    <string name="bl_conflict_use">Use</string>
+    <string name="bl_conflict_replace_heading">Purani post replace karein</string>
+    <string name="bl_conflict_replace_dek">Uska traffic isi pe aa jayega</string>
+    <string name="bl_conflict_replace">Replace</string>
+
+    <!-- ── Admin · leaving with unsaved work ──────────────────────────────── -->
+    <string name="bl_unsaved_heading">Save karna bhool rahe hain</string>
+    <string name="bl_unsaved_dek">Abhi tak ka kaam save nahi hua. Chhodne pe woh chala jayega.</string>
+    <string name="bl_unsaved_discard">Chhod dein</string>
+    <string name="bl_unsaved_save">Save draft</string>
+
+    <!-- ── Admin · published ──────────────────────────────────────────────── -->
+    <string name="bl_published_heading">Live ho gaya</string>
+    <string name="bl_published_dek">Google ko index karne me aam taur pe 2–5 din lagte hain.</string>
+    <string name="bl_published_copy">Copy</string>
+    <string name="bl_published_copied">Copied</string>
+    <string name="bl_published_view">View post</string>
+
+    <!-- ── Admin · unpublish ──────────────────────────────────────────────── -->
+    <string name="bl_unpublish_heading">Is post ko hata dein?</string>
+    <string name="bl_unpublish_dek">Ye post %1$s baar padhi gayi. Hatane pe URL 404 dene lagega aur Google ranking chali jayegi.</string>
+    <string name="bl_unpublish_advice">Behtar hoga ki isse draft me daal dein — URL zinda rahega.</string>
+    <string name="bl_unpublish_to_draft">Draft me daalein</string>
+    <string name="bl_unpublish_anyway">Phir bhi hata dein</string>
+
+    <!-- ── Admin · media ──────────────────────────────────────────────────── -->
+    <string name="bl_media_title">Media</string>
+    <string name="bl_media_upload">Upload</string>
+    <string name="bl_media_drop">Drop screenshots here</string>
+    <string name="bl_media_limits">PNG or JPEG · up to 8 MB</string>
+    <string name="bl_media_insert_heading">Insert image</string>
+    <string name="bl_media_upload_new">Upload new</string>
+    <string name="bl_media_alt">Alt text</string>
+    <string name="bl_media_alt_hint">· screen readers aur SEO ke liye</string>
+    <string name="bl_media_cancel">Cancel</string>
+    <string name="bl_media_insert">Insert</string>
+    <string name="bl_media_uploading">Uploading…</string>
+    <string name="bl_media_empty">Abhi koi image nahi hai.</string>
+
+    <!-- ── Admin · analytics ──────────────────────────────────────────────── -->
+    <string name="bl_analytics_title">Analytics</string>
+    <string name="bl_analytics_views">VIEWS</string>
+    <string name="bl_analytics_from_search">FROM SEARCH</string>
+    <string name="bl_analytics_installs">APP INSTALLS</string>
+    <string name="bl_analytics_top_posts">TOP POSTS</string>
+    <!-- One percent sign, not two: Compose Resources substitutes only the
+     numbered placeholders and passes everything else through, so Android's
+     "%%" escape reaches the screen as it is written. -->
+    <string name="bl_analytics_percent">%1$d%</string>
+
+    <!-- ── Admin · settings ───────────────────────────────────────────────── -->
+    <string name="bl_settings_title">Settings</string>
+    <string name="bl_settings_empty">Yahan abhi kuch nahi hai.</string>
+
+</resources>
