@@ -191,17 +191,36 @@ referrer restriction** does apply, and has to allow both
 `identitytoolkit.googleapis.com` and `securetoken.googleapis.com` — refreshing
 goes to a different host from signing in.
 
-## 7. Publishing — not wired yet
+## 7. Publishing
 
-`odoapp.in` is the Firebase Hosting site `odo-landing`, configured in
-`landing/firebase.json`; `/blog` is free there today. Publishing this module means
-copying the distribution into `landing/public/blog/`, adding a rewrite so
-`/blog/**` serves the app's own `index.html`, and giving those paths a
-`'wasm-unsafe-eval'` script policy — the site's existing per-path CSP rules would
-otherwise block the bundle from starting. `connect-src` has to allow
-`https://identitytoolkit.googleapis.com` and `https://securetoken.googleapis.com`
-as well, or the CMS cannot sign anybody in.
+Live at **https://odoapp.in/blog**, on the `odo-landing` Firebase Hosting site —
+the same site as the landing page and the legal documents.
 
-Both hosting configs follow one rule that is easy to break: **header sources must
-not overlap.** A `**` rule wins over a specific one whichever order they appear in,
-which is how the legal pages once lost the script policy the deletion page needs.
+```sh
+./gradlew :webApp:wasmJsBrowserDistribution
+rm -rf landing/public/blog && mkdir -p landing/public/blog
+cp -R webApp/build/dist/wasmJs/productionExecutable/. landing/public/blog/
+rm -f landing/public/blog/*.map landing/public/blog/*.LICENSE.txt
+cd landing && firebase deploy --only hosting --project odo-mobile-ba9aa
+```
+
+Source maps are dropped on the way: another 1.4 MB, and they hand out the whole
+source tree.
+
+Three things in `landing/firebase.json` make it work, and each of them has bitten
+once:
+
+- **Two rewrites**, `/blog` and `/blog/**`. Firebase matches literally and the
+  second does not cover the first. Static files still win, so `/blog/odo-blog.js`
+  serves the bundle and only unmatched paths fall through to the app.
+- **`'wasm-unsafe-eval'`** in `script-src`. Without it the bundle never starts and
+  the page sits on its boot placeholder.
+- **`base-uri 'self'`**, not `'none'`. The legal pages use `'none'` and are right
+  to; this page carries `<base href="/blog/">`, which is what makes a
+  three-segment path find its own resources. `'none'` drops the tag and the page
+  renders its data with none of its labels.
+
+Header sources must not overlap — a `**` rule wins over a specific one whichever
+order they appear in. The `**/*.png` and `**/*.svg` entries already there are why
+nothing under `/blog` may be a png or an svg served from this site; the post
+images come from Supabase storage instead.
