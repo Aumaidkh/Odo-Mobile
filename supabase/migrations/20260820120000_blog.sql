@@ -224,6 +224,9 @@ drop policy if exists blog_media_author_write on public.blog_media;
 create policy blog_media_author_write on public.blog_media
   for all using (public.is_blog_author()) with check (public.is_blog_author());
 
+-- Insert only. The client asks for `resolution=ignore-duplicates`, so subscribing
+-- twice does nothing; asking for merge-duplicates instead would need an UPDATE
+-- policy as well, and anon has no business rewriting a row it cannot even read.
 drop policy if exists blog_subscribers_insert on public.blog_subscribers;
 create policy blog_subscribers_insert on public.blog_subscribers
   for insert with check (true);
@@ -304,7 +307,12 @@ as $$
   where v.day > current_date - p_days
 $$;
 
+-- `revoke ... from public` is not enough. Supabase's default privileges grant
+-- EXECUTE on every new function directly to `anon` and `authenticated`, and a
+-- direct grant is not touched by revoking from PUBLIC. Without the second line a
+-- stranger can read the view counts — which is how check-blog.sh found this.
 revoke all on function public.blog_analytics(integer) from public;
+revoke all on function public.blog_analytics(integer) from anon;
 grant execute on function public.blog_analytics(integer) to authenticated;
 
 -- ── Keeping updated_at honest ───────────────────────────────────────────────

@@ -67,17 +67,63 @@ internal class Postgrest(
         body: String,
         serializer: KSerializer<T>,
         onConflict: String = "id",
+        /**
+         * True to let a duplicate pass silently instead of overwriting.
+         *
+         * Not a style choice: `merge-duplicates` is an INSERT ... ON CONFLICT DO
+         * UPDATE, which needs an UPDATE policy as well as an INSERT one. On a
+         * table anonymous readers may write to but never read — a subscriber list
+         * — granting UPDATE would let a stranger rewrite a row they cannot see.
+         */
+        ignoreDuplicates: Boolean = false,
     ): Either<BlogError, List<T>> = request {
         client.post("$baseUrl/rest/v1/$table?on_conflict=$onConflict") {
             headers()
             // `return=representation` so the caller gets the row as stored —
             // including the id the database just generated, which is the whole
             // reason a first save differs from the ones after it.
-            header("Prefer", "resolution=merge-duplicates,return=representation")
+            val resolution = if (ignoreDuplicates) "ignore-duplicates" else "merge-duplicates"
+            header("Prefer", "resolution=$resolution,return=representation")
             contentType(ContentType.Application.Json)
             setBody(body)
         }
     }.flatMap { text -> decode(ListSerializer(serializer), text) }
+
+    /**
+     * A plain `POST /rest/v1/{table}` — insert, and nothing clever.
+     *
+     * Separate from [upsert] because sending any `resolution=` preference at all
+     * makes PostgREST treat the request as an upsert, and an upsert wants an
+     * UPDATE policy even when it is told to ignore duplicates. On a table
+     * anonymous readers may write to but never read, granting UPDATE would let a
+     * stranger rewrite a row they cannot see — so the request has to stay an
+     * ordinary insert.
+     *
+     * [conflictIsFine] swallows the 409 a unique constraint produces. Subscribing
+     * twice is not something to report to the person doing it.
+     */
+    suspend fun insert(
+        table: String,
+        body: String,
+        conflictIsFine: Boolean = false,
+    ): Either<BlogError, Unit> {
+        val response = runCatching {
+            client.post("$baseUrl/rest/v1/$table") {
+                headers()
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }.getOrNull() ?: return BlogError.Offline.left()
+
+        if (response.status.isSuccess()) return Unit.right()
+        if (conflictIsFine && response.status == HttpStatusCode.Conflict) return Unit.right()
+
+        val text = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
+        return when (response.status) {
+            HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> BlogError.NotSignedIn
+            else -> BlogError.Unexpected("postgrest ${response.status.value}: ${text.take(200)}")
+        }.left()
+    }
 
     /** `PATCH /rest/v1/{table}` — a partial update over whatever [query] matches. */
     suspend fun patch(table: String, query: String, body: String): Either<BlogError, Unit> =

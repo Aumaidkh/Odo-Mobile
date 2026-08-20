@@ -32,7 +32,7 @@ fi
 pass=0
 fail=0
 
-# $1 label, $2 expected status, $3 path, $4.. extra curl args
+# $1 label, $2 expected status (or "a|b" for either), $3 path, $4.. extra curl args
 check() {
   label=$1
   expected=$2
@@ -41,7 +41,11 @@ check() {
   actual=$(curl -s -o /dev/null -w '%{http_code}' \
     -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
     "$@" "$URL$path")
-  if [ "$actual" = "$expected" ]; then
+  case "|$expected|" in
+    *"|$actual|"*) matched=yes ;;
+    *) matched=no ;;
+  esac
+  if [ "$matched" = yes ]; then
     printf '  ok    %s\n' "$label"
     pass=$((pass + 1))
   else
@@ -84,8 +88,15 @@ echo "what a reader may do"
 check       "counting a read is allowed"  204 "/rest/v1/rpc/blog_record_view" \
   -X POST -H 'Content-Type: application/json' \
   -d '{"p_slug":"__does-not-exist__","p_from_search":false}'
-check       "subscribing is allowed"      201 "/rest/v1/blog_subscribers" \
-  -X POST -H 'Content-Type: application/json' -H 'Prefer: resolution=merge-duplicates' \
+# No `Prefer: resolution=` — that turns the request into an upsert, which wants an
+# UPDATE policy this table deliberately does not have. The client sends a plain
+# insert for the same reason, so this has to as well or it checks the wrong thing.
+#
+# 201 the first time this script is ever run, 409 every time after, because the
+# address is the primary key and anon cannot delete what it wrote. Both mean the
+# insert was allowed, which is the thing being checked.
+check       "subscribing is allowed"  "201|409" "/rest/v1/blog_subscribers" \
+  -X POST -H 'Content-Type: application/json' \
   -d '{"email":"check-blog@odoapp.in"}'
 
 echo
@@ -94,7 +105,9 @@ check       "writing a post is refused"   401 "/rest/v1/blog_posts" \
   -X POST -H 'Content-Type: application/json' -d '{"title":"nope"}'
 check       "reading the analytics is refused" 401 "/rest/v1/rpc/blog_analytics" \
   -X POST -H 'Content-Type: application/json' -d '{"p_days":30}'
-check       "the account lookup is not exposed" 404 "/rest/v1/rpc/auth_user_id_by_email" \
+# 401, not 404: PostgREST still routes to the function and Postgres refuses it.
+# "Not found" would mean it had been dropped, which is a different thing to check.
+check       "the account lookup is not exposed" 401 "/rest/v1/rpc/auth_user_id_by_email" \
   -X POST -H 'Content-Type: application/json' -d '{"p_email":"someone@example.com"}'
 
 echo

@@ -142,21 +142,20 @@ internal class SupabaseBlogRepository(
         ).map { rows -> rows.map { it.toSummary() } }
 
     override suspend fun subscribe(email: String): Either<BlogError, Unit> =
-        // Upsert, so subscribing twice is not an error the reader has to see.
-        postgrest.upsert(
+        // A plain insert. Anything that asks PostgREST to resolve a conflict makes
+        // the request an upsert, and an upsert needs an UPDATE policy this table
+        // deliberately does not have. The 409 from subscribing twice is fine.
+        postgrest.insert(
             table = "blog_subscribers",
-            body = """[{"email":"${email.trim().jsonEscaped()}"}]""",
-            serializer = EmptyRow.serializer(),
-            onConflict = "email",
-        ).map { }
+            body = """{"email":"${email.trim().jsonEscaped()}"}""",
+            conflictIsFine = true,
+        )
 
     override suspend fun requestTopic(email: String, query: String): Either<BlogError, Unit> =
-        postgrest.upsert(
+        postgrest.insert(
             table = "blog_topic_requests",
-            body = """[{"email":"${email.trim().jsonEscaped()}","query":"${query.jsonEscaped()}"}]""",
-            serializer = EmptyRow.serializer(),
-            onConflict = "id",
-        ).map { }
+            body = """{"email":"${email.trim().jsonEscaped()}","query":"${query.jsonEscaped()}"}""",
+        )
 
     /**
      * Counts a read.
