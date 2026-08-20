@@ -86,7 +86,14 @@ data class Analytics(
     val views: Int,
     /** Whole percent, 0–100. The share of views that arrived from a search engine. */
     val searchSharePercent: Int,
-    val appInstalls: Int,
+    /**
+     * Null when nobody can say.
+     *
+     * Play install attribution is the only source and it does not reach this
+     * database. A zero would read as "nobody installed", which is a different
+     * claim entirely.
+     */
+    val appInstalls: Int?,
     val topPosts: List<TopPost>,
 )
 

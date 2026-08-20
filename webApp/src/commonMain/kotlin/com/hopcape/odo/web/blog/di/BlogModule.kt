@@ -1,8 +1,15 @@
 package com.hopcape.odo.web.blog.di
 
 import com.hopcape.odo.web.blog.data.SampleAdminRepository
+import com.hopcape.odo.web.blog.data.SampleAuthRepository
 import com.hopcape.odo.web.blog.data.SampleBlogRepository
-import com.hopcape.odo.web.blog.infrastructure.FirebaseAuthRepository
+import com.hopcape.odo.web.blog.infrastructure.BlogAuthRepository
+import com.hopcape.odo.web.blog.infrastructure.firebase.FirebaseSignIn
+import com.hopcape.odo.web.blog.infrastructure.supabase.BuildBlogConfig
+import com.hopcape.odo.web.blog.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseAdminRepository
+import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseBlogRepository
+import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseSession
 import com.hopcape.odo.web.blog.platform.tokenStore
 import io.ktor.client.HttpClient
 import com.hopcape.odo.web.blog.domain.AdminRepository
@@ -30,10 +37,9 @@ import org.koin.dsl.module
  * being sample data.
  *
  * The `single` lines below name implementations; everything above them asks for
- * the interface. Pointing the two sample ones at Supabase-backed classes is the
- * whole remaining integration on this side — no ViewModel, no screen and no test
- * has to move. Auth has already made that trip: the screens did not change when
- * it stopped being sample data.
+ * the interface. All three now have a real one behind them, and the switch is a
+ * single condition: credentials present, or not. No ViewModel, no screen and no
+ * test moved when they arrived.
  *
  * The repositories are singletons rather than factories because two of them hold
  * state that has to outlive a route: the session, and the edits made to a draft.
@@ -45,14 +51,71 @@ import org.koin.dsl.module
  */
 val blogModule: Module = module {
 
-    single<BlogRepository> { SampleBlogRepository() }
-    single<AdminRepository> { SampleAdminRepository(auth = get()) }
-
-    // Auth is the one thing here that is already real. The engine is not named:
-    // ktor-client-js is the only one on this module's classpath, so `HttpClient`
-    // finds it, and commonMain stays free of a browser type.
     single { HttpClient() }
-    single<AuthRepository> { FirebaseAuthRepository(client = get(), tokens = tokenStore()) }
+
+    /**
+     * Whether this checkout has a database to talk to.
+     *
+     * A clone with no `local.properties` still has to build and run — the sample
+     * repositories are what it gets, the same way the app keeps its fakes. Real
+     * credentials swap all three implementations at once; there is no state where
+     * half the blog is live.
+     */
+    single {
+        BlogBackend(
+            isLive = BuildBlogConfig.SUPABASE_URL.isNotBlank() && BuildBlogConfig.SUPABASE_ANON_KEY.isNotBlank(),
+        )
+    }
+
+    single {
+        SupabaseSession(
+            client = get(),
+            baseUrl = BuildBlogConfig.SUPABASE_URL,
+            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+            tokens = tokenStore(),
+        )
+    }
+
+    single {
+        Postgrest(
+            client = get(),
+            baseUrl = BuildBlogConfig.SUPABASE_URL,
+            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+            // Signed out this is null and PostgREST resolves the request as `anon`,
+            // which is exactly what the public side wants.
+            accessToken = { get<SupabaseSession>().accessToken() },
+        )
+    }
+
+    single<BlogRepository> {
+        if (get<BlogBackend>().isLive) SupabaseBlogRepository(postgrest = get()) else SampleBlogRepository()
+    }
+
+    single<AuthRepository> {
+        if (get<BlogBackend>().isLive) {
+            BlogAuthRepository(
+                firebase = FirebaseSignIn(client = get(), apiKey = FIREBASE_WEB_API_KEY),
+                supabase = get(),
+                postgrest = get(),
+            )
+        } else {
+            SampleAuthRepository()
+        }
+    }
+
+    single<AdminRepository> {
+        if (get<BlogBackend>().isLive) {
+            SupabaseAdminRepository(
+                postgrest = get(),
+                client = get(),
+                baseUrl = BuildBlogConfig.SUPABASE_URL,
+                anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+                accessToken = { get<SupabaseSession>().accessToken() },
+            )
+        } else {
+            SampleAdminRepository(auth = get())
+        }
+    }
 
     // Chrome — the nav categories, read once for the whole page rather than by
     // each screen that draws a header.
@@ -82,3 +145,23 @@ val blogModule: Module = module {
         EditorViewModel(postId = parameters.getOrNull<String>(), admin = get(), blog = get())
     }
 }
+
+
+/**
+ * The Firebase web API key.
+ *
+ * A public client identifier — the same class of value the app ships inside
+ * `google-services.json` and `web/build.ts` bakes into the account-deletion page.
+ * It names the project; it authorises nothing. What decides who may publish is
+ * `BLOG_AUTHOR_EMAILS` in the edge function's environment.
+ */
+/**
+ * Whether there is a database behind this build.
+ *
+ * A type rather than a bare `Boolean`, because Koin resolves by type and a second
+ * boolean binding anywhere in the graph would silently answer this question.
+ * Overriding it is also how a test asks for the sample repositories.
+ */
+data class BlogBackend(val isLive: Boolean)
+
+private const val FIREBASE_WEB_API_KEY = "AIzaSyB8A39cTEw-_4mtRntVatyf5ZWYhiwojUc"

@@ -194,7 +194,8 @@ fun AnalyticsScreen(
                     )
                     Stat(
                         label = stringResource(Res.string.bl_analytics_installs),
-                        value = analytics.appInstalls.grouped(),
+                        // A dash, not a zero: nothing here knows about installs.
+                        value = analytics.appInstalls?.grouped() ?: "—",
                         modifier = Modifier.weight(1f),
                     )
                 }

@@ -1,7 +1,7 @@
 package com.hopcape.odo.web.blog.presentation
 
-import com.hopcape.odo.web.blog.data.SampleAuthRepository
 import com.hopcape.odo.web.blog.data.SampleContent
+import com.hopcape.odo.web.blog.di.BlogBackend
 import com.hopcape.odo.web.blog.di.blogModule
 import com.hopcape.odo.web.blog.domain.AuthRepository
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorViewModel
@@ -37,9 +37,10 @@ class EditorWiringTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        // The real module wires Firebase; a later module wins in Koin, so this
-        // swaps auth back to the sample one rather than reaching the network.
-        startKoin { modules(blogModule, module { single<AuthRepository> { SampleAuthRepository() } }) }
+        // A later module wins in Koin, so saying there is no backend puts every
+        // repository back on sample data. Without it this test would reach the
+        // real Supabase project on any checkout that has credentials.
+        startKoin { modules(blogModule, module { single { BlogBackend(isLive = false) } }) }
     }
 
     @AfterTest

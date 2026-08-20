@@ -93,7 +93,47 @@ The production bundle lands in `webApp/build/dist/wasmJs/productionExecutable/`.
 Kotlin/Wasm needs a browser that supports the garbage-collection proposal —
 Chrome 119+, Firefox 120+, Safari 18.2+.
 
-## 5. Signing in
+## 5. The database
+
+Postgres, through PostgREST, in the same Supabase project the app uses. Tables are
+prefixed `blog_` and none of them references a car, a profile or an owner — the
+only join between the two worlds is an author whose email matches an
+`auth.users` account.
+
+```
+supabase/migrations/20260820120000_blog.sql         schema, RLS, the two RPCs
+supabase/migrations/20260820120100_blog_media_bucket.sql   storage for screenshots
+supabase/functions/blog-session/                    Firebase token → Supabase session
+supabase/seed_blog.sql                              the design's posts, once
+supabase/check-blog.sh                              asks the database what a stranger can see
+```
+
+**Reads are a policy, not a filter.** Every public call runs as `anon`, and the
+only rows that role can see are published ones. No query in the Kotlin says
+`status=eq.published`; that rule lives in one place, and a second copy is the one
+that drifts.
+
+**Writes need a claim.** `is_blog_author()` reads `blog_author` out of the JWT's
+`app_metadata`, which only `blog-session` stamps. An ordinary app account — every
+one of which signs in by phone — can never carry it.
+
+Three things are worth knowing before changing a query:
+
+- The body is `jsonb`, holding the same block list the app models. Nothing wants
+  to query inside a paragraph; what gets queried is the title and the dek, which
+  have a generated `tsvector` and a GIN index behind them. Search is
+  `websearch_to_tsquery`, not `ilike`.
+- Author and category come back **embedded** (`select=*,author:blog_authors(*)`),
+  so a grid of twelve bylines is one round trip rather than thirteen.
+- Payloads are written with `explicitNulls`. PostgREST reads an absent key as
+  "leave this column alone", so a field cleared in the CMS would otherwise keep
+  its old value.
+
+Credentials come from `local.properties` — the same `supabase.url` and
+`supabase.anonKey` the app reads. Without them `blogModule` keeps the sample
+repositories, so a clone with no credentials still builds and runs.
+
+## 6. Signing in
 
 The CMS authenticates against Firebase Auth over its **REST API**, not the
 Firebase JS SDK. Kotlin/Wasm has no `@JsModule`, so the SDK would need an npm
@@ -102,20 +142,19 @@ password sign-in is three endpoints and no bundling. What the SDK would have don
 for free — refreshing the token, remembering the session — is two small pieces of
 `infrastructure/FirebaseAuthRepository.kt`.
 
-Two things have to be true before anybody can sign in, and neither is code:
+Three steps, each somebody else's job: Firebase says the password is right,
+`blog-session` trades that token for a Supabase session carrying a `blog_author`
+claim, and Postgres says who that author is. After the first sign-in only the
+last two matter — what survives a reload is the Supabase refresh token, so coming
+back never touches Firebase.
 
-1. **Email/Password has to be enabled** on the Firebase project
-   (`odo-mobile-ba9aa`). It is off as this is written — the app signs users in by
-   phone — and the screen says so rather than pretending the password was wrong.
-2. **`FirebaseConfig.AUTHOR_EMAILS` has to name the authors.** It is empty, which
-   lets nobody in. That is deliberate: every account in this Firebase project is
-   an app user, so an empty list meaning "everybody" would open the CMS to anyone
-   who ever registered.
+**The author list is server-side.** `BLOG_AUTHOR_EMAILS` in the function's
+environment decides who may publish; an address not on it never receives a
+session, so RLS never sees the claim and every table stays shut. The client has no
+say, which is the point — a browser check is a courtesy, not a control.
 
-That list is a gate on the screen, **not security** — anybody with a developer
-console gets past it. The real check is a custom claim minted server-side and
-rules on whatever stores the posts, and it belongs with the backend that does not
-exist yet.
+Email/Password has to be enabled on the Firebase project, and the screen says so
+plainly when it is not rather than pretending the password was wrong.
 
 Two things that do not apply here but usually do: Firebase Auth's
 **authorized-domains** list governs the SDK's browser flows (Google, phone), not
@@ -124,7 +163,7 @@ referrer restriction** does apply, and has to allow both
 `identitytoolkit.googleapis.com` and `securetoken.googleapis.com` — refreshing
 goes to a different host from signing in.
 
-## 6. Publishing — not wired yet
+## 7. Publishing — not wired yet
 
 `odoapp.in` is the Firebase Hosting site `odo-landing`, configured in
 `landing/firebase.json`; `/blog` is free there today. Publishing this module means
