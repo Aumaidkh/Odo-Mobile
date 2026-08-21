@@ -63,7 +63,7 @@ internal class AndroidDetectedFillNotifier(
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsedView(notice))
             .setCustomBigContentView(expandedView(notice))
-            .setSmallIcon(R.drawable.ic_notification_fuel)
+            .setSmallIcon(R.drawable.ic_notification_odo)
             .setColor(ContextCompat.getColor(context, R.color.refuel_detected_accent))
             // Tell the launcher the accent is the brand rather than a hint, so the icon reads
             // as Odo's in a shade full of other apps.

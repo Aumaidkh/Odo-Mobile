@@ -27,6 +27,7 @@ import com.hopcape.odo.core.domain.trip.model.TripMode
 import com.hopcape.odo.core.domain.trip.model.TripStatus
 import com.hopcape.odo.core.domain.trip.repository.TripRepository
 import com.hopcape.odo.core.triptracker.BondedDevice
+import com.hopcape.odo.core.triptracker.DefaultTripTracker
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
 import com.hopcape.odo.core.triptracker.TrackingPreconditions
@@ -301,6 +302,97 @@ class TripTrackerEngineTest {
         assertTrue(env.engine.status.value !is TrackingStatus.Tracking)
     }
 
+    // ---- #271: arming on a phone that is already connected ----
+
+    /**
+     * The regression test for #271. Presence is fed by ACL broadcasts alone, so a process that
+     * arms while the phone is already connected to the car used to sit in Standby waiting for
+     * a broadcast that had already fired — the owner got in, the stereo connected, and only
+     * then did setup finish or the app come up. Nothing was tracked until the next drive.
+     *
+     * Fails without the `startIfConnected()` seed in [DefaultTripTracker.setEnabled].
+     */
+    @Test
+    fun armFromPersistedState_startsTracking_whenTheCarIsAlreadyConnected() = runTest {
+        val catalog = connectedCatalog(isConnectedNow = true)
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        val tracker = env.tracker()
+
+        tracker.armFromPersistedState()
+        env.advance()
+
+        // Armed and asking for fixes, but the speed gate has not confirmed — a car parked with
+        // the stereo on must not become a trip.
+        assertTrue(env.engine.status.value !is TrackingStatus.Tracking)
+
+        for (tick in 0..2) {
+            env.fixes.emit(TraceBuilder.sample(tick = tick, lat = 19.00, lon = 72.80, accuracyM = 10f, speedMps = 30f))
+            env.advance()
+        }
+        assertTrue(env.engine.status.value is TrackingStatus.Tracking, "the drive the owner is on right now")
+    }
+
+    @Test
+    fun armFromPersistedState_staysInStandby_whenTheCarIsNotConnected() = runTest {
+        val catalog = connectedCatalog(isConnectedNow = false)
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        val tracker = env.tracker()
+
+        tracker.armFromPersistedState()
+        env.advance()
+
+        for (tick in 0..2) {
+            env.fixes.emit(TraceBuilder.sample(tick = tick, lat = 19.00, lon = 72.80, accuracyM = 10f, speedMps = 30f))
+            env.advance()
+        }
+        assertTrue(env.engine.status.value !is TrackingStatus.Tracking)
+        assertEquals(0, env.tripRepository.added.size)
+    }
+
+    /**
+     * The seed and the real broadcast can both land — the owner connects, the process wakes,
+     * the receiver arms and then delivers the very event that woke it. That must arm once, not
+     * twice. The guarantee comes from the state machine treating a repeated `PresenceConnected`
+     * in Standby as a no-op; this pins it at the level the fix relies on.
+     */
+    @Test
+    fun aSeedFollowedByTheRealBroadcast_startsExactlyOneTrip() = runTest {
+        val catalog = connectedCatalog(isConnectedNow = true)
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        val tracker = env.tracker()
+
+        tracker.armFromPersistedState()
+        env.advance()
+        env.presence.emit(VehiclePresence.Connected("aa:bb"))
+        env.advance()
+
+        for (tick in 0..2) {
+            env.fixes.emit(TraceBuilder.sample(tick = tick, lat = 19.00, lon = 72.80, accuracyM = 10f, speedMps = 30f))
+            env.advance()
+        }
+        assertTrue(env.engine.status.value is TrackingStatus.Tracking)
+        assertEquals(1, env.foregroundSession.started, "one arm, one foreground session")
+    }
+
+    @Test
+    fun disablingTracking_neverReadsPresence() = runTest {
+        val catalog = connectedCatalog(isConnectedNow = true)
+        val env = Env(this, parked = null, bondedDeviceCatalog = catalog)
+        val tracker = env.tracker()
+        tracker.armFromPersistedState()
+        env.advance()
+        val readsAfterArming = catalog.reads
+
+        tracker.setEnabled(false)
+        env.advance()
+
+        assertEquals(readsAfterArming, catalog.reads, "turning tracking off has no presence to seed")
+    }
+
+    private fun connectedCatalog(isConnectedNow: Boolean) = FakeBondedDeviceCatalog(
+        listOf(BondedDevice(id = "aa:bb", name = "Car Stereo", category = DeviceCategory.CAR_AUDIO, isConnectedNow = isConnectedNow)),
+    )
+
     // ---- test harness ----
 
     private inner class Env(
@@ -346,6 +438,18 @@ class TripTrackerEngineTest {
             // cancels them at all — runTest would otherwise fail on leftover jobs.
             scope = scope.backgroundScope,
             now = { baseInstant + scope.currentTime.milliseconds },
+        )
+
+        /**
+         * A real [DefaultTripTracker] over this env's engine — the pair whose seam #271 lived
+         * in. The bond and `trackerEnabled` are what `armFromPersistedState` reads before it
+         * decides to arm at all.
+         */
+        fun tracker() = DefaultTripTracker(
+            engine = engine,
+            telemetry = telemetry,
+            vehicleBondStore = FakeVehicleBondStore(VehicleBond(car.id, "aa:bb", TriggerMode.STEREO)),
+            settings = FakeSettings(trackerEnabled = true),
         )
 
         suspend fun enableAndSettleCar() {
@@ -451,7 +555,14 @@ private class FakeVehicleBondStore(private val bond: VehicleBond?) : VehicleBond
 }
 
 private class FakeBondedDeviceCatalog(private val devices: List<BondedDevice> = emptyList()) : BondedDeviceCatalog {
-    override suspend fun devices(): List<BondedDevice> = devices
+    /** How many times presence was actually read — what proves a seed did or did not happen. */
+    var reads = 0
+        private set
+
+    override suspend fun devices(): List<BondedDevice> {
+        reads++
+        return devices
+    }
 }
 
 private object FakeTrackingPreconditions : TrackingPreconditions {
@@ -492,9 +603,15 @@ private class FakeTripRepository(var parked: ParkedLocation?) : TripRepository {
 }
 
 /** Settings holding just the one flag the finalizer reads. */
-private class FakeSettings(keepTripRoutes: Boolean = true) : AppSettingsRepository {
+private class FakeSettings(
+    keepTripRoutes: Boolean = true,
+    trackerEnabled: Boolean = false,
+) : AppSettingsRepository {
     private val stored = MutableStateFlow(
-        AppSettings.Default.copy(privacy = PrivacyPreferences(keepTripRoutes = keepTripRoutes)),
+        AppSettings.Default.copy(
+            privacy = PrivacyPreferences(keepTripRoutes = keepTripRoutes),
+            trackerEnabled = trackerEnabled,
+        ),
     )
     override fun observe(): Flow<AppSettings> = stored
     override suspend fun save(settings: AppSettings): Either<DomainError, AppSettings> {

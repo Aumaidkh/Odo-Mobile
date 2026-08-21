@@ -7,11 +7,14 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import com.hopcape.odo.core.triptracker.BluetoothRadio
 import com.hopcape.odo.core.triptracker.BondedDevice
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.VehicleBondStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.GlobalContext
 import org.koin.dsl.module
@@ -113,6 +116,12 @@ internal fun resetAutoOdometer() {
  * tracking session against fabricated data, which this suite has no interest in exercising.
  * The owner picks it manually from "OTHER PAIRED DEVICES" instead, which still exercises
  * every step the plan asks for (grouping, selection, enroll).
+ *
+ * [BluetoothRadio] is faked to read on alongside it, for the same reason and in the same
+ * breath: the picker gates its list on the radio as well as on the catalog, so an emulator
+ * with Bluetooth switched off would draw the radio-off card and this suite would never reach
+ * the device list at all. Faking one without the other would make these tests pass or fail on
+ * a setting of the host machine.
  */
 internal fun installFakeBondedDeviceCatalog(devices: List<BondedDevice>) {
     GlobalContext.get().loadModules(
@@ -121,6 +130,11 @@ internal fun installFakeBondedDeviceCatalog(devices: List<BondedDevice>) {
                 single<BondedDeviceCatalog> {
                     object : BondedDeviceCatalog {
                         override suspend fun devices(): List<BondedDevice> = devices
+                    }
+                }
+                single<BluetoothRadio> {
+                    object : BluetoothRadio {
+                        override val enabled: Flow<Boolean> = flowOf(true)
                     }
                 }
             },

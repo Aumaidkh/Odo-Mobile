@@ -51,6 +51,8 @@ keystore/
 # Regenerated on every build from the Gradle dependency graph; not a hand-authored
 # lockfile worth reviewing in a diff.
 .swiftpm-locks/
+/androidApp/src/debug/google-services.json
+/androidApp/src/stage/google-services.json
 /docs/PlayConsole-Readiness-Report.pdf
 
 # The Supabase CLI project at the repo root. The CLI's own scratch (.branches, .temp) is

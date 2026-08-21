@@ -192,7 +192,14 @@ private fun ScanCtaCard(onScanBill: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OdoText(stringResource(Res.string.sl_scan_cta_title), style = OdoTheme.typography.heading)
+                    // fill = false: the badge is measured first at its intrinsic width and
+                    // the title wraps — otherwise a large font scale squeezes the badge into
+                    // a one-letter-per-line column.
+                    OdoText(
+                        stringResource(Res.string.sl_scan_cta_title),
+                        style = OdoTheme.typography.heading,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     OdoBadge(stringResource(Res.string.sl_scan_cta_fastest), tone = OdoBadgeTone.Accent)
                 }
                 OdoText(

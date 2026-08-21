@@ -304,7 +304,15 @@ internal fun InlineLinkRow(
                 size = OdoTheme.iconSizes.medium,
             )
         }
-        OdoText(prompt, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+        // fill = false: the action label is measured first at its intrinsic width
+        // and the prompt wraps — otherwise a large font scale squeezes the action
+        // into a one-letter-per-line column.
+        OdoText(
+            prompt,
+            style = OdoTheme.typography.bodySmall,
+            color = OdoTheme.colors.textDim,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         OdoText(
             text = action,
             style = OdoTheme.typography.label.copy(fontWeight = FontWeight.Bold),
