@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.LocalContext
  * release application IDs pointing at their own listings.
  */
 @Composable
-actual fun rememberStoreRater(): () -> Unit {
+actual fun rememberStoreRater(): (() -> Unit)? {
     val context = LocalContext.current
     return remember(context) {
         {

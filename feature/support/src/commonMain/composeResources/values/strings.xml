@@ -2,14 +2,16 @@
 <resources>
     <!-- Help & support hub (sheet) -->
     <string name="sp_title">Help &amp; support</string>
-    <string name="sp_subtitle">Usually replies within 24 hours</string>
+    <string name="sp_subtitle">We read every message that comes in</string>
     <string name="sp_close">Close</string>
     <string name="sp_search">Search help articles</string>
 
     <!-- Get in touch -->
     <string name="sp_section_contact">GET IN TOUCH</string>
     <string name="sp_email">Email us</string>
-    <string name="sp_email_address">support.odo.in@gmail.com</string>
+    <!-- Subject on the blank draft the "Email us" row opens. The feedback forms set
+         their own, more specific, subject. -->
+    <string name="sp_email_subject">Odo support</string>
 
     <!-- Share feedback -->
     <string name="sp_section_feedback">SHARE FEEDBACK</string>

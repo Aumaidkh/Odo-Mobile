@@ -30,7 +30,6 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_close
 import com.hopcape.odo.feature.support.resources.sp_email
-import com.hopcape.odo.feature.support.resources.sp_email_address
 import com.hopcape.odo.feature.support.resources.sp_faqs
 import com.hopcape.odo.feature.support.resources.sp_flag
 import com.hopcape.odo.feature.support.resources.sp_flag_sub
@@ -60,12 +59,16 @@ import org.jetbrains.compose.resources.stringResource
  * makes no decision; each callback pushes the row's own destination. The sheet chrome
  * (drag handle, scrim, swipe-to-dismiss) comes from the navigation layer.
  *
+ * The support address is passed in rather than read from a resource — it is configured
+ * remotely, so it is not a constant this file could hold.
+ *
  * Every value shown here is real. Live chat and ticket history were removed rather than
  * left showing sample data: both need a support backend and somebody answering, and a row
  * that opens nothing is worse than a row that is not there.
  */
 @Composable
 internal fun HelpSupportSheetContent(
+    supportEmail: String,
     versionName: String,
     versionCode: Long,
     onClose: () -> Unit,
@@ -74,9 +77,9 @@ internal fun HelpSupportSheetContent(
     onReportProblem: () -> Unit,
     onSuggestIdea: () -> Unit,
     onFlagPriceData: () -> Unit,
-    onRate: () -> Unit,
+    onRate: (() -> Unit)?,
     onFaqs: () -> Unit,
-    onTerms: () -> Unit,
+    onTerms: (() -> Unit)?,
     onPrivacy: () -> Unit,
     onLicences: () -> Unit,
     onSendDiagnostics: () -> Unit,
@@ -90,7 +93,9 @@ internal fun HelpSupportSheetContent(
             SupportRow(
                 icon = IcEnvelope,
                 title = stringResource(Res.string.sp_email),
-                subtitle = stringResource(Res.string.sp_email_address),
+                // The address itself, not a fixed line about it: it is configured
+                // remotely, and a row naming the wrong mailbox is worse than one naming none.
+                subtitle = supportEmail,
                 onClick = onEmail,
             )
         }
@@ -120,14 +125,18 @@ internal fun HelpSupportSheetContent(
                 onClick = onFlagPriceData,
                 iconTint = OdoTheme.colors.textDim,
             )
-            OdoDivider()
-            SupportRow(
-                icon = IcStarFilled,
-                title = stringResource(Res.string.sp_rate),
-                subtitle = stringResource(Res.string.sp_rate_sub),
-                onClick = onRate,
-                iconTint = OdoTheme.colors.warning,
-            )
+            // Left out entirely where there is no store listing to open, rather than shown
+            // as a row that swallows the tap. The divider goes with it.
+            if (onRate != null) {
+                OdoDivider()
+                SupportRow(
+                    icon = IcStarFilled,
+                    title = stringResource(Res.string.sp_rate),
+                    subtitle = stringResource(Res.string.sp_rate_sub),
+                    onClick = onRate,
+                    iconTint = OdoTheme.colors.warning,
+                )
+            }
         }
 
         SectionLabel(stringResource(Res.string.sp_section_resources))
@@ -139,7 +148,11 @@ internal fun HelpSupportSheetContent(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
             OdoChip(stringResource(Res.string.sp_faqs), onClick = onFaqs)
-            OdoChip(stringResource(Res.string.sp_terms), onClick = onTerms)
+            // Same rule as the privacy screen's outbound rows: an unconfigured build has no
+            // address to send anyone to, so the chip is absent rather than dead.
+            if (onTerms != null) {
+                OdoChip(stringResource(Res.string.sp_terms), onClick = onTerms)
+            }
             OdoChip(stringResource(Res.string.sp_privacy), onClick = onPrivacy)
             OdoChip(stringResource(Res.string.sp_licences), onClick = onLicences)
         }

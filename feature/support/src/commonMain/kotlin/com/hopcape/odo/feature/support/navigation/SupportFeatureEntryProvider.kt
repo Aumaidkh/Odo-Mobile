@@ -6,6 +6,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.odo.core.domain.legal.LegalLinks
+import com.hopcape.odo.core.domain.support.SupportContacts
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -16,6 +17,7 @@ import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.DeviceInfo
 import com.hopcape.odo.core.platform.mail.MailDraft
 import com.hopcape.odo.core.platform.mail.rememberMailComposer
+import com.hopcape.odo.core.platform.store.rememberStoreRater
 import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
@@ -25,7 +27,7 @@ import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
 import com.hopcape.odo.feature.support.presentation.feedback.FeedbackScreen
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
-import com.hopcape.odo.feature.support.resources.sp_email_address
+import com.hopcape.odo.feature.support.resources.sp_email_subject
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_subject
 import com.hopcape.odo.feature.support.resources.sp_fb_idea_intro
@@ -54,9 +56,11 @@ import org.jetbrains.compose.resources.stringResource
  * its screen is built, which is why they are registered individually rather than folded
  * into one catch-all entry.
  *
- * [OdoDestination.Support.Email] and [OdoDestination.Support.Rate] end in a system
- * hand-off (a mail composer, the Play Store listing), so they hold a placeholder only
- * until `:core:platform` can perform the intent — then they leave the graph entirely.
+ * Email, Rate and Terms have no destination at all. Each ends in a system hand-off — a mail
+ * composer, the store listing, a browser — and a navigation key that exists only to bounce
+ * straight back out would put an empty screen in the back stack for no reason. They are
+ * called from the sheet directly, which is also why the sheet is popped first: returning
+ * from the mail app should land on Profile, not on the sheet that opened it.
  */
 internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
@@ -64,13 +68,24 @@ internal class SupportFeatureEntryProvider(
     private val appInfo: AppInfo,
     private val deviceInfo: DeviceInfo,
     private val legalLinks: LegalLinks,
+    private val supportContacts: SupportContacts,
 ) : FeatureEntryProvider {
 
     private val nm get() = navigationManager
 
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Support.Help>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
+            val composeMail = rememberMailComposer()
+            val openStoreListing = rememberStoreRater()
+            val uriHandler = LocalUriHandler.current
+            val supportEmail = supportContacts.email
+            val emailSubject = stringResource(Res.string.sp_email_subject)
+            // Blank means the build has no backend configured, and there is no Terms page to
+            // open. The chip is left out rather than opening nothing.
+            val termsUrl = legalLinks.termsOfUse.takeIf { it.isNotBlank() }
+
             HelpSupportSheetContent(
+                supportEmail = supportEmail,
                 // Read from the installed package rather than from BuildInfo's compile-time
                 // constants: this line ends up in a support ticket, so it should say what the
                 // owner actually has installed.
@@ -78,13 +93,23 @@ internal class SupportFeatureEntryProvider(
                 versionCode = appInfo.versionCode,
                 onClose = { nm.back() },
                 onSearch = { nm.navigateTo(OdoDestination.Support.Search) },
-                onEmail = { nm.navigateTo(OdoDestination.Support.Email) },
+                // Straight to a blank draft. There is no screen worth showing between a row
+                // that says "Email us" and the mail app: an empty form asking the same
+                // question the composer is about to ask is a step, not a help.
+                onEmail = {
+                    nm.back()
+                    composeMail(MailDraft(to = supportEmail, subject = emailSubject, body = ""))
+                },
                 onReportProblem = { nm.navigateTo(OdoDestination.Support.ReportProblem) },
                 onSuggestIdea = { nm.navigateTo(OdoDestination.Support.SuggestIdea) },
                 onFlagPriceData = { nm.navigateTo(OdoDestination.Support.FlagPriceData) },
-                onRate = { nm.navigateTo(OdoDestination.Support.Rate) },
+                // Null on a platform with no listing, and the row is then absent.
+                onRate = openStoreListing?.let { open -> { nm.back(); open() } },
                 onFaqs = { nm.navigateTo(OdoDestination.Support.Faqs) },
-                onTerms = { nm.navigateTo(OdoDestination.Support.Terms) },
+                // The published document in a browser, like the privacy screen's own Terms
+                // row. Deliberately not an in-app web view: hiding the address of a document
+                // whose point is being verifiable defeats it.
+                onTerms = termsUrl?.let { url -> { uriHandler.openUri(url) } },
                 onPrivacy = { nm.navigateTo(OdoDestination.Support.Privacy) },
                 onLicences = { nm.navigateTo(OdoDestination.Support.Licences) },
                 // "Send diagnostics" (docs/LOGGING_PLAN.md §9): queues an upload of whatever
@@ -96,7 +121,6 @@ internal class SupportFeatureEntryProvider(
         }
 
         entry<OdoDestination.Support.Search> { SupportSearchScreen(onBack = { nm.back() }) }
-        entry<OdoDestination.Support.Email> { Placeholder(Res.string.sp_email) }
         entry<OdoDestination.Support.ReportProblem> {
             FeedbackRoute(
                 title = Res.string.sp_report,
@@ -118,9 +142,7 @@ internal class SupportFeatureEntryProvider(
                 subject = Res.string.sp_fb_flag_subject,
             )
         }
-        entry<OdoDestination.Support.Rate> { Placeholder(Res.string.sp_rate) }
         entry<OdoDestination.Support.Faqs> { FaqsScreen(onBack = { nm.back() }) }
-        entry<OdoDestination.Support.Terms> { Placeholder(Res.string.sp_terms) }
         entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
         entry<OdoDestination.Support.Licences> { Placeholder(Res.string.sp_licences) }
     }
@@ -142,7 +164,7 @@ internal class SupportFeatureEntryProvider(
         subject: StringResource,
     ) {
         val composeMail = rememberMailComposer()
-        val supportAddress = stringResource(Res.string.sp_email_address)
+        val supportAddress = supportContacts.email
         val subjectText = stringResource(subject)
         val footer = stringResource(
             Res.string.sp_fb_mail_footer,

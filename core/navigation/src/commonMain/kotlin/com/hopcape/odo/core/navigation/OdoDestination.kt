@@ -559,9 +559,6 @@ sealed interface OdoDestination : NavKey {
         /** Search the help articles — reached from the hub's search box. */
         @Serializable
         data object Search : Support
-        /** Email support — hands a prefilled draft to the mail app. */
-        @Serializable
-        data object Email : Support
         /** "Something broken or wrong" — a bug report form. */
         @Serializable
         data object ReportProblem : Support
@@ -571,15 +568,9 @@ sealed interface OdoDestination : NavKey {
         /** "A benchmark looks off" — dispute a fairness price data point. */
         @Serializable
         data object FlagPriceData : Support
-        /** Rate Odo — a Play Store hand-off once the platform layer exists. */
-        @Serializable
-        data object Rate : Support
         /** Frequently asked questions. */
         @Serializable
         data object Faqs : Support
-        /** Terms of service. */
-        @Serializable
-        data object Terms : Support
         /** Privacy policy. */
         @Serializable
         data object Privacy : Support

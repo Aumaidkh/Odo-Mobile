@@ -26,6 +26,9 @@ val supportModule = module {
             // `supabaseModule`, which derives them from the configured project URL; a build
             // with no backend gets blanks and the outbound rows are left out.
             legalLinks = get(),
+            // Where support mail goes. Configured in the Firebase console and falling back
+            // to the address compiled into the build, so it is never blank.
+            supportContacts = get(),
         )
     } bind FeatureEntryProvider::class
 }
