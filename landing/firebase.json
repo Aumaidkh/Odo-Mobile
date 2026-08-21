@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "//": "Pinned to its own site. Without this both this config and the root firebase.json deployed to odo-mobile-ba9aa, so whichever ran last replaced the other \u2014 that is how the legal pages became 404 while the store listing pointed at them. odoapp.in maps here; legal.odoapp.in maps to the root config's site.",
+    "//": "Pinned to its own site. Without this both this config and the root firebase.json deployed to odo-mobile-ba9aa, so whichever ran last replaced the other — that is how the legal pages became 404 while the store listing pointed at them. odoapp.in maps here; legal.odoapp.in maps to the root config's site.",
     "site": "odo-landing",
     "public": "public",
     "cleanUrls": true,

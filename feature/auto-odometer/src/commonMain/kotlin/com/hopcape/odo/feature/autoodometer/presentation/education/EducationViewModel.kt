@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -40,16 +41,36 @@ internal class EducationViewModel(
     fun onEvent(event: EducationEvent) {
         when (event) {
             EducationEvent.CtaTapped -> ctaTapped()
+            is EducationEvent.NotificationStatusObserved ->
+                _state.update { it.copy(notifications = event.status) }
             EducationEvent.CloseTapped -> send(EducationEffect.NavigateBack)
         }
     }
 
+    /**
+     * The CTA now leads to the notification step when there is a prompt left to raise, and
+     * straight on when there is not.
+     *
+     * It used to fire the `POST_NOTIFICATIONS` request itself and navigate in the same breath,
+     * which drew the system dialog on top of the next screen's rationale — the owner was asked
+     * about notifications by a screen that had never mentioned them, over a page arguing for a
+     * different permission entirely. The ask is a page of its own now, and this decides only
+     * whether that page is worth showing.
+     */
     private fun ctaTapped() {
-        val effect = when (_state.value.mode) {
-            TriggerMode.STEREO -> EducationEffect.NavigateToDevicePicker
-            TriggerMode.NO_STEREO -> EducationEffect.NavigateToPermissionSetup(TriggerMode.NO_STEREO)
+        val state = _state.value
+        if (state.shouldExplainNotifications) {
+            send(EducationEffect.NavigateToNotificationRationale(state.mode))
+            return
         }
-        send(effect)
+        telemetry.notificationStepSkipped(state.notifications.name)
+        send(onwardFor(state.mode))
+    }
+
+    /** Where the flow goes once notifications are settled — the branch this screen has always made. */
+    private fun onwardFor(mode: TriggerMode): EducationEffect = when (mode) {
+        TriggerMode.STEREO -> EducationEffect.NavigateToDevicePicker
+        TriggerMode.NO_STEREO -> EducationEffect.NavigateToPermissionSetup(TriggerMode.NO_STEREO)
     }
 
     private fun send(effect: EducationEffect) {

@@ -82,6 +82,9 @@ class OdoDestinationSerializationTest {
         OdoDestination.AutoOdometer.Education(
             mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
         ),
+        OdoDestination.AutoOdometer.NotificationRationale(
+            mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
+        ),
         OdoDestination.AutoOdometer.DevicePicker,
         OdoDestination.AutoOdometer.PermissionSetup(
             mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
@@ -136,15 +139,11 @@ class OdoDestinationSerializationTest {
         // Support
         OdoDestination.Support.Help,
         OdoDestination.Support.Search,
-        OdoDestination.Support.Chat,
-        OdoDestination.Support.Email,
-        OdoDestination.Support.Tickets,
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
         OdoDestination.Support.FlagPriceData,
         OdoDestination.Support.Rate,
         OdoDestination.Support.Faqs,
-        OdoDestination.Support.Terms,
         OdoDestination.Support.Privacy,
         OdoDestination.Support.Licences,
         // Auth — `next` is itself a destination, so these also cover a key nested in a key.

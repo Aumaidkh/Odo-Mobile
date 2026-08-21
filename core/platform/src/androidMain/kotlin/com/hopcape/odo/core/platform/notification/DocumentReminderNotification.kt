@@ -45,7 +45,7 @@ internal object DocumentReminderNotification {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.document_reminder_body, formatDate(expiresOn)))
-            .setSmallIcon(R.drawable.ic_notification_document)
+            .setSmallIcon(R.drawable.ic_notification_odo)
             .setColor(ContextCompat.getColor(context, R.color.document_reminder_accent))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

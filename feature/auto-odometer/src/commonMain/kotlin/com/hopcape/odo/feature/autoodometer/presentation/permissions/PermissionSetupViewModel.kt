@@ -3,10 +3,12 @@ package com.hopcape.odo.feature.autoodometer.presentation.permissions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup
 import com.hopcape.odo.feature.autoodometer.domain.usecase.EnrollTriggerDevice
+import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveRecentDrives
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -27,34 +29,71 @@ import kotlinx.coroutines.launch
  * [PermissionSetupEvent.StatusObserved]; this class only decides which step is on screen and
  * when the checklist is done. It never touches a platform permission API directly.
  *
- * Notifications is soft-required: declined or blocked, it still lets the checklist finish,
- * because `TrackingReadiness.canTrack` in `:core:triptracker` never reads it — only fine
- * location (and activity recognition on the NO_STEREO path) actually gate tracking. Fine
- * location and activity recognition are load-bearing, so the checklist stays on that step
- * until it is granted.
+ * Background location is the one step the owner can decline and still finish. `TriggerArming`
+ * arms its triggers without it, so a drive taken with the app open is still measured — what is
+ * lost is the drive nobody was there for. That is worth a page of argument and not worth a
+ * locked door, and the trip-logged screen makes the case again later from a drive that really
+ * happened. Fine location and activity recognition are load-bearing: nothing arms without them,
+ * so the flow stays on that step until it is granted.
+ *
+ * The one step this class performs itself is [PermissionSetupStep.AUTOSTART], because there is
+ * no controller for the route host to hold: the manufacturer's autostart switch is not an
+ * Android permission. [BackgroundStartAccess] both says whether this build has one and opens
+ * its page.
  */
 internal class PermissionSetupViewModel(
     mode: TriggerMode,
     private val enrollTriggerDevice: EnrollTriggerDevice,
     private val completeSetup: CompleteSetup,
+    private val observeRecentDrives: ObserveRecentDrives,
     private val activeCar: ActiveCarProvider,
+    private val backgroundStart: BackgroundStartAccess,
     private val telemetry: AutoOdometerTelemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        PermissionSetupUiState(mode = mode, steps = stepsFor(mode).map { PermissionStepState(step = it) }),
+        PermissionSetupUiState(
+            mode = mode,
+            // Read once, here, not per frame: it is a manufacturer match, so the answer cannot
+            // change while setup is on screen, and a step list that grew mid-flow would move the
+            // counter under the owner.
+            steps = stepsFor(mode, needsAutostart = backgroundStart.needsAttention())
+                .map { PermissionStepState(step = it) },
+        ),
     )
     val state: StateFlow<PermissionSetupUiState> = _state.asStateFlow()
 
     private val _effects = Channel<PermissionSetupEffect>(Channel.BUFFERED)
     val effects: Flow<PermissionSetupEffect> = _effects.receiveAsFlow()
 
+    init {
+        loadRecentDrives()
+    }
+
+    /**
+     * The owner's last few drives, for the background-location step to argue from.
+     *
+     * Read once, on entry. During a first-time setup it comes back empty and the step falls back
+     * to plain copy — the car has not moved yet. It fills for the owner who declined this step,
+     * drove, and came back, which is exactly when the argument is worth making from their own
+     * record rather than a claim.
+     */
+    private fun loadRecentDrives() {
+        viewModelScope.launch(telemetry.op(TRACE_RECENT_DRIVES)) {
+            val carId = activeCar.activeCarId.value ?: return@launch
+            val drives = runCatching { observeRecentDrives(carId) }
+                .onFailure { telemetry.nonFatal(it, stage = STAGE_RECENT_DRIVES) }
+                .getOrDefault(emptyList())
+            _state.update { it.copy(recentDrives = drives) }
+        }
+    }
+
     fun onEvent(event: PermissionSetupEvent) {
         when (event) {
             is PermissionSetupEvent.StatusObserved -> statusObserved(event.step, event.status)
             PermissionSetupEvent.ContinueTapped -> continueTapped()
             PermissionSetupEvent.SkipTapped -> skipTapped()
-            PermissionSetupEvent.BackTapped -> send(PermissionSetupEffect.NavigateBack)
+            PermissionSetupEvent.BackTapped -> backTapped()
         }
     }
 
@@ -88,24 +127,84 @@ internal class PermissionSetupViewModel(
      * advance past this step, so it comes back on screen instead.
      */
     private fun resurfaceRevokedStep(index: Int) {
-        _state.update { it.copy(currentIndex = index) }
+        _state.update { it.copy(currentIndex = index, onHandoff = false) }
     }
 
     /**
-     * The primary CTA. Marks [current][PermissionSetupUiState.current] as attempted so a
-     * non-grant answer shows the denial row instead of the priming card again; the actual
-     * system dialog / settings hand-off is fired by the route host, which is the only layer
-     * holding the platform controller.
+     * The primary button, on whichever page of the step it was pressed.
+     *
+     * On a step whose ask ends in a system screen, the first press only moves to the drawing of
+     * it. Only the press after that asks — and it marks the step as attempted, so a non-grant
+     * answer shows the denial row rather than the same argument a second time.
      */
     private fun continueTapped() {
+        val current = _state.value.current ?: return
+        if (current.step == PermissionSetupStep.AUTOSTART) {
+            autostartContinued(opened = current.askedOnce)
+            return
+        }
+        if (current.step.hasHandoff && !_state.value.onHandoff) {
+            _state.update { it.copy(onHandoff = true) }
+            return
+        }
         val index = _state.value.currentIndex
-        if (_state.value.current == null) return
         _state.update { s -> s.copy(steps = s.steps.replaceAskedOnce(index)) }
+        send(
+            PermissionSetupEffect.RequestPermission(
+                step = current.step,
+                blocked = current.status == PermissionStatus.Blocked,
+            ),
+        )
+    }
+
+    /**
+     * The autostart step's button, which does what its label says at the time.
+     *
+     * Not yet [opened]: hand off to the manufacturer's page. Nothing here is a permission, so
+     * there is no dialog and no result — [BackgroundStartAccess.open] only reports whether a
+     * page was found, and a build where none was is told to the owner rather than pretended at.
+     *
+     * Already opened: the press is the owner saying the switch is on. No API can check that, so
+     * their word is the only confirmation there will ever be, and setup moves on.
+     */
+    private fun autostartContinued(opened: Boolean) {
+        val index = _state.value.currentIndex
+        if (opened) {
+            telemetry.autostartStepAnswered(AutoOdometerTelemetry.Autostart.CONFIRMED)
+            advanceFrom(index)
+            return
+        }
+        val pageFound = backgroundStart.open()
+        telemetry.autostartStepAnswered(
+            if (pageFound) AutoOdometerTelemetry.Autostart.OPENED else AutoOdometerTelemetry.Autostart.NO_PAGE,
+        )
+        _state.update { s -> s.copy(steps = s.steps.replaceAskedOnce(index), autostartPageFound = pageFound) }
+    }
+
+    /**
+     * Back walks the step's own pages before it leaves the flow.
+     *
+     * The drawing of the system screen is a second page of one step, so backing off it should
+     * land on that step's argument — not on the previous permission, and not out of setup.
+     */
+    private fun backTapped() {
+        if (_state.value.showHandoff) {
+            _state.update { it.copy(onHandoff = false) }
+        } else {
+            send(PermissionSetupEffect.NavigateBack)
+        }
     }
 
     private fun skipTapped() {
         val current = _state.value.current ?: return
         if (current.step.required) return
+        // Counted apart from the permission steps: autostart declined is the one answer that
+        // leaves setup looking finished while nothing will actually start.
+        if (current.step == PermissionSetupStep.AUTOSTART) {
+            telemetry.autostartStepAnswered(AutoOdometerTelemetry.Autostart.DECLINED)
+        } else {
+            telemetry.permissionAnswered(step = current.step.name, status = STATUS_SKIPPED)
+        }
         advanceFrom(_state.value.currentIndex)
     }
 
@@ -115,7 +214,9 @@ internal class PermissionSetupViewModel(
         while (next < _state.value.steps.size && _state.value.steps[next].status == PermissionStatus.Granted) {
             next++
         }
-        _state.update { it.copy(currentIndex = next) }
+        // The drawing belongs to the step that was on screen; carrying the flag into the next
+        // one would open it on a picture of the wrong settings page.
+        _state.update { it.copy(currentIndex = next, onHandoff = false) }
         if (next >= _state.value.steps.size) completeFlow()
     }
 
@@ -167,7 +268,12 @@ internal class PermissionSetupViewModel(
 
     private companion object {
         const val TRACE_COMPLETE = "complete_setup"
+        const val TRACE_RECENT_DRIVES = "recent_drives"
         const val STAGE_ENROLL = "enroll_trigger_device"
+        const val STAGE_RECENT_DRIVES = "observe_recent_drives"
+
+        /** Reported apart from a denial: declining an optional step is a choice, not a refusal. */
+        const val STATUS_SKIPPED = "SKIPPED"
     }
 }
 

@@ -13,7 +13,10 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isAutoOdometerFlowStep
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.bluetooth.rememberBluetoothEnabler
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.platform.permission.PlatformPermission
 import com.hopcape.odo.core.platform.permission.rememberPermissionController
@@ -28,6 +31,10 @@ import com.hopcape.odo.feature.autoodometer.presentation.education.EducationEffe
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationEvent
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationScreen
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationViewModel
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleEffect
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleEvent
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleScreen
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupEffect
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupEvent
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupScreen
@@ -58,6 +65,9 @@ internal class AutoOdometerFeatureEntryProvider(
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.AutoOdometer.Education> { key -> AutoOdometerEducationRoute(key, navigationManager) }
+        entry<OdoDestination.AutoOdometer.NotificationRationale> { key ->
+            AutoOdometerNotificationRationaleRoute(key, navigationManager)
+        }
         entry<OdoDestination.AutoOdometer.DevicePicker> { AutoOdometerDevicePickerRoute(navigationManager) }
         entry<OdoDestination.AutoOdometer.PermissionSetup> { key ->
             AutoOdometerPermissionSetupRoute(key, navigationManager)
@@ -82,8 +92,23 @@ internal fun AutoOdometerEducationRoute(
     val viewModel = koinViewModel<EducationViewModel> { parametersOf(mode) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // `POST_NOTIFICATIONS` is read here but never asked for here. The ask used to be fired on
+    // this screen's CTA, at the same moment it navigated, so Android drew its dialog over the
+    // Bluetooth rationale that had just been pushed — two permissions on screen at once, and
+    // the one being asked about had not been mentioned by anything the owner had read. The
+    // status only decides whether the notification step is worth pushing first.
+    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
+    LaunchedEffect(notifications.status) {
+        viewModel.onEvent(EducationEvent.NotificationStatusObserved(notifications.status))
+    }
+
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            is EducationEffect.NavigateToNotificationRationale -> navigationManager.navigateTo(
+                OdoDestination.AutoOdometer.NotificationRationale(mode = effect.mode.toFlowMode()),
+            )
+
             EducationEffect.NavigateToDevicePicker ->
                 navigationManager.navigateTo(OdoDestination.AutoOdometer.DevicePicker)
 
@@ -103,6 +128,49 @@ internal fun AutoOdometerEducationRoute(
     )
 }
 
+/**
+ * The notification step — Odo's case for `POST_NOTIFICATIONS`, then the system's own dialog.
+ *
+ * Only ever reached when that dialog will actually appear; the education route filters out
+ * both "already granted" and "will not ask again" before navigating here, so this screen never
+ * has to explain a permission the owner cannot change from it.
+ */
+@Composable
+internal fun AutoOdometerNotificationRationaleRoute(
+    key: OdoDestination.AutoOdometer.NotificationRationale,
+    navigationManager: NavigationManager,
+) {
+    val mode = key.mode.toTriggerMode()
+    val viewModel = koinViewModel<NotificationRationaleViewModel> { parametersOf(mode) }
+    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
+    LaunchedEffect(notifications.status) {
+        viewModel.onEvent(NotificationRationaleEvent.StatusObserved(notifications.status))
+    }
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            NotificationRationaleEffect.RequestPermission -> notifications.request()
+
+            NotificationRationaleEffect.NavigateToDevicePicker ->
+                navigationManager.navigateTo(OdoDestination.AutoOdometer.DevicePicker)
+
+            is NotificationRationaleEffect.NavigateToPermissionSetup ->
+                navigationManager.navigateTo(
+                    OdoDestination.AutoOdometer.PermissionSetup(mode = effect.mode.toFlowMode()),
+                )
+
+            NotificationRationaleEffect.NavigateBack -> navigationManager.back()
+        }
+    }
+
+    NotificationRationaleScreen(
+        onAllow = { viewModel.onEvent(NotificationRationaleEvent.AllowTapped) },
+        onSkip = { viewModel.onEvent(NotificationRationaleEvent.SkipTapped) },
+        onBack = { viewModel.onEvent(NotificationRationaleEvent.BackTapped) },
+    )
+}
+
 private fun OdoDestination.AutoOdometer.AutoOdometerFlowMode.toTriggerMode(): TriggerMode = when (this) {
     OdoDestination.AutoOdometer.AutoOdometerFlowMode.STEREO -> TriggerMode.STEREO
     OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO -> TriggerMode.NO_STEREO
@@ -117,12 +185,18 @@ private fun TriggerMode.toFlowMode(): OdoDestination.AutoOdometer.AutoOdometerFl
  * M3 — the trigger-device picker. The `BLUETOOTH_CONNECT` controller is read here, the same
  * way the camera permission is read at `BillScanRoute` — a composable, not an injected port
  * — and folded into the ViewModel's state via [DevicePickerEvent.PermissionChanged].
+ *
+ * [rememberBluetoothEnabler] is here for the same reason: putting the system's turn-on dialog
+ * on screen needs the Activity. The radio's *state* is not read here at all — that is a plain
+ * flow the ViewModel collects, so switching Bluetooth on from the notification shade reaches
+ * the screen whether or not it recomposed.
  */
 @Composable
 internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager) {
     val viewModel: DevicePickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val permission = rememberPermissionController(PlatformPermission.BLUETOOTH_CONNECT)
+    val bluetoothEnabler = rememberBluetoothEnabler()
 
     LaunchedEffect(permission.status) {
         viewModel.onEvent(DevicePickerEvent.PermissionChanged(permission.status))
@@ -138,6 +212,8 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            DevicePickerEffect.RequestBluetoothEnable -> bluetoothEnabler.request()
+
             DevicePickerEffect.NavigateToPermissionSetup -> navigationManager.navigateTo(
                 OdoDestination.AutoOdometer.PermissionSetup(
                     mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.STEREO,
@@ -170,6 +246,9 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
         onUseTapped = { viewModel.onEvent(DevicePickerEvent.UseTapped) },
         onNoBluetoothTapped = { viewModel.onEvent(DevicePickerEvent.NoBluetoothTapped) },
         onGrantPermission = grant,
+        onTurnOnBluetooth = { viewModel.onEvent(DevicePickerEvent.TurnOnBluetoothTapped) },
+        onBluetoothSheetConfirm = { viewModel.onEvent(DevicePickerEvent.BluetoothSheetConfirmed) },
+        onBluetoothSheetDismiss = { viewModel.onEvent(DevicePickerEvent.BluetoothSheetDismissed) },
         onBack = { viewModel.onEvent(DevicePickerEvent.BackTapped) },
     )
 }
@@ -191,7 +270,6 @@ internal fun AutoOdometerPermissionSetupRoute(
     val viewModel = koinViewModel<PermissionSetupViewModel> { parametersOf(mode) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
     val location = rememberPermissionController(PlatformPermission.ACCESS_FINE_LOCATION)
     // Both modes: canTrack requires it, and it is what lets a trip start with the app
     // closed. Its step sits strictly after FINE_LOCATION — Android refuses a combined ask.
@@ -202,9 +280,6 @@ internal fun AutoOdometerPermissionSetupRoute(
         null
     }
 
-    LaunchedEffect(notifications.status) {
-        viewModel.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, notifications.status))
-    }
     LaunchedEffect(location.status) {
         viewModel.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, location.status))
     }
@@ -221,38 +296,48 @@ internal fun AutoOdometerPermissionSetupRoute(
         }
     }
 
+    // Null for AUTOSTART: the manufacturer's switch is not an Android permission, so there is
+    // no controller to mount and no RequestPermission is ever raised for it — the ViewModel
+    // opens that page itself through BackgroundStartAccess.
     fun controllerFor(step: PermissionSetupStep) = when (step) {
-        PermissionSetupStep.NOTIFICATIONS -> notifications
         PermissionSetupStep.FINE_LOCATION -> location
         PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
             activityRecognition ?: error("no ACTIVITY_RECOGNITION controller mounted for $mode")
+        PermissionSetupStep.AUTOSTART -> null
     }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             PermissionSetupEffect.NavigateBack -> navigationManager.back()
 
-            // Clears the whole education/picker/permissions flow off the back stack rather than
-            // a single pop, which would land on the picker or education instead of the garage
-            // tab (docs/AUTO_ODOMETER_PLAN.md's locked navigation-flow decision).
-            PermissionSetupEffect.NavigateToGarage -> navigationManager.navigateTo(
+            // The ask itself, decided by the ViewModel and performed here because only a
+            // composable can hold the controller. Which page the owner pressed on is the
+            // ViewModel's business; whether that ends in a dialog or the settings page is this
+            // layer's, because only the controller knows the system will not prompt again.
+            is PermissionSetupEffect.RequestPermission -> {
+                val controller = controllerFor(effect.step)
+                if (controller != null) {
+                    if (effect.blocked) controller.openAppSettings() else controller.request()
+                }
+            }
+
+            // Every page of the setup run comes off together, then the garage goes on
+            // (docs/AUTO_ODOMETER_PLAN.md's locked navigation-flow decision to land there).
+            // `popUpTo(Garage.Home)` used to do this and only worked when the flow had been
+            // opened from the garage — started from the dashboard there was no Garage.Home on
+            // the stack to pop to, so the garage was pushed on top of the whole run and back
+            // walked the owner straight into the permission rationales again.
+            PermissionSetupEffect.NavigateToGarage -> navigationManager.finishFlow(
                 destination = OdoDestination.Garage.Home,
-                popUpTo = OdoDestination.Garage.Home,
+                belongsToFlow = ::isAutoOdometerFlowStep,
             )
         }
     }
 
     PermissionSetupScreen(
         state = state,
-        onContinue = {
-            val step = state.current?.step
-            if (step != null) {
-                viewModel.onEvent(PermissionSetupEvent.ContinueTapped)
-                val controller = controllerFor(step)
-                if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
-            }
-        },
+        onContinue = { viewModel.onEvent(PermissionSetupEvent.ContinueTapped) },
         onSkip = { viewModel.onEvent(PermissionSetupEvent.SkipTapped) },
         onBack = { viewModel.onEvent(PermissionSetupEvent.BackTapped) },
     )
@@ -326,6 +411,9 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
     val backgroundLocation = rememberPermissionController(PlatformPermission.ACCESS_BACKGROUND_LOCATION)
     val activityRecognition = rememberPermissionController(PlatformPermission.ACTIVITY_RECOGNITION)
     val bluetoothConnect = rememberPermissionController(PlatformPermission.BLUETOOTH_CONNECT)
+    // The radio's own switch. Its *state* is not read here — the ViewModel collects that flow
+    // directly — so this only exists to act on the BLUETOOTH_OFF row.
+    val bluetoothEnabler = rememberBluetoothEnabler()
 
     LaunchedEffect(fineLocation.status, backgroundLocation.status, activityRecognition.status, bluetoothConnect.status) {
         viewModel.onEvent(
@@ -343,11 +431,13 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
         )
     }
 
+    /** Null for [ReadinessIssue.BLUETOOTH_OFF] — a radio switch is not a permission to ask for. */
     fun controllerFor(issue: ReadinessIssue) = when (issue) {
         ReadinessIssue.FINE_LOCATION -> fineLocation
         ReadinessIssue.BACKGROUND_LOCATION -> backgroundLocation
         ReadinessIssue.ACTIVITY_RECOGNITION -> activityRecognition
         ReadinessIssue.BLUETOOTH_CONNECT -> bluetoothConnect
+        ReadinessIssue.BLUETOOTH_OFF -> null
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -368,7 +458,11 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
         onDeleteDismiss = { viewModel.onEvent(SettingsEvent.DeleteDismissed) },
         onFixIt = { issue ->
             val controller = controllerFor(issue)
-            if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+            when {
+                controller == null -> bluetoothEnabler.request()
+                controller.status == PermissionStatus.Blocked -> controller.openAppSettings()
+                else -> controller.request()
+            }
         },
         onBack = { viewModel.onEvent(SettingsEvent.BackTapped) },
     )

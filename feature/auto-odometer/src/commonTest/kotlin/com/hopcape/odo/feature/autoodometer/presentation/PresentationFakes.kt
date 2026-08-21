@@ -11,6 +11,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.triptracker.BondedDevice
+import com.hopcape.odo.core.triptracker.BluetoothRadio
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
@@ -114,5 +115,15 @@ internal class FakeBondedDeviceCatalog(
         callCount++
         if (throwing) error("bluetooth adapter unavailable")
         return devices
+    }
+}
+
+/** A Bluetooth radio a test can switch, on by default so an unrelated test never has to say so. */
+internal class FakeBluetoothRadio(enabled: Boolean = true) : BluetoothRadio {
+    private val _enabled = MutableStateFlow(enabled)
+    override val enabled: StateFlow<Boolean> = _enabled
+
+    fun set(value: Boolean) {
+        _enabled.value = value
     }
 }

@@ -53,8 +53,33 @@ internal class AutoOdometerTelemetry(
     /** The education screen was viewed, on the [mode] it opened with (STEREO/NO_STEREO). */
     fun educationViewed(mode: String) = analytics.track(Event.EDUCATION_VIEWED, mapOf(Key.MODE to mode))
 
+    /**
+     * The notification step was shown — which only happens when the system would still
+     * prompt, so this counts the owners who were actually asked rather than every visit.
+     */
+    fun notificationRationaleViewed() = analytics.track(Event.NOTIFY_RATIONALE_VIEWED)
+
+    /** The notification step was skipped without asking, because the OS had already answered. */
+    fun notificationStepSkipped(reason: String) =
+        analytics.track(Event.NOTIFY_STEP_SKIPPED, mapOf(Key.STATUS to reason))
+
     /** "My car has no Bluetooth" was tapped, switching the flow to the NO_STEREO branch. */
     fun noBtPathTaken() = analytics.track(Event.NO_BT_PATH_TAKEN)
+
+    /* --------------------------- Bluetooth radio --------------------------- */
+
+    /**
+     * The device picker came up with the phone's Bluetooth switched off. Distinct from a
+     * refused permission: nothing Odo asks for fixes it, and how often it happens is what says
+     * whether the radio-off card is carrying the flow or losing owners at it.
+     */
+    fun bluetoothOffSeen() = analytics.track(Event.BLUETOOTH_OFF_SEEN)
+
+    /** The owner accepted the explainer and was handed to the system's turn-on dialog. */
+    fun bluetoothEnableRequested() = analytics.track(Event.BLUETOOTH_ENABLE_REQUESTED)
+
+    /** The owner closed the explainer without asking for the radio. */
+    fun bluetoothEnableDeclined() = analytics.track(Event.BLUETOOTH_ENABLE_DECLINED)
 
     /**
      * A trigger device was picked. [category] only (CAR_AUDIO/HEADSET/WEARABLE/OTHER),
@@ -70,6 +95,17 @@ internal class AutoOdometerTelemetry(
         Event.PERMISSION_ANSWERED,
         mapOf(Key.STEP to step, Key.STATUS to status),
     )
+
+    /**
+     * The autostart step was answered — [action] is one of [Autostart].
+     *
+     * Its own event rather than a [permissionAnswered] with an invented status, because these
+     * are not permission answers: nothing is granted or blocked, and `CONFIRMED` is the owner's
+     * word rather than a reading. `DECLINED` is the number to watch — it is the ending where
+     * setup reports success on a phone that will never start a drive.
+     */
+    fun autostartStepAnswered(action: String) =
+        analytics.track(Event.AUTOSTART_STEP, mapOf(Key.ACTION to action))
 
     /** The checklist went all-green and tracking was enabled for [mode]. */
     fun setupCompleted(mode: String) = analytics.track(Event.SETUP_COMPLETED, mapOf(Key.MODE to mode))
@@ -147,8 +183,14 @@ internal class AutoOdometerTelemetry(
         const val CARD_CTA = "ao_card_cta"
         const val EDUCATION_VIEWED = "ao_education_viewed"
         const val NO_BT_PATH_TAKEN = "ao_no_bt_path_taken"
+        const val NOTIFY_RATIONALE_VIEWED = "ao_notify_rationale_viewed"
+        const val NOTIFY_STEP_SKIPPED = "ao_notify_step_skipped"
+        const val BLUETOOTH_OFF_SEEN = "ao_bluetooth_off_seen"
+        const val BLUETOOTH_ENABLE_REQUESTED = "ao_bluetooth_enable_requested"
+        const val BLUETOOTH_ENABLE_DECLINED = "ao_bluetooth_enable_declined"
         const val DEVICE_SELECTED = "ao_device_selected"
         const val PERMISSION_ANSWERED = "ao_permission_answered"
+        const val AUTOSTART_STEP = "ao_autostart_step"
         const val SETUP_COMPLETED = "ao_setup_completed"
         const val FIRST_TRIP_LOGGED = "ao_first_trip_logged"
         const val TRIP_LOGGED_VIEWED = "ao_trip_logged_viewed"
@@ -172,5 +214,21 @@ internal class AutoOdometerTelemetry(
         const val ON = "on"
         const val WHICH = "which"
         const val STAGE = "stage"
+        const val ACTION = "action"
+    }
+
+    /** What the owner did on the autostart step — the values [autostartStepAnswered] takes. */
+    object Autostart {
+        /** The manufacturer's page was opened. */
+        const val OPENED = "opened"
+
+        /** No page resolved on this build; the step fell back to telling them where to look. */
+        const val NO_PAGE = "no_page"
+
+        /** "I've turned it on" — the only confirmation for a switch nothing can read back. */
+        const val CONFIRMED = "confirmed"
+
+        /** "Not now", with the explanation on screen. Setup finishes; tracking probably will not start. */
+        const val DECLINED = "declined"
     }
 }
