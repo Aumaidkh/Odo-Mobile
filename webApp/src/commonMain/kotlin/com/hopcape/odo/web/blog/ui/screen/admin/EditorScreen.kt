@@ -77,6 +77,19 @@ import com.hopcape.odo.web.blog.ui.component.PillButton
 import com.hopcape.odo.web.blog.ui.component.TextLink
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
+import com.hopcape.odo.web.blog.presentation.admin.editor.ShowcaseField
+import com.hopcape.odo.web.blog.presentation.admin.editor.field
+import com.hopcape.odo.web.blog.resources.bl_editor_action_body
+import com.hopcape.odo.web.blog.resources.bl_editor_action_body_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_action_cta
+import com.hopcape.odo.web.blog.resources.bl_editor_action_cta_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_action_eyebrow
+import com.hopcape.odo.web.blog.resources.bl_editor_action_link
+import com.hopcape.odo.web.blog.resources.bl_editor_action_link_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_action_screenshot
+import com.hopcape.odo.web.blog.resources.bl_editor_action_screenshot_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_action_title
+import com.hopcape.odo.web.blog.resources.bl_editor_action_title_hint
 
 /** The measure the design writes at. Wider and the line length stops being prose. */
 private val EDITOR_MEASURE = 720.dp
@@ -189,6 +202,24 @@ fun EditorScreen(
                         // parses to no runs and would be written straight back over
                         // the caret sitting between them. `revision` above is what
                         // says the body really was replaced.
+                        // An action card is five fields, not one. It gets its own
+                        // editor and never touches `values` — none of its fields
+                        // carry markers, so there is nothing to parse and nothing
+                        // to be written back over a caret.
+                        if (block is ArticleBlock.AppShowcase) {
+                            ActionBlockEditor(
+                                block = block,
+                                onFieldChange = { field, value ->
+                                    onEvent(EditorEvent.ShowcaseFieldChanged(index, field, value))
+                                },
+                                onRemove = {
+                                    values.remove(index)
+                                    onEvent(EditorEvent.BlockRemoved(index))
+                                },
+                            )
+                            return@forEachIndexed
+                        }
+
                         val text = block.editableText()
                         if (values[index] == null) values[index] = TextFieldValue(text)
 
@@ -365,6 +396,114 @@ private fun ToolButton(label: String, enabled: Boolean = true, onClick: () -> Un
 }
 
 /** One block, styled as whatever it is while it is being written. */
+/**
+ * The action card, edited as what it is.
+ *
+ * Five labelled boxes rather than one. The link box is the point of the whole
+ * block — a card whose button always went to the same place could not send a
+ * reader about insurance renewals anywhere useful — and its placeholder says
+ * what blank means so nobody has to guess.
+ */
+@Composable
+private fun ActionBlockEditor(
+    block: ArticleBlock.AppShowcase,
+    onFieldChange: (ShowcaseField, String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val colors = BlogThemeTokens.colors
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surfaceRaised)
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Eyebrow(stringResource(Res.string.bl_editor_action_eyebrow), color = colors.link)
+            Spacer(Modifier.weight(1f))
+            TextLink(
+                text = stringResource(Res.string.bl_editor_remove_block),
+                onClick = onRemove,
+                color = colors.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_action_title),
+            hint = stringResource(Res.string.bl_editor_action_title_hint),
+            value = block.field(ShowcaseField.TITLE),
+            style = MaterialTheme.typography.titleLarge,
+        ) { onFieldChange(ShowcaseField.TITLE, it) }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_action_body),
+            hint = stringResource(Res.string.bl_editor_action_body_hint),
+            value = block.field(ShowcaseField.BODY),
+            style = MaterialTheme.typography.titleMedium,
+        ) { onFieldChange(ShowcaseField.BODY, it) }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_action_cta),
+            hint = stringResource(Res.string.bl_editor_action_cta_hint),
+            value = block.field(ShowcaseField.CTA_LABEL),
+            style = MaterialTheme.typography.titleMedium,
+        ) { onFieldChange(ShowcaseField.CTA_LABEL, it) }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_action_link),
+            hint = stringResource(Res.string.bl_editor_action_link_hint),
+            value = block.field(ShowcaseField.CTA_LINK),
+            style = MaterialTheme.typography.bodyMedium,
+        ) { onFieldChange(ShowcaseField.CTA_LINK, it) }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_action_screenshot),
+            hint = stringResource(Res.string.bl_editor_action_screenshot_hint),
+            value = block.field(ShowcaseField.SCREENSHOT),
+            style = MaterialTheme.typography.bodyMedium,
+        ) { onFieldChange(ShowcaseField.SCREENSHOT, it) }
+    }
+}
+
+/** One labelled box inside the action card editor. */
+@Composable
+private fun ActionField(
+    label: String,
+    hint: String,
+    value: String,
+    style: androidx.compose.ui.text.TextStyle,
+    onValueChange: (String) -> Unit,
+) {
+    val colors = BlogThemeTokens.colors
+    // The field owns its caret. Rebuilding a TextFieldValue from the state on
+    // every recomposition would drag the cursor to the end after each keystroke,
+    // so anybody fixing a typo mid-sentence would type the rest of the word at
+    // the end of the line. The state is only pushed back in when it changed for
+    // some other reason — a load, or an import.
+    var local by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    LaunchedEffect(value) {
+        if (value != local.text) local = TextFieldValue(value, TextRange(value.length))
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = colors.muted, style = MaterialTheme.typography.bodySmall)
+        PlainField(
+            value = local,
+            onValueChange = {
+                local = it
+                onValueChange(it.text)
+            },
+            placeholder = hint,
+            style = style,
+        )
+    }
+}
+
 @Composable
 private fun BlockField(
     block: ArticleBlock,

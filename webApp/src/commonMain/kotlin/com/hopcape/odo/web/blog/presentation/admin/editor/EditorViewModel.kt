@@ -75,6 +75,13 @@ sealed interface EditorEvent {
     data class BlockAdded(val kind: BlockKind) : EditorEvent
     data class BlockRemoved(val index: Int) : EditorEvent
 
+    /** One field of one action card. Its own event because it is not "the text". */
+    data class ShowcaseFieldChanged(
+        val index: Int,
+        val field: ShowcaseField,
+        val value: String,
+    ) : EditorEvent
+
     data object SaveTapped : EditorEvent
     data object PublishTapped : EditorEvent
     data object UnpublishTapped : EditorEvent
@@ -225,6 +232,18 @@ class EditorViewModel(
                 copy(
                     blocks = blocks.mapIndexed { index, block ->
                         if (index == event.index) block.withText(event.text) else block
+                    },
+                )
+            }
+
+            is EditorEvent.ShowcaseFieldChanged -> edit {
+                copy(
+                    blocks = blocks.mapIndexed { index, block ->
+                        if (index == event.index && block is ArticleBlock.AppShowcase) {
+                            block.withField(event.field, event.value)
+                        } else {
+                            block
+                        }
                     },
                 )
             }

@@ -39,3 +39,15 @@ expect fun pickImage(onPicked: (UploadRequest) -> Unit)
 /** The Play listing, tagged so installs from the blog are countable. */
 const val PLAY_LISTING: String =
     "https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dblog"
+
+/**
+ * Encoded image bytes into something Compose can draw.
+ *
+ * Behind the seam for the same reason as everything else in this file: decoding
+ * is Skia's job on this target and somebody else's on the next one, and a
+ * composable that knows which is a composable that cannot be tested.
+ *
+ * Returns null on anything it cannot read. A screenshot that fails to decode
+ * should cost the article a picture, not the page.
+ */
+expect fun decodeImageBytes(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap?

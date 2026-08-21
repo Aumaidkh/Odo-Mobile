@@ -33,6 +33,8 @@ import com.hopcape.odo.web.blog.resources.bl_action_eyebrow
 import com.hopcape.odo.web.blog.resources.bl_action_screenshot_slot
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 
 /**
  * Draws an article body.
@@ -145,12 +147,29 @@ private fun AppShowcase(block: ArticleBlock.AppShowcase) {
         Text(block.body, color = colors.dim, style = MaterialTheme.typography.titleLarge)
         PillButton(
             text = block.callToAction,
-            onClick = { openExternal(PLAY_LISTING) },
+            // Blank means the Play listing. An author who never touches the field
+            // still gets a working button, and one who needs a deep link or a
+            // landing page types it in and the card obeys.
+            onClick = { openExternal(block.link.ifBlank { PLAY_LISTING }) },
             modifier = Modifier.padding(top = 6.dp),
         )
-        // The slot, named. An author who has not dropped a capture in yet should be
-        // told so here rather than finding out from the published page.
-        if (block.screenshot.isNullOrBlank()) {
+
+        val screenshot = rememberRemoteImage(block.screenshot)
+        if (screenshot != null) {
+            Image(
+                bitmap = screenshot,
+                contentDescription = block.heading,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+            )
+        } else {
+            // The slot, named. An author who has not dropped a capture in yet should
+            // be told so here rather than finding out from the published page. This
+            // also covers a capture that is still loading or failed to decode: all
+            // three want the same line, and none of them wants a broken image.
             Text(
                 text = stringResource(Res.string.bl_action_screenshot_slot),
                 color = colors.muted,

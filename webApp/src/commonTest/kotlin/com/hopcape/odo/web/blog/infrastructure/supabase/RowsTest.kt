@@ -30,7 +30,7 @@ class RowsTest {
             ),
             ArticleBlock.Section("what-a-challan-is", "What a challan is"),
             ArticleBlock.Callout("WORTH KNOWING", listOf(TextRun("Ninety days and it goes to court."))),
-            ArticleBlock.AppShowcase("Odo has a screen for this", "Enter the number.", "Download Odo", "/x.png"),
+            ArticleBlock.AppShowcase("Odo has a screen for this", "Enter the number.", "Download Odo", "/x.png", "https://odoapp.in/costs"),
         )
 
         val decoded = decodeBlocks(json.parseToJsonElement(encodeBlocks(original)))

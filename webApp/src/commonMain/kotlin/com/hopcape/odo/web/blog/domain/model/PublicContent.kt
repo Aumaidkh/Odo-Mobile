@@ -98,6 +98,13 @@ sealed interface ArticleBlock {
      * The one piece of promotion inside an article, and it appears after the
      * question has already been answered by the prose around it. [screenshot] is
      * a media path, null while the design is drawn rather than photographed.
+     *
+     * [link] is where the button goes. It is per-card rather than fixed to the
+     * Play listing because an article about insurance renewals and an article
+     * about fuel costs want to land a reader in different places, and one day one
+     * of them will want to land somewhere that is not a store page at all. Blank
+     * means the Play listing, which is the right answer often enough to be the
+     * default but not often enough to be the only option.
      */
     @Immutable
     data class AppShowcase(
@@ -105,6 +112,7 @@ sealed interface ArticleBlock {
         val body: String,
         val callToAction: String,
         val screenshot: String? = null,
+        val link: String = "",
     ) : ArticleBlock
 }
 

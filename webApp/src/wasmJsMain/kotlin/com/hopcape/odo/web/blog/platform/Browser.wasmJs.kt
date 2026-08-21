@@ -9,6 +9,7 @@ import org.khronos.webgl.get
 import org.w3c.dom.HTMLInputElement
 import org.w3c.files.FileReader
 import org.w3c.files.get
+import androidx.compose.ui.graphics.toComposeImageBitmap
 
 /**
  * `noopener` is not optional: without it the opened tab gets a handle on this
@@ -71,3 +72,12 @@ actual fun pickImage(onPicked: (UploadRequest) -> Unit) {
     }
     input.click()
 }
+
+actual fun decodeImageBytes(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap? =
+    try {
+        org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
+    } catch (_: Throwable) {
+        // Skia throws rather than returning null on a truncated or non-image
+        // body, and a broken upload is not worth an exception reaching the UI.
+        null
+    }

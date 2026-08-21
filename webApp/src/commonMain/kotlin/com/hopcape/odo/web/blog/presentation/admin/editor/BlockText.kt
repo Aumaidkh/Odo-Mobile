@@ -37,6 +37,37 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.AppShowcase -> copy(heading = text)
 }
 
+/**
+ * The five things an action card is made of.
+ *
+ * They get their own editor rather than one text field with separators, because
+ * a link and a sentence want different validation, and an author should never
+ * have to remember which line of a box is the button label.
+ */
+enum class ShowcaseField { TITLE, BODY, CTA_LABEL, CTA_LINK, SCREENSHOT }
+
+/** One field of an action card, replaced. */
+fun ArticleBlock.AppShowcase.withField(field: ShowcaseField, value: String): ArticleBlock.AppShowcase =
+    when (field) {
+        ShowcaseField.TITLE -> copy(heading = value)
+        ShowcaseField.BODY -> copy(body = value)
+        ShowcaseField.CTA_LABEL -> copy(callToAction = value)
+        ShowcaseField.CTA_LINK -> copy(link = value)
+        // Blank is not the same as unset for everything else, but for a picture it
+        // is: an author clearing the box means "no screenshot", and null is what
+        // the rest of the code already reads as that.
+        ShowcaseField.SCREENSHOT -> copy(screenshot = value.ifBlank { null })
+    }
+
+/** The text one field of an action card currently shows. */
+fun ArticleBlock.AppShowcase.field(field: ShowcaseField): String = when (field) {
+    ShowcaseField.TITLE -> heading
+    ShowcaseField.BODY -> body
+    ShowcaseField.CTA_LABEL -> callToAction
+    ShowcaseField.CTA_LINK -> link
+    ShowcaseField.SCREENSHOT -> screenshot.orEmpty()
+}
+
 /** What the toolbar can add. Not every block type — an image is placed, not typed. */
 enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION }
 

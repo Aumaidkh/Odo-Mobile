@@ -142,6 +142,7 @@ private data class BlockJson(
     val body: String = "",
     val cta: String = "",
     val screenshot: String? = null,
+    val link: String = "",
 )
 
 private const val SECTION = "section"
@@ -163,6 +164,7 @@ internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
                     body = block.body,
                     cta = block.callToAction,
                     screenshot = block.screenshot,
+                    link = block.link,
                 )
             }
         },
@@ -186,7 +188,7 @@ internal fun decodeBlocks(element: JsonElement): List<ArticleBlock> =
             SECTION -> ArticleBlock.Section(json.id.ifBlank { json.text.slugify() }, json.text)
             PARAGRAPH -> ArticleBlock.Paragraph(json.runs.map { TextRun(it.text, it.bold, it.italic) })
             CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold, it.italic) })
-            SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot)
+            SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot, json.link)
             else -> null
         }
     }
