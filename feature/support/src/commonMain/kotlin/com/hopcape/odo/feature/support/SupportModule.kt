@@ -19,6 +19,9 @@ val supportModule = module {
             logUploadScheduler = get(),
             // AppInfo comes from corePlatformModule — the version shown on the help sheet.
             appInfo = get(),
+            // The phone the report is about — model and OS only, shown in the draft before
+            // the owner sends it. Bound by corePlatform{Android,Ios}Module alongside AppInfo.
+            deviceInfo = get(),
             // Where the full Terms and Privacy Policy are published. Bound by
             // `supabaseModule`, which derives them from the configured project URL; a build
             // with no backend gets blanks and the outbound rows are left out.

@@ -13,14 +13,26 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.mail.MailDraft
+import com.hopcape.odo.core.platform.mail.rememberMailComposer
 import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
+import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
 import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
-import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
+import com.hopcape.odo.feature.support.presentation.feedback.FeedbackScreen
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
+import com.hopcape.odo.feature.support.resources.sp_email_address
+import com.hopcape.odo.feature.support.resources.sp_fb_flag_intro
+import com.hopcape.odo.feature.support.resources.sp_fb_flag_subject
+import com.hopcape.odo.feature.support.resources.sp_fb_idea_intro
+import com.hopcape.odo.feature.support.resources.sp_fb_idea_subject
+import com.hopcape.odo.feature.support.resources.sp_fb_mail_footer
+import com.hopcape.odo.feature.support.resources.sp_fb_report_intro
+import com.hopcape.odo.feature.support.resources.sp_fb_report_subject
 import com.hopcape.odo.feature.support.resources.sp_flag
 import com.hopcape.odo.feature.support.resources.sp_idea
 import com.hopcape.odo.feature.support.resources.sp_licences
@@ -50,6 +62,7 @@ internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
     private val logUploadScheduler: LogUploadScheduler,
     private val appInfo: AppInfo,
+    private val deviceInfo: DeviceInfo,
     private val legalLinks: LegalLinks,
 ) : FeatureEntryProvider {
 
@@ -84,14 +97,77 @@ internal class SupportFeatureEntryProvider(
 
         entry<OdoDestination.Support.Search> { SupportSearchScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Email> { Placeholder(Res.string.sp_email) }
-        entry<OdoDestination.Support.ReportProblem> { Placeholder(Res.string.sp_report) }
-        entry<OdoDestination.Support.SuggestIdea> { Placeholder(Res.string.sp_idea) }
-        entry<OdoDestination.Support.FlagPriceData> { Placeholder(Res.string.sp_flag) }
+        entry<OdoDestination.Support.ReportProblem> {
+            FeedbackRoute(
+                title = Res.string.sp_report,
+                intro = Res.string.sp_fb_report_intro,
+                subject = Res.string.sp_fb_report_subject,
+            )
+        }
+        entry<OdoDestination.Support.SuggestIdea> {
+            FeedbackRoute(
+                title = Res.string.sp_idea,
+                intro = Res.string.sp_fb_idea_intro,
+                subject = Res.string.sp_fb_idea_subject,
+            )
+        }
+        entry<OdoDestination.Support.FlagPriceData> {
+            FeedbackRoute(
+                title = Res.string.sp_flag,
+                intro = Res.string.sp_fb_flag_intro,
+                subject = Res.string.sp_fb_flag_subject,
+            )
+        }
         entry<OdoDestination.Support.Rate> { Placeholder(Res.string.sp_rate) }
         entry<OdoDestination.Support.Faqs> { FaqsScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Terms> { Placeholder(Res.string.sp_terms) }
         entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
         entry<OdoDestination.Support.Licences> { Placeholder(Res.string.sp_licences) }
+    }
+
+    /**
+     * One of the three feedback forms, wired to the mail app.
+     *
+     * The build and device footer is resolved once, not per keystroke: it does not depend on
+     * what is being typed, and rebuilding it on every character would be work for nothing.
+     *
+     * Sending pops the form first, then opens the composer. The other order leaves somebody
+     * returning from their mail app to a form still holding the message they just sent, with
+     * no way to tell whether it went.
+     */
+    @Composable
+    private fun FeedbackRoute(
+        title: StringResource,
+        intro: StringResource,
+        subject: StringResource,
+    ) {
+        val composeMail = rememberMailComposer()
+        val supportAddress = stringResource(Res.string.sp_email_address)
+        val subjectText = stringResource(subject)
+        val footer = stringResource(
+            Res.string.sp_fb_mail_footer,
+            appInfo.versionName,
+            appInfo.versionCode.toString(),
+            deviceInfo.manufacturer,
+            deviceInfo.model,
+            deviceInfo.osVersion,
+        )
+
+        FeedbackScreen(
+            title = stringResource(title),
+            intro = stringResource(intro),
+            onBack = { nm.back() },
+            onSend = { message ->
+                nm.back()
+                composeMail(
+                    MailDraft(
+                        to = supportAddress,
+                        subject = subjectText,
+                        body = "$message\n\n$footer",
+                    ),
+                )
+            },
+        )
     }
 
     /** The stub body, titled by the row that opened it, with back popping the entry. */

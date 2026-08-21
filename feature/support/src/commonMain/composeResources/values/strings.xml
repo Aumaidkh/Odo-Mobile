@@ -125,4 +125,30 @@
     <string name="sp_search_empty">Nothing matched</string>
     <!-- %1$s is what the owner typed. -->
     <string name="sp_search_empty_message">No help article mentions “%1$s”. Try a different word, or email us from the help sheet.</string>
+    <!-- ===================== Feedback forms ===================== -->
+    <!-- Report a problem, Suggest an idea and Flag wrong price data are the same screen with
+         different words. Titles are reused from the help sheet rows (sp_report, sp_idea,
+         sp_flag) so a row and the screen it opens can never drift apart.
+
+         The button does not say "Send": Odo does not send anything. It opens the owner\'s own
+         mail app on a draft, and they send it. Saying otherwise would be a lie the first time
+         somebody backs out of the composer and assumes it went. -->
+    <string name="sp_fb_hint">Your message</string>
+    <string name="sp_fb_send">Continue in email</string>
+    <!-- Stated on the form, not just in the draft: somebody deciding whether to write at all
+         should know what rides along before they start typing. -->
+    <string name="sp_fb_attach_note">Your app version and phone model are added to the email so we can work out what went wrong. Nothing is sent until you send it, and you can edit or delete any of it first.</string>
+
+    <string name="sp_fb_report_intro">Tell us what happened. What you were doing when it went wrong helps us the most.</string>
+    <string name="sp_fb_report_subject">Problem report</string>
+
+    <string name="sp_fb_idea_intro">Tell us what you would like Odo to do, and what it would save you.</string>
+    <string name="sp_fb_idea_subject">Feature idea</string>
+
+    <string name="sp_fb_flag_intro">Tell us which job looked wrong and what you actually paid. Include your city — benchmarks are worked out per city.</string>
+    <string name="sp_fb_flag_subject">Wrong price data</string>
+
+    <!-- Appended below the owner\'s message in the draft. %1$s is the version name, %2$s the
+         build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
+    <string name="sp_fb_mail_footer">---\nSent from Odo v%1$s (build %2$s)\n%3$s %4$s · %5$s</string>
 </resources>
