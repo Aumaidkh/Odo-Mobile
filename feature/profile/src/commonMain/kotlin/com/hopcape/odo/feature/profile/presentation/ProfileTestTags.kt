@@ -38,6 +38,9 @@ object ProfileTestTags {
     /** The sync diagnostics line under the version. */
     const val SYNC_ROW = "profile_sync_row"
 
+    /** The "Help & support" row, which opens the support sheet. */
+    const val HELP_ROW: String = "profile_help_row"
+
     /** The "Privacy & permissions" row on the profile home. */
     const val PRIVACY_ROW: String = "profile_privacy_row"
 

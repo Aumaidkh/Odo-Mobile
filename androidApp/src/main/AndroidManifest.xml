@@ -78,6 +78,18 @@
         android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
         tools:node="remove" />
 
+    <!-- Android 11 and later hide installed apps from us unless we say what we look for.
+         The Help and support rows hand a prefilled draft to a mail app (ACTION_SENDTO on a
+         mailto: URI); without this the intent resolves to nothing on a phone that does
+         have mail installed. Odo only ever asks the OS to open these — it never reads back
+         which apps matched, or whether any did. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+
     <application
         android:name=".OdoApplication"
         android:allowBackup="true"

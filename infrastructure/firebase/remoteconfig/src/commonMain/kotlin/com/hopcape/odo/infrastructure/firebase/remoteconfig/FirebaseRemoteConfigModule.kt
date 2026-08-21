@@ -4,6 +4,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
 import com.hopcape.odo.core.domain.legal.LegalLinks
+import com.hopcape.odo.core.domain.support.SupportContacts
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -24,7 +25,9 @@ val firebaseRemoteConfigModule = module {
             // Both consumers' keys, in one call — the SDK takes defaults once per process.
             // On Android none of this map is read: `remote_config_defaults.xml` is the
             // canonical copy there (see LocalRemoteConfigDefaults.android.kt).
-            defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS + RemoteConfigLegalLinks.REMOTE_DEFAULTS,
+            defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS +
+                RemoteConfigLegalLinks.REMOTE_DEFAULTS +
+                RemoteConfigSupportContacts.REMOTE_DEFAULTS,
             // Every other Firebase gateway in this repo reports failures the same way — a
             // vendor SDK failure is visible in logs, never a silent no-op and never a throw.
             onDiagnostic = { message -> logger.warn(TAG, message) },
@@ -38,6 +41,12 @@ val firebaseRemoteConfigModule = module {
     // reaches Firebase keeps working links instead of losing the privacy policy entirely.
     single<LegalLinks> {
         RemoteConfigLegalLinks(gateway = get(), builtIn = get(named(LegalLinks.BUILT_IN)))
+    }
+
+    // Decorates coreDataModule's compiled-in address the same way, and for a sharper reason:
+    // a support mailbox that moves leaves every installed build mailing a dead address.
+    single<SupportContacts> {
+        RemoteConfigSupportContacts(gateway = get(), builtIn = get(named(SupportContacts.BUILT_IN)))
     }
 }
 

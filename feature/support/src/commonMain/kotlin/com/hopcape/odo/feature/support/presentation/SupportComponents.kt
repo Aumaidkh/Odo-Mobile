@@ -75,8 +75,11 @@ internal fun IconTile(icon: ImageVector, tint: Color = OdoTheme.colors.accent, s
 }
 
 /**
- * One support row: a tinted icon tile, a title over a dim subtitle, and either a caller
- * supplied [trailing] (the "Online" pill, the open-ticket count) or a chevron.
+ * One support row: a tinted icon tile, a title over a dim subtitle, and a chevron.
+ *
+ * Every row opens something, so every row gets the chevron. The slot that used to let a
+ * caller replace it held the chat "Online" pill and the open-ticket count, and went when
+ * those rows did.
  */
 @Composable
 internal fun SupportRow(
@@ -85,7 +88,6 @@ internal fun SupportRow(
     subtitle: String,
     onClick: () -> Unit,
     iconTint: Color = OdoTheme.colors.accent,
-    trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -101,15 +103,11 @@ internal fun SupportRow(
             OdoText(title, style = OdoTheme.typography.heading, maxLines = 1)
             OdoText(subtitle, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim, maxLines = 1)
         }
-        if (trailing != null) {
-            trailing()
-        } else {
-            OdoIcon(
-                IcChevronRight,
-                contentDescription = null,
-                tint = OdoTheme.colors.textDim,
-                size = OdoTheme.iconSizes.small,
-            )
-        }
+        OdoIcon(
+            IcChevronRight,
+            contentDescription = null,
+            tint = OdoTheme.colors.textDim,
+            size = OdoTheme.iconSizes.small,
+        )
     }
 }
