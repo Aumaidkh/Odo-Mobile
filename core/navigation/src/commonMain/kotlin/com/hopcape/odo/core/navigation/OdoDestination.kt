@@ -559,15 +559,9 @@ sealed interface OdoDestination : NavKey {
         /** Search the help articles — reached from the hub's search box. */
         @Serializable
         data object Search : Support
-        /** Live chat with a support agent. */
-        @Serializable
-        data object Chat : Support
-        /** Email support — a mail hand-off once the platform layer exists. */
+        /** Email support — hands a prefilled draft to the mail app. */
         @Serializable
         data object Email : Support
-        /** The owner's raised tickets and their status. */
-        @Serializable
-        data object Tickets : Support
         /** "Something broken or wrong" — a bug report form. */
         @Serializable
         data object ReportProblem : Support

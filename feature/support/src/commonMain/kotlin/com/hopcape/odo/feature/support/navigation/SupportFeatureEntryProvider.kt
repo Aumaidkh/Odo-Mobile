@@ -18,7 +18,6 @@ import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
 import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.resources.Res
-import com.hopcape.odo.feature.support.resources.sp_chat
 import com.hopcape.odo.feature.support.resources.sp_email
 import com.hopcape.odo.feature.support.resources.sp_faqs
 import com.hopcape.odo.feature.support.resources.sp_flag
@@ -29,7 +28,6 @@ import com.hopcape.odo.feature.support.resources.sp_rate
 import com.hopcape.odo.feature.support.resources.sp_report
 import com.hopcape.odo.feature.support.resources.sp_search
 import com.hopcape.odo.feature.support.resources.sp_terms
-import com.hopcape.odo.feature.support.resources.sp_tickets
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -67,9 +65,7 @@ internal class SupportFeatureEntryProvider(
                 versionCode = appInfo.versionCode,
                 onClose = { nm.back() },
                 onSearch = { nm.navigateTo(OdoDestination.Support.Search) },
-                onChat = { nm.navigateTo(OdoDestination.Support.Chat) },
                 onEmail = { nm.navigateTo(OdoDestination.Support.Email) },
-                onTickets = { nm.navigateTo(OdoDestination.Support.Tickets) },
                 onReportProblem = { nm.navigateTo(OdoDestination.Support.ReportProblem) },
                 onSuggestIdea = { nm.navigateTo(OdoDestination.Support.SuggestIdea) },
                 onFlagPriceData = { nm.navigateTo(OdoDestination.Support.FlagPriceData) },
@@ -87,9 +83,7 @@ internal class SupportFeatureEntryProvider(
         }
 
         entry<OdoDestination.Support.Search> { Placeholder(Res.string.sp_search) }
-        entry<OdoDestination.Support.Chat> { Placeholder(Res.string.sp_chat) }
         entry<OdoDestination.Support.Email> { Placeholder(Res.string.sp_email) }
-        entry<OdoDestination.Support.Tickets> { Placeholder(Res.string.sp_tickets) }
         entry<OdoDestination.Support.ReportProblem> { Placeholder(Res.string.sp_report) }
         entry<OdoDestination.Support.SuggestIdea> { Placeholder(Res.string.sp_idea) }
         entry<OdoDestination.Support.FlagPriceData> { Placeholder(Res.string.sp_flag) }

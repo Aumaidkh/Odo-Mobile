@@ -12,8 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.hopcape.odo.core.designsystem.component.OdoBadge
-import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoChip
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
@@ -21,10 +19,8 @@ import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcChatOutlined
 import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
-import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcMagnifier
 import com.hopcape.odo.core.designsystem.icons.IcPencil
@@ -32,9 +28,6 @@ import com.hopcape.odo.core.designsystem.icons.IcStarFilled
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.support.resources.Res
-import com.hopcape.odo.feature.support.resources.sp_chat
-import com.hopcape.odo.feature.support.resources.sp_chat_hours
-import com.hopcape.odo.feature.support.resources.sp_chat_online
 import com.hopcape.odo.feature.support.resources.sp_close
 import com.hopcape.odo.feature.support.resources.sp_email
 import com.hopcape.odo.feature.support.resources.sp_email_address
@@ -55,8 +48,6 @@ import com.hopcape.odo.feature.support.resources.sp_section_feedback
 import com.hopcape.odo.feature.support.resources.sp_section_resources
 import com.hopcape.odo.feature.support.resources.sp_subtitle
 import com.hopcape.odo.feature.support.resources.sp_terms
-import com.hopcape.odo.feature.support.resources.sp_tickets
-import com.hopcape.odo.feature.support.resources.sp_tickets_sub
 import com.hopcape.odo.feature.support.resources.sp_title
 import com.hopcape.odo.feature.support.resources.sp_version
 import org.jetbrains.compose.resources.stringResource
@@ -69,9 +60,9 @@ import org.jetbrains.compose.resources.stringResource
  * makes no decision; each callback pushes the row's own destination. The sheet chrome
  * (drag handle, scrim, swipe-to-dismiss) comes from the navigation layer.
  *
- * The chat availability and the open-ticket count are still **sample values** until the
- * support backend is wired: they are rendered so the layout is real, not because the data
- * is. The version line is not — it is the installed build, passed in by the caller.
+ * Every value shown here is real. Live chat and ticket history were removed rather than
+ * left showing sample data: both need a support backend and somebody answering, and a row
+ * that opens nothing is worse than a row that is not there.
  */
 @Composable
 internal fun HelpSupportSheetContent(
@@ -79,9 +70,7 @@ internal fun HelpSupportSheetContent(
     versionCode: Long,
     onClose: () -> Unit,
     onSearch: () -> Unit,
-    onChat: () -> Unit,
     onEmail: () -> Unit,
-    onTickets: () -> Unit,
     onReportProblem: () -> Unit,
     onSuggestIdea: () -> Unit,
     onFlagPriceData: () -> Unit,
@@ -99,28 +88,10 @@ internal fun HelpSupportSheetContent(
         SectionLabel(stringResource(Res.string.sp_section_contact))
         SupportGroup {
             SupportRow(
-                icon = IcChatOutlined,
-                title = stringResource(Res.string.sp_chat),
-                subtitle = stringResource(Res.string.sp_chat_hours),
-                onClick = onChat,
-                // Sample availability — the real state arrives with the support backend.
-                trailing = { OdoBadge(stringResource(Res.string.sp_chat_online), tone = OdoBadgeTone.Success) },
-            )
-            OdoDivider()
-            SupportRow(
                 icon = IcEnvelope,
                 title = stringResource(Res.string.sp_email),
                 subtitle = stringResource(Res.string.sp_email_address),
                 onClick = onEmail,
-            )
-            OdoDivider()
-            SupportRow(
-                icon = IcFileFilled,
-                title = stringResource(Res.string.sp_tickets),
-                subtitle = stringResource(Res.string.sp_tickets_sub),
-                onClick = onTickets,
-                // Sample open-ticket count, same as the subtitle above it.
-                trailing = { OdoBadge(SAMPLE_OPEN_TICKETS, tone = OdoBadgeTone.Warning) },
             )
         }
 
@@ -250,5 +221,3 @@ private fun VersionFooter(versionName: String, versionCode: Long, onClick: () ->
             .padding(vertical = OdoTheme.spacing.sm),
     )
 }
-
-private const val SAMPLE_OPEN_TICKETS = "1"

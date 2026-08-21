@@ -8,13 +8,8 @@
 
     <!-- Get in touch -->
     <string name="sp_section_contact">GET IN TOUCH</string>
-    <string name="sp_chat">Chat with support</string>
-    <string name="sp_chat_hours">Mon–Sat, 9am–7pm IST</string>
-    <string name="sp_chat_online">Online</string>
     <string name="sp_email">Email us</string>
     <string name="sp_email_address">support.odo.in@gmail.com</string>
-    <string name="sp_tickets">My tickets</string>
-    <string name="sp_tickets_sub">1 open · updated 2h ago</string>
 
     <!-- Share feedback -->
     <string name="sp_section_feedback">SHARE FEEDBACK</string>

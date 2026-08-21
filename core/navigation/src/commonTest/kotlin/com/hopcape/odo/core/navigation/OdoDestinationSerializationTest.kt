@@ -136,9 +136,7 @@ class OdoDestinationSerializationTest {
         // Support
         OdoDestination.Support.Help,
         OdoDestination.Support.Search,
-        OdoDestination.Support.Chat,
         OdoDestination.Support.Email,
-        OdoDestination.Support.Tickets,
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
         OdoDestination.Support.FlagPriceData,
