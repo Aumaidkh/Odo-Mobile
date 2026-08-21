@@ -87,7 +87,9 @@ private fun OptionCard(
             IconTile(icon, tint = if (highlighted) accent else OdoTheme.colors.text, size = 44.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    OdoText(title, style = OdoTheme.typography.heading)
+                    // fill = false: the badge keeps its intrinsic width under a large
+                    // font scale; the title wraps instead of squeezing the badge.
+                    OdoText(title, style = OdoTheme.typography.heading, modifier = Modifier.weight(1f, fill = false))
                     if (badge != null) OdoBadge(badge, tone = OdoBadgeTone.Accent)
                 }
                 OdoText(subtitle, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)

@@ -4,17 +4,20 @@ import com.hopcape.odo.core.platform.permission.PermissionStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The order the opt-in asks for its two permissions, and what the button does at each point.
+ * Which asks the opt-in makes, in what order, and what its counter says while it does.
  *
  * Worth its own suite because this screen previously ran one button labelled "Turn on
  * auto-detect" straight into a system permission page, having never asked for
- * `POST_NOTIFICATIONS` at all. Both halves of that were wrong: the label named something the
- * tap did not do, and the permission that lets a detected fill reach the owner was never
- * requested. The step is what both the label and the tap are now derived from, so a wrong
- * step is a screen that lies again.
+ * `POST_NOTIFICATIONS` at all. Both halves of that were wrong: the label named something the tap
+ * did not do, and the permission that lets a detected fill reach the owner was never requested.
+ * The flow is now derived from the page and the step list, so a wrong step is a screen that
+ * lies again. `POST_NOTIFICATIONS` is no longer one of the numbered steps — it is raised as a
+ * dialog on the way out of the pitch page — so what these check is that it neither gates the
+ * flow nor counts towards it, while still being reported once detection is on.
  */
 class AutoDetectSetupStepTest {
 
@@ -22,54 +25,176 @@ class AutoDetectSetupStepTest {
         notify: PermissionStatus = PermissionStatus.Askable,
         accessGranted: Boolean = false,
         optedIn: Boolean = false,
+        autostartAcknowledged: Boolean = false,
         needsAutostart: Boolean = false,
+        page: AutoDetectPage = AutoDetectPage.Why,
+        steps: List<AutoDetectStep> = emptyList(),
     ) = AutoDetectUiState(
         loading = false,
         optedIn = optedIn,
         accessGranted = accessGranted,
         notifyStatus = notify,
+        autostartAcknowledged = autostartAcknowledged,
         needsAutostart = needsAutostart,
+        page = page,
+        steps = steps,
     )
 
+    private val bothSteps = listOf(AutoDetectStep.Access, AutoDetectStep.Background)
+
     @Test
-    fun aFreshPhoneIsAskedForTheSmallerPermissionFirst() {
-        // Notifications before notification access, deliberately. The second ask's own system
-        // dialog warns that Odo will be able to read every notification, and arriving at it
-        // having already granted the first is what lets the screen explain the difference.
-        assertEquals(AutoDetectSetupStep.PostNotifications, state().setupStep)
+    fun aFreshPhoneOwesBothAsks() {
+        // Access first, background last: background is the only one that changes nothing today,
+        // so making it wait costs the owner nothing and putting it first would.
+        assertEquals(bothSteps, state().pendingSteps)
     }
 
     @Test
-    fun grantingNotificationsMovesOnToNotificationAccess() {
-        val step = state(notify = PermissionStatus.Granted).setupStep
+    fun anAlreadyGrantedPermissionIsNotAskedFor() {
+        val pending = state(accessGranted = true).pendingSteps
 
-        assertEquals(AutoDetectSetupStep.NotificationAccess, step)
+        assertEquals(listOf(AutoDetectStep.Background), pending)
     }
 
     @Test
-    fun onlyBothPermissionsTogetherReachTheSwitch() {
-        val step = state(notify = PermissionStatus.Granted, accessGranted = true).setupStep
+    fun theNotificationsPermissionIsNeverOneOfTheSteps() {
+        // It is a one-tap dialog raised on the way out of the pitch page, and the drawn
+        // notification there is its whole explanation. Counting it made the flow read as one ask
+        // longer than it is, and a screen repeating the drawing said the same thing twice.
+        val ungranted = state(notify = PermissionStatus.Askable)
 
-        assertEquals(AutoDetectSetupStep.Ready, step)
+        assertEquals(bothSteps, ungranted.pendingSteps)
+        assertEquals(bothSteps, state(notify = PermissionStatus.Granted).pendingSteps)
     }
 
     @Test
-    fun notificationAccessAloneStillOwesTheFirstPermission() {
-        // The order the owner can land in by granting access from system settings before ever
-        // opening this screen. Detection would run and its draft would go nowhere.
-        val step = state(notify = PermissionStatus.Askable, accessGranted = true).setupStep
-
-        assertEquals(AutoDetectSetupStep.PostNotifications, step)
+    fun theDialogIsOnlyRaisedWhenTheSystemWouldActuallyShowIt() {
+        // Blocked means it will not, and turning "see what it needs" into a trip to app settings
+        // is not a fair reading of that button. The settings body says so plainly instead.
+        assertTrue(state(notify = PermissionStatus.Askable).notifyAskPending)
+        assertFalse(state(notify = PermissionStatus.Blocked).notifyAskPending)
+        assertFalse(state(notify = PermissionStatus.Granted).notifyAskPending)
     }
 
     @Test
-    fun aPermanentlyDeniedNotificationsPermissionStaysOnItsStep() {
-        // Blocked is not granted, so the chain does not advance; what changes is that the
-        // button has to open app settings, because the system will not show its dialog again.
-        val blocked = state(notify = PermissionStatus.Blocked)
+    fun anOwnerWhoOwesNothingHasNoStepsAtAll() {
+        // The state an owner reaches by granting access elsewhere and acknowledging the
+        // background setting. The pitch page's button turns detection on rather than walking
+        // them through screens that would all be answered already.
+        val settled = state(
+            notify = PermissionStatus.Granted,
+            accessGranted = true,
+            autostartAcknowledged = true,
+        )
 
-        assertEquals(AutoDetectSetupStep.PostNotifications, blocked.setupStep)
-        assertTrue(blocked.notifyBlocked)
+        assertTrue(settled.pendingSteps.isEmpty())
+    }
+
+    @Test
+    fun theBackgroundAskIsOwedUntilTheOwnerSaysOtherwise() {
+        // Nothing can read that setting, so acknowledgement is the only signal there is. It is
+        // asked for on every phone, because every phone sleeps apps to save battery.
+        assertTrue(AutoDetectStep.Background in state().pendingSteps)
+        assertFalse(AutoDetectStep.Background in state(autostartAcknowledged = true).pendingSteps)
+    }
+
+    @Test
+    fun theCounterNumbersThePageWithinTheStepsThisRunWillMake() {
+        val onAccess = state(page = AutoDetectPage.Access, steps = bothSteps)
+
+        assertEquals(1, onAccess.stepNumberOf(AutoDetectPage.Access))
+        assertEquals(2, onAccess.stepTotalOf(AutoDetectPage.Access))
+    }
+
+    @Test
+    fun aHandoffPageCountsAsTheStepItBelongsTo() {
+        // The forewarning about the system page is not an ask of its own, and numbering it as
+        // one would make the flow look longer every time it explained itself.
+        val handoff = state(page = AutoDetectPage.AccessHandoff, steps = bothSteps)
+
+        assertEquals(1, handoff.stepNumberOf(AutoDetectPage.AccessHandoff))
+        assertEquals(2, handoff.stepTotalOf(AutoDetectPage.AccessHandoff))
+    }
+
+    @Test
+    fun theCounterIsOutOfWhatThisRunActuallyAsksFor() {
+        // A phone that already holds notification access sees one step, not two of which one is
+        // skipped. Counting asks that will not happen makes the flow read as longer than it is.
+        val steps = listOf(AutoDetectStep.Background)
+        val onBackground = state(page = AutoDetectPage.Background, steps = steps)
+
+        assertEquals(1, onBackground.stepNumberOf(AutoDetectPage.Background))
+        assertEquals(1, onBackground.stepTotalOf(AutoDetectPage.Background))
+    }
+
+    @Test
+    fun thePitchPageHasNoCounter() {
+        assertEquals(0, state(steps = bothSteps).stepTotalOf(AutoDetectPage.Why))
+    }
+
+    @Test
+    fun backFromTheFirstPageLeavesTheScreen() {
+        assertNull(state(page = AutoDetectPage.Why).previousPage)
+    }
+
+    @Test
+    fun backWalksTheFlowOnePageAtATime() {
+        assertEquals(
+            AutoDetectPage.Access,
+            state(page = AutoDetectPage.AccessHandoff, steps = bothSteps).previousPage,
+        )
+        assertEquals(
+            AutoDetectPage.AccessHandoff,
+            state(page = AutoDetectPage.Background, steps = bothSteps).previousPage,
+        )
+        assertEquals(
+            AutoDetectPage.Background,
+            state(page = AutoDetectPage.BackgroundHandoff, steps = bothSteps).previousPage,
+        )
+        assertEquals(
+            AutoDetectPage.Why,
+            state(page = AutoDetectPage.Access, steps = bothSteps).previousPage,
+        )
+    }
+
+    @Test
+    fun backNeverReversesOntoAnAskThisRunSkipped() {
+        // The owner's phone held notification access already, so there is no step-one page
+        // behind them. Reversing onto one would ask for a permission they already hold.
+        val steps = listOf(AutoDetectStep.Background)
+
+        assertEquals(
+            AutoDetectPage.Why,
+            state(page = AutoDetectPage.Background, steps = steps).previousPage,
+        )
+    }
+
+    @Test
+    fun eachSatisfiedStepLeadsToTheNextOne() {
+        val mid = state(page = AutoDetectPage.Access, steps = bothSteps)
+
+        assertEquals(AutoDetectPage.Background, mid.pageAfter(AutoDetectStep.Access))
+    }
+
+    @Test
+    fun theLastStepLeadsNowhere() {
+        // Null is what turns detection on. Anything else would leave the owner one screen short
+        // of the feature they just granted everything for.
+        assertNull(state(steps = bothSteps).pageAfter(AutoDetectStep.Background))
+    }
+
+    @Test
+    fun aStepThatIsNotInThisRunLeadsNowhere() {
+        val steps = listOf(AutoDetectStep.Background)
+
+        assertNull(state(steps = steps).pageAfter(AutoDetectStep.Access))
+    }
+
+    @Test
+    fun aPermanentlyDeniedNotificationsPermissionIsRecognisedAsSuch() {
+        // Blocked changes what the settings-body button has to do: open app settings, because
+        // the system will not show its dialog again.
+        assertTrue(state(notify = PermissionStatus.Blocked).notifyBlocked)
     }
 
     @Test
@@ -78,33 +203,9 @@ class AutoDetectSetupStepTest {
     }
 
     @Test
-    fun theFlowOnlyLeavesThePermissionsPageOnceBothAreGranted() {
-        // permissionsSettled is what the CTA branches on: before it, the button still has an
-        // Android permission to ask for and must not advance the page.
-        assertFalse(state().permissionsSettled)
-        assertFalse(state(notify = PermissionStatus.Granted).permissionsSettled)
-        assertFalse(state(accessGranted = true).permissionsSettled)
-        assertTrue(state(notify = PermissionStatus.Granted, accessGranted = true).permissionsSettled)
-    }
-
-    @Test
-    fun autostartNeverGatesTheButton() {
-        // No API reports whether the manufacturer's switch is on, so a step that waited for it
-        // could never clear. Detection does work until the phone next reclaims the app, which
-        // makes autostart advice rather than a gate.
-        val step = state(
-            notify = PermissionStatus.Granted,
-            accessGranted = true,
-            needsAutostart = true,
-        ).setupStep
-
-        assertEquals(AutoDetectSetupStep.Ready, step)
-    }
-
-    @Test
     fun bothRevocationWarningsOnlyApplyOnceDetectionIsOn() {
         // On the opt-in nothing is switched on yet, so neither is a warning about anything —
-        // they are the setup chain, which the checklist already shows.
+        // they are the asks the flow is in the middle of making.
         val optedOut = state()
 
         assertFalse(optedOut.needsAccess)
@@ -131,7 +232,12 @@ class AutoDetectSetupStepTest {
 
     @Test
     fun aFullyWorkingSetupWarnsAboutNothing() {
-        val working = state(notify = PermissionStatus.Granted, accessGranted = true, optedIn = true)
+        val working = state(
+            notify = PermissionStatus.Granted,
+            accessGranted = true,
+            optedIn = true,
+            autostartAcknowledged = true,
+        )
 
         assertFalse(working.needsAccess)
         assertFalse(working.needsNotifyPermission)
@@ -139,9 +245,10 @@ class AutoDetectSetupStepTest {
     }
 
     @Test
-    fun autostartAdviceOnlyShowsOnceDetectionIsOn() {
-        // This is the card in the *settings* body. Before opt-in the same advice is a page of
-        // its own in the flow, so a card here as well would say it twice.
+    fun theStandingAutostartReminderOnlyShowsOnceDetectionIsOn() {
+        // This is the card in the *settings* body, and only on the skins that refuse background
+        // starts outright. Before opt-in the same advice is a page of its own in the flow, so a
+        // card here as well would say it twice.
         assertFalse(state(needsAutostart = true).showAutostart)
         assertTrue(state(needsAutostart = true, optedIn = true).showAutostart)
     }

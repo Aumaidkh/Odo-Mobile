@@ -3,7 +3,9 @@ package com.hopcape.odo.core.platform.notification
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 
 /**
  * Finds the manufacturer's autostart page, on the builds that have one.
@@ -29,10 +31,18 @@ internal class AndroidBackgroundStartAccess(
         }
         if (opened) return true
 
-        // Nothing skin-specific resolved. The app's own settings page at least puts the owner
-        // one level from the battery and autostart controls on most of these builds.
-        val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-            .setData(android.net.Uri.fromParts("package", context.packageName, null))
+        // No skin-specific autostart page, which is the normal case on stock Android and on the
+        // builds — Samsung's among them — that fold the same decision into battery optimisation
+        // instead. This list is where those phones keep it. It only opens the list; it does not
+        // ask for an exemption, so it needs no permission of its own.
+        val battery = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(battery) }.isSuccess) return true
+
+        // Neither resolved. The app's own settings page at least puts the owner one level from
+        // the battery and autostart controls on every build that has them.
+        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", context.packageName, null))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(fallback) }.isSuccess
     }

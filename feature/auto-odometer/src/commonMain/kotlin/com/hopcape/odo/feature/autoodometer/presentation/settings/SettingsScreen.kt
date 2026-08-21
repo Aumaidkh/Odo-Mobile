@@ -48,6 +48,8 @@ import com.hopcape.odo.feature.autoodometer.resources.ao_settings_delete_confirm
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_delete_confirm_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_background_location
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_bluetooth
+import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_bluetooth_off
+import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_turn_on
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_fix_it_row
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_footer
 import com.hopcape.odo.feature.autoodometer.resources.ao_settings_logs_to
@@ -195,7 +197,14 @@ private fun FixItRow(issue: ReadinessIssue, onAction: () -> Unit) {
     OdoPermissionNudge(
         icon = IcWarning,
         message = stringResource(Res.string.ao_settings_fix_it_row, label),
-        actionLabel = stringResource(Res.string.ao_permissions_open_settings),
+        // A missing permission is fixed on Odo's settings page; a switched-off radio is not on
+        // that page at all, so promising "open settings" there would send the owner looking for
+        // a switch that isn't where they were sent.
+        actionLabel = if (issue == ReadinessIssue.BLUETOOTH_OFF) {
+            stringResource(Res.string.ao_settings_fix_it_turn_on)
+        } else {
+            stringResource(Res.string.ao_permissions_open_settings)
+        },
         onAction = onAction,
     )
 }
@@ -205,6 +214,7 @@ private fun ReadinessIssue.labelResource(): StringResource = when (this) {
     ReadinessIssue.BACKGROUND_LOCATION -> Res.string.ao_settings_fix_it_background_location
     ReadinessIssue.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
     ReadinessIssue.BLUETOOTH_CONNECT -> Res.string.ao_settings_fix_it_bluetooth
+    ReadinessIssue.BLUETOOTH_OFF -> Res.string.ao_settings_fix_it_bluetooth_off
 }
 
 @Composable

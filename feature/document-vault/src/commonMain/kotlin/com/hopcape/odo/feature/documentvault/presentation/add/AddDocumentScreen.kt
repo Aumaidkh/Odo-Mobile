@@ -188,7 +188,9 @@ private fun MethodCard(
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    OdoText(title, style = OdoTheme.typography.heading)
+                    // fill = false: the badge keeps its intrinsic width under a large
+                    // font scale; the title wraps instead of squeezing the badge.
+                    OdoText(title, style = OdoTheme.typography.heading, modifier = Modifier.weight(1f, fill = false))
                     if (fastest) OdoBadge(text = stringResource(Res.string.dv_add_fastest), tone = OdoBadgeTone.Accent)
                 }
                 OdoText(body, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)

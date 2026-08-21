@@ -13,19 +13,46 @@ import kotlinx.datetime.LocalDate
  * earns a fix-it row (same reasoning [com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupStep.NOTIFICATIONS]
  * is soft-required).
  */
-internal enum class ReadinessIssue { FINE_LOCATION, BACKGROUND_LOCATION, ACTIVITY_RECOGNITION, BLUETOOTH_CONNECT }
+internal enum class ReadinessIssue {
+    FINE_LOCATION,
+    BACKGROUND_LOCATION,
+    ACTIVITY_RECOGNITION,
+    BLUETOOTH_CONNECT,
 
-/** Whether [readiness] holds this precondition. */
-internal fun ReadinessIssue.isGranted(readiness: TrackingReadiness): Boolean = when (this) {
+    /**
+     * The phone's Bluetooth radio is switched off. Not a permission — the only issue here Odo
+     * cannot ask its way out of — but it stops a STEREO car dead all the same: the stereo never
+     * connects, so no trip ever starts, and without this row the screen would report everything
+     * as fine while tracking quietly did nothing.
+     */
+    BLUETOOTH_OFF,
+}
+
+/**
+ * Whether this precondition is currently held.
+ *
+ * [bluetoothEnabled] is passed alongside [readiness] rather than living inside it: that record
+ * is the five runtime permissions `TrackingReadiness.canTrack` is defined over, and a radio
+ * switch is not a permission.
+ */
+internal fun ReadinessIssue.isGranted(readiness: TrackingReadiness, bluetoothEnabled: Boolean): Boolean = when (this) {
     ReadinessIssue.FINE_LOCATION -> readiness.fineLocation
     ReadinessIssue.BACKGROUND_LOCATION -> readiness.backgroundLocation
     ReadinessIssue.ACTIVITY_RECOGNITION -> readiness.activityRecognition
     ReadinessIssue.BLUETOOTH_CONNECT -> readiness.bluetoothConnect
+    ReadinessIssue.BLUETOOTH_OFF -> bluetoothEnabled
 }
 
 /** Which [ReadinessIssue]s can even apply to [mode] — the engine never arms the other trigger's permission for this car. */
 internal fun relevantReadinessIssues(mode: TriggerMode?): List<ReadinessIssue> = when (mode) {
-    TriggerMode.STEREO -> listOf(ReadinessIssue.FINE_LOCATION, ReadinessIssue.BACKGROUND_LOCATION, ReadinessIssue.BLUETOOTH_CONNECT)
+    TriggerMode.STEREO -> listOf(
+        ReadinessIssue.FINE_LOCATION,
+        ReadinessIssue.BACKGROUND_LOCATION,
+        ReadinessIssue.BLUETOOTH_CONNECT,
+        ReadinessIssue.BLUETOOTH_OFF,
+    )
+    // NO_STEREO reads motion, never the radio, so a car set up that way tracks perfectly well
+    // with Bluetooth off and must not be told otherwise.
     TriggerMode.NO_STEREO -> listOf(ReadinessIssue.FINE_LOCATION, ReadinessIssue.BACKGROUND_LOCATION, ReadinessIssue.ACTIVITY_RECOGNITION)
     null -> emptyList()
 }

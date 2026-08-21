@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odo — Maintain your car. Know every rupee.</title>
+<meta name="description" content="Service on time, papers in order, and one honest cost per kilometre behind it all. Odo keeps your car's record so you don't have to remember it. Free on Android.">
+<meta property="og:title" content="Odo — Maintain your car. Know every rupee.">
+<meta property="og:description" content="Service, papers and running cost in one place. Scan a bill and Odo starts keeping the record. Free to start, no card needed.">
+<meta property="og:image" content="https://odoapp.in/assets/shot-home.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/svg+xml" href="assets/odo-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------------------------------------------------------------------------
+     Tokens. Same palette the design has always used; named so a colour is
+     changed in one place. Sizes that must bend between a phone and a 1280px
+     desktop are clamped here rather than overridden further down, which is why
+     there are only two width breakpoints in the whole file.
+     --------------------------------------------------------------------------- */
+  :root{
+    --black:#000000;
+    --white:#FFFFFF;
+    --ink-900:#141414;   /* card fill on black */
+    --ink-800:#1F1F1F;   /* hairline rules, pill fill */
+    --ink-700:#262626;   /* card borders */
+    --grey-400:#6B7280;
+    --grey-300:#9CA3AF;  /* body copy on black */
+    --grey-200:#D1D5DB;
+    --paper-edge:#D8D8D8;
+    --paper-ink:#374151; /* body copy on the light bands */
+
+    --gutter:clamp(20px, 5vw, 56px);
+    --band:clamp(56px, 9vw, 96px);
+    --gap-col:clamp(32px, 5vw, 56px);
+
+    --font:Gotham, Inter, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--black);
+    color:var(--white);
+    font-family:var(--font);
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+
+  .page{max-width:1280px;margin:0 auto;background:var(--black)}
+
+  /* ---------------------------------------------------------------------------
+     Bands. Every section is one of these: a full-bleed strip with the page
+     gutter either side.
+     --------------------------------------------------------------------------- */
+  .band{padding:var(--band) var(--gutter)}
+  .band--flush-top{padding-top:0}
+  .band--light{
+    background:radial-gradient(110% 90% at 78% 10%, #FFFFFF 0%, #F4F4F4 52%, #D8D8D8 100%);
+    color:var(--black);
+  }
+  .band--light-left{background:radial-gradient(110% 90% at 24% 12%, #FFFFFF 0%, #F4F4F4 52%, #D8D8D8 100%)}
+  .band--hero{
+    padding-bottom:0;
+    background:radial-gradient(120% 90% at 22% 6%, #1F1F1F 0%, #141414 44%, #000000 100%);
+  }
+  .band--close{
+    background:radial-gradient(120% 100% at 50% 20%, #1F1F1F 0%, #141414 44%, #000000 100%);
+    border-top:1px solid var(--ink-800);
+  }
+
+  /* Type. One scale, used everywhere. */
+  .eyebrow{
+    font-size:11.5px;font-weight:700;letter-spacing:1.5px;color:var(--grey-300);
+    text-transform:uppercase;margin:0;
+  }
+  .eyebrow--pill{
+    align-self:flex-start;background:var(--ink-800);border:1px solid var(--ink-700);
+    padding:7px 14px;border-radius:999px;
+  }
+  .band--light .eyebrow{color:var(--paper-ink)}
+  .band--light .eyebrow--pill{background:var(--paper-edge);border-color:transparent}
+
+  h1,h2,h3{margin:0;font-weight:700}
+  h1{font-size:clamp(34px, 7.4vw, 66px);letter-spacing:-0.045em;line-height:1.05}
+  h2{font-size:clamp(28px, 5.6vw, 46px);letter-spacing:-0.042em;line-height:1.12}
+  h2.h2--close{font-size:clamp(30px, 6.4vw, 52px);letter-spacing:-0.044em;line-height:1.08}
+  h3{font-size:19px;letter-spacing:-0.4px}
+
+  .lead{
+    margin:0;font-size:clamp(16px, 2.2vw, 20px);line-height:1.55;
+    color:var(--grey-300);max-width:52ch;
+  }
+  .band--light .lead{color:var(--paper-ink)}
+  .stack{display:flex;flex-direction:column}
+  .stack-16{gap:16px}
+  .stack-22{gap:22px}
+  .stack-26{gap:26px}
+
+  /* Line breaks that only belong on a wide canvas. */
+  .wide-break{display:none}
+
+  /* Buttons. 48px minimum so they are a real tap target on a phone. */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-height:48px;padding:0 28px;border-radius:999px;
+    font-size:15px;font-weight:700;line-height:1;
+    border:1px solid transparent;transition:opacity .15s ease;
+  }
+  .btn:hover{opacity:.86}
+  .btn--primary{background:var(--white);color:var(--black)}
+  .btn--ghost{border-color:var(--ink-700);color:var(--white)}
+  .btn--soon{border-color:var(--ink-700);color:var(--grey-400);cursor:default}
+  .btn--soon:hover{opacity:1}
+  .btn--block{width:100%}
+  .cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+
+  /* ---------------------------------------------------------------------------
+     Screenshots. No frame, no crop: the image is shown at its own ratio and the
+     whole screen stays visible. The corners are rounded on the image itself so
+     the square-cornered shot matches the two that ship with rounded corners of
+     their own — there is no box behind it to clip anything off.
+     --------------------------------------------------------------------------- */
+  .shot{
+    width:100%;height:auto;margin:0 auto;
+    max-width:min(320px, 78vw);
+    border-radius:30px;
+  }
+  .shot--hero{max-width:min(340px, 76vw)}
+  .shot--light{filter:drop-shadow(0 26px 60px rgba(0,0,0,0.26))}
+  .shot-wrap{display:flex;justify-content:center}
+
+  /* Two-column rows. One column until there is room for two. */
+  .split{display:grid;grid-template-columns:1fr;gap:var(--gap-col);align-items:center}
+  .split__copy{display:flex;flex-direction:column;gap:22px;min-width:0}
+
+  /* Header */
+  .nav{
+    position:sticky;top:0;z-index:20;
+    background:rgba(0,0,0,0.86);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--ink-800);
+    padding:0 var(--gutter);
+  }
+  .nav__inner{display:flex;align-items:center;gap:clamp(16px,3vw,36px);min-height:66px}
+  .nav__brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .nav__brand span{font-size:15px;font-weight:700;letter-spacing:2px}
+  .nav__links{display:none;align-items:center;gap:28px;flex:1}
+  .nav__links a{font-size:14px;color:var(--grey-300)}
+  .nav__links a:hover{color:var(--white)}
+  .nav__cta{margin-left:auto;min-height:40px;padding:0 20px;font-size:13.5px}
+
+  /* Hero */
+  .hero{display:grid;grid-template-columns:1fr;gap:clamp(36px,5vw,56px);align-items:start}
+  .hero__copy{display:flex;flex-direction:column;gap:26px;min-width:0}
+  .hero__stats{display:flex;align-items:center;gap:22px;padding-top:6px;flex-wrap:wrap}
+  .hero__stat{display:flex;flex-direction:column;gap:3px}
+  .hero__stat b{font-size:24px;font-weight:700;letter-spacing:-0.8px}
+  .hero__stat span{font-size:12.5px;color:var(--grey-300)}
+  .hero__rule{width:1px;height:34px;background:var(--ink-700)}
+
+  /* The four-up fact strip */
+  .facts{
+    display:grid;grid-template-columns:repeat(2,1fr);
+    margin:0 var(--gutter);
+    border-top:1px solid var(--ink-800);border-bottom:1px solid var(--ink-800);
+  }
+  .fact{display:flex;flex-direction:column;gap:5px;padding:22px 20px}
+  .fact:nth-child(odd){padding-left:0}
+  .fact:nth-child(even){padding-right:0}
+  .fact b{font-size:11px;font-weight:700;letter-spacing:1.3px;color:var(--grey-300)}
+  .fact span{font-size:14.5px;color:var(--grey-200);line-height:1.5}
+  .fact:nth-child(n+3){border-top:1px solid var(--ink-800)}
+  .fact:nth-child(even){border-left:1px solid var(--ink-800)}
+
+  /* Running-cost breakdown card on the light band */
+  .breakdown{
+    display:flex;flex-direction:column;background:var(--white);
+    border-radius:18px;padding:6px 22px;max-width:430px;
+  }
+  .breakdown__row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--paper-edge)}
+  .breakdown__row:last-child{border-bottom:none;padding:16px 0}
+  .breakdown__dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+  .breakdown__name{font-size:15px;font-weight:600;flex:1}
+  .breakdown__amt{font-size:15px;font-weight:700}
+  .breakdown__total{font-size:20px;font-weight:700;letter-spacing:-0.5px}
+
+  /* How it works */
+  .steps{display:grid;grid-template-columns:1fr;gap:clamp(28px,4vw,40px)}
+  .step{display:flex;flex-direction:column;gap:13px}
+  .step__head{display:flex;align-items:center;gap:11px}
+  .step__num{
+    width:30px;height:30px;border-radius:50%;background:var(--white);color:var(--black);
+    font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .step__line{flex:1;height:1px;background:var(--ink-700)}
+  .step h3{font-size:17px;letter-spacing:-0.3px}
+  .step p{margin:0;font-size:14.5px;color:var(--grey-300);line-height:1.6}
+
+  /* Feature cards */
+  .cards{display:grid;grid-template-columns:1fr;gap:20px}
+  .card{
+    background:var(--ink-900);border:1px solid var(--ink-700);border-radius:20px;
+    padding:26px;display:flex;flex-direction:column;gap:14px;
+  }
+  .card__icon{
+    width:44px;height:44px;border-radius:13px;background:var(--ink-800);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .card p{margin:0;font-size:14.5px;color:var(--grey-300);line-height:1.6}
+
+  /* Pricing */
+  .plans{display:grid;grid-template-columns:1fr;gap:20px;align-items:stretch}
+  .plan{
+    background:var(--ink-900);border:1px solid var(--ink-700);border-radius:22px;
+    padding:clamp(24px,4vw,32px);display:flex;flex-direction:column;gap:20px;position:relative;
+  }
+  .plan--pro{border-color:var(--white)}
+  .plan__flag{
+    position:absolute;top:-11px;left:clamp(24px,4vw,32px);
+    font-size:10.5px;font-weight:700;letter-spacing:1.2px;
+    color:var(--black);background:var(--white);padding:4px 11px;border-radius:999px;
+  }
+  .plan__head{display:flex;flex-direction:column;gap:7px}
+  .plan__name{font-size:13px;font-weight:700;letter-spacing:1.3px;color:var(--grey-300)}
+  .plan__price{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+  .plan__amount{font-size:clamp(34px,7vw,42px);font-weight:700;letter-spacing:-1.8px}
+  .plan__per{font-size:15px;color:var(--grey-300)}
+  .plan__note{font-size:13px;color:var(--grey-300)}
+  .rule{height:1px;background:var(--ink-700)}
+  .feats{display:flex;flex-direction:column;gap:12px}
+  .feat{display:flex;gap:11px}
+  .feat span{font-size:14.5px;color:var(--grey-200);line-height:1.5;flex:1}
+  .feat svg{flex-shrink:0;margin-top:2px}
+  .plan .btn{margin-top:auto}
+
+  /* The three ways to buy Pro. */
+  .terms{display:flex;flex-direction:column;border:1px solid var(--ink-700);border-radius:14px;overflow:hidden}
+  .term{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    padding:13px 16px;border-bottom:1px solid var(--ink-700);
+  }
+  .term:last-child{border-bottom:none}
+  .term--best{background:rgba(255,255,255,0.06)}
+  .term__label{font-size:14.5px;font-weight:600;color:var(--white)}
+  .term__tag{
+    font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--black);
+    background:var(--white);padding:3px 7px;border-radius:999px;line-height:1;
+  }
+  .term__price{margin-left:auto;font-size:15px;font-weight:700;white-space:nowrap}
+  .term__sub{flex-basis:100%;font-size:12.5px;color:var(--grey-300)}
+
+  /* FAQ */
+  .faq{display:flex;flex-direction:column}
+  .faq__item{border-bottom:1px solid var(--ink-700);padding:20px 0;display:flex;flex-direction:column;gap:9px}
+  .faq__q{display:flex;align-items:flex-start;gap:14px}
+  .faq__q span{font-size:16.5px;font-weight:600;letter-spacing:-0.3px;flex:1;line-height:1.4}
+  .faq__q svg{flex-shrink:0;margin-top:4px}
+  .faq__a{margin:0;font-size:14.5px;color:var(--grey-300);line-height:1.65;max-width:70ch}
+
+  /* Closing CTA */
+  .close{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center}
+  .close .lead{text-align:center}
+  .close__fine{font-size:13px;color:var(--grey-300);text-align:center}
+
+  /* Footer */
+  .foot{padding:44px var(--gutter);background:var(--black);border-top:1px solid var(--ink-800)}
+  .foot__cols{display:grid;grid-template-columns:repeat(2,1fr);gap:32px var(--gap-col)}
+  .foot__brand{grid-column:1 / -1;display:flex;flex-direction:column;gap:11px}
+  .foot__brand span{font-size:13px;font-weight:700;letter-spacing:1.8px}
+  .foot__brand p{margin:0;font-size:13px;color:var(--grey-300);line-height:1.6;max-width:280px}
+  .foot__col{display:flex;flex-direction:column;gap:11px}
+  .foot__col b{font-size:11px;font-weight:700;letter-spacing:1.2px;color:var(--grey-300)}
+  .foot__col a{font-size:13.5px;color:var(--grey-300);min-height:22px}
+  .foot__col a:hover{color:var(--white)}
+  .foot__legal{
+    margin-top:34px;padding-top:22px;border-top:1px solid var(--ink-800);
+    display:flex;flex-wrap:wrap;gap:8px 12px;
+  }
+  .foot__legal span{font-size:12.5px;color:var(--grey-300)}
+  .foot__legal span:first-child{flex:1;min-width:220px}
+
+  /* ---------------------------------------------------------------------------
+     Two breakpoints, both upward: 640px lets things sit side by side, 1000px
+     restores the original desktop composition.
+     --------------------------------------------------------------------------- */
+  @media (min-width: 640px){
+    .facts{grid-template-columns:repeat(4,1fr)}
+    .fact{padding:26px 24px}
+    .fact:nth-child(n+3){border-top:none}
+    .fact:nth-child(even){border-left:none;padding-right:24px}
+    .fact:nth-child(odd){padding-left:24px}
+    .fact + .fact{border-left:1px solid var(--ink-800)}
+    .fact:first-child{padding-left:0}
+    .fact:last-child{padding-right:0}
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .steps{grid-template-columns:repeat(3,1fr)}
+    .foot__cols{grid-template-columns:repeat(3,1fr)}
+    .foot__brand{grid-column:auto}
+  }
+
+  @media (min-width: 1000px){
+    .nav__links{display:flex}
+    .nav__cta{margin-left:0}
+    .hero{grid-template-columns:minmax(0,1fr) auto}
+    .hero__copy{padding-top:22px}
+    .split{grid-template-columns:minmax(0,1fr) auto}
+    .split--shot-first{grid-template-columns:auto minmax(0,1fr)}
+    .cards{grid-template-columns:repeat(3,1fr)}
+    .plans{grid-template-columns:1fr 1.08fr}
+    .foot__cols{grid-template-columns:1.4fr repeat(3,1fr)}
+    .wide-break{display:inline}
+    .shot{max-width:300px}
+    .shot--hero{max-width:340px}
+  }
+
+  /* On a phone the shot reads better below the words it illustrates, including
+     in the row that puts it first on a desktop. */
+  @media (max-width: 999px){
+    .split--shot-first .shot-wrap{order:2}
+  }
+
+  /* On a narrow screen the two hero facts stack, and a vertical rule between two
+     stacked items is a stray mark. The buttons go full width for the same reason:
+     two pills of different lengths left-aligned read as a mistake. */
+  @media (max-width: 560px){
+    .hero__rule{display:none}
+    .hero__stats{gap:18px}
+    .cta-row .btn{width:100%}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="nav">
+    <div class="nav__inner">
+      <a class="nav__brand" href="#top" aria-label="Odo — home">
+        <svg width="24" height="24" viewBox="0 0 212 212" aria-hidden="true"><circle cx="106" cy="106" r="66" fill="none" stroke="#262626" stroke-width="26" stroke-linecap="round" stroke-dasharray="311 415" transform="rotate(135 106 106)"></circle><circle cx="106" cy="106" r="66" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-dasharray="233 415" transform="rotate(135 106 106)"></circle></svg>
+        <span>ODO</span>
+      </a>
+      <nav class="nav__links">
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="btn btn--primary nav__cta" href="https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dlanding%26utm_medium%3Dweb">Get Odo</a>
+    </div>
+  </header>
+
+  <section id="top" class="band band--hero">
+    <div class="hero">
+      <div class="hero__copy">
+        <span class="eyebrow eyebrow--pill">Car upkeep &amp; cost tracking</span>
+        <h1>Maintain your car.<br>Know every rupee.</h1>
+        <p class="lead">Service on time, papers in order, and one honest cost per kilometre behind it all. Odo keeps the record so you don't have to remember it.</p>
+        <div class="cta-row">
+          <a class="btn btn--primary" href="https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dlanding%26utm_medium%3Dweb">Get Odo — free</a>
+          <a class="btn btn--ghost" href="#how">See how it works</a>
+        </div>
+        <div class="hero__stats">
+          <div class="hero__stat"><b>Offline</b><span>every screen works with no signal</span></div>
+          <div class="hero__rule"></div>
+          <div class="hero__stat"><b>Free</b><span>to start, no card needed</span></div>
+        </div>
+      </div>
+      <div class="shot-wrap">
+        <img class="shot shot--hero" src="assets/shot-home.png" width="1280" height="2856" fetchpriority="high" decoding="async" alt="Odo home — health score, running cost and what needs attention">
+      </div>
+    </div>
+  </section>
+
+  <div class="facts">
+    <div class="fact"><b>EVERY BILL</b><span>Checked against real city prices</span></div>
+    <div class="fact"><b>EVERY FILL</b><span>Logged in a tap, or on its own</span></div>
+    <div class="fact"><b>EVERY RENEWAL</b><span>Flagged before it lapses</span></div>
+    <div class="fact"><b>AT RESALE</b><span>A record a buyer can verify</span></div>
+  </div>
+
+  <section class="band band--light">
+    <div class="split">
+      <div class="split__copy">
+        <span class="eyebrow eyebrow--pill">Running cost</span>
+        <h2>Your true cost<br class="wide-break"> per kilometre</h2>
+        <p class="lead">Service, fuel, insurance and repairs, divided by every kilometre you actually drove — then set against what similar cars cost in your city.</p>
+        <div class="breakdown">
+          <div class="breakdown__row"><span class="breakdown__dot" style="background:#000000"></span><span class="breakdown__name">Service</span><span class="breakdown__amt">₹3,600</span></div>
+          <div class="breakdown__row"><span class="breakdown__dot" style="background:#374151"></span><span class="breakdown__name">Fuel</span><span class="breakdown__amt">₹2,720</span></div>
+          <div class="breakdown__row"><span class="breakdown__dot" style="background:#6B7280"></span><span class="breakdown__name">Insurance</span><span class="breakdown__amt">₹1,240</span></div>
+          <div class="breakdown__row"><span class="breakdown__name">This month</span><span class="breakdown__total">₹8,240</span></div>
+        </div>
+      </div>
+      <div class="shot-wrap">
+        <img class="shot shot--light" src="assets/shot-cost.png" width="1280" height="2856" loading="lazy" decoding="async" alt="Running cost — cost per kilometre, spend by month and where it goes">
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="band">
+    <div class="stack stack-16" style="margin-bottom:clamp(36px,5vw,52px)">
+      <span class="eyebrow">How it works</span>
+      <h2>Three steps, then it<br class="wide-break"> runs on its own</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step__head"><span class="step__num">1</span><div class="step__line"></div></div>
+        <h3>Add your car</h3>
+        <p>Registration number is enough — Odo pulls the make, model, year and fuel type from the RTO.</p>
+      </div>
+      <div class="step">
+        <div class="step__head"><span class="step__num">2</span><div class="step__line"></div></div>
+        <h3>Scan a bill or a fill</h3>
+        <p>Point the camera at a service bill or a pump. Odo reads the amounts and files them.</p>
+      </div>
+      <div class="step">
+        <div class="step__head"><span class="step__num">3</span><div class="step__line"></div></div>
+        <h3>Let it keep score</h3>
+        <p>Costs, reminders and your Health Score update themselves as the record grows.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="band band--flush-top">
+    <div class="stack stack-16" style="margin-bottom:36px">
+      <span class="eyebrow">What's inside</span>
+      <h2>Everything about the car,<br class="wide-break"> in one place</h2>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h12v20l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"></path><line x1="9.5" y1="9" x2="14.5" y2="9"></line><line x1="9.5" y1="13" x2="14.5" y2="13"></line></svg></div>
+        <h3>Fairness check</h3>
+        <p>Scan any service bill and see it line by line against what other owners in your city paid.</p>
+      </div>
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 21V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v16"></path><line x1="3" y1="21" x2="15" y2="21"></line><path d="M14 9h3a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-6l-2.5-4"></path></svg></div>
+        <h3>Fuel logging</h3>
+        <p>Pay however you like — cash, UPI, card. A tap, a photo, or nothing at all, and the fill is logged.</p>
+      </div>
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V13M10 20V5M16 20V10M20 20V15"></path></svg></div>
+        <h3>Running cost</h3>
+        <p>Cost per kilometre, split by category, benchmarked against similar cars near you.</p>
+      </div>
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V5z"></path><path d="M9 12l2 2 4-4"></path></svg></div>
+        <h3>Document vault</h3>
+        <p>Insurance, PUC and RC in one place, with the expiry dates read off the documents themselves.</p>
+      </div>
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 12l4.5-3"></path></svg></div>
+        <h3>Auto odometer</h3>
+        <p>Connect to your car stereo once, and your reading stays current without you typing it.</p>
+      </div>
+      <div class="card">
+        <div class="card__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 11.4 22.6a2 2 0 0 1-2.8 0L2 16V9a2 2 0 0 1 2-2h7l9.6 9.6a2 2 0 0 1 0 2.8z"></path><circle cx="7.5" cy="10.5" r="1.3"></circle></svg></div>
+        <h3>Resale passport</h3>
+        <p>A verified service history the next buyer can check — proof, not just your word.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--light band--light-left">
+    <div class="split split--shot-first">
+      <div class="shot-wrap">
+        <img class="shot shot--light" src="assets/shot-timeline.png" width="1280" height="2856" loading="lazy" decoding="async" alt="Timeline — every fill, service and renewal, verified">
+      </div>
+      <div class="split__copy">
+        <span class="eyebrow eyebrow--pill">At resale</span>
+        <h2>A record worth<br class="wide-break"> keeping</h2>
+        <p class="lead">Every scanned bill becomes a verified entry with a date, an odometer reading and an amount. Export it as a PDF, or share a link the buyer can check for themselves.</p>
+        <div class="feats">
+          <div class="feat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color:inherit;font-size:15.5px">Verified entries are backed by the bill image, not memory</span></div>
+          <div class="feat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color:inherit;font-size:15.5px">Odometer readings only ever move forward — a rollback shows as a gap</span></div>
+          <div class="feat"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="color:inherit;font-size:15.5px">Self-reported entries are labelled as such — nothing is dressed up</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" class="band">
+    <div class="stack stack-16" style="margin-bottom:44px">
+      <span class="eyebrow">Pricing</span>
+      <h2>Start free. Upgrade<br class="wide-break"> if it earns it.</h2>
+    </div>
+    <div class="plans">
+
+      <div class="plan">
+        <div class="plan__head">
+          <span class="plan__name">FREE</span>
+          <div class="plan__price"><span class="plan__amount">₹0</span><span class="plan__per">forever</span></div>
+          <span class="plan__note">No card, no trial that expires.</span>
+        </div>
+        <div class="rule"></div>
+        <div class="feats">
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Running cost on your home screen</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Service log &amp; timeline</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Every reminder — service, insurance, PUC</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Auto odometer &amp; fuel logging, uncapped</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>3 documents · 5 bill scans · 3 record exports</span></div>
+        </div>
+        <a class="btn btn--ghost btn--block" href="https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dlanding%26utm_medium%3Dweb">Get started</a>
+      </div>
+
+      <div class="plan plan--pro">
+        <span class="plan__flag">MOST POPULAR</span>
+        <div class="plan__head">
+          <span class="plan__name">ODO PRO</span>
+          <div class="plan__price"><span class="plan__amount">₹490</span><span class="plan__per">/ year</span></div>
+          <span class="plan__note">About ₹41 a month, billed yearly.</span>
+        </div>
+        <div class="terms">
+          <div class="term">
+            <span class="term__label">Monthly</span>
+            <span class="term__price">₹90</span>
+          </div>
+          <div class="term term--best">
+            <span class="term__label">Yearly</span>
+            <span class="term__tag">BEST VALUE</span>
+            <span class="term__price">₹490</span>
+            <span class="term__sub">Five months cheaper than paying monthly.</span>
+          </div>
+          <div class="term">
+            <span class="term__label">Lifetime</span>
+            <span class="term__price">₹1,490</span>
+            <span class="term__sub">One payment, no renewal ever.</span>
+          </div>
+        </div>
+        <div class="feats">
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Unlimited bill scans &amp; fairness checks</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Full cost breakdown, spend chart &amp; trends</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>City benchmarks with confidence levels</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Health Score breakdown &amp; history</span></div>
+          <div class="feat"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Unlimited documents &amp; record exports</span></div>
+        </div>
+        <a class="btn btn--primary btn--block" href="https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dlanding%26utm_medium%3Dweb">Start Pro</a>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="faq" class="band band--flush-top">
+    <div class="stack stack-16" style="margin-bottom:22px">
+      <span class="eyebrow">FAQ</span>
+      <h2>Questions worth<br class="wide-break"> asking first</h2>
+    </div>
+    <div class="faq">
+      <div class="faq__item">
+        <div class="faq__q"><span>Where do the city prices come from?</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <p class="faq__a">From bills other Odo owners have scanned in your city. Every benchmark is shown with how many bills it is based on and a confidence level — when there is not enough data, Odo says so instead of guessing.</p>
+      </div>
+      <div class="faq__item">
+        <div class="faq__q"><span>Does Odo sit inside my payment?</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <p class="faq__a">No. You pay however you already do — cash, UPI, card. Odo never handles the transaction. If you turn on auto-detect, it reads the payment notification after the fact, nothing more.</p>
+      </div>
+      <div class="faq__item">
+        <div class="faq__q"><span>What happens to my bills and documents?</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <p class="faq__a">They stay yours. Odo reads them to pull out amounts and dates, and you can export or delete everything at any time.</p>
+      </div>
+      <div class="faq__item">
+        <div class="faq__q"><span>Does it work if I pay in cash?</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <p class="faq__a">Yes. Photograph the pump display or the bill and Odo reads the numbers off it. No digital trail needed.</p>
+      </div>
+      <div class="faq__item">
+        <div class="faq__q"><span>Is the Health Score an industry standard?</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <p class="faq__a">No — it is our own measure of how well a car has been kept, built from service regularity, documents, cost fairness and odometer consistency. The breakdown shows exactly how it is calculated.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="get" class="band band--close">
+    <div class="close">
+      <svg width="62" height="62" viewBox="0 0 212 212" aria-hidden="true"><circle cx="106" cy="106" r="66" fill="none" stroke="#262626" stroke-width="26" stroke-linecap="round" stroke-dasharray="311 415" transform="rotate(135 106 106)"></circle><circle cx="106" cy="106" r="66" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-dasharray="233 415" transform="rotate(135 106 106)"></circle></svg>
+      <div class="stack" style="gap:14px;align-items:center">
+        <h2 class="h2--close">Start with one bill</h2>
+        <p class="lead">Scan it, and Odo begins keeping the record for you. Free to start, no card needed.</p>
+      </div>
+      <div class="cta-row" style="justify-content:center">
+        <a class="btn btn--primary" href="https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dlanding%26utm_medium%3Dweb">Google Play</a>
+        <span class="btn btn--soon">App Store — coming soon</span>
+      </div>
+      <span class="close__fine">Works with any car · Android today, iOS soon</span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="foot__cols">
+      <div class="foot__brand">
+        <div style="display:flex;align-items:center;gap:9px">
+          <svg width="20" height="20" viewBox="0 0 212 212" aria-hidden="true"><circle cx="106" cy="106" r="66" fill="none" stroke="#262626" stroke-width="26" stroke-linecap="round" stroke-dasharray="311 415" transform="rotate(135 106 106)"></circle><circle cx="106" cy="106" r="66" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-dasharray="233 415" transform="rotate(135 106 106)"></circle></svg>
+          <span>ODO</span>
+        </div>
+        <p>The single number that tells your car's whole story.</p>
+      </div>
+      <div class="foot__col"><b>PRODUCT</b><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#how">How it works</a></div>
+      <div class="foot__col"><b>COMPANY</b><a href="#faq">FAQ</a><a href="mailto:support.odo.in@gmail.com">Support</a><a href="mailto:support.odo.in@gmail.com">Contact</a></div>
+      <div class="foot__col"><b>LEGAL</b><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/delete">Delete account</a></div>
+    </div>
+    <div class="foot__legal">
+      <span>© 2026 Odo. Made in India.</span>
+      <span>Price data is crowdsourced and shown with its confidence level.</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
