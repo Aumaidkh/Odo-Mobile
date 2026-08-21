@@ -1,6 +1,8 @@
 package com.hopcape.odo.core.platform
 
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.app.IosDeviceInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
 import arrow.core.left
@@ -58,6 +60,7 @@ val corePlatformIosModule = module {
     single<DocumentCropper> { DocumentCropper { storageKey, _ -> storageKey } }
     // No still-image reader on iOS yet — the live preview is the only way in. Answering
     single<AppInfo> { IosAppInfo() }
+    single<DeviceInfo> { IosDeviceInfo() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
     single<NotificationAccess> { IosNotificationAccess() }
     single<DetectedFillNotifier> { IosDetectedFillNotifier() }
