@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.firebase.auth
 
 import arrow.core.Either
 import arrow.core.left
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -26,12 +27,15 @@ internal class UnavailablePhoneVerifier(
     private val onDiagnostic: (String) -> Unit,
 ) : PhoneVerifier {
 
-    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit> {
+    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, PhoneVerificationOutcome> {
         onDiagnostic("Phone verification is not available on this platform; no code was sent.")
         return DomainError.OtpRequestFailed.left()
     }
 
     override suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken> =
+        DomainError.OtpExpired.left()
+
+    override suspend fun completeAutoVerification(): Either<DomainError, VerifiedPhoneToken> =
         DomainError.OtpExpired.left()
 
     /** Nothing was ever started, so there is nothing to drop. */

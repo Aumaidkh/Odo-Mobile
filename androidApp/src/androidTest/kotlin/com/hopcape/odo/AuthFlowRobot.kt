@@ -16,6 +16,7 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.SignOut
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -112,7 +113,7 @@ private typealias AuthTestRule = AndroidComposeTestRule<ActivityScenarioRule<Mai
 internal class FakeAuthGateway : AuthGateway {
 
     /** What the next request for a code answers with. */
-    var sendResult: Either<DomainError, Unit> = Unit.right()
+    var sendResult: Either<DomainError, OtpRequestOutcome> = OtpRequestOutcome.CodeSent.right()
 
     /** The one code this "server" accepts; anything else comes back as a wrong code. */
     var acceptedCode: String = AuthFixtures.CODE
@@ -148,7 +149,7 @@ internal class FakeAuthGateway : AuthGateway {
         gate = null
     }
 
-    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> {
+    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> {
         lastPhone = phone.value
         gate?.await()
         return sendResult.onRight { codesSent++ }

@@ -78,6 +78,10 @@ internal fun PhoneRoute(key: OdoDestination.Auth.Phone, navigationManager: Navig
             is PhoneEffect.CodeSent ->
                 navigationManager.navigateTo(OdoDestination.Auth.Otp(effect.phone, key.next))
 
+            // No code was ever sent, so there is nothing to collect — same hand-off beat the
+            // code screen leads to once a typed code is verified.
+            PhoneEffect.Verified -> navigationManager.navigateTo(OdoDestination.Auth.Verifying(key.next))
+
             PhoneEffect.LeaveAuth -> navigationManager.leaveAuth(key)
         }
     }
