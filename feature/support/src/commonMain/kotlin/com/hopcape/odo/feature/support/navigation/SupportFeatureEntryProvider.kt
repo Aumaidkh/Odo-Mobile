@@ -21,10 +21,10 @@ import com.hopcape.odo.core.platform.store.rememberStoreRater
 import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
-import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
 import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
 import com.hopcape.odo.feature.support.presentation.feedback.FeedbackScreen
+import com.hopcape.odo.feature.support.presentation.licences.LicencesScreen
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
 import com.hopcape.odo.feature.support.resources.sp_email_subject
@@ -51,10 +51,9 @@ import org.jetbrains.compose.resources.stringResource
  * screen each of its rows opens. Collected by the `:app` host
  * (`getAll<FeatureEntryProvider>()`), so no other module references support directly.
  *
- * Every row destination currently renders [SupportPlaceholderScreen] — the graph and the
- * sheet are real, the screens behind them are not yet. Each stub is replaced in place as
- * its screen is built, which is why they are registered individually rather than folded
- * into one catch-all entry.
+ * Every destination here renders a real screen. Nothing is stubbed, so a row in the sheet
+ * can be trusted to lead somewhere — which is the condition on Profile offering the whole
+ * feature at all.
  *
  * Email, Rate and Terms have no destination at all. Each ends in a system hand-off — a mail
  * composer, the store listing, a browser — and a navigation key that exists only to bounce
@@ -144,7 +143,13 @@ internal class SupportFeatureEntryProvider(
         }
         entry<OdoDestination.Support.Faqs> { FaqsScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
-        entry<OdoDestination.Support.Licences> { Placeholder(Res.string.sp_licences) }
+        entry<OdoDestination.Support.Licences> {
+            val uriHandler = LocalUriHandler.current
+            LicencesScreen(
+                onBack = { nm.back() },
+                onOpenLicence = { url -> uriHandler.openUri(url) },
+            )
+        }
     }
 
     /**
@@ -190,12 +195,6 @@ internal class SupportFeatureEntryProvider(
                 )
             },
         )
-    }
-
-    /** The stub body, titled by the row that opened it, with back popping the entry. */
-    @Composable
-    private fun Placeholder(title: StringResource) {
-        SupportPlaceholderScreen(title = stringResource(title), onBack = { nm.back() })
     }
 
     /**

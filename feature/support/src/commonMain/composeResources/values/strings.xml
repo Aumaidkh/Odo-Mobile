@@ -67,9 +67,6 @@
     <string name="sp_pp_cd_share">Share the privacy policy</string>
     <string name="sp_pp_cd_opens_browser">Opens in your browser</string>
 
-    <!-- Placeholder screens -->
-    <string name="sp_soon">Coming soon</string>
-    <string name="sp_soon_message">This screen is a placeholder while the support flow is built.</string>
     <!-- ===================== FAQs and search ===================== -->
     <!-- Answers, not marketing. Each one states what the app does today; anything that is
          not built yet is left out rather than promised. Two answers repeat load-bearing
@@ -153,4 +150,11 @@
     <!-- Appended below the owner\'s message in the draft. %1$s is the version name, %2$s the
          build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
     <string name="sp_fb_mail_footer">---\nSent from Odo v%1$s (build %2$s)\n%3$s %4$s · %5$s</string>
+    <!-- ===================== Licences ===================== -->
+    <!-- Library and licence names are not here on purpose: they live in LicenceCatalog.kt.
+         A licence is identified by its exact name, and translating "Apache License 2.0"
+         would name a document that does not exist. Only the words around them are copy. -->
+    <string name="sp_lic_intro">Odo is built on open source. These are the libraries it ships with, and the licences they are used under.</string>
+    <!-- %1$s is the licence name, e.g. "Read the full Apache License 2.0". -->
+    <string name="sp_lic_read">Read the full %1$s</string>
 </resources>
