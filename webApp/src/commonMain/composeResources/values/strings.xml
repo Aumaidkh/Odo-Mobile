@@ -151,7 +151,7 @@
     <string name="bl_editor_action_link">Button link</string>
     <string name="bl_editor_action_link_hint">Leave blank for the Play Store listing</string>
     <string name="bl_editor_action_screenshot">Screenshot</string>
-    <string name="bl_editor_action_screenshot_hint">Optional — paste an image URL or pick from Media</string>
+    <string name="bl_editor_action_screenshot_hint">Optional — paste an image URL</string>
     <string name="bl_editor_unpublish">Unpublish</string>
     <string name="bl_editor_published_badge">Published</string>
     <string name="bl_editor_saving">Saving…</string>
