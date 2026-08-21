@@ -22,18 +22,38 @@ import com.hopcape.odo.feature.autoodometer.domain.model.RecentDrive
  *
  * [BACKGROUND_LOCATION] comes strictly after [FINE_LOCATION], never bundled with it — Android 11+
  * refuses a combined ask outright, and Play's location policy expects the incremental order.
+ *
+ * [AUTOSTART] is not an Android permission at all. Xiaomi, Oppo, Vivo, Realme and their
+ * relatives hold a switch of their own, off by default, that decides whether Odo may be started
+ * in the background; while it is off the Bluetooth broadcast never reaches the app, nothing
+ * arms, and every permission above it is beside the point (issue #272 — setup reporting success
+ * on a phone that then measured nothing). Nothing can read that switch back, which is why it is
+ * `required = false`: a gate on something unreadable would never clear. It is still a step with
+ * a page of its own rather than a line of advice, shown only on the builds that have one.
  */
 internal enum class PermissionSetupStep(val required: Boolean) {
     FINE_LOCATION(required = true),
     BACKGROUND_LOCATION(required = false),
     ACTIVITY_RECOGNITION(required = true),
+    AUTOSTART(required = false),
 }
 
-/** Builds the step order for [mode] — 2 for STEREO, 3 for NO_STEREO (plan §5). */
-internal fun stepsFor(mode: TriggerMode): List<PermissionSetupStep> = buildList {
+/**
+ * Builds the step order for [mode] — 2 for STEREO, 3 for NO_STEREO (plan §5) — plus the
+ * autostart step last on the builds that hold background starts behind a switch of their own.
+ *
+ * [needsAutostart] comes from
+ * [com.hopcape.odo.core.platform.notification.BackgroundStartAccess.needsAttention]. Last
+ * because it is the only step that is not an Android permission: the system asks come first,
+ * and the manufacturer's own page is the last thing between the owner and a setup that works.
+ * Appended rather than always present, so the counter stays honest on a phone with no such
+ * switch to turn on.
+ */
+internal fun stepsFor(mode: TriggerMode, needsAutostart: Boolean = false): List<PermissionSetupStep> = buildList {
     add(PermissionSetupStep.FINE_LOCATION)
     add(PermissionSetupStep.BACKGROUND_LOCATION)
     if (mode == TriggerMode.NO_STEREO) add(PermissionSetupStep.ACTIVITY_RECOGNITION)
+    if (needsAutostart) add(PermissionSetupStep.AUTOSTART)
 }
 
 /**
@@ -91,6 +111,12 @@ internal data class PermissionSetupUiState(
     val recentDrives: List<RecentDrive> = emptyList(),
     /** True while [com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup] is running. */
     val completing: Boolean = false,
+    /**
+     * False once the autostart hand-off was tried and no page could be opened — those
+     * activities are not API and differ between builds. The step then says where to look by
+     * hand instead of leaving the owner on a button that did nothing.
+     */
+    val autostartPageFound: Boolean = true,
 ) {
     /** The step on screen, or null once every step has resolved (mid-completion). */
     val current: PermissionStepState? get() = steps.getOrNull(currentIndex)
@@ -109,7 +135,11 @@ internal data class PermissionSetupUiState(
      */
     val showDenialRow: Boolean
         get() = current?.let {
-            it.status != PermissionStatus.Granted &&
+            // Autostart has no status to be denied. Its `askedOnce` means "already sent to the
+            // manufacturer's page", and a row reading "Autostart was denied" would be stating
+            // as fact the one thing nothing on the phone can tell us.
+            it.step != PermissionSetupStep.AUTOSTART &&
+                it.status != PermissionStatus.Granted &&
                 (it.status == PermissionStatus.Blocked || it.askedOnce)
         } == true
 
@@ -130,6 +160,19 @@ internal data class PermissionSetupUiState(
      */
     val showHandoff: Boolean get() = onHandoff && current?.step?.hasHandoff == true
 
+    /** The step on screen is the manufacturer's autostart switch, which no permission covers. */
+    val onAutostartStep: Boolean get() = current?.step == PermissionSetupStep.AUTOSTART
+
+    /**
+     * The owner has been sent to the manufacturer's page at least once.
+     *
+     * Reuses the step's [PermissionStepState.askedOnce] — the same "we have handed off once"
+     * flag every other step keeps — because that page is this step's version of a system
+     * screen. What it changes is what the page asks: after the hand-off the primary button
+     * stops offering the trip and starts asking whether the switch is on, which is the only
+     * answer that will ever exist for it.
+     */
+    val autostartOpened: Boolean get() = onAutostartStep && current?.askedOnce == true
 }
 
 /** What the owner did during permission setup, as data. */
@@ -149,10 +192,19 @@ internal sealed interface PermissionSetupEvent {
      * On a rationale page for a step with a system screen it moves to the drawing; everywhere
      * else it is the ask itself, which the route host performs because only it holds the
      * platform controller.
+     *
+     * On [PermissionSetupStep.AUTOSTART] the button means two things in turn, matching what it
+     * says at the time: the first press opens the manufacturer's page, the next is the owner
+     * saying the switch is on. There is no controller and no dialog — the ViewModel performs
+     * that hand-off itself, through `BackgroundStartAccess`.
      */
     data object ContinueTapped : PermissionSetupEvent
 
-    /** The dismiss on an optional step — "keep it to while using". */
+    /**
+     * The dismiss on an optional step — "keep it to while using", or "Not now" on autostart,
+     * where it is the owner declining in front of the explanation rather than a step nobody
+     * showed them.
+     */
     data object SkipTapped : PermissionSetupEvent
 
     /** Back arrow: off the drawing and back to the step's own page, or out of the flow. */

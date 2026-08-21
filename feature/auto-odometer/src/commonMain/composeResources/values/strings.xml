@@ -65,6 +65,17 @@
     <string name="ao_permissions_step_progress">%1$d of %2$d</string>
     <string name="ao_step_next">See the next screen</string>
     <string name="ao_permissions_dismiss">Not now</string>
+    <string name="ao_permissions_autostart_title">One switch Odo can’t ask for</string>
+    <string name="ao_permissions_autostart_body">Your phone maker blocks apps from starting on their own, and Android gives Odo no way to ask. Turn Autostart on for Odo and a drive is measured the moment your car connects. Leave it off and nothing starts, however many permissions you have granted.</string>
+    <string name="ao_permissions_autostart_body_opened">Nothing on the phone reports that switch back, so Odo goes by what you say. Confirm below once Autostart is on for Odo.</string>
+    <string name="ao_permissions_autostart_body_no_page">Odo could not open that page on this phone. Look for Autostart or Auto-launch in Settings — usually under Battery, Apps, or the phone’s own security app — and turn it on for Odo.</string>
+    <string name="ao_permissions_autostart_label">On the page that opens</string>
+    <string name="ao_permissions_autostart_yes_switch">Turn Autostart on for Odo, and set its battery use to no restrictions.</string>
+    <string name="ao_permissions_autostart_yes_wakes">Odo still only wakes when the car you paired connects.</string>
+    <string name="ao_permissions_autostart_no_reads">It gives Odo nothing new to read about you.</string>
+    <string name="ao_permissions_autostart_cta">Open Autostart settings</string>
+    <string name="ao_permissions_autostart_done">I’ve turned it on</string>
+    <string name="ao_permissions_autostart_skip">Not now</string>
     <string name="ao_permissions_denied_row">%1$s was denied — turn it on in Settings to finish setup.</string>
     <string name="ao_permissions_open_settings">Open settings</string>
     <string name="ao_handoff_eyebrow">BEFORE YOU TAP</string>
