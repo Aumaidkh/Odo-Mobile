@@ -30,6 +30,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CancellationException
 
 /**
  * The CMS, against Postgres.
@@ -102,7 +103,7 @@ internal class SupabaseAdminRepository(
         ).flatMap { rows ->
             rows.firstOrNull()?.toDraft()?.right()
                 ?: BlogError.Unexpected("save returned no row").left()
-        }
+        }.onRight { if (it.status == PostStatus.PUBLISHED) requestRebuild() }
 
     /**
      * Publishing, and the one thing that can stop it.
@@ -144,6 +145,7 @@ internal class SupabaseAdminRepository(
             serializer = PostRow.serializer(),
         ).bind()
 
+        requestRebuild()
         PublishOutcome.Published(slug)
     }
 
@@ -154,11 +156,40 @@ internal class SupabaseAdminRepository(
             table = "blog_posts",
             query = "id=eq.$id",
             body = """{"status":"draft","slug":null}""",
-        )
+        ).onRight { requestRebuild() }
 
     override suspend fun discard(id: String): Either<BlogError, Unit> =
         // RLS decides whether this row is yours; nothing here needs to ask.
-        postgrest.delete(table = "blog_posts", query = "id=eq.$id")
+        postgrest.delete(table = "blog_posts", query = "id=eq.$id").onRight { requestRebuild() }
+
+    /**
+     * Tells the site to rebuild itself.
+     *
+     * The pages a stranger reads are HTML files generated at deploy time, so a
+     * post is not really published until something regenerates them. This asks
+     * an edge function to start that; the function holds the GitHub credential,
+     * because a token that can deploy a website should never be inside a page
+     * anyone can open.
+     *
+     * Failure is swallowed on purpose. The post is already saved and the write
+     * that mattered has happened — refusing to report success because a rebuild
+     * could not be scheduled would tell the author their work was lost, which is
+     * false. A missed rebuild costs freshness until the next one, and the
+     * workflow can always be run by hand.
+     */
+    private suspend fun requestRebuild() {
+        try {
+            client.post("$baseUrl/functions/v1/blog-rebuild") {
+                header("apikey", anonKey)
+                header(HttpHeaders.Authorization, "Bearer ${accessToken() ?: anonKey}")
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
+            // Offline, or the function is not deployed yet. Neither is the
+            // author's problem and neither undoes the write.
+        }
+    }
 
     override suspend fun media(): Either<BlogError, List<MediaItem>> =
         postgrest.select("blog_media", MediaRow.serializer(), "order=created_at.desc")
