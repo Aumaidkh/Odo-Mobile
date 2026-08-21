@@ -1,0 +1,73 @@
+# The scheduled half of the Instagram pipeline: it renders whatever drafts `generate` has
+# queued and sends each one to Telegram for approval.
+#
+# This file has to live on the default branch. GitHub only fires `schedule` and
+# `workflow_dispatch` for workflows that are on it, so a copy on a feature branch never runs
+# and the drafts sit unrendered until someone runs the renderer by hand.
+#
+# The workflow never checks out the repository. It downloads the renderer and its two
+# templates from the `social-renderer` bucket in Supabase Storage instead. That is deliberate:
+# a scheduled workflow always runs from the default branch, so anything it read out of the tree
+# would be whatever master happens to hold. With the code in Storage, the job does not depend on
+# any branch, this file does not have to change again, and `sh social-automation/upload-renderer.sh`
+# publishes a template edit without a commit, a merge or a deploy.
+#
+# Repo secrets required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN,
+# TELEGRAM_CHAT_ID.
+name: social-render
+
+on:
+  schedule:
+    # 15 minutes after each generate cron: 09:15, 14:15 and 19:15 IST.
+    - cron: "45 3 * * *"
+    - cron: "45 8 * * *"
+    - cron: "45 13 * * *"
+  workflow_dispatch: {}
+
+# Two runs at once would render the same draft twice and send two previews for it.
+concurrency:
+  group: social-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch the renderer from Supabase Storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p work/templates
+          get() {
+            # --fail so a missing object stops the job here rather than at a confusing
+            # "unexpected token <" when node tries to run an error page.
+            curl -fsSL -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              "$SUPABASE_URL/storage/v1/object/social-renderer/$1" -o "work/$1"
+          }
+          get render.js
+          get templates/ig-post.html
+          get templates/ig-story.html
+          wc -c work/render.js work/templates/*.html
+
+      - name: Install Puppeteer
+        run: |
+          set -euo pipefail
+          cd work
+          npm init -y >/dev/null
+          npm pkg set type=module >/dev/null
+          npm install --no-fund --no-audit puppeteer@23
+
+      - name: Render pending drafts and send them for approval
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node work/render.js

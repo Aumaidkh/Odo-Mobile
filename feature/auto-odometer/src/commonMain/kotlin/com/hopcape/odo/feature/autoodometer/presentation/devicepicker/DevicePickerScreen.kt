@@ -97,10 +97,19 @@ internal fun DevicePickerScreen(
         onBack = onBack,
         backContentDescription = stringResource(Res.string.ao_cd_back),
         bottomBar = {
+            // Bottom edge is `sm`, not `lg`: the last button is text-only and its touch
+            // target already pads the label, so `lg` read as a floating band above an opaque
+            // 3-button navigation bar. Holds for both states — the "Use <device>" CTA that
+            // appears on selection sits above the same text button.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
+                    .padding(
+                        start = OdoTheme.spacing.screenEdge,
+                        end = OdoTheme.spacing.screenEdge,
+                        top = OdoTheme.spacing.lg,
+                        bottom = OdoTheme.spacing.sm,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
                 val selected = state.selectedDevice

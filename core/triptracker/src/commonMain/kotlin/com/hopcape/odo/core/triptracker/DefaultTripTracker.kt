@@ -57,6 +57,14 @@ internal class DefaultTripTracker(
         setEnabled(true)
     }
 
+    override suspend fun armFromPersistedState() {
+        if (enabled.value) return
+        vehicleBondStore.bond() ?: return
+        val stored = settings.observe().first()
+        if (!stored.trackerEnabled || stored.autoOdoPausedUntil != null) return
+        setEnabled(true)
+    }
+
     override val isEnabled: StateFlow<Boolean> get() = enabled
 
     override val status: Flow<TrackingStatus> get() = engine.status
