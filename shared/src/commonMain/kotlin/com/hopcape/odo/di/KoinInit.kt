@@ -18,6 +18,7 @@ import com.hopcape.odo.core.triptracker.coreTripTrackerModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
+import com.hopcape.odo.feature.challan.di.challanModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
 import com.hopcape.odo.feature.dashboard.dashboardModule
 import com.hopcape.odo.feature.documentvault.documentVaultModule
@@ -136,6 +137,7 @@ fun initKoin(
         // RevenueCat SDK, which it does while Koin starts.
         billingInfrastructureModule,
         platformModule,
+        challanModule
     )
 }.also { application ->
     // Restore the session, then ask for the launch's first sync — in that order, because a

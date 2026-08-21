@@ -647,6 +647,20 @@ sealed interface OdoDestination : NavKey {
         data class Verifying(override val next: OdoDestination = Home) : Auth
     }
 
+
+    @Serializable
+    sealed interface Challan: OdoDestination {
+        @Serializable
+        data object List: Challan
+        // List
+        @Serializable
+        data object Lookup: Challan
+        // Lookup
+        @Serializable
+        data class Result(val regNo: String): Challan
+        // Result
+    }
+
     companion object {
         /**
          * Ordered bottom-navigation roots — the four tabs the dashboard shell renders,

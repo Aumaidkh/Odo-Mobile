@@ -60,6 +60,7 @@ kotlin {
             implementation(projects.feature.support)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
+            implementation(projects.feature.challan)
             // The SQLDelight database and the LocalDataSource adapters :core:data's
             // repositories depend on. Listed here because :shared is the composition
             // root — databaseInfrastructureModule goes into initKoin before
