@@ -30,6 +30,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
@@ -283,7 +284,9 @@ private fun ProfileContentColumn(
             }
         }
 
-        SyncDebugRow(sync)
+        if (!BuildInfo.isRelease) {
+            SyncDebugRow(sync)
+        }
 
         OdoText(
             // The build number only shows where it helps: a tester on a stage build has
