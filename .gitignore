@@ -91,3 +91,9 @@ web/public/
 landing/public/blog/
 landing/public/sitemap.xml
 landing/public/robots.txt
+/social-automation/.env
+
+# The Supabase CLI's scratch state for the social-automation project. Not secret —
+# a project ref is in every request the app makes — but it is machine state, and
+# it is the one path under social-automation that a `git add -A` would sweep in.
+/social-automation/supabase/.temp/
