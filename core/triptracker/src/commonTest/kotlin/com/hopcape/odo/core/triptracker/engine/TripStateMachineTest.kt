@@ -25,6 +25,26 @@ class TripStateMachineTest {
 
     // ---- BT start happy path ----
 
+    /**
+     * A repeated connect in Standby changes nothing and asks for nothing.
+     *
+     * The #271 fix leans on this. Arming now seeds presence from the current connection, and
+     * on an OS wake the broadcast that woke the process arrives right behind the seed — so the
+     * same event lands twice within a moment. It has to arm once. Pinned here rather than left
+     * as an implementation detail, because the seed is only safe for as long as it holds.
+     */
+    @Test
+    fun presenceConnectedTwiceInStandby_armsOnceAndRequestsFixesOnce() {
+        val first = go(TripPhase.Standby(), TripEvent.PresenceConnected, t0)
+        assertEquals(TripPhase.Standby(presenceConnected = true), first.newState)
+        assertEquals(listOf(TripEffect.RequestFixes), first.effects)
+
+        val second = go(first.newState, TripEvent.PresenceConnected, t0 + 1.seconds)
+
+        assertEquals(first.newState, second.newState, "already armed — nothing to change")
+        assertEquals(emptyList(), second.effects, "and nothing to ask for a second time")
+    }
+
     @Test
     fun btStartHappyPath_connectsThenSettlesInVehicle_thenPromotesOnNextEvent() {
         val step1 = go(TripPhase.Standby(), TripEvent.PresenceConnected, t0)

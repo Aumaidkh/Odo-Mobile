@@ -78,43 +78,72 @@
     <string name="rf_insight_worse">Down slightly on your average</string>
     <string name="rf_insight_first">Your first measured tank</string>
 
-    <!-- Auto-detect opt-in -->
+    <!-- Auto-detect opt-in: shared chrome -->
     <string name="rf_autodetect_title">Auto-detect</string>
-    <string name="rf_optin_title">Log a fill without touching the app</string>
-    <string name="rf_optin_body">When you pay at a pump, Odo can read that one payment notification and draft the entry for you.</string>
-    <string name="rf_optin_reads_amount">Reads only the amount and merchant name</string>
-    <string name="rf_optin_reads_fuel_only">Only when the merchant is a fuel station</string>
-    <string name="rf_optin_never_others">Never your other notifications</string>
-    <string name="rf_optin_never_payment">Never sits inside your payment</string>
-    <string name="rf_optin_on_device">Runs on your phone. Nothing about your payments leaves the device.</string>
-    <string name="rf_optin_cta">Turn on auto-detect</string>
+    <string name="rf_cd_back">Back</string>
+    <string name="rf_step_of">%1$d of %2$d</string>
+    <string name="rf_optin_not_now">Not now</string>
+    <string name="rf_step_next">See the next screen</string>
+
+    <!-- Page one: the outcome, before any permission is named. -->
+    <string name="rf_optin_title">A fill logs itself while you drive off</string>
+    <string name="rf_optin_body">Pay at the pump the way you always do. Odo reads that one payment notification, works out the litres, and hands you a draft to confirm in a tap.</string>
+    <string name="rf_optin_preview_label">WHAT YOU’D SEE</string>
+    <string name="rf_optin_preview_body">₹2,000 at ₹94.70/L ≈ 21.1 L</string>
+    <string name="rf_optin_needs_note">It needs %1$d switches on your phone. Odo explains each one before asking.</string>
+    <string name="rf_optin_needs_note_one">It needs one switch on your phone. Odo explains it before asking.</string>
     <string name="rf_optin_continue">See what it needs</string>
-    <string name="rf_setup_heading">Two permissions, one at a time</string>
-    <string name="rf_autostart_heading">One setting Odo can’t ask for</string>
-    <string name="rf_autostart_intro">The permissions are done. This last one is your phone’s own, and only you can turn it on.</string>
-    <string name="rf_autostart_skip">Skip for now</string>
-    <string name="rf_setup_intro">Both are Android switches. Odo asks for them separately because they do different things, and the second one is the one that matters.</string>
+    <string name="rf_optin_cta">Turn on auto-detect</string>
+
+    <!-- POST_NOTIFICATIONS, asked for on the way out of page one. Its CTA lives in settings. -->
+    <string name="rf_optin_no_marketing">Odo only notifies you about this car — no offers, no tips, no marketing.</string>
     <string name="rf_optin_cta_notify">Allow notifications</string>
     <string name="rf_optin_cta_notify_blocked">Open app settings</string>
+
+    <!-- Step one: notification access — the permission detection runs on. -->
+    <string name="rf_access_title">Let Odo read one payment notification</string>
+    <string name="rf_access_body">This is the switch that does the work. Odo watches for a notification from your payment app, and only acts when the merchant looks like a fuel station.</string>
+    <string name="rf_access_label">WHAT ODO READS</string>
+    <string name="rf_access_yes_amount">The amount and the merchant name</string>
+    <string name="rf_access_yes_apps">Only from apps you pick — GPay, PhonePe, Paytm</string>
+    <string name="rf_access_no_others">Nothing from messages, mail, or any other app</string>
+    <string name="rf_access_no_sms">Never the contents of an SMS — Odo does not hold that permission at all</string>
+
+    <!-- Step one, second half: what the system page looks like before being sent to it. -->
+    <string name="rf_handoff_eyebrow">BEFORE YOU TAP</string>
+    <string name="rf_handoff_preview_label">WHAT YOU’LL SEE</string>
+    <string name="rf_access_handoff_screen">Notification access</string>
+    <string name="rf_access_handoff_title">The next screen is your phone’s</string>
+    <string name="rf_access_handoff_body">Android has a single switch for notification access, so its warning lists everything any app could do with it — some phones even add a red danger sign. That text is not describing Odo.</string>
+    <string name="rf_access_handoff_instruction">Find Odo in the list, turn it on, then confirm.</string>
+    <string name="rf_access_handoff_note">It may say “Read all SMS”. Odo does not hold the SMS permission at all — open the app’s permissions and you will not find it.</string>
     <string name="rf_optin_cta_access">Open notification access</string>
 
-    <!-- Forewarning for the OEM permission screen. -->
-    <string name="rf_warning_title">The next screen is your phone’s, and it looks alarming</string>
-    <string name="rf_warning_body">Android has one switch for notification access, so the warning it shows lists everything any app could do with it — not what Odo does. Some phones put a red danger sign on it. It is the same switch either way.</string>
-    <string name="rf_warning_sms">It may say “Read all SMS”. Odo does not ask for the SMS permission at all, so it cannot read a single message — check the app’s permissions yourself and you will not find it.</string>
-    <string name="rf_warning_scope">What Odo reads is one line from one notification, and only when the sender is a payment app and the merchant is a fuel station.</string>
-    <string name="rf_warning_how">On that screen: turn Odo on, tick the box at the bottom if there is one, then confirm.</string>
+    <!-- Step two: the phone's own setting for waking Odo up. -->
+    <string name="rf_background_title">Keep Odo awake in the background</string>
+    <string name="rf_background_body">Your phone puts apps to sleep to save battery. If Odo is asleep when you pay, the notification passes it by and the fill is never drafted.</string>
+    <string name="rf_background_label">WHAT THIS CHANGES</string>
+    <string name="rf_background_yes_wake">Odo can wake for a payment notification and draft the fill</string>
+    <string name="rf_background_yes_sleep">It sleeps again straight after — seconds of work, once a week</string>
+    <string name="rf_background_no_running">No constant running, no location, no data in the background</string>
+    <string name="rf_background_no_idle">Nothing changes if you never pay at a pump</string>
+    <string name="rf_background_skip">Turn on without this</string>
 
-    <!-- The two-permission setup chain. -->
-    <string name="rf_setup_label">What Odo needs</string>
-    <string name="rf_setup_state_done">Done</string>
-    <string name="rf_setup_state_pending">Not yet</string>
-    <string name="rf_setup_notify_title">1. Let Odo notify you</string>
-    <string name="rf_setup_notify_body">Odo hands you the fill as a notification you confirm in one tap. Without this a detected fill has nowhere to appear.</string>
-    <string name="rf_setup_notify_blocked">Notifications are switched off for Odo. Turn them back on in app settings.</string>
-    <string name="rf_setup_read_title">2. Let Odo read payment notifications</string>
-    <string name="rf_setup_read_body">Step 1 only lets Odo show you notifications. Reading the one your payment app posts is a separate Android switch, and detection cannot work without it. The system will warn that Odo can read every notification — what it actually reads is the list above.</string>
-    <string name="rf_optin_not_now">Not now</string>
+    <!-- Step two, second half: the page differs by manufacturer. -->
+    <string name="rf_background_handoff_screen">Background autostart</string>
+    <string name="rf_background_handoff_title">Where this lives differs by phone</string>
+    <string name="rf_background_handoff_body">Xiaomi calls it Autostart, Samsung buries it under battery optimisation, OnePlus calls it background activity. Odo takes you to the right screen for your phone.</string>
+    <string name="rf_background_handoff_instruction">On that screen: allow Odo, then come back.</string>
+    <string name="rf_background_handoff_note">Same list on every phone, different name — Autostart, background activity, or unrestricted battery.</string>
+    <string name="rf_background_preview_header">Autostart</string>
+    <string name="rf_background_cta">Open battery settings</string>
+
+    <!-- The apps drawn in the mocked-up system screens. Illustrations, not a listing. -->
+    <string name="rf_handoff_app_odo">Odo</string>
+    <string name="rf_handoff_app_whatsapp">WhatsApp</string>
+    <string name="rf_handoff_app_swiggy">Swiggy</string>
+    <string name="rf_handoff_app_maps">Maps</string>
+    <string name="rf_handoff_app_phonepe">PhonePe</string>
 
     <!-- Auto-detect settings -->
     <string name="rf_settings_master">Detect fuel payments</string>

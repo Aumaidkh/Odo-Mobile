@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.triptracker.internal
 
+import com.hopcape.odo.core.triptracker.BluetoothRadio
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.BondedDevice
 import com.hopcape.odo.core.triptracker.TrackingPreconditions
@@ -16,6 +17,7 @@ import com.hopcape.odo.core.triptracker.port.TripForegroundSession
 import com.hopcape.odo.core.triptracker.port.VehiclePresenceSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 
 /** Default stand-in for a signal source with no real adapter on this platform yet. */
 internal class NoopLocationProvider : LocationProvider {
@@ -55,4 +57,13 @@ internal class NoopVehicleBondStore : VehicleBondStore {
 
 internal class NoopBondedDeviceCatalog : BondedDeviceCatalog {
     override suspend fun devices(): List<BondedDevice> = emptyList()
+}
+
+/**
+ * Reads as on, not off. A platform with no real adapter has no radio to complain about, and
+ * a stub that answered false would put a "your Bluetooth is off" card in front of an owner
+ * with no way to act on it.
+ */
+internal class NoopBluetoothRadio : BluetoothRadio {
+    override val enabled: Flow<Boolean> = flowOf(true)
 }
