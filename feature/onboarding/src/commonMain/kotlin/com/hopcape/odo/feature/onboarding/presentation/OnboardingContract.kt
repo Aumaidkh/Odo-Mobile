@@ -83,15 +83,6 @@ internal sealed interface OnboardingEffect {
     data object NavigateBack : OnboardingEffect
 
     /**
-     * Hand off to the Bill Scanner from the first-scan step.
-     *
-     * The car is stored by now, but the id doesn't travel with this: `BillScanner.Capture`
-     * is a parameterless destination, so handing the scanner a specific car is a change to
-     * the navigation key rather than to this effect.
-     */
-    data object OpenBillScanner : OnboardingEffect
-
-    /**
      * A step's answers could not be stored, for a reason no single field owns (the local
      * write failed). The flow stays where it is; this is only how the owner is told why
      * Continue did nothing.
@@ -102,9 +93,17 @@ internal sealed interface OnboardingEffect {
      * Setup is over. [start] is the surface the owner's goal earned them, and
      * [signInFirst] is true when there is no session yet — the one point where signing in
      * is offered, because by now there is something concrete worth backing up.
+     *
+     * [openScanner] is true when the owner left through the first-scan step's camera
+     * button rather than by skipping. The scan is *not* an escape from the end of setup:
+     * it still finishes here, so the sign-in offer is made first and the scanner opens on
+     * top of [start] afterwards. Handing off to the scanner directly is what let an owner
+     * reach the fairness report — and the profile editor behind its "set your city" —
+     * without ever being asked to sign in.
      */
     data class Finish(
         val start: StartDestination,
         val signInFirst: Boolean,
+        val openScanner: Boolean = false,
     ) : OnboardingEffect
 }

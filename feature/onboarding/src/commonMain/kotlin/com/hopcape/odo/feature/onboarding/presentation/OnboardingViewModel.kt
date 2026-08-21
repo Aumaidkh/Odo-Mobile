@@ -301,7 +301,11 @@ internal class OnboardingViewModel(
             // Bills scanned per month is the product's North Star, so where a scan was launched
             // from is worth knowing — this is the first one an owner is ever offered.
             telemetry.firstScanClicked()
-            emit(OnboardingEffect.OpenBillScanner)
+            // Scanning ends setup like skipping does. It used to hand off to the scanner with
+            // the flow still open, which meant the sign-in offer at the end was never reached
+            // and the scan led on to the fairness report and the profile editor with no
+            // session. Finishing here keeps the offer in front of the first scan.
+            finish(openScanner = true)
         }
 
         OnboardingEvent.Scan.SkipClicked -> {
@@ -433,8 +437,11 @@ internal class OnboardingViewModel(
      * Setup is over: the owner's goal picks the surface they land on, and sign-in is offered
      * only if there's no session — the ask can finally be concrete ("back up *these*
      * records") instead of an account wall on a blank app.
+     *
+     * [openScanner] carries the one difference between the two ways out of the last step:
+     * the camera button also wants the scanner opened once the owner has landed.
      */
-    private fun finish() {
+    private fun finish(openScanner: Boolean = false) {
         val start = chosenStartDestination()
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
@@ -442,7 +449,13 @@ internal class OnboardingViewModel(
             destination = start,
             signInOffered = signInFirst,
         )
-        emit(OnboardingEffect.Finish(start = start, signInFirst = signInFirst))
+        emit(
+            OnboardingEffect.Finish(
+                start = start,
+                signInFirst = signInFirst,
+                openScanner = openScanner,
+            ),
+        )
     }
 
     /**

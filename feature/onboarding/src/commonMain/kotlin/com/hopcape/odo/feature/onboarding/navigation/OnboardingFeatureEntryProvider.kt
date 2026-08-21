@@ -78,8 +78,11 @@ private fun String.openIfSet(uriHandler: UriHandler) {
 /**
  * The setup route — steps 2 to 4 behind one destination, because they are one form: back
  * moves between steps instead of popping screens, and the header's progress stays
- * continuous across them. Keeping them behind one key is also what lets the flow survive
- * the trip out to the Bill Scanner: the entry is never popped, so its ViewModel isn't either.
+ * continuous across them.
+ *
+ * Every way out of the last step is a finish, including its camera button. The flow does
+ * not make a round trip to the scanner and come back, so the entry is popped once and the
+ * first run is over.
  */
 @Composable
 internal fun OnboardingRoute(navigationManager: NavigationManager) {
@@ -90,10 +93,6 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
         when (effect) {
             OnboardingEffect.NavigateBack -> navigationManager.back()
 
-            // TODO(billscanner): hand the saved car to BillScanner.Capture and come back —
-            //  waiting on the car actually being persisted during setup.
-            OnboardingEffect.OpenBillScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
-
             // TODO(ui): show this in a snackbar. Every step screen scaffolds itself with its
             //  own OdoScreen, so the host state has to be threaded through OnboardingFlow
             //  before there is anywhere to post it. Until then a failed write is visible
@@ -102,9 +101,28 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
 
             is OnboardingEffect.Finish -> {
                 val destination = effect.start.toOdoDestination()
-                val next = if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination
-                // Welcome and the setup steps leave the back stack — first run doesn't repeat.
-                navigationManager.navigateTo(next, popUpTo = OdoDestination.Welcome, inclusive = true)
+                if (effect.openScanner) {
+                    // The start surface is seeded *under* the scanner rather than replaced by
+                    // it. Leaving the scan errand pops its own steps and lands on whatever is
+                    // below them, so with the scanner alone on the stack there would be
+                    // nothing to land on and the owner would be stuck on the viewfinder.
+                    navigationManager.navigateTo(
+                        destination,
+                        popUpTo = OdoDestination.Welcome,
+                        inclusive = true,
+                    )
+                    val scanner = OdoDestination.BillScanner.Capture()
+                    // Sign-in still comes first; auth carries the scanner as its `next`, so
+                    // both verifying and skipping arrive at the same viewfinder.
+                    navigationManager.navigateTo(
+                        if (effect.signInFirst) OdoDestination.Auth.Phone(scanner) else scanner,
+                    )
+                } else {
+                    val next =
+                        if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination
+                    // Welcome and the setup steps leave the back stack — first run doesn't repeat.
+                    navigationManager.navigateTo(next, popUpTo = OdoDestination.Welcome, inclusive = true)
+                }
             }
         }
     }

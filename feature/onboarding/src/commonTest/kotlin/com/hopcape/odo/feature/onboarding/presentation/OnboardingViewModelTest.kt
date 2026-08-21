@@ -453,12 +453,47 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun scanning_handsOffToTheBillScanner() = runTest(dispatcher) {
+    fun scanning_finishesSetupAndAsksTheScannerToOpen() = runTest(dispatcher) {
+        val viewModel = viewModel(signedIn = true)
+
+        viewModel.onEvent(OnboardingEvent.Scan.ScanClicked)
+
+        // The camera button ends setup like Skip does. Handing off to the scanner with the
+        // flow still open is what let an owner reach the fairness report, and the profile
+        // editor behind it, without ever passing the sign-in offer.
+        assertEquals(
+            OnboardingEffect.Finish(
+                start = StartDestination.DASHBOARD,
+                signInFirst = false,
+                openScanner = true,
+            ),
+            viewModel.effects.first(),
+        )
+    }
+
+    @Test
+    fun scanning_withoutASession_asksForSignInBeforeTheScanner() = runTest(dispatcher) {
         val viewModel = viewModel()
 
         viewModel.onEvent(OnboardingEvent.Scan.ScanClicked)
 
-        assertEquals(OnboardingEffect.OpenBillScanner, viewModel.effects.first())
+        assertEquals(
+            OnboardingEffect.Finish(
+                start = StartDestination.DASHBOARD,
+                signInFirst = true,
+                openScanner = true,
+            ),
+            viewModel.effects.first(),
+        )
+    }
+
+    @Test
+    fun skipping_doesNotOpenTheScanner() = runTest(dispatcher) {
+        val viewModel = viewModel(signedIn = true)
+
+        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+
+        assertEquals(false, (viewModel.effects.first() as OnboardingEffect.Finish).openScanner)
     }
 
     /* ------------------------------ Persistence ------------------------------ */
