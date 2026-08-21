@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.autoodometer.domain.usecase.FakeVehicleBondStore
 import com.hopcape.odo.feature.autoodometer.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import com.hopcape.odo.feature.autoodometer.presentation.FakeActiveCarProvider
+import com.hopcape.odo.feature.autoodometer.presentation.FakeBluetoothRadio
 import com.hopcape.odo.feature.autoodometer.presentation.FakeBondedDeviceCatalog
 import com.hopcape.odo.feature.autoodometer.presentation.RecordingAnalytics
 import com.hopcape.odo.feature.autoodometer.presentation.RecordingCrash
@@ -62,9 +63,11 @@ class DevicePickerViewModelTest {
         carId: CarId? = TEST_CAR,
         bonds: FakeVehicleBondStore = FakeVehicleBondStore(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        radio: FakeBluetoothRadio = FakeBluetoothRadio(),
     ): Triple<DevicePickerViewModel, FakeVehicleBondStore, RecordingAnalytics> {
         val vm = DevicePickerViewModel(
             catalog = FakeBondedDeviceCatalog(devices),
+            radio = radio,
             enroll = EnrollTriggerDevice(bonds = bonds),
             activeCar = FakeActiveCarProvider(carId),
             telemetry = testTelemetry(analytics),
@@ -199,6 +202,7 @@ class DevicePickerViewModelTest {
         val crash = RecordingCrash()
         val vm = DevicePickerViewModel(
             catalog = FakeBondedDeviceCatalog(throwing = true),
+            radio = FakeBluetoothRadio(),
             enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
             activeCar = FakeActiveCarProvider(TEST_CAR),
             telemetry = testTelemetry(crash = crash),
@@ -222,6 +226,7 @@ class DevicePickerViewModelTest {
         val bonds = FakeVehicleBondStore(throwing = true)
         val vm = DevicePickerViewModel(
             catalog = FakeBondedDeviceCatalog(listOf(connectedStereo)),
+            radio = FakeBluetoothRadio(),
             enroll = EnrollTriggerDevice(bonds = bonds),
             activeCar = FakeActiveCarProvider(TEST_CAR),
             telemetry = testTelemetry(crash = crash),
@@ -233,5 +238,119 @@ class DevicePickerViewModelTest {
         assertTrue(bonds.saved.isEmpty())
         assertEquals(1, crash.recorded.size)
         assertFalse(vm.state.value.enrolling)
+    }
+
+    /**
+     * The bug this screen was fixed for: with the radio off, the catalog's A2DP callback never
+     * fires, so the read never finished and the spinner never stopped. The read must not be
+     * attempted at all.
+     */
+    @Test
+    fun bluetoothOff_showsTheRadioCard_andNeverReadsTheCatalog() = runTest {
+        val catalog = FakeBondedDeviceCatalog(listOf(connectedStereo))
+        val radio = FakeBluetoothRadio(enabled = false)
+        val vm = DevicePickerViewModel(
+            catalog = catalog,
+            radio = radio,
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        assertTrue(vm.state.value.bluetoothOff)
+        assertEquals(0, catalog.callCount, "a read with the radio off is what used to hang forever")
+    }
+
+    @Test
+    fun bluetoothTurnedOnAfterwards_loadsTheListWithoutRe_entry() = runTest {
+        val catalog = FakeBondedDeviceCatalog(listOf(connectedStereo))
+        val radio = FakeBluetoothRadio(enabled = false)
+        val vm = DevicePickerViewModel(
+            catalog = catalog,
+            radio = radio,
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        radio.set(true)
+
+        assertFalse(vm.state.value.bluetoothOff)
+        val loaded = assertIs<DeviceListLoad.Ready>(vm.state.value.devices)
+        assertEquals(listOf(connectedStereo), loaded.connectedNow)
+        assertEquals(1, catalog.callCount)
+    }
+
+    @Test
+    fun bluetoothTurnedOffAfterLoading_clearsTheStaleListAndSelection() = runTest {
+        val radio = FakeBluetoothRadio()
+        val (vm, _, _) = viewModel(devices = listOf(connectedStereo), radio = radio)
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+        assertIs<DeviceListLoad.Ready>(vm.state.value.devices)
+
+        radio.set(false)
+
+        assertTrue(vm.state.value.bluetoothOff)
+        assertIs<DeviceListLoad.Loading>(vm.state.value.devices)
+        assertNull(vm.state.value.selectedId, "no enabled \"Use <device>\" button under a radio-off card")
+    }
+
+    @Test
+    fun grantAndRadioBothOpening_readsTheCatalogExactlyOnce() = runTest {
+        val catalog = FakeBondedDeviceCatalog(listOf(connectedStereo))
+        val radio = FakeBluetoothRadio(enabled = false)
+        val vm = DevicePickerViewModel(
+            catalog = catalog,
+            radio = radio,
+            enroll = EnrollTriggerDevice(bonds = FakeVehicleBondStore()),
+            activeCar = FakeActiveCarProvider(TEST_CAR),
+            telemetry = testTelemetry(),
+        )
+
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+        radio.set(true)
+        // A re-grant on returning from system settings must not reload a working screen.
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Askable))
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        assertEquals(1, catalog.callCount)
+    }
+
+    @Test
+    fun turnOnBluetooth_opensTheExplainerSheet_andConfirmingHandsOffToTheSystem() = runTest {
+        val analytics = RecordingAnalytics()
+        val (vm, _, _) = viewModel(radio = FakeBluetoothRadio(enabled = false), analytics = analytics)
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+
+        vm.onEvent(DevicePickerEvent.TurnOnBluetoothTapped)
+        assertTrue(vm.state.value.showBluetoothSheet)
+
+        vm.onEvent(DevicePickerEvent.BluetoothSheetConfirmed)
+
+        assertFalse(vm.state.value.showBluetoothSheet, "closed before the system dialog covers it")
+        assertIs<DevicePickerEffect.RequestBluetoothEnable>(vm.effects.first())
+        assertTrue(analytics.events.any { it.first == AutoOdometerTelemetry.Event.BLUETOOTH_ENABLE_REQUESTED })
+    }
+
+    @Test
+    fun dismissingTheExplainer_leavesTheRadioCardUp() = runTest {
+        val (vm, _, _) = viewModel(radio = FakeBluetoothRadio(enabled = false))
+        vm.onEvent(DevicePickerEvent.PermissionChanged(PermissionStatus.Granted))
+        vm.onEvent(DevicePickerEvent.TurnOnBluetoothTapped)
+
+        vm.onEvent(DevicePickerEvent.BluetoothSheetDismissed)
+
+        assertFalse(vm.state.value.showBluetoothSheet)
+        assertTrue(vm.state.value.bluetoothOff, "the reason stays on screen for a second look")
+    }
+
+    @Test
+    fun bluetoothOff_isNotReportedBeforeThePermissionIsGranted() = runTest {
+        val (vm, _, _) = viewModel(radio = FakeBluetoothRadio(enabled = false))
+
+        assertFalse(vm.state.value.bluetoothOff, "one ask per screen — the permission gate comes first")
     }
 }

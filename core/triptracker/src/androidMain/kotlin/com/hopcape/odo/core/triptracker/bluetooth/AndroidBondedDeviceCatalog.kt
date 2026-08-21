@@ -11,7 +11,9 @@ import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
 import com.hopcape.odo.core.triptracker.observability.TripTrackerTelemetry
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `BluetoothAdapter.bondedDevices`, as the [BondedDeviceCatalog] port for the device
@@ -24,6 +26,13 @@ import kotlin.coroutines.resume
  * empty bonded list. The `SecurityException` catches below stay as a defensive fallback
  * for the gap between that check and the call (the OS can revoke mid-read) — reaching one
  * of those means something unexpected happened, so it goes through [TripTrackerTelemetry.nonFatal].
+ *
+ * The radio being switched off is checked up front for a harder reason: the A2DP proxy this
+ * uses is a callback that simply never fires when the Bluetooth stack is not running, which
+ * used to hang the whole read and leave the device picker spinning forever. Both halves of
+ * that are fixed — the switched-off adapter never reaches the proxy at all, and
+ * [connectedA2dpAddresses] is bounded by [A2DP_PROXY_TIMEOUT] so no callback that fails to
+ * arrive can stall a read again.
  */
 internal class AndroidBondedDeviceCatalog(
     private val context: Context,
@@ -36,13 +45,17 @@ internal class AndroidBondedDeviceCatalog(
         }
 
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return emptyList()
+        // A switched-off radio has no bonded list to read and no profile service to bind to.
+        // Not an error and not telemetry-worthy — the picker has its own screen for it.
+        if (!adapter.isEnabledSafely()) return emptyList()
+
         val bonded = try {
             adapter.bondedDevices
         } catch (e: SecurityException) {
             telemetry.nonFatal(e, stage = STAGE_BONDED_DEVICES)
             return emptyList()
         }
-        val connected = connectedA2dpAddresses(adapter)
+        val connected = connectedA2dpAddressesOrEmpty(adapter)
         return bonded.map { device ->
             val btClass = device.bluetoothClass
             val category = if (btClass != null) classify(btClass.majorDeviceClass, btClass.deviceClass) else DeviceCategory.OTHER
@@ -62,7 +75,30 @@ internal class AndroidBondedDeviceCatalog(
         }.filterNotNull()
     }
 
-    /** A2DP's connected-devices list, via [BluetoothAdapter.getProfileProxy]'s callback API. */
+
+    /**
+     * [connectedA2dpAddresses], bounded by [A2DP_PROXY_TIMEOUT].
+     *
+     * "Which device is connected right now" is a nicety — it decides the picker's
+     * "CONNECTED NOW" section and which row is pre-selected. The bonded list is the part the
+     * screen cannot do without, so a service that never answers costs the nicety and nothing
+     * else, instead of costing the owner the whole screen.
+     */
+    private suspend fun connectedA2dpAddressesOrEmpty(adapter: BluetoothAdapter): Set<String> {
+        val connected = withTimeoutOrNull(A2DP_PROXY_TIMEOUT) { connectedA2dpAddresses(adapter) }
+        if (connected == null) telemetry.a2dpProxyTimedOut()
+        return connected.orEmpty()
+    }
+
+    /**
+     * A2DP's connected-devices list, via [BluetoothAdapter.getProfileProxy]'s callback API.
+     *
+     * `getProfileProxy` answers whether the *request* was accepted, not whether the service
+     * will ever bind, so a `true` here is not a promise that [BluetoothProfile.ServiceListener]
+     * will ever be called — with the radio off it never is. Call it through
+     * [connectedA2dpAddressesOrEmpty], never directly. The listener closes the proxy before it
+     * looks at the continuation, so a callback that lands after the timeout still cleans up.
+     */
     private suspend fun connectedA2dpAddresses(adapter: BluetoothAdapter): Set<String> =
         suspendCancellableCoroutine { continuation ->
             val listener = object : BluetoothProfile.ServiceListener {
@@ -91,7 +127,24 @@ internal class AndroidBondedDeviceCatalog(
     private fun Context.hasBluetoothConnectPermission(): Boolean =
         checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
+    /** `isEnabled` is itself `BLUETOOTH_CONNECT`-guarded on some builds; a refusal reads as off. */
+    private fun BluetoothAdapter.isEnabledSafely(): Boolean = try {
+        isEnabled
+    } catch (e: SecurityException) {
+        telemetry.nonFatal(e, stage = STAGE_ADAPTER_ENABLED)
+        false
+    }
+
     private companion object {
+
+        /**
+         * How long to wait for the A2DP service to bind before giving up and reporting nobody
+         * connected. Generous enough for a cold bind on a slow phone, short enough that the
+         * picker still draws a list rather than a spinner if the service never answers.
+         */
+        val A2DP_PROXY_TIMEOUT = 3.seconds
+
+        const val STAGE_ADAPTER_ENABLED = "bonded_device_catalog_adapter_enabled"
         const val STAGE_BONDED_DEVICES = "bonded_device_catalog_bonded_devices"
         const val STAGE_DEVICE_ADDRESS = "bonded_device_catalog_device_address"
         const val STAGE_DEVICE_NAME = "bonded_device_catalog_device_name"

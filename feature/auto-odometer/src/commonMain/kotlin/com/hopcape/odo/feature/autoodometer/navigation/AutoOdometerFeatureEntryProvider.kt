@@ -14,6 +14,7 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.core.platform.bluetooth.rememberBluetoothEnabler
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.platform.permission.PlatformPermission
 import com.hopcape.odo.core.platform.permission.rememberPermissionController
@@ -127,12 +128,18 @@ private fun TriggerMode.toFlowMode(): OdoDestination.AutoOdometer.AutoOdometerFl
  * M3 — the trigger-device picker. The `BLUETOOTH_CONNECT` controller is read here, the same
  * way the camera permission is read at `BillScanRoute` — a composable, not an injected port
  * — and folded into the ViewModel's state via [DevicePickerEvent.PermissionChanged].
+ *
+ * [rememberBluetoothEnabler] is here for the same reason: putting the system's turn-on dialog
+ * on screen needs the Activity. The radio's *state* is not read here at all — that is a plain
+ * flow the ViewModel collects, so switching Bluetooth on from the notification shade reaches
+ * the screen whether or not it recomposed.
  */
 @Composable
 internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager) {
     val viewModel: DevicePickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val permission = rememberPermissionController(PlatformPermission.BLUETOOTH_CONNECT)
+    val bluetoothEnabler = rememberBluetoothEnabler()
 
     LaunchedEffect(permission.status) {
         viewModel.onEvent(DevicePickerEvent.PermissionChanged(permission.status))
@@ -148,6 +155,8 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            DevicePickerEffect.RequestBluetoothEnable -> bluetoothEnabler.request()
+
             DevicePickerEffect.NavigateToPermissionSetup -> navigationManager.navigateTo(
                 OdoDestination.AutoOdometer.PermissionSetup(
                     mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.STEREO,
@@ -180,6 +189,9 @@ internal fun AutoOdometerDevicePickerRoute(navigationManager: NavigationManager)
         onUseTapped = { viewModel.onEvent(DevicePickerEvent.UseTapped) },
         onNoBluetoothTapped = { viewModel.onEvent(DevicePickerEvent.NoBluetoothTapped) },
         onGrantPermission = grant,
+        onTurnOnBluetooth = { viewModel.onEvent(DevicePickerEvent.TurnOnBluetoothTapped) },
+        onBluetoothSheetConfirm = { viewModel.onEvent(DevicePickerEvent.BluetoothSheetConfirmed) },
+        onBluetoothSheetDismiss = { viewModel.onEvent(DevicePickerEvent.BluetoothSheetDismissed) },
         onBack = { viewModel.onEvent(DevicePickerEvent.BackTapped) },
     )
 }
@@ -333,6 +345,9 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
     val backgroundLocation = rememberPermissionController(PlatformPermission.ACCESS_BACKGROUND_LOCATION)
     val activityRecognition = rememberPermissionController(PlatformPermission.ACTIVITY_RECOGNITION)
     val bluetoothConnect = rememberPermissionController(PlatformPermission.BLUETOOTH_CONNECT)
+    // The radio's own switch. Its *state* is not read here — the ViewModel collects that flow
+    // directly — so this only exists to act on the BLUETOOTH_OFF row.
+    val bluetoothEnabler = rememberBluetoothEnabler()
 
     LaunchedEffect(fineLocation.status, backgroundLocation.status, activityRecognition.status, bluetoothConnect.status) {
         viewModel.onEvent(
@@ -350,11 +365,13 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
         )
     }
 
+    /** Null for [ReadinessIssue.BLUETOOTH_OFF] — a radio switch is not a permission to ask for. */
     fun controllerFor(issue: ReadinessIssue) = when (issue) {
         ReadinessIssue.FINE_LOCATION -> fineLocation
         ReadinessIssue.BACKGROUND_LOCATION -> backgroundLocation
         ReadinessIssue.ACTIVITY_RECOGNITION -> activityRecognition
         ReadinessIssue.BLUETOOTH_CONNECT -> bluetoothConnect
+        ReadinessIssue.BLUETOOTH_OFF -> null
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -375,7 +392,11 @@ internal fun AutoOdometerSettingsRoute(navigationManager: NavigationManager) {
         onDeleteDismiss = { viewModel.onEvent(SettingsEvent.DeleteDismissed) },
         onFixIt = { issue ->
             val controller = controllerFor(issue)
-            if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
+            when {
+                controller == null -> bluetoothEnabler.request()
+                controller.status == PermissionStatus.Blocked -> controller.openAppSettings()
+                else -> controller.request()
+            }
         },
         onBack = { viewModel.onEvent(SettingsEvent.BackTapped) },
     )

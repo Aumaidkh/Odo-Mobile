@@ -84,7 +84,7 @@ val autoOdometerModule = module {
     // No route arguments: the picker resolves the active car itself, matching
     // UpdateOdometerViewModel's convention (see DevicePickerViewModel's KDoc).
     viewModel {
-        DevicePickerViewModel(catalog = get(), enroll = get(), activeCar = get(), telemetry = get())
+        DevicePickerViewModel(catalog = get(), radio = get(), enroll = get(), activeCar = get(), telemetry = get())
     }
 
     // `mode` is a route argument, mapped the same way EducationViewModel's is.
@@ -128,6 +128,7 @@ val autoOdometerModule = module {
             deleteAllTripData = get(),
             settings = get(),
             activeCar = get(),
+            radio = get(),
             clock = get(),
             telemetry = get(),
         )

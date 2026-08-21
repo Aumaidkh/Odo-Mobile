@@ -6,6 +6,7 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
+import com.hopcape.odo.core.triptracker.BluetoothRadio
 import com.hopcape.odo.core.triptracker.TrackingReadiness
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -66,6 +67,7 @@ internal class SettingsViewModel(
     private val deleteAllTripData: DeleteAllTripData,
     private val settings: AppSettingsRepository,
     private val activeCar: ActiveCarProvider,
+    private val radio: BluetoothRadio,
     private val clock: Clock,
     private val telemetry: AutoOdometerTelemetry,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -80,7 +82,19 @@ internal class SettingsViewModel(
     /** The last readiness reading, kept outside [SettingsUiState] to diff a new one against. */
     private var lastReadiness: TrackingReadiness? = null
 
+    /**
+     * Whether the Bluetooth radio is on, as of the last reading. Collected here rather than
+     * arriving with [SettingsEvent.ReadinessChanged], because unlike a permission it is a plain
+     * flow with no Activity behind it — which is also what lets a radio switched off from the
+     * notification shade raise its fix-it row while this screen sits open, something the
+     * permission rows genuinely cannot do (see this class's KDoc).
+     *
+     * Starts true so an unread radio never puts a "Bluetooth is off" row on screen.
+     */
+    private var bluetoothEnabled: Boolean = true
+
     init {
+        viewModelScope.launch { radio.enabled.collect(::bluetoothStateChanged) }
         val carId = activeCar.activeCarId.value
         if (carId == null) {
             telemetry.noActiveCar()
@@ -223,22 +237,41 @@ internal class SettingsViewModel(
      */
     private fun readinessChanged(readiness: TrackingReadiness) {
         val relevant = relevantReadinessIssues(_state.value.mode)
-        reportNewlyLostPreconditions(relevant, readiness)
+        reportNewlyLostPreconditions(relevant, readiness, bluetoothEnabled)
         lastReadiness = readiness
-        _state.update { it.copy(readinessIssues = relevant.filterNot { issue -> issue.isGranted(readiness) }) }
+        _state.update { it.copy(readinessIssues = issuesFor(it.mode, readiness)) }
+    }
+
+    /** The radio was switched on or off, from anywhere on the phone. */
+    private fun bluetoothStateChanged(enabled: Boolean) {
+        if (enabled == bluetoothEnabled) return
+        val previous = bluetoothEnabled
+        bluetoothEnabled = enabled
+        val relevant = relevantReadinessIssues(_state.value.mode)
+        if (previous && !enabled && ReadinessIssue.BLUETOOTH_OFF in relevant) {
+            telemetry.preconditionLost(ReadinessIssue.BLUETOOTH_OFF.name)
+        }
+        _state.update { it.copy(readinessIssues = issuesFor(it.mode, lastReadiness)) }
     }
 
     /** Fires `ao_precondition_lost` for any [relevant] issue that was granted last time but isn't now. */
-    private fun reportNewlyLostPreconditions(relevant: List<ReadinessIssue>, readiness: TrackingReadiness) {
+    private fun reportNewlyLostPreconditions(
+        relevant: List<ReadinessIssue>,
+        readiness: TrackingReadiness,
+        bluetoothEnabled: Boolean,
+    ) {
         val previous = lastReadiness ?: return
         relevant.forEach { issue ->
-            if (issue.isGranted(previous) && !issue.isGranted(readiness)) telemetry.preconditionLost(issue.name)
+            val wasGranted = issue.isGranted(previous, bluetoothEnabled)
+            // The radio is diffed by bluetoothStateChanged, which is the only place it can
+            // change; passing the same value on both sides here keeps it from double-firing.
+            if (wasGranted && !issue.isGranted(readiness, bluetoothEnabled)) telemetry.preconditionLost(issue.name)
         }
     }
 
     private fun issuesFor(mode: TriggerMode?, readiness: TrackingReadiness?): List<ReadinessIssue> {
         if (readiness == null) return emptyList()
-        return relevantReadinessIssues(mode).filterNot { issue -> issue.isGranted(readiness) }
+        return relevantReadinessIssues(mode).filterNot { issue -> issue.isGranted(readiness, bluetoothEnabled) }
     }
 
     private fun TrackingStatus.toStatusDetail(mode: TriggerMode?): UiText? = when (this) {
