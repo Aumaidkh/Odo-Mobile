@@ -139,15 +139,11 @@ class OdoDestinationSerializationTest {
         // Support
         OdoDestination.Support.Help,
         OdoDestination.Support.Search,
-        OdoDestination.Support.Chat,
-        OdoDestination.Support.Email,
-        OdoDestination.Support.Tickets,
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
         OdoDestination.Support.FlagPriceData,
         OdoDestination.Support.Rate,
         OdoDestination.Support.Faqs,
-        OdoDestination.Support.Terms,
         OdoDestination.Support.Privacy,
         OdoDestination.Support.Licences,
         // Auth — `next` is itself a destination, so these also cover a key nested in a key.

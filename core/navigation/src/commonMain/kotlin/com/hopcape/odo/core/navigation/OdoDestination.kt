@@ -574,15 +574,6 @@ sealed interface OdoDestination : NavKey {
         /** Search the help articles — reached from the hub's search box. */
         @Serializable
         data object Search : Support
-        /** Live chat with a support agent. */
-        @Serializable
-        data object Chat : Support
-        /** Email support — a mail hand-off once the platform layer exists. */
-        @Serializable
-        data object Email : Support
-        /** The owner's raised tickets and their status. */
-        @Serializable
-        data object Tickets : Support
         /** "Something broken or wrong" — a bug report form. */
         @Serializable
         data object ReportProblem : Support
@@ -592,15 +583,16 @@ sealed interface OdoDestination : NavKey {
         /** "A benchmark looks off" — dispute a fairness price data point. */
         @Serializable
         data object FlagPriceData : Support
-        /** Rate Odo — a Play Store hand-off once the platform layer exists. */
+        /**
+         * Rate Odo — a bottom sheet that asks for stars, then offers both the store listing
+         * and a private message. A key rather than a direct hand-off, unlike Email and
+         * Terms, because there is a screen here to show before anything leaves the app.
+         */
         @Serializable
         data object Rate : Support
         /** Frequently asked questions. */
         @Serializable
         data object Faqs : Support
-        /** Terms of service. */
-        @Serializable
-        data object Terms : Support
         /** Privacy policy. */
         @Serializable
         data object Privacy : Support

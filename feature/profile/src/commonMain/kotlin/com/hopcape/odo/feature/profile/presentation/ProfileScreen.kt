@@ -256,8 +256,15 @@ private fun ProfileContentColumn(
 
         Spacer(Modifier.height(OdoTheme.spacing.md))
         SettingsGroup {
-           // SettingsRow(IcInfo, stringResource(Res.string.pf_help), onHelp)
-           // RowDivider()
+            // Commented out until every row behind it led somewhere: the help sheet used to
+            // open ten "Coming soon" screens. They are all real now.
+            SettingsRow(
+                icon = IcInfo,
+                title = stringResource(Res.string.pf_help),
+                onClick = onHelp,
+                testTag = ProfileTestTags.HELP_ROW,
+            )
+            RowDivider()
             if (content.isSignedIn) {
                 SettingsRow(
                     icon = IcSignOut,

@@ -20,6 +20,7 @@ import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
 import com.hopcape.odo.core.designsystem.component.OdoSystemRow
 import com.hopcape.odo.core.designsystem.component.OdoSystemRowControl
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcLightningFilled
 import com.hopcape.odo.core.designsystem.icons.IcMapPin
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -63,6 +64,17 @@ import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_no
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_yes_vehicle
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_yes_window
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_body_no_page
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_body_opened
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_done
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_label
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_no_reads
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_skip
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_title
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_yes_switch
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_autostart_yes_wakes
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body_history
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_label
@@ -121,6 +133,8 @@ internal fun PermissionSetupScreen(
         blocked = state.currentBlocked,
         showDenial = state.showDenialRow,
         showSkip = state.showSkip,
+        autostartOpened = state.autostartOpened,
+        autostartPageFound = state.autostartPageFound,
     )
     OdoStepTransition(
         target = page,
@@ -153,6 +167,10 @@ private data class SetupPage(
     val blocked: Boolean,
     val showDenial: Boolean,
     val showSkip: Boolean,
+    /** [PermissionSetupStep.AUTOSTART] only: the owner has already been sent to the page. */
+    val autostartOpened: Boolean = false,
+    /** [PermissionSetupStep.AUTOSTART] only: false once no page could be opened on this build. */
+    val autostartPageFound: Boolean = true,
 )
 
 /** A rationale and its drawing of the system screen, in that order. */
@@ -171,31 +189,28 @@ private fun RationalePage(
     val step = page.step
     OdoPermissionRationale(
         icon = step.icon(),
-        title = stringResource(
-            when (step) {
-                PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
-                PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
-                PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
-            },
-        ),
-        subtitle = subtitleFor(step, recentDrives),
+        title = stringResource(titleFor(step)),
+        subtitle = subtitleFor(page, recentDrives),
         benefits = emptyList(),
         assurancesLabel = stringResource(
             when (step) {
                 PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_label
                 PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_label
                 PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_label
+                PermissionSetupStep.AUTOSTART -> Res.string.ao_permissions_autostart_label
             },
         ),
         assurances = assurancesFor(step, mode),
-        confirmLabel = primaryLabel(step, page.blocked),
+        confirmLabel = primaryLabel(page),
         onConfirm = onContinue,
         // Only the optional step offers a way past it. On the others the dismiss leaves the
         // whole flow, which is what "not now" has always meant here.
-        dismissLabel = if (page.showSkip) {
-            stringResource(Res.string.ao_permissions_background_skip)
-        } else {
-            stringResource(Res.string.ao_permissions_dismiss)
+        dismissLabel = when {
+            // "Not now" rather than background location's "keep it to while using": there is no
+            // lesser setting to keep, only a switch left off.
+            step == PermissionSetupStep.AUTOSTART -> stringResource(Res.string.ao_permissions_autostart_skip)
+            page.showSkip -> stringResource(Res.string.ao_permissions_background_skip)
+            else -> stringResource(Res.string.ao_permissions_dismiss)
         },
         onDismiss = if (page.showSkip) onSkip else onBack,
         screenTitle = stringResource(Res.string.ao_flow_title),
@@ -372,13 +387,7 @@ private fun RecentDrivesCard(drives: List<RecentDrive>) {
 
 @Composable
 private fun DenialRow(step: PermissionSetupStep, blocked: Boolean, onAction: () -> Unit) {
-    val label = stringResource(
-        when (step) {
-            PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
-            PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
-            PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
-        },
-    )
+    val label = stringResource(titleFor(step))
     OdoPermissionNudge(
         icon = IcWarning,
         message = stringResource(Res.string.ao_permissions_denied_row, label),
@@ -400,15 +409,34 @@ private fun DenialRow(step: PermissionSetupStep, blocked: Boolean, onAction: () 
  * made in the abstract; afterwards it is simply what already happened to them.
  */
 @Composable
-private fun subtitleFor(step: PermissionSetupStep, drives: List<RecentDrive>): String = when {
-    step == PermissionSetupStep.FINE_LOCATION ->
+private fun subtitleFor(page: SetupPage, drives: List<RecentDrive>): String = when {
+    page.step == PermissionSetupStep.FINE_LOCATION ->
         stringResource(Res.string.ao_permissions_location_body)
 
-    step == PermissionSetupStep.ACTIVITY_RECOGNITION ->
+    page.step == PermissionSetupStep.ACTIVITY_RECOGNITION ->
         stringResource(Res.string.ao_permissions_activity_body)
+
+    // Autostart argues, then asks. Once the owner has been sent to the page there is nothing
+    // left to argue — only the question no API can answer, which is whether they turned it on.
+    page.step == PermissionSetupStep.AUTOSTART && !page.autostartPageFound ->
+        stringResource(Res.string.ao_permissions_autostart_body_no_page)
+
+    page.step == PermissionSetupStep.AUTOSTART && page.autostartOpened ->
+        stringResource(Res.string.ao_permissions_autostart_body_opened)
+
+    page.step == PermissionSetupStep.AUTOSTART ->
+        stringResource(Res.string.ao_permissions_autostart_body)
 
     drives.isEmpty() -> stringResource(Res.string.ao_permissions_background_body)
     else -> stringResource(Res.string.ao_permissions_background_body_history)
+}
+
+/** The step's own name, used by its page and by the denial row that names it. */
+private fun titleFor(step: PermissionSetupStep) = when (step) {
+    PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
+    PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
+    PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
+    PermissionSetupStep.AUTOSTART -> Res.string.ao_permissions_autostart_title
 }
 
 @Composable
@@ -437,6 +465,15 @@ private fun assurancesFor(
         excluded(stringResource(Res.string.ao_permissions_activity_no_steps)),
         excluded(stringResource(Res.string.ao_permissions_activity_no_share)),
     )
+
+    // The first line is what to do on the page that opens, not a limit — the page lists every
+    // app on the phone, and Autostart alone is not always enough because battery limits kill
+    // the app just as quietly.
+    PermissionSetupStep.AUTOSTART -> listOf(
+        included(stringResource(Res.string.ao_permissions_autostart_yes_switch)),
+        included(stringResource(Res.string.ao_permissions_autostart_yes_wakes)),
+        excluded(stringResource(Res.string.ao_permissions_autostart_no_reads)),
+    )
 }
 
 /**
@@ -446,9 +483,20 @@ private fun assurancesFor(
  * rather than promising a permission the tap does not ask for.
  */
 @Composable
-private fun primaryLabel(step: PermissionSetupStep, blocked: Boolean): String = when {
-    blocked -> stringResource(Res.string.ao_permissions_open_settings)
-    step.hasHandoff -> stringResource(Res.string.ao_step_next)
+private fun primaryLabel(page: SetupPage): String = when {
+    page.blocked -> stringResource(Res.string.ao_permissions_open_settings)
+    page.step.hasHandoff -> stringResource(Res.string.ao_step_next)
+
+    // Autostart's button says what it does at the time: the trip to the manufacturer's page,
+    // then the only confirmation that exists for a switch nothing can read back. A build with
+    // no page to open goes straight to confirming — there is nothing left for Odo to open.
+    page.step == PermissionSetupStep.AUTOSTART ->
+        if (page.autostartOpened || !page.autostartPageFound) {
+            stringResource(Res.string.ao_permissions_autostart_done)
+        } else {
+            stringResource(Res.string.ao_permissions_autostart_cta)
+        }
+
     else -> stringResource(Res.string.ao_permissions_activity_cta)
 }
 
@@ -466,6 +514,7 @@ private fun PermissionSetupStep.icon(): ImageVector = when (this) {
     PermissionSetupStep.FINE_LOCATION -> IcMapPin
     PermissionSetupStep.BACKGROUND_LOCATION -> IcSpeedometer
     PermissionSetupStep.ACTIVITY_RECOGNITION -> IcSpeedometer
+    PermissionSetupStep.AUTOSTART -> IcLightningFilled
 }
 
 private fun included(text: String) =
@@ -530,6 +579,46 @@ private fun PermissionSetupBackgroundPreview() = OdoPreview(padded = false) {
                 RecentDrive(dayLabel = "16 Aug", isToday = false, distanceKm = 22, caught = true),
                 RecentDrive(dayLabel = "12 Aug", isToday = false, distanceKm = 0, caught = false),
             ),
+        ),
+        onContinue = {},
+        onSkip = {},
+        onBack = {},
+    )
+}
+
+/** The last step on a phone whose maker holds background starts behind a switch of its own. */
+@OdoThemePreviews
+@Composable
+private fun PermissionSetupAutostartPreview() = OdoPreview(padded = false) {
+    PermissionSetupScreen(
+        state = PermissionSetupUiState(
+            mode = TriggerMode.STEREO,
+            steps = listOf(
+                PermissionStepState(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted),
+                PermissionStepState(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted),
+                PermissionStepState(PermissionSetupStep.AUTOSTART),
+            ),
+            currentIndex = 2,
+        ),
+        onContinue = {},
+        onSkip = {},
+        onBack = {},
+    )
+}
+
+/** The same step after the hand-off: nothing left to argue, only the question nothing can answer. */
+@OdoThemePreviews
+@Composable
+private fun PermissionSetupAutostartOpenedPreview() = OdoPreview(padded = false) {
+    PermissionSetupScreen(
+        state = PermissionSetupUiState(
+            mode = TriggerMode.STEREO,
+            steps = listOf(
+                PermissionStepState(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted),
+                PermissionStepState(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted),
+                PermissionStepState(PermissionSetupStep.AUTOSTART, askedOnce = true),
+            ),
+            currentIndex = 2,
         ),
         onContinue = {},
         onSkip = {},

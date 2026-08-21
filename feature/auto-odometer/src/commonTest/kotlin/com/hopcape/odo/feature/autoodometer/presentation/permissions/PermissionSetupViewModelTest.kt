@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.autoodometer.presentation.permissions
 
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.trip.model.TripMode
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -89,10 +90,28 @@ class PermissionSetupViewModelTest {
         val tracker = OrderedTripTracker(callOrder)
     }
 
+    /**
+     * A phone that either does or does not hold background starts behind its own switch, and
+     * records the hand-off. [pageFound] is what the real one returns on a build where no
+     * autostart activity resolves.
+     */
+    private class FakeBackgroundStartAccess(
+        private val needsAttention: Boolean = false,
+        private val pageFound: Boolean = true,
+    ) : BackgroundStartAccess {
+        var openCalls = 0
+        override fun needsAttention(): Boolean = needsAttention
+        override fun open(): Boolean {
+            openCalls++
+            return pageFound
+        }
+    }
+
     private class Harness(
         val vm: PermissionSetupViewModel,
         val fakes: OrderedFakes,
         val analytics: RecordingAnalytics,
+        val backgroundStart: FakeBackgroundStartAccess,
     )
 
     private fun harness(
@@ -100,6 +119,7 @@ class PermissionSetupViewModelTest {
         carId: CarId? = TEST_CAR,
         analytics: RecordingAnalytics = RecordingAnalytics(),
         trips: FakeTripRepository = FakeTripRepository(),
+        backgroundStart: FakeBackgroundStartAccess = FakeBackgroundStartAccess(),
     ): Harness {
         val fakes = OrderedFakes()
         val vm = PermissionSetupViewModel(
@@ -108,9 +128,10 @@ class PermissionSetupViewModelTest {
             completeSetup = CompleteSetup(tracker = fakes.tracker, settings = FakeAppSettingsRepository()),
             observeRecentDrives = ObserveRecentDrives(trips, FixedClock(NOW), TimeZone.UTC),
             activeCar = FakeActiveCarProvider(carId),
+            backgroundStart = backgroundStart,
             telemetry = testTelemetry(analytics),
         )
-        return Harness(vm, fakes, analytics)
+        return Harness(vm, fakes, analytics, backgroundStart)
     }
 
     @Test
@@ -309,6 +330,7 @@ class PermissionSetupViewModelTest {
             completeSetup = CompleteSetup(tracker = tracker, settings = FakeAppSettingsRepository()),
             observeRecentDrives = ObserveRecentDrives(FakeTripRepository(), FixedClock(NOW), TimeZone.UTC),
             activeCar = FakeActiveCarProvider(TEST_CAR),
+            backgroundStart = FakeBackgroundStartAccess(),
             telemetry = testTelemetry(crash = crash),
         )
 
@@ -319,5 +341,134 @@ class PermissionSetupViewModelTest {
         assertEquals(1, crash.recorded.size)
         assertFalse(tracker.enabled, "must not complete setup on a bond that failed to save")
         assertFalse(vm.state.value.completing)
+    }
+
+    /* ------------------------------ Autostart (issue #272) ------------------------------ */
+
+    /** Every permission step answered, so setup is sitting on the autostart step. */
+    private fun Harness.grantEveryPermissionStep() {
+        vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
+        vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
+    }
+
+    @Test
+    fun phoneWithoutAnAutostartSwitch_getsNoAutostartStep() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = false))
+
+        assertFalse(h.vm.state.value.steps.any { it.step == PermissionSetupStep.AUTOSTART })
+    }
+
+    @Test
+    fun phoneWithAnAutostartSwitch_getsTheStepLast_afterEveryPermission() = runTest {
+        val h = harness(mode = TriggerMode.NO_STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+
+        assertEquals(
+            listOf(
+                PermissionSetupStep.FINE_LOCATION,
+                PermissionSetupStep.BACKGROUND_LOCATION,
+                PermissionSetupStep.ACTIVITY_RECOGNITION,
+                PermissionSetupStep.AUTOSTART,
+            ),
+            h.vm.state.value.steps.map { it.step },
+        )
+    }
+
+    /**
+     * The bug this step exists for: every permission granted and setup used to finish there,
+     * reporting success on a phone that would never start a drive. Autostart has no status to
+     * read, so it must not be advanced past the way a granted permission is.
+     */
+    @Test
+    fun everyPermissionGranted_stopsOnAutostart_ratherThanCompletingSetup() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+
+        h.grantEveryPermissionStep()
+
+        assertTrue(h.vm.state.value.onAutostartStep)
+        assertFalse(h.vm.state.value.autostartOpened, "the page offers the trip first, not the confirmation")
+        assertFalse(h.fakes.tracker.enabled, "setup must not report success before autostart is answered")
+    }
+
+    @Test
+    fun autostartContinue_opensTheManufacturerPage_thenAsksForConfirmation() = runTest {
+        val backgroundStart = FakeBackgroundStartAccess(needsAttention = true)
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = backgroundStart)
+        h.grantEveryPermissionStep()
+
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        assertEquals(1, backgroundStart.openCalls)
+        assertTrue(h.vm.state.value.autostartOpened)
+        assertTrue(h.vm.state.value.autostartPageFound)
+        assertFalse(h.vm.state.value.showDenialRow, "nothing on the phone can report the switch as denied")
+        assertFalse(h.fakes.tracker.enabled, "opening the page is not an answer — the owner still confirms")
+        assertTrue(
+            h.analytics.events.any {
+                it.first == AutoOdometerTelemetry.Event.AUTOSTART_STEP &&
+                    it.second[AutoOdometerTelemetry.Key.ACTION] == AutoOdometerTelemetry.Autostart.OPENED
+            },
+        )
+    }
+
+    @Test
+    fun autostartConfirmed_completesSetup() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+        h.grantEveryPermissionStep()
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        assertTrue(h.fakes.tracker.enabled)
+        assertTrue(
+            h.analytics.events.any {
+                it.first == AutoOdometerTelemetry.Event.AUTOSTART_STEP &&
+                    it.second[AutoOdometerTelemetry.Key.ACTION] == AutoOdometerTelemetry.Autostart.CONFIRMED
+            },
+        )
+        assertIs<PermissionSetupEffect.NavigateToGarage>(h.vm.effects.first())
+    }
+
+    /**
+     * No autostart activity resolved on this build. There is nothing left for Odo to open, so
+     * the page says where to look by hand and the step still has to be answered.
+     */
+    @Test
+    fun autostartPageMissing_isReportedToTheScreen_andStillCounts() = runTest {
+        val backgroundStart = FakeBackgroundStartAccess(needsAttention = true, pageFound = false)
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = backgroundStart)
+        h.grantEveryPermissionStep()
+
+        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
+
+        assertFalse(h.vm.state.value.autostartPageFound)
+        assertTrue(h.vm.state.value.autostartOpened)
+        assertTrue(
+            h.analytics.events.any {
+                it.first == AutoOdometerTelemetry.Event.AUTOSTART_STEP &&
+                    it.second[AutoOdometerTelemetry.Key.ACTION] == AutoOdometerTelemetry.Autostart.NO_PAGE
+            },
+        )
+    }
+
+    /**
+     * "Not now", with the explanation on screen. Setup finishes — a gate on a switch nothing can
+     * read would never clear — but the decline is counted apart from the permission answers,
+     * because it is the ending where tracking probably never starts.
+     */
+    @Test
+    fun autostartDeclined_completesSetup_andIsCounted() = runTest {
+        val h = harness(mode = TriggerMode.STEREO, backgroundStart = FakeBackgroundStartAccess(needsAttention = true))
+        h.grantEveryPermissionStep()
+
+        h.vm.onEvent(PermissionSetupEvent.SkipTapped)
+
+        assertTrue(h.fakes.tracker.enabled)
+        assertTrue(
+            h.analytics.events.any {
+                it.first == AutoOdometerTelemetry.Event.AUTOSTART_STEP &&
+                    it.second[AutoOdometerTelemetry.Key.ACTION] == AutoOdometerTelemetry.Autostart.DECLINED
+            },
+        )
+        assertIs<PermissionSetupEffect.NavigateToGarage>(h.vm.effects.first())
     }
 }

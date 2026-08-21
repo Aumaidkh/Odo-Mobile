@@ -96,6 +96,17 @@ internal class AutoOdometerTelemetry(
         mapOf(Key.STEP to step, Key.STATUS to status),
     )
 
+    /**
+     * The autostart step was answered — [action] is one of [Autostart].
+     *
+     * Its own event rather than a [permissionAnswered] with an invented status, because these
+     * are not permission answers: nothing is granted or blocked, and `CONFIRMED` is the owner's
+     * word rather than a reading. `DECLINED` is the number to watch — it is the ending where
+     * setup reports success on a phone that will never start a drive.
+     */
+    fun autostartStepAnswered(action: String) =
+        analytics.track(Event.AUTOSTART_STEP, mapOf(Key.ACTION to action))
+
     /** The checklist went all-green and tracking was enabled for [mode]. */
     fun setupCompleted(mode: String) = analytics.track(Event.SETUP_COMPLETED, mapOf(Key.MODE to mode))
 
@@ -179,6 +190,7 @@ internal class AutoOdometerTelemetry(
         const val BLUETOOTH_ENABLE_DECLINED = "ao_bluetooth_enable_declined"
         const val DEVICE_SELECTED = "ao_device_selected"
         const val PERMISSION_ANSWERED = "ao_permission_answered"
+        const val AUTOSTART_STEP = "ao_autostart_step"
         const val SETUP_COMPLETED = "ao_setup_completed"
         const val FIRST_TRIP_LOGGED = "ao_first_trip_logged"
         const val TRIP_LOGGED_VIEWED = "ao_trip_logged_viewed"
@@ -202,5 +214,21 @@ internal class AutoOdometerTelemetry(
         const val ON = "on"
         const val WHICH = "which"
         const val STAGE = "stage"
+        const val ACTION = "action"
+    }
+
+    /** What the owner did on the autostart step — the values [autostartStepAnswered] takes. */
+    object Autostart {
+        /** The manufacturer's page was opened. */
+        const val OPENED = "opened"
+
+        /** No page resolved on this build; the step fell back to telling them where to look. */
+        const val NO_PAGE = "no_page"
+
+        /** "I've turned it on" — the only confirmation for a switch nothing can read back. */
+        const val CONFIRMED = "confirmed"
+
+        /** "Not now", with the explanation on screen. Setup finishes; tracking probably will not start. */
+        const val DECLINED = "declined"
     }
 }
