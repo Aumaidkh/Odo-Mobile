@@ -568,6 +568,13 @@ sealed interface OdoDestination : NavKey {
         /** "A benchmark looks off" — dispute a fairness price data point. */
         @Serializable
         data object FlagPriceData : Support
+        /**
+         * Rate Odo — a bottom sheet that asks for stars, then offers both the store listing
+         * and a private message. A key rather than a direct hand-off, unlike Email and
+         * Terms, because there is a screen here to show before anything leaves the app.
+         */
+        @Serializable
+        data object Rate : Support
         /** Frequently asked questions. */
         @Serializable
         data object Faqs : Support

@@ -110,8 +110,20 @@ internal object SupportCopy {
     const val SEARCH_PROMPT = "Type to search"
     const val SEARCH_EMPTY = "Nothing matched"
     const val FEEDBACK_SEND = "Continue in email"
-    const val FEEDBACK_HINT = "Your message"
+
+    /** The form opens on headings rather than an empty box, so this is what proves it opened. */
+    const val REPORT_TEMPLATE_HEADING = "What went wrong:"
+
     const val LICENCE_APACHE = "Apache License 2.0"
+
+    /* Rate Odo. */
+    const val RATE = "Rate Odo"
+    const val RATE_TITLE = "How is Odo working for you?"
+    const val RATE_SEND = "Send feedback"
+    const val RATE_PLAY = "Rate on Play Store"
+
+    /** Each star is its own labelled target, so a test can pick one. */
+    fun starLabel(star: Int) = "Rate $star out of 5"
 
     /** The two rows that were cut rather than left showing sample data. */
     const val CHAT = "Chat with support"
@@ -377,10 +389,15 @@ internal fun ProfileTestRule.openHelpSheet() {
     awaitText(SupportCopy.SEARCH_BOX)
 }
 
-/** Tap a row or chip on the sheet and wait for the screen it opens. */
+/**
+ * Tap a row or chip on the sheet and wait for the screen it opens.
+ *
+ * Waits on a *substring*: the feedback forms open on a multi-line template, so the heading
+ * a test recognises them by is only ever part of the field's text, never the whole of it.
+ */
 internal fun ProfileTestRule.openFromHelpSheet(label: String, expect: String) {
     onNodeWithText(label).performScrollTo().performClick()
-    awaitText(expect)
+    awaitTextContaining(expect)
 }
 
 /**

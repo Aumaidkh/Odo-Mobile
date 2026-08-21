@@ -38,19 +38,29 @@ import org.jetbrains.compose.resources.stringResource
  * app owns it. That is also why there is no view model: no domain call, no result to
  * collect, and the mail hand-off is a composable seam a view model could not hold.
  *
- * @param onSend called with the typed message once it is not blank.
+ * The box opens already filled in, with [template]'s headings. An empty box and a blinking
+ * cursor is the point most people give up at — they know what went wrong but not what we
+ * need to hear, so they write one line or close the screen. Headings turn writing a report
+ * into filling in blanks, and anything left blank still sends.
+ *
+ * @param template the headings the message starts as.
+ * @param onSend called with the typed message once something has been added to [template].
  */
 @Composable
 internal fun FeedbackScreen(
     title: String,
     intro: String,
+    template: String,
     onBack: () -> Unit,
     onSend: (String) -> Unit,
 ) {
     // Survives rotation. Losing a paragraph of a bug report to a screen turn is the sort of
     // thing that stops somebody reporting the bug at all.
-    var message by rememberSaveable { mutableStateOf("") }
-    val canSend = message.isNotBlank()
+    var message by rememberSaveable { mutableStateOf(template) }
+    // Untouched headings are not a report. Comparing against the template rather than
+    // checking for blankness is what stops the prefill making Send look ready to press
+    // before anything has been written.
+    val canSend = message.isNotBlank() && message.trim() != template.trim()
 
     OdoScreen(title = title, onBack = onBack) { padding ->
         Column(

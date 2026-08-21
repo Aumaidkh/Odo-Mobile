@@ -12,6 +12,9 @@
     <!-- Subject on the blank draft the "Email us" row opens. The feedback forms set
          their own, more specific, subject. -->
     <string name="sp_email_subject">Odo support</string>
+    <!-- The blank draft is not blank. Somebody who taps "Email us" has something to say and
+         should not meet an empty box and a cursor. -->
+    <string name="sp_email_body">What I need help with:\n\n\n</string>
 
     <!-- Share feedback -->
     <string name="sp_section_feedback">SHARE FEEDBACK</string>
@@ -138,14 +141,22 @@
          should know what rides along before they start typing. -->
     <string name="sp_fb_attach_note">Your app version and phone model are added to the email so we can work out what went wrong. Nothing is sent until you send it, and you can edit or delete any of it first.</string>
 
-    <string name="sp_fb_report_intro">Tell us what happened. What you were doing when it went wrong helps us the most.</string>
+    <string name="sp_fb_report_intro">Tell us what happened. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_report_subject">Problem report</string>
+    <!-- The form opens on this rather than an empty box. Headings, not questions, so the
+         owner types under them instead of reading a paragraph and starting from nothing.
+         Trailing newlines are deliberate: the cursor lands where they should write. -->
+    <string name="sp_fb_report_body">What went wrong:\n\n\nWhat I was doing at the time:\n\n\nWhat I expected instead:\n</string>
 
-    <string name="sp_fb_idea_intro">Tell us what you would like Odo to do, and what it would save you.</string>
+    <string name="sp_fb_idea_intro">Tell us what you would like Odo to do. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_idea_subject">Feature idea</string>
+    <string name="sp_fb_idea_body">What I would like Odo to do:\n\n\nWhen I would use it:\n\n\nWhat I do today instead:\n</string>
 
-    <string name="sp_fb_flag_intro">Tell us which job looked wrong and what you actually paid. Include your city — benchmarks are worked out per city.</string>
+    <string name="sp_fb_flag_intro">Tell us which job looked wrong. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_flag_subject">Wrong price data</string>
+    <!-- City is asked for because benchmarks are worked out per city, so a report without
+         one cannot be checked against anything. -->
+    <string name="sp_fb_flag_body">The job or part:\n\n\nWhat Odo showed:\n\n\nWhat I actually paid:\n\n\nMy city:\n</string>
 
     <!-- Appended below the owner\'s message in the draft. %1$s is the version name, %2$s the
          build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
@@ -157,4 +168,26 @@
     <string name="sp_lic_intro">Odo is built on open source. These are the libraries it ships with, and the licences they are used under.</string>
     <!-- %1$s is the licence name, e.g. "Read the full Apache License 2.0". -->
     <string name="sp_lic_read">Read the full %1$s</string>
+    <!-- ===================== Rate Odo ===================== -->
+    <!-- Deliberately NOT a review gate. Whatever the rating, both the Play Store and the
+         "tell us privately" path are offered — a low rating leads with the message box, but
+         the store link is never withheld. Sending unhappy owners away from the listing while
+         steering happy ones to it is what Play policy calls discouraging negative reviews,
+         and Apple bars it outright. -->
+    <string name="sp_rate_title">How is Odo working for you?</string>
+    <string name="sp_rate_subtitle">Tap a star. It takes a second and it tells us a lot.</string>
+    <!-- One label per star, so the row can be operated and not merely read. %1$d is that
+         star's position. -->
+    <string name="sp_rate_star_cd">Rate %1$d out of 5</string>
+
+    <string name="sp_rate_prompt_low">Sorry that it is not working out. Telling us what went wrong is the fastest way to get it fixed.</string>
+    <string name="sp_rate_prompt_high">Glad to hear it. If anything would make Odo better, we would like to know.</string>
+
+    <string name="sp_rate_body_low">What is not working:\n\n\nWhat would fix it:\n</string>
+    <string name="sp_rate_body_high">What works well:\n\n\nWhat would make it better:\n</string>
+
+    <string name="sp_rate_send">Send feedback</string>
+    <string name="sp_rate_play">Rate on Play Store</string>
+    <!-- %1$d is the star count, so a reply thread is sortable without opening it. -->
+    <string name="sp_rate_subject">App rating: %1$d of 5</string>
 </resources>

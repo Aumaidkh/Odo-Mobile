@@ -7,6 +7,7 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.domain.support.SupportContacts
+import com.hopcape.odo.core.designsystem.component.ODO_MAX_STARS
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -25,14 +26,19 @@ import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
 import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
 import com.hopcape.odo.feature.support.presentation.feedback.FeedbackScreen
 import com.hopcape.odo.feature.support.presentation.licences.LicencesScreen
+import com.hopcape.odo.feature.support.presentation.rating.RateSheetContent
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
+import com.hopcape.odo.feature.support.resources.sp_email_body
 import com.hopcape.odo.feature.support.resources.sp_email_subject
+import com.hopcape.odo.feature.support.resources.sp_fb_flag_body
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_subject
+import com.hopcape.odo.feature.support.resources.sp_fb_idea_body
 import com.hopcape.odo.feature.support.resources.sp_fb_idea_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_idea_subject
 import com.hopcape.odo.feature.support.resources.sp_fb_mail_footer
+import com.hopcape.odo.feature.support.resources.sp_fb_report_body
 import com.hopcape.odo.feature.support.resources.sp_fb_report_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_report_subject
 import com.hopcape.odo.feature.support.resources.sp_flag
@@ -40,6 +46,7 @@ import com.hopcape.odo.feature.support.resources.sp_idea
 import com.hopcape.odo.feature.support.resources.sp_licences
 import com.hopcape.odo.feature.support.resources.sp_privacy
 import com.hopcape.odo.feature.support.resources.sp_rate
+import com.hopcape.odo.feature.support.resources.sp_rate_subject
 import com.hopcape.odo.feature.support.resources.sp_report
 import com.hopcape.odo.feature.support.resources.sp_terms
 import org.jetbrains.compose.resources.StringResource
@@ -79,6 +86,7 @@ internal class SupportFeatureEntryProvider(
             val uriHandler = LocalUriHandler.current
             val supportEmail = supportContacts.email
             val emailSubject = stringResource(Res.string.sp_email_subject)
+            val emailBody = stringResource(Res.string.sp_email_body)
             // Blank means the build has no backend configured, and there is no Terms page to
             // open. The chip is left out rather than opening nothing.
             val termsUrl = legalLinks.termsOfUse.takeIf { it.isNotBlank() }
@@ -92,18 +100,19 @@ internal class SupportFeatureEntryProvider(
                 versionCode = appInfo.versionCode,
                 onClose = { nm.back() },
                 onSearch = { nm.navigateTo(OdoDestination.Support.Search) },
-                // Straight to a blank draft. There is no screen worth showing between a row
-                // that says "Email us" and the mail app: an empty form asking the same
-                // question the composer is about to ask is a step, not a help.
+                // Straight to the composer on a started draft. There is no screen worth
+                // showing between a row that says "Email us" and the mail app, and the
+                // draft carries a heading so the box is not empty when it opens.
                 onEmail = {
                     nm.back()
-                    composeMail(MailDraft(to = supportEmail, subject = emailSubject, body = ""))
+                    composeMail(MailDraft(to = supportEmail, subject = emailSubject, body = emailBody))
                 },
                 onReportProblem = { nm.navigateTo(OdoDestination.Support.ReportProblem) },
                 onSuggestIdea = { nm.navigateTo(OdoDestination.Support.SuggestIdea) },
                 onFlagPriceData = { nm.navigateTo(OdoDestination.Support.FlagPriceData) },
-                // Null on a platform with no listing, and the row is then absent.
-                onRate = openStoreListing?.let { open -> { nm.back(); open() } },
+                // Always offered: the sheet behind it works with or without a store listing,
+                // since sending feedback is the half that never depended on one.
+                onRate = { nm.navigateTo(OdoDestination.Support.Rate) },
                 onFaqs = { nm.navigateTo(OdoDestination.Support.Faqs) },
                 // The published document in a browser, like the privacy screen's own Terms
                 // row. Deliberately not an in-app web view: hiding the address of a document
@@ -125,6 +134,7 @@ internal class SupportFeatureEntryProvider(
                 title = Res.string.sp_report,
                 intro = Res.string.sp_fb_report_intro,
                 subject = Res.string.sp_fb_report_subject,
+                body = Res.string.sp_fb_report_body,
             )
         }
         entry<OdoDestination.Support.SuggestIdea> {
@@ -132,6 +142,7 @@ internal class SupportFeatureEntryProvider(
                 title = Res.string.sp_idea,
                 intro = Res.string.sp_fb_idea_intro,
                 subject = Res.string.sp_fb_idea_subject,
+                body = Res.string.sp_fb_idea_body,
             )
         }
         entry<OdoDestination.Support.FlagPriceData> {
@@ -139,8 +150,35 @@ internal class SupportFeatureEntryProvider(
                 title = Res.string.sp_flag,
                 intro = Res.string.sp_fb_flag_intro,
                 subject = Res.string.sp_fb_flag_subject,
+                body = Res.string.sp_fb_flag_body,
             )
         }
+        entry<OdoDestination.Support.Rate>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
+            val composeMail = rememberMailComposer()
+            val openStoreListing = rememberStoreRater()
+            val supportEmail = supportContacts.email
+            val footer = mailFooter()
+            // All five subjects up front. The star count is only known inside a click
+            // handler, and stringResource cannot be called from one — the range is fixed, so
+            // this resolves the same five strings every composition.
+            val subjects = (1..ODO_MAX_STARS).map { stringResource(Res.string.sp_rate_subject, it) }
+
+            RateSheetContent(
+                onClose = { nm.back() },
+                onOpenPlayStore = openStoreListing?.let { open -> { nm.back(); open() } },
+                onSendFeedback = { rating, message ->
+                    nm.back()
+                    composeMail(
+                        MailDraft(
+                            to = supportEmail,
+                            subject = subjects[rating - 1],
+                            body = "$message\n\n$footer",
+                        ),
+                    )
+                },
+            )
+        }
+
         entry<OdoDestination.Support.Faqs> { FaqsScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
         entry<OdoDestination.Support.Licences> {
@@ -167,22 +205,17 @@ internal class SupportFeatureEntryProvider(
         title: StringResource,
         intro: StringResource,
         subject: StringResource,
+        body: StringResource,
     ) {
         val composeMail = rememberMailComposer()
         val supportAddress = supportContacts.email
         val subjectText = stringResource(subject)
-        val footer = stringResource(
-            Res.string.sp_fb_mail_footer,
-            appInfo.versionName,
-            appInfo.versionCode.toString(),
-            deviceInfo.manufacturer,
-            deviceInfo.model,
-            deviceInfo.osVersion,
-        )
+        val footer = mailFooter()
 
         FeedbackScreen(
             title = stringResource(title),
             intro = stringResource(intro),
+            template = stringResource(body),
             onBack = { nm.back() },
             onSend = { message ->
                 nm.back()
@@ -196,6 +229,23 @@ internal class SupportFeatureEntryProvider(
             },
         )
     }
+
+    /**
+     * The build and device line every outbound message carries, under the owner's own words.
+     *
+     * Shared by the feedback forms and the rating sheet so a report and a one-star note
+     * carry the same footer. Resolved once per composition rather than per keystroke: it
+     * does not depend on what is being typed.
+     */
+    @Composable
+    private fun mailFooter(): String = stringResource(
+        Res.string.sp_fb_mail_footer,
+        appInfo.versionName,
+        appInfo.versionCode.toString(),
+        deviceInfo.manufacturer,
+        deviceInfo.model,
+        deviceInfo.osVersion,
+    )
 
     /**
      * The privacy policy: a native summary, with the full documents a tap away.

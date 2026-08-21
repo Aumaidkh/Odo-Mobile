@@ -139,6 +139,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
         OdoDestination.Support.FlagPriceData,
+        OdoDestination.Support.Rate,
         OdoDestination.Support.Faqs,
         OdoDestination.Support.Privacy,
         OdoDestination.Support.Licences,

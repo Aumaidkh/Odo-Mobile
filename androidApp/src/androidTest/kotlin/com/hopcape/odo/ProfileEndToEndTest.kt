@@ -303,9 +303,12 @@ class ProfileEndToEndTest {
     fun helpSheet_reportAProblemOpensAFormThatWillNotSendEmpty() {
         rule.openProfile()
         rule.openHelpSheet()
-        rule.openFromHelpSheet(SupportCopy.REPORT, SupportCopy.FEEDBACK_HINT)
+        rule.openFromHelpSheet(SupportCopy.REPORT, SupportCopy.REPORT_TEMPLATE_HEADING)
 
-        // Nothing typed yet, so there is nothing worth mailing.
+        // The box opens on headings rather than empty — that is the point of the template.
+        rule.onNodeWithText(SupportCopy.REPORT_TEMPLATE_HEADING, substring = true).assertExists()
+        // Untouched headings are not a report, so Send stays disabled until something is
+        // added. Prefilling must not make the button look ready before anything is written.
         rule.onNodeWithText(SupportCopy.FEEDBACK_SEND).assertIsNotEnabled()
     }
 
@@ -316,6 +319,47 @@ class ProfileEndToEndTest {
         rule.openFromHelpSheet(SupportCopy.LICENCES, SupportCopy.LICENCE_APACHE)
 
         rule.onNodeWithText(SupportCopy.LICENCE_APACHE).assertExists()
+    }
+
+
+    @Test
+    fun rateSheet_asksForAStarBeforeOfferingAnything() {
+        rule.openProfile()
+        rule.openHelpSheet()
+        rule.openFromHelpSheet(SupportCopy.RATE, SupportCopy.RATE_TITLE)
+
+        // A message box and two buttons under an unanswered question is a form. The question
+        // takes one tap, so nothing else is shown until it is answered.
+        rule.onNodeWithText(SupportCopy.RATE_SEND).assertDoesNotExist()
+        rule.onNodeWithText(SupportCopy.RATE_PLAY).assertDoesNotExist()
+    }
+
+    @Test
+    fun rateSheet_aLowRatingIsNeverKeptAwayFromThePlayStore() {
+        rule.openProfile()
+        rule.openHelpSheet()
+        rule.openFromHelpSheet(SupportCopy.RATE, SupportCopy.RATE_TITLE)
+
+        rule.onNodeWithContentDescription(SupportCopy.starLabel(1)).performClick()
+
+        // The whole point of building this ungated. A one-star owner is offered the private
+        // message first, and the store link is still right there. Withholding it is what
+        // Play policy calls discouraging negative reviews, and this test is what stops
+        // somebody "simplifying" the sheet into a review gate later.
+        rule.awaitText(SupportCopy.RATE_SEND)
+        rule.onNodeWithText(SupportCopy.RATE_PLAY).performScrollTo().assertExists()
+    }
+
+    @Test
+    fun rateSheet_aHighRatingIsAlsoOfferedThePrivateRoute() {
+        rule.openProfile()
+        rule.openHelpSheet()
+        rule.openFromHelpSheet(SupportCopy.RATE, SupportCopy.RATE_TITLE)
+
+        rule.onNodeWithContentDescription(SupportCopy.starLabel(5)).performClick()
+
+        rule.awaitText(SupportCopy.RATE_PLAY)
+        rule.onNodeWithText(SupportCopy.RATE_SEND).performScrollTo().assertExists()
     }
 
 }
