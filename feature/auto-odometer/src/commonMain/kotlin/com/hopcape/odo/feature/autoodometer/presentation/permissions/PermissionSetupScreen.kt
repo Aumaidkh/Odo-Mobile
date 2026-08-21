@@ -1,66 +1,105 @@
 package com.hopcape.odo.feature.autoodometer.presentation.permissions
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
-import com.hopcape.odo.core.designsystem.component.OdoButton
-import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
-import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoDivider
+import com.hopcape.odo.core.designsystem.component.OdoPermissionAssurance
+import com.hopcape.odo.core.designsystem.component.OdoPermissionAssuranceKind
 import com.hopcape.odo.core.designsystem.component.OdoPermissionNudge
-import com.hopcape.odo.core.designsystem.component.OdoScreen
+import com.hopcape.odo.core.designsystem.component.OdoPermissionRationale
+import com.hopcape.odo.core.designsystem.component.OdoStepTransition
+import com.hopcape.odo.core.designsystem.component.OdoSystemHandoff
+import com.hopcape.odo.core.designsystem.component.OdoSystemRow
+import com.hopcape.odo.core.designsystem.component.OdoSystemRowControl
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcBellFilled
-import com.hopcape.odo.core.designsystem.icons.IcCar
-import com.hopcape.odo.core.designsystem.icons.IcClock
+import com.hopcape.odo.core.designsystem.icons.IcMapPin
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
+import com.hopcape.odo.feature.autoodometer.domain.model.RecentDrive
 import com.hopcape.odo.feature.autoodometer.resources.Res
+import com.hopcape.odo.feature.autoodometer.resources.ao_background_handoff_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_background_handoff_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_background_handoff_note
+import com.hopcape.odo.feature.autoodometer.resources.ao_background_handoff_screen
+import com.hopcape.odo.feature.autoodometer.resources.ao_background_handoff_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_cd_back
+import com.hopcape.odo.feature.autoodometer.resources.ao_drives_caught
+import com.hopcape.odo.feature.autoodometer.resources.ao_drives_closed
+import com.hopcape.odo.feature.autoodometer.resources.ao_drives_missed
+import com.hopcape.odo.feature.autoodometer.resources.ao_drives_today
+import com.hopcape.odo.feature.autoodometer.resources.ao_flow_title
+import com.hopcape.odo.feature.autoodometer.resources.ao_handoff_eyebrow
+import com.hopcape.odo.feature.autoodometer.resources.ao_handoff_preview_header
+import com.hopcape.odo.feature.autoodometer.resources.ao_handoff_preview_label
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_instruction
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_note
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_screen
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_handoff_title
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_option_always
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_option_ask
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_option_deny
+import com.hopcape.odo.feature.autoodometer.resources.ao_location_option_while_using
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_body
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_title
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_label
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_no_share
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_no_steps
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_title
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_cta
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_yes_vehicle
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_activity_yes_window
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_body_history
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_label
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_no_idle_no_stereo
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_no_idle_stereo
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_no_route
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_revert
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_skip
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_background_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_denied_row
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_dismiss
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_body
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_label
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_no_route
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_no_share
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_title
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_notifications_body
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_notifications_title
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_yes_distance
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_yes_window_no_stereo
+import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_location_yes_window_stereo
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_open_settings
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_skip
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_step_progress
-import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_title
-import org.jetbrains.compose.resources.StringResource
+import com.hopcape.odo.feature.autoodometer.resources.ao_step_next
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * "One last thing" — the staged permission checklist (M4).
+ * The staged permission flow (M4) — one ask per screen, in the order Android will accept them.
  *
- * One step is on screen at a time: a priming card explaining what it is for, or — once the
- * owner has answered and it is still not granted — a denial row with a settings deep-link (and
- * a skip, for the one optional step). The primary CTA drives the whole sequence: it reads
- * "Finish setup" until the current step is permanently blocked, when it becomes "Open settings".
+ * Each step gets a page that says what that one permission is for and, in a ticked and crossed
+ * list, what it does not reach. The two location asks then get a second page apiece, because
+ * both end on a system screen the app does not control: Android offers them as a list of
+ * mutually exclusive choices where the wrong row still looks like agreeing, and on Android 11+
+ * the background one has no dialog at all. Drawing that list first is the only place saying
+ * "pick the second one" does any good.
  *
- * State-free: renders [state] and forwards intents. The route host owns the platform
- * permission controllers and decides what [onContinue] actually triggers (a system dialog or
- * the settings page) — this screen only shows where the checklist is.
+ * State-free: renders [state] and forwards intents. The route host owns the platform permission
+ * controllers and performs the ask when the ViewModel says to; this screen only shows where the
+ * flow is.
  */
 @Composable
 internal fun PermissionSetupScreen(
@@ -70,86 +109,261 @@ internal fun PermissionSetupScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val current = state.current
-    OdoScreen(
+    val current = state.current ?: return
+    // Everything a page draws is frozen into this, rather than read from `state` inside the
+    // page: while the transition runs the outgoing page is still composed, and one reading live
+    // state would renumber its counter and drop its denial row on the way out.
+    val page = SetupPage(
+        step = current.step,
+        index = state.currentIndex,
+        total = state.totalSteps,
+        handoff = state.showHandoff,
+        blocked = state.currentBlocked,
+        showDenial = state.showDenialRow,
+        showSkip = state.showSkip,
+    )
+    OdoStepTransition(
+        target = page,
+        // Two pages per step, the drawing second — so back off a drawing animates backwards and
+        // moving to the next step animates forwards, with nothing else to track.
+        position = page.index * PAGES_PER_STEP + if (page.handoff) 1 else 0,
         modifier = modifier,
-        title = stringResource(Res.string.ao_permissions_title),
+        label = "permissionSetupPage",
+    ) { target ->
+        if (target.handoff) {
+            HandoffPage(target, onContinue, onSkip, onBack)
+        } else {
+            RationalePage(state.mode, state.recentDrives, target, onContinue, onSkip, onBack)
+        }
+    }
+}
+
+/**
+ * One page of the flow, as the page itself sees it.
+ *
+ * A snapshot rather than a view of [PermissionSetupUiState]: two of these exist at once during a
+ * transition, and the one on its way out has to keep saying what it said.
+ */
+@Immutable
+private data class SetupPage(
+    val step: PermissionSetupStep,
+    val index: Int,
+    val total: Int,
+    val handoff: Boolean,
+    val blocked: Boolean,
+    val showDenial: Boolean,
+    val showSkip: Boolean,
+)
+
+/** A rationale and its drawing of the system screen, in that order. */
+private const val PAGES_PER_STEP = 2
+
+/** A step's own page: the counter, what it is for, and what it does not reach. */
+@Composable
+private fun RationalePage(
+    mode: TriggerMode,
+    recentDrives: List<RecentDrive>,
+    page: SetupPage,
+    onContinue: () -> Unit,
+    onSkip: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val step = page.step
+    OdoPermissionRationale(
+        icon = step.icon(),
+        title = stringResource(
+            when (step) {
+                PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
+                PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
+                PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
+            },
+        ),
+        subtitle = subtitleFor(step, recentDrives),
+        benefits = emptyList(),
+        assurancesLabel = stringResource(
+            when (step) {
+                PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_label
+                PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_label
+                PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_label
+            },
+        ),
+        assurances = assurancesFor(step, mode),
+        confirmLabel = primaryLabel(step, page.blocked),
+        onConfirm = onContinue,
+        // Only the optional step offers a way past it. On the others the dismiss leaves the
+        // whole flow, which is what "not now" has always meant here.
+        dismissLabel = if (page.showSkip) {
+            stringResource(Res.string.ao_permissions_background_skip)
+        } else {
+            stringResource(Res.string.ao_permissions_dismiss)
+        },
+        onDismiss = if (page.showSkip) onSkip else onBack,
+        screenTitle = stringResource(Res.string.ao_flow_title),
         onBack = onBack,
         backContentDescription = stringResource(Res.string.ao_cd_back),
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
-            ) {
-                OdoButton(
-                    text = if (state.currentBlocked) {
-                        stringResource(Res.string.ao_permissions_open_settings)
-                    } else {
-                        stringResource(Res.string.ao_permissions_cta)
-                    },
-                    onClick = onContinue,
-                    loading = state.completing,
-                    enabled = current != null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (state.showSkip) {
-                    OdoButton(
-                        text = stringResource(Res.string.ao_permissions_skip),
-                        onClick = onSkip,
-                        variant = OdoButtonVariant.Tertiary,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+        stepCurrent = page.index + 1,
+        stepTotal = page.total,
+        stepLabel = stringResource(
+            Res.string.ao_permissions_step_progress,
+            page.index + 1,
+            page.total,
+        ),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.cardGap)) {
+            // Their own record, and only where it is the argument being made. On a first-time
+            // setup there is nothing here — the car has not moved yet.
+            if (step == PermissionSetupStep.BACKGROUND_LOCATION && recentDrives.isNotEmpty()) {
+                RecentDrivesCard(recentDrives)
             }
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(padding)
-                .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xl),
-        ) {
-            if (state.totalSteps > 0) {
-                StepProgress(state.stepNumber, state.totalSteps)
-            }
-            if (current != null) {
-                PrimingCard(current.step)
-                if (state.showDenialRow) {
-                    DenialRow(step = current.step, blocked = state.currentBlocked, onAction = onContinue)
-                }
+            if (page.showDenial) {
+                DenialRow(step = step, blocked = page.blocked, onAction = onContinue)
             }
         }
     }
 }
 
+/** The drawing of the system screen this step ends on, shown immediately before the handoff. */
 @Composable
-private fun StepProgress(stepNumber: Int, totalSteps: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-        OdoText(
-            stringResource(Res.string.ao_permissions_step_progress, stepNumber, totalSteps),
-            style = OdoTheme.typography.caption,
-            color = OdoTheme.colors.textMuted,
-        )
-    }
+private fun HandoffPage(
+    page: SetupPage,
+    onContinue: () -> Unit,
+    onSkip: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val background = page.step == PermissionSetupStep.BACKGROUND_LOCATION
+    OdoSystemHandoff(
+        screenTitle = stringResource(
+            if (background) {
+                Res.string.ao_background_handoff_screen
+            } else {
+                Res.string.ao_location_handoff_screen
+            },
+        ),
+        onBack = onBack,
+        backContentDescription = stringResource(Res.string.ao_cd_back),
+        eyebrow = stringResource(Res.string.ao_handoff_eyebrow),
+        title = stringResource(
+            if (background) {
+                Res.string.ao_background_handoff_title
+            } else {
+                Res.string.ao_location_handoff_title
+            },
+        ),
+        body = stringResource(
+            if (background) {
+                Res.string.ao_background_handoff_body
+            } else {
+                Res.string.ao_location_handoff_body
+            },
+        ),
+        // The background page has none: its drawing already shows the one row to pick, and a
+        // card repeating that under a tick would be the same sentence twice.
+        instruction = if (background) {
+            null
+        } else {
+            stringResource(Res.string.ao_location_handoff_instruction)
+        },
+        previewLabel = stringResource(Res.string.ao_handoff_preview_label),
+        previewHeader = stringResource(Res.string.ao_handoff_preview_header),
+        previewRows = if (background) backgroundOptionRows() else fineLocationOptionRows(),
+        previewNote = stringResource(
+            if (background) {
+                Res.string.ao_background_handoff_note
+            } else {
+                Res.string.ao_location_handoff_note
+            },
+        ),
+        confirmLabel = stringResource(
+            if (background) {
+                Res.string.ao_background_handoff_cta
+            } else {
+                Res.string.ao_location_handoff_cta
+            },
+        ),
+        onConfirm = onContinue,
+        dismissLabel = if (background) {
+            stringResource(Res.string.ao_permissions_background_skip)
+        } else {
+            stringResource(Res.string.ao_permissions_dismiss)
+        },
+        onDismiss = if (background) onSkip else onBack,
+    )
 }
 
+/**
+ * The choices Android offers for fine location, with the one to pick marked.
+ *
+ * "Ask every time" is drawn because it is the trap: it looks like agreeing, and it expires after
+ * a single drive, so the owner would meet the same dialog again tomorrow and conclude the
+ * feature is broken.
+ */
 @Composable
-private fun PrimingCard(step: PermissionSetupStep) {
-    OdoCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            IconBadge(stepIcon(step))
-            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-                OdoText(stringResource(stepTitle(step)), style = OdoTheme.typography.heading)
+private fun fineLocationOptionRows(): List<OdoSystemRow> = listOf(
+    optionRow(stringResource(Res.string.ao_location_option_always), selected = false),
+    optionRow(stringResource(Res.string.ao_location_option_while_using), selected = true),
+    optionRow(stringResource(Res.string.ao_location_option_ask), selected = false),
+    optionRow(stringResource(Res.string.ao_location_option_deny), selected = false),
+)
+
+/** The same screen once fine location is held — Android drops "ask every time" from it. */
+@Composable
+private fun backgroundOptionRows(): List<OdoSystemRow> = listOf(
+    optionRow(stringResource(Res.string.ao_location_option_always), selected = true),
+    optionRow(stringResource(Res.string.ao_location_option_while_using), selected = false),
+    optionRow(stringResource(Res.string.ao_location_option_deny), selected = false),
+)
+
+private fun optionRow(label: String, selected: Boolean) = OdoSystemRow(
+    label = label,
+    on = selected,
+    control = OdoSystemRowControl.Radio,
+    highlighted = selected,
+)
+
+/**
+ * The owner's last few drives, and which of them Odo missed.
+ *
+ * The only argument for background location that is not a claim about the future. A missed drive
+ * has no distance to show, because nothing was watching — which is the point, so the row says so
+ * in words rather than showing a zero.
+ */
+@Composable
+private fun RecentDrivesCard(drives: List<RecentDrive>) {
+    val distance = LocalOdoDistanceFormat.current
+    OdoCard(modifier = Modifier.fillMaxWidth()) {
+        drives.forEachIndexed { index, drive ->
+            if (index > 0) OdoDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 OdoText(
-                    stringResource(stepBody(step)),
+                    text = if (drive.isToday) {
+                        stringResource(Res.string.ao_drives_today)
+                    } else {
+                        drive.dayLabel
+                    },
                     style = OdoTheme.typography.bodySmall,
-                    color = OdoTheme.colors.textDim,
+                    modifier = Modifier.weight(1f),
+                )
+                OdoText(
+                    text = if (drive.caught) {
+                        distance.format(drive.distanceKm)
+                    } else {
+                        stringResource(Res.string.ao_drives_missed)
+                    },
+                    style = OdoTheme.typography.label,
+                    color = if (drive.caught) OdoTheme.colors.text else OdoTheme.colors.textMuted,
+                )
+                OdoText(
+                    text = if (drive.caught) {
+                        stringResource(Res.string.ao_drives_caught)
+                    } else {
+                        stringResource(Res.string.ao_drives_closed)
+                    },
+                    style = OdoTheme.typography.caption,
+                    color = OdoTheme.colors.textMuted,
                 )
             }
         }
@@ -158,63 +372,121 @@ private fun PrimingCard(step: PermissionSetupStep) {
 
 @Composable
 private fun DenialRow(step: PermissionSetupStep, blocked: Boolean, onAction: () -> Unit) {
-    val stepLabel = stringResource(stepTitle(step))
+    val label = stringResource(
+        when (step) {
+            PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
+            PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
+            PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
+        },
+    )
     OdoPermissionNudge(
         icon = IcWarning,
-        message = stringResource(Res.string.ao_permissions_denied_row, stepLabel),
+        message = stringResource(Res.string.ao_permissions_denied_row, label),
         actionLabel = if (blocked) {
             stringResource(Res.string.ao_permissions_open_settings)
         } else {
-            stringResource(Res.string.ao_permissions_cta)
+            stringResource(Res.string.ao_step_next)
         },
-        // Mirrors the bottom bar's primary CTA — a second way to reach the same retry/settings
-        // action from where the owner's eyes already are, not a separate path.
+        // Mirrors the primary button — a second way to reach the same retry from where the
+        // owner's eyes already are, not a separate path.
         onAction = onAction,
     )
 }
 
+/**
+ * What this step's page says, which changes once the owner has drives to point at.
+ *
+ * Only the background step has two versions. Before there is any history the argument has to be
+ * made in the abstract; afterwards it is simply what already happened to them.
+ */
 @Composable
-private fun IconBadge(icon: ImageVector) {
-    Box(
-        modifier = Modifier
-            .size(ICON_BADGE_SIZE)
-            .background(OdoTheme.colors.surfaceRaised, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        OdoIcon(imageVector = icon, contentDescription = null, tint = OdoTheme.colors.accent, size = OdoTheme.iconSizes.medium)
-    }
+private fun subtitleFor(step: PermissionSetupStep, drives: List<RecentDrive>): String = when {
+    step == PermissionSetupStep.FINE_LOCATION ->
+        stringResource(Res.string.ao_permissions_location_body)
+
+    step == PermissionSetupStep.ACTIVITY_RECOGNITION ->
+        stringResource(Res.string.ao_permissions_activity_body)
+
+    drives.isEmpty() -> stringResource(Res.string.ao_permissions_background_body)
+    else -> stringResource(Res.string.ao_permissions_background_body_history)
 }
 
-private val ICON_BADGE_SIZE = 48.dp
+@Composable
+private fun assurancesFor(
+    step: PermissionSetupStep,
+    mode: TriggerMode,
+): List<OdoPermissionAssurance> = when (step) {
+    PermissionSetupStep.FINE_LOCATION -> listOf(
+        included(stringResource(Res.string.ao_permissions_location_yes_distance)),
+        included(stringResource(windowLineFor(mode))),
+        excluded(stringResource(Res.string.ao_permissions_location_no_route)),
+        excluded(stringResource(Res.string.ao_permissions_location_no_share)),
+    )
 
-private fun stepIcon(step: PermissionSetupStep): ImageVector = when (step) {
-    PermissionSetupStep.NOTIFICATIONS -> IcBellFilled
-    PermissionSetupStep.FINE_LOCATION -> IcCar
-    PermissionSetupStep.BACKGROUND_LOCATION -> IcClock
+    // Crosses first, deliberately: this step is asking for more, so what it does *not* widen is
+    // the answer to the question the owner is actually holding.
+    PermissionSetupStep.BACKGROUND_LOCATION -> listOf(
+        excluded(stringResource(idleLineFor(mode))),
+        excluded(stringResource(Res.string.ao_permissions_background_no_route)),
+        included(stringResource(Res.string.ao_permissions_background_revert)),
+    )
+
+    PermissionSetupStep.ACTIVITY_RECOGNITION -> listOf(
+        included(stringResource(Res.string.ao_permissions_activity_yes_vehicle)),
+        included(stringResource(Res.string.ao_permissions_activity_yes_window)),
+        excluded(stringResource(Res.string.ao_permissions_activity_no_steps)),
+        excluded(stringResource(Res.string.ao_permissions_activity_no_share)),
+    )
+}
+
+/**
+ * What the primary button does next.
+ *
+ * On a step that ends in a system screen it opens the drawing of that screen, so it says so
+ * rather than promising a permission the tap does not ask for.
+ */
+@Composable
+private fun primaryLabel(step: PermissionSetupStep, blocked: Boolean): String = when {
+    blocked -> stringResource(Res.string.ao_permissions_open_settings)
+    step.hasHandoff -> stringResource(Res.string.ao_step_next)
+    else -> stringResource(Res.string.ao_permissions_activity_cta)
+}
+
+private fun windowLineFor(mode: TriggerMode) = when (mode) {
+    TriggerMode.STEREO -> Res.string.ao_permissions_location_yes_window_stereo
+    TriggerMode.NO_STEREO -> Res.string.ao_permissions_location_yes_window_no_stereo
+}
+
+private fun idleLineFor(mode: TriggerMode) = when (mode) {
+    TriggerMode.STEREO -> Res.string.ao_permissions_background_no_idle_stereo
+    TriggerMode.NO_STEREO -> Res.string.ao_permissions_background_no_idle_no_stereo
+}
+
+private fun PermissionSetupStep.icon(): ImageVector = when (this) {
+    PermissionSetupStep.FINE_LOCATION -> IcMapPin
+    PermissionSetupStep.BACKGROUND_LOCATION -> IcSpeedometer
     PermissionSetupStep.ACTIVITY_RECOGNITION -> IcSpeedometer
 }
 
-private fun stepTitle(step: PermissionSetupStep): StringResource = when (step) {
-    PermissionSetupStep.NOTIFICATIONS -> Res.string.ao_permissions_notifications_title
-    PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_title
-    PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_title
-    PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_title
-}
+private fun included(text: String) =
+    OdoPermissionAssurance(text = text, kind = OdoPermissionAssuranceKind.Included)
 
-private fun stepBody(step: PermissionSetupStep): StringResource = when (step) {
-    PermissionSetupStep.NOTIFICATIONS -> Res.string.ao_permissions_notifications_body
-    PermissionSetupStep.FINE_LOCATION -> Res.string.ao_permissions_location_body
-    PermissionSetupStep.BACKGROUND_LOCATION -> Res.string.ao_permissions_background_body
-    PermissionSetupStep.ACTIVITY_RECOGNITION -> Res.string.ao_permissions_activity_body
-}
+private fun excluded(text: String) =
+    OdoPermissionAssurance(text = text, kind = OdoPermissionAssuranceKind.Excluded)
 
+private fun steps(vararg step: PermissionSetupStep) = step.map { PermissionStepState(it) }
+
+/** Step one of two — the ask the whole feature rests on. */
 @OdoThemePreviews
 @Composable
-private fun PermissionSetupScreenPrimingPreview() = OdoPreview(padded = false) {
+private fun PermissionSetupLocationPreview() = OdoPreview(padded = false) {
     PermissionSetupScreen(
         state = PermissionSetupUiState(
             mode = TriggerMode.STEREO,
-            steps = listOf(PermissionStepState(PermissionSetupStep.NOTIFICATIONS), PermissionStepState(PermissionSetupStep.FINE_LOCATION)),
+            steps = steps(
+                PermissionSetupStep.FINE_LOCATION,
+                PermissionSetupStep.BACKGROUND_LOCATION,
+            ),
         ),
         onContinue = {},
         onSkip = {},
@@ -222,73 +494,65 @@ private fun PermissionSetupScreenPrimingPreview() = OdoPreview(padded = false) {
     )
 }
 
+/** The drawing of the choice Android offers, with the row to pick marked. */
 @OdoThemePreviews
 @Composable
-private fun PermissionSetupScreenMidSequencePreview() = OdoPreview(padded = false) {
+private fun PermissionSetupLocationHandoffPreview() = OdoPreview(padded = false) {
+    PermissionSetupScreen(
+        state = PermissionSetupUiState(
+            mode = TriggerMode.STEREO,
+            steps = steps(
+                PermissionSetupStep.FINE_LOCATION,
+                PermissionSetupStep.BACKGROUND_LOCATION,
+            ),
+            onHandoff = true,
+        ),
+        onContinue = {},
+        onSkip = {},
+        onBack = {},
+    )
+}
+
+/** Step two, for an owner who declined it once and has the missed drives to show for it. */
+@OdoThemePreviews
+@Composable
+private fun PermissionSetupBackgroundPreview() = OdoPreview(padded = false) {
+    PermissionSetupScreen(
+        state = PermissionSetupUiState(
+            mode = TriggerMode.STEREO,
+            steps = listOf(
+                PermissionStepState(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted),
+                PermissionStepState(PermissionSetupStep.BACKGROUND_LOCATION),
+            ),
+            currentIndex = 1,
+            recentDrives = listOf(
+                RecentDrive(dayLabel = "18 Aug", isToday = true, distanceKm = 64, caught = true),
+                RecentDrive(dayLabel = "16 Aug", isToday = false, distanceKm = 22, caught = true),
+                RecentDrive(dayLabel = "12 Aug", isToday = false, distanceKm = 0, caught = false),
+            ),
+        ),
+        onContinue = {},
+        onSkip = {},
+        onBack = {},
+    )
+}
+
+/** Blocked on a load-bearing step: the button has to offer settings instead of asking again. */
+@OdoThemePreviews
+@Composable
+private fun PermissionSetupBlockedPreview() = OdoPreview(padded = false) {
     PermissionSetupScreen(
         state = PermissionSetupUiState(
             mode = TriggerMode.NO_STEREO,
             steps = listOf(
-                PermissionStepState(PermissionSetupStep.NOTIFICATIONS, status = PermissionStatus.Granted),
-                PermissionStepState(PermissionSetupStep.FINE_LOCATION),
+                PermissionStepState(
+                    PermissionSetupStep.FINE_LOCATION,
+                    status = PermissionStatus.Blocked,
+                    askedOnce = true,
+                ),
+                PermissionStepState(PermissionSetupStep.BACKGROUND_LOCATION),
                 PermissionStepState(PermissionSetupStep.ACTIVITY_RECOGNITION),
             ),
-            currentIndex = 1,
-        ),
-        onContinue = {},
-        onSkip = {},
-        onBack = {},
-    )
-}
-
-@OdoThemePreviews
-@Composable
-private fun PermissionSetupScreenBlockedPreview() = OdoPreview(padded = false) {
-    PermissionSetupScreen(
-        state = PermissionSetupUiState(
-            mode = TriggerMode.STEREO,
-            steps = listOf(
-                PermissionStepState(PermissionSetupStep.NOTIFICATIONS, status = PermissionStatus.Granted),
-                PermissionStepState(PermissionSetupStep.FINE_LOCATION, status = PermissionStatus.Blocked, askedOnce = true),
-            ),
-            currentIndex = 1,
-        ),
-        onContinue = {},
-        onSkip = {},
-        onBack = {},
-    )
-}
-
-@OdoThemePreviews
-@Composable
-private fun PermissionSetupScreenSkippableNudgePreview() = OdoPreview(padded = false) {
-    PermissionSetupScreen(
-        state = PermissionSetupUiState(
-            mode = TriggerMode.STEREO,
-            steps = listOf(
-                PermissionStepState(PermissionSetupStep.NOTIFICATIONS, status = PermissionStatus.Askable, askedOnce = true),
-                PermissionStepState(PermissionSetupStep.FINE_LOCATION),
-            ),
-            currentIndex = 0,
-        ),
-        onContinue = {},
-        onSkip = {},
-        onBack = {},
-    )
-}
-
-@OdoThemePreviews
-@Composable
-private fun PermissionSetupScreenCompletingPreview() = OdoPreview(padded = false) {
-    PermissionSetupScreen(
-        state = PermissionSetupUiState(
-            mode = TriggerMode.STEREO,
-            steps = listOf(
-                PermissionStepState(PermissionSetupStep.NOTIFICATIONS, status = PermissionStatus.Granted),
-                PermissionStepState(PermissionSetupStep.FINE_LOCATION, status = PermissionStatus.Granted),
-            ),
-            currentIndex = 2,
-            completing = true,
         ),
         onContinue = {},
         onSkip = {},

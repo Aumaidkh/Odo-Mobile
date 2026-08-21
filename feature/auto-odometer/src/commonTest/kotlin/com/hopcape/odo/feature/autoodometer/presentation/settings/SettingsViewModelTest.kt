@@ -20,6 +20,7 @@ import com.hopcape.odo.feature.autoodometer.domain.usecase.ResumeTracking
 import com.hopcape.odo.feature.autoodometer.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import com.hopcape.odo.feature.autoodometer.presentation.FakeActiveCarProvider
+import com.hopcape.odo.feature.autoodometer.presentation.FakeBluetoothRadio
 import com.hopcape.odo.feature.autoodometer.presentation.RecordingAnalytics
 import com.hopcape.odo.feature.autoodometer.presentation.testTelemetry
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +68,7 @@ class SettingsViewModelTest {
         carId: CarId? = TEST_CAR,
         clock: FixedClock = FixedClock(now),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        radio: FakeBluetoothRadio = FakeBluetoothRadio(),
     ): Harness {
         val vm = SettingsViewModel(
             tracker = tracker,
@@ -82,6 +84,7 @@ class SettingsViewModelTest {
             deleteAllTripData = DeleteAllTripData(trips = trips),
             settings = settings,
             activeCar = FakeActiveCarProvider(carId),
+            radio = radio,
             clock = clock,
             telemetry = testTelemetry(analytics),
             timeZone = TimeZone.UTC,
@@ -187,6 +190,53 @@ class SettingsViewModelTest {
         h.vm.onEvent(
             SettingsEvent.ReadinessChanged(READY.copy(fineLocation = false, bluetoothConnect = false, activityRecognition = false)),
         )
+
+        assertTrue(h.vm.state.value.readinessIssues.isEmpty())
+    }
+
+    /**
+     * The radio is the one issue on this screen that is not a permission, and the one that can
+     * change while the screen sits open — every permission row is only re-read on screen entry.
+     */
+    @Test
+    fun readinessIssues_stereoBond_flagsTheRadio_whenBluetoothIsSwitchedOff() = runTest {
+        val bonds = FakeVehicleBondStore(VehicleBond(carId = TEST_CAR, bluetoothId = "bt-1", triggerMode = TriggerMode.STEREO))
+        val radio = FakeBluetoothRadio()
+        val h = harness(bonds = bonds, radio = radio)
+        h.vm.onEvent(SettingsEvent.ReadinessChanged(READY))
+        assertTrue(h.vm.state.value.readinessIssues.isEmpty())
+
+        radio.set(false)
+
+        assertEquals(listOf(ReadinessIssue.BLUETOOTH_OFF), h.vm.state.value.readinessIssues)
+        assertEquals(
+            ReadinessIssue.BLUETOOTH_OFF.name,
+            h.analytics.last(AutoOdometerTelemetry.Event.PRECONDITION_LOST)?.get(AutoOdometerTelemetry.Key.WHICH),
+        )
+    }
+
+    @Test
+    fun readinessIssues_noStereoBond_ignoresTheRadio_becauseMotionNeverUsesIt() = runTest {
+        val bonds = FakeVehicleBondStore(VehicleBond(carId = TEST_CAR, bluetoothId = "", triggerMode = TriggerMode.NO_STEREO))
+        val radio = FakeBluetoothRadio()
+        val h = harness(bonds = bonds, radio = radio)
+        h.vm.onEvent(SettingsEvent.ReadinessChanged(READY))
+
+        radio.set(false)
+
+        assertTrue(h.vm.state.value.readinessIssues.isEmpty())
+    }
+
+    @Test
+    fun radioSwitchedBackOn_clearsTheRow() = runTest {
+        val bonds = FakeVehicleBondStore(VehicleBond(carId = TEST_CAR, bluetoothId = "bt-1", triggerMode = TriggerMode.STEREO))
+        val radio = FakeBluetoothRadio()
+        val h = harness(bonds = bonds, radio = radio)
+        h.vm.onEvent(SettingsEvent.ReadinessChanged(READY))
+        radio.set(false)
+        assertEquals(listOf(ReadinessIssue.BLUETOOTH_OFF), h.vm.state.value.readinessIssues)
+
+        radio.set(true)
 
         assertTrue(h.vm.state.value.readinessIssues.isEmpty())
     }

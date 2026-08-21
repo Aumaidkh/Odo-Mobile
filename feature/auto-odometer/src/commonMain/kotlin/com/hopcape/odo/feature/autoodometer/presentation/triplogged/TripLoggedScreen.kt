@@ -72,10 +72,17 @@ internal fun TripLoggedScreen(
         modifier = modifier,
         title = stringResource(Res.string.ao_trip_logged_title),
         bottomBar = {
+            // Bottom edge is `sm`, not `lg`: the last button is text-only and its touch
+            // target already pads the label (see OdoPermissionRationale's bottom bar).
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
+                    .padding(
+                        start = OdoTheme.spacing.screenEdge,
+                        end = OdoTheme.spacing.screenEdge,
+                        top = OdoTheme.spacing.lg,
+                        bottom = OdoTheme.spacing.sm,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
                 OdoButton(

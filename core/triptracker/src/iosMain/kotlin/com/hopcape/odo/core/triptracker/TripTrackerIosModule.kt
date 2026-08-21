@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.triptracker
 
+import com.hopcape.odo.core.triptracker.internal.NoopBluetoothRadio
 import com.hopcape.odo.core.triptracker.internal.NoopBondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.internal.NoopLocationProvider
 import com.hopcape.odo.core.triptracker.internal.NoopMotionActivitySource
@@ -22,4 +23,5 @@ val tripTrackerIosModule = module {
     single<TrackingPreconditions> { NoopTrackingPreconditions() }
     single<VehicleBondStore> { NoopVehicleBondStore() }
     single<BondedDeviceCatalog> { NoopBondedDeviceCatalog() }
+    single<BluetoothRadio> { NoopBluetoothRadio() }
 }

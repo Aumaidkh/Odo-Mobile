@@ -8,6 +8,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.feature.autoodometer.resources.Res
 import com.hopcape.odo.feature.autoodometer.resources.ao_cd_back
+import com.hopcape.odo.feature.autoodometer.resources.ao_flow_title
 import com.hopcape.odo.feature.autoodometer.resources.ao_permissions_open_settings
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_permission_allow
 import com.hopcape.odo.feature.autoodometer.resources.ao_picker_permission_blocked
@@ -55,8 +56,12 @@ internal fun BluetoothRationaleScreen(
         onConfirm = onAllow,
         dismissLabel = stringResource(Res.string.ao_picker_permission_dismiss),
         onDismiss = onNotNow,
-        onClose = onBack,
-        closeContentDescription = stringResource(Res.string.ao_cd_back),
+        // Named and back-arrowed like every other page of this flow. It sits between the
+        // education screen and the permission steps, and a bare cross in the middle of them
+        // read as a different screen belonging to something else.
+        screenTitle = stringResource(Res.string.ao_flow_title),
+        onBack = onBack,
+        backContentDescription = stringResource(Res.string.ao_cd_back),
     )
 }
 

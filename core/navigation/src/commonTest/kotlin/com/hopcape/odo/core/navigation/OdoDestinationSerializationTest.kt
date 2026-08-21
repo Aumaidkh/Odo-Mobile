@@ -82,6 +82,9 @@ class OdoDestinationSerializationTest {
         OdoDestination.AutoOdometer.Education(
             mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
         ),
+        OdoDestination.AutoOdometer.NotificationRationale(
+            mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
+        ),
         OdoDestination.AutoOdometer.DevicePicker,
         OdoDestination.AutoOdometer.PermissionSetup(
             mode = OdoDestination.AutoOdometer.AutoOdometerFlowMode.NO_STEREO,
