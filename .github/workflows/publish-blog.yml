@@ -1,0 +1,134 @@
+name: Publish blog
+
+# Rebuilds odoapp.in/blog and deploys it.
+#
+# The reading pages at /blog/<slug> are HTML files generated from the database,
+# so publishing a post in the CMS does not put it on the site — this does. The
+# CMS calls the blog-rebuild edge function after any change a stranger could
+# notice, and that function fires the repository_dispatch below.
+#
+# It also runs on a push to master that touches the web app or the hosting tree,
+# because a change to how the blog looks needs deploying just as much as a change
+# to what it says.
+on:
+  repository_dispatch:
+    types: [blog-changed]
+  push:
+    branches: [master]
+    paths:
+      - 'webApp/**'
+      - 'landing/**'
+      - '.github/workflows/publish-blog.yml'
+  workflow_dispatch:
+
+# Deploys queue rather than cancel. Two posts published a minute apart should
+# result in two finished deploys, not one cancelled halfway through uploading.
+concurrency:
+  group: publish-blog
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Same reason as ci.yml: a runner has 7 GB and gradle.properties asks for more
+  # than that across the two daemons.
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvmargs=-Xmx1536m
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # Fail here with the name of what is missing, rather than 20 minutes later
+      # inside a tool that reports it as an authentication error.
+      - name: Check secrets are present
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          SUPABASE_URL: ${{ secrets.BLOG_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.BLOG_SUPABASE_ANON_KEY }}
+        run: |
+          missing=()
+          [ -n "$FIREBASE_SERVICE_ACCOUNT" ] || missing+=(FIREBASE_SERVICE_ACCOUNT_JSON)
+          [ -n "$SUPABASE_URL" ] || missing+=(BLOG_SUPABASE_URL)
+          [ -n "$SUPABASE_ANON_KEY" ] || missing+=(BLOG_SUPABASE_ANON_KEY)
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "Missing repository secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # :webApp: is WebAssembly only and needs none of this, but Gradle
+      # configures every project in the build before it runs a single task, and
+      # androidApp applies AGP — which fails at configuration time without an SDK.
+      - uses: android-actions/setup-android@v4.0.1
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v6.2.0
+
+      # The Compose bundle. Cached by setup-gradle, so this is a minute on a cold
+      # cache and seconds when only a post changed.
+      - name: Build the web app
+        env:
+          SUPABASE_URL: ${{ secrets.BLOG_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.BLOG_SUPABASE_ANON_KEY }}
+        run: ./gradlew :webApp:wasmJsBrowserDistribution --no-daemon
+
+      # The hosting tree is assembled, never committed: public/blog is build
+      # output. Source maps are left behind — 1.5 MB that only helps somebody
+      # debugging a production wasm build, which is not a thing anyone does here.
+      - name: Assemble the hosting tree
+        run: |
+          mkdir -p landing/public/blog
+          rsync -a --delete \
+            --exclude='*.map' --exclude='*.LICENSE.txt' \
+            webApp/build/dist/wasmJs/productionExecutable/ landing/public/blog/
+
+      - uses: denoland/setup-deno@v2.0.3
+        with:
+          deno-version: v2.x
+
+      - name: Render the article pages
+        working-directory: landing
+        env:
+          SUPABASE_URL: ${{ secrets.BLOG_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.BLOG_SUPABASE_ANON_KEY }}
+        run: deno run -A render-blog.ts
+
+      # To the runner's temp directory, not the workspace, so no later step can
+      # pick it up as a build input or ship it inside an artifact.
+      - name: Write the Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase.json"
+          python3 -c 'import json;json.load(open("'"$RUNNER_TEMP"'/firebase.json"))'
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase.json" >> "$GITHUB_ENV"
+
+      - name: Deploy to Firebase Hosting
+        working-directory: landing
+        run: |
+          npx --yes firebase-tools@14 deploy --only hosting \
+            --project odo-mobile-ba9aa \
+            --non-interactive
+
+      # A published post that never reached the site is the failure this whole
+      # workflow exists to prevent, so it is checked rather than assumed.
+      - name: Check the pages are live
+        run: |
+          set -e
+          for path in / /blog /legal/privacy /sitemap.xml /robots.txt; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://odoapp.in$path")
+            echo "  $path -> $code"
+            [ "$code" = "200" ] || { echo "https://odoapp.in$path returned $code" >&2; exit 1; }
+          done
+          echo "### Blog deployed" >> "$GITHUB_STEP_SUMMARY"
+          curl -s https://odoapp.in/sitemap.xml | grep -c '<loc>' \
+            | xargs -I{} echo "{} URLs in the sitemap" >> "$GITHUB_STEP_SUMMARY"
