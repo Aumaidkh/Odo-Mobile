@@ -68,4 +68,61 @@
     <!-- Placeholder screens -->
     <string name="sp_soon">Coming soon</string>
     <string name="sp_soon_message">This screen is a placeholder while the support flow is built.</string>
+    <!-- ===================== FAQs and search ===================== -->
+    <!-- Answers, not marketing. Each one states what the app does today; anything that is
+         not built yet is left out rather than promised. Two answers repeat load-bearing
+         privacy claims (bill text read on the device, trip points staying on the phone) and
+         must keep matching the privacy policy and supabase/functions/legal/pages/privacy.ts.
+
+         Deliberately free of numbers that drift: the free scan allowance and the Pro prices
+         are set by the store and change without an app release, so an answer that quoted
+         them would go stale on the device. -->
+    <string name="sp_faq_title">FAQs</string>
+    <string name="sp_faq_expand">Show the answer</string>
+
+    <string name="sp_faq_q_offline">Does Odo work without internet?</string>
+    <string name="sp_faq_a_offline">Yes. Everything you enter is saved on the phone first, so logging a service, adding a document or checking your costs all work with no signal. When you are back online it syncs in the background.</string>
+
+    <string name="sp_faq_q_auto_odo">How does Odo update my odometer on its own?</string>
+    <string name="sp_faq_a_auto_odo">Once you enrol your car, Odo notices when you start driving and adds the distance to your odometer. It uses your car's Bluetooth stereo, where you have one, to tell your drives apart from other journeys. You can always correct the reading by hand.</string>
+
+    <string name="sp_faq_q_background">Why does Odo ask for location in the background?</string>
+    <string name="sp_faq_a_background">Only to measure a drive after the screen goes off. Without it a trip stops being counted the moment you put the phone down. You can skip it and log distance yourself.</string>
+
+    <string name="sp_faq_q_routes">Do my trips leave my phone?</string>
+    <string name="sp_faq_a_routes">No. Trip points stay on the device and are never uploaded. Only the distance is used, and you can turn off keeping them at all in Profile, under Privacy.</string>
+
+    <string name="sp_faq_q_scan">How does bill scanning work?</string>
+    <string name="sp_faq_a_scan">You photograph the bill and Odo reads the text on the device itself. It fills in the workshop, date, line items and total for you to check before saving.</string>
+
+    <string name="sp_faq_q_fairness">What is my bill compared against?</string>
+    <string name="sp_faq_a_fairness">Prices other owners have paid for the same work in your city, anonymised. Nothing that identifies you, your car or your workshop is ever part of it, and you can turn sharing off in Profile, under Privacy.</string>
+
+    <string name="sp_faq_q_no_benchmark">Why does a fairness check say it has no data?</string>
+    <string name="sp_faq_a_no_benchmark">A benchmark only appears once enough owners have logged the same job in your city. Until then Odo would rather say nothing than compare your bill against a number it cannot stand behind.</string>
+
+    <string name="sp_faq_q_health">What is the Health Score?</string>
+    <string name="sp_faq_a_health">A read on how well the car is being kept, built from what you have actually recorded — services logged, documents that are current, and how complete your history is. It moves as you record more.</string>
+
+    <string name="sp_faq_q_reminders">Will Odo warn me before my insurance or PUC runs out?</string>
+    <string name="sp_faq_a_reminders">Yes. Add the document with its expiry date and Odo notifies you ahead of time. How many days' notice you get is yours to set in Profile, under Notifications.</string>
+
+    <string name="sp_faq_q_pro">What does Pro add?</string>
+    <string name="sp_faq_a_pro">Unlimited bill scans, an unlimited document vault, the full Health Score breakdown, and your complete record as a printable PDF. Logging services, fills and documents stays free.</string>
+
+    <string name="sp_faq_q_car_count">Can I keep more than one car in Odo?</string>
+    <string name="sp_faq_a_car_count">Not yet. Odo holds one car at a time today.</string>
+
+    <string name="sp_faq_q_delete">How do I delete my account and everything in it?</string>
+    <string name="sp_faq_a_delete">Profile, then Privacy, then Delete my account and data. It erases your record rather than hiding it, so it cannot be undone.</string>
+
+    <!-- Search over the same answers. -->
+    <string name="sp_search_title">Search help</string>
+    <string name="sp_search_hint">Search help articles</string>
+    <string name="sp_search_clear">Clear the search</string>
+    <string name="sp_search_prompt">Type to search</string>
+    <string name="sp_search_prompt_message">Search the questions and answers above by any word in them.</string>
+    <string name="sp_search_empty">Nothing matched</string>
+    <!-- %1$s is what the owner typed. -->
+    <string name="sp_search_empty_message">No help article mentions “%1$s”. Try a different word, or email us from the help sheet.</string>
 </resources>

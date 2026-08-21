@@ -16,17 +16,17 @@ import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
+import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
+import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
 import com.hopcape.odo.feature.support.presentation.SupportPlaceholderScreen
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
-import com.hopcape.odo.feature.support.resources.sp_faqs
 import com.hopcape.odo.feature.support.resources.sp_flag
 import com.hopcape.odo.feature.support.resources.sp_idea
 import com.hopcape.odo.feature.support.resources.sp_licences
 import com.hopcape.odo.feature.support.resources.sp_privacy
 import com.hopcape.odo.feature.support.resources.sp_rate
 import com.hopcape.odo.feature.support.resources.sp_report
-import com.hopcape.odo.feature.support.resources.sp_search
 import com.hopcape.odo.feature.support.resources.sp_terms
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -82,13 +82,13 @@ internal class SupportFeatureEntryProvider(
             )
         }
 
-        entry<OdoDestination.Support.Search> { Placeholder(Res.string.sp_search) }
+        entry<OdoDestination.Support.Search> { SupportSearchScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Email> { Placeholder(Res.string.sp_email) }
         entry<OdoDestination.Support.ReportProblem> { Placeholder(Res.string.sp_report) }
         entry<OdoDestination.Support.SuggestIdea> { Placeholder(Res.string.sp_idea) }
         entry<OdoDestination.Support.FlagPriceData> { Placeholder(Res.string.sp_flag) }
         entry<OdoDestination.Support.Rate> { Placeholder(Res.string.sp_rate) }
-        entry<OdoDestination.Support.Faqs> { Placeholder(Res.string.sp_faqs) }
+        entry<OdoDestination.Support.Faqs> { FaqsScreen(onBack = { nm.back() }) }
         entry<OdoDestination.Support.Terms> { Placeholder(Res.string.sp_terms) }
         entry<OdoDestination.Support.Privacy> { PrivacyPolicyRoute() }
         entry<OdoDestination.Support.Licences> { Placeholder(Res.string.sp_licences) }
