@@ -25,7 +25,7 @@
          runtime on Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- The seven below belong to auto odometer (FeatureFlags.AUTO_ODOMETER_ENABLED). They
+    <!-- The nine below belong to auto odometer (FeatureFlags.AUTO_ODOMETER_ENABLED). They
          are only declared while that flag is true, and go together with :core:triptracker's
          own manifest — the service and receivers there cannot stand without them. All three
          runtime prompts are asked for from enrollment, in context, never at launch. -->
@@ -38,7 +38,15 @@
     <!-- ActivityRecognition Transition API: IN_VEHICLE/STILL/WALKING transitions gate when
          GPS is worth turning on. -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <!-- Bluetooth ACL connect/disconnect broadcasts from the bonded vehicle device. -->
+    <!-- Bluetooth ACL connect/disconnect broadcasts from the bonded vehicle device.
+         BLUETOOTH_CONNECT is Android 12+ only (API 31) — on Android 11 and below it is not a
+         permission the platform recognises at all, so the two legacy permissions below are
+         what actually gate Bluetooth access there. Both are capped at API 30 since
+         BLUETOOTH_CONNECT is all a device on 31+ needs. Omitting them left the app with no
+         Bluetooth permission whatsoever on Android 11, which is what a pairing crash quoting
+         "this permission is only for newer devices" comes from. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- The trip-tracking foreground service and its location subtype (Android 14+ requires
          the subtype permission alongside the base one). -->
