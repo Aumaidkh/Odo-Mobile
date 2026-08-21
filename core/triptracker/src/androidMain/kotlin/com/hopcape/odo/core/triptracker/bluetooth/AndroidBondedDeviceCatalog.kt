@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import com.hopcape.odo.core.triptracker.BondedDevice
 import com.hopcape.odo.core.triptracker.BondedDeviceCatalog
 import com.hopcape.odo.core.triptracker.DeviceCategory
@@ -148,8 +149,14 @@ internal class AndroidBondedDeviceCatalog(
             if (!requested && continuation.isActive) continuation.resume(emptySet())
         }
 
+    // BLUETOOTH_CONNECT does not exist before Android 12 — the legacy BLUETOOTH permission
+    // (declared maxSdkVersion 30) covers Bluetooth access on those phones instead, granted at
+    // install with nothing to check at runtime. Checking BLUETOOTH_CONNECT there directly
+    // always reads denied, which is why bonded devices stopped showing up on Android 11 once
+    // the permission crash itself was fixed.
     private fun Context.hasBluetoothConnectPermission(): Boolean =
-        checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
 
     /** `isEnabled` is itself `BLUETOOTH_CONNECT`-guarded on some builds; a refusal reads as off. */
     private fun BluetoothAdapter.isEnabledSafely(): Boolean = try {
