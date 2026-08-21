@@ -21,7 +21,14 @@ internal class AndroidTrackingPreconditions(private val context: Context) : Trac
                 fineLocation
             },
             activityRecognition = context.hasPermission(Manifest.permission.ACTIVITY_RECOGNITION),
-            bluetoothConnect = context.hasPermission(Manifest.permission.BLUETOOTH_CONNECT),
+            // BLUETOOTH_CONNECT does not exist before Android 12 either — same deadlock as
+            // backgroundLocation above, covered instead by the legacy BLUETOOTH permission
+            // (maxSdkVersion 30), which is granted at install with nothing to check at runtime.
+            bluetoothConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.hasPermission(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                true
+            },
             notifications = context.hasPermission(Manifest.permission.POST_NOTIFICATIONS),
         )
     }
