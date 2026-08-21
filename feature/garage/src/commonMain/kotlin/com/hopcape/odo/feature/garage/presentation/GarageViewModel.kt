@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.garage.domain.model.verifiedCount
 import com.hopcape.odo.feature.garage.domain.usecase.GarageSnapshot
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveAutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
+import com.hopcape.odo.feature.garage.presentation.GarageEffect.*
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_error_load_failed
@@ -88,7 +89,7 @@ internal class GarageViewModel(
         GarageEvent.UpdateOdometerTapped -> emit(GarageEffect.OpenUpdateOdometer)
         GarageEvent.CarMenuTapped -> emit(GarageEffect.OpenCarActions)
         GarageEvent.ManageDocumentsTapped -> emit(GarageEffect.OpenDocumentVault)
-        is GarageEvent.DocumentTapped -> emit(GarageEffect.OpenDocument(event.id))
+        is GarageEvent.DocumentTapped -> emit(OpenDocument(event.id))
         GarageEvent.AddDocumentTapped -> emit(GarageEffect.OpenAddDocument)
         GarageEvent.AddServiceTapped -> emit(GarageEffect.OpenAddToHistory)
         is GarageEvent.ServiceTapped -> openService(event)
@@ -97,6 +98,7 @@ internal class GarageViewModel(
             emit(GarageEffect.OpenAutoOdometerEducation)
         }
         GarageEvent.AutoOdometerStatusTileTapped -> emit(GarageEffect.OpenAutoOdometerSettings)
+        GarageEvent.ViewAllChallans -> emit(GarageEffect.OpenChallans)
     }
 
     private fun selectFilter(event: GarageEvent.FilterSelected) {

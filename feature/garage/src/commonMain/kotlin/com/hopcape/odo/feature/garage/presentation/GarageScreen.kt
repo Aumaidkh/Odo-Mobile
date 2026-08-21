@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -198,6 +199,9 @@ private fun PopulatedGarage(
             onCardClick = { onEvent(GarageEvent.AutoOdometerCardTapped) },
             onTileClick = { onEvent(GarageEvent.AutoOdometerStatusTileTapped) },
         )
+        ChallanSection(
+            onClick = { onEvent(GarageEvent.ViewAllChallans) }
+        )
         DocumentsSection(
             documents = content.documents,
             onManage = { onEvent(GarageEvent.ManageDocumentsTapped) },
@@ -211,6 +215,19 @@ private fun PopulatedGarage(
             onAdd = { onEvent(GarageEvent.AddServiceTapped) },
             onOpen = { onEvent(GarageEvent.ServiceTapped(it)) },
             onFilterChange = { onEvent(GarageEvent.FilterSelected(it)) },
+        )
+    }
+}
+
+@Composable
+private fun ChallanSection(
+    onClick: () -> Unit= {}
+){
+    OdoCard(
+        onClick = onClick
+    ) {
+        Text(
+            text = "Challans"
         )
     }
 }

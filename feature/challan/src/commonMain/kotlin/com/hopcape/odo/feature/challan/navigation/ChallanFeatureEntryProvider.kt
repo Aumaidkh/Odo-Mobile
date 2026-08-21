@@ -16,25 +16,32 @@
 
 package com.hopcape.odo.feature.challan.navigation
 
+import androidx.compose.material3.Text
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 
-class ChallanFeatureEntryProvider(
+internal class ChallanFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ): FeatureEntryProvider {
 
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Challan.List>{
-            // TODO: Register List COmposablea
+            OdoScreen(
+                title = "Challans",
+                onBack = {}
+            ) {
+
+            }
         }
         entry<OdoDestination.Challan.Lookup> {
-            // TODO: Register List COmposable
+            Text("View Lookup")
         }
         entry<OdoDestination.Challan.Result> {
-            // TODO: Register List COmposable
+            Text("View Result")
         }
     }
 
