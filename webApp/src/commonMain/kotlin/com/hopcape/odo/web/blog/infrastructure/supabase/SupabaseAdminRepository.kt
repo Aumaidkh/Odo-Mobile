@@ -67,15 +67,18 @@ internal class SupabaseAdminRepository(
             rows.map { row ->
                 DomainPostRow(
                     id = row.id,
-                    title = row.title.ifBlank { UNTITLED },
+                    // Blank stays blank. What to call a post with no title is a
+                    // decision about copy, and copy belongs to the screen.
+                    title = row.title,
                     slug = row.slug.takeIf { row.postStatus == PostStatus.PUBLISHED },
                     status = row.postStatus,
                     views = row.views.toInt().takeIf { row.postStatus == PostStatus.PUBLISHED },
                     // No clock arithmetic: the column is a timestamp and turning it
                     // into "2 days ago" needs a locale and a now. Until there is a
                     // formatter worth the name, the date is more honest than a
-                    // guess dressed as a phrase.
-                    updatedLabel = row.publishedOn?.take(10) ?: TODAY,
+                    // guess dressed as a phrase — and an absent date is left empty
+                    // for the screen to label.
+                    updatedLabel = row.publishedOn?.take(10).orEmpty(),
                 )
             }
         }
@@ -318,9 +321,6 @@ internal class SupabaseAdminRepository(
     private companion object {
         const val WINDOW_DAYS = 30
         const val TOP_POSTS = 4
-        const val UNTITLED = "Untitled"
-        const val TODAY = "Today"
-
         /** Matches nothing, for the moment before the session has been read. */
         const val NOBODY = "00000000-0000-0000-0000-000000000000"
     }

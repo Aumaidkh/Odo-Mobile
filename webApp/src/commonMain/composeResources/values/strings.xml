@@ -122,6 +122,7 @@
     <string name="bl_admin_status_draft">Draft</string>
     <string name="bl_admin_no_slug">draft — no slug yet</string>
     <string name="bl_admin_no_views">—</string>
+    <string name="bl_admin_untitled">Untitled</string>
     <string name="bl_admin_slug_prefix">odoapp.in/blog/</string>
 
     <!-- ── Admin · editor ─────────────────────────────────────────────────── -->

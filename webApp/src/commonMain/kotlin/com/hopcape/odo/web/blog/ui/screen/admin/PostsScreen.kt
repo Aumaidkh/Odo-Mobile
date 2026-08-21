@@ -38,6 +38,7 @@ import com.hopcape.odo.web.blog.resources.bl_admin_filter_published
 import com.hopcape.odo.web.blog.resources.bl_admin_no_slug
 import com.hopcape.odo.web.blog.resources.bl_admin_no_views
 import com.hopcape.odo.web.blog.resources.bl_admin_posts_new
+import com.hopcape.odo.web.blog.resources.bl_admin_untitled
 import com.hopcape.odo.web.blog.resources.bl_admin_posts_title
 import com.hopcape.odo.web.blog.resources.bl_admin_slug_prefix
 import com.hopcape.odo.web.blog.resources.bl_admin_status_draft
@@ -139,8 +140,8 @@ private fun PostRowItem(row: PostRow, compact: Boolean, onClick: () -> Unit) {
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
-                text = row.title,
-                color = colors.text,
+                text = row.title.ifBlank { stringResource(Res.string.bl_admin_untitled) },
+                color = if (row.title.isBlank()) colors.muted else colors.text,
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
@@ -153,7 +154,8 @@ private fun PostRowItem(row: PostRow, compact: Boolean, onClick: () -> Unit) {
             // table's shape is not worth a horizontal scroll.
             if (compact) {
                 Text(
-                    text = row.statusLabel() + " · " + row.viewsLabel() + " · " + row.updatedLabel,
+                    text = row.statusLabel() + " · " + row.viewsLabel() + " · " +
+                        row.updatedLabel.ifBlank { stringResource(Res.string.bl_admin_no_views) },
                     color = colors.dim,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -173,7 +175,7 @@ private fun PostRowItem(row: PostRow, compact: Boolean, onClick: () -> Unit) {
                 modifier = Modifier.width(90.dp),
             )
             Text(
-                text = row.updatedLabel,
+                text = row.updatedLabel.ifBlank { stringResource(Res.string.bl_admin_no_views) },
                 color = colors.dim,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.width(110.dp),
