@@ -36,6 +36,10 @@ val autoOdometerAnalyticsEvents: List<EventSchema> = listOf(
         ),
     ),
     EventSchema(
+        AutoOdometerTelemetry.Event.AUTOSTART_STEP,
+        mapOf(AutoOdometerTelemetry.Key.ACTION to PropertyType.STRING),
+    ),
+    EventSchema(
         AutoOdometerTelemetry.Event.SETUP_COMPLETED,
         mapOf(AutoOdometerTelemetry.Key.MODE to PropertyType.STRING),
     ),

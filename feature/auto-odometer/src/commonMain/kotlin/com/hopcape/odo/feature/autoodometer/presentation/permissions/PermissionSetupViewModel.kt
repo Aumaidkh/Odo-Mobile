@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.autoodometer.presentation.permissions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
 import com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup
@@ -34,6 +35,11 @@ import kotlinx.coroutines.launch
  * locked door, and the trip-logged screen makes the case again later from a drive that really
  * happened. Fine location and activity recognition are load-bearing: nothing arms without them,
  * so the flow stays on that step until it is granted.
+ *
+ * The one step this class performs itself is [PermissionSetupStep.AUTOSTART], because there is
+ * no controller for the route host to hold: the manufacturer's autostart switch is not an
+ * Android permission. [BackgroundStartAccess] both says whether this build has one and opens
+ * its page.
  */
 internal class PermissionSetupViewModel(
     mode: TriggerMode,
@@ -41,11 +47,19 @@ internal class PermissionSetupViewModel(
     private val completeSetup: CompleteSetup,
     private val observeRecentDrives: ObserveRecentDrives,
     private val activeCar: ActiveCarProvider,
+    private val backgroundStart: BackgroundStartAccess,
     private val telemetry: AutoOdometerTelemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        PermissionSetupUiState(mode = mode, steps = stepsFor(mode).map { PermissionStepState(step = it) }),
+        PermissionSetupUiState(
+            mode = mode,
+            // Read once, here, not per frame: it is a manufacturer match, so the answer cannot
+            // change while setup is on screen, and a step list that grew mid-flow would move the
+            // counter under the owner.
+            steps = stepsFor(mode, needsAutostart = backgroundStart.needsAttention())
+                .map { PermissionStepState(step = it) },
+        ),
     )
     val state: StateFlow<PermissionSetupUiState> = _state.asStateFlow()
 
@@ -125,6 +139,10 @@ internal class PermissionSetupViewModel(
      */
     private fun continueTapped() {
         val current = _state.value.current ?: return
+        if (current.step == PermissionSetupStep.AUTOSTART) {
+            autostartContinued(opened = current.askedOnce)
+            return
+        }
         if (current.step.hasHandoff && !_state.value.onHandoff) {
             _state.update { it.copy(onHandoff = true) }
             return
@@ -137,6 +155,30 @@ internal class PermissionSetupViewModel(
                 blocked = current.status == PermissionStatus.Blocked,
             ),
         )
+    }
+
+    /**
+     * The autostart step's button, which does what its label says at the time.
+     *
+     * Not yet [opened]: hand off to the manufacturer's page. Nothing here is a permission, so
+     * there is no dialog and no result — [BackgroundStartAccess.open] only reports whether a
+     * page was found, and a build where none was is told to the owner rather than pretended at.
+     *
+     * Already opened: the press is the owner saying the switch is on. No API can check that, so
+     * their word is the only confirmation there will ever be, and setup moves on.
+     */
+    private fun autostartContinued(opened: Boolean) {
+        val index = _state.value.currentIndex
+        if (opened) {
+            telemetry.autostartStepAnswered(AutoOdometerTelemetry.Autostart.CONFIRMED)
+            advanceFrom(index)
+            return
+        }
+        val pageFound = backgroundStart.open()
+        telemetry.autostartStepAnswered(
+            if (pageFound) AutoOdometerTelemetry.Autostart.OPENED else AutoOdometerTelemetry.Autostart.NO_PAGE,
+        )
+        _state.update { s -> s.copy(steps = s.steps.replaceAskedOnce(index), autostartPageFound = pageFound) }
     }
 
     /**
@@ -156,7 +198,13 @@ internal class PermissionSetupViewModel(
     private fun skipTapped() {
         val current = _state.value.current ?: return
         if (current.step.required) return
-        telemetry.permissionAnswered(step = current.step.name, status = STATUS_SKIPPED)
+        // Counted apart from the permission steps: autostart declined is the one answer that
+        // leaves setup looking finished while nothing will actually start.
+        if (current.step == PermissionSetupStep.AUTOSTART) {
+            telemetry.autostartStepAnswered(AutoOdometerTelemetry.Autostart.DECLINED)
+        } else {
+            telemetry.permissionAnswered(step = current.step.name, status = STATUS_SKIPPED)
+        }
         advanceFrom(_state.value.currentIndex)
     }
 
