@@ -77,10 +77,18 @@ internal fun PermissionSetupScreen(
         onBack = onBack,
         backContentDescription = stringResource(Res.string.ao_cd_back),
         bottomBar = {
+            // When the text-only skip button is the last thing in the bar its touch target
+            // already pads the label, so the bar's own bottom edge drops to `sm` (see
+            // OdoPermissionRationale). Without it the filled CTA is last and keeps `lg`.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.lg),
+                    .padding(
+                        start = OdoTheme.spacing.screenEdge,
+                        end = OdoTheme.spacing.screenEdge,
+                        top = OdoTheme.spacing.lg,
+                        bottom = if (state.showSkip) OdoTheme.spacing.sm else OdoTheme.spacing.lg,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             ) {
                 OdoButton(
