@@ -67,6 +67,14 @@ class TripTrackerTelemetry(
     /** The device picker asked for bonded devices before `BLUETOOTH_CONNECT` was granted. */
     fun catalogPermissionMissing() = analytics.track(EVENT_CATALOG_PERMISSION_MISSING)
 
+    /**
+     * A profile service never bound in time, so Odo cannot say which paired
+     * device is connected right now. Not an error — the list still renders, just without the
+     * "CONNECTED NOW" section — but worth counting, because a phone where this happens often
+     * is a phone where the owner has to pick their car by name every time.
+     */
+    fun profileProxyTimedOut() = analytics.track(EVENT_PROFILE_PROXY_TIMEOUT)
+
     fun sessionRestored(outcome: String) = analytics.track(EVENT_SESSION_RESTORED, mapOf(Key.OUTCOME to outcome))
 
     /** A caught exception that means something in the tracking pipeline is broken. */
@@ -125,6 +133,7 @@ class TripTrackerTelemetry(
         const val EVENT_PRECONDITION_LOST = "tracking_precondition_lost"
         const val EVENT_SESSION_RESTORED = "trip_session_restored"
         const val EVENT_CATALOG_PERMISSION_MISSING = "bonded_catalog_permission_missing"
+        const val EVENT_PROFILE_PROXY_TIMEOUT = "bonded_catalog_profile_proxy_timeout"
 
         /* discarded()'s fixed reason labels. */
         const val REASON_BELOW_FLOOR = "below_validation_floor"

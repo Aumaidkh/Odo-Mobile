@@ -18,6 +18,13 @@ import com.hopcape.odo.core.triptracker.R
  * shown instead when a trigger fires but background location is missing — there is no fix
  * stream to report distance from, so the notification asks the owner to open the app
  * instead of claiming a session that has no location behind it.
+ *
+ * **What lands where.** The large icon is Odo's launcher icon, so the notification in the
+ * shade carries the mark the owner taps on their home screen. The small icon is the one
+ * thing Android draws in the status bar, and while a drive is being measured it is spent on
+ * the distance rather than on the mark: the status bar has no room for text from an app, so
+ * a glyph of the number ([TripDistanceStatusIcon]) is the only way to put a running total
+ * up there. The mark takes the slot back whenever there is no distance worth showing.
  */
 internal object TripTrackingNotification {
 
@@ -36,7 +43,7 @@ internal object TripTrackingNotification {
             .setContentTitle(context.getString(R.string.trip_tracking_notification_title))
             .setContentText(context.getString(R.string.trip_tracking_notification_text, formatDistance(context, distanceMeters), carName))
             .setSubText(context.getString(R.string.trip_tracking_notification_subtext, carName))
-            .setSmallIcon(R.drawable.ic_notification_trip)
+            .applyStatusIcon(context, distanceMeters, isPaused)
             .setLargeIcon(largeIcon(context))
             .setColor(ContextCompat.getColor(context, R.color.trip_tracking_accent))
             .setOngoing(true)
@@ -50,16 +57,35 @@ internal object TripTrackingNotification {
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.trip_tracking_channel_name))
             .setContentText(context.getString(R.string.trip_tracking_fallback_notification_text))
-            .setSmallIcon(R.drawable.ic_notification_trip)
+            .setSmallIcon(R.drawable.ic_notification_odo)
             .setColor(ContextCompat.getColor(context, R.color.trip_tracking_accent))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(openAppIntent(context))
             .build()
 
-    /** The status-avatar bitmap [buildLive]'s large icon needs — vector, rasterized once per build. */
+    /**
+     * Whichever small icon this update deserves.
+     *
+     * The distance takes the status-bar slot once there is a whole kilometre to report and
+     * the trip is actually running. A paused trip goes back to the mark on purpose: a number
+     * frozen in the status bar looks like tracking that has stopped working, which is the
+     * opposite of what a deliberate pause means. The first kilometre does the same — "0"
+     * would be the first thing the owner ever sees of a feature that measures distance.
+     */
+    private fun NotificationCompat.Builder.applyStatusIcon(
+        context: Context,
+        distanceMeters: Long,
+        isPaused: Boolean,
+    ): NotificationCompat.Builder = if (distanceMeters >= TripDistanceStatusIcon.MIN_DISTANCE_METERS && !isPaused) {
+        setSmallIcon(TripDistanceStatusIcon.of(context, distanceMeters))
+    } else {
+        setSmallIcon(R.drawable.ic_notification_odo)
+    }
+
+    /** The launcher-mark bitmap [buildLive]'s large icon needs — vector, rasterized once per build. */
     private fun largeIcon(context: Context) =
-        ContextCompat.getDrawable(context, R.drawable.ic_notification_trip_large)?.toBitmap()
+        ContextCompat.getDrawable(context, R.drawable.ic_notification_odo_large)?.toBitmap()
 
     private fun pauseOrResumeAction(context: Context, isPaused: Boolean): NotificationCompat.Action {
         val action = if (isPaused) TripTrackingActions.ACTION_RESUME else TripTrackingActions.ACTION_PAUSE

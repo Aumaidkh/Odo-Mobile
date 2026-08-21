@@ -9,5 +9,7 @@
     <string name="trip_tracking_notification_action_pause">Pause</string>
     <string name="trip_tracking_notification_action_resume">Resume</string>
     <string name="trip_tracking_notification_action_not_driving">Not driving</string>
+    <!-- The status-bar glyph: whole kilometres, no unit — there is no room for one at that size. -->
+    <string name="trip_tracking_status_icon_km_whole">%1$d</string>
     <string name="trip_tracking_fallback_notification_text">Trip starting? Open Odo to track it.</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.autoodometer.presentation.permissions
 
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.trip.model.TripMode
 import com.hopcape.odo.core.platform.permission.PermissionStatus
 import com.hopcape.odo.core.triptracker.TrackingStatus
 import com.hopcape.odo.core.triptracker.TriggerMode
@@ -10,7 +11,11 @@ import com.hopcape.odo.core.triptracker.VehicleBondStore
 import com.hopcape.odo.feature.autoodometer.domain.usecase.CompleteSetup
 import com.hopcape.odo.feature.autoodometer.domain.usecase.EnrollTriggerDevice
 import com.hopcape.odo.feature.autoodometer.domain.usecase.FakeAppSettingsRepository
+import com.hopcape.odo.feature.autoodometer.domain.usecase.FakeTripRepository
+import com.hopcape.odo.feature.autoodometer.domain.usecase.FixedClock
+import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveRecentDrives
 import com.hopcape.odo.feature.autoodometer.domain.usecase.TEST_CAR
+import com.hopcape.odo.feature.autoodometer.domain.usecase.testTrip
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import com.hopcape.odo.feature.autoodometer.presentation.FakeActiveCarProvider
 import com.hopcape.odo.feature.autoodometer.presentation.RecordingAnalytics
@@ -24,6 +29,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -31,8 +37,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
 
 class PermissionSetupViewModelTest {
+
+    private companion object {
+        /** Fixed so the "Today" label and the drive ordering are not a function of the clock. */
+        val NOW = Instant.parse("2026-08-19T10:00:00Z")
+    }
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -86,12 +99,14 @@ class PermissionSetupViewModelTest {
         mode: TriggerMode,
         carId: CarId? = TEST_CAR,
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        trips: FakeTripRepository = FakeTripRepository(),
     ): Harness {
         val fakes = OrderedFakes()
         val vm = PermissionSetupViewModel(
             mode = mode,
             enrollTriggerDevice = EnrollTriggerDevice(bonds = fakes.bonds),
             completeSetup = CompleteSetup(tracker = fakes.tracker, settings = FakeAppSettingsRepository()),
+            observeRecentDrives = ObserveRecentDrives(trips, FixedClock(NOW), TimeZone.UTC),
             activeCar = FakeActiveCarProvider(carId),
             telemetry = testTelemetry(analytics),
         )
@@ -99,22 +114,23 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun stereoMode_buildsTheThreeStepSequence() = runTest {
+    fun stereoMode_buildsTheTwoStepSequence() = runTest {
+        // Notifications is not among them. It is a one-tap dialog raised on the way out of the
+        // education screen, and counting it made this flow read one ask longer than it is.
         val h = harness(mode = TriggerMode.STEREO)
 
         assertEquals(
-            listOf(PermissionSetupStep.NOTIFICATIONS, PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION),
+            listOf(PermissionSetupStep.FINE_LOCATION, PermissionSetupStep.BACKGROUND_LOCATION),
             h.vm.state.value.steps.map { it.step },
         )
     }
 
     @Test
-    fun noStereoMode_buildsTheFourStepSequence_withActivityRecognitionLast() = runTest {
+    fun noStereoMode_buildsTheThreeStepSequence_withActivityRecognitionLast() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
 
         assertEquals(
             listOf(
-                PermissionSetupStep.NOTIFICATIONS,
                 PermissionSetupStep.FINE_LOCATION,
                 PermissionSetupStep.BACKGROUND_LOCATION,
                 PermissionSetupStep.ACTIVITY_RECOGNITION,
@@ -127,7 +143,6 @@ class PermissionSetupViewModelTest {
     fun stereoMode_allStepsGranted_completesWithoutEnrolling() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
 
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
 
@@ -141,7 +156,6 @@ class PermissionSetupViewModelTest {
     fun noStereoMode_allStepsGranted_enrollsThenCompletesSetup_inOrder() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
 
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
@@ -157,15 +171,15 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun notificationsBlocked_doesNotBlockCompletion_onceRequiredStepsAreGranted() = runTest {
+    fun backgroundLocationDeclined_stillFinishesSetup() = runTest {
+        // The one step the owner can turn down and still have a feature. `TriggerArming` arms
+        // without it, so a drive taken with the app open is still measured — what is lost is the
+        // drive nobody was there for, which the trip-logged card argues for again later.
         val h = harness(mode = TriggerMode.NO_STEREO)
-
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Blocked))
-        assertTrue(h.vm.state.value.showSkip, "notifications is soft-required — a blocked answer offers a way past it")
-        h.vm.onEvent(PermissionSetupEvent.SkipTapped)
-
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
+
+        assertTrue(h.vm.state.value.showSkip, "background location offers a way past it")
+        h.vm.onEvent(PermissionSetupEvent.SkipTapped)
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
 
         assertEquals(TEST_CAR, h.fakes.bonds.saved.single().carId)
@@ -176,7 +190,6 @@ class PermissionSetupViewModelTest {
     @Test
     fun fineLocationBlocked_doesNotComplete_andShowsTheDenialRow() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Blocked))
 
@@ -188,23 +201,21 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun backgroundLocationBlocked_doesNotComplete_andOffersNoSkip() = runTest {
+    fun backgroundLocationBlocked_staysOnTheStep_butStillOffersAWayPast() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
 
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Blocked))
 
         assertEquals(PermissionSetupStep.BACKGROUND_LOCATION, h.vm.state.value.current?.step)
         assertTrue(h.vm.state.value.currentBlocked)
-        assertFalse(h.vm.state.value.showSkip, "background location is required — a trip cannot start with the app closed without it")
-        assertFalse(h.fakes.tracker.enabled)
+        assertTrue(h.vm.state.value.showSkip)
+        assertFalse(h.fakes.tracker.enabled, "not finished until the owner says one way or the other")
     }
 
     @Test
     fun noStereo_activityRecognitionBlocked_doesNotComplete() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
 
@@ -217,31 +228,8 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun continueTapped_thenDeclined_showsTheDenialRow_withoutAutoAdvancing() = runTest {
-        val h = harness(mode = TriggerMode.STEREO)
-        assertFalse(h.vm.state.value.showDenialRow, "never asked yet — the priming card shows, not a denial")
-
-        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
-
-        assertTrue(h.vm.state.value.showDenialRow)
-        assertEquals(0, h.vm.state.value.currentIndex, "an Askable denial stays on the same step")
-    }
-
-    @Test
-    fun skipTapped_onAnOptionalStep_advancesToTheNextStep() = runTest {
-        val h = harness(mode = TriggerMode.STEREO)
-        h.vm.onEvent(PermissionSetupEvent.ContinueTapped)
-        assertTrue(h.vm.state.value.showSkip)
-
-        h.vm.onEvent(PermissionSetupEvent.SkipTapped)
-
-        assertEquals(PermissionSetupStep.FINE_LOCATION, h.vm.state.value.current?.step)
-    }
-
-    @Test
     fun skipTapped_onARequiredStep_isANoOp() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         assertEquals(PermissionSetupStep.FINE_LOCATION, h.vm.state.value.current?.step)
 
         h.vm.onEvent(PermissionSetupEvent.SkipTapped)
@@ -253,7 +241,6 @@ class PermissionSetupViewModelTest {
     fun alreadyGrantedStep_onFirstRead_advancesWithoutATap() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
 
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
 
         assertEquals(PermissionSetupStep.FINE_LOCATION, h.vm.state.value.current?.step)
     }
@@ -261,7 +248,6 @@ class PermissionSetupViewModelTest {
     @Test
     fun revocationMidFlow_reSurfacesTheAlreadyPassedStep() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO)
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         assertEquals(PermissionSetupStep.BACKGROUND_LOCATION, h.vm.state.value.current?.step)
 
@@ -281,7 +267,6 @@ class PermissionSetupViewModelTest {
     fun noStereo_noActiveCar_doesNotEnrollOrCompleteSetup() = runTest {
         val h = harness(mode = TriggerMode.NO_STEREO, carId = null)
 
-        h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         h.vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))
@@ -293,7 +278,7 @@ class PermissionSetupViewModelTest {
     }
 
     @Test
-    fun backTapped_navigatesBack() = runTest {
+    fun backTapped_offTheDrawing_navigatesBack() = runTest {
         val h = harness(mode = TriggerMode.STEREO)
 
         h.vm.onEvent(PermissionSetupEvent.BackTapped)
@@ -322,11 +307,11 @@ class PermissionSetupViewModelTest {
             mode = TriggerMode.NO_STEREO,
             enrollTriggerDevice = EnrollTriggerDevice(bonds = ThrowingBondStore()),
             completeSetup = CompleteSetup(tracker = tracker, settings = FakeAppSettingsRepository()),
+            observeRecentDrives = ObserveRecentDrives(FakeTripRepository(), FixedClock(NOW), TimeZone.UTC),
             activeCar = FakeActiveCarProvider(TEST_CAR),
             telemetry = testTelemetry(crash = crash),
         )
 
-        vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, PermissionStatus.Granted))
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, PermissionStatus.Granted))
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.BACKGROUND_LOCATION, PermissionStatus.Granted))
         vm.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.ACTIVITY_RECOGNITION, PermissionStatus.Granted))

@@ -53,8 +53,33 @@ internal class AutoOdometerTelemetry(
     /** The education screen was viewed, on the [mode] it opened with (STEREO/NO_STEREO). */
     fun educationViewed(mode: String) = analytics.track(Event.EDUCATION_VIEWED, mapOf(Key.MODE to mode))
 
+    /**
+     * The notification step was shown — which only happens when the system would still
+     * prompt, so this counts the owners who were actually asked rather than every visit.
+     */
+    fun notificationRationaleViewed() = analytics.track(Event.NOTIFY_RATIONALE_VIEWED)
+
+    /** The notification step was skipped without asking, because the OS had already answered. */
+    fun notificationStepSkipped(reason: String) =
+        analytics.track(Event.NOTIFY_STEP_SKIPPED, mapOf(Key.STATUS to reason))
+
     /** "My car has no Bluetooth" was tapped, switching the flow to the NO_STEREO branch. */
     fun noBtPathTaken() = analytics.track(Event.NO_BT_PATH_TAKEN)
+
+    /* --------------------------- Bluetooth radio --------------------------- */
+
+    /**
+     * The device picker came up with the phone's Bluetooth switched off. Distinct from a
+     * refused permission: nothing Odo asks for fixes it, and how often it happens is what says
+     * whether the radio-off card is carrying the flow or losing owners at it.
+     */
+    fun bluetoothOffSeen() = analytics.track(Event.BLUETOOTH_OFF_SEEN)
+
+    /** The owner accepted the explainer and was handed to the system's turn-on dialog. */
+    fun bluetoothEnableRequested() = analytics.track(Event.BLUETOOTH_ENABLE_REQUESTED)
+
+    /** The owner closed the explainer without asking for the radio. */
+    fun bluetoothEnableDeclined() = analytics.track(Event.BLUETOOTH_ENABLE_DECLINED)
 
     /**
      * A trigger device was picked. [category] only (CAR_AUDIO/HEADSET/WEARABLE/OTHER),
@@ -147,6 +172,11 @@ internal class AutoOdometerTelemetry(
         const val CARD_CTA = "ao_card_cta"
         const val EDUCATION_VIEWED = "ao_education_viewed"
         const val NO_BT_PATH_TAKEN = "ao_no_bt_path_taken"
+        const val NOTIFY_RATIONALE_VIEWED = "ao_notify_rationale_viewed"
+        const val NOTIFY_STEP_SKIPPED = "ao_notify_step_skipped"
+        const val BLUETOOTH_OFF_SEEN = "ao_bluetooth_off_seen"
+        const val BLUETOOTH_ENABLE_REQUESTED = "ao_bluetooth_enable_requested"
+        const val BLUETOOTH_ENABLE_DECLINED = "ao_bluetooth_enable_declined"
         const val DEVICE_SELECTED = "ao_device_selected"
         const val PERMISSION_ANSWERED = "ao_permission_answered"
         const val SETUP_COMPLETED = "ao_setup_completed"

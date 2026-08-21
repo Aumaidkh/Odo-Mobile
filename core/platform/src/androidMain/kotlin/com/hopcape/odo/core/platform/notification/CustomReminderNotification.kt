@@ -35,7 +35,7 @@ internal object CustomReminderNotification {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.custom_reminder_body))
-            .setSmallIcon(R.drawable.ic_notification_document)
+            .setSmallIcon(R.drawable.ic_notification_odo)
             .setColor(ContextCompat.getColor(context, R.color.document_reminder_accent))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

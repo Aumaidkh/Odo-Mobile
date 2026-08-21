@@ -7,23 +7,32 @@
     -->
 
     <!-- Education (M2) -->
+    <string name="ao_flow_title">Auto Odometer</string>
     <string name="ao_cd_close">Close</string>
     <string name="ao_education_title">Your reading stays current on its own</string>
-    <string name="ao_education_step1_title_stereo">You start the car</string>
-    <string name="ao_education_step1_body_stereo">Odo notices your car’s stereo connect.</string>
-    <string name="ao_education_step1_title_no_stereo">You start driving — Odo notices the motion</string>
-    <string name="ao_education_step1_body_no_stereo">Odo notices your phone moving like a car, not a walk or a train.</string>
-    <string name="ao_education_step2_title">Odo measures the distance</string>
-    <string name="ao_education_step2_body">GPS tracks the drive in the background — only while you’re on the move.</string>
-    <string name="ao_education_step3_title">Your odometer ticks up</string>
-    <string name="ao_education_step3_body">The distance is added the moment you park, no typing needed.</string>
-    <string name="ao_education_privacy_header">WHAT WE DO AND DON’T KEEP</string>
-    <string name="ao_education_privacy_kept">Kept: the distance and time of each drive.</string>
-    <string name="ao_education_privacy_never_kept">Never kept: the route you took.</string>
-    <string name="ao_education_privacy_never_tracked_stereo">Never tracked: anything when your car’s stereo isn’t connected.</string>
-    <string name="ao_education_privacy_never_tracked_no_stereo">Never tracked: anything unless you’re driving your car.</string>
+    <string name="ao_education_body_stereo">When your car’s stereo connects, Odo measures how far you drive and adds it to your odometer. You stop typing a number you can never quite remember.</string>
+    <string name="ao_education_body_no_stereo">When Odo notices your phone moving like a car, it measures how far you drive and adds it to your odometer. You stop typing a number you can never quite remember.</string>
+    <string name="ao_education_keeps_label">WHAT ODO KEEPS</string>
+    <string name="ao_education_keeps_distance">How far you drove, and for how long</string>
+    <string name="ao_education_keeps_no_route">Where you went — the route is discarded once the distance is measured</string>
+    <string name="ao_education_keeps_no_idle_stereo">Anything at all when the stereo is not connected</string>
+    <string name="ao_education_keeps_no_idle_no_stereo">Anything at all unless you are driving your car</string>
+    <string name="ao_education_keeps_no_upload">Nothing leaves your phone</string>
+    <string name="ao_education_step1_stereo">You start the car</string>
+    <string name="ao_education_step1_no_stereo">You start driving — Odo notices the motion</string>
+    <string name="ao_education_step2">Odo measures the distance</string>
+    <string name="ao_education_step3">Your odometer ticks up when you park</string>
     <string name="ao_education_cta_stereo">Pair my car</string>
     <string name="ao_education_cta_no_stereo">Turn it on</string>
+    <string name="ao_education_dismiss">Not now</string>
+    <string name="ao_notify_title">Odo shows a note while it measures</string>
+    <string name="ao_notify_body">Android only lets an app measure a drive in the background while a notification is showing. That note is also how you stay in charge of the drive being measured.</string>
+    <string name="ao_notify_label">WHAT THE NOTE DOES</string>
+    <string name="ao_notify_counts">Counts the distance as you drive</string>
+    <string name="ao_notify_controls">Lets you pause it, or say you were not driving</string>
+    <string name="ao_notify_no_marketing">Never a promotion, and never a daily reminder</string>
+    <string name="ao_notify_allow">Allow notifications</string>
+    <string name="ao_notify_dismiss">Not now</string>
 
     <!-- Device picker (M3) -->
     <string name="ao_cd_back">Back</string>
@@ -44,22 +53,79 @@
     <string name="ao_picker_permission_blocked">Bluetooth access is off for Odo — open settings to pick your car.</string>
     <string name="ao_picker_permission_allow">Allow Bluetooth access</string>
     <string name="ao_picker_permission_dismiss">Not now</string>
+    <string name="ao_picker_bt_off_title">Your Bluetooth is off</string>
+    <string name="ao_picker_bt_off_body">Odo finds your car by watching for its stereo connecting over Bluetooth, so it needs the radio switched on to show your paired devices. It only ever reads devices you have already paired — it never searches for anything nearby, and none of it leaves your phone.</string>
+    <string name="ao_picker_bt_off_action">Turn on Bluetooth</string>
+    <string name="ao_picker_bt_sheet_title">Turn on Bluetooth?</string>
+    <string name="ao_picker_bt_sheet_body">Your phone will ask you to confirm. Odo uses Bluetooth only to notice when your car’s stereo connects, which is what starts a trip. You can turn it back off any time.</string>
+    <string name="ao_picker_bt_sheet_confirm">Turn it on</string>
+    <string name="ao_picker_bt_sheet_dismiss">Not now</string>
 
-    <!-- Permission setup (M4) -->
-    <string name="ao_permissions_title">One last thing</string>
-    <string name="ao_permissions_step_progress">Step %1$d of %2$d</string>
-    <string name="ao_permissions_notifications_title">Notifications</string>
-    <string name="ao_permissions_notifications_body">You’ll see a quiet card while driving, so you always know Odo is tracking.</string>
-    <string name="ao_permissions_location_title">Location</string>
-    <string name="ao_permissions_location_body">Odo needs your location to measure each drive. Allow it while using the app — the next step makes it work with the app closed.</string>
-    <string name="ao_permissions_background_title">Location, all the time</string>
-    <string name="ao_permissions_background_body">Trips start on their own, even with Odo closed — Android calls that “Allow all the time”. Choose it on the next screen. Odo only reads location during a drive, and it never leaves your phone.</string>
-    <string name="ao_permissions_activity_title">Activity access</string>
-    <string name="ao_permissions_activity_body">Odo needs to notice when you’re driving, not just walking or on a train.</string>
+    <!-- Permission setup (M4): shared chrome -->
+    <string name="ao_permissions_step_progress">%1$d of %2$d</string>
+    <string name="ao_step_next">See the next screen</string>
+    <string name="ao_permissions_dismiss">Not now</string>
     <string name="ao_permissions_denied_row">%1$s was denied — turn it on in Settings to finish setup.</string>
     <string name="ao_permissions_open_settings">Open settings</string>
-    <string name="ao_permissions_skip">Skip for now</string>
-    <string name="ao_permissions_cta">Finish setup</string>
+    <string name="ao_handoff_eyebrow">BEFORE YOU TAP</string>
+    <string name="ao_handoff_preview_label">WHAT YOU’LL SEE</string>
+    <string name="ao_handoff_preview_header">Location permission</string>
+
+    <!-- Step one: fine location, the measurement itself. -->
+    <string name="ao_permissions_location_title">Location, to measure the distance</string>
+    <string name="ao_permissions_location_body">There is no way to know how far you drove without it. Odo reads your position while the car is moving and turns it into a single number: kilometres.</string>
+    <string name="ao_permissions_location_label">HOW IT IS USED</string>
+    <string name="ao_permissions_location_yes_distance">Distance and duration of a drive</string>
+    <string name="ao_permissions_location_yes_window_stereo">Only between the stereo connecting and disconnecting</string>
+    <string name="ao_permissions_location_yes_window_no_stereo">Only between a drive starting and ending</string>
+    <string name="ao_permissions_location_no_route">The route is never saved</string>
+    <string name="ao_permissions_location_no_share">Never shared, never sold, never sent off the phone</string>
+
+    <!-- Step one, second half: the choice Android puts on its own screen. -->
+    <string name="ao_location_handoff_screen">Location</string>
+    <string name="ao_location_handoff_title">Choose “while using the app”</string>
+    <string name="ao_location_handoff_body">That is all Odo needs to start. Android will offer “Only this time” too, but it forgets after one drive — you would be asked again tomorrow.</string>
+    <string name="ao_location_handoff_instruction">Step 2 covers what happens when the app is closed.</string>
+    <string name="ao_location_handoff_note">Pick the second one. “Ask every time” forgets after one drive.</string>
+    <string name="ao_location_handoff_cta">Allow location</string>
+    <string name="ao_location_option_always">Allow all the time</string>
+    <string name="ao_location_option_while_using">Allow while using the app</string>
+    <string name="ao_location_option_ask">Ask every time</string>
+    <string name="ao_location_option_deny">Don’t allow</string>
+
+    <!-- Step two: background location, the one that makes it automatic. -->
+    <string name="ao_permissions_background_title">So it works with the app closed</string>
+    <string name="ao_permissions_background_body">Nobody opens an app before starting the car. This switch is what makes it automatic — without it Odo only measures a drive that happens while the app is already open.</string>
+    <string name="ao_permissions_background_body_history">Odo caught these drives because the app happened to be open. Nobody opens an app before starting the car — this switch is what makes it automatic.</string>
+    <string name="ao_permissions_background_label">WHAT DOES NOT CHANGE</string>
+    <string name="ao_permissions_background_no_idle_stereo">Still nothing when the stereo is disconnected</string>
+    <string name="ao_permissions_background_no_idle_no_stereo">Still nothing unless you are driving your car</string>
+    <string name="ao_permissions_background_no_route">The route is still discarded, still nothing off the phone</string>
+    <string name="ao_permissions_background_revert">Revert to “while using” any time in settings</string>
+    <string name="ao_permissions_background_skip">Keep it to while using</string>
+
+    <!-- The owner’s own drives, when there are any to argue from. -->
+    <string name="ao_drives_today">Today</string>
+    <string name="ao_drives_caught">app was open</string>
+    <string name="ao_drives_missed">missed</string>
+    <string name="ao_drives_closed">app closed</string>
+
+    <!-- Step two, second half: Android gives this its own screen. -->
+    <string name="ao_background_handoff_screen">Location, all the time</string>
+    <string name="ao_background_handoff_title">Android puts this on its own screen</string>
+    <string name="ao_background_handoff_body">It will show a map of where Odo has read your location and ask you to pick “Allow all the time”. The map is the phone’s record, not something Odo kept.</string>
+    <string name="ao_background_handoff_note">Android shows a map of recent location use above this list — that is the phone’s own record.</string>
+    <string name="ao_background_handoff_cta">Open location settings</string>
+
+    <!-- Step three: activity recognition, on the no-stereo path only. -->
+    <string name="ao_permissions_activity_title">Notice when you are driving</string>
+    <string name="ao_permissions_activity_body">Without a stereo to go by, Odo needs to tell a drive from a walk or a train ride. Android calls that activity recognition.</string>
+    <string name="ao_permissions_activity_label">HOW IT IS USED</string>
+    <string name="ao_permissions_activity_yes_vehicle">Whether you are in a vehicle, walking, or still</string>
+    <string name="ao_permissions_activity_yes_window">Only to start and stop a drive</string>
+    <string name="ao_permissions_activity_no_steps">Never your step count, never a fitness record</string>
+    <string name="ao_permissions_activity_no_share">Nothing leaves your phone</string>
+    <string name="ao_permissions_activity_cta">Allow activity access</string>
 
     <!-- Trip logged (M6) -->
     <string name="ao_trip_logged_odometer_label">ODOMETER</string>
@@ -127,4 +193,6 @@
     <string name="ao_settings_fix_it_row">%1$s needs your attention — tap to fix it.</string>
     <string name="ao_settings_fix_it_background_location">Background location</string>
     <string name="ao_settings_fix_it_bluetooth">Bluetooth</string>
+    <string name="ao_settings_fix_it_bluetooth_off">Your phone’s Bluetooth</string>
+    <string name="ao_settings_fix_it_turn_on">Turn it on</string>
 </resources>
