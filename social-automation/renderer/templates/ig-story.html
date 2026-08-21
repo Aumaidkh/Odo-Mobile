@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}body{margin:0;font-family:Gotham,Inter,'Helvetica Neue',Arial,sans-serif;background:#000}</style>
+</head>
+<body>
+
+<!-- Number card — 360×640, export @3x = 1080×1920. Same PNG serves IG story + WhatsApp status.
+     Safe areas baked in: top 84px (avatar/progress), bottom 107px (reply bar).
+     Design source: Social Templates.dc.html (WA 1 · THE NUMBER) -->
+<div id="story-card" style="width:360px;height:640px;overflow:hidden;position:relative;background:radial-gradient(120% 80% at 50% 18%, #1F1F1F 0%, #141414 46%, #000000 100%);display:flex;flex-direction:column">
+  <div style="height:84px;flex-shrink:0"></div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 34px;gap:20px">
+    <div style="display:flex;align-items:center;gap:9px"><svg width="24" height="24" viewBox="0 0 212 212"><circle cx="106" cy="106" r="66" fill="none" stroke="#262626" stroke-width="26" stroke-linecap="round" stroke-dasharray="311 415" transform="rotate(135 106 106)"/><circle cx="106" cy="106" r="66" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-dasharray="233 415" transform="rotate(135 106 106)"/></svg><span style="font-size:12px;font-weight:700;letter-spacing:1.8px;color:#FFFFFF">ODO</span></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#9CA3AF">{{STORY_KICKER}}</span>
+      <div style="display:flex;align-items:baseline;gap:7px"><span style="font-size:74px;font-weight:700;color:#FFFFFF;letter-spacing:-3.4px;line-height:0.92">{{STORY_NUMBER}}</span></div>
+      <span style="font-size:19px;font-weight:600;color:#D1D5DB;letter-spacing:-0.3px">{{STORY_UNIT}}</span>
+    </div>
+    <div style="height:1px;background:#262626"></div>
+    <span style="font-size:16px;color:#9CA3AF;line-height:1.5">{{STORY_CAPTION}}</span>
+  </div>
+  <div style="padding:0 34px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px;background:#141414;border:1px solid #262626;border-radius:999px;padding:12px 18px">
+      <span style="font-size:14px;font-weight:700;color:#FFFFFF;flex:1">{{CTA}}</span>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+  <div style="height:107px;flex-shrink:0"></div>
+</div>
+
+</body>
+</html>

@@ -76,3 +76,7 @@ keystore/
 # Firebase Hosting: CLI cache, and the pages `web/build.ts` renders.
 .firebase/
 web/public/
+
+# Social automation real secrets (placeholders live in .env.example)
+social-automation/.env
+social-automation/supabase/.temp/
