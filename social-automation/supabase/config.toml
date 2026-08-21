@@ -1,0 +1,12 @@
+# Minimal config for `supabase functions deploy` from this directory.
+project_id = "kxxgfhwnidgfvjowqaad"
+
+[functions.telegram-webhook]
+# Telegram can't send a Supabase JWT; auth is the X-Telegram-Bot-Api-Secret-Token header.
+verify_jwt = false
+
+[functions.generate]
+verify_jwt = true
+
+[functions.refresh-ig-token]
+verify_jwt = true
