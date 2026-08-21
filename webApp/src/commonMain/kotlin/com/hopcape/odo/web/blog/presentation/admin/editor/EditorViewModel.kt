@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.BlogRepository
+import com.hopcape.odo.web.blog.domain.PostImporter
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.Category
 import com.hopcape.odo.web.blog.domain.model.Draft
@@ -16,6 +17,8 @@ import com.hopcape.odo.web.blog.presentation.asUiText
 import com.hopcape.odo.web.blog.presentation.isRetryable
 import com.hopcape.odo.web.blog.presentation.state.Loadable
 import com.hopcape.odo.web.blog.presentation.state.UiText
+import com.hopcape.odo.web.blog.resources.Res
+import com.hopcape.odo.web.blog.resources.bl_import_unreadable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +55,15 @@ sealed interface EditorSheet {
     /** The media library, to place an image. */
     data object InsertImage : EditorSheet
 
+    /** Paste a post in as JSON. */
+    data object Import : EditorSheet
+
+    /** Picking which category this post is filed under. */
+    data object Category : EditorSheet
+
+    /** Throwing a draft away for good. */
+    data object Discard : EditorSheet
+
     /** Taking a published post back to draft. */
     @Immutable
     data class Unpublish(val views: Int?) : EditorSheet
@@ -67,7 +79,15 @@ sealed interface EditorEvent {
     data object PublishTapped : EditorEvent
     data object UnpublishTapped : EditorEvent
     data object InsertImageTapped : EditorEvent
+    data object ImportTapped : EditorEvent
+    data object CategoryTapped : EditorEvent
+    data object DiscardTapped : EditorEvent
     data object SheetDismissed : EditorEvent
+
+    /** The pasted JSON. Parsed here, because a parse failure is a state to draw. */
+    data class Imported(val json: String) : EditorEvent
+
+    data object DiscardConfirmed : EditorEvent
 
     data class SeoTitleChanged(val value: String) : EditorEvent
     data class SlugChanged(val value: String) : EditorEvent
@@ -111,6 +131,15 @@ data class EditorUiState(
     val categories: List<Category>,
     val media: List<MediaItem>,
     val error: UiText?,
+    /**
+     * Bumped only when the body is replaced from outside — a load, or an import.
+     *
+     * The editor's fields hold text the stored model deliberately does not: an
+     * empty `****` that **B** just opened parses to no runs at all, which is right
+     * for storage and wrong for a caret sitting between them. So the fields are
+     * seeded once and left alone, and this is the signal that says re-read.
+     */
+    val revision: Int = 0,
 ) {
     val wordCount: Int
         get() = blocks.sumOf { block -> block.editableText().split(' ', '\n').count { it.isNotBlank() } }
@@ -141,6 +170,7 @@ class EditorViewModel(
     private val postId: String?,
     private val admin: AdminRepository,
     private val blog: BlogRepository,
+    private val importer: PostImporter,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -225,6 +255,13 @@ class EditorViewModel(
             EditorEvent.InsertImageTapped -> _state.value =
                 _state.value.copy(sheet = EditorSheet.InsertImage)
 
+            EditorEvent.ImportTapped -> _state.value = _state.value.copy(sheet = EditorSheet.Import)
+            EditorEvent.CategoryTapped -> _state.value = _state.value.copy(sheet = EditorSheet.Category)
+            EditorEvent.DiscardTapped -> _state.value = _state.value.copy(sheet = EditorSheet.Discard)
+
+            is EditorEvent.Imported -> import(event.json)
+            EditorEvent.DiscardConfirmed -> discard()
+
             EditorEvent.SheetDismissed -> _state.value = _state.value.copy(sheet = EditorSheet.None)
 
             EditorEvent.PublishConfirmed -> publish(replaceExisting = false)
@@ -290,6 +327,7 @@ class EditorViewModel(
                         blocks = draft.body,
                         seo = draft.seo,
                         status = draft.status,
+                        revision = _state.value.revision + 1,
                     )
                 },
             )
@@ -340,6 +378,65 @@ class EditorViewModel(
                             sheet = EditorSheet.Conflict(outcome),
                         )
                     }
+                },
+            )
+        }
+    }
+
+    /**
+     * Takes a whole post from pasted JSON.
+     *
+     * The shape it accepts is the shape the database stores, so a post can be
+     * moved between environments — or written somewhere else entirely — without a
+     * converter in the middle. A bare array is read as just the body, because that
+     * is what somebody copying one article's blocks will have on their clipboard.
+     *
+     * Nothing is saved. The import lands in the editor and the author reads it
+     * before deciding, which is the difference between an import and an overwrite.
+     */
+    private fun import(json: String) {
+        val imported = importer.parse(json)
+        if (imported == null) {
+            _state.value = _state.value.copy(error = UiText.Resource(Res.string.bl_import_unreadable))
+            return
+        }
+        _state.value = _state.value.copy(
+            title = imported.title ?: _state.value.title,
+            blocks = imported.body,
+            seo = _state.value.seo.copy(
+                seoTitle = imported.title ?: _state.value.seo.seoTitle,
+                slug = imported.slug ?: _state.value.seo.slug,
+                metaDescription = imported.dek ?: _state.value.seo.metaDescription,
+            ),
+            sheet = EditorSheet.None,
+            dirty = true,
+            error = null,
+            revision = _state.value.revision + 1,
+        )
+    }
+
+    /**
+     * Throws the draft away.
+     *
+     * Only reachable for a post that has been saved at least once — there is
+     * nothing to delete before that, and the host leaves the editor either way.
+     */
+    private fun discard() {
+        val id = postId
+        if (id == null) {
+            _state.value = _state.value.copy(sheet = EditorSheet.None, dirty = false)
+            viewModelScope.launch { _effects.send(EditorEffect.Leave) }
+            return
+        }
+        _state.value = _state.value.copy(saving = true)
+        viewModelScope.launch {
+            admin.discard(id).fold(
+                ifLeft = { error ->
+                    _state.value = _state.value.copy(saving = false, sheet = EditorSheet.None, error = error.asUiText())
+                },
+                ifRight = {
+                    _state.value = _state.value.copy(saving = false, dirty = false, sheet = EditorSheet.None)
+                    _effects.send(EditorEffect.Leave)
                 },
             )
         }

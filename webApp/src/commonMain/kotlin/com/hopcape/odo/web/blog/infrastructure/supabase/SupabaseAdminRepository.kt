@@ -8,6 +8,7 @@ import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.BlogError
 import com.hopcape.odo.web.blog.domain.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
+import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.Draft
 import com.hopcape.odo.web.blog.domain.model.MediaItem
 import com.hopcape.odo.web.blog.domain.model.PostRow as DomainPostRow
@@ -46,6 +47,8 @@ internal class SupabaseAdminRepository(
     private val baseUrl: String,
     private val anonKey: String,
     private val accessToken: suspend () -> String?,
+    /** The signed-in author's row id. Null before the session has been read. */
+    private val authorId: () -> String?,
     private val today: () -> LocalDate = {
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
     },
@@ -55,9 +58,11 @@ internal class SupabaseAdminRepository(
         postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
-            // Published first, then by reach. The same order the design's table is
-            // in, and the one an author scans for "what is doing well".
-            query = "select=*&order=status.asc,views.desc",
+            // Your own, published first and then by reach — the order the design's
+            // table is in. Scoped explicitly rather than left to RLS: the policy
+            // also lets an author read every *published* post, which is right for
+            // the public site and wrong for a page called "your posts".
+            query = "select=*&author_id=eq.${authorId() ?: NOBODY}&order=status.asc,views.desc",
         ).map { rows ->
             rows.map { row ->
                 DomainPostRow(
@@ -148,6 +153,10 @@ internal class SupabaseAdminRepository(
             body = """{"status":"draft","slug":null}""",
         )
 
+    override suspend fun discard(id: String): Either<BlogError, Unit> =
+        // RLS decides whether this row is yours; nothing here needs to ask.
+        postgrest.delete(table = "blog_posts", query = "id=eq.$id")
+
     override suspend fun media(): Either<BlogError, List<MediaItem>> =
         postgrest.select("blog_media", MediaRow.serializer(), "order=created_at.desc")
             .map { rows ->
@@ -190,6 +199,32 @@ internal class SupabaseAdminRepository(
 
         MediaItem(name = file.name, url = publicUrl(path))
     }
+
+    override suspend fun profile(): Either<BlogError, Author> =
+        postgrest.select(
+            table = "blog_authors",
+            serializer = AuthorRow.serializer(),
+            query = "select=*&id=eq.${authorId() ?: NOBODY}&limit=1",
+        ).flatMap { rows ->
+            rows.firstOrNull()?.toAuthor()?.right() ?: BlogError.NotFound.left()
+        }
+
+    override suspend fun saveProfile(
+        name: String,
+        bio: String,
+        topics: String,
+        since: String,
+    ): Either<BlogError, Author> =
+        // A patch, not an upsert: the row exists — blog-session made it on the
+        // first sign-in — and the columns not named here (email, slug) are not
+        // this form's to touch.
+        postgrest.patch(
+            table = "blog_authors",
+            query = "id=eq.${authorId() ?: NOBODY}",
+            body = """{"name":"${name.jsonEscaped()}","initial":"${name.take(1).uppercase()}",""" +
+                """"bio":"${bio.jsonEscaped()}","topics":"${topics.jsonEscaped()}",""" +
+                """"since_label":"${since.jsonEscaped()}"}""",
+        ).flatMap { profile() }
 
     override suspend fun analytics(): Either<BlogError, Analytics> = either {
         val window = postgrest.rpc(
@@ -285,6 +320,9 @@ internal class SupabaseAdminRepository(
         const val TOP_POSTS = 4
         const val UNTITLED = "Untitled"
         const val TODAY = "Today"
+
+        /** Matches nothing, for the moment before the session has been read. */
+        const val NOBODY = "00000000-0000-0000-0000-000000000000"
     }
 }
 

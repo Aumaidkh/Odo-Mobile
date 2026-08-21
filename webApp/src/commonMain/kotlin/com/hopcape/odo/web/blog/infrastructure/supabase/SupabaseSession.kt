@@ -59,6 +59,15 @@ internal class SupabaseSession(
      */
     private var email: String? = null
 
+    /**
+     * The `blog_authors` row this session belongs to.
+     *
+     * Set once the author row has been read, and used by the CMS to ask for its
+     * own posts. RLS already refuses everything else on write; this is so the post
+     * list does not also show every published post by everybody.
+     */
+    var authorId: String? = null
+
     /** True once there is a session, without going near the network to find out. */
     val isActive: Boolean get() = accessToken != null
 
@@ -129,6 +138,7 @@ internal class SupabaseSession(
     fun clear() {
         accessToken = null
         expiresAt = null
+        authorId = null
         tokens.refreshToken = null
     }
 

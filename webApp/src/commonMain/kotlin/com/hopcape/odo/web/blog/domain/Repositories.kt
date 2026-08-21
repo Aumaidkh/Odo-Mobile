@@ -2,6 +2,7 @@ package com.hopcape.odo.web.blog.domain
 
 import arrow.core.Either
 import com.hopcape.odo.web.blog.domain.model.Analytics
+import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.domain.model.AuthorPage
 import com.hopcape.odo.web.blog.domain.model.Category
@@ -109,11 +110,32 @@ interface AdminRepository {
     /** Back to draft. The URL stays alive, which is the point of not deleting. */
     suspend fun unpublish(id: String): Either<BlogError, Unit>
 
+    /**
+     * Gone. Not a status change — the row goes.
+     *
+     * Only ever offered for a draft. A published post has a URL somebody may have
+     * shared, and taking that to a 404 is what [unpublish] exists to avoid; a
+     * draft has never been anywhere and deleting it costs nothing but the writing.
+     */
+    suspend fun discard(id: String): Either<BlogError, Unit>
+
     suspend fun media(): Either<BlogError, List<MediaItem>>
 
     suspend fun upload(file: UploadRequest): Either<BlogError, MediaItem>
 
     suspend fun analytics(): Either<BlogError, Analytics>
+
+    /**
+     * The signed-in author's own row.
+     *
+     * Not a copy of [Session] — that is who is signed in, this is what a reader
+     * sees under a byline. They are the same person and different data, and the
+     * second is the one an author edits.
+     */
+    suspend fun profile(): Either<BlogError, Author>
+
+    /** Saves the byline. The email is not editable: it is what the session is keyed on. */
+    suspend fun saveProfile(name: String, bio: String, topics: String, since: String): Either<BlogError, Author>
 }
 
 /**

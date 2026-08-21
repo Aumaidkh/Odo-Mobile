@@ -6,6 +6,7 @@ import com.hopcape.odo.web.blog.data.SampleBlogRepository
 import com.hopcape.odo.web.blog.infrastructure.BlogAuthRepository
 import com.hopcape.odo.web.blog.infrastructure.firebase.FirebaseSignIn
 import com.hopcape.odo.web.blog.infrastructure.supabase.BuildBlogConfig
+import com.hopcape.odo.web.blog.infrastructure.supabase.JsonPostImporter
 import com.hopcape.odo.web.blog.infrastructure.supabase.Postgrest
 import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseAdminRepository
 import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseBlogRepository
@@ -15,12 +16,14 @@ import io.ktor.client.HttpClient
 import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.AuthRepository
 import com.hopcape.odo.web.blog.domain.BlogRepository
+import com.hopcape.odo.web.blog.domain.PostImporter
 import com.hopcape.odo.web.blog.presentation.ChromeViewModel
 import com.hopcape.odo.web.blog.presentation.admin.SessionViewModel
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorViewModel
 import com.hopcape.odo.web.blog.presentation.admin.library.AnalyticsViewModel
 import com.hopcape.odo.web.blog.presentation.admin.library.MediaViewModel
 import com.hopcape.odo.web.blog.presentation.admin.posts.PostsViewModel
+import com.hopcape.odo.web.blog.presentation.admin.settings.SettingsViewModel
 import com.hopcape.odo.web.blog.presentation.admin.signin.SignInViewModel
 import com.hopcape.odo.web.blog.presentation.article.ArticleViewModel
 import com.hopcape.odo.web.blog.presentation.author.AuthorViewModel
@@ -29,8 +32,25 @@ import com.hopcape.odo.web.blog.presentation.index.IndexViewModel
 import com.hopcape.odo.web.blog.presentation.notfound.NotFoundViewModel
 import com.hopcape.odo.web.blog.presentation.search.SearchViewModel
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+
+/**
+ * Declared above `blogModule`, and that is not a style choice.
+ *
+ * `module { }` runs its block immediately to build the definition list, so
+ * anything it reads has to already exist. Below the module, these are still null
+ * when the definitions register — the qualifier silently becomes "none", both
+ * clients land on the same key, and the first screen to ask for one fails with a
+ * message naming the thing that asked rather than the thing that was missing.
+ */
+
+/** Reads as a stranger. Never sends a session token, even when there is one. */
+private val ANONYMOUS = named("anonymous")
+
+/** Reads and writes as the signed-in author. */
+private val AS_AUTHOR = named("author")
 
 /**
  * Where the sample data is chosen, and the only file that changes when it stops
@@ -52,6 +72,10 @@ import org.koin.dsl.module
 val blogModule: Module = module {
 
     single { HttpClient() }
+
+    // The wire format is the database's, so reading it is the database layer's
+    // job even when the paste never goes near a network.
+    single<PostImporter> { JsonPostImporter() }
 
     /**
      * Whether this checkout has a database to talk to.
@@ -76,19 +100,39 @@ val blogModule: Module = module {
         )
     }
 
-    single {
+    /**
+     * Two clients, and the difference matters.
+     *
+     * The public one never sends a session token. With one shared client, an
+     * author who signed in and then browsed the blog was reading it as
+     * `authenticated` — and the author policy let them see their own drafts on
+     * the public pages. The reader-facing side has no business knowing whether
+     * anybody is signed in.
+     */
+    single(ANONYMOUS) {
         Postgrest(
             client = get(),
             baseUrl = BuildBlogConfig.SUPABASE_URL,
             anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
-            // Signed out this is null and PostgREST resolves the request as `anon`,
-            // which is exactly what the public side wants.
+            accessToken = { null },
+        )
+    }
+
+    single(AS_AUTHOR) {
+        Postgrest(
+            client = get(),
+            baseUrl = BuildBlogConfig.SUPABASE_URL,
+            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
             accessToken = { get<SupabaseSession>().accessToken() },
         )
     }
 
     single<BlogRepository> {
-        if (get<BlogBackend>().isLive) SupabaseBlogRepository(postgrest = get()) else SampleBlogRepository()
+        if (get<BlogBackend>().isLive) {
+            SupabaseBlogRepository(postgrest = get(ANONYMOUS))
+        } else {
+            SampleBlogRepository()
+        }
     }
 
     single<AuthRepository> {
@@ -96,7 +140,7 @@ val blogModule: Module = module {
             BlogAuthRepository(
                 firebase = FirebaseSignIn(client = get(), apiKey = FIREBASE_WEB_API_KEY),
                 supabase = get(),
-                postgrest = get(),
+                postgrest = get(AS_AUTHOR),
             )
         } else {
             SampleAuthRepository()
@@ -106,11 +150,12 @@ val blogModule: Module = module {
     single<AdminRepository> {
         if (get<BlogBackend>().isLive) {
             SupabaseAdminRepository(
-                postgrest = get(),
+                postgrest = get(AS_AUTHOR),
                 client = get(),
                 baseUrl = BuildBlogConfig.SUPABASE_URL,
                 anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
                 accessToken = { get<SupabaseSession>().accessToken() },
+                authorId = { get<SupabaseSession>().authorId },
             )
         } else {
             SampleAdminRepository(auth = get())
@@ -136,13 +181,19 @@ val blogModule: Module = module {
     viewModel { PostsViewModel(admin = get()) }
     viewModel { MediaViewModel(admin = get()) }
     viewModel { AnalyticsViewModel(admin = get()) }
+    viewModel { SettingsViewModel(admin = get()) }
     // getOrNull, because a post being started has no id — and null is the state
     // the editor draws as "New post · not saved". The type argument is explicit
     // on purpose: inferred from the parameter it would be `String?`, and Koin
     // matches parameters by type, so a perfectly good slug would never be found
     // and every post would open as a blank new draft.
     viewModel { parameters ->
-        EditorViewModel(postId = parameters.getOrNull<String>(), admin = get(), blog = get())
+        EditorViewModel(
+            postId = parameters.getOrNull<String>(),
+            admin = get(),
+            blog = get(),
+            importer = get(),
+        )
     }
 }
 
@@ -163,5 +214,6 @@ val blogModule: Module = module {
  * Overriding it is also how a test asks for the sample repositories.
  */
 data class BlogBackend(val isLive: Boolean)
+
 
 private const val FIREBASE_WEB_API_KEY = "AIzaSyB8A39cTEw-_4mtRntVatyf5ZWYhiwojUc"

@@ -81,6 +81,7 @@ internal class BlogAuthRepository(
             query = "email=eq.${email.encoded()}&limit=1",
         ).bind().firstOrNull()
 
+        supabase.authorId = row?.id
         val name = row?.name ?: fallbackName.ifBlank { email.substringBefore('@') }
         Session(
             authorSlug = row?.slug ?: name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-'),

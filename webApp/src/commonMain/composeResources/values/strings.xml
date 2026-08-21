@@ -44,6 +44,8 @@
     <string name="bl_article_contents_count">Contents · %1$d sections</string>
     <string name="bl_article_read_next">READ NEXT</string>
     <string name="bl_article_cta_heading">Check your challans</string>
+    <string name="bl_action_eyebrow">SHOWN INSIDE THE ARTICLE</string>
+    <string name="bl_action_screenshot_slot">screenshot slot — drop in a real capture before publishing</string>
 
     <!-- ── Category ───────────────────────────────────────────────────────── -->
     <string name="bl_category_eyebrow">CATEGORY</string>
@@ -149,6 +151,20 @@
     <string name="bl_editor_h2">H2</string>
     <string name="bl_editor_h3">H3</string>
     <string name="bl_editor_callout">Callout</string>
+    <string name="bl_editor_import">Import</string>
+    <string name="bl_editor_action_card">Action</string>
+    <string name="bl_editor_discard">Discard</string>
+    <string name="bl_editor_category">Category</string>
+    <string name="bl_editor_category_none">Uncategorised</string>
+    <string name="bl_import_heading">Import from JSON</string>
+    <string name="bl_import_dek">Paste a post, or just its blocks. Nothing is saved until you save it.</string>
+    <string name="bl_import_placeholder">{"title": "…", "body": [ … ]}</string>
+    <string name="bl_import_action">Import</string>
+    <string name="bl_import_unreadable">That is not a post this can read.</string>
+    <string name="bl_discard_heading">Throw this draft away?</string>
+    <string name="bl_discard_dek">It has never been published, so nothing links to it — but the writing is gone for good.</string>
+    <string name="bl_discard_confirm">Throw it away</string>
+    <string name="bl_discard_cancel">Keep it</string>
     <string name="bl_editor_tip_label">TIP</string>
     <string name="bl_editor_tip">Start with a question people type into Google. Let the first paragraph answer it — that is the part Google shows.</string>
 
@@ -221,6 +237,15 @@
 
     <!-- ── Admin · settings ───────────────────────────────────────────────── -->
     <string name="bl_settings_title">Settings</string>
-    <string name="bl_settings_empty">Nothing here yet.</string>
+    <string name="bl_settings_byline_heading">Your byline</string>
+    <string name="bl_settings_byline_dek">What a reader sees under an article, and on your author page.</string>
+    <string name="bl_settings_name">Name</string>
+    <string name="bl_settings_bio">Bio</string>
+    <string name="bl_settings_topics">Writes about</string>
+    <string name="bl_settings_topics_hint">· separated by ·</string>
+    <string name="bl_settings_since">Since</string>
+    <string name="bl_settings_since_hint">· a label, like "March 2025"</string>
+    <string name="bl_settings_save">Save byline</string>
+    <string name="bl_settings_saved">Saved.</string>
 
 </resources>

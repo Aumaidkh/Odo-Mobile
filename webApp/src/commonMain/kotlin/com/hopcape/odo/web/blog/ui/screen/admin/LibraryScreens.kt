@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,7 +28,11 @@ import com.hopcape.odo.web.blog.domain.model.MediaItem
 import com.hopcape.odo.web.blog.platform.pickImage
 import com.hopcape.odo.web.blog.presentation.admin.library.AnalyticsEvent
 import com.hopcape.odo.web.blog.presentation.admin.library.MediaEvent
+import com.hopcape.odo.web.blog.presentation.admin.settings.SettingsEvent
+import com.hopcape.odo.web.blog.presentation.admin.settings.SettingsUiState
 import com.hopcape.odo.web.blog.presentation.state.Loadable
+import com.hopcape.odo.web.blog.presentation.state.Submission
+import com.hopcape.odo.web.blog.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_analytics_from_search
 import com.hopcape.odo.web.blog.resources.bl_analytics_installs
@@ -41,10 +46,21 @@ import com.hopcape.odo.web.blog.resources.bl_media_limits
 import com.hopcape.odo.web.blog.resources.bl_media_title
 import com.hopcape.odo.web.blog.resources.bl_media_upload
 import com.hopcape.odo.web.blog.resources.bl_media_uploading
-import com.hopcape.odo.web.blog.resources.bl_settings_empty
+import com.hopcape.odo.web.blog.resources.bl_settings_bio
+import com.hopcape.odo.web.blog.resources.bl_settings_byline_dek
+import com.hopcape.odo.web.blog.resources.bl_settings_byline_heading
+import com.hopcape.odo.web.blog.resources.bl_settings_name
+import com.hopcape.odo.web.blog.resources.bl_settings_save
+import com.hopcape.odo.web.blog.resources.bl_settings_saved
+import com.hopcape.odo.web.blog.resources.bl_settings_since
+import com.hopcape.odo.web.blog.resources.bl_settings_since_hint
 import com.hopcape.odo.web.blog.resources.bl_settings_title
+import com.hopcape.odo.web.blog.resources.bl_settings_topics
+import com.hopcape.odo.web.blog.resources.bl_settings_topics_hint
 import com.hopcape.odo.web.blog.ui.component.Eyebrow
 import com.hopcape.odo.web.blog.ui.component.Hairline
+import com.hopcape.odo.web.blog.ui.component.InitialAvatar
+import com.hopcape.odo.web.blog.ui.component.LabelledField
 import com.hopcape.odo.web.blog.ui.component.LoadableBox
 import com.hopcape.odo.web.blog.ui.component.PillButton
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
@@ -244,22 +260,102 @@ private fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * The author's byline, and the only thing on this page.
+ *
+ * A CMS settings page usually collects whatever has nowhere else to live. There
+ * is exactly one setting here that changes what a reader sees, so it is the page:
+ * until an author fills this in, `blog-session` has guessed their name from the
+ * local part of an email address and the author page says so.
+ */
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    state: SettingsUiState,
+    onEvent: (SettingsEvent) -> Unit,
+) {
     val colors = BlogThemeTokens.colors
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+
+    Column(verticalArrangement = Arrangement.spacedBy(26.dp)) {
         Text(
             text = stringResource(Res.string.bl_settings_title),
             color = colors.text,
             style = MaterialTheme.typography.displayMedium,
         )
-        // The nav links here and the design draws no frame for it. An empty page
-        // that says so beats a tab that goes nowhere.
-        Text(
-            text = stringResource(Res.string.bl_settings_empty),
-            color = colors.muted,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+
+        LoadableBox(state.loaded, onRetry = { onEvent(SettingsEvent.Retry) }) { author ->
+            Column(
+                modifier = Modifier.widthIn(max = 560.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    InitialAvatar(state.name.take(1).uppercase().ifBlank { "?" }, diameter = 44)
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            text = stringResource(Res.string.bl_settings_byline_heading),
+                            color = colors.text,
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Text(
+                            text = stringResource(Res.string.bl_settings_byline_dek),
+                            color = colors.muted,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+
+                LabelledField(
+                    label = stringResource(Res.string.bl_settings_name),
+                    value = state.name,
+                    onValueChange = { onEvent(SettingsEvent.NameChanged(it)) },
+                )
+                LabelledField(
+                    label = stringResource(Res.string.bl_settings_bio),
+                    value = state.bio,
+                    onValueChange = { onEvent(SettingsEvent.BioChanged(it)) },
+                )
+                LabelledField(
+                    label = stringResource(Res.string.bl_settings_topics),
+                    value = state.topics,
+                    onValueChange = { onEvent(SettingsEvent.TopicsChanged(it)) },
+                    trailingLabel = stringResource(Res.string.bl_settings_topics_hint),
+                )
+                LabelledField(
+                    label = stringResource(Res.string.bl_settings_since),
+                    value = state.since,
+                    onValueChange = { onEvent(SettingsEvent.SinceChanged(it)) },
+                    trailingLabel = stringResource(Res.string.bl_settings_since_hint),
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PillButton(
+                        text = stringResource(Res.string.bl_settings_save),
+                        onClick = { onEvent(SettingsEvent.Save) },
+                        enabled = state.canSave,
+                    )
+                    when (val saving = state.saving) {
+                        Submission.Done -> Text(
+                            text = stringResource(Res.string.bl_settings_saved),
+                            color = colors.success,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+
+                        is Submission.Failed -> Text(
+                            text = saving.message.resolve(),
+                            color = colors.danger,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+
+                        else -> Unit
+                    }
+                }
+            }
+        }
     }
 }
 

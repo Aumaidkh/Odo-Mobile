@@ -18,7 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,11 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.PostStatus
+import com.hopcape.odo.web.blog.presentation.admin.editor.BOLD_MARKER
 import com.hopcape.odo.web.blog.presentation.admin.editor.BlockKind
+import com.hopcape.odo.web.blog.presentation.admin.editor.ITALIC_MARKER
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEvent
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorSheet
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorUiState
@@ -42,7 +48,11 @@ import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_editor_body_placeholder
 import com.hopcape.odo.web.blog.resources.bl_editor_back
 import com.hopcape.odo.web.blog.resources.bl_editor_bold
+import com.hopcape.odo.web.blog.resources.bl_editor_action_card
 import com.hopcape.odo.web.blog.resources.bl_editor_callout
+import com.hopcape.odo.web.blog.resources.bl_editor_category_none
+import com.hopcape.odo.web.blog.resources.bl_editor_discard
+import com.hopcape.odo.web.blog.resources.bl_editor_import
 import com.hopcape.odo.web.blog.resources.bl_editor_counts
 import com.hopcape.odo.web.blog.resources.bl_editor_h2
 import com.hopcape.odo.web.blog.resources.bl_editor_image
@@ -61,6 +71,7 @@ import com.hopcape.odo.web.blog.resources.bl_editor_unpublish
 import com.hopcape.odo.web.blog.resources.bl_editor_unsaved
 import com.hopcape.odo.web.blog.resources.bl_editor_unsaved_changes
 import com.hopcape.odo.web.blog.ui.component.Eyebrow
+import com.hopcape.odo.web.blog.ui.component.FilterChip
 import com.hopcape.odo.web.blog.ui.component.Hairline
 import com.hopcape.odo.web.blog.ui.component.PillButton
 import com.hopcape.odo.web.blog.ui.component.TextLink
@@ -90,15 +101,50 @@ fun EditorScreen(
 ) {
     val colors = BlogThemeTokens.colors
 
-    // Which block the toolbar acts on. A UI concern — the ViewModel has no
-    // business knowing where a caret is.
+    // Which block the toolbar acts on, and what is in each field. Both are UI
+    // concerns — the ViewModel has no business knowing where a caret is — but the
+    // screen has to own them rather than each field, because **B** and *I* act on
+    // a selection that lives in a field the toolbar is not inside.
     var focused by remember { mutableStateOf<Int?>(null) }
+    val values = remember { mutableStateMapOf<Int, TextFieldValue>() }
+
+    // A load or an import replaced the body; the fields have to be re-read.
+    LaunchedEffect(state.revision) {
+        values.clear()
+        focused = null
+    }
+
+    /**
+     * Wraps the selection in [marker], or opens an empty pair at the caret.
+     *
+     * The caret lands inside the markers either way, so the next keystroke is the
+     * emphasised word rather than the thing after it.
+     */
+    fun wrap(marker: String) {
+        val index = focused ?: return
+        val current = values[index] ?: return
+        val text = current.text
+        val selection = current.selection
+        val wrapped = if (selection.collapsed) {
+            text.take(selection.start) + marker + marker + text.drop(selection.start)
+        } else {
+            text.take(selection.min) + marker + text.substring(selection.min, selection.max) +
+                marker + text.drop(selection.max)
+        }
+        val caret = if (selection.collapsed) {
+            selection.start + marker.length
+        } else {
+            selection.max + marker.length * 2
+        }
+        values[index] = TextFieldValue(wrapped, TextRange(caret))
+        onEvent(EditorEvent.BlockChanged(index, wrapped))
+    }
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
             EditorBar(state, onEvent, onBack)
             Hairline()
-            EditorToolbar(state, focused, onEvent)
+            EditorToolbar(state, focused, ::wrap, onEvent)
             Hairline()
 
             Column(
@@ -124,11 +170,9 @@ fun EditorScreen(
                         )
                         return@Column
                     }
-                    PlainField(
+                    TitleField(
                         value = state.title,
                         onValueChange = { onEvent(EditorEvent.TitleChanged(it)) },
-                        placeholder = stringResource(Res.string.bl_editor_title_placeholder),
-                        style = MaterialTheme.typography.displayMedium,
                     )
 
                     // The design shows this only on an untouched post — it is
@@ -139,10 +183,26 @@ fun EditorScreen(
                     }
 
                     state.blocks.forEachIndexed { index, block ->
+                        // Seeded once, then the field's own. Deliberately not
+                        // re-synced against the block on every render: pressing
+                        // **B** with nothing selected leaves an empty `****`, which
+                        // parses to no runs and would be written straight back over
+                        // the caret sitting between them. `revision` above is what
+                        // says the body really was replaced.
+                        val text = block.editableText()
+                        if (values[index] == null) values[index] = TextFieldValue(text)
+
                         BlockField(
                             block = block,
-                            onChange = { onEvent(EditorEvent.BlockChanged(index, it)) },
-                            onRemove = { onEvent(EditorEvent.BlockRemoved(index)) },
+                            value = values[index] ?: TextFieldValue(text),
+                            onValueChange = {
+                                values[index] = it
+                                onEvent(EditorEvent.BlockChanged(index, it.text))
+                            },
+                            onRemove = {
+                                values.remove(index)
+                                onEvent(EditorEvent.BlockRemoved(index))
+                            },
                             onFocused = { focused = index },
                         )
                     }
@@ -192,11 +252,23 @@ private fun EditorBar(state: EditorUiState, onEvent: (EditorEvent) -> Unit, onBa
             )
         }
         Spacer(Modifier.weight(1f))
+        // The category, visible while writing rather than only in the publish
+        // form. It is what the piece is about, which is a decision an author makes
+        // early; buried behind Publish it was picked once, at the end, in a hurry.
+        CategoryTag(state, onEvent)
         if (state.status == PostStatus.PUBLISHED) {
             TextLink(
                 text = stringResource(Res.string.bl_editor_unpublish),
                 onClick = { onEvent(EditorEvent.UnpublishTapped) },
                 color = colors.muted,
+            )
+        } else if (state.everSaved) {
+            // Only for something unpublished. A published post gets the unpublish
+            // sheet, which argues for keeping its URL alive.
+            TextLink(
+                text = stringResource(Res.string.bl_editor_discard),
+                onClick = { onEvent(EditorEvent.DiscardTapped) },
+                color = colors.danger,
             )
         }
         PillButton(
@@ -216,14 +288,19 @@ private fun EditorBar(state: EditorUiState, onEvent: (EditorEvent) -> Unit, onBa
 /**
  * The toolbar.
  *
- * The block buttons append a block of that kind. **B** and **I** wrap the focused
- * block's text in markers rather than the selection — Compose gives a selection
- * only through `TextFieldValue`, which every block would then have to carry, and
- * the markers are visible either way. It is the honest 80%: the button does
- * something real and the result round-trips.
+ * **B** and *I* wrap the selection in the focused block — the markers are what
+ * the stored runs are read back from, so what you see is what round-trips. With
+ * nothing selected they open an empty pair and put the caret between them.
+ *
+ * The block buttons append; the last three open sheets.
  */
 @Composable
-private fun EditorToolbar(state: EditorUiState, focused: Int?, onEvent: (EditorEvent) -> Unit) {
+private fun EditorToolbar(
+    state: EditorUiState,
+    focused: Int?,
+    onWrap: (String) -> Unit,
+    onEvent: (EditorEvent) -> Unit,
+) {
     val colors = BlogThemeTokens.colors
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp),
@@ -231,10 +308,10 @@ private fun EditorToolbar(state: EditorUiState, focused: Int?, onEvent: (EditorE
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ToolButton(stringResource(Res.string.bl_editor_bold), enabled = focused != null) {
-            focused?.let { onEvent(EditorEvent.BlockChanged(it, state.blocks[it].editableText() + "****")) }
+            onWrap(BOLD_MARKER)
         }
         ToolButton(stringResource(Res.string.bl_editor_italic), enabled = focused != null) {
-            focused?.let { onEvent(EditorEvent.BlockChanged(it, state.blocks[it].editableText() + "**")) }
+            onWrap(ITALIC_MARKER)
         }
         ToolButton(stringResource(Res.string.bl_editor_paragraph)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.PARAGRAPH))
@@ -245,8 +322,16 @@ private fun EditorToolbar(state: EditorUiState, focused: Int?, onEvent: (EditorE
         ToolButton(stringResource(Res.string.bl_editor_callout)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.CALLOUT))
         }
+        // The one block that sends a reader to the app. Without it an article can
+        // answer the question and never offer anything.
+        ToolButton(stringResource(Res.string.bl_editor_action_card)) {
+            onEvent(EditorEvent.BlockAdded(BlockKind.ACTION))
+        }
         ToolButton(stringResource(Res.string.bl_editor_image)) {
             onEvent(EditorEvent.InsertImageTapped)
+        }
+        ToolButton(stringResource(Res.string.bl_editor_import)) {
+            onEvent(EditorEvent.ImportTapped)
         }
         Spacer(Modifier.weight(1f))
         Text(
@@ -255,6 +340,17 @@ private fun EditorToolbar(state: EditorUiState, focused: Int?, onEvent: (EditorE
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+/** The current category, as a tag that opens the picker. */
+@Composable
+private fun CategoryTag(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
+    val name = state.categories.firstOrNull { it.slug == state.seo.categorySlug }?.name
+    FilterChip(
+        text = name ?: stringResource(Res.string.bl_editor_category_none),
+        selected = name != null,
+        onClick = { onEvent(EditorEvent.CategoryTapped) },
+    )
 }
 
 @Composable
@@ -272,7 +368,8 @@ private fun ToolButton(label: String, enabled: Boolean = true, onClick: () -> Un
 @Composable
 private fun BlockField(
     block: ArticleBlock,
-    onChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     onRemove: () -> Unit,
     onFocused: () -> Unit,
 ) {
@@ -308,8 +405,8 @@ private fun BlockField(
                     ),
             ) {
                 PlainField(
-                    value = block.editableText(),
-                    onValueChange = onChange,
+                    value = value,
+                    onValueChange = onValueChange,
                     placeholder = stringResource(Res.string.bl_editor_body_placeholder),
                     style = style,
                     onFocused = onFocused,
@@ -329,15 +426,15 @@ private fun BlockField(
 /** A text field with no chrome at all — the page is the field. */
 @Composable
 private fun PlainField(
-    value: String,
-    onValueChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     placeholder: String,
     style: androidx.compose.ui.text.TextStyle,
     onFocused: (() -> Unit)? = null,
 ) {
     val colors = BlogThemeTokens.colors
     Box(Modifier.fillMaxWidth()) {
-        if (value.isEmpty()) {
+        if (value.text.isEmpty()) {
             Text(placeholder, color = colors.muted, style = style)
         }
         BasicTextField(
@@ -348,6 +445,28 @@ private fun PlainField(
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { if (it.isFocused) onFocused?.invoke() },
+        )
+    }
+}
+
+/** The title. One line, no selection tricks — the toolbar never touches it. */
+@Composable
+private fun TitleField(value: String, onValueChange: (String) -> Unit) {
+    val colors = BlogThemeTokens.colors
+    Box(Modifier.fillMaxWidth()) {
+        if (value.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.bl_editor_title_placeholder),
+                color = colors.muted,
+                style = MaterialTheme.typography.displayMedium,
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = MaterialTheme.typography.displayMedium.copy(color = colors.text),
+            cursorBrush = SolidColor(colors.text),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

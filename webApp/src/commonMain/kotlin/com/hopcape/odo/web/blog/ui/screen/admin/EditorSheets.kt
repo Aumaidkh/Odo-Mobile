@@ -20,7 +20,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,9 +37,18 @@ import com.hopcape.odo.web.blog.domain.model.SeoDraft
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEvent
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorSheet
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorUiState
+import com.hopcape.odo.web.blog.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_admin_slug_prefix
 import com.hopcape.odo.web.blog.resources.bl_conflict_message
+import com.hopcape.odo.web.blog.resources.bl_discard_cancel
+import com.hopcape.odo.web.blog.resources.bl_discard_confirm
+import com.hopcape.odo.web.blog.resources.bl_discard_dek
+import com.hopcape.odo.web.blog.resources.bl_discard_heading
+import com.hopcape.odo.web.blog.resources.bl_import_action
+import com.hopcape.odo.web.blog.resources.bl_import_dek
+import com.hopcape.odo.web.blog.resources.bl_import_heading
+import com.hopcape.odo.web.blog.resources.bl_import_placeholder
 import com.hopcape.odo.web.blog.resources.bl_conflict_new_slug
 import com.hopcape.odo.web.blog.resources.bl_conflict_options
 import com.hopcape.odo.web.blog.resources.bl_conflict_replace
@@ -67,6 +82,7 @@ import com.hopcape.odo.web.blog.resources.bl_unsaved_heading
 import com.hopcape.odo.web.blog.resources.bl_unsaved_save
 import com.hopcape.odo.web.blog.ui.component.Eyebrow
 import com.hopcape.odo.web.blog.ui.component.FilterChip
+import com.hopcape.odo.web.blog.ui.component.BlogTextField
 import com.hopcape.odo.web.blog.ui.component.LabelledField
 import com.hopcape.odo.web.blog.ui.component.PillButton
 import com.hopcape.odo.web.blog.ui.component.TextLink
@@ -90,6 +106,133 @@ fun EditorSheets(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
         EditorSheet.Unsaved -> UnsavedSheet(onEvent)
         EditorSheet.InsertImage -> InsertImageSheet(state, onEvent)
         is EditorSheet.Unpublish -> UnpublishSheet(onEvent)
+        EditorSheet.Import -> ImportSheet(state, onEvent)
+        EditorSheet.Category -> CategorySheet(state, onEvent)
+        EditorSheet.Discard -> DiscardSheet(onEvent)
+    }
+}
+
+/**
+ * Paste a post in.
+ *
+ * The field is deliberately large and monospaced — what goes in it is JSON, and a
+ * proportional font at body size makes a missing bracket impossible to spot.
+ * Nothing is saved by importing: it lands in the editor and the author reads it
+ * before deciding, which is what separates an import from an overwrite.
+ */
+@Composable
+private fun ImportSheet(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
+    val colors = BlogThemeTokens.colors
+    var pasted by remember { mutableStateOf("") }
+
+    Overlay(onDismiss = { onEvent(EditorEvent.SheetDismissed) }, maxWidth = 620) {
+        Text(
+            text = stringResource(Res.string.bl_import_heading),
+            color = colors.text,
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            text = stringResource(Res.string.bl_import_dek),
+            color = colors.dim,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        BlogTextField(
+            value = pasted,
+            onValueChange = { pasted = it },
+            placeholder = stringResource(Res.string.bl_import_placeholder),
+            singleLine = false,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
+        )
+        state.error?.let {
+            Text(it.resolve(), color = colors.danger, style = MaterialTheme.typography.bodyMedium)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton(
+                text = stringResource(Res.string.bl_media_cancel),
+                onClick = { onEvent(EditorEvent.SheetDismissed) },
+                filled = false,
+            )
+            PillButton(
+                text = stringResource(Res.string.bl_import_action),
+                onClick = { onEvent(EditorEvent.Imported(pasted)) },
+                enabled = pasted.isNotBlank(),
+            )
+        }
+    }
+}
+
+/**
+ * Which category the post is filed under.
+ *
+ * Its own sheet, reachable from the editor bar, rather than only from the publish
+ * form. A category is a decision an author makes while writing — it is what the
+ * piece is about — and burying it behind the publish button meant it was picked
+ * once, at the end, under time pressure.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategorySheet(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
+    val colors = BlogThemeTokens.colors
+    Overlay(onDismiss = { onEvent(EditorEvent.SheetDismissed) }) {
+        Text(
+            text = stringResource(Res.string.bl_publish_category),
+            color = colors.text,
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            state.categories.forEach { category ->
+                FilterChip(
+                    text = category.name,
+                    selected = state.seo.categorySlug == category.slug,
+                    onClick = {
+                        onEvent(EditorEvent.CategoryChanged(category.slug))
+                        onEvent(EditorEvent.SheetDismissed)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Throwing a draft away.
+ *
+ * Only ever offered for something unpublished, so the copy can say the true thing:
+ * nothing links to it. A published post gets the unpublish sheet instead, which
+ * argues for keeping the URL alive.
+ */
+@Composable
+private fun DiscardSheet(onEvent: (EditorEvent) -> Unit) {
+    val colors = BlogThemeTokens.colors
+    Overlay(onDismiss = { onEvent(EditorEvent.SheetDismissed) }) {
+        Text(
+            text = stringResource(Res.string.bl_discard_heading),
+            color = colors.text,
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Text(
+            text = stringResource(Res.string.bl_discard_dek),
+            color = colors.dim,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Keeping it is the filled button. The destructive choice should never
+            // be the one a hurried hand lands on.
+            PillButton(
+                text = stringResource(Res.string.bl_discard_cancel),
+                onClick = { onEvent(EditorEvent.SheetDismissed) },
+            )
+            PillButton(
+                text = stringResource(Res.string.bl_discard_confirm),
+                onClick = { onEvent(EditorEvent.DiscardConfirmed) },
+                filled = false,
+                danger = true,
+            )
+        }
     }
 }
 

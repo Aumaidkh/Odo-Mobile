@@ -19,6 +19,7 @@ import com.hopcape.odo.web.blog.presentation.admin.editor.EditorViewModel
 import com.hopcape.odo.web.blog.presentation.admin.library.AnalyticsViewModel
 import com.hopcape.odo.web.blog.presentation.admin.library.MediaViewModel
 import com.hopcape.odo.web.blog.presentation.admin.posts.PostsViewModel
+import com.hopcape.odo.web.blog.presentation.admin.settings.SettingsViewModel
 import com.hopcape.odo.web.blog.presentation.admin.signin.SignInEffect
 import com.hopcape.odo.web.blog.presentation.admin.signin.SignInViewModel
 import com.hopcape.odo.web.blog.routing.BlogRoute
@@ -141,7 +142,11 @@ private fun SignedInArea(
                     AnalyticsScreen(state, viewModel::onEvent)
                 }
 
-                Admin.Settings -> SettingsScreen()
+                Admin.Settings -> {
+                    val viewModel: SettingsViewModel = koinViewModel()
+                    val state by viewModel.state.collectAsState()
+                    SettingsScreen(state, viewModel::onEvent)
+                }
 
                 // Both handled by the outer `when`.
                 Admin.SignIn, is Admin.Editor -> Unit

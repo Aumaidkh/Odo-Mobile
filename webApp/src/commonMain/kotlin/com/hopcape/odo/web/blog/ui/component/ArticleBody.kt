@@ -3,7 +3,13 @@ package com.hopcape.odo.web.blog.ui.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,13 +21,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.TextRun
 import com.hopcape.odo.web.blog.platform.PLAY_LISTING
 import com.hopcape.odo.web.blog.platform.openExternal
+import com.hopcape.odo.web.blog.resources.Res
+import com.hopcape.odo.web.blog.resources.bl_action_eyebrow
+import com.hopcape.odo.web.blog.resources.bl_action_screenshot_slot
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Draws an article body.
@@ -64,37 +75,58 @@ fun ArticleBody(
     }
 }
 
-/** The boxed aside. Bordered rather than filled, so it reads as quieter, not louder. */
+/**
+ * The boxed aside.
+ *
+ * A filled card with an amber rule down its left edge — not a border on all four
+ * sides. The rule is what makes it read as an aside rather than a second article:
+ * it marks the block without drawing a box around it, so the eye keeps its place
+ * in the column.
+ *
+ * Amber, not red. The callout warns about a deadline; it does not report a
+ * failure, and red on a reading page reads as an error.
+ */
 @Composable
 private fun Callout(block: ArticleBlock.Callout) {
     val colors = BlogThemeTokens.colors
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .padding(vertical = 12.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(colors.surface)
-            .border(1.dp, colors.border, RoundedCornerShape(14.dp))
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+            .height(IntrinsicSize.Min),
     ) {
-        // Amber, not red: the design's callout warns about a deadline, it does
-        // not report a failure, and red on a reading page reads as an error.
-        Eyebrow(block.label, color = colors.warning)
-        Text(
-            text = block.runs.annotated(),
-            color = colors.dim,
-            style = MaterialTheme.typography.bodyLarge,
+        Box(
+            Modifier
+                .width(CALLOUT_RULE)
+                .fillMaxHeight()
+                .background(colors.warning),
         )
+        Column(
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Eyebrow(block.label, color = colors.warning)
+            Text(
+                text = block.runs.annotated(),
+                color = colors.dim,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
     }
 }
 
 /**
- * The app, inside the answer.
+ * The app, inside the answer — the one thing on the page that asks for something.
  *
- * It sits where the design puts it — after the prose has already answered the
- * question — so the page is useful to somebody who never installs anything. A
- * blog that gates its answer behind a download stops being found.
+ * It sits where the design puts it: after the prose has already answered the
+ * question, so the page is useful to somebody who never installs anything. A blog
+ * that gates its answer behind a download stops being found, which defeats the
+ * only reason it exists.
+ *
+ * The eyebrow says "shown inside the article" because that is what an author
+ * needs to know while placing it, and a reader will never wonder.
  */
 @Composable
 private fun AppShowcase(block: ArticleBlock.AppShowcase) {
@@ -102,32 +134,41 @@ private fun AppShowcase(block: ArticleBlock.AppShowcase) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 18.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .padding(vertical = 22.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(colors.surfaceRaised)
-            .border(1.dp, colors.borderStrong, RoundedCornerShape(16.dp))
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 28.dp, vertical = 26.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(block.heading, color = colors.text, style = MaterialTheme.typography.headlineSmall)
-        Text(block.body, color = colors.dim, style = MaterialTheme.typography.bodyLarge)
-        PillButton(block.callToAction, onClick = { openExternal(PLAY_LISTING) })
-    }
-}
-
-/** Runs into one styled string. Bold is the only emphasis the design uses. */
-private fun List<TextRun>.annotated(): AnnotatedString = buildAnnotatedString {
-    this@annotated.forEach { run ->
-        if (run.bold) {
-            withStyleBold { append(run.text) }
-        } else {
-            append(run.text)
+        Eyebrow(stringResource(Res.string.bl_action_eyebrow))
+        Text(block.heading, color = colors.text, style = MaterialTheme.typography.headlineMedium)
+        Text(block.body, color = colors.dim, style = MaterialTheme.typography.titleLarge)
+        PillButton(
+            text = block.callToAction,
+            onClick = { openExternal(PLAY_LISTING) },
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        // The slot, named. An author who has not dropped a capture in yet should be
+        // told so here rather than finding out from the published page.
+        if (block.screenshot.isNullOrBlank()) {
+            Text(
+                text = stringResource(Res.string.bl_action_screenshot_slot),
+                color = colors.muted,
+                style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+            )
         }
     }
 }
 
-private inline fun AnnotatedString.Builder.withStyleBold(block: AnnotatedString.Builder.() -> Unit) {
-    val start = length
-    block()
-    addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, length)
+/** Four pixels of amber. Thin enough to mark the block, not to box it. */
+private val CALLOUT_RULE = 4.dp
+
+/** Runs into one styled string. */
+internal fun List<TextRun>.annotated(): AnnotatedString = buildAnnotatedString {
+    this@annotated.forEach { run ->
+        val start = length
+        append(run.text)
+        if (run.bold) addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, length)
+        if (run.italic) addStyle(SpanStyle(fontStyle = FontStyle.Italic), start, length)
+    }
 }

@@ -57,9 +57,14 @@ data class PostSummary(
     val readingMinutes: Int,
 )
 
-/** A run of text in a paragraph. Bold is the only emphasis the design uses. */
+/**
+ * A run of text in a paragraph.
+ *
+ * Both flags on one run rather than a span tree, because the output is an
+ * `AnnotatedString` — flat by construction — and prose does use both at once.
+ */
 @Immutable
-data class TextRun(val text: String, val bold: Boolean = false)
+data class TextRun(val text: String, val bold: Boolean = false, val italic: Boolean = false)
 
 /**
  * One block of an article body.

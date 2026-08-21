@@ -6,15 +6,18 @@ import com.hopcape.odo.web.blog.domain.model.TextRun
 /**
  * How a block is edited as plain text, and read back.
  *
- * The stored model is a list of styled runs; a text field holds a string. Bold is
- * carried across that gap as `**markers**`, which stay visible while writing.
+ * The stored model is a list of styled runs; a text field holds a string.
+ * Emphasis crosses that gap as markers — `**bold**` and `*italic*` — which stay
+ * visible while writing.
  *
- * That is a real trade-off and worth naming: the design shows bold rendered in the
- * editor, and this shows the markers. Rendering it properly means a text field
- * whose contents carry style — which Compose can do, but only with a custom
- * transformation per block and a selection model to go with it. The markers work
- * today, round-trip exactly, and are what most people writing markdown already
- * expect. Replacing them later changes this file and nothing else.
+ * That is a real trade-off and worth naming: the published article shows bold
+ * rendered, and the editor shows the markers. Rendering it live means a text
+ * field whose contents carry style, which Compose can do but only with a custom
+ * transformation and a selection model per block. The markers work today, round
+ * trip exactly, and are what anybody who has written markdown already expects.
+ *
+ * `_` stays literal. Most markdown treats it as emphasis, and `snake_case_names`
+ * appear in these posts far more often than underscored emphasis does.
  */
 
 /** The text a field shows for this block. */
@@ -34,8 +37,8 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.AppShowcase -> copy(heading = text)
 }
 
-/** What the toolbar can add. Not every block type — showcases are placed, not typed. */
-enum class BlockKind { PARAGRAPH, HEADING, CALLOUT }
+/** What the toolbar can add. Not every block type — an image is placed, not typed. */
+enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION }
 
 fun BlockKind.empty(): ArticleBlock = when (this) {
     BlockKind.PARAGRAPH -> ArticleBlock.Paragraph(emptyList())
@@ -44,40 +47,83 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
     // would break every URL anybody had shared to that section.
     BlockKind.HEADING -> ArticleBlock.Section(id = "section", text = "")
     BlockKind.CALLOUT -> ArticleBlock.Callout(label = "WORTH KNOWING", runs = emptyList())
+    // Placed with its call to action already written. An action card whose button
+    // says nothing is the one block that is worse empty than absent.
+    BlockKind.ACTION -> ArticleBlock.AppShowcase(
+        heading = "",
+        body = "",
+        callToAction = "Download Odo",
+    )
 }
 
-/** Runs to text, with `**` around the bold ones. */
+/** The markers, in the order they have to be applied to nest correctly. */
+const val BOLD_MARKER: String = "**"
+const val ITALIC_MARKER: String = "*"
+
+// ── Text to runs and back ────────────────────────────────────────────────────
+
 private fun List<TextRun>.toMarkedText(): String = joinToString("") { run ->
-    if (run.bold) "**${run.text}**" else run.text
+    val inner = if (run.italic) "$ITALIC_MARKER${run.text}$ITALIC_MARKER" else run.text
+    if (run.bold) "$BOLD_MARKER$inner$BOLD_MARKER" else inner
 }
 
 /**
  * Text to runs.
  *
- * A pair of `**` opens and closes; an odd one left over is literal, because
- * somebody halfway through typing a bold word should not see the rest of their
- * paragraph turn bold.
+ * One pass, flags carried along. `**` is checked before `*` at every position, or
+ * the opening of a bold run would be read as an italic one followed by a stray
+ * asterisk. An unmatched marker at the end stays literal, because somebody
+ * halfway through typing a bold word should not watch the rest of the paragraph
+ * change weight.
  */
 private fun String.toRuns(): List<TextRun> {
-    if ("**" !in this) return if (isEmpty()) emptyList() else listOf(TextRun(this))
-    val runs = mutableListOf<TextRun>()
-    var index = 0
-    var bold = false
-    while (index < length) {
-        val marker = indexOf("**", index)
-        if (marker < 0) {
-            runs += TextRun(substring(index), bold)
-            break
-        }
-        val closing = if (bold) marker else indexOf("**", marker + 2)
-        if (closing < 0) {
-            // Unmatched: everything from here on is plain, markers and all.
-            runs += TextRun(substring(index), bold)
-            break
-        }
-        if (marker > index) runs += TextRun(substring(index, marker), bold)
-        index = marker + 2
-        bold = !bold
+    if (BOLD_MARKER !in this && ITALIC_MARKER !in this) {
+        return if (isEmpty()) emptyList() else listOf(TextRun(this))
     }
+
+    val runs = mutableListOf<TextRun>()
+    val buffer = StringBuilder()
+    var bold = false
+    var italic = false
+    var index = 0
+
+    fun flush() {
+        if (buffer.isNotEmpty()) {
+            runs += TextRun(buffer.toString(), bold = bold, italic = italic)
+            buffer.clear()
+        }
+    }
+
+    while (index < length) {
+        when {
+            startsWith(BOLD_MARKER, index) && closes(BOLD_MARKER, index, bold) -> {
+                flush()
+                bold = !bold
+                index += BOLD_MARKER.length
+            }
+
+            this[index] == '*' && closes(ITALIC_MARKER, index, italic) -> {
+                flush()
+                italic = !italic
+                index += ITALIC_MARKER.length
+            }
+
+            else -> {
+                buffer.append(this[index])
+                index++
+            }
+        }
+    }
+    flush()
     return runs.filter { it.text.isNotEmpty() }
 }
+
+/**
+ * Whether a marker at [index] is one half of a pair.
+ *
+ * A marker that closes an open run always counts. One that would open a run only
+ * counts if its partner exists further along — otherwise it is a lone asterisk
+ * somebody typed, and it should stay one.
+ */
+private fun String.closes(marker: String, index: Int, open: Boolean): Boolean =
+    open || indexOf(marker, startIndex = index + marker.length) >= 0

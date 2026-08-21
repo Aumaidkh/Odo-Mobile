@@ -11,6 +11,7 @@ import com.hopcape.odo.web.blog.domain.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
+import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.AuthorPage
 import com.hopcape.odo.web.blog.domain.model.Category
 import com.hopcape.odo.web.blog.domain.model.CategoryPage
@@ -279,12 +280,36 @@ internal class SampleAdminRepository(
         }
     }
 
+    override suspend fun discard(id: String): Either<BlogError, Unit> = guarded(WRITE_DELAY) {
+        if (stored.remove(id) == null) BlogError.NotFound.left() else Unit.right()
+    }
+
     override suspend fun media(): Either<BlogError, List<MediaItem>> = guarded { uploads.right() }
 
     override suspend fun upload(file: UploadRequest): Either<BlogError, MediaItem> = guarded(WRITE_DELAY) {
         val item = MediaItem(file.name, "/blog/assets/sample/${file.name}")
         uploads = listOf(item) + uploads
         item.right()
+    }
+
+    private var profile = SampleContent.rahul
+
+    override suspend fun profile(): Either<BlogError, Author> = guarded { profile.right() }
+
+    override suspend fun saveProfile(
+        name: String,
+        bio: String,
+        topics: String,
+        since: String,
+    ): Either<BlogError, Author> = guarded(WRITE_DELAY) {
+        profile = profile.copy(
+            name = name,
+            initial = name.take(1).uppercase(),
+            bio = bio,
+            topics = topics,
+            since = since,
+        )
+        profile.right()
     }
 
     override suspend fun analytics(): Either<BlogError, Analytics> = guarded { SampleContent.analytics.right() }

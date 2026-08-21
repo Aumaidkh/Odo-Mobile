@@ -1,5 +1,7 @@
 package com.hopcape.odo.web.blog.infrastructure.supabase
 
+import com.hopcape.odo.web.blog.domain.ImportedPost
+import com.hopcape.odo.web.blog.domain.PostImporter
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.Category
@@ -12,6 +14,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The database's shapes, and the mapping to the app's.
@@ -125,7 +129,7 @@ internal data class AnalyticsRow(
 // discriminator is the version of this that anything can parse.
 
 @Serializable
-private data class RunJson(val text: String, val bold: Boolean = false)
+private data class RunJson(val text: String, val bold: Boolean = false, val italic: Boolean = false)
 
 @Serializable
 private data class BlockJson(
@@ -151,8 +155,8 @@ internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
         blocks.map { block ->
             when (block) {
                 is ArticleBlock.Section -> BlockJson(type = SECTION, id = block.id, text = block.text)
-                is ArticleBlock.Paragraph -> BlockJson(type = PARAGRAPH, runs = block.runs.map { RunJson(it.text, it.bold) })
-                is ArticleBlock.Callout -> BlockJson(type = CALLOUT, label = block.label, runs = block.runs.map { RunJson(it.text, it.bold) })
+                is ArticleBlock.Paragraph -> BlockJson(type = PARAGRAPH, runs = block.runs.map { RunJson(it.text, it.bold, it.italic) })
+                is ArticleBlock.Callout -> BlockJson(type = CALLOUT, label = block.label, runs = block.runs.map { RunJson(it.text, it.bold, it.italic) })
                 is ArticleBlock.AppShowcase -> BlockJson(
                     type = SHOWCASE,
                     heading = block.heading,
@@ -180,8 +184,8 @@ internal fun decodeBlocks(element: JsonElement): List<ArticleBlock> =
     }.getOrNull().orEmpty().mapNotNull { json ->
         when (json.type) {
             SECTION -> ArticleBlock.Section(json.id.ifBlank { json.text.slugify() }, json.text)
-            PARAGRAPH -> ArticleBlock.Paragraph(json.runs.map { TextRun(it.text, it.bold) })
-            CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold) })
+            PARAGRAPH -> ArticleBlock.Paragraph(json.runs.map { TextRun(it.text, it.bold, it.italic) })
+            CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold, it.italic) })
             SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot)
             else -> null
         }
@@ -195,3 +199,39 @@ private fun parseDate(value: String): LocalDate =
 
 private fun String.slugify(): String =
     lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifEmpty { "section" }
+
+/**
+ * Reads a pasted post, in the shape this database stores.
+ *
+ * Two inputs are accepted because two things get pasted: a whole post object, and
+ * a bare array of blocks — which is what somebody copying one article's body will
+ * have. Anything else is null, and the editor says so rather than throwing.
+ */
+internal class JsonPostImporter : PostImporter {
+
+    override fun parse(json: String): ImportedPost? {
+        val element = runCatching { Json.parseToJsonElement(json.trim()) }.getOrNull() ?: return null
+
+        if (element is JsonArray) {
+            val body = decodeBlocks(element)
+            return if (body.isEmpty()) null else ImportedPost(null, null, null, body)
+        }
+
+        val obj = element as? JsonObject ?: return null
+        val body = decodeBlocks(obj["body"] ?: JsonArray(emptyList()))
+        // A post with no readable blocks is not a post. Accepting it would replace
+        // whatever is in the editor with nothing, which is the one outcome an
+        // import must never have.
+        if (body.isEmpty()) return null
+
+        return ImportedPost(
+            title = obj.text("title") ?: obj.text("seo_title"),
+            dek = obj.text("dek") ?: obj.text("meta_description"),
+            slug = obj.text("slug"),
+            body = body,
+        )
+    }
+
+    private fun JsonObject.text(key: String): String? =
+        (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() }
+}
