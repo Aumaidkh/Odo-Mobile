@@ -199,7 +199,11 @@ private fun DeviceSection(
 ) {
     Column {
         OdoText(header, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
-        OdoCard(contentPadding = PaddingValues(0.dp), verticalArrangement = Arrangement.Top) {
+        OdoCard(
+            modifier = Modifier.padding(top = OdoTheme.spacing.md),
+            contentPadding = PaddingValues(0.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
             devices.forEachIndexed { index, device ->
                 OdoListItem(
                     headline = device.name,

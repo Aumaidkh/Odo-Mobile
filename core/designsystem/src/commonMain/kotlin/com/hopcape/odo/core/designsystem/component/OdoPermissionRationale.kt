@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcClose
@@ -83,6 +85,17 @@ data class OdoPermissionAssurance(
  *
  * @param confirmLabel the primary action. Say what will happen ("Allow camera"), and change it
  *   to the settings wording when the system will no longer prompt.
+ * @param screenTitle names the flow in a top bar, for a rationale that is one page of several.
+ *   Left null the screen gets a bare close button and no title, which is right for a rationale
+ *   that stands on its own and wrong for one the owner should be able to step back through.
+ * @param navigationIcon the glyph beside [screenTitle]. Pass `IcClose` on the page that opens a
+ *   flow — leaving from there abandons the whole thing rather than stepping back one screen.
+ * @param stepTotal how many asks the flow has in all. Above zero it draws [OdoStepProgress], so
+ *   an owner on the first of three is told so before they start rather than after.
+ * @param assurancesLabel the small heading over the assurance card, e.g. "WHAT ODO READS". It
+ *   turns a list of claims into an answer to a question the owner is already asking.
+ * @param content anything this particular ask needs that the fixed layout has no slot for — a
+ *   worked example, a preview of the thing being offered. Rendered last, above the buttons.
  */
 @Composable
 fun OdoPermissionRationale(
@@ -95,26 +108,44 @@ fun OdoPermissionRationale(
     onConfirm: () -> Unit,
     dismissLabel: String,
     onDismiss: () -> Unit,
-    onClose: () -> Unit,
-    closeContentDescription: String?,
+    onClose: (() -> Unit)? = null,
+    closeContentDescription: String? = null,
     modifier: Modifier = Modifier,
+    screenTitle: String? = null,
+    onBack: (() -> Unit)? = null,
+    backContentDescription: String? = null,
+    navigationIcon: ImageVector = IcArrowLeft,
+    stepCurrent: Int = 0,
+    stepTotal: Int = 0,
+    stepLabel: String = "",
+    assurancesLabel: String? = null,
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = OdoTheme.spacing.screenEdge,
-                        vertical = OdoTheme.spacing.sm,
-                    ),
-            ) {
-                OdoCircularIconButton(
-                    imageVector = IcClose,
-                    contentDescription = closeContentDescription,
-                    onClick = onClose,
+            if (screenTitle != null) {
+                OdoTopBar(
+                    title = screenTitle,
+                    onBack = onBack,
+                    backContentDescription = backContentDescription,
+                    navigationIcon = navigationIcon,
                 )
+            } else if (onClose != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = OdoTheme.spacing.screenEdge,
+                            vertical = OdoTheme.spacing.sm,
+                        ),
+                ) {
+                    OdoCircularIconButton(
+                        imageVector = IcClose,
+                        contentDescription = closeContentDescription,
+                        onClick = onClose,
+                    )
+                }
             }
         },
         bottomBar = {
@@ -149,6 +180,10 @@ fun OdoPermissionRationale(
                 .padding(padding),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xl),
         ) {
+            if (stepTotal > 0) {
+                OdoStepProgress(current = stepCurrent, total = stepTotal, label = stepLabel)
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
                 IconTile(icon = icon, size = HERO_TILE, iconSize = OdoTheme.iconSizes.large)
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
@@ -161,17 +196,34 @@ fun OdoPermissionRationale(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-                benefits.forEach { benefit -> BenefitRow(benefit) }
+            if (benefits.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
+                    benefits.forEach { benefit -> BenefitRow(benefit) }
+                }
             }
 
             if (assurances.isNotEmpty()) {
-                OdoCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-                        assurances.forEach { assurance -> AssuranceRow(assurance) }
+                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                    if (assurancesLabel != null) {
+                        OdoText(
+                            text = assurancesLabel,
+                            style = OdoTheme.typography.caption,
+                            color = OdoTheme.colors.textMuted,
+                        )
+                    }
+                    OdoCard(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+                        assurances.forEachIndexed { index, assurance ->
+                            // Ruled between rows because the list mixes what the app does with
+                            // what it does not, and two neighbouring lines of opposite meaning
+                            // run together when nothing separates them.
+                            if (index > 0) OdoDivider()
+                            AssuranceRow(assurance)
+                        }
                     }
                 }
             }
+
+            content()
         }
     }
 }
@@ -204,18 +256,21 @@ private fun AssuranceRow(assurance: OdoPermissionAssurance) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
+        // Top, not centre: these lines wrap to two or three, and a tick floating beside the
+        // middle of a paragraph stops reading as a mark against the first word of it.
+        verticalAlignment = Alignment.Top,
     ) {
         OdoIcon(
             imageVector = if (included) IcCheck else IcClose,
             contentDescription = null,
             tint = if (included) OdoTheme.colors.success else OdoTheme.colors.danger,
             size = OdoTheme.iconSizes.small,
+            modifier = Modifier.padding(top = OdoTheme.spacing.xs),
         )
         OdoText(
             text = assurance.text,
             style = OdoTheme.typography.bodySmall,
-            color = OdoTheme.colors.textDim,
+            color = if (included) OdoTheme.colors.text else OdoTheme.colors.textDim,
         )
     }
 }

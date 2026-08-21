@@ -82,6 +82,13 @@ internal fun AutoOdometerEducationRoute(
     val viewModel = koinViewModel<EducationViewModel> { parametersOf(mode) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // `POST_NOTIFICATIONS` has no page of its own. It is a one-tap dialog and this screen's
+    // third numbered line — "your odometer ticks up when you park" — is the notification it is
+    // for, so it is asked for on the way out of here rather than as a step of the checklist.
+    // Only when the system would actually prompt: hijacking "pair my car" into a trip to app
+    // settings is not a fair reading of that button.
+    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
+
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             EducationEffect.NavigateToDevicePicker ->
@@ -98,7 +105,10 @@ internal fun AutoOdometerEducationRoute(
 
     EducationScreen(
         state = state,
-        onCtaClick = { viewModel.onEvent(EducationEvent.CtaTapped) },
+        onCtaClick = {
+            if (notifications.status == PermissionStatus.Askable) notifications.request()
+            viewModel.onEvent(EducationEvent.CtaTapped)
+        },
         onClose = { viewModel.onEvent(EducationEvent.CloseTapped) },
     )
 }
@@ -191,7 +201,6 @@ internal fun AutoOdometerPermissionSetupRoute(
     val viewModel = koinViewModel<PermissionSetupViewModel> { parametersOf(mode) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val notifications = rememberPermissionController(PlatformPermission.POST_NOTIFICATIONS)
     val location = rememberPermissionController(PlatformPermission.ACCESS_FINE_LOCATION)
     // Both modes: canTrack requires it, and it is what lets a trip start with the app
     // closed. Its step sits strictly after FINE_LOCATION — Android refuses a combined ask.
@@ -202,9 +211,6 @@ internal fun AutoOdometerPermissionSetupRoute(
         null
     }
 
-    LaunchedEffect(notifications.status) {
-        viewModel.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.NOTIFICATIONS, notifications.status))
-    }
     LaunchedEffect(location.status) {
         viewModel.onEvent(PermissionSetupEvent.StatusObserved(PermissionSetupStep.FINE_LOCATION, location.status))
     }
@@ -222,7 +228,6 @@ internal fun AutoOdometerPermissionSetupRoute(
     }
 
     fun controllerFor(step: PermissionSetupStep) = when (step) {
-        PermissionSetupStep.NOTIFICATIONS -> notifications
         PermissionSetupStep.FINE_LOCATION -> location
         PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
@@ -232,6 +237,15 @@ internal fun AutoOdometerPermissionSetupRoute(
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             PermissionSetupEffect.NavigateBack -> navigationManager.back()
+
+            // The ask itself, decided by the ViewModel and performed here because only a
+            // composable can hold the controller. Which page the owner pressed on is the
+            // ViewModel's business; whether that ends in a dialog or the settings page is this
+            // layer's, because only the controller knows the system will not prompt again.
+            is PermissionSetupEffect.RequestPermission -> {
+                val controller = controllerFor(effect.step)
+                if (effect.blocked) controller.openAppSettings() else controller.request()
+            }
 
             // Clears the whole education/picker/permissions flow off the back stack rather than
             // a single pop, which would land on the picker or education instead of the garage
@@ -245,14 +259,7 @@ internal fun AutoOdometerPermissionSetupRoute(
 
     PermissionSetupScreen(
         state = state,
-        onContinue = {
-            val step = state.current?.step
-            if (step != null) {
-                viewModel.onEvent(PermissionSetupEvent.ContinueTapped)
-                val controller = controllerFor(step)
-                if (controller.status == PermissionStatus.Blocked) controller.openAppSettings() else controller.request()
-            }
-        },
+        onContinue = { viewModel.onEvent(PermissionSetupEvent.ContinueTapped) },
         onSkip = { viewModel.onEvent(PermissionSetupEvent.SkipTapped) },
         onBack = { viewModel.onEvent(PermissionSetupEvent.BackTapped) },
     )

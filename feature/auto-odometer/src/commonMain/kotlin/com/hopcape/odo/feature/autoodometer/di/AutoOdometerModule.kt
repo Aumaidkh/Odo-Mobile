@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.autoodometer.domain.usecase.DeleteAllTripData
 import com.hopcape.odo.feature.autoodometer.domain.usecase.EnrollTriggerDevice
 import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveDerivedOdometer
 import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveMonthlySummary
+import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveRecentDrives
 import com.hopcape.odo.feature.autoodometer.domain.usecase.ObservePendingTripLogged
 import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveServiceDueNudge
 import com.hopcape.odo.feature.autoodometer.domain.usecase.ObserveSetupState
@@ -70,6 +71,7 @@ val autoOdometerModule = module {
     factory { RejectTrip(trips = get()) }
     factory { ObserveDerivedOdometer(serviceLogs = get(), trips = get()) }
     factory { ObserveMonthlySummary(trips = get(), clock = get()) }
+    factory { ObserveRecentDrives(trips = get(), clock = get()) }
     factory { PauseTracking(settings = get(), tracker = get(), clock = get()) }
     factory { ResumeTracking(settings = get(), tracker = get()) }
     factory { DeleteAllTripData(trips = get()) }
@@ -91,6 +93,7 @@ val autoOdometerModule = module {
             mode = mode,
             enrollTriggerDevice = get(),
             completeSetup = get(),
+            observeRecentDrives = get(),
             activeCar = get(),
             telemetry = get(),
         )

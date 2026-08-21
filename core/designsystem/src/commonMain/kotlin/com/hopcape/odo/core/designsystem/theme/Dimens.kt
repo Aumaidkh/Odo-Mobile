@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.designsystem.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -93,6 +94,17 @@ data class OdoMotion(
     val fastMillis: Int = 150,
     val baseMillis: Int = 250,
     val easeStandard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f),
+    /**
+     * Moving from one page of a flow to the next — longer and gentler than [baseMillis],
+     * because the whole frame changes rather than one control inside it.
+     *
+     * `OdoNavHost` in `:core:navigation` animates between destinations on exactly these values,
+     * spelled out again rather than read from here: that module does not depend on the design
+     * system, deliberately. They are one number in two places, and stepping through a flow has
+     * to feel like stepping between screens — change one and change the other.
+     */
+    val flowMillis: Int = 300,
+    val easeFlow: Easing = FastOutSlowInEasing,
 )
 
 internal val LocalOdoMotion = staticCompositionLocalOf { OdoMotion() }

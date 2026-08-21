@@ -24,7 +24,6 @@ import com.hopcape.odo.core.platform.permission.rememberPermissionController
 import com.hopcape.odo.feature.refuel.presentation.autodetect.AutoDetectEffect
 import com.hopcape.odo.feature.refuel.presentation.autodetect.AutoDetectEvent
 import com.hopcape.odo.feature.refuel.presentation.autodetect.AutoDetectScreen
-import com.hopcape.odo.feature.refuel.presentation.autodetect.AutoDetectSetupStep
 import com.hopcape.odo.feature.refuel.presentation.autodetect.AutoDetectViewModel
 import com.hopcape.odo.feature.refuel.presentation.confirm.RefuelConfirmEffect
 import com.hopcape.odo.feature.refuel.presentation.confirm.RefuelConfirmSheetContent
@@ -203,30 +202,20 @@ internal fun AutoDetectRoute(navigationManager: NavigationManager) {
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             AutoDetectEffect.Dismiss -> navigationManager.back()
+
+            // The one ask that cannot be performed from the ViewModel: requesting a runtime
+            // permission needs the Activity, and only a composable can reach it.
+            is AutoDetectEffect.RequestNotifyPermission -> if (effect.blocked) {
+                notifications.openAppSettings()
+            } else {
+                notifications.request()
+            }
         }
     }
 
     AutoDetectScreen(
         state = state,
-        onEvent = { event ->
-            viewModel.onEvent(event)
-            // The ViewModel counts the tap and flips the switch on the last step; the two
-            // that hand off to the OS can only be performed from here.
-            if (event is AutoDetectEvent.SetupContinued) {
-                when (state.setupStep) {
-                    AutoDetectSetupStep.PostNotifications -> if (state.notifyBlocked) {
-                        notifications.openAppSettings()
-                    } else {
-                        notifications.request()
-                    }
-
-                    AutoDetectSetupStep.NotificationAccess ->
-                        viewModel.onEvent(AutoDetectEvent.OpenAccessSettings)
-
-                    AutoDetectSetupStep.Ready -> Unit
-                }
-            }
-        },
+        onEvent = viewModel::onEvent,
         onBack = { navigationManager.back() },
     )
 }

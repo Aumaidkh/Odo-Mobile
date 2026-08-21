@@ -12,6 +12,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -60,6 +62,8 @@ fun OdoScreen(
     title: String? = null,
     onBack: (() -> Unit)? = null,
     backContentDescription: String? = null,
+    /** The navigation glyph — a cross for a screen that leaves a flow rather than stepping back. */
+    navigationIcon: ImageVector = IcArrowLeft,
     actions: @Composable RowScope.() -> Unit = {},
     topBar: @Composable () -> Unit = {
         if (title != null) {
@@ -67,6 +71,7 @@ fun OdoScreen(
                 title = title,
                 onBack = onBack,
                 backContentDescription = backContentDescription,
+                navigationIcon = navigationIcon,
                 actions = actions,
             )
         }
