@@ -23,7 +23,14 @@ import com.hopcape.odo.feature.profile.presentation.EditProfileTestTags
 import com.hopcape.odo.feature.profile.presentation.NotificationsTestTags
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsTestTags
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
+import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
+import kotlinx.coroutines.flow.flowOf
 import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
 import app.cash.sqldelight.db.SqlDriver
 
 /**
@@ -79,6 +86,12 @@ internal object ProfileCopy {
 
     /** The "Help & support" row that opens the sheet. */
     const val HELP = "Help & support"
+
+    /* The Pro plan card. */
+    const val PRO_TITLE = "Odo Pro"
+    const val PRO_ACTIVE = "ACTIVE"
+    const val MANAGE_PLAN = "Manage plan"
+    const val PRO_NO_DATE = "Your subscription is active."
 }
 
 /**
@@ -436,4 +449,34 @@ internal fun ProfileTestRule.awaitTextContaining(text: String, timeoutMillis: Lo
     waitUntil(timeoutMillis) {
         onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
     }
+}
+
+/* ------------------------------ The plan ------------------------------ */
+
+/**
+ * Put the app on a plan, the way the store would have.
+ *
+ * Both bindings are replaced together, because the profile reads them from two ports and a
+ * Pro entitlement with no subscription state is not a state the store can produce. Both are
+ * resolved through a `factory` use case, so a screen opened after this call sees the change.
+ *
+ * Every test that touches this has to put it back — process-scoped singles outlive a test,
+ * so a plan left switched on would follow the rest of the class.
+ */
+internal fun setPlan(isPro: Boolean, subscription: SubscriptionState? = null) {
+    val entitlements = Entitlements(if (isPro) Plan.PRO else Plan.FREE)
+    GlobalContext.get().loadModules(
+        listOf(
+            module {
+                single<EntitlementSource> {
+                    object : EntitlementSource {
+                        override fun observe() = flowOf(entitlements)
+                        override suspend fun refresh() = Unit
+                    }
+                }
+                single<SubscriptionStatusSource> { SubscriptionStatusSource { flowOf(subscription) } }
+            },
+        ),
+        allowOverride = true,
+    )
 }
