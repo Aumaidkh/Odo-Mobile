@@ -183,6 +183,33 @@ class SupabaseAuthGatewayTest {
     }
 
     @Test
+    fun aServerThatIsDownDoesNotEndTheSession() = runTest {
+        // The bug in issue #312 lived here: every non-success mapped to SessionExpired, so a
+        // 500 from GoTrue signed the owner out as decisively as a revoked token. It happened
+        // silently — nothing interrupts the owner — and the install simply stopped syncing.
+        val harness = SupabaseTestHarness {
+            MockResponse("""{"error":"internal"}""", HttpStatusCode.InternalServerError)
+        }
+
+        assertIs<DomainError.SessionUnavailable>(bridge(harness, FakeVerifier()).refresh("good").leftOrNull())
+    }
+
+    @Test
+    fun aRateLimitedRefreshIsRetryable_notTerminal() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("{}", HttpStatusCode.TooManyRequests) }
+
+        assertIs<DomainError.SessionUnavailable>(bridge(harness, FakeVerifier()).refresh("good").leftOrNull())
+    }
+
+    @Test
+    fun aRefreshThatNeverGotAnAnswerIsRetryable() = runTest {
+        // A timeout or a dropped connection says nothing at all about the token.
+        val harness = SupabaseTestHarness { throw kotlinx.io.IOException("connection reset") }
+
+        assertIs<DomainError.SessionUnavailable>(bridge(harness, FakeVerifier()).refresh("good").leftOrNull())
+    }
+
+    @Test
     fun signOutRevokesTheSessionAndDropsTheFirebaseUser() = runTest {
         val harness = SupabaseTestHarness { MockResponse("{}", HttpStatusCode.NoContent) }
         val verifier = FakeVerifier()

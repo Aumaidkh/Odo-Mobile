@@ -114,6 +114,42 @@ class LocalUserDataWipeTest {
     }
 
     @Test
+    fun automaticallyDetectedTripsGoToo() = runTest {
+        // Trips were missing from the wipe, so signing out left them for whoever signed in
+        // next — and since the pull became owner-scoped they are found by owner like every
+        // other table.
+        val (db, driver) = seeded()
+
+        wipe(db).wipe()
+
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM trips"))
+    }
+
+    @Test
+    fun aFailedWipeStillClearsTheCursors() = runTest {
+        // Of the three things the wipe does, the cursors are the one whose survival is
+        // silent. Rows left behind are at least visible; a cursor left behind makes the next
+        // account's first pull a delta since a mark it never set, which fetches nothing and
+        // reads as an empty account (issue #312).
+        val (db, driver) = seeded()
+        db.syncStateQueries.transaction {
+            db.syncStateQueries.insertIgnore(SyncEntity.CARS.name)
+            db.syncStateQueries.update(
+                lastPulledAt = now.toString(),
+                lastPushedAt = now.toString(),
+                lastError = null,
+                entity = SyncEntity.CARS.name,
+            )
+        }
+        // Break one table the big transaction touches, so it throws part-way through.
+        driver.exec("DROP TABLE analytics_events")
+
+        wipe(db).wipe()
+
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM sync_state"))
+    }
+
+    @Test
     fun wipingAnEmptyDatabaseIsFine() = runTest {
         val (db, driver) = inMemoryDatabase()
 
@@ -137,6 +173,7 @@ class LocalUserDataWipeTest {
         driver.exec("INSERT INTO documents (id, car_id, owner_id, doc_type, storage_path, doc_source, created_at, updated_at, sync_status) VALUES ('doc-1', 'car-1', '$owner', 'INSURANCE', 'documents/doc-1.pdf', 'UPLOADED', '$now', '$now', 'SYNCED')")
         driver.exec("INSERT INTO health_scores (id, car_id, owner_id, score, maintenance_pts, documentation_pts, cost_efficiency_pts, history_pts, algo_version, computed_at, created_at, updated_at, sync_status) VALUES ('hs-1', 'car-1', '$owner', 72, 25, 20, 15, 12, 'rule-v1', '$now', '$now', '$now', 'SYNCED')")
         driver.exec("INSERT INTO overcharge_reports (id, service_log_id, owner_id, reason, created_at, updated_at, sync_status) VALUES ('oc-1', 'log-1', '$owner', 'ABOVE_MARKET_RATE', '$now', '$now', 'SYNCED')")
+        driver.exec("INSERT INTO trips (id, car_id, owner_id, started_at, ended_at, distance_m, estimated_m, mode, status, created_at, updated_at, sync_status) VALUES ('trip-1', 'car-1', '$owner', '$now', '$now', 8200, 8200, 'DRIVING', 'RECORDED', '$now', '$now', 'SYNCED')")
         return db to driver
     }
 

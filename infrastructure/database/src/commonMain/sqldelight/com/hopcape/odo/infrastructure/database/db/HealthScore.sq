@@ -167,3 +167,19 @@ repointCar:
 UPDATE health_scores
 SET car_id = :serverId
 WHERE car_id = :localId;
+
+-- Rows belonging to some *other* account, removed so this device stops carrying them.
+--
+-- Run right after adoption, when the only two owners that can legitimately appear are the
+-- signed-in account and — until adoption moves them — the offline placeholder. Anything else
+-- is a previous account whose sign-out wipe did not finish. Those rows can never be pushed
+-- (row-level security refuses an `owner_id` that is not `auth.uid()`), they are visible on
+-- screen as if they belonged to whoever is signed in now, and the sync cursors sitting beside
+-- them describe someone else's pull — which is how an established account can sign in and be
+-- shown an empty app (issue #312).
+--
+-- A hard delete, like the sign-out wipe and for the same reason: a soft delete would leave
+-- the rows PENDING and the next sync would push tombstones onto the other account's backup.
+deleteForeignOwned:
+DELETE FROM health_scores
+WHERE owner_id <> :ownerId;

@@ -163,20 +163,32 @@ internal class OdoSessionManager(
     }
 
     /**
-     * Renew, or give up and go offline.
+     * Renew, or say we could not — which is not the same as giving up.
      *
-     * A rejected refresh token is terminal — revoked, or expired past renewal — so the
-     * session is cleared rather than retried. The app keeps working; only syncing stops,
-     * and Profile shows the sign-in row again. Caller already holds the mutex.
+     * A **rejected** refresh token is terminal: revoked, or expired past renewal. Nothing
+     * changes that, so the session is cleared, the app keeps working offline, and Profile
+     * shows the sign-in row again.
+     *
+     * Anything else leaves the session exactly where it is and answers null for now. A
+     * timeout, a dropped connection, a 5xx from the identity service — none of those are
+     * evidence about the token, and treating them as such ended sessions on a flaky
+     * connection. That was silent by design (nothing interrupts the owner), so an install
+     * simply stopped syncing, and the next sign-in resumed from cursors nothing had cleared
+     * (issue #312). The caller sees null and stays offline for this attempt; the next one
+     * tries the same refresh token again, which is still good.
+     *
+     * Caller already holds the mutex.
      */
     private suspend fun refreshLocked(current: AuthSession): AuthSession? =
         gateway.refresh(current.refreshToken).fold(
-            ifLeft = {
-                hold(null)
-                SESSION_KEYS.forEach { key -> store.remove(key) }
-                // Nothing interrupts the owner, so this line is the only trace that an
-                // install has quietly stopped syncing.
-                telemetry.sessionEnded()
+            ifLeft = { error ->
+                if (error == DomainError.SessionExpired) {
+                    hold(null)
+                    SESSION_KEYS.forEach { key -> store.remove(key) }
+                    // Nothing interrupts the owner, so this line is the only trace that an
+                    // install has quietly stopped syncing.
+                    telemetry.sessionEnded()
+                }
                 null
             },
             ifRight = { renewed -> keep(renewed) },

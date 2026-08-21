@@ -18,8 +18,15 @@ import kotlin.time.Instant
  */
 interface ReminderRemoteDataSource {
 
-    /** Reminders changed since [since] (null = never synced, so everything). */
-    suspend fun fetchSince(carId: String, since: Instant?): List<ReminderDto>
+    /**
+     * Everything on the account changed since [since] (null = never synced, so everything).
+     *
+     * Scoped to [ownerId] rather than to one car. A car id is not knowable at the moment a
+     * pull runs — the cars themselves may only have arrived seconds earlier in the same run —
+     * and scoping to one car also meant a second car's rows never arrived at all (issue
+     * #312). `owner_id` is on every row and is what row-level security filters on anyway.
+     */
+    suspend fun fetchSince(ownerId: String, since: Instant?): List<ReminderDto>
 
     /** Send local changes; the returned rows are the server's accepted versions. */
     suspend fun push(reminders: List<ReminderDto>): List<ReminderDto>
@@ -70,6 +77,6 @@ data class ReminderDto(
  * and the first real sync would then skip exactly the rows that were never sent.
  */
 internal class FakeReminderRemoteDataSource : ReminderRemoteDataSource {
-    override suspend fun fetchSince(carId: String, since: Instant?): List<ReminderDto> = emptyList()
+    override suspend fun fetchSince(ownerId: String, since: Instant?): List<ReminderDto> = emptyList()
     override suspend fun push(reminders: List<ReminderDto>): List<ReminderDto> = reminders
 }

@@ -27,14 +27,14 @@ class ServiceLogBillIdSyncTest {
             database = database,
             remote = FakeRemote,
             blobs = BlobUploader(noopBlobUploaderFileStore, noopRemoteFileStorage, silentDataTelemetry()),
-            carId = { CAR },
+            ownerId = { OWNER },
         )
         return syncTable to database
     }
 
     /** Echoes pushes back unchanged; nothing here calls [fetchSince]. */
     private object FakeRemote : ServiceLogRemoteDataSource {
-        override suspend fun fetchSince(carId: String, since: Instant?): List<ServiceLogDto> = emptyList()
+        override suspend fun fetchSince(ownerId: String, since: Instant?): List<ServiceLogDto> = emptyList()
         override suspend fun push(entries: List<ServiceLogDto>): List<ServiceLogDto> = entries
     }
 

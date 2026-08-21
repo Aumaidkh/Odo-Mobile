@@ -4,6 +4,7 @@ import com.hopcape.odo.core.data.owner.ProfileDto
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.db.Profiles
+import com.hopcape.odo.infrastructure.database.sync.FetchResult
 import com.hopcape.odo.infrastructure.database.sync.LocalRowState
 import com.hopcape.odo.infrastructure.database.sync.SyncTable
 import com.hopcape.odo.infrastructure.database.sync.orNullIfPlaceholder
@@ -43,10 +44,15 @@ internal class ProfileSyncTable(
 
     override fun markConflict(id: String) = queries.markConflict(id)
 
-    override suspend fun fetch(since: Instant?): List<ProfileDto> {
-        // Signed out, or not signed in yet — either way there is nothing to ask for.
-        val owner = ownerId().orNullIfPlaceholder() ?: return emptyList()
-        return remote.fetchSince(owner, since)
+    /**
+     * No owner id means this run cannot ask for anything, and that is a failure rather than
+     * an empty answer. The gate only lets a run start when there is a session, so a
+     * placeholder id reaching here is an inconsistency worth retrying — not the server
+     * saying it has nothing (issue #312).
+     */
+    override suspend fun fetch(since: Instant?): FetchResult<ProfileDto> {
+        val owner = ownerId().orNullIfPlaceholder() ?: return FetchResult.ScopeMissing(OWNER)
+        return FetchResult.Rows(remote.fetchSince(owner, since))
     }
 
     override fun localState(id: String): LocalRowState? =
@@ -86,6 +92,11 @@ internal class ProfileSyncTable(
             remote_version = dto.updatedAt,
             id = dto.id,
         )
+    }
+
+    private companion object {
+        /** Names the missing scope in a log. Never the value. */
+        const val OWNER = "owner id"
     }
 }
 

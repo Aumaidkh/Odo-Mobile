@@ -1,6 +1,10 @@
 package com.hopcape.odo
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -23,6 +27,8 @@ import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
+import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
@@ -142,6 +148,12 @@ class OdoApplication : Application() {
             object : DefaultLifecycleObserver {
                 override fun onStart(owner: LifecycleOwner) {
                     HAnalytics.flush()
+                    // Pull whatever changed while the app was away. Sign-in and local
+                    // writes used to be the only things that ever asked, so an install
+                    // whose first pull was lost stayed empty until the owner typed
+                    // something themselves — on a screen showing them nothing to act on
+                    // (issue #312). Unique work with KEEP makes a repeat call a no-op.
+                    KoinPlatform.getKoin().get<SyncScheduler>().requestSync(SyncReason.AppForeground)
                     // Catches a maintenance window that opened or closed while the app was
                     // backgrounded (docs/APP_STATUS_PLAN.md §5.3). A short-lived scope, same
                     // shape as the one KoinInit's own startup coroutine uses — refresh()
@@ -157,6 +169,42 @@ class OdoApplication : Application() {
                 override fun onStop(owner: LifecycleOwner) = HLogger.flush()
             },
         )
+        watchConnectivity()
+    }
+
+    /**
+     * Ask for a sync when a usable network comes back.
+     *
+     * WorkManager's `NetworkType.CONNECTED` constraint already holds a *queued* job until
+     * there is a network. The gap this closes is the other case: nothing queued, because the
+     * last run finished — successfully, as far as it knew — while the device was offline.
+     * Every uploaded log on issue #312 showed a launch with no network and no sync
+     * afterwards.
+     *
+     * `onAvailable` fires per network, so a phone moving between Wi-Fi and mobile data can
+     * report several. That costs nothing: the work is unique and enqueued with `KEEP`, so
+     * the second call while the first is still pending does nothing at all.
+     *
+     * Registered for the process lifetime and never unregistered, on purpose — there is no
+     * point in the application's life after which a sync stops being wanted.
+     */
+    private fun watchConnectivity() {
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            .build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                KoinPlatform.getKoin().get<SyncScheduler>().requestSync(SyncReason.Reconnected)
+            }
+        }
+        // Guarded because a device can refuse to register a callback — a manufacturer's
+        // power-saving layer, or too many already registered by other parts of the app.
+        // Losing the reconnect trigger is worse than nothing but far better than a crash on
+        // startup, and the foreground trigger above still covers the common case.
+        runCatching {
+            getSystemService(ConnectivityManager::class.java)?.registerNetworkCallback(request, callback)
+        }.onFailure { Log.w("Sync", "connectivity callback not registered", it) }
     }
 
     /**

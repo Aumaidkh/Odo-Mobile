@@ -10,6 +10,7 @@ import com.hopcape.odo.infrastructure.database.owner.ProfileSyncTable
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -44,22 +45,25 @@ class PlaceholderOwnerTest {
     }
 
     @Test
-    fun theCarPullIsSkippedWhileSignedOut() = runTest {
+    fun theCarPullReportsAMissingScopeWhileSignedOut() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingCars()
         val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { OwnerId.LOCAL_PLACEHOLDER.value })
 
-        assertTrue(table.fetch(since = null).isEmpty())
+        // Not an empty list. The gate only starts a run when there is a session, so a
+        // placeholder reaching here is an inconsistency the run should retry rather than
+        // record as "the server had nothing" (issue #312).
+        assertIs<FetchResult.ScopeMissing>(table.fetch(since = null))
         assertNull(remote.askedFor, "the placeholder must never be sent as a filter")
     }
 
     @Test
-    fun theProfilePullIsSkippedWhileSignedOut() = runTest {
+    fun theProfilePullReportsAMissingScopeWhileSignedOut() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingProfiles()
         val table = ProfileSyncTable(db, remote, ownerId = { OwnerId.LOCAL_PLACEHOLDER.value })
 
-        assertTrue(table.fetch(since = null).isEmpty())
+        assertIs<FetchResult.ScopeMissing>(table.fetch(since = null))
         assertNull(remote.askedFor)
     }
 
@@ -69,7 +73,7 @@ class PlaceholderOwnerTest {
         val remote = RecordingCars()
         val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { "5b28c012-545f-447d-9a85-920084f68246" })
 
-        table.fetch(since = null)
+        assertIs<FetchResult.Rows<CarDto>>(table.fetch(since = null))
 
         assertEquals("5b28c012-545f-447d-9a85-920084f68246", remote.askedFor)
     }
