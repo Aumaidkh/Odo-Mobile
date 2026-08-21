@@ -22,6 +22,7 @@ import com.hopcape.odo.feature.autoodometer.navigation.AutoOdometerFeatureEntryP
 import com.hopcape.odo.feature.autoodometer.presentation.AutoOdometerTelemetry
 import com.hopcape.odo.feature.autoodometer.presentation.devicepicker.DevicePickerViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.education.EducationViewModel
+import com.hopcape.odo.feature.autoodometer.presentation.notifications.NotificationRationaleViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.permissions.PermissionSetupViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.settings.SettingsViewModel
 import com.hopcape.odo.feature.autoodometer.presentation.triplogged.TripLoggedViewModel
@@ -85,6 +86,11 @@ val autoOdometerModule = module {
     // UpdateOdometerViewModel's convention (see DevicePickerViewModel's KDoc).
     viewModel {
         DevicePickerViewModel(catalog = get(), radio = get(), enroll = get(), activeCar = get(), telemetry = get())
+    }
+
+    // `mode` is a route argument, mapped the same way EducationViewModel's is.
+    viewModel { (mode: TriggerMode) ->
+        NotificationRationaleViewModel(mode = mode, telemetry = get())
     }
 
     // `mode` is a route argument, mapped the same way EducationViewModel's is.

@@ -157,7 +157,8 @@ sealed interface OdoDestination : NavKey {
     /**
      * Auto-odometer — background trip tracking that keeps the odometer current without
      * manual entry, owned by `:feature:auto-odometer`. A sealed group: [Education] explains
-     * the feature and its privacy stance, [DevicePicker] pairs the car's stereo,
+     * the feature and its privacy stance, [NotificationRationale] makes the case for alerts,
+     * [DevicePicker] pairs the car's stereo,
      * [PermissionSetup] stages the location/notification (+ activity-recognition) asks,
      * [TripLogged] surfaces the "N km added" moment after a drive, and [Settings] holds the
      * tracking toggle, trigger device and privacy controls.
@@ -182,6 +183,20 @@ sealed interface OdoDestination : NavKey {
          */
         @Serializable
         data class Education(val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO) : AutoOdometer
+
+        /**
+         * "You'll know when a trip is logged" — Odo's own case for `POST_NOTIFICATIONS`,
+         * between the explainer and the first permission the feature actually needs.
+         *
+         * A step rather than a dialog raised on the way out of [Education]: that put the
+         * system prompt on screen with the Bluetooth rationale already drawn behind it, so the
+         * owner was answering a question nothing had asked them. Reached only when the system
+         * will still prompt — see the education route.
+         */
+        @Serializable
+        data class NotificationRationale(
+            val mode: AutoOdometerFlowMode = AutoOdometerFlowMode.STEREO,
+        ) : AutoOdometer
 
         /** "Which one is your car?" — pick the bonded stereo that triggers trips (M3). */
         @Serializable

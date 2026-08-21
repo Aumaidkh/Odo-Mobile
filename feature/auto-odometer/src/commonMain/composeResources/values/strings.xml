@@ -25,6 +25,14 @@
     <string name="ao_education_cta_stereo">Pair my car</string>
     <string name="ao_education_cta_no_stereo">Turn it on</string>
     <string name="ao_education_dismiss">Not now</string>
+    <string name="ao_notify_title">Odo shows a note while it measures</string>
+    <string name="ao_notify_body">Android only lets an app measure a drive in the background while a notification is showing. That note is also how you stay in charge of the drive being measured.</string>
+    <string name="ao_notify_label">WHAT THE NOTE DOES</string>
+    <string name="ao_notify_counts">Counts the distance as you drive</string>
+    <string name="ao_notify_controls">Lets you pause it, or say you were not driving</string>
+    <string name="ao_notify_no_marketing">Never a promotion, and never a daily reminder</string>
+    <string name="ao_notify_allow">Allow notifications</string>
+    <string name="ao_notify_dismiss">Not now</string>
 
     <!-- Device picker (M3) -->
     <string name="ao_cd_back">Back</string>
