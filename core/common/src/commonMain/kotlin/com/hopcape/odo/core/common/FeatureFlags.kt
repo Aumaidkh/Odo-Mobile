@@ -83,4 +83,6 @@ object FeatureFlags {
      *   carries a comment pointing back here.
      */
     const val SMART_REFUEL_DETECT_ENABLED = true
+
+    val CHALLANS_ENABLED = !BuildInfo.isRelease
 }

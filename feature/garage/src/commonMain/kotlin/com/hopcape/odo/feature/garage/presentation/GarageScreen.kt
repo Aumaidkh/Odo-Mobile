@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.garage.presentation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -223,12 +226,14 @@ private fun PopulatedGarage(
 private fun ChallanSection(
     onClick: () -> Unit= {}
 ){
-    OdoCard(
-        onClick = onClick
-    ) {
-        Text(
-            text = "Challans"
-        )
+    AnimatedVisibility(FeatureFlags.CHALLANS_ENABLED){
+        OdoCard(
+            onClick = onClick
+        ) {
+            Text(
+                text = "Challans"
+            )
+        }
     }
 }
 
