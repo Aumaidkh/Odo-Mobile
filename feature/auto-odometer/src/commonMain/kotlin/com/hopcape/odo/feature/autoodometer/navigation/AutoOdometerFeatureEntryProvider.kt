@@ -296,11 +296,15 @@ internal fun AutoOdometerPermissionSetupRoute(
         }
     }
 
+    // Null for AUTOSTART: the manufacturer's switch is not an Android permission, so there is
+    // no controller to mount and no RequestPermission is ever raised for it — the ViewModel
+    // opens that page itself through BackgroundStartAccess.
     fun controllerFor(step: PermissionSetupStep) = when (step) {
         PermissionSetupStep.FINE_LOCATION -> location
         PermissionSetupStep.BACKGROUND_LOCATION -> backgroundLocation
         PermissionSetupStep.ACTIVITY_RECOGNITION ->
             activityRecognition ?: error("no ACTIVITY_RECOGNITION controller mounted for $mode")
+        PermissionSetupStep.AUTOSTART -> null
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -313,7 +317,9 @@ internal fun AutoOdometerPermissionSetupRoute(
             // layer's, because only the controller knows the system will not prompt again.
             is PermissionSetupEffect.RequestPermission -> {
                 val controller = controllerFor(effect.step)
-                if (effect.blocked) controller.openAppSettings() else controller.request()
+                if (controller != null) {
+                    if (effect.blocked) controller.openAppSettings() else controller.request()
+                }
             }
 
             // Every page of the setup run comes off together, then the garage goes on

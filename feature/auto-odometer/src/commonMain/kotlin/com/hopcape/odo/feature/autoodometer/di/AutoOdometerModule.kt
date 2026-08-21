@@ -101,6 +101,10 @@ val autoOdometerModule = module {
             completeSetup = get(),
             observeRecentDrives = get(),
             activeCar = get(),
+            // Bound in `corePlatformAndroidModule` / `corePlatformIosModule`. Needed before the
+            // first frame, to know whether this build hides background starts behind a switch
+            // of its own and so owes the owner an autostart step.
+            backgroundStart = get(),
             telemetry = get(),
         )
     }

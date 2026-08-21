@@ -162,6 +162,14 @@ internal fun readPermissionStatus(
     if (permission == PlatformPermission.ACCESS_BACKGROUND_LOCATION && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
         return readPermissionStatus(context, activity, PlatformPermission.ACCESS_FINE_LOCATION)
     }
+    // BLUETOOTH_CONNECT does not exist as a platform concept before Android 12 — the legacy
+    // BLUETOOTH permission (declared maxSdkVersion 30) is what actually covers Bluetooth
+    // access on those phones instead, granted at install with no runtime dialog of its own.
+    // Falling through to checkSelfPermission/shouldShowRequestPermissionRationale below for a
+    // permission the platform has never heard of is what used to crash pairing on Android 11.
+    if (permission == PlatformPermission.BLUETOOTH_CONNECT && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        return PermissionStatus.Granted
+    }
     return when {
         context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED ->
             PermissionStatus.Granted

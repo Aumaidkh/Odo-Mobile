@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Use · Odo</title>
+<meta name="description" content="The agreement between you and Odo: what the app does, what it does not promise, and what each side is responsible for.">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23FFFFFF'/><circle cx='16' cy='16' r='8' fill='%23000000'/></svg>">
+
+<style>
+/* ── Tokens ────────────────────────────────────────────────────────────────
+   Black and white do the work. Every other colour has to earn its place, and
+   only two do: red for a deletion that cannot be undone, green for one that
+   succeeded. Controls stay neutral so nothing on the page competes with the
+   one sentence it is trying to say.                                        */
+:root {
+  color-scheme: light dark;
+
+  --white: #FFFFFF;
+  --black: #000000;
+  --gray-100: #F4F4F4;
+  --gray-400: #9CA3AF;
+  --gray-700: #374151;
+
+  --bg: var(--white);
+  --soft: var(--gray-100);
+  --surface: var(--white);
+  --border: #E5E7EB;
+  --text: var(--black);
+  --dim: var(--gray-700);
+  --muted: var(--gray-400);
+
+  /* Translucent rather than solid, and blurred: the source treats a control as
+     something laid over the page, not cut into it. */
+  --btn-bg: rgba(23, 26, 32, .86);
+  --btn-fg: var(--white);
+  --btn-quiet-bg: rgba(244, 244, 244, .85);
+  --btn-quiet-fg: #111827;
+  --btn-danger-bg: #B91C1C;
+  --btn-danger-fg: var(--white);
+
+  /* The immersive dark panel — the one place a page goes black on purpose. */
+  --panel-bg: var(--black);
+  --panel-fg: var(--white);
+  --panel-border: var(--black);
+
+  --danger: #B91C1C;
+  --success: #15803D;
+  /* Red at full strength disappears into a black panel, so the panel gets its own. */
+  --danger-bright: #F87171;
+
+  --space-2: .5rem;
+  --space-4: 1rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+  --space-12: 6rem;
+
+  --font-sans: Gotham, Inter, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Roboto Mono", Menlo, monospace;
+
+  --shadow-card: 0 10px 22px rgba(0, 0, 0, .12);
+  --shadow-overlay: 0 18px 34px rgba(0, 0, 0, .18);
+}
+
+/* Dark is the same system with the roles swapped, not a second design. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--black);
+    --soft: #111111;
+    --surface: #0A0A0A;
+    --border: #22262B;
+    --text: var(--white);
+    --dim: #D1D5DB;
+    --muted: var(--gray-400);
+
+    --btn-bg: rgba(255, 255, 255, .92);
+    --btn-fg: var(--black);
+    --btn-quiet-bg: rgba(255, 255, 255, .08);
+    --btn-quiet-fg: var(--white);
+    --btn-danger-bg: #DC2626;
+
+    /* A black panel on a black page is not a panel. It lifts instead of drops. */
+    --panel-bg: #131313;
+    --panel-fg: var(--white);
+    --panel-border: #2A2E33;
+
+    --danger: #F87171;
+    --success: #4ADE80;
+
+    --shadow-card: 0 10px 22px rgba(0, 0, 0, .5);
+    --shadow-overlay: 0 18px 34px rgba(0, 0, 0, .6);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 44rem; margin: 0 auto; padding: 0 var(--space-6) var(--space-10); }
+
+/* ── Header ──────────────────────────────────────────────────────────────
+   A wordmark in wide tracking and three quiet links. The current page is
+   marked in the text colour, not an accent — the nav is not a place to
+   spend attention.                                                        */
+header { border-bottom: 1px solid var(--border); background: var(--bg); }
+header .wrap { padding-top: var(--space-6); padding-bottom: 0; }
+.brand {
+  display: inline-block;
+  font-size: 1.125rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .34em;
+  color: var(--text); text-decoration: none;
+}
+nav { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-6); }
+nav a {
+  padding-bottom: .85rem; margin-bottom: -1px;
+  color: var(--dim); text-decoration: none;
+  font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  border-bottom: 1px solid transparent;
+}
+nav a:hover { color: var(--text); }
+nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+
+/* ── Type ────────────────────────────────────────────────────────────────
+   One message at the top of each page, then body copy that gets out of the
+   way. Sections are separated by space rather than rules.                 */
+main .wrap { padding-top: var(--space-10); }
+h1 {
+  font-size: clamp(2rem, 7vw, 2.5rem); font-weight: 700;
+  line-height: 1.08; letter-spacing: -.02em;
+  margin: 0 0 var(--space-4);
+}
+h2 {
+  font-size: 1.375rem; font-weight: 600; line-height: 1.2; letter-spacing: -.01em;
+  margin: var(--space-8) 0 var(--space-2);
+}
+h3 { font-size: 1rem; font-weight: 600; margin: var(--space-6) 0 var(--space-2); }
+p, li { color: var(--text); }
+.lede {
+  color: var(--dim); font-size: 1.125rem; line-height: 1.5;
+  max-width: 34rem; margin: 0 0 var(--space-6);
+}
+ul, ol { padding-left: 1.2rem; }
+li { margin: .4rem 0; }
+li > strong { color: var(--text); }
+a {
+  color: inherit; text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-color: var(--muted);
+}
+a:hover { text-decoration-color: currentColor; }
+code {
+  font-family: var(--font-mono); font-size: .875em;
+  background: var(--soft); border-radius: 4px; padding: .1em .35em;
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────
+   A white card for detail, a dark panel for the thing you must not miss.  */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+  margin: var(--space-6) 0;
+}
+.card > :first-child { margin-top: 0; }
+.card > :last-child { margin-bottom: 0; }
+
+.card.warn {
+  background: var(--panel-bg); color: var(--panel-fg);
+  border-color: var(--panel-border); border-radius: 24px;
+  padding: var(--space-6);
+  box-shadow: var(--shadow-overlay);
+}
+.card.warn p, .card.warn li, .card.warn strong { color: var(--panel-fg); }
+.card.warn h2, .card.warn h3 { color: var(--danger-bright); margin-top: 0; }
+.card.warn a { text-decoration-color: rgba(255, 255, 255, .5); }
+.card.warn code { background: rgba(255, 255, 255, .1); }
+
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: .7rem .75rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.scroll-x { overflow-x: auto; }
+
+/* ── Controls ────────────────────────────────────────────────────────────
+   Pills, quiet, and obvious. A destructive one is the only red on the site. */
+label {
+  display: block; font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  color: var(--dim); margin-bottom: var(--space-2);
+}
+input[type="text"], input[type="tel"] {
+  width: 100%; min-height: 44px; padding: .65rem 14px;
+  font: 400 16px/1.2 var(--font-sans);
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px;
+}
+input::placeholder { color: var(--muted); }
+input:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--text); outline-offset: 2px;
+}
+input[inputmode="numeric"] { letter-spacing: .18em; }
+
+button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 40px; padding: 0 24px;
+  font: 600 14px/1 var(--font-sans); letter-spacing: .01em;
+  cursor: pointer; border: none; border-radius: 999px;
+  background: var(--btn-bg); color: var(--btn-fg);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+button[disabled] { opacity: .45; cursor: not-allowed; }
+button.danger { background: var(--btn-danger-bg); color: var(--btn-danger-fg); }
+button.quiet { background: var(--btn-quiet-bg); color: var(--btn-quiet-fg); }
+.actions {
+  display: flex; flex-wrap: wrap; gap: .75rem;
+  align-items: center; margin-top: var(--space-6);
+}
+
+.step { display: none; }
+.step.active { display: block; }
+.check {
+  display: flex; gap: .7rem; align-items: flex-start;
+  margin-top: var(--space-4); font-size: 14px; line-height: 1.5;
+}
+.check input { margin-top: .25rem; flex: none; accent-color: var(--danger); }
+.note { color: var(--dim); font-size: 14px; }
+.card.warn .note, .card.warn label { color: rgba(255, 255, 255, .72); }
+.msg {
+  margin-top: var(--space-4); padding: .8rem 1rem;
+  border-radius: 12px; font-size: 14px; display: none;
+}
+.msg.show { display: block; }
+.msg.error { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.msg.ok { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+
+footer { border-top: 1px solid var(--border); margin-top: var(--space-10); }
+footer .wrap {
+  padding-top: var(--space-6); padding-bottom: var(--space-8);
+  color: var(--muted); font-size: 14px;
+}
+footer p { color: inherit; margin: .3rem 0; }
+
+/* Phones: the same page, not a smaller one. Buttons take the full width so a
+   thumb has an obvious target, and the tracking on the wordmark comes in. */
+@media (max-width: 30rem) {
+  .wrap { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .brand { letter-spacing: .22em; }
+  nav { gap: var(--space-4); }
+  .actions { gap: var(--space-2); }
+  .actions button { width: 100%; }
+}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="./">Odo</a>
+  <nav><a href="terms" aria-current="page">Terms</a><a href="privacy">Privacy</a><a href="delete-account">Delete account</a></nav>
+</div></header>
+<main><div class="wrap">
+
+<h1>Terms of Use</h1>
+<p class="lede">
+  These terms are the agreement between you and Odo for the Odo app and this
+  website. Installing or using Odo means you accept them. If you do not, do not use the app.
+</p>
+
+<h2>Who can use Odo</h2>
+<ul>
+  <li>You must be 18 or older and able to enter a contract under Indian law.</li>
+  <li>Your account is tied to your phone number, and it is yours alone. Anyone holding your
+      number can receive the sign-in code, so treat the number and the device as you would a
+      password.</li>
+  <li>Tell us at <a href="mailto:support.odo.in@gmail.com">support.odo.in@gmail.com</a> if your number changes hands
+      or you lose access to it, so the account does not follow the number to its next owner.</li>
+</ul>
+
+<h2>What Odo is</h2>
+<p>
+  A record-keeper and a second opinion. It stores your car's service history, reminds you
+  before a document expires, reads a workshop bill and tells you whether the amounts look
+  normal, and works out what the car is costing you per kilometre.
+</p>
+
+<h2>What Odo does not promise</h2>
+<div class="card warn">
+  <p>
+    Read this section properly. It describes real limits of the features, not hypothetical ones.
+  </p>
+  <ul>
+    <li>
+      <strong>Reminders are a convenience, not a guarantee.</strong> A notification can be delayed or
+      swallowed by the operating system, blocked by battery settings, or lost with the app's
+      data. Keeping your insurance, PUC certificate, registration and licence valid remains
+      entirely your responsibility, and we are not answerable for a fine, a claim rejection or
+      any other loss caused by a reminder that did not arrive.
+    </li>
+    <li>
+      <strong>Bill checks are estimates.</strong> The typical prices Odo compares against come from
+      other owners' bills and public data. A price outside that range is not proof of
+      overcharging, and a price inside it is not proof of a fair deal. Genuine parts, dealer
+      workshops and city differences all move the number. Use it as a reason to ask a question,
+      not as a verdict.
+    </li>
+    <li>
+      <strong>Scanning can misread.</strong> Text is extracted from a photo automatically, and a poor
+      photo, a handwritten bill or an unusual layout will produce wrong amounts or dates.
+      Check what the app fills in before you save it.
+    </li>
+    <li>
+      <strong>The health score is our opinion.</strong> It is calculated from what you have recorded, so a
+      car with no records scores low even if it is perfectly maintained. It is not a mechanical
+      inspection, not a valuation, and not something to buy or sell a car on.
+    </li>
+    <li>
+      <strong>Cost per kilometre is an approximation.</strong> It relies on odometer readings you enter
+      and on assumed fuel prices and mileage. Treat it as a trend, not as accounting.
+    </li>
+    <li>
+      <strong>Odometer tracking is not a legal odometer.</strong> Distances measured from GPS or estimated
+      between readings will drift from the one in your dashboard.
+    </li>
+  </ul>
+</div>
+
+<h2>Your data and your content</h2>
+<ul>
+  <li>What you put into Odo stays yours. We do not claim ownership of your records, photos or
+      documents.</li>
+  <li>You give us permission to store and process them only so far as running the app requires —
+      syncing them to your other devices, generating reminders and scores, and showing them back
+      to you.</li>
+  <li>You are responsible for having the right to upload what you upload, and for not putting
+      someone else's documents into your account.</li>
+  <li>Keep your own copies of anything that matters. Odo is a convenient place for your
+      registration certificate and insurance; it is not the only place they should exist.</li>
+  <li><a href="privacy">The Privacy Policy</a> explains what we collect and how to delete it, and is part
+      of these terms.</li>
+</ul>
+
+<h2>How not to use it</h2>
+<ul>
+  <li>Do not enter details of a vehicle you do not own or are not authorised to manage.</li>
+  <li>Do not submit invented bills or prices. It corrupts the comparison data every other owner
+      relies on.</li>
+  <li>Do not attempt to break, overload or reverse-engineer the service, or reach data that is not
+      yours.</li>
+  <li>Do not resell Odo or scrape it into another product.</li>
+</ul>
+
+<h2>Paid features</h2>
+<p>
+  Parts of Odo may be offered as a paid subscription. Where they are, the price, the billing
+  period and what is included are shown before you pay.
+</p>
+<ul>
+  <li>Purchases made through Google Play are billed by Google, renew automatically until
+      cancelled, and are managed and cancelled in your Play Store account.</li>
+  <li>Refunds follow Google Play's policy. Write to us if something was charged in error and we
+      will help sort it out.</li>
+  <li>If a paid feature is withdrawn during a period you have paid for, you get a pro-rata refund
+      for what is left of it.</li>
+  <li>Cancelling stops future billing. It does not delete your account — do that from the
+      <a href="delete-account">deletion page</a>.</li>
+</ul>
+
+<h2>Payments to workshops</h2>
+<p>
+  When Odo reads a UPI QR code from a bill, it hands the payment details to whichever UPI app
+  you choose. The payment happens there, between you, your bank and the workshop. We do not
+  process it, hold the money, or take a cut, and a dispute about the work or the amount is
+  between you and the workshop.
+</p>
+
+<h2>Availability</h2>
+<p>
+  We try to keep Odo running, but we do not promise it will be available without
+  interruption. Features may change or be withdrawn, and we may need to take the service down
+  for maintenance. Your records stay on your phone and keep working offline while the servers
+  do not.
+</p>
+
+<h2>Ending it</h2>
+<ul>
+  <li>You can stop at any time: delete your account from the <a href="delete-account">deletion page</a>,
+      or simply uninstall.</li>
+  <li>We may suspend or close an account that breaks these terms, is being used fraudulently, or
+      is putting the service or other owners at risk. Except where the breach is serious, we will
+      warn you first and give you a chance to export your data.</li>
+</ul>
+
+<h2>Liability</h2>
+<p>
+  Odo is provided as it is. To the extent Indian law allows, we exclude implied warranties, and
+  we are not liable for indirect or consequential loss — lost profit, lost data, or a decision
+  you took on the strength of something the app showed you.
+</p>
+<p>
+  Where liability cannot be excluded, ours is limited to the greater of the amount you paid us
+  in the twelve months before the claim, or ₹1,000. Nothing here limits liability for fraud,
+  for death or personal injury caused by our negligence, or for anything else the law does not
+  permit us to limit.
+</p>
+
+<h2>Changes to these terms</h2>
+<p>
+  We may update these terms as the app changes. The date in the footer says when they last
+  changed, and we will tell you in the app before a material change takes effect. Continuing to
+  use Odo after that means you accept the new version.
+</p>
+
+<h2>Governing law</h2>
+<p>
+  These terms are governed by the laws of India, and the courts of competent jurisdiction in
+  India will hear any dispute arising from them. Please write to us first — nearly everything
+  is faster to fix by email than by filing.
+</p>
+
+<h2>Contact</h2>
+<p>
+  <a href="mailto:support.odo.in@gmail.com">support.odo.in@gmail.com</a>
+  
+</p>
+
+</div></main>
+<footer><div class="wrap">
+  <p>Last updated 15 August 2026.</p>
+  <p>Questions? <a href="mailto:support.odo.in@gmail.com">support.odo.in@gmail.com</a></p>
+</div></footer>
+</body>
+</html>
