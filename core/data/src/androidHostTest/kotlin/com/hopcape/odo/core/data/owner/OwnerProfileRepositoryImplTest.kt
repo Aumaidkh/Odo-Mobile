@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
@@ -34,6 +35,7 @@ import kotlin.test.assertTrue
 class OwnerProfileRepositoryImplTest {
 
     private val ownerId = OwnerId("owner-1")
+    private val phone = PhoneNumber.of("+919812345678").getOrNull()!!
 
     private object NoopLogger : Logger {
         override fun log(
@@ -81,6 +83,7 @@ class OwnerProfileRepositoryImplTest {
         private val softDeleteAllThrows: Throwable? = null,
         private val observed: Flow<OwnerProfile?> = flowOf(null),
         private val currentCityResult: String? = null,
+        private val recordPhoneThrows: Throwable? = null,
     ) : ProfileLocalDataSource {
         var saved: OwnerProfile? = null
             private set
@@ -90,6 +93,14 @@ class OwnerProfileRepositoryImplTest {
         override suspend fun save(profile: OwnerProfile) {
             saveThrows?.let { throw it }
             saved = profile
+        }
+
+        var recordedPhone: Pair<OwnerId, PhoneNumber>? = null
+            private set
+
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber) {
+            recordPhoneThrows?.let { throw it }
+            recordedPhone = ownerId to phone
         }
 
         override fun observe(): Flow<OwnerProfile?> = observed
@@ -128,6 +139,29 @@ class OwnerProfileRepositoryImplTest {
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals("Rahul", local.saved?.name?.value)
         assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun recordPhone_writesThroughLocalAndAsksForASync() = runTest {
+        val local = FakeProfileLocalDataSource()
+        val scheduler = RecordingScheduler()
+
+        val result = repo(local, scheduler).recordPhone(ownerId, phone)
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(ownerId to phone, local.recordedPhone)
+        // The push is the point: the server's only writer for the number runs when the
+        // account is created, so a write that never syncs fixes nothing.
+        assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun recordPhone_localThrows_isPersistenceFailure() = runTest {
+        val local = FakeProfileLocalDataSource(recordPhoneThrows = RuntimeException("disk full"))
+
+        val result = repo(local).recordPhone(ownerId, phone)
+
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
     }
 
     @Test

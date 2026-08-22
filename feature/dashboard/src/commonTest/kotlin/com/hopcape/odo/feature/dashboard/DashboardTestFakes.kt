@@ -38,6 +38,7 @@ import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
@@ -312,6 +313,9 @@ internal class FakeOwnerProfileRepository(profile: OwnerProfile? = testProfile()
 
     override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> = profile.right()
     override fun observe(): Flow<OwnerProfile?> = stored
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+        Unit.right()
+
     override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { stored.value = null }
 
     fun emit(profile: OwnerProfile?) {

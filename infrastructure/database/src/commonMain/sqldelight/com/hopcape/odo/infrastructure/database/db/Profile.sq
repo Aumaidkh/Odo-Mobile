@@ -18,6 +18,12 @@
 -- account, so the answer has to travel with the account rather than sit on one
 -- phone. Defaults to 1 — on, and announced on onboarding's consent card.
 --
+-- `phone` is the number the owner signed in with, in E.164. Written at every
+-- successful sign-in rather than only at signup, because the server's own
+-- writer is an INSERT-time trigger on auth.users and anything it missed stayed
+-- NULL forever. It is last in the table because 5.sqm appends it and `SELECT *`
+-- has to give the same column order on a fresh install as on an upgraded one.
+--
 -- Sync columns are the mandatory set from SYNC_DESIGN §4.1; the engine that
 -- reads them lands in M5, but the columns ship with the first migration so
 -- there is nothing to retrofit.
@@ -34,7 +40,8 @@ CREATE TABLE profiles (
     updated_at              TEXT NOT NULL,
     deleted_at              TEXT,
     remote_version          TEXT,
-    sync_status             TEXT NOT NULL DEFAULT 'PENDING'
+    sync_status             TEXT NOT NULL DEFAULT 'PENDING',
+    phone                   TEXT
 );
 
 -- Saving a profile is insert-or-update, but it is deliberately NOT written as an
@@ -48,10 +55,10 @@ CREATE TABLE profiles (
 insertProfile:
 INSERT OR IGNORE INTO profiles (
     id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path,
-    shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status
+    shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone
 ) VALUES (
     :id, :fullName, :onboardingGoal, :onboardingCompletedAt, :city, :email, :avatarPath,
-    :sharesPrices, :now, :now, NULL, NULL, :syncStatus
+    :sharesPrices, :now, :now, NULL, NULL, :syncStatus, :phone
 );
 
 -- `created_at` and `remote_version` are absent on purpose: the first write owns
@@ -66,9 +73,30 @@ SET full_name               = :fullName,
     email                   = :email,
     avatar_path             = :avatarPath,
     shares_prices           = :sharesPrices,
+    -- COALESCE, not a plain assignment: the profile the app edits is built from
+    -- what a screen asked for, and no screen asks for the phone. Overwriting it
+    -- with the null those callers carry would undo the sign-in that set it.
+    phone                   = COALESCE(:phone, phone),
     updated_at              = :updatedAt,
     sync_status             = :syncStatus
 WHERE id = :id AND deleted_at IS NULL;
+
+-- The number the session just proved, written on its own.
+--
+-- Deliberately not part of a whole-profile save: sign-in knows the phone and
+-- nothing else, and there may be no profile row yet (someone who signs in
+-- before finishing setup) or one still keyed to the placeholder owner. The
+-- caller runs this and, if it changed nothing, inserts a row instead.
+--
+-- Leaves the row PENDING so the next push carries it. Matching on `phone IS NOT
+-- :phone` keeps a relaunch from marking an already-correct row dirty and asking
+-- the server to accept a change that isn't one.
+updatePhone:
+UPDATE profiles
+SET phone       = :phone,
+    updated_at  = :updatedAt,
+    sync_status = 'PENDING'
+WHERE deleted_at IS NULL AND phone IS NOT :phone;
 
 -- "Delete my data": the row stops being readable while the tombstone stays for
 -- the sync engine to push. Every live profile goes, since one device holds one
@@ -133,8 +161,8 @@ WHERE id = :id;
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
 insertFromRemote:
-INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status)
-VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone)
+VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED', :phone);
 
 updateFromRemote:
 UPDATE profiles
@@ -144,6 +172,10 @@ SET full_name = :full_name,
     email = :email,
     avatar_path = :avatar_path,
     shares_prices = :shares_prices,
+    -- COALESCE for the same reason the local edit uses it, plus one of its own:
+    -- a server row written before the phone was ever pushed answers null, and
+    -- taking that answer would throw away the number this device just proved.
+    phone = COALESCE(:phone, phone),
     created_at = :created_at,
     updated_at = :updated_at,
     deleted_at = :deleted_at,

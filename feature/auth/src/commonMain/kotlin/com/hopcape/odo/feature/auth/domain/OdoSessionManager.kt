@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -50,6 +51,7 @@ internal class OdoSessionManager(
     private val telemetry: AuthTelemetry,
     private val scheduler: SyncScheduler,
     private val identity: SubscriptionIdentity,
+    private val profiles: OwnerProfileRepository,
     private val clock: Clock = Clock.System,
 ) : SessionStatusProvider, CurrentOwnerProvider, AccessTokenProvider, SessionRestore {
 
@@ -69,6 +71,11 @@ internal class OdoSessionManager(
      */
     override suspend fun restore() {
         mutex.withLock { restoreLocked() }
+        // The restored session carries no number of its own — it is four strings read back
+        // out of the store — so the one kept beside it is put on the profile again here.
+        // Without this, an install that signed in before this release ships would never get
+        // its number onto the server: nothing else calls the sign-in path again.
+        recordSessionPhone()
     }
 
     /* ---- SessionStatusProvider ---- */
@@ -123,7 +130,7 @@ internal class OdoSessionManager(
             .onRight { outcome ->
                 when (outcome) {
                     OtpRequestOutcome.CodeSent -> telemetry.otpRequested()
-                    is OtpRequestOutcome.AlreadyVerified -> completeSignIn(outcome.session)
+                    is OtpRequestOutcome.AlreadyVerified -> completeSignIn(outcome.session, phone)
                 }
             }
             .onLeft { telemetry.otpRejected(it) }
@@ -131,18 +138,39 @@ internal class OdoSessionManager(
     /** Exchange a code for a session and keep it. */
     suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =
         gateway.verifyOtp(phone, code)
-            .onRight { completeSignIn(it) }
+            .onRight { completeSignIn(it, phone) }
             .onLeft { telemetry.otpRejected(it) }
 
     /** The one place a sign-in actually completes, whether a code was typed or not. */
-    private suspend fun completeSignIn(session: AuthSession) {
+    private suspend fun completeSignIn(session: AuthSession, phone: PhoneNumber) {
         mutex.withLock { keep(session) }
+        // Every sign-in, not only the first. The server fills `profiles.phone` from a trigger
+        // that runs when the account is created, so an account whose row was written before
+        // the number was set keeps NULL forever and nothing on the server ever revisits it.
+        // Writing it here, before the sync below, is what gets the number onto the row the
+        // push is about to carry.
+        store.put(SecureStore.KEY_PHONE, phone.value)
+        profiles.recordPhone(session.ownerId, phone)
         telemetry.signedIn()
         // Back up what is already on the phone now. Nothing else will until the owner edits
         // something or relaunches, and they were just told this is what signing in does.
         // `SignIn` is REPLACE, so it also clears a backoff earned by runs that failed for the
         // very reason this just fixed.
         scheduler.requestSync(SyncReason.SignIn)
+    }
+
+    /**
+     * Put the stored number back on the profile row, if there is a session and a number.
+     *
+     * Cheap to repeat: the statement only touches the row when the value differs, so a
+     * relaunch does not mark a correct row dirty and ask the server to accept a change that
+     * isn't one. A failure is ignored — the number is not what a launch is for, and the next
+     * one tries again.
+     */
+    private suspend fun recordSessionPhone() {
+        val owner = _session.value?.ownerId ?: return
+        val phone = store.get(SecureStore.KEY_PHONE)?.let { PhoneNumber.of(it).getOrNull() } ?: return
+        profiles.recordPhone(owner, phone)
     }
 
     /**
@@ -247,6 +275,7 @@ internal class OdoSessionManager(
             SecureStore.KEY_REFRESH_TOKEN,
             SecureStore.KEY_EXPIRES_AT,
             SecureStore.KEY_USER_ID,
+            SecureStore.KEY_PHONE,
         )
     }
 }

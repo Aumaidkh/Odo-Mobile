@@ -50,6 +50,9 @@ internal fun OnboardingFlow(
             OnboardingStep.CAR -> if (manualEntry) {
                 CarDetailsStepScreen(
                     details = state.details,
+                    // The same plate the other route holds, not a copy: one registration
+                    // number per car, and flipping between the routes must not lose it.
+                    plate = state.car.plate,
                     odometer = state.odometer,
                     canContinue = state.canContinue,
                     onEvent = onEvent,

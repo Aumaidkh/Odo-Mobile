@@ -5,7 +5,9 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import kotlinx.coroutines.test.runTest
@@ -63,6 +65,8 @@ class ProfileCityProviderTest {
     ) : ProfileLocalDataSource {
         override suspend fun save(profile: OwnerProfile) = Unit
         override fun observe() = throw NotImplementedError("unused by ProfileCityProvider")
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber) =
+            throw NotImplementedError("unused by ProfileCityProvider")
         override suspend fun softDeleteAll() = Unit
         override suspend fun currentCity(): String? {
             currentCityThrows?.let { throw it }

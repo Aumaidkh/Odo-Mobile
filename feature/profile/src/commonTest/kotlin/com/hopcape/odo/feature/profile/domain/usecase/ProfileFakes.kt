@@ -81,6 +81,9 @@ internal class FakeProfileRepository(
 
     override fun observe(): Flow<OwnerProfile?> = stored
 
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+        Unit.right()
+
     override suspend fun delete(): Either<DomainError, Unit> {
         deleteCount++
         if (deleteFailing) return DomainError.PersistenceFailure("disk full").left()

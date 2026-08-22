@@ -21,6 +21,11 @@ import kotlin.time.Instant
  * `updateFromRemote` does not list the column. That keeps the local value intact instead of
  * blanking it on every sync — the trade being that the city does not survive a reinstall
  * until the lookup is synced too.
+ *
+ * **The phone travels both ways, but a null never wins.** Both statements coalesce it, so a
+ * pull from a server row written before the number was ever pushed cannot blank what this
+ * device knows. The push is the point of the column existing: the server's own writer only
+ * runs when the account is created, so a number it missed then can only arrive from here.
  */
 internal class ProfileSyncTable(
     private val database: OdoDatabase,
@@ -76,6 +81,7 @@ internal class ProfileSyncTable(
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,
             remote_version = dto.updatedAt,
+            phone = dto.phone,
         )
         queries.updateFromRemote(
             full_name = dto.fullName,
@@ -86,6 +92,9 @@ internal class ProfileSyncTable(
             // Unlike the city, this one *is* pulled: the switch belongs to the account, so
             // a device that syncs must learn that another one turned it off.
             shares_prices = dto.sharesPrices.toDbLong(),
+            // Coalesced by the statement: a server row that predates the phone ever being
+            // pushed answers null, and taking that would throw away what sign-in just wrote.
+            phone = dto.phone,
             created_at = dto.createdAt,
             updated_at = dto.updatedAt,
             deleted_at = dto.deletedAt,
@@ -103,6 +112,7 @@ internal class ProfileSyncTable(
 private fun Profiles.toDto() = ProfileDto(
     id = id,
     fullName = full_name,
+    phone = phone,
     onboardingGoal = onboarding_goal?.lowercase(),
     onboardingCompletedAt = onboarding_completed_at,
     email = email,

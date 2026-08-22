@@ -21,6 +21,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoModelYearField
 import com.hopcape.odo.core.designsystem.component.OdoOdometer
+import com.hopcape.odo.core.designsystem.component.OdoRegistrationNumberField
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -49,8 +50,10 @@ import com.hopcape.odo.feature.onboarding.presentation.state.Loadable
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.presentation.state.sampleCarDetails
 import com.hopcape.odo.feature.onboarding.presentation.state.sampleCatalog
+import com.hopcape.odo.feature.onboarding.presentation.state.text
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_cancel
+import com.hopcape.odo.feature.onboarding.resources.onb_car_plate_placeholder
 import com.hopcape.odo.feature.onboarding.resources.onb_cd_close
 import com.hopcape.odo.feature.onboarding.resources.onb_choose
 import com.hopcape.odo.feature.onboarding.resources.onb_continue
@@ -63,6 +66,7 @@ import com.hopcape.odo.feature.onboarding.resources.onb_details_fuel_label
 import com.hopcape.odo.feature.onboarding.resources.onb_details_make_label
 import com.hopcape.odo.feature.onboarding.resources.onb_details_model_label
 import com.hopcape.odo.feature.onboarding.resources.onb_details_odometer_label
+import com.hopcape.odo.feature.onboarding.resources.onb_details_plate_label
 import com.hopcape.odo.feature.onboarding.resources.onb_details_subtitle
 import com.hopcape.odo.feature.onboarding.resources.onb_details_title
 import com.hopcape.odo.feature.onboarding.resources.onb_details_year_label
@@ -95,8 +99,14 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Step 2 (manual route) — the same step, answered by hand when the plate lookup misses or
- * the owner doesn't want to type a plate. Four pickers, no free text: every value has to
- * match the catalog, because the fairness benchmarks are keyed on make/model/year/fuel.
+ * the owner doesn't want the registry to name their car. Four pickers, no free text: every
+ * value has to match the catalog, because the fairness benchmarks are keyed on
+ * make/model/year/fuel.
+ *
+ * The registration number opens the form, and it is required here exactly as it is on the
+ * other route. It is the same field, holding the same value — somebody who typed a plate and
+ * then came here finds it already filled in — but on this route it names the car rather than
+ * looking it up, so nothing is fetched when it changes.
  *
  * Year and fuel share a row: they're one-tap answers, and pairing them keeps the whole form
  * above the fold. The odometer closes the form — this route reaches the same `Car` the plate
@@ -114,6 +124,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun CarDetailsStepScreen(
     details: CarDetailsState,
+    plate: FormField<String>,
     odometer: FormField<Long>,
     canContinue: Boolean,
     onEvent: (OnboardingEvent) -> Unit,
@@ -141,6 +152,7 @@ internal fun CarDetailsStepScreen(
 
             is Loadable.Ready -> CarDetailsForm(
                 details = details,
+                plate = plate,
                 odometer = odometer,
                 options = catalog.value,
                 onEvent = onEvent,
@@ -157,10 +169,14 @@ internal fun CarDetailsStepScreen(
     }
 }
 
-/** The four pickers plus the odometer, once the catalog they choose from is in hand. */
+/**
+ * The plate and the four pickers plus the odometer, once the catalog they choose from is in
+ * hand.
+ */
 @Composable
 private fun CarDetailsForm(
     details: CarDetailsState,
+    plate: FormField<String>,
     odometer: FormField<Long>,
     options: CatalogOptions,
     onEvent: (OnboardingEvent) -> Unit,
@@ -171,6 +187,16 @@ private fun CarDetailsForm(
     val makes = options.makes.map { it.toOdoCarMake() }
 
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            FieldLabel(stringResource(Res.string.onb_details_plate_label))
+            OdoRegistrationNumberField(
+                modifier = Modifier.testTag(OnboardingTestTags.PLATE_FIELD),
+                value = plate.text,
+                onValueChange = { onEvent(OnboardingEvent.Car.PlateChanged(it)) },
+                placeholder = stringResource(Res.string.onb_car_plate_placeholder),
+            )
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.onb_details_make_label))
             OdoCarMakeField(
@@ -356,6 +382,7 @@ private fun OdoCarModel.toDomainModel(): CarModel = CarModel(name = name, varian
 private fun CarDetailsStepPreview() = OdoPreview(padded = false) {
     CarDetailsStepScreen(
         details = sampleCarDetails(),
+        plate = FormField("MH12AB1234"),
         odometer = FormField(54_000L),
         canContinue = true,
         onEvent = {},
@@ -387,6 +414,7 @@ private fun CarDetailsStepCatalogFailedPreview() = OdoPreview(padded = false) {
 private fun CarDetailsStepPreview(details: CarDetailsState) {
     CarDetailsStepScreen(
         details = details,
+        plate = FormField(""),
         odometer = FormField(),
         canContinue = false,
         onEvent = {},

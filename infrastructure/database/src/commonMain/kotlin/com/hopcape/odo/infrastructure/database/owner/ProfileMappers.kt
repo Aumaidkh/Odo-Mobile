@@ -23,6 +23,7 @@ internal fun Profiles.toDomain(): OwnerProfile = OwnerProfile.reconstitute(
     email = email,
     avatarPath = avatar_path,
     sharesPricesAnonymously = shares_prices != 0L,
+    phone = phone,
 )
 
 /** SQLite has no boolean type; the column is a 0/1 integer. */

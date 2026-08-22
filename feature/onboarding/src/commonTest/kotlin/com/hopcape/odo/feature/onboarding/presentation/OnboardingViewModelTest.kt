@@ -24,6 +24,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
@@ -149,6 +150,25 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun anEightCharacterPlate_isAcceptedRatherThanTreatedAsHalfTyped() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // JK192976 is a real plate — an older one, issued with no letter series at all. The
+        // floor used to be nine, so Continue stayed dead until a ninth character was added.
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged("JK192976"))
+        viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected("Honda"))
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.ModelSelected(CarModel("City", "VX")))
+        viewModel.onEvent(OnboardingEvent.Details.YearSelected(2019))
+        viewModel.onEvent(OnboardingEvent.Details.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
+
+        assertTrue(viewModel.state.value.canContinue)
+    }
+
+    @Test
     fun plate_thatStopsChanging_isLookedUp() = runTest(dispatcher) {
         val registry = FakeRegistry()
         val viewModel = viewModel(registry = registry)
@@ -267,6 +287,49 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
 
         assertTrue(viewModel.state.value.canContinue)
+    }
+
+    @Test
+    fun theManualRoute_stillNeedsARegistrationNumber() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // Straight to the form without typing a plate — the way somebody who does not want a
+        // lookup gets here.
+        viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected("Honda"))
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.ModelSelected(CarModel("City", "VX")))
+        viewModel.onEvent(OnboardingEvent.Details.YearSelected(2019))
+        viewModel.onEvent(OnboardingEvent.Details.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
+
+        // Every picker answered and the odometer given, and it is still not enough: the car
+        // would be saved without the number every bill and document identifies it by.
+        assertFalse(viewModel.state.value.canContinue)
+
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(HONDA_PLATE))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.canContinue)
+        // And typing it here does not drag the owner back to the lookup they opted out of.
+        assertTrue(viewModel.state.value.manualEntry)
+        assertEquals(PlateLookup.Idle, viewModel.state.value.car.lookup)
+    }
+
+    @Test
+    fun theRegistrationNumber_survivesSwitchingBetweenTheTwoRoutes() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(HONDA_PLATE))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Details.TryAutoFillClicked)
+
+        // One plate for the car, whichever route it was typed on.
+        assertEquals(HONDA_PLATE, viewModel.state.value.car.plate.value)
     }
 
     @Test
@@ -790,6 +853,9 @@ class OnboardingViewModelTest {
             }
 
         override fun observe(): Flow<OwnerProfile?> = flowOf(saved.lastOrNull())
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+            Unit.right()
+
         override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { saved.clear() }
     }
 

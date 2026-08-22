@@ -41,5 +41,15 @@ interface SecureStore {
 
         /** The signed-in user's id, which becomes `owner_id` on every row they own. */
         const val KEY_USER_ID = "supabase_user_id"
+
+        /**
+         * The number this session signed in with, in E.164.
+         *
+         * Kept with the session because it is only true while there is one, and cleared with
+         * it on sign-out. It exists so a relaunch can put the number back on the profile row
+         * without asking anyone to sign in again — the session that proved it is restored
+         * from here, and it carries no phone of its own.
+         */
+        const val KEY_PHONE = "supabase_phone"
     }
 }

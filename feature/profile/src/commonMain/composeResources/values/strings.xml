@@ -162,7 +162,11 @@
     <string name="pf_sync_pending">%1$d change not backed up yet</string>
     <string name="pf_sync_pending_plural">%1$d changes not backed up yet</string>
     <string name="pf_sync_never">Never synced on this device</string>
-    <string name="pf_sync_last">Last synced %1$s</string>
+    <!-- The three shapes of "last synced". The clock reading is what somebody reading this
+         line actually wants, so the day is a word behind it rather than a date in front. -->
+    <string name="pf_sync_last_today">Last synced %1$s today</string>
+    <string name="pf_sync_last_yesterday">Last synced %1$s yesterday</string>
+    <string name="pf_sync_last_on">Last synced %1$s on %2$s</string>
     <string name="pf_sync_blocked">stuck: %1$s</string>
 
     <!-- ===================== Privacy & permissions ===================== -->
