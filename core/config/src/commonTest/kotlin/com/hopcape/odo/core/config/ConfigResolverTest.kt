@@ -47,7 +47,7 @@ class ConfigResolverTest {
     }
 
     @Test
-    fun `a blank remote value means no override, not the empty string`() {
+    fun `a blank remote value means no override rather than the empty string`() {
         val source = FakeConfigSource()
         source.activate(SampleConfigContribution.ENABLED to "")
 

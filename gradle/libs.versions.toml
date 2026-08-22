@@ -306,3 +306,4 @@ odo-androidApplication = { id = "odo.android.application" }
 odo-composeMultiplatform = { id = "odo.compose.multiplatform" }
 odo-koin = { id = "odo.koin" }
 odo-kmpTest = { id = "odo.kmp.test" }
+odo-config = { id = "odo.config" }
