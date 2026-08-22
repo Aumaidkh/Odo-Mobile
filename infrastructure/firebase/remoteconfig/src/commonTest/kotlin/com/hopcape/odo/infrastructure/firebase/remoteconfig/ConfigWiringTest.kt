@@ -4,6 +4,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.config.ConfigRefresher
+import com.hopcape.odo.core.config.ConfigRegistry
 import com.hopcape.odo.core.config.ConfigResolver
 import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.core.config.NoRemoteConfigSource
@@ -13,6 +14,7 @@ import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -57,6 +59,32 @@ class ConfigWiringTest {
         val koin = graph()
 
         assertSame(koin.get<ConfigSource>(), koin.get<ConfigRefresher>() as Any)
+    }
+
+    @Test
+    fun `every declared key reaches the registry`() {
+        // getAll<ConfigContribution>() is resolved lazily, after every module is loaded.
+        // If that were not true, the registry would be short some groups and those keys
+        // would answer with their compiled defaults forever, silently.
+        val keys = graph().get<ConfigRegistry>().keys.map { it.key }.toSet()
+
+        assertEquals(
+            setOf(
+                "min_supported_version_code",
+                "maintenance_mode",
+                "maintenance_message",
+                "legal_privacy_policy_url",
+                "legal_terms_url",
+                "legal_delete_account_url",
+                "support_email",
+            ),
+            keys,
+        )
+    }
+
+    @Test
+    fun `no key is declared twice`() {
+        assertEquals(emptyList(), graph().get<ConfigRegistry>().duplicateKeys)
     }
 
     @Test

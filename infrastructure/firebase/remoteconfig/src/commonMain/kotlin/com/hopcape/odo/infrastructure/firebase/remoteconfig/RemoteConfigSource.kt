@@ -41,8 +41,14 @@ internal class RemoteConfigSource(
         if (gateway.fetchAndActivate()) _generation.value += 1
     }
 
-    /** Blank is "no value set", which the contract requires be indistinguishable from absent. */
-    private fun raw(key: String): String? = gateway.string(key)?.takeIf { it.isNotBlank() }
+    /**
+     * Blank is "no value set", which the contract requires be indistinguishable from absent.
+     *
+     * Trimmed first, because a value pasted into the console picks up whitespace remarkably
+     * often and one leading space is enough to make a mail composer refuse an address or a
+     * number fail to parse.
+     */
+    private fun raw(key: String): String? = gateway.string(key)?.trim()?.takeIf { it.isNotEmpty() }
 
     override fun boolean(key: String): Boolean? = raw(key)?.toBooleanStrictOrNull()
 

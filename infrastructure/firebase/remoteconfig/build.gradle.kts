@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
+    // Generates the impls, contributions and Koin modules for RemoteConfigKeys.kt.
+    alias(libs.plugins.odo.config)
 }
 
 kotlin {
@@ -20,8 +22,6 @@ kotlin {
             // CancellationException instead of swallowing it, unlike stdlib's runCatching.
             // BuildKonfig.BUILD_TYPE — picks the fetch interval (FirebaseRemoteConfigModule.kt).
             implementation(projects.core.common)
-            // ConfigSource / ConfigRefresher — the ports this module now also implements.
-            implementation(projects.core.config)
             implementation(libs.gitlive.firebase.config)
             // The gateway's onDiagnostic is wired to this in firebaseRemoteConfigModule, the
             // same "a vendor SDK failure is reported, never thrown" contract every other

@@ -81,6 +81,33 @@ class ConfigProcessorTest {
         process(simpleGroup()).assertGeneratedContains("owner = \"platform\"")
     }
 
+    @Test
+    fun `an internal group generates internal types`() {
+        // A public class implementing an internal interface exposes an internal supertype,
+        // which does not compile under explicit API mode.
+        val result = process(
+            """
+            package sample
+
+            import com.hopcape.odo.core.config.ConfigGroup
+            import com.hopcape.odo.core.config.Flag
+
+            @ConfigGroup("sample")
+            internal interface SampleConfig {
+                @Flag(key = "sample_enabled", default = true, owner = "platform", why = "why")
+                val enabled: Boolean
+            }
+            """.trimIndent(),
+        )
+
+        result.assertGeneratedContains(
+            "internal class SampleConfigImpl",
+            "internal class SampleConfigFlows",
+            "internal object SampleConfigContribution",
+            "internal val sampleConfigModule",
+        )
+    }
+
     // ── What it rejects ───────────────────────────────────────────────────────
 
     @Test

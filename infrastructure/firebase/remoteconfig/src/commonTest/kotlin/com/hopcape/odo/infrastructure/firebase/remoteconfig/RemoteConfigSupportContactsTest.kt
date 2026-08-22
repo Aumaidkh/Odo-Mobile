@@ -1,89 +1,72 @@
 package com.hopcape.odo.infrastructure.firebase.remoteconfig
 
+import com.hopcape.odo.core.config.ConfigRegistry
 import com.hopcape.odo.core.domain.support.SupportContacts
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Instant
 
-/**
- * The console moving the support mailbox, and — the half that matters — never emptying it.
- *
- * A blank support address is not a degraded state. Every row that contacts support goes
- * through this one value, and an empty one turns all of them into buttons that open a mail
- * app addressed to nobody. Every test below exists to make sure that cannot happen.
- */
+private const val BUILT_IN_EMAIL = "built-in@example.com"
+private const val KEY = SupportConfigContribution.SUPPORT_EMAIL
+
 class RemoteConfigSupportContactsTest {
-
-    private val builtIn = FixedContacts("support@odoapp.in")
-
-    private fun contacts(values: Map<String, Any> = emptyMap()) =
-        RemoteConfigSupportContacts(gateway = FakeGateway(values), builtIn = builtIn)
 
     @Test
     fun `the console wins when it has an address`() {
-        val contacts = contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "help@odoapp.in"))
-
-        // The whole point: moving support to another mailbox needs a console edit, not a
-        // release that half the installed fleet will not take for weeks.
-        assertEquals("help@odoapp.in", contacts.email)
+        assertEquals("console@example.com", contacts(KEY to "console@example.com").email)
     }
 
     @Test
     fun `an unset key falls back to the build's own address`() {
-        // A fresh install before its first fetch lands, and a device that never reaches
-        // Firebase at all.
-        assertEquals(builtIn.email, contacts().email)
+        assertEquals(BUILT_IN_EMAIL, contacts().email)
     }
 
     @Test
-    fun `a blank value is treated as no override, not as a blank address`() {
-        // Exactly what REMOTE_DEFAULTS holds, so this is the ordinary case.
-        assertEquals(builtIn.email, contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "")).email)
+    fun `a blank value is treated as no override rather than as a blank address`() {
+        // An empty support address is a dead end, not a degraded state.
+        assertEquals(BUILT_IN_EMAIL, contacts(KEY to "").email)
     }
 
     @Test
     fun `a value that is only whitespace falls back`() {
-        assertEquals(builtIn.email, contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "   ")).email)
+        assertEquals(BUILT_IN_EMAIL, contacts(KEY to "   ").email)
     }
 
     @Test
     fun `whitespace around a pasted address is trimmed away`() {
-        val contacts = contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "  help@odoapp.in\n"))
-
-        // A leading space is enough to make the mail composer refuse the recipient.
-        assertEquals("help@odoapp.in", contacts.email)
+        // One leading space is enough to make the mail composer refuse it.
+        assertEquals("console@example.com", contacts(KEY to "  console@example.com  ").email)
     }
 
     @Test
-    fun `the address is read fresh, so a fetch landing mid-session is picked up`() {
-        val values = mutableMapOf<String, Any>()
-        val contacts = RemoteConfigSupportContacts(gateway = FakeGateway(values), builtIn = builtIn)
-        assertEquals(builtIn.email, contacts.email)
+    fun `the address is read fresh so a fetch landing mid-session is picked up`() {
+        val gateway = FakeGateway()
+        val subject = RemoteConfigSupportContacts(
+            config = SupportConfigImpl(resolverOver(gateway, SupportConfigContribution)),
+            builtIn = BuiltInContacts,
+        )
+        assertEquals(BUILT_IN_EMAIL, subject.email)
 
-        values[RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL] = "help@odoapp.in"
+        gateway[KEY] = "moved@example.com"
 
-        // Not captured at construction: the sheet resolves this on each composition, and a
-        // config that arrives while the app is open should reach the next screen that asks.
-        assertEquals("help@odoapp.in", contacts.email)
+        assertEquals("moved@example.com", subject.email)
     }
 
     @Test
     fun `defaults are declared for every key the class reads`() {
-        // The map is what non-Android platforms hand the SDK. A key read but not declared
-        // there is one the console can never override on those platforms.
-        assertEquals(
-            setOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL),
-            RemoteConfigSupportContacts.REMOTE_DEFAULTS.keys,
+        val defaults = ConfigRegistry(listOf(SupportConfigContribution)).defaults()
+
+        assertEquals(mapOf(KEY to ""), defaults)
+    }
+
+    private fun contacts(vararg values: Pair<String, String>): RemoteConfigSupportContacts {
+        val gateway = FakeGateway(values.toMap().toMutableMap())
+        return RemoteConfigSupportContacts(
+            config = SupportConfigImpl(resolverOver(gateway, SupportConfigContribution)),
+            builtIn = BuiltInContacts,
         )
     }
 
-    private class FixedContacts(override val email: String) : SupportContacts
-
-    /** [lastFetchAt] is irrelevant here — these reads serve whatever is in force either way. */
-    private class FakeGateway(private val values: Map<String, Any>) : FirebaseRemoteConfigGateway {
-        override val lastFetchAt: Instant? = null
-        override suspend fun fetchAndActivate(): Boolean = true
-        override fun long(key: String): Long? = values[key] as? Long
-        override fun string(key: String): String? = values[key] as? String
+    private object BuiltInContacts : SupportContacts {
+        override val email = BUILT_IN_EMAIL
     }
 }

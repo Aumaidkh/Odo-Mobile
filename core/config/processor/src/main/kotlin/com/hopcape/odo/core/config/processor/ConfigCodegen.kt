@@ -1,9 +1,11 @@
 package com.hopcape.odo.core.config.processor
 
+import com.google.devtools.ksp.getVisibility
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.Visibility
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
@@ -48,6 +50,7 @@ internal class ConfigCodegen(private val codeGenerator: CodeGenerator) {
 
     private fun implementation(group: ParsedGroup, contribution: ClassName): TypeSpec {
         val builder = TypeSpec.classBuilder("${group.simpleName}Impl")
+            .addModifiers(group.visibility())
             .addKdoc("The read-through implementation of [%T].", group.declaration.className())
             .addSuperinterface(group.declaration.className())
             .primaryConstructor(
@@ -79,6 +82,7 @@ internal class ConfigCodegen(private val codeGenerator: CodeGenerator) {
 
     private fun flows(group: ParsedGroup, contribution: ClassName): TypeSpec {
         val builder = TypeSpec.classBuilder("${group.simpleName}Flows")
+            .addModifiers(group.visibility())
             .addKdoc(
                 "One %T per key in [%T], for callers that should re-render when a fetch " +
                     "lands mid-session.",
@@ -110,6 +114,7 @@ internal class ConfigCodegen(private val codeGenerator: CodeGenerator) {
 
     private fun contributionObject(group: ParsedGroup, contribution: ClassName): TypeSpec {
         val builder = TypeSpec.objectBuilder(contribution)
+            .addModifiers(group.visibility())
             .addKdoc("The keys %L contributes to the registry.", group.simpleName)
             .addSuperinterface(CONFIG_CONTRIBUTION)
             .addProperty(
@@ -167,6 +172,7 @@ internal class ConfigCodegen(private val codeGenerator: CodeGenerator) {
             .build()
 
         return PropertySpec.builder(name, KOIN_MODULE_TYPE)
+            .addModifiers(group.visibility())
             .addKdoc(
                 "Binds [%T], its flows, and its registry contribution. One line in `initKoin`.",
                 group.declaration.className(),
@@ -174,6 +180,14 @@ internal class ConfigCodegen(private val codeGenerator: CodeGenerator) {
             .initializer(body)
             .build()
     }
+
+    /**
+     * Generated types mirror the visibility of the interface they belong to. An internal
+     * group must not produce public types: they would expose an internal supertype, and
+     * under explicit API mode that does not compile.
+     */
+    private fun ParsedGroup.visibility(): List<KModifier> =
+        if (declaration.getVisibility() == Visibility.INTERNAL) listOf(KModifier.INTERNAL) else emptyList()
 
     // ── per-key code ──────────────────────────────────────────────────────────
 
