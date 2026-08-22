@@ -15,12 +15,12 @@ internal class SupabaseHealthScoreRemoteDataSource(
     private val postgrest: PostgrestClient,
 ) : HealthScoreRemoteDataSource {
 
-    override suspend fun fetchSince(carId: String, since: Instant?): List<HealthScoreDto> =
+    override suspend fun fetchSince(ownerId: String, since: Instant?): List<HealthScoreDto> =
         postgrest.select(
             table = TABLE,
             serializer = HealthScoreDto.serializer(),
             filters = buildMap {
-                put(COLUMN_CAR_ID, "eq.$carId")
+                put(COLUMN_OWNER_ID, "eq.$ownerId")
                 since?.let { put(COLUMN_UPDATED_AT, "gt.$it") }
             },
             order = "$COLUMN_UPDATED_AT.asc",
@@ -31,7 +31,7 @@ internal class SupabaseHealthScoreRemoteDataSource(
 
     private companion object {
         const val TABLE = "health_scores"
-        const val COLUMN_CAR_ID = "car_id"
+        const val COLUMN_OWNER_ID = "owner_id"
         const val COLUMN_UPDATED_AT = "updated_at"
     }
 }

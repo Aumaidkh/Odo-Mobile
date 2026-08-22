@@ -1,0 +1,183 @@
+{
+  "hosting": {
+    "//": "Pinned to its own site. Without this both this config and the root firebase.json deployed to odo-mobile-ba9aa, so whichever ran last replaced the other — that is how the legal pages became 404 while the store listing pointed at them. odoapp.in maps here; legal.odoapp.in maps to the root config's site.",
+    "site": "odo-landing",
+    "public": "public",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "//redirects": "The documents' own nav links relatively to `delete-account`, and web/build.ts writes the page here as `delete.html` because /legal/delete is the path we publish. Without this the header on the privacy page 404s.",
+    "redirects": [
+      {
+        "source": "/legal",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/legal/delete-account",
+        "destination": "/legal/delete",
+        "type": 301
+      },
+      {
+        "source": "/legal/privacy-policy",
+        "destination": "/legal/privacy",
+        "type": 301
+      },
+      {
+        "source": "/privacy",
+        "destination": "/legal/privacy",
+        "type": 301
+      },
+      {
+        "source": "/terms",
+        "destination": "/legal/terms",
+        "type": 301
+      },
+      {
+        "source": "/delete",
+        "destination": "/legal/delete",
+        "type": 301
+      }
+    ],
+    "//headers": "One entry per path, repetitive on purpose, and the same rule the root config learned: sources must not overlap. A '**' rule alongside the '/legal/delete' one wins over it whichever order they are in, which puts the documents' script-less policy on the one page that runs scripts and breaks account deletion silently. The image globs below match only .png and .svg, so they cannot collide with these three.",
+    "headers": [
+      {
+        "source": "/legal/privacy",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "/legal/terms",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "/legal/delete",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'unsafe-inline' https://*.gstatic.com https://*.google.com https://*.googleapis.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.google.com https://*.gstatic.com; frame-src https://*.google.com https://*.firebaseapp.com; style-src 'unsafe-inline'; img-src data: https://*.gstatic.com https://*.google.com; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "/blog",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://identitytoolkit.googleapis.com https://kxxgfhwnidgfvjowqaad.supabase.co; img-src 'self' data: https://kxxgfhwnidgfvjowqaad.supabase.co; style-src 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "/blog/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://identitytoolkit.googleapis.com https://kxxgfhwnidgfvjowqaad.supabase.co; img-src 'self' data: https://kxxgfhwnidgfvjowqaad.supabase.co; style-src 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "**/*.png",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=604800"
+          }
+        ]
+      },
+      {
+        "source": "**/*.svg",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=604800"
+          }
+        ]
+      }
+    ],
+    "//blog": "The Compose/Wasm app in :webApp. Two rewrites because Firebase matches them literally: '/blog/**' does not cover the bare '/blog'. Static files win over a rewrite, so /blog/odo-blog.js still serves the bundle and only unmatched paths fall through to the app.",
+    "rewrites": [
+      {
+        "source": "/blog",
+        "destination": "/blog/index.html"
+      },
+      {
+        "source": "/blog/**",
+        "destination": "/blog/index.html"
+      }
+    ]
+  }
+}

@@ -87,15 +87,25 @@ internal class SupabaseTokenEndpoint(
     /**
      * `POST /auth/v1/token?grant_type=refresh_token`.
      *
-     * A rejection here is terminal — the token is revoked or past renewal — so it maps to
-     * [DomainError.SessionExpired] rather than something retryable.
+     * **Only a refusal is terminal.** GoTrue answering 400 or 401 means the token is revoked
+     * or past renewal, and no amount of retrying changes that — [DomainError.SessionExpired],
+     * and the caller signs out. Anything else is about this moment rather than about the
+     * token: a 5xx, a rate limit, a request that never got an answer at all. Those map to
+     * [DomainError.SessionUnavailable] and the session stays.
+     *
+     * Both used to be `SessionExpired`, including the timeout, so a renewal attempted on a
+     * flaky connection ended the session outright — quietly, with the app still working and
+     * nothing syncing (issue #312).
      */
     suspend fun refresh(refreshToken: String): Either<DomainError, AuthSession> =
-        attempt(OP_REFRESH, DomainError.SessionExpired) {
+        attempt(OP_REFRESH, DomainError.SessionUnavailable) {
             post(
                 "token?grant_type=refresh_token",
                 JsonObject(mapOf("refresh_token" to JsonPrimitive(refreshToken))),
-            ).toSession { DomainError.SessionExpired }
+            ).toSession { response ->
+                if (response.status.value in TERMINAL_REFRESH_STATUSES) DomainError.SessionExpired
+                else DomainError.SessionUnavailable
+            }
         }
 
     /** `POST /auth/v1/logout`. Best effort — the caller clears local state regardless. */
@@ -174,6 +184,12 @@ internal class SupabaseTokenEndpoint(
         const val OP_TOKEN = "auth.token"
 
         const val UNAUTHORIZED = 401
+
+        /**
+         * The statuses that mean the refresh token itself is no good. Everything else — 429,
+         * any 5xx, anything unexpected — is treated as a bad moment rather than a verdict.
+         */
+        val TERMINAL_REFRESH_STATUSES = setOf(400, 401, 403)
     }
 }
 

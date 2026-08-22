@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the blog draws that did not come from an author.
+
+  Post titles, deks and bodies are content and belong to the repository; anything
+  in here is chrome — labels, empty states, buttons, the things that stay the same
+  whatever is published. The `bl_` prefix follows the same rule as `sl_` in
+  :feature:servicelog.
+
+  English throughout, on both sides. The interface is one language; what an author
+  publishes is their own choice and arrives as data.
+-->
+<resources>
+
+    <!-- ── Chrome ─────────────────────────────────────────────────────────── -->
+    <string name="bl_brand">ODO</string>
+    <string name="bl_nav_blog">Blog</string>
+    <string name="bl_nav_search_placeholder">Search articles</string>
+    <string name="bl_nav_get_app">Get Odo</string>
+    <!-- A typographic apostrophe, not an escaped one: Compose Resources passes a
+         backslash straight through, so Android's "\'" reaches the screen as it is
+         written. Same trap as "%%" below. -->
+    <string name="bl_footer_note">Odo — your car’s whole record, in one place.</string>
+    <string name="bl_footer_privacy">Privacy</string>
+    <string name="bl_footer_terms">Terms</string>
+
+    <!-- ── Shared ─────────────────────────────────────────────────────────── -->
+    <string name="bl_reading_minutes">%1$d min read</string>
+    <string name="bl_all">All</string>
+    <string name="bl_loading">One moment…</string>
+    <string name="bl_error_offline">No connection.</string>
+    <string name="bl_error_generic">This did not load.</string>
+    <string name="bl_error_not_found">This page was not found.</string>
+    <string name="bl_retry">Try again</string>
+    <string name="bl_email_placeholder">you@email.com</string>
+    <string name="bl_email_invalid">That email does not look right.</string>
+
+    <!-- ── Index ──────────────────────────────────────────────────────────── -->
+    <string name="bl_index_title">Car ownership, explained</string>
+    <string name="bl_index_dek">Challans, service prices, renewals and resale — written plainly, for people who own one car and want to keep it right.</string>
+
+    <!-- ── Article ────────────────────────────────────────────────────────── -->
+    <string name="bl_article_contents">CONTENTS</string>
+    <string name="bl_article_contents_count">Contents · %1$d sections</string>
+    <string name="bl_article_read_next">READ NEXT</string>
+    <string name="bl_article_cta_heading">Check your challans</string>
+    <string name="bl_action_eyebrow">SHOWN INSIDE THE ARTICLE</string>
+    <string name="bl_action_screenshot_slot">screenshot slot — drop in a real capture before publishing</string>
+
+    <!-- ── Category ───────────────────────────────────────────────────────── -->
+    <string name="bl_category_eyebrow">CATEGORY</string>
+    <string name="bl_category_count_one">%1$s — one article so far.</string>
+    <string name="bl_category_count_many">%1$s — %2$d articles.</string>
+    <string name="bl_category_more_coming">More articles are coming</string>
+    <string name="bl_category_more_coming_dek">We are still writing on this topic.</string>
+
+    <!-- ── Subscribe ──────────────────────────────────────────────────────── -->
+    <string name="bl_subscribe_heading">Want an email when we publish?</string>
+    <string name="bl_subscribe_dek">Never more than one a week. Unsubscribe any time.</string>
+    <string name="bl_subscribe_action">Subscribe</string>
+    <string name="bl_subscribe_done">Done — you will hear from us on the next post.</string>
+
+    <!-- ── Search ─────────────────────────────────────────────────────────── -->
+    <string name="bl_search_results_count">%1$d results for</string>
+    <string name="bl_search_quoted">“%1$s”</string>
+    <string name="bl_search_empty_heading">Nothing written on this yet</string>
+    <string name="bl_search_empty_dek">No article matched “%1$s”. Here is what people searching for it usually read.</string>
+    <string name="bl_search_prompt">What are you looking for?</string>
+    <string name="bl_topic_request_heading">Want a topic that is not here?</string>
+    <string name="bl_topic_request_dek">Tell us and we will write it.</string>
+    <string name="bl_topic_request_action">Send</string>
+    <string name="bl_topic_request_done">Got it. Thank you.</string>
+
+    <!-- ── Author ─────────────────────────────────────────────────────────── -->
+    <string name="bl_author_articles">Articles</string>
+    <string name="bl_author_writes_about">Writes about</string>
+    <string name="bl_author_since">Since</string>
+    <string name="bl_author_posts_heading">ARTICLES BY %1$s</string>
+
+    <!-- ── 404 ────────────────────────────────────────────────────────────── -->
+    <string name="bl_not_found_code">404</string>
+    <string name="bl_not_found_heading">This page was removed</string>
+    <string name="bl_not_found_dek">The URL may have changed. Below are the most-read articles.</string>
+
+    <!-- ── Admin · sign in ────────────────────────────────────────────────── -->
+    <string name="bl_admin_sign_in_heading">Sign in to publish</string>
+    <string name="bl_admin_sign_in_dek">Authors only.</string>
+    <string name="bl_admin_email">Email</string>
+    <string name="bl_admin_password">Password</string>
+    <string name="bl_admin_sign_in">Sign in</string>
+    <string name="bl_admin_forgot">Forgot password?</string>
+    <string name="bl_admin_wrong_password">Wrong password. %1$d tries left.</string>
+    <string name="bl_admin_wrong_password_locked">Wrong password. No tries left.</string>
+    <string name="bl_admin_signed_out">Sign in to continue.</string>
+    <string name="bl_admin_not_an_author">This account is not allowed to publish.</string>
+    <!-- A configuration mistake, not a failure the person at the keyboard can fix:
+         Email/Password is switched off for this Firebase project. -->
+    <string name="bl_admin_sign_in_unavailable">Password sign-in is turned off for this project.</string>
+    <!-- The password was right and the author list is empty, so it turned everybody
+         away. Its own line, because "not allowed to publish" sends you looking at
+         the account when the problem is the configuration. -->
+    <string name="bl_admin_no_authors">No authors are configured yet.</string>
+
+    <!-- ── Admin · shell ──────────────────────────────────────────────────── -->
+    <string name="bl_admin_nav_posts">Posts</string>
+    <string name="bl_admin_nav_media">Media</string>
+    <string name="bl_admin_nav_analytics">Analytics</string>
+    <string name="bl_admin_nav_settings">Settings</string>
+    <string name="bl_admin_sign_out">Sign out</string>
+
+    <!-- ── Admin · posts ──────────────────────────────────────────────────── -->
+    <string name="bl_admin_posts_title">Posts</string>
+    <string name="bl_admin_posts_new">New post</string>
+    <string name="bl_admin_filter_all">All · %1$d</string>
+    <string name="bl_admin_filter_published">Published · %1$d</string>
+    <string name="bl_admin_filter_drafts">Drafts · %1$d</string>
+    <string name="bl_admin_column_title">TITLE</string>
+    <string name="bl_admin_column_status">STATUS</string>
+    <string name="bl_admin_column_views">VIEWS</string>
+    <string name="bl_admin_column_updated">UPDATED</string>
+    <string name="bl_admin_status_published">Published</string>
+    <string name="bl_admin_status_draft">Draft</string>
+    <string name="bl_admin_no_slug">draft — no slug yet</string>
+    <string name="bl_admin_no_views">—</string>
+    <string name="bl_admin_untitled">Untitled</string>
+    <string name="bl_admin_slug_prefix">odoapp.in/blog/</string>
+
+    <!-- ── Admin · editor ─────────────────────────────────────────────────── -->
+    <string name="bl_editor_title_placeholder">Title</string>
+    <string name="bl_editor_body_placeholder">Start writing here…</string>
+    <string name="bl_editor_unsaved">New post · not saved</string>
+    <string name="bl_editor_saved">Draft · saved %1$s</string>
+    <!-- There is no clock in this module yet, so a saved draft says that it is
+         saved rather than guessing at how long ago. -->
+    <string name="bl_editor_saved_now">Draft · saved</string>
+    <string name="bl_editor_unsaved_changes">Draft · unsaved changes</string>
+    <!-- A word, not an arrow: Compose draws with a bundled fallback font that
+         has no glyph for "←", and a missing glyph renders as a box. -->
+    <string name="bl_editor_back">Posts</string>
+    <string name="bl_editor_save">Save</string>
+    <string name="bl_editor_image">Image</string>
+    <string name="bl_editor_paragraph">Para</string>
+    <string name="bl_editor_remove_block">Remove</string>
+    <string name="bl_editor_action_eyebrow">ACTION CARD</string>
+    <string name="bl_editor_action_title">Title</string>
+    <string name="bl_editor_action_title_hint">What the card offers</string>
+    <string name="bl_editor_action_body">Description</string>
+    <string name="bl_editor_action_body_hint">One or two sentences on why it helps</string>
+    <string name="bl_editor_action_cta">Button label</string>
+    <string name="bl_editor_action_cta_hint">Download Odo</string>
+    <string name="bl_editor_action_link">Button link</string>
+    <string name="bl_editor_action_link_hint">Leave blank for the Play Store listing</string>
+    <string name="bl_editor_action_screenshot">Screenshot</string>
+    <string name="bl_editor_action_screenshot_hint">Optional — paste an image URL</string>
+    <string name="bl_editor_unpublish">Unpublish</string>
+    <string name="bl_editor_published_badge">Published</string>
+    <string name="bl_editor_saving">Saving…</string>
+    <string name="bl_editor_counts">%1$d words · %2$d min</string>
+    <string name="bl_editor_preview">Preview</string>
+    <string name="bl_editor_publish">Publish</string>
+    <string name="bl_editor_bold">B</string>
+    <string name="bl_editor_italic">I</string>
+    <string name="bl_editor_h2">H2</string>
+    <string name="bl_editor_h3">H3</string>
+    <string name="bl_editor_callout">Callout</string>
+    <string name="bl_editor_import">Import</string>
+    <string name="bl_editor_action_card">Action</string>
+    <string name="bl_editor_discard">Discard</string>
+    <string name="bl_editor_category">Category</string>
+    <string name="bl_editor_category_none">Uncategorised</string>
+    <string name="bl_import_heading">Import from JSON</string>
+    <string name="bl_import_dek">Paste a post, or just its blocks. Nothing is saved until you save it.</string>
+    <string name="bl_import_placeholder">{"title": "…", "body": [ … ]}</string>
+    <string name="bl_import_action">Import</string>
+    <string name="bl_import_unreadable">That is not a post this can read.</string>
+    <string name="bl_discard_heading">Throw this draft away?</string>
+    <string name="bl_discard_dek">It has never been published, so nothing links to it — but the writing is gone for good.</string>
+    <string name="bl_discard_confirm">Throw it away</string>
+    <string name="bl_discard_cancel">Keep it</string>
+    <string name="bl_editor_tip_label">TIP</string>
+    <string name="bl_editor_tip">Start with a question people type into Google. Let the first paragraph answer it — that is the part Google shows.</string>
+
+    <!-- ── Admin · publish sheet ──────────────────────────────────────────── -->
+    <string name="bl_publish_seo_title">SEO title</string>
+    <string name="bl_publish_slug">Slug</string>
+    <string name="bl_publish_meta">Meta description</string>
+    <string name="bl_publish_category">Category</string>
+    <string name="bl_publish_when">Publish</string>
+    <string name="bl_publish_now">Now</string>
+    <string name="bl_publish_counter">· %1$d / %2$d</string>
+    <string name="bl_publish_google_preview">GOOGLE PREVIEW</string>
+    <string name="bl_publish_save_draft">Save draft</string>
+    <string name="bl_publish_publish_now">Publish now</string>
+    <string name="bl_publish_breadcrumb">odoapp.in › blog › %1$s</string>
+
+    <!-- ── Admin · slug conflict ──────────────────────────────────────────── -->
+    <string name="bl_conflict_message">That slug is already in use — by “%1$s”.</string>
+    <string name="bl_conflict_options">There are two ways forward:</string>
+    <string name="bl_conflict_new_slug">Take a new slug</string>
+    <string name="bl_conflict_use">Use</string>
+    <string name="bl_conflict_replace_heading">Replace the older post</string>
+    <string name="bl_conflict_replace_dek">Its traffic comes to this one</string>
+    <string name="bl_conflict_replace">Replace</string>
+
+    <!-- ── Admin · leaving with unsaved work ──────────────────────────────── -->
+    <string name="bl_unsaved_heading">You are about to lose this</string>
+    <string name="bl_unsaved_dek">The work so far has not been saved. Leaving now discards it.</string>
+    <string name="bl_unsaved_discard">Discard</string>
+    <string name="bl_unsaved_save">Save draft</string>
+
+    <!-- ── Admin · published ──────────────────────────────────────────────── -->
+    <string name="bl_published_heading">It is live</string>
+    <string name="bl_published_dek">Google usually takes 2–5 days to index a new page.</string>
+    <string name="bl_published_copy">Copy</string>
+    <string name="bl_published_copied">Copied</string>
+    <string name="bl_published_view">View post</string>
+
+    <!-- ── Admin · unpublish ──────────────────────────────────────────────── -->
+    <string name="bl_unpublish_heading">Take this post down?</string>
+    <string name="bl_unpublish_dek">This post was read %1$s times. Taking it down makes the URL a 404 and gives up its Google ranking.</string>
+    <string name="bl_unpublish_advice">Moving it back to draft is usually better — the URL stays alive.</string>
+    <string name="bl_unpublish_to_draft">Move to draft</string>
+    <string name="bl_unpublish_anyway">Take it down anyway</string>
+
+    <!-- ── Admin · media ──────────────────────────────────────────────────── -->
+    <string name="bl_media_title">Media</string>
+    <string name="bl_media_upload">Upload</string>
+    <string name="bl_media_drop">Drop screenshots here</string>
+    <string name="bl_media_limits">PNG or JPEG · up to 8 MB</string>
+    <string name="bl_media_insert_heading">Insert image</string>
+    <string name="bl_media_upload_new">Upload new</string>
+    <string name="bl_media_alt">Alt text</string>
+    <string name="bl_media_alt_hint">· for screen readers and search</string>
+    <string name="bl_media_cancel">Cancel</string>
+    <string name="bl_media_insert">Insert</string>
+    <string name="bl_media_uploading">Uploading…</string>
+    <string name="bl_media_empty">No images yet.</string>
+
+    <!-- ── Admin · analytics ──────────────────────────────────────────────── -->
+    <string name="bl_analytics_title">Analytics</string>
+    <string name="bl_analytics_views">VIEWS</string>
+    <string name="bl_analytics_from_search">FROM SEARCH</string>
+    <string name="bl_analytics_installs">APP INSTALLS</string>
+    <string name="bl_analytics_top_posts">TOP POSTS</string>
+    <!-- One percent sign, not two: Compose Resources substitutes only the
+         numbered placeholders and passes everything else through, so Android's
+         "%%" escape reaches the screen as it is written. -->
+    <string name="bl_analytics_percent">%1$d%</string>
+
+    <!-- ── Admin · settings ───────────────────────────────────────────────── -->
+    <string name="bl_settings_title">Settings</string>
+    <string name="bl_settings_byline_heading">Your byline</string>
+    <string name="bl_settings_byline_dek">What a reader sees under an article, and on your author page.</string>
+    <string name="bl_settings_name">Name</string>
+    <string name="bl_settings_bio">Bio</string>
+    <string name="bl_settings_topics">Writes about</string>
+    <string name="bl_settings_topics_hint">· separated by ·</string>
+    <string name="bl_settings_since">Since</string>
+    <string name="bl_settings_since_hint">· a label, like "March 2025"</string>
+    <string name="bl_settings_save">Save byline</string>
+    <string name="bl_settings_saved">Saved.</string>
+
+</resources>

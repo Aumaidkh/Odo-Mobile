@@ -19,10 +19,16 @@ val supportModule = module {
             logUploadScheduler = get(),
             // AppInfo comes from corePlatformModule — the version shown on the help sheet.
             appInfo = get(),
+            // The phone the report is about — model and OS only, shown in the draft before
+            // the owner sends it. Bound by corePlatform{Android,Ios}Module alongside AppInfo.
+            deviceInfo = get(),
             // Where the full Terms and Privacy Policy are published. Bound by
             // `supabaseModule`, which derives them from the configured project URL; a build
             // with no backend gets blanks and the outbound rows are left out.
             legalLinks = get(),
+            // Where support mail goes. Configured in the Firebase console and falling back
+            // to the address compiled into the build, so it is never blank.
+            supportContacts = get(),
         )
     } bind FeatureEntryProvider::class
 }

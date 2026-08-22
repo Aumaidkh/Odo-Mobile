@@ -4,11 +4,14 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.domain.auth.AuthSession
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.analytics.api.AnalyticsTracker
@@ -19,10 +22,13 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.platform.secure.SecureStore
 import com.hopcape.odo.feature.auth.AuthTelemetry
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -117,6 +123,25 @@ class OdoSessionManagerTest {
     }
 
     @Test
+    fun aRefreshThatCouldNotBeReachedKeepsTheSession() = runTest {
+        // The other half of issue #312. Every failure used to arrive as SessionExpired,
+        // including a timeout, so a renewal attempted in a tunnel ended the session as
+        // decisively as a revoked token — silently, with the app still working and nothing
+        // syncing, and the next sign-in resuming from cursors nobody had cleared.
+        val store = InMemoryStore().apply { seed(expiresAt = now.minus(1.hours)) }
+        val manager = manager(UnreachableGateway, store).also { it.restore() }
+
+        val token = manager.currentAccessToken()
+
+        // No token for this attempt, so the run stays offline.
+        assertNull(token)
+        // But the session is still here, and the same refresh token is still good.
+        assertTrue(manager.isSignedIn())
+        assertEquals("stored-refresh", store.get(SecureStore.KEY_REFRESH_TOKEN))
+        assertNotEquals(OwnerId.LOCAL_PLACEHOLDER, manager.currentOwnerId())
+    }
+
+    @Test
     fun aHalfWrittenStoredSessionIsIgnored() = runTest {
         // An access token with no refresh token can only produce confusing failures later.
         val store = InMemoryStore().apply { put(SecureStore.KEY_ACCESS_TOKEN, "orphan") }
@@ -151,6 +176,42 @@ class OdoSessionManagerTest {
         assertNull(store.get(SecureStore.KEY_ACCESS_TOKEN))
     }
 
+    /**
+     * When the provider proves the number without a code at all — Firebase's instant
+     * verification — requesting one has to finish sign-in on the spot, exactly as if a
+     * code had been typed and verified. #188: this used to leave the owner on a code
+     * screen for a message that was never coming.
+     */
+    @Test
+    fun requestingACodeThatIsAlreadyVerifiedSignsInImmediately() = runTest {
+        val store = InMemoryStore()
+        val manager = manager(gateway = AlreadyVerifiedGateway(), store = store)
+
+        manager.requestOtp(phone)
+
+        assertTrue(manager.isSignedIn())
+        assertEquals(OwnerId("user-1"), manager.currentOwnerId())
+        assertEquals("refresh-1", store.get(SecureStore.KEY_REFRESH_TOKEN))
+    }
+
+    @Test
+    fun requestingACodeThatIsAlreadyVerifiedAlsoAsksForASync() = runTest {
+        val requested = mutableListOf<SyncReason>()
+        val manager = OdoSessionManager(
+            gateway = AlreadyVerifiedGateway(),
+            store = InMemoryStore(),
+            telemetry = silentTelemetry(),
+            scheduler = RecordingScheduler(requested),
+            identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
+            clock = FixedClock(now),
+        )
+
+        manager.requestOtp(phone)
+
+        assertEquals(listOf(SyncReason.SignIn), requested)
+    }
+
     @Test
     fun aTokenIsReadableWithoutAnyoneHavingCalledRestore() = runTest {
         val store = InMemoryStore()
@@ -174,6 +235,7 @@ class OdoSessionManagerTest {
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
             identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
             clock = FixedClock(now),
         )
 
@@ -187,6 +249,46 @@ class OdoSessionManagerTest {
     }
 
     @Test
+    fun signingInWritesTheNumberOntoTheProfile() = runTest {
+        val profiles = RecordingProfiles()
+
+        manager(profiles = profiles).verifyOtp(phone, "123456")
+
+        // The server only ever fills profiles.phone from a trigger on account creation, so a
+        // number it missed then is a number nothing revisits. This is the client putting it
+        // back, on every sign-in rather than only the first.
+        assertEquals(listOf(OwnerId("user-1") to phone), profiles.recorded)
+    }
+
+    @Test
+    fun restoringASessionWritesTheNumberAgain() = runTest {
+        val store = InMemoryStore()
+        manager().verifyOtpWith(SucceedingGateway(), store)
+
+        val profiles = RecordingProfiles()
+        manager(store = store, profiles = profiles).restore()
+
+        // An install that signed in before the column existed never calls the sign-in path
+        // again. Without this its number would stay off the server forever.
+        assertEquals(listOf(OwnerId("user-1") to phone), profiles.recorded)
+    }
+
+    @Test
+    fun signingOutForgetsTheNumber() = runTest {
+        val store = InMemoryStore()
+        manager().verifyOtpWith(SucceedingGateway(), store)
+
+        val manager = manager(store = store)
+        manager.restore()
+        manager.signOut()
+
+        // It is only true while there is a session, so it goes with the tokens.
+        val profiles = RecordingProfiles()
+        manager(store = store, profiles = profiles).restore()
+        assertTrue(profiles.recorded.isEmpty())
+    }
+
+    @Test
     fun aFailedSignInAsksForNothing() = runTest {
         val requested = mutableListOf<SyncReason>()
         val manager = OdoSessionManager(
@@ -195,6 +297,7 @@ class OdoSessionManagerTest {
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
             identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
             clock = FixedClock(now),
         )
 
@@ -265,24 +368,48 @@ class OdoSessionManagerTest {
         gateway: AuthGateway = SucceedingGateway(),
         store: SecureStore = InMemoryStore(),
         identity: SubscriptionIdentity = RecordingIdentity(),
+        profiles: RecordingProfiles = RecordingProfiles(),
     ) = OdoSessionManager(
         gateway = gateway,
         store = store,
         telemetry = silentTelemetry(),
         scheduler = trigger,
         identity = identity,
+        profiles = profiles,
         clock = FixedClock(now),
     )
 
     /** Signs in through a gateway that works, so sign-out has something to clear. */
     private suspend fun OdoSessionManager.verifyOtpWith(gateway: AuthGateway, store: SecureStore) {
-        OdoSessionManager(gateway, store, silentTelemetry(), trigger, RecordingIdentity(), FixedClock(now))
+        OdoSessionManager(gateway, store, silentTelemetry(), trigger, RecordingIdentity(), RecordingProfiles(), FixedClock(now))
             .verifyOtp(phone, "123456")
         restore()
     }
 
+    /** Remembers which number was written against which owner, and nothing else. */
+    private class RecordingProfiles : OwnerProfileRepository {
+        val recorded = mutableListOf<Pair<OwnerId, PhoneNumber>>()
+
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> {
+            recorded += ownerId to phone
+            return Unit.right()
+        }
+
+        override suspend fun save(profile: OwnerProfile) = profile.right()
+        override fun observe(): Flow<OwnerProfile?> = flowOf(null)
+        override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
+    }
+
     private inner class SucceedingGateway : AuthGateway {
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right()
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right()
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
+        override suspend fun refresh(refreshToken: String) = issued().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** What Firebase answers when it proves a number without ever sending a code. */
+    private inner class AlreadyVerifiedGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.AlreadyVerified(issued()).right()
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
         override suspend fun refresh(refreshToken: String) = issued().right()
         override suspend fun signOut(accessToken: String) = Unit.right()
@@ -290,7 +417,7 @@ class OdoSessionManagerTest {
 
     private inner class RecordingGateway : AuthGateway {
         var calls = 0
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right()
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right()
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
         override suspend fun refresh(refreshToken: String): Either<DomainError, AuthSession> {
             calls++
@@ -298,6 +425,14 @@ class OdoSessionManagerTest {
         }
 
         override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** Reachable for nothing: every call comes back as a bad moment, not a verdict. */
+    private object UnreachableGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber) = DomainError.OtpRequestFailed.left()
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = DomainError.OtpRequestFailed.left()
+        override suspend fun refresh(refreshToken: String) = DomainError.SessionUnavailable.left()
+        override suspend fun signOut(accessToken: String) = DomainError.SessionUnavailable.left()
     }
 
     private object RefusingGateway : AuthGateway {

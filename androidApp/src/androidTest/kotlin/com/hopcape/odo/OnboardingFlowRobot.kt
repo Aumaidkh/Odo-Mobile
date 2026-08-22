@@ -30,7 +30,7 @@ import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
  */
 internal object Copy {
     const val WELCOME_HEADLINE = "Know what your car really costs you."
-    const val WELCOME_CTA = "Continue with mobile"
+    const val WELCOME_CTA = "Get started"
     const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
@@ -40,6 +40,7 @@ internal object Copy {
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
     const val SCAN_TITLE = "Find out if you overpaid last time"
+    const val SCAN_CTA = "Check my last bill"
     const val SCAN_SKIP = "I’ll do this later"
     const val CONTINUE = "Continue"
     const val DONE = "Done"

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!--
+    Where every relative URL on this page resolves from.
+
+    The app answers on paths of different depths — /blog, /blog/an-article,
+    /blog/category/fuel, /blog/admin/posts — and without this each of them
+    becomes a different base. Compose Resources asks for its string table as
+    `./composeResources/…`, so on a three-segment path it looks under
+    /blog/admin/ and gets a 404; the symptom is a page that renders its data and
+    none of its labels, which reads like a styling bug rather than a 404.
+  -->
+  <base href="/blog/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Blog — Odo</title>
+  <meta name="description" content="Notes on car ownership in India: service costs, fair prices, paperwork and what a car's history is worth.">
+  <link rel="canonical" href="https://odoapp.in/blog">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <style>
+    /* The page's own colours, for the one moment Compose is not on screen yet.
+       Same tokens as the rest of odoapp.in — the source of truth for them is
+       supabase/functions/legal/pages/layout.ts. */
+    :root { color-scheme: light dark; --bg: #FFFFFF; --text: #000000; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #000000; --text: #FFFFFF; } }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+    body { font: 400 16px/1.6 Gotham, Inter, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+
+    /* Shown until the bundle boots, then removed by main(). The wordmark rather
+       than a spinner: a Wasm bundle is a slow first load on the connections this
+       is read on, and the brand is better company than a progress indicator. */
+    #boot {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 1.125rem; font-weight: 600; text-transform: uppercase; letter-spacing: .34em;
+      background: var(--bg); color: var(--text);
+    }
+  </style>
+</head>
+<body>
+<div id="boot">ODO</div>
+
+<!--
+  Absolute, not relative. The app answers on paths of different depths — /blog/an-article
+  and /blog/category/fuel — and a relative src resolves against whichever one the reader
+  arrived at, so the deeper pages ask for a bundle that is not there and never start.
+  webApp/webpack.config.d/blog-base-path.js is what makes /blog/ true locally as well.
+
+  Kotlin/Wasm emits an ES module, so `type="module"` is not optional.
+-->
+<script type="module" src="/blog/odo-blog.js"></script>
+</body>
+</html>

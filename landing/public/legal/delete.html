@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your account · Odo</title>
+<meta name="description" content="Permanently delete your Odo account and all of its data. Verify your phone number by SMS — no app install required.">
+<meta name="robots" content="index, follow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23FFFFFF'/><circle cx='16' cy='16' r='8' fill='%23000000'/></svg>">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<style>
+/* ── Tokens ────────────────────────────────────────────────────────────────
+   Black and white do the work. Every other colour has to earn its place, and
+   only two do: red for a deletion that cannot be undone, green for one that
+   succeeded. Controls stay neutral so nothing on the page competes with the
+   one sentence it is trying to say.                                        */
+:root {
+  color-scheme: light dark;
+
+  --white: #FFFFFF;
+  --black: #000000;
+  --gray-100: #F4F4F4;
+  --gray-400: #9CA3AF;
+  --gray-700: #374151;
+
+  --bg: var(--white);
+  --soft: var(--gray-100);
+  --surface: var(--white);
+  --border: #E5E7EB;
+  --text: var(--black);
+  --dim: var(--gray-700);
+  --muted: var(--gray-400);
+
+  /* Translucent rather than solid, and blurred: the source treats a control as
+     something laid over the page, not cut into it. */
+  --btn-bg: rgba(23, 26, 32, .86);
+  --btn-fg: var(--white);
+  --btn-quiet-bg: rgba(244, 244, 244, .85);
+  --btn-quiet-fg: #111827;
+  --btn-danger-bg: #B91C1C;
+  --btn-danger-fg: var(--white);
+
+  /* The immersive dark panel — the one place a page goes black on purpose. */
+  --panel-bg: var(--black);
+  --panel-fg: var(--white);
+  --panel-border: var(--black);
+
+  --danger: #B91C1C;
+  --success: #15803D;
+  /* Red at full strength disappears into a black panel, so the panel gets its own. */
+  --danger-bright: #F87171;
+
+  --space-2: .5rem;
+  --space-4: 1rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+  --space-12: 6rem;
+
+  --font-sans: Gotham, Inter, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Roboto Mono", Menlo, monospace;
+
+  --shadow-card: 0 10px 22px rgba(0, 0, 0, .12);
+  --shadow-overlay: 0 18px 34px rgba(0, 0, 0, .18);
+}
+
+/* Dark is the same system with the roles swapped, not a second design. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--black);
+    --soft: #111111;
+    --surface: #0A0A0A;
+    --border: #22262B;
+    --text: var(--white);
+    --dim: #D1D5DB;
+    --muted: var(--gray-400);
+
+    --btn-bg: rgba(255, 255, 255, .92);
+    --btn-fg: var(--black);
+    --btn-quiet-bg: rgba(255, 255, 255, .08);
+    --btn-quiet-fg: var(--white);
+    --btn-danger-bg: #DC2626;
+
+    /* A black panel on a black page is not a panel. It lifts instead of drops. */
+    --panel-bg: #131313;
+    --panel-fg: var(--white);
+    --panel-border: #2A2E33;
+
+    --danger: #F87171;
+    --success: #4ADE80;
+
+    --shadow-card: 0 10px 22px rgba(0, 0, 0, .5);
+    --shadow-overlay: 0 18px 34px rgba(0, 0, 0, .6);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 44rem; margin: 0 auto; padding: 0 var(--space-6) var(--space-10); }
+
+/* ── Header ──────────────────────────────────────────────────────────────
+   A wordmark in wide tracking and three quiet links. The current page is
+   marked in the text colour, not an accent — the nav is not a place to
+   spend attention.                                                        */
+header { border-bottom: 1px solid var(--border); background: var(--bg); }
+header .wrap { padding-top: var(--space-6); padding-bottom: 0; }
+.brand {
+  display: inline-block;
+  font-size: 1.125rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .34em;
+  color: var(--text); text-decoration: none;
+}
+nav { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-6); }
+nav a {
+  padding-bottom: .85rem; margin-bottom: -1px;
+  color: var(--dim); text-decoration: none;
+  font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  border-bottom: 1px solid transparent;
+}
+nav a:hover { color: var(--text); }
+nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+
+/* ── Type ────────────────────────────────────────────────────────────────
+   One message at the top of each page, then body copy that gets out of the
+   way. Sections are separated by space rather than rules.                 */
+main .wrap { padding-top: var(--space-10); }
+h1 {
+  font-size: clamp(2rem, 7vw, 2.5rem); font-weight: 700;
+  line-height: 1.08; letter-spacing: -.02em;
+  margin: 0 0 var(--space-4);
+}
+h2 {
+  font-size: 1.375rem; font-weight: 600; line-height: 1.2; letter-spacing: -.01em;
+  margin: var(--space-8) 0 var(--space-2);
+}
+h3 { font-size: 1rem; font-weight: 600; margin: var(--space-6) 0 var(--space-2); }
+p, li { color: var(--text); }
+.lede {
+  color: var(--dim); font-size: 1.125rem; line-height: 1.5;
+  max-width: 34rem; margin: 0 0 var(--space-6);
+}
+ul, ol { padding-left: 1.2rem; }
+li { margin: .4rem 0; }
+li > strong { color: var(--text); }
+a {
+  color: inherit; text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-color: var(--muted);
+}
+a:hover { text-decoration-color: currentColor; }
+code {
+  font-family: var(--font-mono); font-size: .875em;
+  background: var(--soft); border-radius: 4px; padding: .1em .35em;
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────
+   A white card for detail, a dark panel for the thing you must not miss.  */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: var(--space-6);
+  box-shadow: var(--shadow-card);
+  margin: var(--space-6) 0;
+}
+.card > :first-child { margin-top: 0; }
+.card > :last-child { margin-bottom: 0; }
+
+.card.warn {
+  background: var(--panel-bg); color: var(--panel-fg);
+  border-color: var(--panel-border); border-radius: 24px;
+  padding: var(--space-6);
+  box-shadow: var(--shadow-overlay);
+}
+.card.warn p, .card.warn li, .card.warn strong { color: var(--panel-fg); }
+.card.warn h2, .card.warn h3 { color: var(--danger-bright); margin-top: 0; }
+.card.warn a { text-decoration-color: rgba(255, 255, 255, .5); }
+.card.warn code { background: rgba(255, 255, 255, .1); }
+
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: .7rem .75rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.scroll-x { overflow-x: auto; }
+
+/* ── Controls ────────────────────────────────────────────────────────────
+   Pills, quiet, and obvious. A destructive one is the only red on the site. */
+label {
+  display: block; font-size: 14px; font-weight: 600; letter-spacing: .01em;
+  color: var(--dim); margin-bottom: var(--space-2);
+}
+input[type="text"], input[type="tel"] {
+  width: 100%; min-height: 44px; padding: .65rem 14px;
+  font: 400 16px/1.2 var(--font-sans);
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px;
+}
+input::placeholder { color: var(--muted); }
+input:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--text); outline-offset: 2px;
+}
+input[inputmode="numeric"] { letter-spacing: .18em; }
+
+button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 40px; padding: 0 24px;
+  font: 600 14px/1 var(--font-sans); letter-spacing: .01em;
+  cursor: pointer; border: none; border-radius: 999px;
+  background: var(--btn-bg); color: var(--btn-fg);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+button[disabled] { opacity: .45; cursor: not-allowed; }
+button.danger { background: var(--btn-danger-bg); color: var(--btn-danger-fg); }
+button.quiet { background: var(--btn-quiet-bg); color: var(--btn-quiet-fg); }
+.actions {
+  display: flex; flex-wrap: wrap; gap: .75rem;
+  align-items: center; margin-top: var(--space-6);
+}
+
+.step { display: none; }
+.step.active { display: block; }
+.check {
+  display: flex; gap: .7rem; align-items: flex-start;
+  margin-top: var(--space-4); font-size: 14px; line-height: 1.5;
+}
+.check input { margin-top: .25rem; flex: none; accent-color: var(--danger); }
+.note { color: var(--dim); font-size: 14px; }
+.card.warn .note, .card.warn label { color: rgba(255, 255, 255, .72); }
+.msg {
+  margin-top: var(--space-4); padding: .8rem 1rem;
+  border-radius: 12px; font-size: 14px; display: none;
+}
+.msg.show { display: block; }
+.msg.error { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.msg.ok { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+
+footer { border-top: 1px solid var(--border); margin-top: var(--space-10); }
+footer .wrap {
+  padding-top: var(--space-6); padding-bottom: var(--space-8);
+  color: var(--muted); font-size: 14px;
+}
+footer p { color: inherit; margin: .3rem 0; }
+
+/* Phones: the same page, not a smaller one. Buttons take the full width so a
+   thumb has an obvious target, and the tracking on the wordmark comes in. */
+@media (max-width: 30rem) {
+  .wrap { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .brand { letter-spacing: .22em; }
+  nav { gap: var(--space-4); }
+  .actions { gap: var(--space-2); }
+  .actions button { width: 100%; }
+}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="./">Odo</a>
+  <nav><a href="terms">Terms</a><a href="privacy">Privacy</a><a href="delete-account" aria-current="page">Delete account</a></nav>
+</div></header>
+<main><div class="wrap">
+
+<h1>Delete your account</h1>
+<p class="lede">
+  This deletes your Odo account and everything stored under it, for good. You do not need the
+  app installed — verifying the phone number on the account is enough.
+</p>
+
+
+<div class="card">
+  <!-- Step 1 — the number -->
+  <div class="step active" id="step-phone">
+    <label for="phone">Phone number on the account</label>
+    <input id="phone" type="tel" inputmode="tel" autocomplete="tel" value="+91 " placeholder="+91 98765 43210">
+    <p class="note" style="margin-top:.6rem">Include the country code. We will send a 6-digit code by SMS.</p>
+    <div class="actions">
+      <button id="send">Send code</button>
+    </div>
+  </div>
+
+  <!-- Step 2 — the code -->
+  <div class="step" id="step-code">
+    <label for="code">Enter the 6-digit code sent to <span id="sent-to"></span></label>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+    <div class="actions">
+      <button id="verify">Verify</button>
+      <button id="back" class="quiet" type="button">Use a different number</button>
+    </div>
+  </div>
+
+  <!-- Step 3 — the deliberate, destructive bit -->
+  <div class="step" id="step-confirm">
+    <h3>Number verified</h3>
+    <p>Deleting the account for <strong id="confirm-number"></strong> removes:</p>
+    <ul>
+      <li>your profile, name, photo and settings</li>
+      <li>every car, service record, bill and bill photo</li>
+      <li>every document you uploaded, including insurance and registration files</li>
+      <li>your reminders, health scores and cost history</li>
+    </ul>
+    <p class="note">
+      This runs immediately. There is no undo, no grace period, and we cannot recover any of it
+      afterwards. Download anything you need first.
+    </p>
+    <label class="check">
+      <input type="checkbox" id="understood">
+      <span>I understand this permanently deletes my Odo account and all of its data.</span>
+    </label>
+    <div class="actions">
+      <button id="destroy" class="danger" disabled>Delete my account permanently</button>
+    </div>
+  </div>
+
+  <!-- Step 4 — done -->
+  <div class="step" id="step-done">
+    <h3>Deleted</h3>
+    <p id="done-text"></p>
+    <p class="note">
+      If the app is still installed on a phone, open <strong>Profile → Delete my data</strong> or uninstall
+      it to clear the copy stored there.
+    </p>
+  </div>
+
+  <div class="msg" id="msg"></div>
+  <div id="recaptcha"></div>
+</div>
+
+<h2>What survives, and why</h2>
+<p>
+  Nothing that identifies you. When a bill is price-checked, the amount, the service category
+  and the city join a shared pool that carries no account, car or bill reference — it is what
+  lets the next owner know what a service should cost. Those points cannot be traced back to
+  you and are not removed. Everything else goes.
+</p>
+
+<h2>Prefer to ask us?</h2>
+<p>
+  Email <a href="mailto:support.odo.in@gmail.com">support.odo.in@gmail.com</a> from any address, telling us the phone
+  number on the account. We verify the number before acting and complete the deletion within
+  7 days. The form above is faster and does not involve a human reading your details.
+</p>
+
+<script type="module">
+// Re-serialised JSON, with < neutralised so a stray closing script tag inside a value
+// cannot end this block early.
+const CONFIG = {"apiKey":"AIzaSyB8A39cTEw-_4mtRntVatyf5ZWYhiwojUc","authDomain":"odo-mobile-ba9aa.firebaseapp.com","projectId":"odo-mobile-ba9aa","appId":"1:473912645018:web:a54e83d832793397bc1623"};
+const ERASE_ENDPOINT = "https://kxxgfhwnidgfvjowqaad.supabase.co/functions/v1/legal/delete-account";
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {
+  getAuth, RecaptchaVerifier, signInWithPhoneNumber, deleteUser,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+
+const auth = getAuth(initializeApp(CONFIG));
+auth.useDeviceLanguage();
+
+const el = (id) => document.getElementById(id);
+const msg = el('msg');
+
+const show = (id) => {
+  for (const step of document.querySelectorAll('.step')) step.classList.remove('active');
+  el(id).classList.add('active');
+};
+
+const say = (text, kind) => {
+  msg.textContent = text;
+  msg.className = 'msg show ' + kind;
+};
+
+const clearSay = () => { msg.className = 'msg'; };
+
+const busy = (button, label) => {
+  button.disabled = true;
+  button.dataset.label = button.textContent;
+  button.textContent = label;
+};
+
+const idle = (button) => {
+  button.disabled = false;
+  if (button.dataset.label) button.textContent = button.dataset.label;
+};
+
+// Firebase's codes are precise but unreadable. Anything unmapped falls through to a message
+// that at least tells the reader what to do next.
+const FIREBASE_ERRORS = {
+  'auth/invalid-phone-number': 'That number does not look right. Include the country code, like +91 98765 43210.',
+  'auth/missing-phone-number': 'Enter the phone number on the account.',
+  'auth/quota-exceeded': 'Too many codes have been sent today. Please try again tomorrow.',
+  'auth/too-many-requests': 'Too many attempts from this device. Wait a few minutes and try again.',
+  'auth/invalid-verification-code': 'That code is wrong. Check the SMS and try again.',
+  'auth/code-expired': 'That code has expired. Go back and request a new one.',
+  'auth/captcha-check-failed': 'The security check failed. Reload the page and try again.',
+  'auth/unauthorized-domain': 'This page is not authorised to send codes. Please email us instead.',
+  'auth/operation-not-allowed': 'Phone sign-in is switched off. Please email us instead.',
+  'auth/network-request-failed': 'No connection. Check your network and try again.',
+  // The two the Firebase project itself can be wrong in. Both read the same to a visitor —
+  // nothing they did, nothing they can retry — but they say enough to be searched for, and
+  // the generic message they used to produce said nothing at all.
+  'auth/configuration-not-found': 'Verification is not set up on this project yet. Please email us instead.',
+  'auth/billing-not-enabled': 'Verification is unavailable right now. Please email us instead.',
+};
+
+const SERVER_ERRORS = {
+  invalid_token: 'We could not confirm your verification. Please start again.',
+  no_phone_claim: 'We could not confirm your verification. Please start again.',
+  stale_verification: 'That verification is too old. Please start again.',
+  erase_failed: 'Something went wrong while deleting. Nothing partial was left behind — please email us.',
+  not_configured: 'Deletion is temporarily unavailable. Please email us.',
+};
+
+const explain = (error) =>
+  FIREBASE_ERRORS[error && error.code] ||
+  'Something went wrong. Please try again, or email ' + "support.odo.in@gmail.com" + '.';
+
+// E.164: a plus and 8 to 15 digits. Everything a person might type in between - spaces,
+// dashes, brackets - is dropped first.
+const normalise = (raw) => {
+  const digits = raw.replace(/[^0-9+]/g, '');
+  const e164 = digits.startsWith('+') ? '+' + digits.slice(1).replace(/\+/g, '') : '';
+  return /^\+[0-9]{8,15}$/.test(e164) ? e164 : null;
+};
+
+let verifier = null;
+let confirmation = null;
+let number = null;
+
+// The reCAPTCHA is invisible and bound to the send button. It is rebuilt after a failure
+// because a spent widget cannot be reused, and reusing one is what makes a second attempt
+// fail with captcha-check-failed for no visible reason.
+const recaptcha = () => {
+  if (!verifier) verifier = new RecaptchaVerifier(auth, 'recaptcha', { size: 'invisible' });
+  return verifier;
+};
+
+const resetRecaptcha = () => {
+  if (verifier) { try { verifier.clear(); } catch (_) { /* already gone */ } }
+  verifier = null;
+  el('recaptcha').innerHTML = '';
+};
+
+el('send').addEventListener('click', async () => {
+  clearSay();
+  const candidate = normalise(el('phone').value);
+  if (!candidate) {
+    say('Enter the number with its country code, like +91 98765 43210.', 'error');
+    return;
+  }
+  busy(el('send'), 'Sending…');
+  try {
+    confirmation = await signInWithPhoneNumber(auth, candidate, recaptcha());
+    number = candidate;
+    el('sent-to').textContent = candidate;
+    el('confirm-number').textContent = candidate;
+    show('step-code');
+    el('code').focus();
+  } catch (error) {
+    resetRecaptcha();
+    say(explain(error), 'error');
+  } finally {
+    idle(el('send'));
+  }
+});
+
+el('back').addEventListener('click', () => {
+  clearSay();
+  confirmation = null;
+  resetRecaptcha();
+  el('code').value = '';
+  show('step-phone');
+});
+
+el('verify').addEventListener('click', async () => {
+  clearSay();
+  const code = el('code').value.replace(/[^0-9]/g, '');
+  if (code.length !== 6) {
+    say('Enter the 6-digit code from the SMS.', 'error');
+    return;
+  }
+  busy(el('verify'), 'Checking…');
+  try {
+    await confirmation.confirm(code);
+    show('step-confirm');
+  } catch (error) {
+    say(explain(error), 'error');
+  } finally {
+    idle(el('verify'));
+  }
+});
+
+el('understood').addEventListener('change', (event) => {
+  el('destroy').disabled = !event.target.checked;
+});
+
+el('destroy').addEventListener('click', async () => {
+  clearSay();
+  busy(el('destroy'), 'Deleting…');
+
+  let outcome;
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('signed out');
+
+    // Freshly minted rather than cached: the server rejects a verification older than a few
+    // minutes, and a token issued at sign-in can be stale by the time someone reads the
+    // warning and ticks the box.
+    const idToken = await user.getIdToken(true);
+
+    const response = await fetch(ERASE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      say(SERVER_ERRORS[payload.error_code] || 'Deletion failed. Please email us and we will do it by hand.', 'error');
+      idle(el('destroy'));
+      return;
+    }
+    outcome = payload.status;
+
+    // The Supabase side is gone. Remove the Firebase record too, so the number itself is no
+    // longer held anywhere. deleteUser needs a recent sign-in, which the code just provided.
+    try { await deleteUser(user); } catch (_) { /* server side already done; not worth blocking on */ }
+  } catch (error) {
+    say(explain(error), 'error');
+    idle(el('destroy'));
+    return;
+  }
+
+  el('done-text').textContent = outcome === 'no_account'
+    ? 'There was no ' + "Odo" + ' account for ' + number + ', so there was nothing to delete. The number is not stored with us.'
+    : 'The account for ' + number + ' and everything stored under it has been permanently deleted.';
+  show('step-done');
+});
+
+// Enter should submit the step you are on, not reload the page.
+for (const [input, button] of [['phone', 'send'], ['code', 'verify']]) {
+  el(input).addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); el(button).click(); }
+  });
+}
+</script>
+
+</div></main>
+<footer><div class="wrap">
+  <p>Last updated 15 August 2026.</p>
+  <p>Questions? <a href="mailto:support.odo.in@gmail.com">support.odo.in@gmail.com</a></p>
+</div></footer>
+</body>
+</html>

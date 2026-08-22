@@ -6,11 +6,13 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -49,6 +51,7 @@ internal class OdoSessionManager(
     private val telemetry: AuthTelemetry,
     private val scheduler: SyncScheduler,
     private val identity: SubscriptionIdentity,
+    private val profiles: OwnerProfileRepository,
     private val clock: Clock = Clock.System,
 ) : SessionStatusProvider, CurrentOwnerProvider, AccessTokenProvider, SessionRestore {
 
@@ -68,6 +71,11 @@ internal class OdoSessionManager(
      */
     override suspend fun restore() {
         mutex.withLock { restoreLocked() }
+        // The restored session carries no number of its own — it is four strings read back
+        // out of the store — so the one kept beside it is put on the profile again here.
+        // Without this, an install that signed in before this release ships would never get
+        // its number onto the server: nothing else calls the sign-in path again.
+        recordSessionPhone()
     }
 
     /* ---- SessionStatusProvider ---- */
@@ -112,25 +120,58 @@ internal class OdoSessionManager(
 
     /* ---- sign in / out ---- */
 
-    /** Ask for a code. Nothing is stored until one is verified. */
-    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> =
+    /**
+     * Ask for a code. Nothing is stored until one is verified — unless the provider proves
+     * the number without ever sending one, in which case sign-in is already done and this
+     * keeps the session exactly as [verifyOtp] would.
+     */
+    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> =
         gateway.requestOtp(phone)
-            .onRight { telemetry.otpRequested() }
+            .onRight { outcome ->
+                when (outcome) {
+                    OtpRequestOutcome.CodeSent -> telemetry.otpRequested()
+                    is OtpRequestOutcome.AlreadyVerified -> completeSignIn(outcome.session, phone)
+                }
+            }
             .onLeft { telemetry.otpRejected(it) }
 
     /** Exchange a code for a session and keep it. */
     suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =
         gateway.verifyOtp(phone, code)
-            .onRight {
-                mutex.withLock { keep(it) }
-                telemetry.signedIn()
-                // Back up what is already on the phone now. Nothing else will until the
-                // owner edits something or relaunches, and they were just told this is
-                // what signing in does. `SignIn` is REPLACE, so it also clears a backoff
-                // earned by runs that failed for the very reason this just fixed.
-                scheduler.requestSync(SyncReason.SignIn)
-            }
+            .onRight { completeSignIn(it, phone) }
             .onLeft { telemetry.otpRejected(it) }
+
+    /** The one place a sign-in actually completes, whether a code was typed or not. */
+    private suspend fun completeSignIn(session: AuthSession, phone: PhoneNumber) {
+        mutex.withLock { keep(session) }
+        // Every sign-in, not only the first. The server fills `profiles.phone` from a trigger
+        // that runs when the account is created, so an account whose row was written before
+        // the number was set keeps NULL forever and nothing on the server ever revisits it.
+        // Writing it here, before the sync below, is what gets the number onto the row the
+        // push is about to carry.
+        store.put(SecureStore.KEY_PHONE, phone.value)
+        profiles.recordPhone(session.ownerId, phone)
+        telemetry.signedIn()
+        // Back up what is already on the phone now. Nothing else will until the owner edits
+        // something or relaunches, and they were just told this is what signing in does.
+        // `SignIn` is REPLACE, so it also clears a backoff earned by runs that failed for the
+        // very reason this just fixed.
+        scheduler.requestSync(SyncReason.SignIn)
+    }
+
+    /**
+     * Put the stored number back on the profile row, if there is a session and a number.
+     *
+     * Cheap to repeat: the statement only touches the row when the value differs, so a
+     * relaunch does not mark a correct row dirty and ask the server to accept a change that
+     * isn't one. A failure is ignored — the number is not what a launch is for, and the next
+     * one tries again.
+     */
+    private suspend fun recordSessionPhone() {
+        val owner = _session.value?.ownerId ?: return
+        val phone = store.get(SecureStore.KEY_PHONE)?.let { PhoneNumber.of(it).getOrNull() } ?: return
+        profiles.recordPhone(owner, phone)
+    }
 
     /**
      * Forget the session, here and on the server.
@@ -150,20 +191,32 @@ internal class OdoSessionManager(
     }
 
     /**
-     * Renew, or give up and go offline.
+     * Renew, or say we could not — which is not the same as giving up.
      *
-     * A rejected refresh token is terminal — revoked, or expired past renewal — so the
-     * session is cleared rather than retried. The app keeps working; only syncing stops,
-     * and Profile shows the sign-in row again. Caller already holds the mutex.
+     * A **rejected** refresh token is terminal: revoked, or expired past renewal. Nothing
+     * changes that, so the session is cleared, the app keeps working offline, and Profile
+     * shows the sign-in row again.
+     *
+     * Anything else leaves the session exactly where it is and answers null for now. A
+     * timeout, a dropped connection, a 5xx from the identity service — none of those are
+     * evidence about the token, and treating them as such ended sessions on a flaky
+     * connection. That was silent by design (nothing interrupts the owner), so an install
+     * simply stopped syncing, and the next sign-in resumed from cursors nothing had cleared
+     * (issue #312). The caller sees null and stays offline for this attempt; the next one
+     * tries the same refresh token again, which is still good.
+     *
+     * Caller already holds the mutex.
      */
     private suspend fun refreshLocked(current: AuthSession): AuthSession? =
         gateway.refresh(current.refreshToken).fold(
-            ifLeft = {
-                hold(null)
-                SESSION_KEYS.forEach { key -> store.remove(key) }
-                // Nothing interrupts the owner, so this line is the only trace that an
-                // install has quietly stopped syncing.
-                telemetry.sessionEnded()
+            ifLeft = { error ->
+                if (error == DomainError.SessionExpired) {
+                    hold(null)
+                    SESSION_KEYS.forEach { key -> store.remove(key) }
+                    // Nothing interrupts the owner, so this line is the only trace that an
+                    // install has quietly stopped syncing.
+                    telemetry.sessionEnded()
+                }
                 null
             },
             ifRight = { renewed -> keep(renewed) },
@@ -222,6 +275,7 @@ internal class OdoSessionManager(
             SecureStore.KEY_REFRESH_TOKEN,
             SecureStore.KEY_EXPIRES_AT,
             SecureStore.KEY_USER_ID,
+            SecureStore.KEY_PHONE,
         )
     }
 }

@@ -4,10 +4,12 @@ import com.hopcape.odo.core.data.trip.TripDto
 import com.hopcape.odo.core.data.trip.TripRemoteDataSource
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
+import com.hopcape.odo.infrastructure.database.sync.FetchResult
 import com.hopcape.odo.infrastructure.database.sync.inMemoryDatabase
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -98,27 +100,30 @@ class TripSyncTableTest {
     }
 
     @Test
-    fun `fetch is a no-op with no active car`() = runTest {
+    fun `fetch reports a missing scope when there is no owner`() = runTest {
         val (database, _) = inMemoryDatabase()
         val remote = RecordingRemote()
-        val table = TripSyncTable(database = database, remote = remote, carId = { null })
+        val table = TripSyncTable(database = database, remote = remote, ownerId = { null })
 
-        val fetched = table.fetch(since = null)
-
-        assertTrue(fetched.isEmpty())
+        // Deliberately not an empty page: an empty page means the server had nothing, and a
+        // run that cannot ask has established no such thing (issue #312).
+        assertIs<FetchResult.ScopeMissing>(table.fetch(since = null))
         assertEquals(0, remote.fetchCalls)
     }
 
     @Test
-    fun `fetch asks the remote for the active car`() = runTest {
+    fun `fetch asks the remote for every trip on the account`() = runTest {
         val (database, _) = inMemoryDatabase()
         val remote = RecordingRemote(remoteResult = listOf(remoteTrip(id = TRIP, updatedAt = T1)))
-        val table = TripSyncTable(database = database, remote = remote, carId = { CAR })
+        val table = TripSyncTable(database = database, remote = remote, ownerId = { OWNER })
 
         val fetched = table.fetch(since = T0)
 
-        assertEquals(listOf(TRIP), fetched.map { it.id })
-        assertEquals(CAR, remote.lastCarId)
+        // Owner-scoped, so a second car's trips arrive too, and nothing depends on the
+        // active-car flow having emitted yet.
+        assertIs<FetchResult.Rows<TripDto>>(fetched)
+        assertEquals(listOf(TRIP), fetched.rows.map { it.id })
+        assertEquals(OWNER, remote.lastOwnerId)
         assertEquals(T0, remote.lastSince)
     }
 
@@ -127,7 +132,7 @@ class TripSyncTableTest {
     private fun table(
         database: OdoDatabase,
         remote: TripRemoteDataSource = RecordingRemote(),
-    ) = TripSyncTable(database = database, remote = remote, carId = { CAR })
+    ) = TripSyncTable(database = database, remote = remote, ownerId = { OWNER })
 
     private fun OdoDatabase.insertLocalTrip(
         id: String,
@@ -173,12 +178,12 @@ class TripSyncTableTest {
     private class RecordingRemote(private val remoteResult: List<TripDto> = emptyList()) : TripRemoteDataSource {
         val pushed = mutableListOf<TripDto>()
         var fetchCalls = 0
-        var lastCarId: String? = null
+        var lastOwnerId: String? = null
         var lastSince: Instant? = null
 
-        override suspend fun fetchSince(carId: String, since: Instant?): List<TripDto> {
+        override suspend fun fetchSince(ownerId: String, since: Instant?): List<TripDto> {
             fetchCalls++
-            lastCarId = carId
+            lastOwnerId = ownerId
             lastSince = since
             return remoteResult
         }

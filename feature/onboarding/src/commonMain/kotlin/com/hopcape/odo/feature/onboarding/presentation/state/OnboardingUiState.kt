@@ -38,12 +38,18 @@ internal data class OnboardingUiState(
      *
      * The single authority on "is this step answered" — the slices each answer only for
      * their own fields, and the car step's answer is whichever route is showing *plus* the
-     * odometer they share.
+     * two things both routes share: the odometer, and the registration number.
+     *
+     * The plate is required on **both** routes. It used to be required only on the plate
+     * route, as a side effect of a match being what answered that route, so anyone who
+     * entered their car by hand saved it without one. That car cannot be matched to a bill,
+     * a reminder, an insurance document or a resale report afterwards, and nothing later in
+     * the app asks for the plate again.
      */
     val canContinue: Boolean
         get() = when (step) {
-            OnboardingStep.CAR ->
-                odometer.value != null && if (manualEntry) details.isAnswered else car.isAnswered
+            OnboardingStep.CAR -> odometer.value != null && car.isPlateValid &&
+                if (manualEntry) details.isAnswered else car.isAnswered
 
             OnboardingStep.PROFILE -> profile.isAnswered
             OnboardingStep.FIRST_SCAN -> true

@@ -1,0 +1,17 @@
+-- Schema 5 -> 6: the owner's phone number on the local profile row.
+--
+-- The number is what the account is; it is the only thing that identifies an owner to a
+-- human being, and support, the paywall and WhatsApp reminders all need to find somebody by
+-- it. It was never on the device at all: the server filled `profiles.phone` from a trigger
+-- that runs on INSERT into auth.users, so anyone whose row was created before GoTrue set the
+-- phone got NULL and nothing has ever written it since. The client could not fix that
+-- because it had no column to push from.
+--
+-- Appended, not inserted in the middle, because ALTER TABLE ADD COLUMN can only append and
+-- `SELECT *` has to produce the same column order on a fresh install as on an upgraded one.
+-- Profile.sq declares it last for that reason.
+--
+-- A plain ADD COLUMN with no NOT NULL and no default, so there is no SQLite 3.18 table
+-- rebuild here. Existing rows read as NULL until the next sign-in fills them in — which is
+-- correct, since the number is only known once a session proves it.
+ALTER TABLE profiles ADD COLUMN phone TEXT;

@@ -23,7 +23,14 @@ import com.hopcape.odo.feature.profile.presentation.EditProfileTestTags
 import com.hopcape.odo.feature.profile.presentation.NotificationsTestTags
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import com.hopcape.odo.feature.profile.presentation.sheets.UnitsTestTags
+import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.entitlement.Entitlements
+import com.hopcape.odo.core.domain.entitlement.Plan
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
+import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
+import kotlinx.coroutines.flow.flowOf
 import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
 import app.cash.sqldelight.db.SqlDriver
 
 /**
@@ -76,6 +83,64 @@ internal object ProfileCopy {
 
     /** Where first-run setup starts, which is where deleting everything lands. */
     const val WELCOME_HEADLINE = "Know what your car really costs you."
+
+    /** The "Help & support" row that opens the sheet. */
+    const val HELP = "Help & support"
+
+    /* The Pro plan card. */
+    const val PRO_TITLE = "Odo Pro"
+    const val PRO_ACTIVE = "ACTIVE"
+    const val MANAGE_PLAN = "Manage plan"
+    const val PRO_NO_DATE = "Your subscription is active."
+}
+
+/**
+ * The words :feature:support puts on screen, copied for the same reason [ProfileCopy] is:
+ * a feature's generated `Res` is internal to its own module.
+ *
+ * Deliberately not a copy of every string — only what a test needs to prove a row led
+ * somewhere real. If one of these stops matching `feature/support/.../strings.xml`, the
+ * suite says so, which is the point.
+ */
+internal object SupportCopy {
+    const val SHEET_TITLE = "Help & support"
+    const val SEARCH_BOX = "Search help articles"
+
+    /* Rows and chips on the sheet. */
+    const val EMAIL = "Email us"
+    const val REPORT = "Report a problem"
+    const val IDEA = "Suggest an idea"
+    const val FLAG = "Flag wrong price data"
+    const val FAQS = "FAQs"
+    const val PRIVACY = "Privacy"
+    const val LICENCES = "Licences"
+
+    /* Screens behind them. */
+    const val FAQ_FIRST_QUESTION = "Does Odo work without internet?"
+    const val FAQ_FIRST_ANSWER_FRAGMENT = "saved on the phone first"
+    const val FAQ_BACKGROUND_QUESTION = "Why does Odo ask for location in the background?"
+    const val SEARCH_TITLE = "Search help"
+    const val SEARCH_PROMPT = "Type to search"
+    const val SEARCH_EMPTY = "Nothing matched"
+    const val FEEDBACK_SEND = "Continue in email"
+
+    /** The form opens on headings rather than an empty box, so this is what proves it opened. */
+    const val REPORT_TEMPLATE_HEADING = "What went wrong:"
+
+    const val LICENCE_APACHE = "Apache License 2.0"
+
+    /* Rate Odo. */
+    const val RATE = "Rate Odo"
+    const val RATE_TITLE = "How is Odo working for you?"
+    const val RATE_SEND = "Send feedback"
+    const val RATE_PLAY = "Rate on Play Store"
+
+    /** Each star is its own labelled target, so a test can pick one. */
+    fun starLabel(star: Int) = "Rate $star out of 5"
+
+    /** The two rows that were cut rather than left showing sample data. */
+    const val CHAT = "Chat with support"
+    const val TICKETS = "My tickets"
 }
 
 private typealias ProfileTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
@@ -324,6 +389,47 @@ internal fun ProfileTestRule.assertRowSummary(rowTag: String, text: String) {
     ).assertExists()
 }
 
+/* ------------------------------ Help & support ------------------------------ */
+
+/**
+ * Open the help sheet from the profile row.
+ *
+ * The row sits below the fold on most screens, so it is scrolled to rather than assumed
+ * visible — the suite runs on whatever the emulator's height happens to be.
+ */
+internal fun ProfileTestRule.openHelpSheet() {
+    onNodeWithTag(ProfileTestTags.HELP_ROW).performScrollTo().performClick()
+    awaitText(SupportCopy.SEARCH_BOX)
+}
+
+/**
+ * Tap a row or chip on the sheet and wait for the screen it opens.
+ *
+ * Waits on a *substring*: the feedback forms open on a multi-line template, so the heading
+ * a test recognises them by is only ever part of the field's text, never the whole of it.
+ */
+internal fun ProfileTestRule.openFromHelpSheet(label: String, expect: String) {
+    onNodeWithText(label).performScrollTo().performClick()
+    awaitTextContaining(expect)
+}
+
+/**
+ * Type into the help search field.
+ *
+ * Found by "the one node that accepts text" rather than by a tag: the search screen has a
+ * single field, and tagging it would exist only for this line.
+ */
+internal fun ProfileTestRule.typeHelpSearch(query: String) {
+    onNode(hasSetTextAction()).performTextInput(query)
+    waitForIdle()
+}
+
+/** Back out of a support screen to whatever opened it. */
+internal fun ProfileTestRule.leaveSupportScreen() {
+    onNodeWithContentDescription(BACK_LABEL).performClick()
+    waitForIdle()
+}
+
 /** The back arrow every full-screen surface carries. */
 private const val BACK_LABEL = "Back"
 
@@ -343,4 +449,34 @@ internal fun ProfileTestRule.awaitTextContaining(text: String, timeoutMillis: Lo
     waitUntil(timeoutMillis) {
         onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
     }
+}
+
+/* ------------------------------ The plan ------------------------------ */
+
+/**
+ * Put the app on a plan, the way the store would have.
+ *
+ * Both bindings are replaced together, because the profile reads them from two ports and a
+ * Pro entitlement with no subscription state is not a state the store can produce. Both are
+ * resolved through a `factory` use case, so a screen opened after this call sees the change.
+ *
+ * Every test that touches this has to put it back — process-scoped singles outlive a test,
+ * so a plan left switched on would follow the rest of the class.
+ */
+internal fun setPlan(isPro: Boolean, subscription: SubscriptionState? = null) {
+    val entitlements = Entitlements(if (isPro) Plan.PRO else Plan.FREE)
+    GlobalContext.get().loadModules(
+        listOf(
+            module {
+                single<EntitlementSource> {
+                    object : EntitlementSource {
+                        override fun observe() = flowOf(entitlements)
+                        override suspend fun refresh() = Unit
+                    }
+                }
+                single<SubscriptionStatusSource> { SubscriptionStatusSource { flowOf(subscription) } }
+            },
+        ),
+        allowOverride = true,
+    )
 }

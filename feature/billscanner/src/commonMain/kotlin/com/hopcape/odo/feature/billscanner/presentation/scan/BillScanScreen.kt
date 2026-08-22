@@ -234,8 +234,15 @@ private fun ScanTopBar(
                 size = OdoTheme.iconSizes.medium,
             )
         }
-        OdoText(stringResource(state.target.titleResource()), style = OdoTheme.typography.heading)
-        Spacer(Modifier.weight(1f))
+        // The title takes the flexible space (and ellipsizes) so the torch and the
+        // quota pill keep their intrinsic width — a large font scale used to squeeze
+        // the pill into a one-word-per-line column.
+        OdoText(
+            stringResource(state.target.titleResource()),
+            style = OdoTheme.typography.heading,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
         // A workshop counter is often badly lit and a thermal bill is low-contrast to begin
         // with, so the torch is part of the scanner rather than a setting somewhere.
         if (state.cameraGranted) {
@@ -350,15 +357,20 @@ private fun Viewfinder(
                 cap = StrokeCap.Round,
             )
         }
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = OdoTheme.spacing.lg, vertical = OdoTheme.spacing.xxl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-        ) {
-            if (state.cameraGranted) {
+        if (state.cameraGranted) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = OdoTheme.spacing.lg, vertical = OdoTheme.spacing.xxl)
+                    // A scrim between the copy and the live camera feed: without it the
+                    // guidance is unreadable over a busy frame, all the more so under a
+                    // large font scale, where the text covers more of the preview.
+                    .clip(OdoTheme.shapes.small)
+                    .background(OdoTheme.colors.surface.copy(alpha = 0.72f))
+                    .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            ) {
                 val failure = state.cameraFailure
                 if (failure == null) {
                     OdoText(

@@ -2,8 +2,10 @@ package com.hopcape.odo.feature.profile.presentation.privacy
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedAccount
+import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAccountUseCase
@@ -88,11 +90,27 @@ internal class DeleteAccountViewModel(
         viewModelScope.launch(telemetry.op(ProfileTelemetry.Trace.DELETE_ACCOUNT)) {
             verifier.startVerification(number).fold(
                 ifLeft = { fail(it, back = DeleteAccountStep.Confirm) },
-                // Clear any previous digits: a resend invalidates the code they were for, and
-                // leaving them on screen invites submitting one that can no longer work.
-                ifRight = { _state.value = _state.value.copy(step = DeleteAccountStep.Verify, code = "") },
+                ifRight = { outcome ->
+                    when (outcome) {
+                        // Clear any previous digits: a resend invalidates the code they were
+                        // for, and leaving them on screen invites submitting one that can no
+                        // longer work.
+                        PhoneVerificationOutcome.CodeSent ->
+                            _state.value = _state.value.copy(step = DeleteAccountStep.Verify, code = "")
+                        // Already proved — there is no code to collect, so go straight to
+                        // the erase this re-verification was for.
+                        PhoneVerificationOutcome.AlreadyVerified -> completeAutoVerification()
+                    }
+                },
             )
         }
+    }
+
+    private suspend fun completeAutoVerification() {
+        verifier.completeAutoVerification().fold(
+            ifLeft = { fail(it, back = DeleteAccountStep.Confirm) },
+            ifRight = { token -> eraseWithToken(token) },
+        )
     }
 
     private fun submitCode() {
@@ -102,14 +120,16 @@ internal class DeleteAccountViewModel(
         viewModelScope.launch(telemetry.op(ProfileTelemetry.Trace.DELETE_ACCOUNT)) {
             verifier.submitCode(code).fold(
                 ifLeft = { fail(it, back = DeleteAccountStep.Verify) },
-                ifRight = { token ->
-                    telemetry.accountErase { deleteAccount(token) }.fold(
-                        ifLeft = ::handleEraseFailure,
-                        ifRight = { finish() },
-                    )
-                },
+                ifRight = { token -> eraseWithToken(token) },
             )
         }
+    }
+
+    private suspend fun eraseWithToken(token: VerifiedPhoneToken) {
+        telemetry.accountErase { deleteAccount(token) }.fold(
+            ifLeft = ::handleEraseFailure,
+            ifRight = { finish() },
+        )
     }
 
     private fun eraseLocalOnly() {

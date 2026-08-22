@@ -37,8 +37,6 @@ import com.hopcape.odo.feature.profile.resources.pf_cd_close
 import com.hopcape.odo.feature.profile.resources.pf_change_photo
 import com.hopcape.odo.feature.profile.resources.pf_city
 import com.hopcape.odo.feature.profile.resources.pf_city_note
-import com.hopcape.odo.feature.profile.resources.pf_delete
-import com.hopcape.odo.feature.profile.resources.pf_deleting
 import com.hopcape.odo.feature.profile.resources.pf_edit_title
 import com.hopcape.odo.feature.profile.resources.pf_email
 import com.hopcape.odo.feature.profile.resources.pf_email_hint
@@ -90,22 +88,6 @@ internal fun EditProfileScreen(
                     onClick = { onEvent(EditProfileEvent.Save) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = state.canSave,
-                )
-                OdoText(
-                    if (state.deletion.isInFlight) {
-                        stringResource(Res.string.pf_deleting)
-                    } else {
-                        stringResource(Res.string.pf_delete)
-                    },
-                    style = OdoTheme.typography.label,
-                    color = OdoTheme.colors.danger,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !state.deletion.isInFlight) {
-                            onEvent(EditProfileEvent.DeleteRequested)
-                        }
-                        .padding(vertical = OdoTheme.spacing.xs),
                 )
             }
         },
@@ -179,13 +161,6 @@ internal fun EditProfileScreen(
             )
             OdoText(stringResource(Res.string.pf_city_note), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
-    }
-
-    if (state.confirmingDelete) {
-        DeleteDataDialog(
-            onConfirm = { onEvent(EditProfileEvent.DeleteConfirmed) },
-            onDismiss = { onEvent(EditProfileEvent.DeleteDismissed) },
-        )
     }
 }
 

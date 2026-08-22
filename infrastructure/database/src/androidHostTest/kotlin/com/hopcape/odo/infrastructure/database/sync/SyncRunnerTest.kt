@@ -33,7 +33,7 @@ class SyncRunnerTest {
     fun pushSendsPendingRowsAndMarksThemSynced() = runTest {
         val table = FakeTable(pending = listOf(row("a", t0), row("b", t0)))
 
-        assertTrue(runner(table).run(FakeSynchronizer()))
+        assertTrue(runner(table).both(FakeSynchronizer()))
 
         assertEquals(listOf("a", "b"), table.pushed.map { it.id })
         assertEquals(mapOf("a" to t0.toString(), "b" to t0.toString()), table.markedSynced)
@@ -45,7 +45,7 @@ class SyncRunnerTest {
         // would make every later run skip exactly the row that never arrived.
         val table = FakeTable(pending = listOf(row("a", updatedAt = null)))
 
-        assertTrue(runner(table).run(FakeSynchronizer()))
+        assertTrue(runner(table).both(FakeSynchronizer()))
 
         assertTrue(table.markedSynced.isEmpty())
     }
@@ -55,7 +55,7 @@ class SyncRunnerTest {
         val table = FakeTable(pending = listOf(row("a", t0)), pushThrows = RuntimeException("offline"))
         val synchronizer = FakeSynchronizer()
 
-        assertFalse(runner(table).run(synchronizer))
+        assertFalse(runner(table).both(synchronizer))
 
         assertTrue(table.markedSynced.isEmpty())
         assertEquals(listOf(SyncEntity.CARS), synchronizer.failures)
@@ -66,9 +66,9 @@ class SyncRunnerTest {
         val table = FakeTable(pending = listOf(row("a", t0)))
         val synchronizer = FakeSynchronizer()
 
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
         table.pending = emptyList()          // it is SYNCED now, so the outbox is empty
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
 
         assertEquals(1, table.pushed.size)
     }
@@ -76,7 +76,7 @@ class SyncRunnerTest {
     @Test
     fun anEmptyOutboxMakesNoPush() = runTest {
         val table = FakeTable()
-        assertTrue(runner(table).run(FakeSynchronizer()))
+        assertTrue(runner(table).both(FakeSynchronizer()))
         assertTrue(table.pushed.isEmpty())
     }
 
@@ -89,7 +89,7 @@ class SyncRunnerTest {
         // one bad row would take every table after this one offline with it.
         val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"))
 
-        assertTrue(runner(table).run(FakeSynchronizer()))
+        assertTrue(runner(table).both(FakeSynchronizer()))
 
         assertEquals(setOf("a"), table.markedConflict)
         assertTrue(table.markedSynced.isEmpty())
@@ -101,7 +101,7 @@ class SyncRunnerTest {
         // about the rows after the bad one.
         val table = FakeTable(pending = listOf(row("a", t0), row("b", t0)), refuses = setOf("a"))
 
-        assertTrue(runner(table).run(FakeSynchronizer()))
+        assertTrue(runner(table).both(FakeSynchronizer()))
 
         assertEquals(setOf("a"), table.markedConflict)
         assertEquals(mapOf("b" to t0.toString()), table.markedSynced)
@@ -112,7 +112,7 @@ class SyncRunnerTest {
         val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"))
         val synchronizer = FakeSynchronizer()
 
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
 
         // Otherwise the debug row reads "last sync fine" for an entity carrying a row the
         // server has permanently refused.
@@ -126,7 +126,7 @@ class SyncRunnerTest {
         val table = FakeTable(pending = listOf(row("a", t0)), refuses = setOf("a"), refusalStatus = 503)
         val synchronizer = FakeSynchronizer()
 
-        assertFalse(runner(table).run(synchronizer))
+        assertFalse(runner(table).both(synchronizer))
 
         assertTrue(table.markedConflict.isEmpty())
         assertEquals(listOf(SyncEntity.CARS), synchronizer.failures)
@@ -140,7 +140,7 @@ class SyncRunnerTest {
         // not gone up yet, and overwrite the owner's change with their own older data.
         val table = FakeTable(pending = listOf(row("a", t0)), remote = listOf(row("b", t1)))
 
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
 
         assertEquals(listOf("push", "fetch"), table.calls)
     }
@@ -150,7 +150,7 @@ class SyncRunnerTest {
         val table = FakeTable(remote = listOf(row("a", t0), row("b", t1)))
         val synchronizer = FakeSynchronizer()
 
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
 
         assertEquals(t1, synchronizer.cursors[SyncEntity.CARS]?.lastPulledAt)
     }
@@ -161,7 +161,7 @@ class SyncRunnerTest {
         val synchronizer = FakeSynchronizer()
         synchronizer.cursors[SyncEntity.CARS] = SyncCursor(SyncEntity.CARS, lastPulledAt = t1)
 
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
 
         // Five seconds back, not `gt` on the mark: two rows can share an updated_at, and
         // re-reading one is free while missing one is permanent.
@@ -174,7 +174,7 @@ class SyncRunnerTest {
         val synchronizer = FakeSynchronizer()
         synchronizer.cursors[SyncEntity.CARS] = SyncCursor(SyncEntity.CARS, lastPulledAt = t1)
 
-        runner(table).run(synchronizer)
+        runner(table).both(synchronizer)
 
         assertEquals(t1, synchronizer.cursors[SyncEntity.CARS]?.lastPulledAt)
     }
@@ -184,9 +184,38 @@ class SyncRunnerTest {
         val synchronizer = FakeSynchronizer()
         synchronizer.cursors[SyncEntity.CARS] = SyncCursor(SyncEntity.CARS, lastError = "IllegalStateException")
 
-        runner(FakeTable()).run(synchronizer)
+        runner(FakeTable()).both(synchronizer)
 
         assertNull(synchronizer.cursors[SyncEntity.CARS]?.lastError)
+    }
+
+    @Test
+    fun aScopeItCannotNameIsAFailure_notAnEmptyPull() = runTest {
+        // The bug in issue #312. A car-scoped table whose car id had not arrived yet
+        // returned an empty list, which is indistinguishable from a server with nothing new
+        // — so the run reported success, WorkManager dropped the job, and none of the
+        // owner's history was ever fetched.
+        val table = FakeTable(scopeMissing = "owner id")
+        val synchronizer = FakeSynchronizer()
+        synchronizer.cursors[SyncEntity.CARS] = SyncCursor(SyncEntity.CARS, lastPulledAt = t0)
+
+        assertFalse(runner(table).pull(synchronizer))
+
+        // Recorded, so the engine reports Partial and the worker returns retry().
+        assertEquals(listOf(SyncEntity.CARS), synchronizer.failures)
+        // And the cursor did not move, so the retry re-asks for the same window.
+        assertEquals(t0, synchronizer.cursors[SyncEntity.CARS]?.lastPulledAt)
+    }
+
+    @Test
+    fun aGenuinelyEmptyPullIsStillASuccess() = runTest {
+        // The other side of the distinction: a server that answers "nothing changed" has
+        // answered, and that run is done.
+        val synchronizer = FakeSynchronizer()
+
+        assertTrue(runner(FakeTable()).pull(synchronizer))
+
+        assertTrue(synchronizer.failures.isEmpty())
     }
 
     /* ---------------------- the conflict matrix (§7) ---------------------- */
@@ -194,7 +223,7 @@ class SyncRunnerTest {
     @Test
     fun conflict_rowNotHeldLocally_isInserted() = runTest {
         val table = FakeTable(remote = listOf(row("a", t0)))
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         assertEquals(listOf("a"), table.applied.map { it.id })
     }
 
@@ -204,7 +233,7 @@ class SyncRunnerTest {
             remote = listOf(row("a", t1)),
             local = mapOf("a" to LocalRowState(SyncStatus.SYNCED, t0)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         assertEquals(listOf("a"), table.applied.map { it.id })
     }
 
@@ -214,7 +243,7 @@ class SyncRunnerTest {
             remote = listOf(row("a", t0)),
             local = mapOf("a" to LocalRowState(SyncStatus.PENDING, t1)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         // The local edit survives and stays PENDING, so the next push overwrites the server.
         assertTrue(table.applied.isEmpty())
     }
@@ -225,7 +254,7 @@ class SyncRunnerTest {
             remote = listOf(row("a", t1)),
             local = mapOf("a" to LocalRowState(SyncStatus.PENDING, t0)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         assertEquals(listOf("a"), table.applied.map { it.id })
     }
 
@@ -235,7 +264,7 @@ class SyncRunnerTest {
             remote = listOf(row("a", t0)),
             local = mapOf("a" to LocalRowState(SyncStatus.PENDING, t0)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         // Bias to the device the owner is holding. If the versions are identical the push
         // that follows is a no-op anyway.
         assertTrue(table.applied.isEmpty())
@@ -247,7 +276,7 @@ class SyncRunnerTest {
             remote = listOf(row("a", updatedAt = null)),
             local = mapOf("a" to LocalRowState(SyncStatus.PENDING, t0)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         assertTrue(table.applied.isEmpty())
     }
 
@@ -260,11 +289,21 @@ class SyncRunnerTest {
             remote = listOf(row("a", t1, deleted = true)),
             local = mapOf("a" to LocalRowState(SyncStatus.SYNCED, t0)),
         )
-        runner(table).run(FakeSynchronizer())
+        runner(table).both(FakeSynchronizer())
         assertTrue(table.applied.single().deleted)
     }
 
     /* ------------------------------ scaffolding ------------------------------ */
+
+    /**
+     * Both halves, in the order and with the independence the engine gives them: the pull is
+     * attempted whether or not the push succeeded.
+     */
+    private suspend fun SyncRunner<Row>.both(synchronizer: Synchronizer): Boolean {
+        val pushed = push(synchronizer)
+        val pulled = pull(synchronizer)
+        return pushed && pulled
+    }
 
     private fun runner(table: FakeTable) = SyncRunner(
         entity = SyncEntity.CARS,
@@ -293,6 +332,8 @@ class SyncRunnerTest {
         /** Ids the server refuses for good; a batch containing one is rejected whole. */
         private val refuses: Set<String> = emptySet(),
         private val refusalStatus: Int = 409,
+        /** When set, the table cannot name what to fetch and says so instead of guessing. */
+        private val scopeMissing: String? = null,
     ) : SyncTable<Row> {
         val pushed = mutableListOf<Row>()
         val applied = mutableListOf<Row>()
@@ -321,10 +362,10 @@ class SyncRunnerTest {
             markedConflict += id
         }
 
-        override suspend fun fetch(since: Instant?): List<Row> {
+        override suspend fun fetch(since: Instant?): FetchResult<Row> {
             calls += "fetch"
             fetchedSince = since
-            return remote
+            return scopeMissing?.let { FetchResult.ScopeMissing(it) } ?: FetchResult.Rows(remote)
         }
 
         override fun localState(id: String) = local[id]

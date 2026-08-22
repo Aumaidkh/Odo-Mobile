@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import com.hopcape.odo.core.platform.app.ActivityTracker
 import com.hopcape.odo.core.platform.app.AndroidAppInfo
+import com.hopcape.odo.core.platform.app.AndroidDeviceInfo
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.DeviceInfo
 import com.hopcape.odo.core.platform.app.CurrentActivity
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -59,6 +61,8 @@ val corePlatformAndroidModule = module {
     single<StoredPageRenderer> { AndroidStoredPageRenderer(context = get<Context>()) }
     single<DocumentCropper> { AndroidDocumentCropper(context = get<Context>()) }
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
+    // Needs no Context: the model and OS version are static Build fields.
+    single<DeviceInfo> { AndroidDeviceInfo() }
     // createdAtStart, because it starts watching in its constructor: resolved on first use it
     // would begin listening after the Activity it is being asked about already resumed. See
     // ActivityTracker's comment.
@@ -101,7 +105,7 @@ val corePlatformAndroidModule = module {
     // (docs/SHOWCASE_PLAN.md decision 1). The arbiter that reads it is bound in :core:data.
     single<ShowcaseSeenStore> { PrefsShowcaseSeenStore(context = get<Context>()) }
     // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
-    single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>()) }
+    single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>(), telemetry = get()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }
     single<SmsAppSignature> { AndroidSmsAppSignature(context = get<Context>()) }
     // The durable file sink's on-disk store (docs/LOGGING_PLAN.md). "logs" alongside

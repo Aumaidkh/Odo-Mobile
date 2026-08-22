@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -28,6 +29,7 @@ class SqlDelightProfileLocalDataSourceTest {
 
     private val ownerId = OwnerId("owner-1")
     private val completedAt = Instant.parse("2026-07-30T10:15:00Z")
+    private val phone = PhoneNumber.of("+919812345678").getOrNull()!!
 
     private lateinit var driver: JdbcSqliteDriver
 
@@ -141,12 +143,115 @@ class SqlDelightProfileLocalDataSourceTest {
             sharesPrices = 1,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
+            phone = null,
         )
 
         val stored = local(db).observe().first()
         assertNotNull(stored)
         assertNull(stored.name)
         assertNull(stored.goal)
+    }
+
+    /* ---------------------------- the owner's phone number ---------------------------- */
+
+    @Test
+    fun recordPhone_writesTheNumberOntoTheProfileAndLeavesItPending() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.save(profile())
+        db.profileQueries.markSynced(remoteVersion = "v1", id = ownerId.value)
+
+        local.recordPhone(ownerId, phone)
+
+        assertEquals(phone.value, local.observe().first()?.phone?.value)
+        // PENDING is the whole point: the next push is what puts the number on the server,
+        // which has no other way of learning it after the account was made.
+        assertEquals(SyncStatus.PENDING.name, tombstoneOf(ownerId.value)?.syncStatus)
+    }
+
+    @Test
+    fun recordPhone_createsARowWhenSetupHasNotRunYet() = runTest {
+        val db = newDb()
+        val local = local(db)
+
+        // Signed in before finishing setup: there is nothing to attach the number to yet.
+        local.recordPhone(ownerId, phone)
+
+        val stored = local.observe().first()
+        assertEquals(phone.value, stored?.phone?.value)
+        // And the row it made must not read as a finished setup, or the app opens on Home
+        // with no car.
+        assertNull(stored?.name)
+        assertTrue(stored?.hasCompletedOnboarding == false)
+    }
+
+    @Test
+    fun recordPhone_leavesAnAlreadyCorrectRowAlone() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.save(profile())
+        local.recordPhone(ownerId, phone)
+        db.profileQueries.markSynced(remoteVersion = "v1", id = ownerId.value)
+
+        // Every launch calls this. Marking a correct row dirty would ask the server to accept
+        // a change that isn't one, on every relaunch, forever.
+        local.recordPhone(ownerId, phone)
+
+        assertEquals(SyncStatus.SYNCED.name, tombstoneOf(ownerId.value)?.syncStatus)
+    }
+
+    @Test
+    fun save_doesNotWipeTheNumberItWasNeverTold() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.recordPhone(ownerId, phone)
+
+        // Every screen that edits a profile builds one from what it asked for, and none of
+        // them ask for the phone. A plain assignment here would undo the sign-in.
+        local.save(profile(name = "Rahul Sharma"))
+
+        val stored = local.observe().first()
+        assertEquals("Rahul Sharma", stored?.name?.value)
+        assertEquals(phone.value, stored?.phone?.value)
+    }
+
+    /**
+     * An install that predates the column gets it from 5.sqm, not from Profile.sq — a `.sq`
+     * alone would leave that phone querying a column it never created.
+     *
+     * The table is written out as it stood at version 5 rather than created from the schema,
+     * because the schema already has the column and would prove nothing.
+     */
+    @Test
+    fun anExistingInstallGetsTheColumnFromTheMigration() = runTest {
+        driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE profiles (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    full_name TEXT,
+                    onboarding_goal TEXT,
+                    onboarding_completed_at TEXT,
+                    city TEXT,
+                    email TEXT,
+                    avatar_path TEXT,
+                    shares_prices INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    deleted_at TEXT,
+                    remote_version TEXT,
+                    sync_status TEXT NOT NULL DEFAULT 'PENDING'
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
+        OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = 6L).await()
+
+        val db = OdoDatabase(driver)
+        local(db).recordPhone(ownerId, phone)
+        assertEquals(phone.value, local(db).observe().first()?.phone?.value)
     }
 
     @Test
@@ -165,6 +270,7 @@ class SqlDelightProfileLocalDataSourceTest {
             sharesPrices = 1,
             now = completedAt.toString(),
             syncStatus = SyncStatus.SYNCED.name,
+            phone = null,
         )
 
         val stored = local(db).observe().first()

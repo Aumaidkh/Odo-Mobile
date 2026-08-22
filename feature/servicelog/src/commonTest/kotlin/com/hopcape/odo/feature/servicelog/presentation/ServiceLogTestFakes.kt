@@ -34,6 +34,7 @@ import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.servicelog.model.BillId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
@@ -175,6 +176,9 @@ internal class FakeOwnerProfileRepository(initial: OwnerProfile? = null) : Owner
         profile.right().also { this.profile.value = profile }
 
     override fun observe(): Flow<OwnerProfile?> = profile
+
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+        Unit.right()
 
     override suspend fun delete(): Either<DomainError, Unit> = Unit.right().also { profile.value = null }
 }

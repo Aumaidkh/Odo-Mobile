@@ -10,6 +10,7 @@ import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.remote.RemoteFileStorage
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.legal.LegalLinks
@@ -155,8 +156,9 @@ class SupabaseModuleTest {
     }.koin
 
     private object StubVerifier : PhoneVerifier {
-        override suspend fun startVerification(phone: PhoneNumber) = Unit.right()
+        override suspend fun startVerification(phone: PhoneNumber) = PhoneVerificationOutcome.CodeSent.right()
         override suspend fun submitCode(code: String) = VerifiedPhoneToken("token").right()
+        override suspend fun completeAutoVerification() = VerifiedPhoneToken("token").right()
         override suspend fun forget() = Unit
     }
 }

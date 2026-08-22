@@ -8,9 +8,13 @@ import kotlin.time.Instant
  *
  * Deliberately small. It holds only what a *feature* reads back: the name used to greet
  * them, the goal that decides where onboarding drops them (PRD §5.1), and whether first-run
- * setup is finished. Everything else on the server's `profiles` row (phone, home city,
- * preferred language) is either owned by auth or not asked for yet, and gets modelled when
- * something actually reads it.
+ * setup is finished. The rest of the server's `profiles` row (home city, preferred language)
+ * is either owned by auth or not asked for yet, and gets modelled when something actually
+ * reads it.
+ *
+ * [phone] is the exception among those, and it is here because nothing else could put it on
+ * the server. It is not edited — auth proves it and this only carries it — so no screen
+ * takes it and every whole-profile write leaves it alone (see [withPhone]).
  *
  * [name] and [goal] are nullable because a profile legitimately exists without them: the
  * server creates the row by trigger at signup, before onboarding has asked anything. The
@@ -27,17 +31,18 @@ class OwnerProfile private constructor(
     val email: OwnerEmail?,
     val avatarPath: String?,
     val sharesPricesAnonymously: Boolean,
+    val phone: PhoneNumber?,
 ) {
     /**
      * Rename the owner. Takes an already-validated [OwnerName], so there is nothing left
      * to check here — the same split as [new].
      */
     fun withName(name: OwnerName): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /** Set or clear the contact email. Null clears it; Odo never requires an address. */
     fun withEmail(email: OwnerEmail?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /**
      * Whether the prices on this owner's service logs may feed the city benchmark.
@@ -53,7 +58,7 @@ class OwnerProfile private constructor(
      * switch promises what happens next, not what has already happened.
      */
     fun withPriceSharing(shares: Boolean): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, shares)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, shares, phone)
 
     /**
      * Point at the owner's profile photo, or clear it with null.
@@ -63,7 +68,7 @@ class OwnerProfile private constructor(
      * (`:core:platform`), because the domain does not touch files.
      */
     fun withAvatar(avatarPath: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null }, sharesPricesAnonymously)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null }, sharesPricesAnonymously, phone)
 
     /**
      * Set the owner's home city — the key every fairness benchmark is looked up by
@@ -75,7 +80,17 @@ class OwnerProfile private constructor(
      * the benchmark RPC take end to end; wrapping it here would only unwrap it there.
      */
     fun withCity(city: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath, sharesPricesAnonymously)
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath, sharesPricesAnonymously, phone)
+
+    /**
+     * Carry the number the session proved.
+     *
+     * Not a setting and not something anyone types here: auth is the only authority on which
+     * number this account is, so the only caller is the sign-in path. It exists so the number
+     * reaches the server, which has no other way of learning it after the account was made.
+     */
+    fun withPhone(phone: PhoneNumber?): OwnerProfile =
+        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /**
      * Whether first-run setup is finished. Stored as a timestamp rather than a boolean
@@ -93,7 +108,7 @@ class OwnerProfile private constructor(
      * call can't rewrite history.
      */
     fun completeOnboarding(at: Instant): OwnerProfile =
-        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath, sharesPricesAnonymously)
+        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     companion object {
         /**
@@ -111,6 +126,9 @@ class OwnerProfile private constructor(
             avatarPath = null,
             // On by default, and onboarding's consent card says so before this is reached.
             sharesPricesAnonymously = true,
+            // Setup does not ask for it and cannot: the number is only known once a session
+            // proves it, which may not have happened yet.
+            phone = null,
         )
 
         /**
@@ -132,6 +150,7 @@ class OwnerProfile private constructor(
             email: String? = null,
             avatarPath: String? = null,
             sharesPricesAnonymously: Boolean = true,
+            phone: String? = null,
         ): OwnerProfile = OwnerProfile(
             id = id,
             name = name?.let {
@@ -143,6 +162,11 @@ class OwnerProfile private constructor(
             email = OwnerEmail.of(email).getOrElse { error("corrupt profile.email for ${id.value}") },
             avatarPath = avatarPath,
             sharesPricesAnonymously = sharesPricesAnonymously,
+            // Dropped rather than fatal, unlike the name above. This value can arrive from
+            // the server, and the number is carried rather than read — nothing computes
+            // anything from it, and the next sign-in writes it again. Refusing to load the
+            // profile at all would turn one odd server value into an app that cannot open.
+            phone = PhoneNumber.of(phone).getOrNull(),
         )
     }
 }

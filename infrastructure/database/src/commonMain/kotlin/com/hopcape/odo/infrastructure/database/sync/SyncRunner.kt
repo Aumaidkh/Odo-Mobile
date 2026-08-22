@@ -11,11 +11,17 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
- * Push, then pull, for one table — the algorithm every `Syncable` in the app shares.
+ * Push and pull for one table — the algorithm every `Syncable` in the app shares.
  *
- * **Push first.** Pulling first would let the last-write-wins comparison see a stale server
- * row as "newer" than a local edit that has not gone up yet, and quietly overwrite the
- * owner's change with their own older data (SYNC_DESIGN §6).
+ * **Two entry points, not one.** [push] and [pull] are called separately because the engine
+ * runs them as separate phases: every entity pushes, then every entity pulls. They used to
+ * be a single `run`, which meant both halves shared the push's stop-at-first-failure rule
+ * and a profile that would not sync stopped cars from ever being fetched (issue #312).
+ *
+ * **Push still happens first**, for every entity, before any pull. Pulling first would let
+ * the last-write-wins comparison see a stale server row as "newer" than a local edit that
+ * has not gone up yet, and quietly overwrite the owner's change with their own older data
+ * (SYNC_DESIGN §6).
  *
  * Both halves are idempotent, which is what makes a killed run safe. A push is an upsert on
  * a client-generated id, so a retry after a lost response updates the same row rather than
@@ -39,29 +45,50 @@ internal class SyncRunner<Dto : Any>(
 ) {
 
     /**
-     * Run both halves.
+     * Drain the outbox and move the push half of the cursor.
      *
-     * Returns `false` to tell the engine to stop the run and retry later; it never throws,
-     * because an exception escaping one table would lose the outcome of the tables that
-     * already succeeded. Cancellation is the exception — a run the app called off is not a
-     * failure, and swallowing it would leave work running after its scope ended.
+     * Returns `false` to tell the engine to stop the push phase and retry later; it never
+     * throws, because an exception escaping one table would lose the outcome of the tables
+     * that already succeeded. Cancellation is the exception — a run the app called off is
+     * not a failure, and swallowing it would leave work running after its scope ended.
      */
-    suspend fun run(synchronizer: Synchronizer): Boolean =
-        try {
-            val pushed = push()
-            val pulled = pull(synchronizer)
-
+    suspend fun push(synchronizer: Synchronizer): Boolean =
+        attempt(synchronizer) {
+            val pushed = drainOutbox()
             synchronizer.updateCursor(entity) {
                 copy(
                     lastPushedAt = clock.now(),
-                    lastPulledAt = pulled.highWater ?: lastPulledAt,
-                    // A run that got here reconciled, so yesterday's failure stops being
+                    // A push that got here reconciled, so yesterday's failure stops being
                     // shown on the debug row — unless rows were refused on the way past, in
                     // which case that is the current state of this entity and has to stand.
+                    // Safe to clear here rather than after the pull: the push phase runs
+                    // first, so a pull that fails later in the same run overwrites this.
                     lastError = pushed.refusal,
                 )
             }
-            telemetry.moved(entity, pushed = pushed.accepted, pulled = pulled.count)
+            telemetry.moved(entity, phase = PHASE_PUSH, pushed = pushed.accepted)
+        }
+
+    /**
+     * Apply the server's changes and move the pull half of the cursor.
+     *
+     * Returns `false` the same way [push] does, but the engine treats it differently: the
+     * pull phase carries on to the next entity rather than stopping, because fetching has no
+     * ordering requirement.
+     */
+    suspend fun pull(synchronizer: Synchronizer): Boolean =
+        attempt(synchronizer) {
+            val pulled = applyRemoteChanges(synchronizer)
+            synchronizer.updateCursor(entity) {
+                copy(lastPulledAt = pulled.highWater ?: lastPulledAt)
+            }
+            telemetry.moved(entity, phase = PHASE_PULL, pulled = pulled.count)
+        }
+
+    /** The failure handling both halves share. */
+    private suspend fun attempt(synchronizer: Synchronizer, half: suspend () -> Unit): Boolean =
+        try {
+            half()
             true
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -87,7 +114,7 @@ internal class SyncRunner<Dto : Any>(
      * means every later run dies on the same row and no table after this one is ever
      * reached. The refused rows are isolated, marked `CONFLICT`, and the run carries on.
      */
-    private suspend fun push(): Pushed {
+    private suspend fun drainOutbox(): Pushed {
         val pending = table.pending()
         if (pending.isEmpty()) return Pushed(accepted = 0)
 
@@ -179,12 +206,22 @@ internal class SyncRunner<Dto : Any>(
      * cursor that matches the rows actually written, so the next run simply re-fetches the
      * rest.
      */
-    private suspend fun pull(synchronizer: Synchronizer): Pulled {
+    private suspend fun applyRemoteChanges(synchronizer: Synchronizer): Pulled {
         val cursor = synchronizer.cursor(entity).lastPulledAt
         // `gte` with an overlap rather than `gt`. Two rows can share an `updated_at`, and
         // clock skew between the app and Postgres is real; re-reading a few rows costs
         // nothing because applying one is idempotent, while missing one is permanent loss.
-        val remote = table.fetch(cursor?.minus(OVERLAP))
+        val remote = when (val fetched = table.fetch(cursor?.minus(OVERLAP))) {
+            is FetchResult.Rows -> fetched.rows
+            // A table that cannot name its scope has not established that the server has
+            // nothing — it has failed to ask. Throwing puts it in the same place as a
+            // timeout: cursor untouched, entity recorded as failed, run reported Partial,
+            // which is a retry. Reporting success here is the bug in issue #312.
+            is FetchResult.ScopeMissing -> {
+                telemetry.scopeMissing(entity, fetched.key)
+                throw ScopeMissingException(entity, fetched.key)
+            }
+        }
         if (remote.isEmpty()) return Pulled(count = 0, highWater = null)
 
         var highWater: Instant? = cursor
@@ -240,5 +277,7 @@ internal class SyncRunner<Dto : Any>(
 
     private companion object {
         val OVERLAP = 5.seconds
+        const val PHASE_PUSH = "push"
+        const val PHASE_PULL = "pull"
     }
 }

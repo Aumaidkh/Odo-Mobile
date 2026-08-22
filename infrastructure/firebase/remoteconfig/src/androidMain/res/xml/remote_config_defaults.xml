@@ -5,8 +5,8 @@
   FirebaseRemoteConfig.setDefaultsAsync(int), see LocalRemoteConfigDefaults.android.kt).
 
   Kept in sync by hand with RemoteConfigAppStatusSource's key/value contract
-  (docs/APP_STATUS_PLAN.md §3), RemoteConfigLegalLinks's, and with the REMOTE_DEFAULTS maps
-  those two declare — the Kotlin copies used on every other platform. Change one, change both.
+  (docs/APP_STATUS_PLAN.md §3), RemoteConfigLegalLinks's, RemoteConfigSupportContacts's, and
+  with the REMOTE_DEFAULTS maps those three declare — the Kotlin copies used on every other platform. Change one, change both.
 -->
 <defaultsMap>
     <entry>
@@ -41,6 +41,19 @@
     </entry>
     <entry>
         <key>legal_delete_account_url</key>
+        <value></value>
+    </entry>
+
+    <!--
+      Where "Email us" and the three feedback forms send their mail. Set this in the Firebase
+      console to move support to another mailbox without a release.
+
+      Empty here on purpose, and NOT an address to fill in. Empty means "no override", and
+      RemoteConfigSupportContacts then uses the address compiled into the build. Putting one
+      here would freeze it into every build twice over.
+    -->
+    <entry>
+        <key>support_email</key>
         <value></value>
     </entry>
 </defaultsMap>

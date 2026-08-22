@@ -1,6 +1,8 @@
 package com.hopcape.odo.core.data
 
 import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
+import com.hopcape.odo.core.data.support.BuiltInSupportContacts
+import com.hopcape.odo.core.domain.support.SupportContacts
 import com.hopcape.odo.core.data.appstatus.DefaultAppStatusProvider
 import com.hopcape.odo.core.data.appstatus.MaintenanceAwareSyncGate
 import com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry
@@ -156,7 +158,7 @@ val coreDataModule = module {
     // one, and a second unqualified single<SyncGate> would resolve *itself* instead —
     // this qualifier is what lets it name the thing it decorates.
     single<SyncGate>(named(QUALIFIER_SESSION_SYNC_GATE)) {
-        SessionSyncGate(tokens = get(), owners = get(), adoption = get())
+        SessionSyncGate(tokens = get(), sessions = get(), owners = get(), adoption = get())
     }
     // The engine's actual SyncGate: closes for a maintenance window before the session
     // gate's own check (and its adoption side effect) ever runs.
@@ -259,6 +261,13 @@ val coreDataModule = module {
     // which is registered after this one in initKoin — same later-definition-wins wiring
     // supabaseModule already relies on.
     single<AppStatusSource> { AlwaysAvailableAppStatusSource() }
+
+    // Bound twice on purpose, exactly as supabaseModule binds LegalLinks. The qualified one
+    // is what firebaseRemoteConfigModule resolves as the fallback behind the console's
+    // answer; the unqualified one is what a build without that module still answers with.
+    // Koin's later-wins override replaces only the second, so the fallback stays reachable.
+    single<SupportContacts>(named(SupportContacts.BUILT_IN)) { BuiltInSupportContacts() }
+    single<SupportContacts> { get(named(SupportContacts.BUILT_IN)) }
     single { AppStatusTelemetry(logger = get(), analytics = get(), tracer = get()) }
     single<AppStatusProvider> {
         DefaultAppStatusProvider(source = get(), appInfo = get(), clock = get(), telemetry = get())
