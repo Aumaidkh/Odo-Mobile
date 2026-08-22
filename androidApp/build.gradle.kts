@@ -138,6 +138,8 @@ dependencies {
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.
     androidTestImplementation(projects.feature.garage)
+    // ConfigGraphTest — asserts the config system against the real application graph.
+    androidTestImplementation(projects.core.config)
     // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.
     androidTestImplementation(projects.feature.costTracker)
     // The health score's semantics tags, and its HealthFactorKind-keyed row tags.
