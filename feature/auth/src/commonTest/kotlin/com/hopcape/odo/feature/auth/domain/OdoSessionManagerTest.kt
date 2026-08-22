@@ -9,7 +9,9 @@ import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.domain.auth.AuthSession
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.analytics.api.AnalyticsTracker
@@ -20,6 +22,8 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.platform.secure.SecureStore
 import com.hopcape.odo.feature.auth.AuthTelemetry
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -199,6 +203,7 @@ class OdoSessionManagerTest {
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
             identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
             clock = FixedClock(now),
         )
 
@@ -230,6 +235,7 @@ class OdoSessionManagerTest {
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
             identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
             clock = FixedClock(now),
         )
 
@@ -243,6 +249,46 @@ class OdoSessionManagerTest {
     }
 
     @Test
+    fun signingInWritesTheNumberOntoTheProfile() = runTest {
+        val profiles = RecordingProfiles()
+
+        manager(profiles = profiles).verifyOtp(phone, "123456")
+
+        // The server only ever fills profiles.phone from a trigger on account creation, so a
+        // number it missed then is a number nothing revisits. This is the client putting it
+        // back, on every sign-in rather than only the first.
+        assertEquals(listOf(OwnerId("user-1") to phone), profiles.recorded)
+    }
+
+    @Test
+    fun restoringASessionWritesTheNumberAgain() = runTest {
+        val store = InMemoryStore()
+        manager().verifyOtpWith(SucceedingGateway(), store)
+
+        val profiles = RecordingProfiles()
+        manager(store = store, profiles = profiles).restore()
+
+        // An install that signed in before the column existed never calls the sign-in path
+        // again. Without this its number would stay off the server forever.
+        assertEquals(listOf(OwnerId("user-1") to phone), profiles.recorded)
+    }
+
+    @Test
+    fun signingOutForgetsTheNumber() = runTest {
+        val store = InMemoryStore()
+        manager().verifyOtpWith(SucceedingGateway(), store)
+
+        val manager = manager(store = store)
+        manager.restore()
+        manager.signOut()
+
+        // It is only true while there is a session, so it goes with the tokens.
+        val profiles = RecordingProfiles()
+        manager(store = store, profiles = profiles).restore()
+        assertTrue(profiles.recorded.isEmpty())
+    }
+
+    @Test
     fun aFailedSignInAsksForNothing() = runTest {
         val requested = mutableListOf<SyncReason>()
         val manager = OdoSessionManager(
@@ -251,6 +297,7 @@ class OdoSessionManagerTest {
             telemetry = silentTelemetry(),
             scheduler = RecordingScheduler(requested),
             identity = RecordingIdentity(),
+            profiles = RecordingProfiles(),
             clock = FixedClock(now),
         )
 
@@ -321,20 +368,36 @@ class OdoSessionManagerTest {
         gateway: AuthGateway = SucceedingGateway(),
         store: SecureStore = InMemoryStore(),
         identity: SubscriptionIdentity = RecordingIdentity(),
+        profiles: RecordingProfiles = RecordingProfiles(),
     ) = OdoSessionManager(
         gateway = gateway,
         store = store,
         telemetry = silentTelemetry(),
         scheduler = trigger,
         identity = identity,
+        profiles = profiles,
         clock = FixedClock(now),
     )
 
     /** Signs in through a gateway that works, so sign-out has something to clear. */
     private suspend fun OdoSessionManager.verifyOtpWith(gateway: AuthGateway, store: SecureStore) {
-        OdoSessionManager(gateway, store, silentTelemetry(), trigger, RecordingIdentity(), FixedClock(now))
+        OdoSessionManager(gateway, store, silentTelemetry(), trigger, RecordingIdentity(), RecordingProfiles(), FixedClock(now))
             .verifyOtp(phone, "123456")
         restore()
+    }
+
+    /** Remembers which number was written against which owner, and nothing else. */
+    private class RecordingProfiles : OwnerProfileRepository {
+        val recorded = mutableListOf<Pair<OwnerId, PhoneNumber>>()
+
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> {
+            recorded += ownerId to phone
+            return Unit.right()
+        }
+
+        override suspend fun save(profile: OwnerProfile) = profile.right()
+        override fun observe(): Flow<OwnerProfile?> = flowOf(null)
+        override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
     }
 
     private inner class SucceedingGateway : AuthGateway {

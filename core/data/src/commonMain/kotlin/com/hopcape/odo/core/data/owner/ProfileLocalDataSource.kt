@@ -1,6 +1,8 @@
 package com.hopcape.odo.core.data.owner
 
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -22,6 +24,16 @@ interface ProfileLocalDataSource {
 
     /** The stored profile, as it changes; `null` before the owner has one. */
     fun observe(): Flow<OwnerProfile?>
+
+    /**
+     * Store the number the session just proved, on whichever profile row this device holds,
+     * creating one keyed to [ownerId] if there is none yet.
+     *
+     * Separate from [save] because sign-in knows the phone and nothing else: a whole-profile
+     * write would need a profile, and there may not be one, or it may still be keyed to the
+     * placeholder owner. Leaves the row `PENDING` so the next push carries the number.
+     */
+    suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber)
 
     /** Tombstone the profile row. */
     suspend fun softDeleteAll()

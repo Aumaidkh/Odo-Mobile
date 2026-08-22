@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,9 @@ class CompleteOnboardingUseCaseTest {
         }
 
         override fun observe(): Flow<OwnerProfile?> = flowOf(lastSaved)
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+            Unit.right()
+
         override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
     }
 

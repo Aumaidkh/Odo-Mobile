@@ -12,7 +12,9 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.platform.file.PlatformFileStore
@@ -278,6 +280,9 @@ class CarScreensViewModelTest {
     private class FakeOwners : OwnerProfileRepository {
         override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> = profile.right()
         override fun observe(): Flow<OwnerProfile?> = flowOf(null)
+        override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+            Unit.right()
+
         override suspend fun delete(): Either<DomainError, Unit> = Unit.right()
     }
 

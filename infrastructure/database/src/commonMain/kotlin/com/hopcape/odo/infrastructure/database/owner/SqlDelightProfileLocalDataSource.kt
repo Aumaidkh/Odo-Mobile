@@ -5,7 +5,9 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +36,7 @@ internal class SqlDelightProfileLocalDataSource(
         val goal = profile.goal?.name
         val completedAt = profile.onboardingCompletedAt?.toString()
         val email = profile.email?.value
+        val phone = profile.phone?.value
         // Insert-then-update rather than an UPSERT: `ON CONFLICT ... DO UPDATE` needs
         // SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored when the row already
         // exists (which is what preserves created_at), so on an edit the UPDATE is what
@@ -50,6 +53,7 @@ internal class SqlDelightProfileLocalDataSource(
                 sharesPrices = profile.sharesPricesAnonymously.toDbLong(),
                 now = now,
                 syncStatus = SyncStatus.PENDING.name,
+                phone = phone,
             )
             queries.updateProfile(
                 fullName = fullName,
@@ -59,6 +63,9 @@ internal class SqlDelightProfileLocalDataSource(
                 email = email,
                 avatarPath = profile.avatarPath,
                 sharesPrices = profile.sharesPricesAnonymously.toDbLong(),
+                // Null here means "the caller wasn't told the number", not "clear it" —
+                // the statement coalesces. See Profile.sq.
+                phone = phone,
                 updatedAt = now,
                 syncStatus = SyncStatus.PENDING.name,
                 id = profile.id.value,
@@ -71,6 +78,36 @@ internal class SqlDelightProfileLocalDataSource(
             .asFlow()
             .mapToOneOrNull(dispatcher)
             .map { row -> row?.toDomain() }
+
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber) {
+        val now = clock.now().toString()
+        database.transaction {
+            // One statement, then a row to put it on if there wasn't one. The update matches
+            // on "the single live profile" rather than on an id, because at sign-in the row
+            // may still be keyed to the placeholder owner — adoption re-keys it during the
+            // sync that follows, and waiting for that would mean the first push goes without
+            // the number.
+            queries.updatePhone(phone = phone.value, updatedAt = now)
+            if (queries.selectProfile().executeAsOneOrNull() == null) {
+                // Nobody has finished setup on this device yet. A row with nothing but the
+                // number is exactly what the server's own signup trigger writes, and it reads
+                // as "not onboarded" everywhere, so it does not skip the flow.
+                queries.insertProfile(
+                    id = ownerId.value,
+                    fullName = null,
+                    onboardingGoal = null,
+                    onboardingCompletedAt = null,
+                    city = null,
+                    email = null,
+                    avatarPath = null,
+                    sharesPrices = true.toDbLong(),
+                    now = now,
+                    syncStatus = SyncStatus.PENDING.name,
+                    phone = phone.value,
+                )
+            }
+        }
+    }
 
     override suspend fun softDeleteAll() {
         val now = clock.now().toString()

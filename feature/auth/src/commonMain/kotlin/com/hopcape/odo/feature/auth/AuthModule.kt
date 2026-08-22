@@ -40,6 +40,10 @@ val authModule = module {
             telemetry = get(),
             scheduler = get(),
             identity = get(),
+            // The profile is where the owner's number is kept so it can reach the server —
+            // auth is the only thing that knows it. Published from :core:data, so this
+            // stays a domain port rather than a dependency on another feature.
+            profiles = get(),
         )
     }
     single<SessionStatusProvider> { get<OdoSessionManager>() }

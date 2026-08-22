@@ -27,20 +27,34 @@ interface ProfileRemoteDataSource {
 /**
  * The wire shape of a profile — snake_case to match the Postgres columns (DB_SCHEMA §9.2).
  *
- * Three server columns are deliberately absent, and their absence is what protects them:
+ * Two server columns are deliberately absent, and their absence is what protects them:
  * PostgREST's merge-duplicates upsert only touches the columns in the payload, so leaving
  * one out means "don't change it" rather than "set it to null".
  *
  *  - `home_city_id` is a uuid into the `cities` lookup, while the client holds a city
  *    *name*. Mapping the two needs a local copy of that lookup, which does not exist yet.
  *    Until it does, the owner's city stays on the device and does not survive a reinstall.
- *  - `phone` belongs to the auth session, not to anything the client edits.
  *  - `preferred_language` has no UI yet; the server default stands.
+ *
+ * `phone` used to be a third. It belongs to the auth session rather than to anything the
+ * client edits, which is true and was the wrong conclusion: the server's only writer for it
+ * is a trigger that fires on INSERT into `auth.users`, so any account whose row was created
+ * before GoTrue had set the number kept `phone` NULL forever, and no client could repair it.
+ * The client now sends what the session proved.
  */
 @Serializable
 data class ProfileDto(
     @SerialName("id") val id: String,
     @SerialName("full_name") val fullName: String? = null,
+    /**
+     * The number this account signs in with, in E.164.
+     *
+     * Written by the client at every successful sign-in, not only at signup. Null when the
+     * device has no session yet and has nothing to claim; a null never clears a number the
+     * server already has, because the local row keeps whichever of the two is non-null (see
+     * `Profile.sq`).
+     */
+    @SerialName("phone") val phone: String? = null,
     @SerialName("onboarding_goal") val onboardingGoal: String? = null,
     @SerialName("onboarding_completed_at") val onboardingCompletedAt: String? = null,
     @SerialName("email") val email: String? = null,

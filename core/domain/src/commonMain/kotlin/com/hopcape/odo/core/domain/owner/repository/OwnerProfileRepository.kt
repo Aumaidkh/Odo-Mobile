@@ -1,7 +1,9 @@
 package com.hopcape.odo.core.domain.owner.repository
 
 import arrow.core.Either
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
 
@@ -24,6 +26,20 @@ interface OwnerProfileRepository {
 
     /** The stored profile, or `null` before onboarding has written one. */
     fun observe(): Flow<OwnerProfile?>
+
+    /**
+     * Record the number a session has just proved this account signs in with.
+     *
+     * Its own operation rather than part of [save], because the caller is auth and auth
+     * knows the number and nothing else — there may be no profile yet at all, and a
+     * whole-profile write would need one. Creates a row if there is none, keyed to
+     * [ownerId], the same way the server's signup trigger does.
+     *
+     * Called at every sign-in, not only the first. The server's only writer for the number
+     * is a trigger on account creation, so anything it missed stays missing forever unless
+     * the client puts it back — which is why this exists.
+     */
+    suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit>
 
     /**
      * Remove the owner's profile — what "delete my data" leaves behind on the device.
