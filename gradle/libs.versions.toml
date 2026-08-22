@@ -30,6 +30,11 @@ camerax = "1.6.1"
 composeMultiplatform = "1.11.1"
 junit = "4.13.2"
 kotlin = "2.4.0"
+# KSP — annotation processing for the config/feature-flag codegen (epic #321).
+# Independent versioning: 2.3.x no longer encodes the Kotlin version. 2.3.10+ is
+# required on Kotlin 2.4.0, which changed the default module name — earlier KSP
+# releases do not sanitise the ':' in the internal-name suffix and fail the build.
+ksp = "2.3.11"
 material3 = "1.11.0-alpha07"
 
 # App identity / build config — single source of truth shared by every module.
@@ -215,6 +220,9 @@ kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-cor
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifInterface" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+# The API a symbol processor is written against. Compile-only for the processor
+# module; never on a runtime classpath.
+ksp-symbolProcessingApi = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
@@ -265,6 +273,10 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 # Used only to compile build-logic with a Kotlin version that matches the
 # Kotlin Gradle plugin (newer than the one embedded in Gradle's kotlin-dsl).
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# KSP Gradle plugin. Applied only through kspCommonMainMetadata — see docs/CONFIG_FLAGS_PLAN.md
+# "The one real risk": KSP cannot build a kspAndroid configuration against AGP's
+# com.android.kotlin.multiplatform.library (google/ksp#2476).
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # SQLDelight Gradle plugin — generates the typed DB API for :core:data.
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 # kotlinx-serialization compiler plugin — applied directly by :core:data (sync DTOs and
