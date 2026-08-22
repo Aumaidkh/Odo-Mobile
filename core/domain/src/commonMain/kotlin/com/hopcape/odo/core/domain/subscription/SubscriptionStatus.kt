@@ -61,9 +61,14 @@ data class SubscriptionState(
      *
      * The store's, and only the store's. Cancelling has to happen there: it is what Play
      * requires, and an in-app cancel that did not actually cancel is the worst version of
-     * this screen. Null when the store did not supply one, and the button is hidden.
+     * this screen.
+     *
+     * Never null. The store does not always hand out a per-subscriber link, and a card that
+     * dropped its button in that case left a paying owner with no way to reach what they
+     * were paying for (#317). Whoever builds this state falls back to the store's own
+     * subscriptions page, which always opens.
      */
-    val managementUrl: String?,
+    val managementUrl: String,
 )
 
 /**

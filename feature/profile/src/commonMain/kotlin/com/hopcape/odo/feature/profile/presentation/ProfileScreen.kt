@@ -390,13 +390,13 @@ private fun ProPlanCard(subscription: SubscriptionState?, onManage: (url: String
                 color = OdoTheme.colors.warning,
             )
         }
-        // Hidden when the store gave no management link. Cancelling has to happen in the
-        // store, so a button that opened nothing would be a control that lies.
-        subscription?.managementUrl?.let { url ->
+        // Always shown. Cancelling has to happen in the store, so this is the only way out
+        // of a subscription from inside the app, and `managementUrl` is never null.
+        subscription?.let { state ->
             OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
             OdoButton(
                 stringResource(Res.string.pf_manage_plan),
-                onClick = { onManage(url) },
+                onClick = { onManage(state.managementUrl) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = OdoButtonVariant.Secondary,
             )

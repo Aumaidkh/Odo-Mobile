@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
 import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.infrastructure.billing.CustomerInfoStream
+import com.hopcape.odo.infrastructure.billing.storeSubscriptionsUrl
 import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource.Companion.PRO_ENTITLEMENT
 import com.revenuecat.purchases.kmp.models.CustomerInfo
 import com.revenuecat.purchases.kmp.models.EntitlementInfo
@@ -37,7 +38,9 @@ internal class RevenueCatSubscriptionStatus(
             period = pro.billingPeriod(),
             health = pro.health(),
             renewsOn = pro.expirationDate?.toLocalDateTime(timeZone)?.date,
-            managementUrl = managementUrlString,
+            // RevenueCat gives no link for a subscription the store has not handed one out
+            // for. The card must still lead somewhere, so the store's own page stands in.
+            managementUrl = managementUrlString ?: storeSubscriptionsUrl,
         )
     }
 
