@@ -146,6 +146,12 @@ class OnboardingEndToEndTest {
         rule.pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
         rule.setOdometer()
 
+        // Every picker answered and the odometer given, and it is still not enough: the plate
+        // is required on this route too, or the car is saved without the number every bill,
+        // reminder and document identifies it by.
+        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
+
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
         rule.waitForText(Copy.PROFILE_TITLE)
     }

@@ -58,6 +58,7 @@
     <!-- 2b · Manual details -->
     <string name="onb_details_title">Your car’s details</string>
     <string name="onb_details_subtitle">Pick from the list — we use these for accurate price benchmarks.</string>
+    <string name="onb_details_plate_label">REGISTRATION NUMBER</string>
     <string name="onb_details_make_label">MAKE</string>
     <string name="onb_details_model_label">MODEL</string>
     <string name="onb_details_year_label">YEAR</string>

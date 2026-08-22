@@ -133,6 +133,9 @@ internal class OnboardingViewModel(
     /**
      * Take the new plate and drop whatever the last one resolved to — a match must never
      * outlive the plate it was found for — then start looking the new one up.
+     *
+     * [restartLookup] decides whether a lookup actually follows — on the manual route it
+     * only cancels.
      */
     private fun onPlateChanged(plate: String) {
         updateCar { it.copy(plate = it.plate.update(plate), lookup = PlateLookup.Idle) }
@@ -145,6 +148,9 @@ internal class OnboardingViewModel(
      */
     private fun onMatchRejected() {
         telemetry.manualEntryChosen(hadMatch = _state.value.car.match != null)
+        // A lookup still in flight would land on the form the owner is now filling in and
+        // overwrite the answers they came here to give.
+        lookupJob?.cancel()
         _state.update { it.copy(manualEntry = true, car = it.car.copy(lookup = PlateLookup.Idle)) }
     }
 
@@ -155,9 +161,16 @@ internal class OnboardingViewModel(
      * "complete" on its last character, and the owner may well keep typing past it (a BH
      * series plate is longer than a state one), so waiting a moment before spending a round
      * trip costs nothing and saves several.
+     *
+     * The manual route cancels and stops there. The plate field is on both routes now that
+     * one is required to finish the step, but somebody filling the form in by hand has
+     * already been told the registry could not name their car — or has said it named the
+     * wrong one — and a lookup answering over the top of that would take the form away from
+     * them again.
      */
     private fun restartLookup() {
         lookupJob?.cancel()
+        if (_state.value.manualEntry) return
         val plate = _state.value.car.takeIf { it.isPlateLookupReady }?.plate?.text ?: return
         lookupJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.PLATE_LOOKUP)) {
             delay(LOOKUP_DEBOUNCE_MILLIS)

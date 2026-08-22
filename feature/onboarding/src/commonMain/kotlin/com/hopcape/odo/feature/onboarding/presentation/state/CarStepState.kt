@@ -18,11 +18,22 @@ internal data class CarStepState(
     val match: RtoMatch? get() = (lookup as? PlateLookup.Found)?.match
 
     /**
-     * Whether the plate is long enough to be worth a lookup. Indian plates run 9–11
-     * characters normalized (`MH12AB1234`, `DL8CAF5031`, `22BH1234AA`), so anything
-     * shorter is still being typed and a request would only waste a round trip.
+     * Whether the plate is a registration number rather than a half-typed one. Indian plates
+     * run 9–11 characters normalized (`MH12AB1234`, `DL8CAF5031`, `22BH1234AA`), so anything
+     * shorter is still being typed.
+     *
+     * The car step cannot be finished without one on **either** route — see
+     * [OnboardingUiState.canContinue]. The plate is what a bill, a reminder, an insurance
+     * document and a resale report all identify the car by, and a car saved without one can
+     * never be matched to any of them afterwards.
      */
-    val isPlateLookupReady: Boolean get() = plate.text.length in MIN_PLATE_LENGTH..MAX_PLATE_LENGTH
+    val isPlateValid: Boolean get() = plate.text.length in MIN_PLATE_LENGTH..MAX_PLATE_LENGTH
+
+    /**
+     * Whether the plate is worth a lookup — the same test as [isPlateValid], because a plate
+     * short enough to still be typed is one a request would only waste a round trip on.
+     */
+    val isPlateLookupReady: Boolean get() = isPlateValid
 
     /**
      * Whether the plate route has named a car. The odometer is the step's, not this route's,
