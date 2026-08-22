@@ -90,6 +90,37 @@ class OnboardingEndToEndTest {
         rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
     }
 
+    /**
+     * Regression for the first-scan step handing an owner straight to the scanner.
+     *
+     * The camera button used to open `BillScanner.Capture` with setup still running, so the
+     * sign-in offer at the end of the flow was never reached. From the viewfinder the scan
+     * ran on to the fairness report, and the report's "set your city" opened the profile
+     * editor — a post-setup surface, reached by someone who had not been asked to sign in.
+     * Scanning now finishes setup like Skip does, so the offer comes first either way.
+     */
+    @Test
+    fun scanningFromTheFirstScanStep_asksForSignInBeforeTheScanner() {
+        rule.startFromWelcome()
+
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.setOdometer()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
+
+        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
+
+        rule.waitForText(Copy.SCAN_TITLE)
+        rule.onNodeWithText(Copy.SCAN_CTA).performClick()
+
+        // Sign-in, not the viewfinder.
+        rule.waitForText(Copy.AUTH_TITLE)
+        rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
+    }
+
     @Test
     fun unknownPlate_saysSoAndOffersTheManualForm() {
         rule.startFromWelcome()
