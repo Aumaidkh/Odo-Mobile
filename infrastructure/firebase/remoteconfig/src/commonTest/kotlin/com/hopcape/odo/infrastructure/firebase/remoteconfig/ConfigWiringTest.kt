@@ -70,6 +70,7 @@ class ConfigWiringTest {
 
         assertEquals(
             setOf(
+                // Declared in this module.
                 "min_supported_version_code",
                 "maintenance_mode",
                 "maintenance_message",
@@ -77,6 +78,11 @@ class ConfigWiringTest {
                 "legal_terms_url",
                 "legal_delete_account_url",
                 "support_email",
+                // Declared in :core:config and reaching the registry from another module,
+                // which is the whole point of collecting contributions rather than listing
+                // keys somewhere.
+                "auto_odometer_enabled",
+                "refuel_detect_enabled",
             ),
             keys,
         )

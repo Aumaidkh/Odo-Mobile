@@ -4,6 +4,7 @@ import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.model.Document
@@ -285,6 +286,28 @@ class HomeViewModelTest {
         assertFalse(setUp.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
     }
 
+    /**
+     * Both of these were impossible to write until this release. The flags were
+     * compile-time consts, so a test could not set one — the off path was only ever
+     * exercised by a build that happened to be compiled with the flag off, which is to say
+     * never, since both shipped on.
+     */
+    @Test
+    fun autoOdometerOffer_isAbsentWhileTheFlagIsOff() = runTest(dispatcher) {
+        val off = viewModel(bond = null, trackingEnabled = false, autoOdometerEnabled = false)
+
+        assertFalse(off.state.first { it.content is Loadable.Ready }.offerAutoOdometer)
+    }
+
+    @Test
+    fun autoDetectOffer_isAbsentWhileTheFlagIsOff() = runTest(dispatcher) {
+        // The flag short-circuits ahead of the detection settings, so this holds whatever
+        // those say.
+        val off = viewModel(refuelDetectEnabled = false)
+
+        assertFalse(off.state.first { it.content is Loadable.Ready }.offerAutoDetect)
+    }
+
     @Test
     fun scanShowcase_grantedOnAFreshDeviceWithACar_andNothingLogged() = runTest(dispatcher) {
         val vm = viewModel(entries = emptyList(), documents = emptyList())
@@ -399,6 +422,8 @@ class HomeViewModelTest {
         detectedFillsUsed: Int = 0,
         bond: VehicleBond? = null,
         trackingEnabled: Boolean = false,
+        autoOdometerEnabled: Boolean = true,
+        refuelDetectEnabled: Boolean = true,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
@@ -421,7 +446,18 @@ class HomeViewModelTest {
         showcase = ShowcaseArbiter(seenStore),
         entitlements = FakeEntitlementSource(isPro = isPro),
         telemetry = telemetry(analytics),
+        // Both flags on, which is what they default to. A test that wants either offer
+        // hidden can now say so, which was impossible while these were compile-time consts.
+        config = featureConfig(autoOdometerEnabled, refuelDetectEnabled),
     )
+
+    private fun featureConfig(
+        autoOdometer: Boolean = true,
+        refuelDetect: Boolean = true,
+    ) = object : FeatureConfig {
+        override val autoOdometerEnabled = autoOdometer
+        override val refuelDetectEnabled = refuelDetect
+    }
 
     private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
         override fun observe(): Flow<Entitlements> =

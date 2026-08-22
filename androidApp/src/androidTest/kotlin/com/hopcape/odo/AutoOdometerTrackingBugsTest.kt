@@ -7,7 +7,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.triptracker.TrackingStatus
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -66,19 +64,15 @@ class AutoOdometerTrackingBugsTest {
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
 
-    /** Same conditional shape as [AutoOdometerEndToEndTest] — see its KDoc. */
+    /** Same shape as [AutoOdometerEndToEndTest] — see its KDoc. */
     @get:Rule
     val trackingPermissions: TestRule =
-        if (FeatureFlags.AUTO_ODOMETER_ENABLED) {
-            GrantPermissionRule.grant(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-            )
-        } else {
-            TestRule { base, _ -> base }
-        }
+        GrantPermissionRule.grant(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+        )
 
     @Before
     fun startFromASetUpDevice() {
@@ -104,7 +98,6 @@ class AutoOdometerTrackingBugsTest {
      */
     @Test
     fun stereoConnectStartsTracking_withoutAnyUiAction() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         // The state CompleteSetup leaves behind: the bond and the persisted toggle — both
         // survive process death, and together they are what armFromPersistedState reads.
         runBlocking {
@@ -148,7 +141,6 @@ class AutoOdometerTrackingBugsTest {
      */
     @Test
     fun walkingAwayAfterIgnitionOff_isNotCountedAsCarDistance() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
 
         // Enroll at the use-case level — the same two calls `CompleteSetup` makes. The UI
         // path is AutoOdometerEndToEndTest's subject, and on a fresh install (a gradle

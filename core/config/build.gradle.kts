@@ -8,6 +8,9 @@ plugins {
     // The registry and resolver are bound here, and every generated group's Koin module
     // is emitted into whichever module declares it.
     alias(libs.plugins.odo.koin)
+    // FeatureConfig is declared here, so this module generates its own config too. The
+    // convention plugin guards against the module depending on itself.
+    alias(libs.plugins.odo.config)
 }
 
 kotlin {

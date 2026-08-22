@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.garage.domain.usecase
 
-import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.trip.model.TripDistance
@@ -37,12 +37,13 @@ internal class ObserveAutoOdometerCardState(
     private val tracker: TripTracker,
     private val trips: TripRepository,
     private val clock: Clock,
+    private val config: FeatureConfig,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
     operator fun invoke(carId: CarId): Flow<AutoOdometerCardState> = when {
         // The garage slot is the only way into enrollment, so this is the whole feature's
-        // off switch for 1.0 — see FeatureFlags.AUTO_ODOMETER_ENABLED.
-        !FeatureFlags.AUTO_ODOMETER_ENABLED -> flowOf(AutoOdometerCardState.Hidden)
+        // off switch — see FeatureConfig.autoOdometerEnabled.
+        !config.autoOdometerEnabled -> flowOf(AutoOdometerCardState.Hidden)
         else -> cardState(carId)
     }
 

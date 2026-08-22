@@ -15,6 +15,10 @@ import org.koin.dsl.module
  */
 val coreConfigModule = module {
 
+    // FeatureConfig, declared in this module. Included here so a consumer gets it from
+    // coreConfigModule and initKoin's list does not grow with every group.
+    includes(featureConfigModule)
+
     // Replaced by the Firebase adapter. Not a stub to delete later: this is the correct
     // answer for a build with no backend, and it keeps every key on its compiled default
     // instead of failing.

@@ -23,7 +23,6 @@ import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoSwitch
 import com.hopcape.odo.core.designsystem.component.OdoSwitchRow
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcWindow
@@ -84,6 +83,7 @@ internal fun NotificationsScreen(
     state: NotificationsUiState,
     onEvent: (NotificationsEvent) -> Unit,
     systemNotificationsEnabled: Boolean,
+    autoDetectOffered: Boolean,
     onBack: () -> Unit,
     onDeviceSettings: () -> Unit,
     onAutoDetect: () -> Unit,
@@ -179,9 +179,9 @@ internal fun NotificationsScreen(
             // The one notification setting that is about *reading* rather than posting, which
             // is why it opens a screen of its own instead of being a switch here: it needs a
             // permission, and a permission is not something a toggle in a list can explain.
-            // Absent entirely while SMART_REFUEL_DETECT_ENABLED is false — a row that leads to
+            // Absent entirely while refuel_detect_enabled is off — a row that leads to
             // a feature the build cannot run is worse than no row.
-            if (FeatureFlags.SMART_REFUEL_DETECT_ENABLED) {
+            if (autoDetectOffered) {
                 SectionLabel(stringResource(Res.string.pf_notif_detection))
                 SettingsGroup {
                     SettingsRow(

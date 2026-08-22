@@ -80,6 +80,7 @@ val refuelModule = module {
             access = get(),
             clock = get(),
             copy = detectionCopy(),
+            config = get(),
         )
     }
 

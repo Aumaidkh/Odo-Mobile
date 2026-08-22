@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
@@ -132,11 +133,16 @@ private fun NotificationsRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<NotificationsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val systemSettings = koinInject<SystemNotificationSettings>()
+    // Read here rather than held in the ViewModel's state: it is a build capability, not
+    // something the screen's own events can change, and this is where the other one
+    // (SystemNotificationSettings) is read too.
+    val featureConfig = koinInject<FeatureConfig>()
 
     NotificationsScreen(
         state = state,
         onEvent = viewModel::onEvent,
         systemNotificationsEnabled = systemSettings.areEnabled(),
+        autoDetectOffered = featureConfig.refuelDetectEnabled,
         onBack = { navigationManager.back() },
         onDeviceSettings = { systemSettings.open() },
         onAutoDetect = { navigationManager.navigateTo(OdoDestination.Refuel.AutoDetect) },

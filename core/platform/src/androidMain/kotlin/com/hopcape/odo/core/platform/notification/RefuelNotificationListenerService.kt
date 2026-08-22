@@ -19,7 +19,7 @@ import kotlin.time.Instant
  * that and the owner's messages is the filter at the top of [onNotificationPosted].
  *
  * The service is **not declared in the manifest** while
- * `FeatureFlags.SMART_REFUEL_DETECT_ENABLED` is false, so the OS never binds it. This class
+ * `<service>` entry is absent from the manifest, so the OS never binds it. This class
  * compiles and is tested either way; declaring it is what actually asks for the permission.
  *
  * It holds no dependencies and does no domain work. Deciding whether a payment was fuel needs

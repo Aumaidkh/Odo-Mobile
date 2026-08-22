@@ -7,7 +7,7 @@ import com.hopcape.odo.core.domain.activity.model.ActivityEvent
 import com.hopcape.odo.core.domain.alerts.model.CarAttention
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.entitlement.Plan
@@ -59,6 +59,7 @@ internal class HomeViewModel(
     private val showcase: ShowcaseArbiter,
     private val entitlements: EntitlementSource,
     private val telemetry: HomeTelemetry,
+    private val config: FeatureConfig,
 ) : ViewModel() {
 
     /**
@@ -178,7 +179,7 @@ internal class HomeViewModel(
     }
 
     private fun offerAutoDetect(): Flow<Boolean> =
-        if (!FeatureFlags.SMART_REFUEL_DETECT_ENABLED) {
+        if (!config.refuelDetectEnabled) {
             flowOf(false)
         } else {
             detection.observeSettings().map { !it.detectEnabled }.catch { emit(false) }
@@ -194,7 +195,7 @@ internal class HomeViewModel(
      * A failed read hides the offer: a card is not worth a crashed dashboard.
      */
     private fun offerAutoOdometer(): Flow<Boolean> =
-        if (!FeatureFlags.AUTO_ODOMETER_ENABLED) {
+        if (!config.autoOdometerEnabled) {
             flowOf(false)
         } else {
             tracker.isEnabled.map { enabled -> !(enabled && bonds.bond() != null) }.catch { emit(false) }

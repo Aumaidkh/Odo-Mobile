@@ -30,6 +30,8 @@ kotlin {
             // objects, AppSettings + the settings port, DistanceUnit/FuelEfficiencyUnit,
             // ProEntitlement and SessionStatusProvider. Brings Arrow transitively.
             implementation(projects.core.domain)
+            // FeatureConfig — the injected replacement for the FeatureFlags consts.
+            implementation(projects.core.config)
             // The picker for a profile photo + the store that copies it into app storage.
             implementation(projects.core.platform)
             // Observability: structured logging + product analytics, instrumented at the
