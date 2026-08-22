@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.config
 
+import com.hopcape.logging.api.Logger
+import com.hopcape.odo.core.common.BuildInfo
 import org.koin.dsl.module
 
 /**
@@ -27,7 +29,17 @@ val coreConfigModule = module {
 
     // getAll, so a module that declares config contributes by being installed and nothing
     // has to maintain a list. Resolved lazily, after every module is loaded.
-    single { ConfigRegistry(getAll<ConfigContribution>()) }
+    single {
+        ConfigRegistry(getAll<ConfigContribution>()).also { registry ->
+            enforceUniqueKeys(
+                registry = registry,
+                isDebug = BuildInfo.isDebug,
+                onWarn = { message -> get<Logger>().warn(TAG, message) },
+            )
+        }
+    }
 
     single { ConfigResolver(registry = get(), source = get(), overrides = getOrNull()) }
 }
+
+private const val TAG = "Config"

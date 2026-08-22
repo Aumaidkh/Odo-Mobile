@@ -25,6 +25,11 @@ kotlin {
             // nothing here needs it yet, and staying at the very bottom of the
             // stack is what lets :core:domain take this module with no cycle.
             api(libs.kotlinx.coroutines.core)
+            // BuildInfo.isDebug — the duplicate-key policy is fail-fast in debug and a log
+            // line in release, and this is the one global answer to which build this is.
+            implementation(projects.core.common)
+            // The release half of that policy needs somewhere to say it.
+            implementation(projects.observability.logging)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
