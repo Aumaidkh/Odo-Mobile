@@ -40,7 +40,7 @@ class BlockTextTest {
     }
 
     @Test
-    fun `bold is read before italic, or its opening marker is a stray asterisk`() {
+    fun `bold is read before italic or its opening marker is a stray asterisk`() {
         // "**" has to be checked before "*" at every position. The other way round,
         // the first character of a bold marker opens an italic run and the second
         // is left over as text.

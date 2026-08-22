@@ -135,7 +135,7 @@ class ServiceRecordHtmlTest {
     }
 
     @Test
-    fun `a bill's line items print one per line, not as one run-on sentence`() {
+    fun `a bill's line items print one per line not as one run-on sentence`() {
         val page = html(
             record(
                 entries = listOf(
@@ -287,7 +287,7 @@ class ServiceRecordHtmlTest {
     /* ------------------------- the masthead ------------------------- */
 
     @Test
-    fun `the masthead names the car, the plate and the reading`() {
+    fun `the masthead names the car the plate and the reading`() {
         val page = html(record(scores = listOf(testSnapshot("2026-07-02T10:00:00Z", total = 74))))
 
         assertPrinted(page, "Maruti Swift VXI")

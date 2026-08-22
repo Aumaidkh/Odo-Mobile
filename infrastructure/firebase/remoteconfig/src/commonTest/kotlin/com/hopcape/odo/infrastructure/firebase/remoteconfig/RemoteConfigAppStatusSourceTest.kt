@@ -12,7 +12,7 @@ private val FETCHED_AT = Instant.fromEpochMilliseconds(1_700_000_000_000)
 class RemoteConfigAppStatusSourceTest {
 
     @Test
-    fun `never fetched returns null, letting the provider keep its previous verdict`() = runTest {
+    fun `never fetched returns null letting the provider keep its previous verdict`() = runTest {
         val source = RemoteConfigAppStatusSource(FakeGateway(lastFetchAt = null))
 
         assertNull(source.fetch())
@@ -50,7 +50,7 @@ class RemoteConfigAppStatusSourceTest {
     }
 
     @Test
-    fun `a missing min version code defaults to zero, which blocks nothing`() = runTest {
+    fun `a missing min version code defaults to zero which blocks nothing`() = runTest {
         val gateway = FakeGateway(lastFetchAt = FETCHED_AT, values = emptyMap())
 
         val status = RemoteConfigAppStatusSource(gateway).fetch()
@@ -59,7 +59,7 @@ class RemoteConfigAppStatusSourceTest {
     }
 
     @Test
-    fun `a blank maintenance message reads as no message, not an empty string`() = runTest {
+    fun `a blank maintenance message reads as no message not an empty string`() = runTest {
         val gateway = FakeGateway(
             lastFetchAt = FETCHED_AT,
             values = mapOf(RemoteConfigAppStatusSource.KEY_MAINTENANCE_MESSAGE to "   "),

@@ -39,14 +39,14 @@ class RowsTest {
     }
 
     @Test
-    fun `bold survives, because it is the only emphasis there is`() {
+    fun `bold survives because it is the only emphasis there is`() {
         val original = listOf(ArticleBlock.Paragraph(listOf(TextRun("plain "), TextRun("bold", bold = true))))
         val decoded = decodeBlocks(json.parseToJsonElement(encodeBlocks(original)))
         assertEquals(listOf(false, true), (decoded.first() as ArticleBlock.Paragraph).runs.map { it.bold })
     }
 
     @Test
-    fun `a block type this version does not know is dropped, not fatal`() {
+    fun `a block type this version does not know is dropped not fatal`() {
         // A body written by a newer CMS. Losing one block beats losing the article.
         val body = """[{"type":"paragraph","runs":[{"text":"kept","bold":false}]},{"type":"video","src":"x"}]"""
         val decoded = decodeBlocks(json.parseToJsonElement(body))

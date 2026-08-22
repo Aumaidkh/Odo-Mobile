@@ -68,7 +68,7 @@ class TankStatusTest {
     }
 
     @Test
-    fun `one fill is a record, not a habit`() {
+    fun `one fill is a record not a habit`() {
         val tank = TankStatus.of(
             fills = listOf(fill(odometerKm = 53_588, day = 15)),
             currentOdometer = km(54_000),

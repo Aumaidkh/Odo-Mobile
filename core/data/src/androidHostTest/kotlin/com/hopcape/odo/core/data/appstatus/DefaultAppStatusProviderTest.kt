@@ -28,7 +28,7 @@ private const val CURRENT_VERSION = 100L
 class DefaultAppStatusProviderTest {
 
     @Test
-    fun `starts allowed before any refresh, fail open`() = runTest {
+    fun `starts allowed before any refresh fail open`() = runTest {
         val provider = newProvider(scope = backgroundScope)
 
         assertEquals(AppAvailability.Allowed, provider.availability.value)
@@ -65,7 +65,7 @@ class DefaultAppStatusProviderTest {
     }
 
     @Test
-    fun `blocked then released reports exactly one of each, never for a degraded change`() = runTest {
+    fun `blocked then released reports exactly one of each never for a degraded change`() = runTest {
         val source = FakeAppStatusSource()
         val analytics = RecordingAnalytics()
         val provider = newProvider(source = source, analytics = analytics, scope = backgroundScope)
