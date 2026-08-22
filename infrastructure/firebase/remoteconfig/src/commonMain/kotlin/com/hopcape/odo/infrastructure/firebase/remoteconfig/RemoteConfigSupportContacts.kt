@@ -33,9 +33,6 @@ internal class RemoteConfigSupportContacts(
         /**
          * Empty on purpose — see the class comment. The key is declared to the SDK here; the
          * build's own [SupportContacts] is the real default.
-         *
-         * Kept in sync by hand with `androidMain/res/xml/remote_config_defaults.xml`, which
-         * is the canonical copy on Android. Change one, change both.
          */
         val REMOTE_DEFAULTS: Map<String, Any> = mapOf(KEY_SUPPORT_EMAIL to "")
     }

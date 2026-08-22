@@ -37,7 +37,7 @@ class RemoteConfigSupportContactsTest {
 
     @Test
     fun `a blank value is treated as no override, not as a blank address`() {
-        // Exactly what remote_config_defaults.xml holds, so this is the ordinary case.
+        // Exactly what REMOTE_DEFAULTS holds, so this is the ordinary case.
         assertEquals(builtIn.email, contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "")).email)
     }
 

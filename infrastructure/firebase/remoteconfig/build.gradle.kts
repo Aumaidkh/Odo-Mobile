@@ -29,11 +29,6 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
         }
-        androidMain.dependencies {
-            // Task.await() — bridges setDefaultsAsync's native Task<Void> to a suspend
-            // call (LocalRemoteConfigDefaults.android.kt).
-            implementation(libs.kotlinx.coroutines.play.services)
-        }
     }
 }
 

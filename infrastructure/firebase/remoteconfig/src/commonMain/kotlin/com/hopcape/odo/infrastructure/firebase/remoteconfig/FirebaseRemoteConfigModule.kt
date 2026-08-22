@@ -22,9 +22,9 @@ val firebaseRemoteConfigModule = module {
         val logger = get<Logger>()
         RealFirebaseRemoteConfigGateway(
             minimumFetchIntervalSeconds = minimumFetchIntervalSeconds(),
-            // Both consumers' keys, in one call — the SDK takes defaults once per process.
-            // On Android none of this map is read: `remote_config_defaults.xml` is the
-            // canonical copy there (see LocalRemoteConfigDefaults.android.kt).
+            // Every consumer's keys, in one call — the SDK takes defaults once per
+            // process, and this map is the only copy of them on every platform
+            // (see LocalRemoteConfigDefaults.kt).
             defaults = RemoteConfigAppStatusSource.REMOTE_DEFAULTS +
                 RemoteConfigLegalLinks.REMOTE_DEFAULTS +
                 RemoteConfigSupportContacts.REMOTE_DEFAULTS,

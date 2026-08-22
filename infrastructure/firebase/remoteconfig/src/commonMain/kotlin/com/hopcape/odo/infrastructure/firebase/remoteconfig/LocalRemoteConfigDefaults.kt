@@ -5,11 +5,16 @@ import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
 /**
  * Applies the safe, non-blocking answer a fresh install has before its first network fetch.
  *
- * Platform-specific because Android has its own native convention for this — a checked-in
- * `res/xml/remote_config_defaults.xml`, loaded through the real SDK's
- * `setDefaultsAsync(int)` — that gitlive's cross-platform `setDefaults(vararg)` has no way
- * to reach (see `LocalRemoteConfigDefaults.android.kt`). Every other platform falls back to
- * [defaults] directly, the same values that resource holds — see that file's own comment for
- * the "kept in sync by hand" note.
+ * One implementation for every platform, and [defaults] is the only copy of those values.
+ *
+ * Android used to have its own: a checked-in `res/xml/remote_config_defaults.xml`, loaded
+ * through the real SDK's `setDefaultsAsync(int)` because that is Firebase's documented
+ * Android convention. That resource was a fourth hand-maintained copy of what the
+ * `REMOTE_DEFAULTS` maps already held, and its own comment said as much — "Kept in sync by
+ * hand … Change one, change both." gitlive's cross-platform `setDefaults(vararg)` reaches
+ * the same SDK on Android, which is what iOS had been doing the whole time, so the resource
+ * and the expect/actual pair around it had nothing left to justify them.
  */
-internal expect suspend fun applyLocalDefaults(config: FirebaseRemoteConfig, defaults: Map<String, Any>)
+internal suspend fun applyLocalDefaults(config: FirebaseRemoteConfig, defaults: Map<String, Any>) {
+    config.setDefaults(*defaults.map { (key, value) -> key to value }.toTypedArray())
+}

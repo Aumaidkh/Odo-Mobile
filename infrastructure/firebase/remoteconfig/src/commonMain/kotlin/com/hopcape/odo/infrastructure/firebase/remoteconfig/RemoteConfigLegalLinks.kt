@@ -13,9 +13,8 @@ import com.hopcape.odo.core.domain.legal.LegalLinks
  * **Every read falls back to [builtIn].** A blank remote value covers three cases that all
  * mean the same thing — the key is unset in the console, the first fetch has not landed yet
  * on a fresh install, or Firebase is unreachable on this device — and in all three the
- * build's own answer is better than nothing. That is also why the local defaults in
- * `remote_config_defaults.xml` are deliberately empty: an override, not a duplicate of what
- * the build already knows.
+ * build's own answer is better than nothing. That is also why [REMOTE_DEFAULTS] below is
+ * deliberately empty: an override, not a duplicate of what the build already knows.
  *
  * Values are trimmed, because a URL pasted into the console picks up whitespace remarkably
  * often and a leading space is enough to break the link.
@@ -47,8 +46,6 @@ internal class RemoteConfigLegalLinks(
          * Empty on purpose — see the class comment. These exist so the keys are declared to
          * the SDK; the build's own [LegalLinks] is the real default.
          *
-         * Kept in sync by hand with `androidMain/res/xml/remote_config_defaults.xml`, which
-         * is the canonical copy on Android. Change one, change both.
          */
         val REMOTE_DEFAULTS: Map<String, Any> = mapOf(
             KEY_PRIVACY_POLICY to "",

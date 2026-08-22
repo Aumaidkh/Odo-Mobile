@@ -51,7 +51,7 @@ class RemoteConfigLegalLinksTest {
 
     @Test
     fun `a blank value is treated as no override, not as a blank URL`() {
-        // This is exactly what the local defaults in remote_config_defaults.xml hold, so it
+        // This is exactly what the local defaults in REMOTE_DEFAULTS hold, so it
         // is the ordinary case rather than an edge one.
         val links = links(mapOf(RemoteConfigLegalLinks.KEY_PRIVACY_POLICY to ""))
 
