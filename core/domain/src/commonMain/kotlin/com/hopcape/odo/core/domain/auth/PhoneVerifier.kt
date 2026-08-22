@@ -29,8 +29,13 @@ interface PhoneVerifier {
      * Answers when the provider accepts the request, not when the SMS lands — nothing on the
      * device can observe delivery. Starting a second verification replaces the first; the
      * code from the earlier one stops being accepted.
+     *
+     * A provider that can prove the number without ever sending one — Firebase does, for
+     * numbers it can verify by attestation alone — answers [PhoneVerificationOutcome.AlreadyVerified]
+     * instead of [PhoneVerificationOutcome.CodeSent]. Fetch the proof with
+     * [completeAutoVerification], not [submitCode]: there is no code to type.
      */
-    suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit>
+    suspend fun startVerification(phone: PhoneNumber): Either<DomainError, PhoneVerificationOutcome>
 
     /**
      * Exchange the typed [code] for proof the number is real.
@@ -42,12 +47,36 @@ interface PhoneVerifier {
     suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken>
 
     /**
+     * Finish a verification the provider completed by itself — only meaningful right after
+     * [startVerification] answers [PhoneVerificationOutcome.AlreadyVerified].
+     *
+     * Fails the same way [submitCode] does, [DomainError.OtpExpired], when called without one:
+     * nothing is in flight to finish.
+     */
+    suspend fun completeAutoVerification(): Either<DomainError, VerifiedPhoneToken>
+
+    /**
      * Drop any verification state and whatever account the provider signed in locally.
      *
      * Called on sign-out. Without it the provider keeps its own signed-in user, and the next
      * sign-in on this device could skip the SMS for a number nobody re-proved.
      */
     suspend fun forget()
+}
+
+/**
+ * What asking for a code turned into.
+ *
+ * Not always a code: Firebase can prove some numbers itself — by attestation, with no SMS
+ * ever sent — and [startVerification]'s caller needs to know which happened rather than
+ * waiting on a code that is never coming.
+ */
+sealed interface PhoneVerificationOutcome {
+    /** A code is on its way; the caller collects it and calls [PhoneVerifier.submitCode]. */
+    data object CodeSent : PhoneVerificationOutcome
+
+    /** The provider proved the number itself. Fetch the proof with [PhoneVerifier.completeAutoVerification]. */
+    data object AlreadyVerified : PhoneVerificationOutcome
 }
 
 /**

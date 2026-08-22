@@ -27,8 +27,12 @@ interface AuthGateway {
      * Answers as soon as the provider accepts the request — not when the SMS arrives, which
      * nothing on the device can observe. A number that is well-formed but unreachable looks
      * identical to one that works, and the only signal is that no code ever turns up.
+     *
+     * Can also finish sign-in outright: some providers prove a number without ever sending a
+     * code, and [OtpRequestOutcome.AlreadyVerified] carries the session that produced rather
+     * than making the caller wait on [verifyOtp] for a code that was never sent.
      */
-    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit>
+    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome>
 
     /**
      * Exchange a code for a session.
@@ -55,4 +59,20 @@ interface AuthGateway {
      * problem than a device that cannot sign out.
      */
     suspend fun signOut(accessToken: String): Either<DomainError, Unit>
+}
+
+/**
+ * What asking for a code turned into.
+ *
+ * Split from a bare success because a provider can verify a number without ever sending a
+ * code ([PhoneVerificationOutcome.AlreadyVerified] one layer down) — the caller needs to know
+ * sign-in is already done rather than navigating to a screen that waits for a code that is not
+ * coming.
+ */
+sealed interface OtpRequestOutcome {
+    /** A code is on its way; the caller collects it and calls [AuthGateway.verifyOtp]. */
+    data object CodeSent : OtpRequestOutcome
+
+    /** Already signed in — no code was ever sent. */
+    data class AlreadyVerified(val session: AuthSession) : OtpRequestOutcome
 }

@@ -3,6 +3,8 @@ package com.hopcape.odo.infrastructure.supabase.auth
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -56,6 +58,44 @@ class SupabaseAuthGatewayTest {
             DomainError.TooManyOtpRequests(30),
             bridge(harness, verifier).requestOtp(phone).leftOrNull(),
         )
+    }
+
+    /**
+     * Firebase can prove some numbers by attestation alone, with no SMS ever sent. #188:
+     * that used to leave the owner on a code screen waiting for a message that was never
+     * coming, because the credential was fetched and then quietly discarded. It now trades
+     * straight through to a session, the same as a typed code would.
+     */
+    @Test
+    fun aNumberVerifiedWithoutACodeSignsInImmediately() = runTest {
+        val harness = SupabaseTestHarness { MockResponse(tokenJson()) }
+        val verifier = FakeVerifier(
+            startResult = PhoneVerificationOutcome.AlreadyVerified.right(),
+            autoVerificationResult = VerifiedPhoneToken("firebase-id-token").right(),
+        )
+
+        val outcome = bridge(harness, verifier).requestOtp(phone).getOrNull()
+
+        val alreadyVerified = assertIs<OtpRequestOutcome.AlreadyVerified>(outcome)
+        assertEquals("access-1", alreadyVerified.session.accessToken)
+        assertEquals(OwnerId("user-1"), alreadyVerified.session.ownerId)
+        assertTrue(verifier.completedAutoVerification)
+        assertContains(harness.onlyRequest().bodyText(), "firebase-id-token")
+    }
+
+    @Test
+    fun aFailedAutoVerificationExchangeIsReportedAsIs() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("{}") }
+        val verifier = FakeVerifier(
+            startResult = PhoneVerificationOutcome.AlreadyVerified.right(),
+            autoVerificationResult = DomainError.OtpExpired.left(),
+        )
+
+        val error = bridge(harness, verifier).requestOtp(phone).leftOrNull()
+
+        assertIs<DomainError.OtpExpired>(error)
+        // Nothing was proved, so there is nothing to trade.
+        assertTrue(harness.requests.isEmpty())
     }
 
     /* ---- trading a verified number for a session ---- */
@@ -215,19 +255,23 @@ class SupabaseAuthGatewayTest {
     """.trimIndent()
 
     private class FakeVerifier(
-        private val startResult: Either<DomainError, Unit> = Unit.right(),
+        private val startResult: Either<DomainError, PhoneVerificationOutcome> =
+            PhoneVerificationOutcome.CodeSent.right(),
         private val submitResult: Either<DomainError, VerifiedPhoneToken> =
             VerifiedPhoneToken("token").right(),
+        private val autoVerificationResult: Either<DomainError, VerifiedPhoneToken> = submitResult,
     ) : PhoneVerifier {
 
         var startedWith: PhoneNumber? = null
             private set
         var submittedCode: String? = null
             private set
+        var completedAutoVerification: Boolean = false
+            private set
         var forgotten: Boolean = false
             private set
 
-        override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit> {
+        override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, PhoneVerificationOutcome> {
             startedWith = phone
             return startResult
         }
@@ -235,6 +279,11 @@ class SupabaseAuthGatewayTest {
         override suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken> {
             submittedCode = code
             return submitResult
+        }
+
+        override suspend fun completeAutoVerification(): Either<DomainError, VerifiedPhoneToken> {
+            completedAutoVerification = true
+            return autoVerificationResult
         }
 
         override suspend fun forget() {

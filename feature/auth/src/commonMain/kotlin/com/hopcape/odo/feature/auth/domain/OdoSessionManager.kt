@@ -6,6 +6,7 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
@@ -112,25 +113,37 @@ internal class OdoSessionManager(
 
     /* ---- sign in / out ---- */
 
-    /** Ask for a code. Nothing is stored until one is verified. */
-    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> =
+    /**
+     * Ask for a code. Nothing is stored until one is verified — unless the provider proves
+     * the number without ever sending one, in which case sign-in is already done and this
+     * keeps the session exactly as [verifyOtp] would.
+     */
+    suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> =
         gateway.requestOtp(phone)
-            .onRight { telemetry.otpRequested() }
+            .onRight { outcome ->
+                when (outcome) {
+                    OtpRequestOutcome.CodeSent -> telemetry.otpRequested()
+                    is OtpRequestOutcome.AlreadyVerified -> completeSignIn(outcome.session)
+                }
+            }
             .onLeft { telemetry.otpRejected(it) }
 
     /** Exchange a code for a session and keep it. */
     suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =
         gateway.verifyOtp(phone, code)
-            .onRight {
-                mutex.withLock { keep(it) }
-                telemetry.signedIn()
-                // Back up what is already on the phone now. Nothing else will until the
-                // owner edits something or relaunches, and they were just told this is
-                // what signing in does. `SignIn` is REPLACE, so it also clears a backoff
-                // earned by runs that failed for the very reason this just fixed.
-                scheduler.requestSync(SyncReason.SignIn)
-            }
+            .onRight { completeSignIn(it) }
             .onLeft { telemetry.otpRejected(it) }
+
+    /** The one place a sign-in actually completes, whether a code was typed or not. */
+    private suspend fun completeSignIn(session: AuthSession) {
+        mutex.withLock { keep(session) }
+        telemetry.signedIn()
+        // Back up what is already on the phone now. Nothing else will until the owner edits
+        // something or relaunches, and they were just told this is what signing in does.
+        // `SignIn` is REPLACE, so it also clears a backoff earned by runs that failed for the
+        // very reason this just fixed.
+        scheduler.requestSync(SyncReason.SignIn)
+    }
 
     /**
      * Forget the session, here and on the server.

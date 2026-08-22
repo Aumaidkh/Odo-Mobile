@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.auth.resources.au_error_send_failed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.auth.AuthTelemetry
@@ -75,11 +76,15 @@ internal class PhoneViewModel(
         sendJob = viewModelScope.launch {
             sessions.requestOtp(parsed).fold(
                 ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
-                ifRight = {
+                ifRight = { outcome ->
                     _state.update { it.copy(submission = Submission.Idle) }
-                    // The parsed number travels, not what was typed — the next screen has
-                    // to send the same thing the code was issued against.
-                    emit(PhoneEffect.CodeSent(parsed.value))
+                    when (outcome) {
+                        // The parsed number travels, not what was typed — the next screen
+                        // has to send the same thing the code was issued against.
+                        OtpRequestOutcome.CodeSent -> emit(PhoneEffect.CodeSent(parsed.value))
+                        // Already signed in — there is no code to collect.
+                        is OtpRequestOutcome.AlreadyVerified -> emit(PhoneEffect.Verified)
+                    }
                 },
             )
         }

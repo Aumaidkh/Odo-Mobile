@@ -40,6 +40,9 @@ internal sealed interface PhoneEffect {
     /** The code is on its way; move to the screen that collects it. */
     data class CodeSent(val phone: String) : PhoneEffect
 
+    /** The provider proved the number instantly — no code was ever sent. Skip straight past it. */
+    data object Verified : PhoneEffect
+
     /** Declined, or backed out — the same thing, and the same destination. */
     data object LeaveAuth : PhoneEffect
 }

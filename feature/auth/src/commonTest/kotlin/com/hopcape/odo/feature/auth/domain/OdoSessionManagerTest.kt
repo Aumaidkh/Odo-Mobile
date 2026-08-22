@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.domain.auth.AuthSession
@@ -151,6 +152,41 @@ class OdoSessionManagerTest {
         assertNull(store.get(SecureStore.KEY_ACCESS_TOKEN))
     }
 
+    /**
+     * When the provider proves the number without a code at all — Firebase's instant
+     * verification — requesting one has to finish sign-in on the spot, exactly as if a
+     * code had been typed and verified. #188: this used to leave the owner on a code
+     * screen for a message that was never coming.
+     */
+    @Test
+    fun requestingACodeThatIsAlreadyVerifiedSignsInImmediately() = runTest {
+        val store = InMemoryStore()
+        val manager = manager(gateway = AlreadyVerifiedGateway(), store = store)
+
+        manager.requestOtp(phone)
+
+        assertTrue(manager.isSignedIn())
+        assertEquals(OwnerId("user-1"), manager.currentOwnerId())
+        assertEquals("refresh-1", store.get(SecureStore.KEY_REFRESH_TOKEN))
+    }
+
+    @Test
+    fun requestingACodeThatIsAlreadyVerifiedAlsoAsksForASync() = runTest {
+        val requested = mutableListOf<SyncReason>()
+        val manager = OdoSessionManager(
+            gateway = AlreadyVerifiedGateway(),
+            store = InMemoryStore(),
+            telemetry = silentTelemetry(),
+            scheduler = RecordingScheduler(requested),
+            identity = RecordingIdentity(),
+            clock = FixedClock(now),
+        )
+
+        manager.requestOtp(phone)
+
+        assertEquals(listOf(SyncReason.SignIn), requested)
+    }
+
     @Test
     fun aTokenIsReadableWithoutAnyoneHavingCalledRestore() = runTest {
         val store = InMemoryStore()
@@ -282,7 +318,15 @@ class OdoSessionManagerTest {
     }
 
     private inner class SucceedingGateway : AuthGateway {
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right()
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right()
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
+        override suspend fun refresh(refreshToken: String) = issued().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** What Firebase answers when it proves a number without ever sending a code. */
+    private inner class AlreadyVerifiedGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.AlreadyVerified(issued()).right()
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
         override suspend fun refresh(refreshToken: String) = issued().right()
         override suspend fun signOut(accessToken: String) = Unit.right()
@@ -290,7 +334,7 @@ class OdoSessionManagerTest {
 
     private inner class RecordingGateway : AuthGateway {
         var calls = 0
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right()
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right()
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = issued().right()
         override suspend fun refresh(refreshToken: String): Either<DomainError, AuthSession> {
             calls++

@@ -10,6 +10,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -226,7 +227,7 @@ class OtpViewModelTest {
         var requests = 0
         var verifications = 0
 
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right().also { requests++ }
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right().also { requests++ }
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = verify.also { verifications++ }
         override suspend fun refresh(refreshToken: String) = session().right()
         override suspend fun signOut(accessToken: String) = Unit.right()
