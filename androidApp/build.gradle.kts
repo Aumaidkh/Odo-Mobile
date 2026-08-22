@@ -84,6 +84,8 @@ dependencies {
     // SyncScheduler/SyncReason — the foreground and reconnect triggers are wired to
     // ProcessLifecycleOwner and ConnectivityManager, both of which live only here.
     implementation(projects.core.sync)
+    // ConfigRefresher — the one config fetch, from the process-lifecycle observer.
+    implementation(projects.core.config)
     // tripTrackerAndroidModule is included from the Koin bootstrap here, same as
     // corePlatformAndroidModule above.
     implementation(projects.core.triptracker)

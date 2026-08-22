@@ -7,6 +7,7 @@ import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.logging.api.loggingModule
 import com.hopcape.performance.api.performanceModule
 import com.hopcape.odo.core.common.coreCommonModule
+import com.hopcape.odo.core.config.coreConfigModule
 import com.hopcape.odo.core.data.coreDataModule
 import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
@@ -128,8 +129,13 @@ fun initKoin(
         // After coreDataModule for the same reason: its on-device BillExtractor binding
         // replaces that module's UnconfiguredBillExtractor stub.
         aiInfrastructureModule,
+        // The config registry and resolver. Listed after every module that could
+        // register a ConfigContribution, and immediately before the module that supplies
+        // the real ConfigSource — the Firebase one replaces its no-backend defaults.
+        coreConfigModule,
         // Same reason again: its AppStatusSource binding replaces coreDataModule's
-        // AlwaysAvailableAppStatusSource, which blocks nothing.
+        // AlwaysAvailableAppStatusSource, which blocks nothing. It also replaces
+        // coreConfigModule's NoRemoteConfigSource and ConfigRefresher.None.
         firebaseRemoteConfigModule,
         // After coreDataModule for the same reason: from S6 its EntitlementSource binding
         // replaces that module's FreePlanEntitlementSource. Today it only configures the

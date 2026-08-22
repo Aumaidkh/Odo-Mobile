@@ -5,6 +5,9 @@ plugins {
     alias(libs.plugins.odo.kmpLibrary)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
+    // The registry and resolver are bound here, and every generated group's Koin module
+    // is emitted into whichever module declares it.
+    alias(libs.plugins.odo.koin)
 }
 
 kotlin {

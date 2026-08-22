@@ -2,10 +2,13 @@ package com.hopcape.odo.infrastructure.firebase.remoteconfig
 
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.config.ConfigRefresher
+import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.domain.support.SupportContacts
 import org.koin.core.qualifier.named
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
@@ -34,6 +37,15 @@ val firebaseRemoteConfigModule = module {
         )
     }
     single<AppStatusSource> { RemoteConfigAppStatusSource(gateway = get()) }
+
+    // Replaces coreConfigModule's NoRemoteConfigSource and ConfigRefresher.None, the same
+    // later-definition-wins wiring as the AppStatusSource above.
+    //
+    // One instance bound to both interfaces, not two definitions: the generation counter
+    // lives in it, so a second instance would fetch on one object and leave every flow
+    // watching the other.
+    single { RemoteConfigSource(gateway = get()) } binds
+        arrayOf(ConfigSource::class, ConfigRefresher::class)
 
     // Replaces supabaseModule's build-time links, and resolves that one as its fallback —
     // hence the qualifier. Same later-wins wiring as the AppStatusSource above, with one
