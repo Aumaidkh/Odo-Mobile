@@ -1,50 +1,18 @@
 package com.hopcape.odo.core.config
 
 /*
- * ── The rules for adding a config key ────────────────────────────────────────────────
+ * The rules for adding a config key — where a group goes, naming, "remote turns off never
+ * on", why a default is not a last resort, one key per group, and what is not config — are
+ * in this module's README, together with a worked end-to-end example.
  *
- * Read these before declaring one.
- *
- * They live in KDoc rather than a markdown file on purpose: every `.md` in this repo except
- * the README and the VCS conventions is gitignored, so a document would not reach a clone.
- * This is the file someone opens when they add a key.
- *
- * **1. Where a group goes.** In the lowest module every consumer already depends on. One
- * feature reads it, that feature module owns it. Several features read it, it goes in
- * `:core:config`. It is a domain port's payload, it goes with whatever module already reads
- * the key — not necessarily beside the port, because a generated group brings a Koin module
- * with it and `:core:domain` takes no framework types.
- *
- * **2. Naming.** `^[a-z][a-z0-9_]*$`, prefixed by the group. The processor rejects anything
- * else at build time.
- *
- * **3. Remote config turns things off, never on.** A flag can only reach code the installed
- * APK already contains and the manifest already declares. Any flag whose "on" state needs a
- * manifest entry, a permission or a native dependency that is not shipped is a lie —
- * `refuel_detect_enabled` is exactly this, and it will happen again. If a flag has that
- * shape, give it a runtime precondition that says so in the logs.
- *
- * **4. Defaults are not a last resort.** The compiled default is what every install answers
- * for the first seconds of its life, and forever on a device that never reaches the
- * backend. A default that differs from current behaviour is a behaviour change on first
- * run.
- *
- * **5. A key belongs to exactly one group.** KSP only sees one module, so two modules can
- * declare the same key and only the registry notices — fail fast in debug, log in release.
- *
- * **6. Most constants are not config.** Telemetry event and parameter names, test tags,
- * table and column names, PDF colours, animation durations, arithmetic facts
- * (`PAISE_PER_RUPEE`, `MONTHS_IN_YEAR`), protocol constants (OTP length), and Compose
- * idioms with one correct value. A sweep for `const val` in this repo returns hundreds of
- * hits and almost all of them are noise. Health-score band cutoffs are deliberately
- * excluded too: moving them silently restates every owner's score with no explanation they
- * can see, so that should be a release with release notes.
+ * A module README is committed (the repo gitignores every other `.md`), so it does reach a
+ * clone. They are not repeated here: two copies of a rule is one copy that goes stale.
  */
 
 /**
  * Marks an interface as a group of config keys.
  *
- * The rules above are the ones to follow when adding one.
+ * See this module's README before adding one.
  *
  * The interface is written by hand and is the type consumers inject. KSP generates
  * an implementation of it, a sibling holding one [kotlinx.coroutines.flow.Flow] per
