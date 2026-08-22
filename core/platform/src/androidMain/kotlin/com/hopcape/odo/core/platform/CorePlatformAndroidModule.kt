@@ -105,7 +105,7 @@ val corePlatformAndroidModule = module {
     // (docs/SHOWCASE_PLAN.md decision 1). The arbiter that reads it is bound in :core:data.
     single<ShowcaseSeenStore> { PrefsShowcaseSeenStore(context = get<Context>()) }
     // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
-    single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>()) }
+    single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>(), telemetry = get()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }
     single<SmsAppSignature> { AndroidSmsAppSignature(context = get<Context>()) }
     // The durable file sink's on-disk store (docs/LOGGING_PLAN.md). "logs" alongside

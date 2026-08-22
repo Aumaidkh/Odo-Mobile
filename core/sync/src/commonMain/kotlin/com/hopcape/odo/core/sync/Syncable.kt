@@ -11,9 +11,17 @@ package com.hopcape.odo.core.sync
  * register with — a cycle Gradle would reject. Inverting it means the engine only ever
  * receives the [Syncable]s it was given.
  *
- * [syncWith] is **push then pull**, in that order: pushing first means the pull's
- * last-write-wins comparison sees our newest local version and cannot resurrect a stale
- * server row over an unsent edit.
+ * **Push and pull are separate calls, and the engine runs them as separate phases.** They
+ * used to be one method, which forced both halves to share one failure rule — and the rule
+ * had to be the strict one the push needs, because pushing a child before its parent is a
+ * foreign-key error. That cost an owner their whole account view whenever the first entity
+ * failed: `PROFILES` is first, so a profile that would not sync meant cars, service logs and
+ * documents were never even fetched (issue #312). Split, each half gets the rule that is
+ * actually true of it.
+ *
+ * Push still comes first, for every entity, before any pull runs. That ordering is what
+ * keeps the pull's last-write-wins comparison from resurrecting a stale server row over an
+ * unsent local edit.
  *
  * Returning `false` rather than throwing is Now in Android's shape and the right one — a
  * failed entity means the *run* retries, and WorkManager's backoff decides when. No
@@ -26,6 +34,22 @@ interface Syncable {
     /** Which table this syncs, which is also its position in the FK ordering. */
     val entity: SyncEntity
 
-    /** `true` if this entity is fully reconciled; `false` asks the scheduler to retry the run. */
-    suspend fun syncWith(synchronizer: Synchronizer): Boolean
+    /**
+     * Send local changes.
+     *
+     * `false` stops the push phase where it stands. Every entity after this one in
+     * [SyncEntity] order may reference this table, and a child sent before its parent is a
+     * foreign-key error — carrying on would turn one failure into six.
+     */
+    suspend fun pushTo(synchronizer: Synchronizer): Boolean
+
+    /**
+     * Apply the server's changes.
+     *
+     * `false` is recorded and the run is reported as [SyncResult.Partial], but the phase
+     * **carries on to the next entity**. A pull has no ordering requirement: cars can be
+     * fetched perfectly well when the profile fetch failed, and refusing to try is what made
+     * a full account look like an empty one.
+     */
+    suspend fun pullFrom(synchronizer: Synchronizer): Boolean
 }

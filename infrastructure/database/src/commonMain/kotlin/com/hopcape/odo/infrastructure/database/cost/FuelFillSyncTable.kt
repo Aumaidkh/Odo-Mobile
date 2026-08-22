@@ -4,8 +4,10 @@ import com.hopcape.odo.core.data.cost.FuelFillDto
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.infrastructure.database.db.Fuel_fills
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
+import com.hopcape.odo.infrastructure.database.sync.FetchResult
 import com.hopcape.odo.infrastructure.database.sync.LocalRowState
 import com.hopcape.odo.infrastructure.database.sync.SyncTable
+import com.hopcape.odo.infrastructure.database.sync.orNullIfPlaceholder
 import com.hopcape.odo.infrastructure.database.sync.toInstantOrNull
 import com.hopcape.odo.infrastructure.database.sync.toSyncStatus
 import kotlin.time.Instant
@@ -31,7 +33,7 @@ import kotlin.time.Instant
 internal class FuelFillSyncTable(
     private val database: OdoDatabase,
     private val remote: FuelFillRemoteDataSource,
-    private val carId: () -> String?,
+    private val ownerId: () -> String?,
 ) : SyncTable<FuelFillDto> {
 
     private val queries get() = database.fuelFillQueries
@@ -50,11 +52,23 @@ internal class FuelFillSyncTable(
 
     override fun markConflict(id: String) = queries.markConflict(id)
 
-    override suspend fun fetch(since: Instant?): List<FuelFillDto> {
-        // Fills hang off a car, so there is nothing to pull before one exists. A run on a
-        // device with no car is a no-op rather than a query for every fill on the account.
-        val car = carId() ?: return emptyList()
-        return remote.fetchSince(car, since)
+    /**
+     * Scoped to the **owner**, not to one car.
+     *
+     * It used to read the active car off `ActiveCarProvider.activeCarId`, a StateFlow seeded
+     * null and fed by a database query. On the first run after signing in, the engine wrote
+     * the pulled cars and reached this table milliseconds later — before that flow had
+     * re-emitted — so the fetch returned nothing, the pull reported success, and WorkManager
+     * dropped the job with none of the owner's history fetched (issue #312). It also meant a
+     * second car's rows never arrived, and that an account whose server rows all carry
+     * `is_primary = false` never pulled here at all.
+     *
+     * The owner id comes from the session synchronously, so there is no flow to lose a race
+     * with, and `owner_id` is the column row-level security already filters on server-side.
+     */
+    override suspend fun fetch(since: Instant?): FetchResult<FuelFillDto> {
+        val owner = ownerId().orNullIfPlaceholder() ?: return FetchResult.ScopeMissing(OWNER)
+        return FetchResult.Rows(remote.fetchSince(owner, since))
     }
 
     override fun localState(id: String): LocalRowState? =
@@ -100,6 +114,11 @@ internal class FuelFillSyncTable(
             remote_version = dto.updatedAt,
             id = dto.id,
         )
+    }
+
+    private companion object {
+        /** Names the missing scope in a log. Never the value. */
+        const val OWNER = "owner id"
     }
 }
 

@@ -7,6 +7,7 @@ import com.hopcape.odo.infrastructure.supabase.MockResponse
 import com.hopcape.odo.infrastructure.supabase.SupabaseTestHarness
 import com.hopcape.odo.infrastructure.supabase.bodyText
 import com.hopcape.odo.infrastructure.supabase.http.SupabaseRequestFailed
+import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
@@ -29,14 +30,18 @@ class SupabaseAdaptersTest {
     // ─── service log ────────────────────────────────────────────────────────────────
 
     @Test
-    fun `service log delta pull filters on car and cursor`() = runTest {
+    fun `service log delta pull filters on owner and cursor`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[]") }
         SupabaseServiceLogRemoteDataSource(harness.postgrest)
-            .fetchSince(carId = "car-1", since = Instant.parse("2026-01-01T00:00:00Z"))
+            .fetchSince(ownerId = "owner-1", since = Instant.parse("2026-01-01T00:00:00Z"))
 
         val url = harness.onlyRequest().url
         assertEquals("/rest/v1/service_logs", url.encodedPath)
-        assertEquals("eq.car-1", url.parameters["car_id"])
+        // owner_id, not car_id. A car id is not knowable at the moment a pull runs — the
+        // cars themselves may have arrived seconds earlier in the same run — and scoping to
+        // one car also meant a second car's entries never arrived (issue #312).
+        assertEquals("eq.owner-1", url.parameters["owner_id"])
+        assertNull(url.parameters["car_id"])
         assertEquals("gt.2026-01-01T00:00:00Z", url.parameters["updated_at"])
         assertEquals("updated_at.asc", url.parameters["order"])
     }
@@ -44,7 +49,7 @@ class SupabaseAdaptersTest {
     @Test
     fun `a first-ever pull sends no cursor`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[]") }
-        SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince(carId = "car-1", since = null)
+        SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince(ownerId = "owner-1", since = null)
 
         assertNull(harness.onlyRequest().url.parameters["updated_at"])
     }
@@ -55,7 +60,7 @@ class SupabaseAdaptersTest {
             if (request.url.encodedPath.endsWith("service_log_categories")) MockResponse("[]")
             else MockResponse("[${serviceLogJson(deletedAt = "2026-02-01T00:00:00Z")}]")
         }
-        val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+        val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
 
         assertEquals(1, pulled.size)
         assertEquals("2026-02-01T00:00:00Z", pulled.single().deletedAt)
@@ -130,7 +135,7 @@ class SupabaseAdaptersTest {
             }
         }
 
-        val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+        val pulled = SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
 
         assertEquals(listOf("oil_change"), pulled.single().categories)
         // One request per page, not one per entry.
@@ -141,7 +146,7 @@ class SupabaseAdaptersTest {
     @Test
     fun `an empty page skips the categories request`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[]") }
-        SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+        SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
 
         assertEquals(1, harness.requests.size)
     }
@@ -200,7 +205,7 @@ class SupabaseAdaptersTest {
         val harness = SupabaseTestHarness { throw IllegalStateException("connection reset") }
 
         assertFailsWith<IllegalStateException> {
-            SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+            SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
         }
 
         assertEquals(1, harness.nonFatals.size)
@@ -212,7 +217,7 @@ class SupabaseAdaptersTest {
         val harness = SupabaseTestHarness { MockResponse("""{"message":"nope"}""", HttpStatusCode.Forbidden) }
 
         assertFailsWith<SupabaseRequestFailed> {
-            SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("car-1", null)
+            SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
         }
 
         // The status already went out through `rejected`. Recording it again as a non-fatal
@@ -247,14 +252,37 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a reminder pull filters on car and cursor`() = runTest {
+    fun `a reminder pull filters on owner and cursor`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[]") }
         SupabaseReminderRemoteDataSource(harness.postgrest)
-            .fetchSince(carId = "car-1", since = Instant.parse("2026-08-01T00:00:00Z"))
+            .fetchSince(ownerId = "owner-1", since = Instant.parse("2026-08-01T00:00:00Z"))
 
         val url = harness.onlyRequest().url
-        assertEquals("eq.car-1", url.parameters["car_id"])
+        assertEquals("eq.owner-1", url.parameters["owner_id"])
+        assertNull(url.parameters["car_id"])
         assertEquals("gt.2026-08-01T00:00:00Z", url.parameters["updated_at"])
+    }
+
+    @Test
+    fun `every car-scoped pull filters on owner, not car`() = runTest {
+        // One test over all six, so adding a seventh scoped entity that reaches for a car id
+        // fails here rather than in production on somebody's first sign-in.
+        val pulls: List<Pair<String, suspend (PostgrestClient) -> Unit>> = listOf(
+            "documents" to { client -> SupabaseDocumentRemoteDataSource(client).fetchSince("owner-1", null) },
+            "fuel_fills" to { client -> SupabaseFuelFillRemoteDataSource(client).fetchSince("owner-1", null) },
+            "health_scores" to { client -> SupabaseHealthScoreRemoteDataSource(client).fetchSince("owner-1", null) },
+            "trips" to { client -> SupabaseTripRemoteDataSource(client).fetchSince("owner-1", null) },
+        )
+
+        pulls.forEach { (table, pull) ->
+            val harness = SupabaseTestHarness { MockResponse("[]") }
+            pull(harness.postgrest)
+
+            val url = harness.onlyRequest().url
+            assertEquals("/rest/v1/$table", url.encodedPath)
+            assertEquals("eq.owner-1", url.parameters["owner_id"], table)
+            assertNull(url.parameters["car_id"], table)
+        }
     }
 
     // ─── fairness ───────────────────────────────────────────────────────────────────

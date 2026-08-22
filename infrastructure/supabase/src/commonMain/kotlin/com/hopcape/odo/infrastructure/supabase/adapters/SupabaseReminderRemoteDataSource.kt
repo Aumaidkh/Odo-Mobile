@@ -19,12 +19,12 @@ internal class SupabaseReminderRemoteDataSource(
     private val postgrest: PostgrestClient,
 ) : ReminderRemoteDataSource {
 
-    override suspend fun fetchSince(carId: String, since: Instant?): List<ReminderDto> =
+    override suspend fun fetchSince(ownerId: String, since: Instant?): List<ReminderDto> =
         postgrest.select(
             table = TABLE,
             serializer = ReminderDto.serializer(),
             filters = buildMap {
-                put(COLUMN_CAR_ID, "eq.$carId")
+                put(COLUMN_OWNER_ID, "eq.$ownerId")
                 since?.let { put(COLUMN_UPDATED_AT, "gt.$it") }
             },
             order = "$COLUMN_UPDATED_AT.asc",
@@ -39,7 +39,7 @@ internal class SupabaseReminderRemoteDataSource(
 
     private companion object {
         const val TABLE = "reminders"
-        const val COLUMN_CAR_ID = "car_id"
+        const val COLUMN_OWNER_ID = "owner_id"
         const val COLUMN_UPDATED_AT = "updated_at"
     }
 }

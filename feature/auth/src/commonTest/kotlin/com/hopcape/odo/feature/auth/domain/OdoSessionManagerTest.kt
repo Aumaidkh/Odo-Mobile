@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -115,6 +116,25 @@ class OdoSessionManagerTest {
         assertFalse(manager.isSignedIn())
         assertNull(store.get(SecureStore.KEY_REFRESH_TOKEN))
         assertEquals(OwnerId.LOCAL_PLACEHOLDER, manager.currentOwnerId())
+    }
+
+    @Test
+    fun aRefreshThatCouldNotBeReachedKeepsTheSession() = runTest {
+        // The other half of issue #312. Every failure used to arrive as SessionExpired,
+        // including a timeout, so a renewal attempted in a tunnel ended the session as
+        // decisively as a revoked token — silently, with the app still working and nothing
+        // syncing, and the next sign-in resuming from cursors nobody had cleared.
+        val store = InMemoryStore().apply { seed(expiresAt = now.minus(1.hours)) }
+        val manager = manager(UnreachableGateway, store).also { it.restore() }
+
+        val token = manager.currentAccessToken()
+
+        // No token for this attempt, so the run stays offline.
+        assertNull(token)
+        // But the session is still here, and the same refresh token is still good.
+        assertTrue(manager.isSignedIn())
+        assertEquals("stored-refresh", store.get(SecureStore.KEY_REFRESH_TOKEN))
+        assertNotEquals(OwnerId.LOCAL_PLACEHOLDER, manager.currentOwnerId())
     }
 
     @Test
@@ -342,6 +362,14 @@ class OdoSessionManagerTest {
         }
 
         override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** Reachable for nothing: every call comes back as a bad moment, not a verdict. */
+    private object UnreachableGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber) = DomainError.OtpRequestFailed.left()
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = DomainError.OtpRequestFailed.left()
+        override suspend fun refresh(refreshToken: String) = DomainError.SessionUnavailable.left()
+        override suspend fun signOut(accessToken: String) = DomainError.SessionUnavailable.left()
     }
 
     private object RefusingGateway : AuthGateway {

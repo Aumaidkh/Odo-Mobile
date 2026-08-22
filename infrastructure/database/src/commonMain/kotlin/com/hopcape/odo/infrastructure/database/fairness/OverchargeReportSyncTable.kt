@@ -4,6 +4,7 @@ import com.hopcape.odo.core.data.fairness.OverchargeRemoteDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportDto
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.db.Overcharge_reports
+import com.hopcape.odo.infrastructure.database.sync.FetchResult
 import com.hopcape.odo.infrastructure.database.sync.LocalRowState
 import com.hopcape.odo.infrastructure.database.sync.SyncTable
 import com.hopcape.odo.infrastructure.database.sync.toInstantOrNull
@@ -45,8 +46,15 @@ internal class OverchargeReportSyncTable(
 
     override fun markConflict(id: String) = queries.markConflict(id)
 
-    /** Nothing to pull — see the class note. */
-    override suspend fun fetch(since: Instant?): List<OverchargeReportDto> = emptyList()
+    /**
+     * Nothing to pull — see the class note.
+     *
+     * An empty [FetchResult.Rows] rather than a missing scope: this table knows perfectly
+     * well what it would ask for and has decided not to ask, which is a different thing from
+     * being unable to.
+     */
+    override suspend fun fetch(since: Instant?): FetchResult<OverchargeReportDto> =
+        FetchResult.Rows(emptyList())
 
     override fun localState(id: String): LocalRowState? =
         queries.selectSyncState(id).executeAsOneOrNull()?.let { row ->

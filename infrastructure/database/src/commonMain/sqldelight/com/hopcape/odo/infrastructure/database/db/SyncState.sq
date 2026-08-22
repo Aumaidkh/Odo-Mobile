@@ -85,3 +85,21 @@ SELECT
     (SELECT COUNT(*) FROM overcharge_reports WHERE sync_status <> 'SYNCED') +
     (SELECT COUNT(*) FROM documents          WHERE sync_status <> 'SYNCED') +
     (SELECT COUNT(*) FROM health_scores      WHERE sync_status <> 'SYNCED') AS pending;
+
+-- How many rows on this device belong to an account other than :ownerId.
+--
+-- One query rather than nine because the answer is only ever used as a yes/no: if it is
+-- greater than zero, a previous account's sign-out wipe did not finish, and its rows and the
+-- cursors beside them both have to go. Asked *after* adoption, so the offline placeholder is
+-- no longer one of the owners that can legitimately appear.
+countForeignOwned:
+SELECT
+    (SELECT COUNT(*) FROM profiles           WHERE id       <> :ownerId) +
+    (SELECT COUNT(*) FROM cars               WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM service_logs       WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM documents          WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM fuel_fills         WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM health_scores      WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM overcharge_reports WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM reminders          WHERE owner_id <> :ownerId) +
+    (SELECT COUNT(*) FROM trips              WHERE owner_id <> :ownerId) AS foreign_rows;

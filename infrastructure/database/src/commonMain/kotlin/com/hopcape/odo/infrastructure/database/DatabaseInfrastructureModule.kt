@@ -14,7 +14,6 @@ import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
-import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
@@ -167,10 +166,13 @@ val databaseInfrastructureModule = module {
                     database = get(),
                     remote = get(),
                     blobs = get(),
-                    // Read at push time, not at construction: the active car changes while
-                    // the app runs, and a sync started before onboarding finished has
-                    // nothing to pull.
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    // Read at pull time, not at construction, and read from the session
+                    // rather than from the active-car flow. That flow is seeded null and
+                    // filled by a database query, so on the first run after signing in it
+                    // had not emitted yet and this table fetched nothing while reporting
+                    // success (issue #312). The owner id is in memory the moment the gate
+                    // lets a run start, and `owner_id` is the column RLS filters on anyway.
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),
@@ -187,7 +189,7 @@ val databaseInfrastructureModule = module {
                     database = get(),
                     remote = get(),
                     blobs = get(),
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),
@@ -205,7 +207,7 @@ val databaseInfrastructureModule = module {
                 table = HealthScoreSyncTable(
                     database = get(),
                     remote = get(),
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),
@@ -235,7 +237,7 @@ val databaseInfrastructureModule = module {
                 table = ReminderSyncTable(
                     database = get(),
                     remote = get(),
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),
@@ -254,7 +256,7 @@ val databaseInfrastructureModule = module {
                 table = FuelFillSyncTable(
                     database = get(),
                     remote = get(),
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),
@@ -305,7 +307,7 @@ val databaseInfrastructureModule = module {
                 table = TripSyncTable(
                     database = get(),
                     remote = get(),
-                    carId = { get<ActiveCarProvider>().activeCarId.value?.value },
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
                 ),
                 database = get(),
                 telemetry = get(),

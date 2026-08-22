@@ -81,6 +81,9 @@ dependencies {
     // Same reason: the Android file store needs a Context to copy picked files into
     // private storage, so it is constructed in the Koin bootstrap here.
     implementation(projects.core.platform)
+    // SyncScheduler/SyncReason — the foreground and reconnect triggers are wired to
+    // ProcessLifecycleOwner and ConnectivityManager, both of which live only here.
+    implementation(projects.core.sync)
     // tripTrackerAndroidModule is included from the Koin bootstrap here, same as
     // corePlatformAndroidModule above.
     implementation(projects.core.triptracker)

@@ -43,10 +43,16 @@ class SyncTelemetry(
         return tracer.startSpan(name = "$TAG.run", traceId = trace.traceId ?: UNTRACED)
     }
 
-    /** Run [block] inside a child span of [parent], named for the entity being synced. */
-    suspend fun <T> entity(entity: SyncEntity, parent: Span, block: suspend () -> T): T {
+    /**
+     * Run [block] inside a child span of [parent], named for the entity and the half of the
+     * run being attempted.
+     *
+     * [phase] is part of the name because an entity now gets two turns per run, and a span
+     * that could be either is a span nobody can read.
+     */
+    suspend fun <T> entity(entity: SyncEntity, phase: String, parent: Span, block: suspend () -> T): T {
         val span = tracer.startSpan(
-            name = "$TAG.${entity.name.lowercase()}",
+            name = "$TAG.$phase.${entity.name.lowercase()}",
             traceId = parent.traceId,
             parentSpanId = parent.spanId,
         )
@@ -92,18 +98,82 @@ class SyncTelemetry(
         )
     }
 
-    /** A run that never started, because nothing may be synced yet. */
-    suspend fun skipped(reason: String) {
-        logger.info(TAG, EVENT_RUN_SKIPPED, tc = currentTraceContext().toLog(), fields = mapOf(Key.REASON to reason))
+    /**
+     * A run that never started.
+     *
+     * [retryable] is recorded because the two kinds of skip look identical in a log and are
+     * not the same thing at all: one is an install waiting to be signed into, the other is a
+     * run that was lost. Telling them apart in the log is how the second stops being
+     * invisible (issue #312).
+     */
+    suspend fun skipped(reason: String, retryable: Boolean) {
+        logger.info(
+            TAG,
+            EVENT_RUN_SKIPPED,
+            tc = currentTraceContext().toLog(),
+            fields = mapOf(Key.REASON to reason, Key.RETRYABLE to retryable),
+        )
     }
 
-    /** How many rows an entity moved. The number that says whether sync is actually working. */
-    suspend fun moved(entity: SyncEntity, pushed: Int, pulled: Int) {
+    /**
+     * Somebody asked for a run.
+     *
+     * Logged at the scheduler rather than the engine, and deliberately the only thing here
+     * that is not `suspend`: [com.hopcape.odo.core.sync.SyncScheduler] is a plain interface
+     * called from ordinary code, and a trace context is not worth making it suspend for.
+     *
+     * It exists so a missing [EVENT_RUN_STARTED] can be read. Without it, a worker that was
+     * enqueued and never ran and a worker that was never enqueued produce exactly the same
+     * log — which is to say, nothing.
+     */
+    fun requested(reason: String) {
+        logger.info(TAG, EVENT_RUN_REQUESTED, fields = mapOf(Key.REASON to reason))
+    }
+
+    /**
+     * What the platform scheduler currently thinks of the pending run.
+     *
+     * A job parked on an unmet constraint is indistinguishable from a job that was never
+     * created, from inside the app. This is the line that separates them.
+     */
+    fun workState(state: String, attempts: Int) {
+        logger.info(TAG, EVENT_WORK_STATE, fields = mapOf(Key.STATE to state, Key.ATTEMPTS to attempts))
+    }
+
+    /**
+     * A fetch that could not say what to fetch — no owner id, no car id, a placeholder.
+     *
+     * This used to be a silent `return emptyList()`, which the runner could not tell from a
+     * server that genuinely had nothing new. That is the shape of the bug in issue #312: a
+     * run that pulled nothing, reported success, and was dropped. Warned about rather than
+     * logged at info, because it is never normal on a signed-in install.
+     */
+    suspend fun scopeMissing(entity: SyncEntity, key: String) {
+        val fields = mapOf(Key.ENTITY to entity.name, Key.SCOPE_KEY to key)
+        logger.warn(TAG, EVENT_SCOPE_MISSING, tc = currentTraceContext().toLog(), fields = fields)
+        analytics.track(EVENT_SCOPE_MISSING, fields)
+    }
+
+    /**
+     * How many rows an entity moved. The number that says whether sync is actually working.
+     *
+     * Reported once per phase rather than once per entity, because the two halves no longer
+     * finish together. The event name is unchanged and both fields are always present — a
+     * push reports `pulled = 0` and a pull reports `pushed = 0` — so a dashboard summing
+     * either column still gets the same totals it always did. [Key.PHASE] is what tells the
+     * two lines apart.
+     */
+    suspend fun moved(entity: SyncEntity, phase: String, pushed: Int = 0, pulled: Int = 0) {
         logger.info(
             TAG,
             EVENT_ENTITY_MOVED,
             tc = currentTraceContext().toLog(),
-            fields = mapOf(Key.ENTITY to entity.name, Key.PUSHED to pushed, Key.PULLED to pulled),
+            fields = mapOf(
+                Key.ENTITY to entity.name,
+                Key.PHASE to phase,
+                Key.PUSHED to pushed,
+                Key.PULLED to pulled,
+            ),
         )
     }
 
@@ -185,6 +255,11 @@ class SyncTelemetry(
         const val REFUSED = "refused"
         const val STATUS = "status"
         const val ADOPTED = "adopted"
+        const val PHASE = "phase"
+        const val RETRYABLE = "retryable"
+        const val SCOPE_KEY = "scope_key"
+        const val STATE = "state"
+        const val ATTEMPTS = "attempts"
     }
 
     companion object {
@@ -195,6 +270,9 @@ class SyncTelemetry(
         const val EVENT_RUN_COMPLETED = "sync_completed"
         const val EVENT_RUN_FAILED = "sync_failed"
         const val EVENT_RUN_SKIPPED = "sync_skipped"
+        const val EVENT_RUN_REQUESTED = "sync_requested"
+        const val EVENT_WORK_STATE = "sync_work_state"
+        const val EVENT_SCOPE_MISSING = "sync_scope_missing"
         const val EVENT_ENTITY_MOVED = "sync_entity_moved"
         const val EVENT_CONFLICT_RESOLVED = "sync_conflict_resolved"
         const val EVENT_ROWS_REFUSED = "sync_rows_refused"
