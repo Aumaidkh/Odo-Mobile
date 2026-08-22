@@ -18,9 +18,10 @@ internal data class CarStepState(
     val match: RtoMatch? get() = (lookup as? PlateLookup.Found)?.match
 
     /**
-     * Whether the plate is a registration number rather than a half-typed one. Indian plates
-     * run 9–11 characters normalized (`MH12AB1234`, `DL8CAF5031`, `22BH1234AA`), so anything
-     * shorter is still being typed.
+     * Whether the plate is a registration number rather than a half-typed one. Normalized
+     * Indian plates run 8–11 characters: `JK192976` and other older plates have no letter
+     * series at all, `MH12A1234` has one letter, `MH12AB1234` and `22BH1234AA` have two, and
+     * a three-letter series plate reaches eleven. Below eight it is still being typed.
      *
      * The car step cannot be finished without one on **either** route — see
      * [OnboardingUiState.canContinue]. The plate is what a bill, a reminder, an insurance
@@ -42,7 +43,12 @@ internal data class CarStepState(
     val isAnswered: Boolean get() = match != null
 
     private companion object {
-        const val MIN_PLATE_LENGTH = 9
+        /**
+         * `JK192976` — an eight-character plate, and a real one. The floor used to be nine,
+         * which is the length of the shortest plate that *has* a letter series, and it
+         * refused every older plate issued without one.
+         */
+        const val MIN_PLATE_LENGTH = 8
         const val MAX_PLATE_LENGTH = 11
     }
 }

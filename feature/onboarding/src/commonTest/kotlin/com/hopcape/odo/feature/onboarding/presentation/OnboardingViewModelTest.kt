@@ -150,6 +150,25 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun anEightCharacterPlate_isAcceptedRatherThanTreatedAsHalfTyped() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // JK192976 is a real plate — an older one, issued with no letter series at all. The
+        // floor used to be nine, so Continue stayed dead until a ninth character was added.
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged("JK192976"))
+        viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected("Honda"))
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.ModelSelected(CarModel("City", "VX")))
+        viewModel.onEvent(OnboardingEvent.Details.YearSelected(2019))
+        viewModel.onEvent(OnboardingEvent.Details.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
+
+        assertTrue(viewModel.state.value.canContinue)
+    }
+
+    @Test
     fun plate_thatStopsChanging_isLookedUp() = runTest(dispatcher) {
         val registry = FakeRegistry()
         val viewModel = viewModel(registry = registry)
