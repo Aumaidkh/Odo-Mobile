@@ -53,6 +53,7 @@ import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.suffix
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
 import com.hopcape.odo.feature.profile.resources.Res
+import com.hopcape.odo.feature.profile.resources.pf_config
 import com.hopcape.odo.feature.profile.resources.pf_appear_dark
 import com.hopcape.odo.feature.profile.resources.pf_appear_light
 import com.hopcape.odo.feature.profile.resources.pf_appear_system
@@ -136,6 +137,9 @@ internal fun ProfileScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onShowAround: () -> Unit = {},
+    /** Debug builds only. A release build never offers a way into the config screen. */
+    debugToolsVisible: Boolean = false,
+    onConfigOverrides: () -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
@@ -179,6 +183,8 @@ internal fun ProfileScreen(
                 onSignIn = onSignIn,
                 onSignOut = onSignOut,
                 onShowAround = onShowAround,
+                debugToolsVisible = debugToolsVisible,
+                onConfigOverrides = onConfigOverrides,
             )
         }
     }
@@ -188,6 +194,8 @@ internal fun ProfileScreen(
 private fun ProfileContentColumn(
     content: ProfileContent,
     version: String,
+    debugToolsVisible: Boolean = false,
+    onConfigOverrides: () -> Unit = {},
     buildNumber: Long?,
     sync: SyncStatus,
     padding: PaddingValues,
@@ -275,6 +283,16 @@ private fun ProfileContentColumn(
                 testTag = ProfileTestTags.HELP_ROW,
             )
             RowDivider()
+            // Debug builds only. Not compiled out — simply never offered in release, the
+            // same shape the refuel routes use.
+            if (debugToolsVisible) {
+                SettingsRow(
+                    icon = IcInfo,
+                    title = stringResource(Res.string.pf_config),
+                    onClick = onConfigOverrides,
+                )
+                RowDivider()
+            }
             if (content.isSignedIn) {
                 SettingsRow(
                     icon = IcSignOut,

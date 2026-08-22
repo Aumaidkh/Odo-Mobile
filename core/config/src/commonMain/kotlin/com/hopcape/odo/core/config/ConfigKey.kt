@@ -56,3 +56,18 @@ interface ConfigContribution {
     val groupName: String
     val keys: List<ConfigKey>
 }
+
+/** Which step of the resolution order answered a read. */
+enum class ConfigValueSource { OVERRIDE, REMOTE, DEFAULT }
+
+/**
+ * One key's current answer, as text, with where it came from.
+ *
+ * Text rather than the typed value because the only caller is a screen that lists every
+ * key side by side, and because an override is typed in as text anyway.
+ */
+data class ResolvedConfigValue(
+    val key: ConfigKey,
+    val value: String,
+    val source: ConfigValueSource,
+)

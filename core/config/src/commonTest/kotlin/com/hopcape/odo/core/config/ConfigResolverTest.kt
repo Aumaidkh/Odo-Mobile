@@ -104,6 +104,47 @@ class ConfigResolverTest {
         assertEquals("ON", resolver(source).enumName(SampleConfigContribution.MODE))
     }
 
+    // ── describe(), which is what the QA screen reads ─────────────────────────
+
+    @Test
+    fun `describe reports which step of the order answered`() {
+        val source = FakeConfigSource()
+        source.activate(SampleConfigContribution.RETRY_COUNT to "5")
+        val overrides = FakeOverrides().apply { set(SampleConfigContribution.ENABLED, "false") }
+        val subject = resolver(source, overrides)
+
+        assertEquals(ConfigValueSource.OVERRIDE, subject.describe(SampleConfigContribution.ENABLED).source)
+        assertEquals(ConfigValueSource.REMOTE, subject.describe(SampleConfigContribution.RETRY_COUNT).source)
+        assertEquals(ConfigValueSource.DEFAULT, subject.describe(SampleConfigContribution.MODE).source)
+    }
+
+    @Test
+    fun `describe agrees with the value the read returns`() {
+        val source = FakeConfigSource()
+        source.activate(SampleConfigContribution.RETRY_COUNT to "5")
+        val subject = resolver(source)
+
+        assertEquals("5", subject.describe(SampleConfigContribution.RETRY_COUNT).value)
+        assertEquals(5, subject.int(SampleConfigContribution.RETRY_COUNT))
+    }
+
+    @Test
+    fun `describe skips a value the read would skip`() {
+        // Out of range, so the read falls through to the default — and describe has to say
+        // DEFAULT, not REMOTE, or the screen would explain the wrong thing.
+        val source = FakeConfigSource()
+        source.activate(SampleConfigContribution.RETRY_COUNT to "9999")
+        val described = resolver(source).describe(SampleConfigContribution.RETRY_COUNT)
+
+        assertEquals(ConfigValueSource.DEFAULT, described.source)
+        assertEquals("3", described.value)
+    }
+
+    @Test
+    fun `describeAll covers every registered key`() {
+        assertEquals(3, resolver().describeAll().size)
+    }
+
     // ── Programming errors, which should not be papered over ──────────────────
 
     @Test

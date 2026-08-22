@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.profile
 
+import com.hopcape.odo.feature.profile.presentation.ConfigOverridesViewModel
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAccountUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAllDataUseCase
@@ -94,6 +95,11 @@ val profileModule = module {
         )
     }
     viewModel { NotificationsViewModel(settings = get(), updateSettings = get(), telemetry = get()) }
+
+    // getOrNull: only debug builds bind LocalConfigOverrides, and the screen this feeds is
+    // only reachable there. In release it resolves to null and the screen is read-only,
+    // which is one less way for a release build to fail on a surface it never shows.
+    viewModel { ConfigOverridesViewModel(resolver = get(), overrides = getOrNull()) }
     viewModel {
         PrivacyViewModel(
             settings = get(),

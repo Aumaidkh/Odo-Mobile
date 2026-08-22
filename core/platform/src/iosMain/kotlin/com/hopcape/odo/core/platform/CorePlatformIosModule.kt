@@ -24,6 +24,10 @@ import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.config.ConfigRegistry
+import com.hopcape.odo.core.config.LocalConfigOverrides
+import com.hopcape.odo.core.platform.config.DefaultsLocalConfigOverrides
 import com.hopcape.odo.core.platform.showcase.DefaultsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.IosSmsAppSignature
 import com.hopcape.odo.core.platform.sms.IosSmsCodeReader
@@ -75,6 +79,15 @@ val corePlatformIosModule = module {
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }
     single<ShowcaseSeenStore> { DefaultsShowcaseSeenStore() }
+
+    // Debug builds only — see the Android module for why.
+    if (BuildInfo.isDebug) {
+        single<LocalConfigOverrides> {
+            DefaultsLocalConfigOverrides(
+                knownKeys = { get<ConfigRegistry>().keys.map { it.key } },
+            )
+        }
+    }
 
     // iOS has no WorkManager, so sync runs in-process on an app-lifetime scope. That covers
     // every foreground trigger — launch, a local write, pull-to-refresh — which is what

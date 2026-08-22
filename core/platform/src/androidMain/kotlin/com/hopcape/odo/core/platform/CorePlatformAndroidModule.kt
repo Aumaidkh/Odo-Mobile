@@ -34,6 +34,9 @@ import com.hopcape.odo.core.platform.notification.WorkManagerDocumentReminderSch
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.config.LocalConfigOverrides
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.platform.config.PrefsLocalConfigOverrides
 import com.hopcape.odo.core.platform.showcase.PrefsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.AndroidSmsAppSignature
 import com.hopcape.odo.core.platform.sms.AndroidSmsCodeReader
@@ -104,6 +107,13 @@ val corePlatformAndroidModule = module {
     // Which coach marks have been seen — prefs, not the database, so nothing to migrate
     // (docs/SHOWCASE_PLAN.md decision 1). The arbiter that reads it is bound in :core:data.
     single<ShowcaseSeenStore> { PrefsShowcaseSeenStore(context = get<Context>()) }
+
+    // Debug builds only. ConfigResolver takes this with getOrNull, so a release build finds
+    // nothing behind the first step of the resolution order rather than taking a different
+    // path through it — the branch is not compiled out, there is simply no store.
+    if (BuildInfo.isDebug) {
+        single<LocalConfigOverrides> { PrefsLocalConfigOverrides(context = get<Context>()) }
+    }
     // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
     single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>(), telemetry = get()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }

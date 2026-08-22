@@ -81,6 +81,52 @@ class ConfigResolver(
 
     fun enumNameFlow(key: String): Flow<String> = observe { enumName(key) }
 
+    /**
+     * What [key] currently answers, and which step of the resolution order answered.
+     *
+     * The source is the point. "The flag is off" and "the flag is off *because the console
+     * never set it and this is the compiled default*" are different bugs, and from a device
+     * there is otherwise no way to tell them apart.
+     */
+    fun describe(key: String): ResolvedConfigValue {
+        val descriptor = registry.require(key)
+        val fromOverride = overrides?.raw(key)?.let { parse(descriptor, it) }
+        if (fromOverride != null) {
+            return ResolvedConfigValue(descriptor, fromOverride, ConfigValueSource.OVERRIDE)
+        }
+        val fromRemote = remote(descriptor)
+        if (fromRemote != null) {
+            return ResolvedConfigValue(descriptor, fromRemote, ConfigValueSource.REMOTE)
+        }
+        return ResolvedConfigValue(descriptor, descriptor.default.toString(), ConfigValueSource.DEFAULT)
+    }
+
+    /** Every registered key, in declaration order. What the QA screen lists. */
+    fun describeAll(): List<ResolvedConfigValue> = registry.keys.map { describe(it.key) }
+
+    /** A raw string as this key's type would read it, or null when it is not usable. */
+    private fun parse(descriptor: ConfigKey, raw: String): String? = when (descriptor.type) {
+        ConfigType.BOOLEAN -> raw.toBooleanStrictOrNull()?.toString()
+        ConfigType.INT -> raw.toIntOrNull()?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.LONG -> raw.toLongOrNull()?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.DOUBLE -> raw.toDoubleOrNull()?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.STRING -> raw
+        ConfigType.ENUM -> descriptor.enumValues.firstOrNull { it.equals(raw, ignoreCase = true) }
+    }
+
+    private fun remote(descriptor: ConfigKey): String? = when (descriptor.type) {
+        ConfigType.BOOLEAN -> source.boolean(descriptor.key)?.toString()
+        ConfigType.INT -> source.int(descriptor.key)?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.LONG -> source.long(descriptor.key)?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.DOUBLE -> source.double(descriptor.key)?.takeIf { inRange(descriptor, it) }?.toString()
+        ConfigType.STRING -> source.string(descriptor.key)
+        ConfigType.ENUM -> source.string(descriptor.key)
+            ?.let { raw -> descriptor.enumValues.firstOrNull { it.equals(raw, ignoreCase = true) } }
+    }
+
+    private fun inRange(descriptor: ConfigKey, value: Any): Boolean =
+        ConfigRange.contains(descriptor.range, value)
+
     @Suppress("UNCHECKED_CAST")
     private fun <T : Any> resolve(
         key: String,

@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.profile.navigation
 
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.feature.profile.presentation.ConfigOverridesScreen
+import com.hopcape.odo.feature.profile.presentation.ConfigOverridesViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.getValue
@@ -60,6 +63,8 @@ internal class ProfileFeatureEntryProvider(
         entry<OdoDestination.Profile.Notifications> { NotificationsRoute(nm) }
         entry<OdoDestination.Profile.Privacy> { PrivacyRoute(nm) }
         entry<OdoDestination.Profile.DeleteAccount> { DeleteAccountRoute(nm) }
+        // Registered in every build; the row that opens it is behind BuildInfo.isDebug.
+        entry<OdoDestination.Profile.ConfigOverrides> { ConfigOverridesRoute(nm) }
 
         val sheet = ModalBottomSheetSceneStrategy.bottomSheet()
         entry<OdoDestination.Profile.Units>(metadata = sheet) { UnitsRoute(nm) }
@@ -92,6 +97,8 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
         onPrivacy = { navigationManager.navigateTo(OdoDestination.Profile.Privacy) },
+        debugToolsVisible = BuildInfo.isDebug,
+        onConfigOverrides = { navigationManager.navigateTo(OdoDestination.Profile.ConfigOverrides) },
         onShowAround = { viewModel.onEvent(ProfileEvent.ShowAroundTapped) },
         onHelp = { navigationManager.navigateTo(OdoDestination.Support.Help) },
         onSignIn = {
@@ -284,3 +291,22 @@ private fun SignOutRoute(navigationManager: NavigationManager) {
 }
 
 /** What the paywall is told it was opened for, so the screen can name the reason. */
+
+/**
+ * The debug config screen. Its route is registered in every build and only a debug build
+ * offers a way in, the same shape the refuel routes use: unreachable, not removed.
+ */
+@Composable
+private fun ConfigOverridesRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<ConfigOverridesViewModel>()
+    val keys by viewModel.keys.collectAsStateWithLifecycle()
+
+    ConfigOverridesScreen(
+        keys = keys,
+        editable = viewModel.editable,
+        onSet = viewModel::set,
+        onClear = viewModel::clear,
+        onClearAll = viewModel::clearAll,
+        onBack = { navigationManager.back() },
+    )
+}
