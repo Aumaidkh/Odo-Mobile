@@ -51,13 +51,19 @@ class ConfigResolver(
      * The name of the enum constant for [key], guaranteed to be one of the names the
      * declaration listed. A value that is not — a console typo, or a constant removed
      * in a later release — is skipped, so the generated code's `valueOf` cannot fail.
+     *
+     * Matching ignores case and the declared name is what comes back, because a remote
+     * console holds `off` while the Kotlin constant is `OFF`. Generated code calls
+     * `valueOf` on this, which is case-sensitive.
      */
     fun enumName(key: String): String {
         val descriptor = registry.require(key)
         check(descriptor.type == ConfigType.ENUM) {
             "Config key '$key' is ${descriptor.type}, read as ENUM"
         }
-        val accepted = { name: String? -> name?.takeIf { it in descriptor.enumValues } }
+        val accepted = { raw: String? ->
+            raw?.let { value -> descriptor.enumValues.firstOrNull { it.equals(value, ignoreCase = true) } }
+        }
         accepted(overrides?.raw(key))?.let { return it }
         accepted(source.string(key))?.let { return it }
         return descriptor.default as String

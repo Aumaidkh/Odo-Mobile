@@ -34,7 +34,7 @@ class SampleConfigTest {
         source.activate(
             SampleConfigContribution.ENABLED to "false",
             SampleConfigContribution.RETRY_COUNT to "6",
-            SampleConfigContribution.MODE to "degraded",
+            SampleConfigContribution.MODE to "degraded",  // lower case, as a console holds it
         )
 
         val config: SampleConfig = SampleConfigImpl(resolver(source))

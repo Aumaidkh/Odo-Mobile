@@ -28,7 +28,9 @@ class ConfigRegistryTest {
             mapOf(
                 SampleConfigContribution.ENABLED to true,
                 SampleConfigContribution.RETRY_COUNT to 3,
-                SampleConfigContribution.MODE to "off",
+                // The canonical constant name, not the lower-case form a console holds.
+                // Seeding the SDK with this is safe because reads match ignoring case.
+                SampleConfigContribution.MODE to "OFF",
             ),
             registry.defaults(),
         )

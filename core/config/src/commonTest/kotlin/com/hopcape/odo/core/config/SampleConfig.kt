@@ -43,32 +43,23 @@ internal interface SampleConfig {
 }
 
 /**
- * A string-backed enum. The wire name is what the console holds and what the registry
- * lists; the constant is what callers see.
+ * A string-backed enum. The constant name is the wire name, matched ignoring case, which
+ * is what lets a console hold `off` for [OFF].
  */
-internal enum class SampleMode(val wire: String) {
-    OFF("off"),
-    DEGRADED("degraded"),
-    ON("on"),
-    ;
-
-    companion object {
-        fun ofWire(wire: String): SampleMode = entries.first { it.wire == wire }
-    }
-}
+internal enum class SampleMode { OFF, DEGRADED, ON }
 
 internal class SampleConfigImpl(private val resolver: ConfigResolver) : SampleConfig {
     override val enabled: Boolean get() = resolver.boolean(SampleConfigContribution.ENABLED)
     override val retryCount: Int get() = resolver.int(SampleConfigContribution.RETRY_COUNT)
     override val mode: SampleMode
-        get() = SampleMode.ofWire(resolver.enumName(SampleConfigContribution.MODE))
+        get() = SampleMode.valueOf(resolver.enumName(SampleConfigContribution.MODE))
 }
 
 internal class SampleConfigFlows(private val resolver: ConfigResolver) {
     val enabled: Flow<Boolean> = resolver.booleanFlow(SampleConfigContribution.ENABLED)
     val retryCount: Flow<Int> = resolver.intFlow(SampleConfigContribution.RETRY_COUNT)
     val mode: Flow<SampleMode> = resolver.enumNameFlow(SampleConfigContribution.MODE)
-        .map { SampleMode.ofWire(it) }
+        .map { SampleMode.valueOf(it) }
 }
 
 internal object SampleConfigContribution : ConfigContribution {
@@ -99,10 +90,10 @@ internal object SampleConfigContribution : ConfigContribution {
         ConfigKey(
             key = MODE,
             type = ConfigType.ENUM,
-            default = SampleMode.OFF.wire,
+            default = SampleMode.OFF.name,
             owner = "platform",
             why = "Proves a string-backed enum resolves",
-            enumValues = SampleMode.entries.map { it.wire },
+            enumValues = SampleMode.entries.map { it.name },
         ),
     )
 }

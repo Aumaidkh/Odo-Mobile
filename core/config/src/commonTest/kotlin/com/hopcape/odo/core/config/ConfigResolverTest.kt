@@ -43,7 +43,7 @@ class ConfigResolverTest {
 
         assertEquals(true, subject.boolean(SampleConfigContribution.ENABLED))
         assertEquals(3, subject.int(SampleConfigContribution.RETRY_COUNT))
-        assertEquals(SampleMode.OFF.wire, subject.enumName(SampleConfigContribution.MODE))
+        assertEquals(SampleMode.OFF.name, subject.enumName(SampleConfigContribution.MODE))
     }
 
     @Test
@@ -91,7 +91,17 @@ class ConfigResolverTest {
         val source = FakeConfigSource()
         source.activate(SampleConfigContribution.MODE to "sideways")
 
-        assertEquals(SampleMode.OFF.wire, resolver(source).enumName(SampleConfigContribution.MODE))
+        assertEquals(SampleMode.OFF.name, resolver(source).enumName(SampleConfigContribution.MODE))
+    }
+
+    @Test
+    fun `an enum name is matched ignoring case and comes back canonical`() {
+        // The console holds "on"; the Kotlin constant is ON, and generated code calls
+        // valueOf, which is case-sensitive.
+        val source = FakeConfigSource()
+        source.activate(SampleConfigContribution.MODE to "on")
+
+        assertEquals("ON", resolver(source).enumName(SampleConfigContribution.MODE))
     }
 
     // ── Programming errors, which should not be papered over ──────────────────
