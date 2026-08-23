@@ -23,14 +23,14 @@ class FirebaseErrorMappingTest {
     /* ---- asking for a code ---- */
 
     @Test
-    fun `a bad number is not a send failure, because resending cannot fix it`() {
+    fun `a bad number is not a send failure because resending cannot fix it`() {
         val error = FirebaseAuthInvalidCredentialsException("ERROR_INVALID_PHONE_NUMBER", "bad number")
 
         assertEquals(DomainError.InvalidPhoneNumber, error.toSendFailure())
     }
 
     @Test
-    fun `a rate limit carries a countdown, so the screen does not have to guess`() {
+    fun `a rate limit carries a countdown so the screen does not have to guess`() {
         val error = FirebaseTooManyRequestsException("slow down")
 
         assertEquals(DomainError.TooManyOtpRequests(retryAfterSeconds = 30L), error.toSendFailure())
@@ -44,7 +44,7 @@ class FirebaseErrorMappingTest {
     /* ---- submitting a code ---- */
 
     @Test
-    fun `a wrong code reads as invalid, so the owner retypes`() {
+    fun `a wrong code reads as invalid so the owner retypes`() {
         val error = FirebaseAuthInvalidCredentialsException("ERROR_INVALID_VERIFICATION_CODE", "nope")
 
         assertEquals(DomainError.InvalidOtp, error.toVerifyFailure())
@@ -56,7 +56,7 @@ class FirebaseErrorMappingTest {
      * code that can never be accepted again.
      */
     @Test
-    fun `an expired session reads as expired, so the owner resends instead`() {
+    fun `an expired session reads as expired so the owner resends instead`() {
         val error = FirebaseAuthException("ERROR_SESSION_EXPIRED", "too late")
 
         assertEquals(DomainError.OtpExpired, error.toVerifyFailure())
@@ -96,7 +96,7 @@ class FirebaseErrorMappingTest {
      * precondition into a bare `IllegalArgumentException` with nothing to go on.
      */
     @Test
-    fun `a plain failure keeps its message, because that is the whole diagnosis`() {
+    fun `a plain failure keeps its message because that is the whole diagnosis`() {
         val error = IllegalArgumentException(
             "You cannot require sms validation without setting a multi-factor session."
         )

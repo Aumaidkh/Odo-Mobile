@@ -51,7 +51,7 @@ class SupabaseModuleTest {
     fun tearDown() = stopKoin()
 
     @Test
-    fun `with credentials, every remote port resolves to a Supabase adapter`() {
+    fun `with credentials every remote port resolves to a Supabase adapter`() {
         val koin = graph(SupabaseEnvironment(url = "https://project.supabase.co", anonKey = "anon-key"))
 
         assertIs<SupabaseServiceLogRemoteDataSource>(koin.get<ServiceLogRemoteDataSource>())
@@ -63,7 +63,7 @@ class SupabaseModuleTest {
     }
 
     @Test
-    fun `without credentials, no port is claimed, so coreDataModule's fakes stand`() {
+    fun `without credentials no port is claimed so coreDataModule's fakes stand`() {
         val koin = graph(SupabaseEnvironment(url = "", anonKey = ""))
 
         // Nothing bound here means the definition from `coreDataModule` — listed earlier in
@@ -83,7 +83,7 @@ class SupabaseModuleTest {
      * before it.
      */
     @Test
-    fun `with phone auth on, the gateway is the Firebase bridge`() {
+    fun `with phone auth on the gateway is the Firebase bridge`() {
         val koin = graph(
             SupabaseEnvironment(url = "https://project.supabase.co", anonKey = "anon-key", usePhoneAuth = true),
             module { single<PhoneVerifier> { StubVerifier } },
@@ -93,7 +93,7 @@ class SupabaseModuleTest {
     }
 
     @Test
-    fun `with phone auth off, the development account signs in and no verifier is needed`() {
+    fun `with phone auth off the development account signs in and no verifier is needed`() {
         val koin = graph(SupabaseEnvironment(url = "https://project.supabase.co", anonKey = "anon-key"))
 
         // No PhoneVerifier in this graph at all. Resolving proves the dev branch does not
@@ -118,7 +118,7 @@ class SupabaseModuleTest {
     }
 
     @Test
-    fun `legal links are bound even without credentials, and answer blank`() {
+    fun `legal links are bound even without credentials and answer blank`() {
         // Unlike every other binding here, these are outside the isConfigured branch — three
         // strings with nothing to call. Blank means "not configured", and the screens leave
         // the row out rather than offering a dead link.
@@ -128,7 +128,7 @@ class SupabaseModuleTest {
     }
 
     @Test
-    fun `the protocol clients are always available, configured or not`() {
+    fun `the protocol clients are always available configured or not`() {
         // They are lazy singles, so an unconfigured build defines them without ever building
         // an HTTP client. Resolving one here proves the wiring, not that it happens at startup.
         assertNotNull(graph(SupabaseEnvironment("", "")).get<PostgrestClient>())

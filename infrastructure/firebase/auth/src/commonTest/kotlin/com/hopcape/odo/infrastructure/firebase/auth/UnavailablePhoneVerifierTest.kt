@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class UnavailablePhoneVerifierTest {
 
     @Test
-    fun `reports that no code could be sent, rather than a silent success`() = runTest {
+    fun `reports that no code could be sent rather than a silent success`() = runTest {
         val verifier = UnavailablePhoneVerifier(onDiagnostic = {})
 
         val result = verifier.startVerification(phone())
@@ -23,7 +23,7 @@ class UnavailablePhoneVerifierTest {
      * put the owner on a code screen waiting for a message that is never coming.
      */
     @Test
-    fun `says why, so a missing platform implementation is not invisible`() = runTest {
+    fun `says why so a missing platform implementation is not invisible`() = runTest {
         val diagnostics = mutableListOf<String>()
 
         UnavailablePhoneVerifier(onDiagnostic = diagnostics::add).startVerification(phone())
@@ -33,7 +33,7 @@ class UnavailablePhoneVerifierTest {
     }
 
     @Test
-    fun `a code typed against no verification reads as expired, not wrong`() = runTest {
+    fun `a code typed against no verification reads as expired not wrong`() = runTest {
         val verifier = UnavailablePhoneVerifier(onDiagnostic = {})
 
         val result = verifier.submitCode("123456")

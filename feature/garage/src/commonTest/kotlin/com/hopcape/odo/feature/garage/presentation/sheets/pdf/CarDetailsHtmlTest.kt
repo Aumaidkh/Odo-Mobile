@@ -189,7 +189,7 @@ class CarDetailsHtmlTest {
     }
 
     @Test
-    fun `a car nobody has scored prints a dash, not a zero`() {
+    fun `a car nobody has scored prints a dash not a zero`() {
         val page = html(details())
 
         assertFalse(page.contains("/100"), "the unit belongs to a figure that isn't there")
@@ -220,7 +220,7 @@ class CarDetailsHtmlTest {
     }
 
     @Test
-    fun `ownership names the owner, the city and the odometer trail`() {
+    fun `ownership names the owner the city and the odometer trail`() {
         val page = html(
             details(entries = listOf(entry("a", 31_400, 510_000, LocalDate(2025, 2, 11)))),
         )
@@ -243,7 +243,7 @@ class CarDetailsHtmlTest {
     /* ------------------------- the papers ------------------------- */
 
     @Test
-    fun `each paper prints its label, its date and its standing`() {
+    fun `each paper prints its label its date and its standing`() {
         val page = html(
             details(
                 documents = listOf(
@@ -291,7 +291,7 @@ class CarDetailsHtmlTest {
     )
 
     @Test
-    fun `the cost table prints each bucket with its share, and fuel is marked estimated`() {
+    fun `the cost table prints each bucket with its share and fuel is marked estimated`() {
         val page = html(details(runningCost = runningCost(perKmPaise = 460)))
 
         assertPrinted(page, "Running costs · last 12 months")
@@ -375,7 +375,7 @@ class CarDetailsHtmlTest {
     }
 
     @Test
-    fun `the document is self-contained, A4 and set in the brand face`() {
+    fun `the document is self-contained A4 and set in the brand face`() {
         val page = html(details())
 
         assertPrinted(page, "@font-face")

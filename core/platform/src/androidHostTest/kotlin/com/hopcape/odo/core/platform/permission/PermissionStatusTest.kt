@@ -106,7 +106,7 @@ class PermissionStatusTest {
     }
 
     @Test
-    fun `a grant is never a refusal, however fast it arrives`() {
+    fun `a grant is never a refusal however fast it arrives`() {
         // An already-granted permission answers synchronously.
         assertFalse(
             answeredWithoutAsking(

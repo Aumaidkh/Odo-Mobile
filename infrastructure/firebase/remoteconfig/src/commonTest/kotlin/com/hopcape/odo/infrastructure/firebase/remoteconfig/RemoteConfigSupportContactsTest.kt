@@ -36,7 +36,7 @@ class RemoteConfigSupportContactsTest {
     }
 
     @Test
-    fun `a blank value is treated as no override, not as a blank address`() {
+    fun `a blank value is treated as no override not as a blank address`() {
         // Exactly what remote_config_defaults.xml holds, so this is the ordinary case.
         assertEquals(builtIn.email, contacts(mapOf(RemoteConfigSupportContacts.KEY_SUPPORT_EMAIL to "")).email)
     }
@@ -55,7 +55,7 @@ class RemoteConfigSupportContactsTest {
     }
 
     @Test
-    fun `the address is read fresh, so a fetch landing mid-session is picked up`() {
+    fun `the address is read fresh so a fetch landing mid-session is picked up`() {
         val values = mutableMapOf<String, Any>()
         val contacts = RemoteConfigSupportContacts(gateway = FakeGateway(values), builtIn = builtIn)
         assertEquals(builtIn.email, contacts.email)

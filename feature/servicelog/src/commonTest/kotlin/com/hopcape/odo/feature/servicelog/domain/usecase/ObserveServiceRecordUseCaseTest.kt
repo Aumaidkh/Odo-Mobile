@@ -89,7 +89,7 @@ class ObserveServiceRecordUseCaseTest {
     }
 
     @Test
-    fun `the document is dated by the clock, not by its contents`() = runTest {
+    fun `the document is dated by the clock not by its contents`() = runTest {
         // TEST_CLOCK is fixed at 2026-07-03T10:00:00Z.
         assertEquals(LocalDate(2026, 7, 3), useCase().invoke(TEST_CAR).first().issuedOn)
     }
