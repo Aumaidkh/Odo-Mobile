@@ -27,6 +27,10 @@ import org.koin.dsl.module
  * for the setup flow behind `OdoDestination.Onboarding`.
  */
 val onboardingModule = module {
+
+    // OnboardingConfig's generated bindings. Folded in here so initKoin's list does not
+    // grow with every group, and so installing the feature is what installs its config.
+    includes(onboardingConfigModule)
     factory { SaveCarUseCase(cars = get(), logs = get(), idGenerator = get(), clock = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
