@@ -147,7 +147,7 @@ class ServiceRecordBuilderTest {
     /* ------------------------- rows ------------------------- */
 
     @Test
-    fun `rows keep the activity feed's order, newest first`() {
+    fun `rows keep the activity feed's order newest first`() {
         val record = build(
             entries = listOf(
                 entry("older", LocalDate(2025, 2, 11), km = 31_400),
@@ -205,7 +205,7 @@ class ServiceRecordBuilderTest {
     /* ------------------------- counts and total ------------------------- */
 
     @Test
-    fun `counts describe the printed rows, not the stored entries`() {
+    fun `counts describe the printed rows not the stored entries`() {
         val record = build(
             entries = listOf(
                 entry("a", LocalDate(2026, 7, 12), verified = true),
@@ -260,7 +260,7 @@ class ServiceRecordBuilderTest {
     /* ------------------------- record span ------------------------- */
 
     @Test
-    fun `the record starts at its oldest line, even one logged before the car was added`() {
+    fun `the record starts at its oldest line even one logged before the car was added`() {
         val record = build(
             car = car(addedOn = LocalDate(2026, 1, 5)),
             entries = listOf(entry("backdated", LocalDate(2020, 8, 6), km = 0)),

@@ -85,7 +85,7 @@ class SavingsCalculatorTest {
 
     /** A thin sample is not evidence against the owner, so it must not be counted as caught. */
     @Test
-    fun `fair, under, thinly sampled and unchecked entries contribute nothing`() {
+    fun `fair under thinly sampled and unchecked entries contribute nothing`() {
         val entries = listOf(
             entry("fair", snapshot(FairnessVerdict.Fair)),
             entry("under", snapshot(FairnessVerdict.Under(amount(50_000)))),
