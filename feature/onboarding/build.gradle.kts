@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
+    // Generates OnboardingConfig's impl, flows, contribution and Koin module.
+    alias(libs.plugins.odo.config)
 }
 
 kotlin {
