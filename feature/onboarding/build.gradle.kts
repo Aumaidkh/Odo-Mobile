@@ -28,6 +28,8 @@ kotlin {
             // Branded UI atoms (OdoScreen, OdoButton, OdoInputField, OdoDropdownField…)
             // + the Odo theme tokens; re-exports Compose Material 3 transitively.
             implementation(projects.core.designsystem)
+            // OdoVideoPlayer — the video intro's clips.
+            implementation(projects.core.platform)
             // Domain use cases / entities / ports the presentation layer drives.
             // Brings Arrow + coroutines-core transitively via domain's api deps.
             implementation(projects.core.domain)

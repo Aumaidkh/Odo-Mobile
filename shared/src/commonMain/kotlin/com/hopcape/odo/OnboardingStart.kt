@@ -1,6 +1,5 @@
 package com.hopcape.odo
 
-import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 
@@ -12,21 +11,17 @@ import com.hopcape.odo.feature.onboarding.OnboardingConfig
  * [shouldRedirectToTripLogged] is one — the guard stays unit-testable without a Compose
  * tree.
  *
- * **The video variant is not built.** `onboarding_video_enabled` can be switched on, in the
- * console or from the QA screen, and the usual flow still runs, because a remote flag can
- * only reach code the installed APK already contains. That would be an invisible no-op, so
- * this says so in the logs instead. When the video flow ships, the `videoEnabled` branch
- * returns its destination and this comment goes away.
+ * **The flag switches the first page, not the flow.** Both intros lead to the same car
+ * setup, and both are only ever shown to an install that has not completed onboarding. The
+ * video variant's clips are streamed, so a device with no network sees its copy without the
+ * video rather than being sent somewhere else — that fallback lives in the screen, not
+ * here, because "no clip" is a rendering state and not a routing decision.
  */
 internal fun onboardingStartDestination(
     returning: Boolean,
     config: OnboardingConfig,
-): OdoDestination {
-    if (returning) return OdoDestination.Home
-    if (config.videoEnabled) {
-        HLogger.tag(TAG).w("onboarding_video_not_built")
-    }
-    return OdoDestination.Welcome
+): OdoDestination = when {
+    returning -> OdoDestination.Home
+    config.videoEnabled -> OdoDestination.WelcomeVideo
+    else -> OdoDestination.Welcome
 }
-
-private const val TAG = "Onboarding"

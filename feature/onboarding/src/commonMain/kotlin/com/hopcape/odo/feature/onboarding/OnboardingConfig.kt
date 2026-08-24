@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.onboarding
 
 import com.hopcape.odo.core.config.ConfigGroup
 import com.hopcape.odo.core.config.Flag
+import com.hopcape.odo.core.config.Value
 
 /**
  * Which onboarding a new install is shown.
@@ -38,4 +39,30 @@ interface OnboardingConfig {
         why = "Shows the video onboarding to new installs instead of the usual flow",
     )
     val videoEnabled: Boolean
+
+    /**
+     * The Smart Refuel clip, streamed.
+     *
+     * Remote rather than bundled so the clip can be re-cut without a release, which is the
+     * whole reason it is a URL. The cost is that a first launch with no network has no video
+     * — so blank, unreachable and "still loading" all resolve to the same thing on screen:
+     * the page's own title and copy, with Continue working. The video is the decoration, not
+     * the step.
+     */
+    @Value(
+        key = "onboarding_video_refuel_url",
+        default = "",
+        owner = "growth",
+        why = "The Smart Refuel clip shown on the first video onboarding page",
+    )
+    val refuelVideoUrl: String
+
+    /** The Bill Scanner clip. Same rules as [refuelVideoUrl]. */
+    @Value(
+        key = "onboarding_video_scanner_url",
+        default = "",
+        owner = "growth",
+        why = "The Bill Scanner clip shown on the second video onboarding page",
+    )
+    val scannerVideoUrl: String
 }

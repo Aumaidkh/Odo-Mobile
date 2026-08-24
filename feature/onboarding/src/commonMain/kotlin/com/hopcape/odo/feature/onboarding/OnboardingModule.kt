@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.onboarding
 
+import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoViewModel
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCase
@@ -43,6 +44,8 @@ val onboardingModule = module {
     // The Logger / AnalyticsTracker / PerformanceTracer come from the :observability:* modules,
     // whose single configuration is owned by the app bootstrap.
     factory { OnboardingTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
+
+    viewModel { WelcomeVideoViewModel(config = get()) }
 
     viewModel { WelcomeViewModel(telemetry = get()) }
     viewModel {

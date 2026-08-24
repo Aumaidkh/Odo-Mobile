@@ -617,6 +617,14 @@ sealed interface OdoDestination : NavKey {
     /** Intro carousel shown on first launch, before car setup. */
     @Serializable
     data object Welcome : OdoDestination
+
+    /**
+     * The video intro — the variant [Welcome] is replaced by when
+     * `onboarding_video_enabled` is on. Two pages, Smart Refuel then Bill Scanner, and then
+     * the same car setup [Welcome] leads to.
+     */
+    @Serializable
+    data object WelcomeVideo : OdoDestination
     @Serializable
     data object Onboarding : OdoDestination
 
