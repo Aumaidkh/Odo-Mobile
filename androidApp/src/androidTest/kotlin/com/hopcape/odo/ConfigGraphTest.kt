@@ -55,6 +55,8 @@ class ConfigGraphTest {
                 "refuel_detect_enabled",
                 // Declared in :feature:onboarding — a third module contributing keys.
                 "onboarding_video_enabled",
+                "onboarding_video_refuel_url",
+                "onboarding_video_scanner_url",
             ),
             keys,
         )
@@ -96,7 +98,7 @@ class ConfigGraphTest {
         // key also says nothing is overridden on this device right now.
         val described = koin.get<ConfigResolver>().describeAll()
 
-        assertEquals(10, described.size)
+        assertEquals(12, described.size)
         assertTrue(described.all { it.key.owner.isNotBlank() && it.key.why.isNotBlank() })
     }
 }

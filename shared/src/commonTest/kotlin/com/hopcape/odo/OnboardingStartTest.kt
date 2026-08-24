@@ -9,6 +9,8 @@ class OnboardingStartTest {
 
     private fun config(video: Boolean = false) = object : OnboardingConfig {
         override val videoEnabled = video
+        override val refuelVideoUrl = ""
+        override val scannerVideoUrl = ""
     }
 
     @Test
@@ -22,12 +24,21 @@ class OnboardingStartTest {
     }
 
     @Test
-    fun theVideoFlagDoesNotChangeWhereANewInstallOpens_becauseTheFlowIsNotBuilt() {
-        // A remote flag can only reach code the APK already contains, and there is no video
-        // flow yet. This asserts the no-op deliberately: when the flow ships, this test is
-        // what fails and says the branch still needs pointing at it.
+    fun theVideoFlagSendsANewInstallToTheVideoIntro() {
         assertEquals(
-            OdoDestination.Welcome,
+            OdoDestination.WelcomeVideo,
+            onboardingStartDestination(returning = false, config(video = true)),
+        )
+    }
+
+    @Test
+    fun theVideoIntroIsChosenEvenWithNoClipsConfigured() {
+        // Blank URLs are the ordinary case until the clips are published. The screen shows
+        // its copy without the video; routing does not second-guess that, because "no clip"
+        // is a rendering state and sending the owner to a different intro would change what
+        // the flag means.
+        assertEquals(
+            OdoDestination.WelcomeVideo,
             onboardingStartDestination(returning = false, config(video = true)),
         )
     }

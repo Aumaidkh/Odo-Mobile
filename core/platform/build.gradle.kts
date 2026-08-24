@@ -39,6 +39,10 @@ kotlin {
             // rememberLauncherForActivityResult for the system document picker, the camera
             // permission dialog, and the trip to the app's settings page.
             implementation(libs.androidx.activity.compose)
+            // OdoVideoPlayer's Android half. iOS uses AVPlayer, a system framework with
+            // no dependency of its own.
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui)
             implementation(libs.androidx.work.runtime)
             // NotificationCompat + NotificationManagerCompat — the document-expiry reminders.
             implementation(libs.androidx.core.ktx)

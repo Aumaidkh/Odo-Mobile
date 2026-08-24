@@ -17,6 +17,9 @@ import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEffect
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingFlow
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
+import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoEffect
+import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoScreen
+import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoViewModel
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeEffect
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeScreen
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
@@ -40,6 +43,7 @@ internal class OnboardingFeatureEntryProvider(
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager, legalLinks) }
+        entry<OdoDestination.WelcomeVideo> { WelcomeVideoRoute(navigationManager) }
         entry<OdoDestination.Onboarding> { OnboardingRoute(navigationManager) }
     }
 }
@@ -128,4 +132,22 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
     }
 
     OnboardingFlow(state = state, onEvent = viewModel::onEvent)
+}
+
+/**
+ * The video intro, shown instead of [WelcomeRoute] when `onboarding_video_enabled` is on.
+ *
+ * Both finishing and skipping land in the same place the welcome page leads: skipping the
+ * intro is not skipping onboarding, and there is no version of first run that does not set
+ * up a car.
+ */
+@Composable
+internal fun WelcomeVideoRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<WelcomeVideoViewModel>()
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            WelcomeVideoEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+        }
+    }
+    WelcomeVideoScreen(pages = viewModel.pages, onEvent = viewModel::onEvent)
 }
