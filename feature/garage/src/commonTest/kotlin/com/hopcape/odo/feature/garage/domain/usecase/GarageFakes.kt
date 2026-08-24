@@ -259,3 +259,25 @@ internal class FakeTripTracker(enabled: Boolean = false) : TripTracker {
     override suspend fun discardActiveTrip() = Unit
     override suspend fun startIfConnected() = Unit
 }
+
+/** No challans, never checked — the challans row isn't what most garage tests are about. */
+internal class FakeChallanRepository(
+    private val challans: List<com.hopcape.odo.core.domain.challan.model.Challan> = emptyList(),
+    private val lastChecked: kotlin.time.Instant? = null,
+) : com.hopcape.odo.core.domain.challan.repository.ChallanRepository {
+
+    override fun observe(regNo: com.hopcape.odo.core.domain.car.model.RegistrationNumber) =
+        kotlinx.coroutines.flow.flowOf(challans)
+
+    override fun observeLastChecked(regNo: com.hopcape.odo.core.domain.car.model.RegistrationNumber) =
+        kotlinx.coroutines.flow.flowOf(lastChecked)
+
+    override suspend fun refresh(regNo: com.hopcape.odo.core.domain.car.model.RegistrationNumber) =
+        arrow.core.Either.Right(Unit)
+
+    override suspend fun markAllPendingPaid(regNo: com.hopcape.odo.core.domain.car.model.RegistrationNumber) =
+        arrow.core.Either.Right(Unit)
+
+    override suspend fun lookup(regNo: com.hopcape.odo.core.domain.car.model.RegistrationNumber) =
+        arrow.core.Either.Right(com.hopcape.odo.core.domain.challan.model.ChallanLookup.Found(challans))
+}

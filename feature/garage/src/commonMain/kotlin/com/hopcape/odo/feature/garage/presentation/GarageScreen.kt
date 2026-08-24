@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +28,10 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.component.OdoBadge
+import androidx.compose.runtime.remember
+import kotlin.time.Instant
+import kotlin.time.Clock
+import com.hopcape.odo.core.domain.shared.RelativeAge
 import com.hopcape.odo.core.designsystem.component.OdoBadgeTone
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
@@ -70,6 +76,17 @@ import com.hopcape.odo.feature.garage.domain.model.ServiceHistoryEntry
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.ga_body
+import com.hopcape.odo.feature.garage.resources.gr_time_day
+import com.hopcape.odo.feature.garage.resources.gr_time_days
+import com.hopcape.odo.feature.garage.resources.gr_time_hour
+import com.hopcape.odo.feature.garage.resources.gr_time_hours
+import com.hopcape.odo.feature.garage.resources.gr_time_minute
+import com.hopcape.odo.feature.garage.resources.gr_time_minutes
+import com.hopcape.odo.feature.garage.resources.gr_time_just_now
+import com.hopcape.odo.feature.garage.resources.gr_challans_pending
+import com.hopcape.odo.feature.garage.resources.gr_challans_not_checked
+import com.hopcape.odo.feature.garage.resources.gr_challans_checked
+import com.hopcape.odo.feature.garage.resources.gr_challans_title
 import com.hopcape.odo.feature.garage.resources.ga_chip_new
 import com.hopcape.odo.feature.garage.resources.ga_cta
 import com.hopcape.odo.feature.garage.resources.ga_hint
@@ -203,7 +220,8 @@ private fun PopulatedGarage(
             onTileClick = { onEvent(GarageEvent.AutoOdometerStatusTileTapped) },
         )
         ChallanSection(
-            onClick = { onEvent(GarageEvent.ViewAllChallans) }
+            summary = content.challans,
+            onClick = { onEvent(GarageEvent.ViewAllChallans) },
         )
         DocumentsSection(
             documents = content.documents,
@@ -222,20 +240,84 @@ private fun PopulatedGarage(
     }
 }
 
+/**
+ * The challans row (mockup GARAGE · ENTRY) — how many are pending on this car and when
+ * the records were last asked. Flag-gated: debug and stage builds only, until the
+ * feature ships. Hidden without a plate — there is nothing to look challans up by.
+ */
 @Composable
 private fun ChallanSection(
-    onClick: () -> Unit= {}
-){
-    AnimatedVisibility(FeatureFlags.CHALLANS_ENABLED){
-        OdoCard(
-            onClick = onClick
-        ) {
-            Text(
-                text = "Challans"
-            )
+    summary: GarageChallanSummary?,
+    onClick: () -> Unit = {},
+) {
+    AnimatedVisibility(FeatureFlags.CHALLANS_ENABLED && summary != null) {
+        summary ?: return@AnimatedVisibility
+        OdoCard(onClick = onClick) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(OdoTheme.shapes.small)
+                        .background(OdoTheme.colors.warning.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    OdoIcon(
+                        IcFileFilled,
+                        contentDescription = null,
+                        tint = if (summary.pendingCount > 0) OdoTheme.colors.warning else OdoTheme.colors.textDim,
+                        size = OdoTheme.iconSizes.medium,
+                    )
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                    OdoText(stringResource(Res.string.gr_challans_title), style = OdoTheme.typography.heading)
+                    OdoText(
+                        summary.lastCheckedAt
+                            ?.let { stringResource(Res.string.gr_challans_checked, checkedAgoLabel(it)) }
+                            ?: stringResource(Res.string.gr_challans_not_checked),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+                if (summary.pendingCount > 0) {
+                    OdoBadge(
+                        stringResource(Res.string.gr_challans_pending, summary.pendingCount),
+                        tone = OdoBadgeTone.Warning,
+                    )
+                }
+                OdoIcon(
+                    IcChevronRight,
+                    contentDescription = null,
+                    tint = OdoTheme.colors.textDim,
+                    size = OdoTheme.iconSizes.small,
+                )
+            }
         }
     }
 }
+
+/** "2 hours ago" — the garage's rendering of the shared [RelativeAge] granularity. */
+@Composable
+private fun checkedAgoLabel(at: Instant): String = when (val age = RelativeAge.between(at, currentTimeAsState())) {
+    RelativeAge.JustNow -> stringResource(Res.string.gr_time_just_now)
+    is RelativeAge.Minutes -> stringResource(
+        if (age.count == 1L) Res.string.gr_time_minute else Res.string.gr_time_minutes, age.count,
+    )
+
+    is RelativeAge.Hours -> stringResource(
+        if (age.count == 1L) Res.string.gr_time_hour else Res.string.gr_time_hours, age.count,
+    )
+
+    is RelativeAge.Days -> stringResource(
+        if (age.count == 1L) Res.string.gr_time_day else Res.string.gr_time_days, age.count,
+    )
+}
+
+/** Now, once per composition — an age label does not need to tick while on screen. */
+@Composable
+private fun currentTimeAsState(): Instant = remember { Clock.System.now() }
 
 @Composable
 private fun CarCard(car: Car, odometer: Distance, onUpdate: () -> Unit, onMenu: () -> Unit) {

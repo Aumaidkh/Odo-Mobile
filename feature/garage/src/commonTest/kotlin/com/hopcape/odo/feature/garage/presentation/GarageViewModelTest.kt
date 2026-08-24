@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
+import com.hopcape.odo.feature.garage.domain.usecase.FakeChallanRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeTripRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeTripTracker
@@ -73,6 +74,7 @@ class GarageViewModelTest {
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
             timeZone = TimeZone.UTC,
         ),
+        challans = FakeChallanRepository(),
         telemetry = testTelemetry(),
     )
 

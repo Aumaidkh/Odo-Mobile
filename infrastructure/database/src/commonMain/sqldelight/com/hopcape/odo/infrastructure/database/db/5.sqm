@@ -1,0 +1,23 @@
+-- Schema 5 -> 6: the challans cache (feature/challan).
+--
+-- Two plain CREATE TABLEs — nothing existing is altered, so no SQLite 3.18 rebuild. An
+-- install upgrading from 5 starts with no rows, which reads as "never checked": exactly
+-- the state the challans screen opens with on a fresh install.
+CREATE TABLE challans (
+    id              TEXT NOT NULL PRIMARY KEY,
+    reg_no          TEXT NOT NULL,
+    violation       TEXT NOT NULL,
+    amount_paise    INTEGER NOT NULL,
+    location        TEXT,
+    issued_on       TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    court_name      TEXT,
+    next_hearing_on TEXT
+);
+
+CREATE INDEX idx_challans_reg_no ON challans (reg_no, issued_on DESC);
+
+CREATE TABLE challan_checks (
+    reg_no     TEXT NOT NULL PRIMARY KEY,
+    checked_at TEXT NOT NULL
+);

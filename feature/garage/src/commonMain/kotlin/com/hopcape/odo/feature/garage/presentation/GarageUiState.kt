@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.garage.presentation
 
 import androidx.compose.runtime.Immutable
+import kotlin.time.Instant
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.Distance
@@ -46,4 +47,16 @@ internal data class GarageContent(
     val history: List<ServiceHistoryEntry>,
     /** The auto-odometer pitch card / status tile slot — [AutoOdometerCardState.Hidden] by default. */
     val autoOdometerCard: AutoOdometerCardState = AutoOdometerCardState.Hidden,
+    /** The challans row — `null` while the car has no plate to look challans up by. */
+    val challans: GarageChallanSummary? = null,
+)
+
+/**
+ * What the garage's challans row says without opening the feature: how many are pending
+ * and when the records were last asked ("Checked 2 hours ago").
+ */
+@Immutable
+internal data class GarageChallanSummary(
+    val pendingCount: Int,
+    val lastCheckedAt: Instant?,
 )

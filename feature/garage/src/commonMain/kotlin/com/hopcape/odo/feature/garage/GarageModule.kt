@@ -94,6 +94,7 @@ val garageModule = module {
             activeCar = get(),
             observeGarage = get(),
             observeAutoOdometerCard = get(),
+            challans = get(),
             telemetry = get(),
         )
     }
