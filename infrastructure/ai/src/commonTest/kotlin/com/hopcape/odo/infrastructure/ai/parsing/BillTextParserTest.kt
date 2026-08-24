@@ -15,7 +15,7 @@ class BillTextParserTest {
     private val scanId = ScanId("scan-1")
 
     @Test
-    fun `a clean thermal bill parses items, total, date, odometer and workshop`() {
+    fun `a clean thermal bill parses items total date odometer and workshop`() {
         val bill = parser.parse(
             scanId,
             listOf(

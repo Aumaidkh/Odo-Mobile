@@ -64,7 +64,11 @@ internal object TripStateMachine {
             add(TripEffect.StopFixes)
             add(TripEffect.CancelTimer(TimerKind.IDLE))
             add(TripEffect.CancelTimer(TimerKind.STITCH))
-            if (session != null) add(TripEffect.Finalize(session))
+            // Finalizing means Finalize was already dispatched for this exact session in
+            // the transition that entered this phase — a Disabled arriving before the next
+            // event resolves Finalizing -> Standby must not finalize it a second time
+            // (#319: this used to double-write the trip and double-count its distance).
+            if (session != null && state !is TripPhase.Finalizing) add(TripEffect.Finalize(session))
             add(TripEffect.ClearSession)
         }
         return Transition(TripPhase.Disabled, effects)
@@ -93,7 +97,14 @@ internal object TripStateMachine {
             ?: return Transition(TripPhase.Standby(), emptyList())
 
         if (restored is TripPhase.PendingStop && now >= restored.stopDeadline) {
-            return Transition(TripPhase.Finalizing(restored.session), listOf(TripEffect.Finalize(restored.session)))
+            // Clear the on-disk snapshot in the same transition that dispatches Finalize
+            // (#319): leaving the expired PendingStop snapshot in place until some later
+            // event happens to clear it means a second process death in that window would
+            // restore the same snapshot again and finalize this session a second time.
+            return Transition(
+                TripPhase.Finalizing(restored.session),
+                listOf(TripEffect.Finalize(restored.session), TripEffect.ClearSession),
+            )
         }
 
         val effects = buildList {
@@ -349,9 +360,18 @@ internal object TripStateMachine {
 
     private fun handlePendingStop(state: TripPhase.PendingStop, event: TripEvent, config: TripTrackerConfig, now: Instant): Transition =
         when (event) {
+            // ClearSession fires in the same transition as Finalize (#319): the previous
+            // code left the stale PendingStop snapshot on disk until some later event
+            // happened to clear it, which — if the process died before that event arrived
+            // — got replayed and re-finalized on the next launch, double-writing the trip.
             TripEvent.StitchWindowExpired -> Transition(
                 TripPhase.Finalizing(state.session),
-                listOf(TripEffect.StopForegroundSession, TripEffect.StopFixes, TripEffect.Finalize(state.session)),
+                listOf(
+                    TripEffect.StopForegroundSession,
+                    TripEffect.StopFixes,
+                    TripEffect.Finalize(state.session),
+                    TripEffect.ClearSession,
+                ),
             )
             TripEvent.PresenceConnected -> resumeFromStitch(state)
             is TripEvent.Motion -> if (event.kind == MotionKind.IN_VEHICLE) resumeFromStitch(state) else Transition(state, emptyList())

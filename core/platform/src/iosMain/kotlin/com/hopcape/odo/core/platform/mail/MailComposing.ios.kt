@@ -13,17 +13,14 @@ import platform.UIKit.UIApplication
  * Gmail or Outlook gets a compose sheet for an account they do not use. Opening the URL
  * goes to whichever mail app they set as the default.
  *
- * Every field is percent-encoded first. Report bodies contain newlines and `&`, and both
- * end the draft early if they reach the URL raw.
+ * The URL is built by the shared [toMailtoUri], so this platform and Android send byte-for-
+ * byte the same draft. They used to build it separately, and that is how Android ended up
+ * shipping empty subjects for a year.
  */
 @Composable
 actual fun rememberMailComposer(): (MailDraft) -> Unit = remember {
     { draft ->
-        val url = NSURL.URLWithString(
-            "mailto:${draft.to.percentEncoded()}" +
-                "?subject=${draft.subject.percentEncoded()}" +
-                "&body=${draft.body.percentEncoded()}",
-        )
+        val url = NSURL.URLWithString(draft.toMailtoUri())
         // Null when the address produced something unparseable. There is nothing to fall
         // back to and nothing useful to say, so the tap does nothing.
         if (url != null) {
@@ -31,29 +28,3 @@ actual fun rememberMailComposer(): (MailDraft) -> Unit = remember {
         }
     }
 }
-
-/**
- * Percent-encodes one `mailto:` field, per RFC 3986.
- *
- * Written out rather than called through `NSString`, so this file needs no cinterop and
- * behaves the same as the shared code around it. Everything outside the unreserved set is
- * escaped, which is stricter than necessary but never wrong: `&` and `=` would otherwise
- * split the URL into extra parameters, and a multi-line body would truncate at the newline.
- *
- * Encoding the UTF-8 bytes rather than the characters is what makes a body in any script
- * survive the trip.
- */
-private fun String.percentEncoded(): String = buildString {
-    for (byte in this@percentEncoded.encodeToByteArray()) {
-        val value = byte.toInt() and 0xFF
-        val char = value.toChar()
-        val unreserved = char in 'A'..'Z' || char in 'a'..'z' || char in '0'..'9' || char in "-_.~"
-        if (unreserved) {
-            append(char)
-        } else {
-            append('%').append(HEX[value shr 4]).append(HEX[value and 0x0F])
-        }
-    }
-}
-
-private const val HEX = "0123456789ABCDEF"

@@ -90,7 +90,7 @@ class SupabaseRemoteFileStorageTest {
     }
 
     @Test
-    fun `a failed remove is swallowed, because the row that owned the file is already gone`() = runTest {
+    fun `a failed remove is swallowed because the row that owned the file is already gone`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("""{"error":"nope"}""", HttpStatusCode.InternalServerError) }
 
         // No exception: a leftover object is wasted storage, not a broken feature.
@@ -111,7 +111,7 @@ class SupabaseRemoteFileStorageTest {
     }
 
     @Test
-    fun `a refusal is not retried, because permission does not change on a second try`() = runTest {
+    fun `a refusal is not retried because permission does not change on a second try`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("""{"error":"denied"}""", HttpStatusCode.Forbidden) }
 
         storage(harness).upload(RemoteBucket.BILL_PHOTOS, "owner-1/car-1/bill-1.jpg", byteArrayOf(1), "image/jpeg")
@@ -120,7 +120,7 @@ class SupabaseRemoteFileStorageTest {
     }
 
     @Test
-    fun `a storage path starts with the owner id, which is what the RLS policy keys on`() {
+    fun `a storage path starts with the owner id which is what the RLS policy keys on`() {
         val path = RemoteStoragePath.of(
             ownerId = "owner-1",
             carId = "car-1",

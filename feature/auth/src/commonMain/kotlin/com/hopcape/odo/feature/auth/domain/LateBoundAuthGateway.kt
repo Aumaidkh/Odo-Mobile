@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.auth.domain
 import arrow.core.Either
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 
@@ -23,7 +24,7 @@ internal class LateBoundAuthGateway(
     private val gateway: () -> AuthGateway,
 ) : AuthGateway {
 
-    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> =
+    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> =
         gateway().requestOtp(phone)
 
     override suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =

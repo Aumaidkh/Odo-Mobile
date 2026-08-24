@@ -8,7 +8,7 @@ import kotlin.time.Instant
 /**
  * `trips` over PostgREST (`docs/DB_SCHEMA.md` §9.13b).
  *
- * The delta pull is `car_id = ? AND updated_at > cursor`, ordered by `updated_at` so the
+ * The delta pull is `owner_id = ? AND updated_at > cursor`, ordered by `updated_at` so the
  * cursor advances monotonically. Soft-deleted rows are **not** filtered out: a tombstone is
  * the only way the device learns a trip was deleted elsewhere (SYNC_DESIGN §6).
  *
@@ -20,12 +20,12 @@ internal class SupabaseTripRemoteDataSource(
     private val postgrest: PostgrestClient,
 ) : TripRemoteDataSource {
 
-    override suspend fun fetchSince(carId: String, since: Instant?): List<TripDto> =
+    override suspend fun fetchSince(ownerId: String, since: Instant?): List<TripDto> =
         postgrest.select(
             table = TABLE,
             serializer = TripDto.serializer(),
             filters = buildMap {
-                put(COLUMN_CAR_ID, "eq.$carId")
+                put(COLUMN_OWNER_ID, "eq.$ownerId")
                 since?.let { put(COLUMN_UPDATED_AT, "gt.$it") }
             },
             order = "$COLUMN_UPDATED_AT.asc",
@@ -36,7 +36,7 @@ internal class SupabaseTripRemoteDataSource(
 
     private companion object {
         const val TABLE = "trips"
-        const val COLUMN_CAR_ID = "car_id"
+        const val COLUMN_OWNER_ID = "owner_id"
         const val COLUMN_UPDATED_AT = "updated_at"
     }
 }

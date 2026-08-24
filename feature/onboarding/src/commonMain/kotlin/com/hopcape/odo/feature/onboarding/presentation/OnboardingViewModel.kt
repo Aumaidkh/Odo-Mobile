@@ -133,6 +133,9 @@ internal class OnboardingViewModel(
     /**
      * Take the new plate and drop whatever the last one resolved to — a match must never
      * outlive the plate it was found for — then start looking the new one up.
+     *
+     * [restartLookup] decides whether a lookup actually follows — on the manual route it
+     * only cancels.
      */
     private fun onPlateChanged(plate: String) {
         updateCar { it.copy(plate = it.plate.update(plate), lookup = PlateLookup.Idle) }
@@ -145,6 +148,9 @@ internal class OnboardingViewModel(
      */
     private fun onMatchRejected() {
         telemetry.manualEntryChosen(hadMatch = _state.value.car.match != null)
+        // A lookup still in flight would land on the form the owner is now filling in and
+        // overwrite the answers they came here to give.
+        lookupJob?.cancel()
         _state.update { it.copy(manualEntry = true, car = it.car.copy(lookup = PlateLookup.Idle)) }
     }
 
@@ -155,9 +161,16 @@ internal class OnboardingViewModel(
      * "complete" on its last character, and the owner may well keep typing past it (a BH
      * series plate is longer than a state one), so waiting a moment before spending a round
      * trip costs nothing and saves several.
+     *
+     * The manual route cancels and stops there. The plate field is on both routes now that
+     * one is required to finish the step, but somebody filling the form in by hand has
+     * already been told the registry could not name their car — or has said it named the
+     * wrong one — and a lookup answering over the top of that would take the form away from
+     * them again.
      */
     private fun restartLookup() {
         lookupJob?.cancel()
+        if (_state.value.manualEntry) return
         val plate = _state.value.car.takeIf { it.isPlateLookupReady }?.plate?.text ?: return
         lookupJob = viewModelScope.launch(telemetry.op(OnboardingTelemetry.Trace.PLATE_LOOKUP)) {
             delay(LOOKUP_DEBOUNCE_MILLIS)
@@ -301,7 +314,11 @@ internal class OnboardingViewModel(
             // Bills scanned per month is the product's North Star, so where a scan was launched
             // from is worth knowing — this is the first one an owner is ever offered.
             telemetry.firstScanClicked()
-            emit(OnboardingEffect.OpenBillScanner)
+            // Scanning ends setup like skipping does. It used to hand off to the scanner with
+            // the flow still open, which meant the sign-in offer at the end was never reached
+            // and the scan led on to the fairness report and the profile editor with no
+            // session. Finishing here keeps the offer in front of the first scan.
+            finish(openScanner = true)
         }
 
         OnboardingEvent.Scan.SkipClicked -> {
@@ -433,8 +450,11 @@ internal class OnboardingViewModel(
      * Setup is over: the owner's goal picks the surface they land on, and sign-in is offered
      * only if there's no session — the ask can finally be concrete ("back up *these*
      * records") instead of an account wall on a blank app.
+     *
+     * [openScanner] carries the one difference between the two ways out of the last step:
+     * the camera button also wants the scanner opened once the owner has landed.
      */
-    private fun finish() {
+    private fun finish(openScanner: Boolean = false) {
         val start = chosenStartDestination()
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
@@ -442,7 +462,13 @@ internal class OnboardingViewModel(
             destination = start,
             signInOffered = signInFirst,
         )
-        emit(OnboardingEffect.Finish(start = start, signInFirst = signInFirst))
+        emit(
+            OnboardingEffect.Finish(
+                start = start,
+                signInFirst = signInFirst,
+                openScanner = openScanner,
+            ),
+        )
     }
 
     /**

@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.EraseOutcome
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedAccount
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
@@ -65,20 +66,28 @@ private class FakeVerifiedAccount(
 }
 
 private class FakeVerifier(
-    private val startResult: Either<DomainError, Unit> = Unit.right(),
+    private val startResult: Either<DomainError, PhoneVerificationOutcome> = PhoneVerificationOutcome.CodeSent.right(),
     private val submitResult: Either<DomainError, VerifiedPhoneToken> = VerifiedPhoneToken("tok").right(),
+    private val autoVerificationResult: Either<DomainError, VerifiedPhoneToken> = submitResult,
 ) : PhoneVerifier {
     var startCount = 0
+        private set
+    var completedAutoVerification = false
         private set
     var forgotten = false
         private set
 
-    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit> {
+    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, PhoneVerificationOutcome> {
         startCount++
         return startResult
     }
 
     override suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken> = submitResult
+
+    override suspend fun completeAutoVerification(): Either<DomainError, VerifiedPhoneToken> {
+        completedAutoVerification = true
+        return autoVerificationResult
+    }
 
     override suspend fun forget() { forgotten = true }
 }
@@ -231,6 +240,28 @@ class DeleteAccountViewModelTest {
 
         assertEquals(1, verifier.startCount)
         assertEquals(DeleteAccountStep.Verify, vm.state.value.step)
+    }
+
+    /**
+     * #188: Firebase can prove the number by attestation alone, with no code ever sent. The
+     * re-verification this screen asks for has to complete the erase straight away then,
+     * not park the owner on a Verify step waiting for a code that is never coming.
+     */
+    @Test
+    fun signedIn_confirm_whenAlreadyVerifiedErasesWithoutACodeStep() = runTest {
+        val cars = FakeCarRepository()
+        val verifier = FakeVerifier(startResult = PhoneVerificationOutcome.AlreadyVerified.right())
+        val vm = viewModel(verifier = verifier, cars = cars)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.confirmWithPhrase()
+        val effect = vm.effects.first()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(verifier.completedAutoVerification)
+        assertEquals(listOf("server", "firebase"), recorder.steps)
+        assertEquals(1, cars.softDeleted.size)
+        assertEquals(DeleteAccountEffect.Deleted, effect)
     }
 
     @Test

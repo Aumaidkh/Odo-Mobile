@@ -82,7 +82,7 @@ val corePlatformIosModule = module {
     // backgrounded; that needs BGTaskScheduler plus an Info.plist identifier, and is the
     // one piece of iOS sync still outstanding.
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-    single<SyncScheduler> { CoroutineSyncScheduler(engine = { get() }, scope = get()) }
+    single<SyncScheduler> { CoroutineSyncScheduler(engine = { get() }, scope = get(), telemetry = get()) }
     // Unsupported on purpose: the iOS keyboard already offers the code from the notification.
     single<SmsCodeReader> { IosSmsCodeReader() }
     single<SmsAppSignature> { IosSmsAppSignature() }

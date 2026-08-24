@@ -4,18 +4,30 @@ import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import kotlin.time.TimeSource
 
 /**
- * Runs the [Syncable]s in dependency order, one at a time, and stops at the first refusal.
+ * Runs the [Syncable]s in dependency order, one at a time, in two phases: every push, then
+ * every pull.
  *
  * **Sequential, not concurrent.** Now in Android runs its syncers with `awaitAll`, which is
- * right when entities are independent. Odo's are not: `service_logs` references `cars`,
- * which references `profiles`, and a child pushed before its parent is a foreign-key error
- * on the server. [SyncEntity]'s declaration order *is* the dependency order, and this walks
- * it top to bottom.
+ * right when entities are independent. Odo's are not on the way up: `service_logs` references
+ * `cars`, which references `profiles`, and a child pushed before its parent is a foreign-key
+ * error on the server. [SyncEntity]'s declaration order *is* the dependency order, and this
+ * walks it top to bottom.
  *
- * **A refusal stops the run**, it does not skip to the next entity. If `cars` could not be
- * pushed, every service log referencing a new car will fail too — carrying on would turn
- * one failure into six and leave the log full of consequences instead of the cause. The
- * rows stay `PENDING`, so the next run picks up exactly where this one stopped.
+ * **A refused push stops the push phase.** If `cars` could not be pushed, every service log
+ * referencing a new car will fail too — carrying on would turn one failure into six and
+ * leave the log full of consequences instead of the cause. The rows stay `PENDING`, so the
+ * next run picks up exactly where this one stopped.
+ *
+ * **A refused pull does not stop anything.** Fetching is not ordered: `cars` can be pulled
+ * whether or not `profiles` was, and the FK argument above simply does not apply to reading.
+ * Stopping here is what put an owner with a full account in front of four first-run empty
+ * states, because `PROFILES` is the first entity and everything else sat behind it (issue
+ * #312). Every entity now gets its turn, and the run still reports [SyncResult.Partial] so
+ * the scheduler retries what failed.
+ *
+ * Both phases run even when the push phase stopped early. The entities whose push was never
+ * attempted have nothing pending by definition of not having been tried — their pull is
+ * still worth doing, and it is the half the owner can see.
  *
  * The engine has no retry loop of its own. A [SyncResult.Partial] tells the scheduler to
  * retry, and the scheduler's backoff decides when — one retry policy, in one place.
@@ -39,14 +51,12 @@ internal class DefaultSyncEngine(
     private val ordered: List<Syncable> = syncables.sortedBy { it.entity.ordinal }
 
     override suspend fun sync(): SyncResult {
-        if (!gate.canSync()) {
-            telemetry.skipped(NOT_ALLOWED)
-            return SyncResult.Skipped(NOT_ALLOWED)
+        when (val verdict = gate.evaluate()) {
+            is SyncVerdict.NoSession -> return skip(verdict.reason, retryable = false)
+            is SyncVerdict.Unavailable -> return skip(verdict.reason, retryable = true)
+            SyncVerdict.Allowed -> Unit
         }
-        if (ordered.isEmpty()) {
-            telemetry.skipped(NOTHING_REGISTERED)
-            return SyncResult.Skipped(NOTHING_REGISTERED)
-        }
+        if (ordered.isEmpty()) return skip(NOTHING_REGISTERED, retryable = false)
 
         val started = timeSource.markNow()
         val run = telemetry.startRun()
@@ -54,25 +64,56 @@ internal class DefaultSyncEngine(
         // Every exit below has to clear it, including the early returns — a spinner left
         // running is a bug report.
         try {
-            ordered.forEach { syncable ->
-                val outcome = telemetry.entity(syncable.entity, run) { syncable.attempt() }
+            var failure: Failure? = null
 
+            for (syncable in ordered) {
+                val outcome = telemetry.entity(syncable.entity, PHASE_PUSH, run) {
+                    syncable.attempt { pushTo(synchronizer) }
+                }
                 if (outcome is Outcome.Stopped) {
-                    outcome.cause?.let { synchronizer.recordFailure(syncable.entity, it) }
-                    telemetry.stopped(run, syncable.entity, outcome.cause, started.elapsedNow().inWholeMilliseconds)
-                    return SyncResult.Partial(failedAt = syncable.entity, cause = outcome.cause)
+                    failure = record(syncable.entity, outcome)
+                    break
                 }
             }
 
-            telemetry.completed(run, ordered.size, started.elapsedNow().inWholeMilliseconds)
+            ordered.forEach { syncable ->
+                val outcome = telemetry.entity(syncable.entity, PHASE_PULL, run) {
+                    syncable.attempt { pullFrom(synchronizer) }
+                }
+                // The first failure of the run is the one worth naming: it is the cause, and
+                // anything after it may only be a consequence.
+                if (outcome is Outcome.Stopped) {
+                    val recorded = record(syncable.entity, outcome)
+                    if (failure == null) failure = recorded
+                }
+            }
+
+            val elapsed = started.elapsedNow().inWholeMilliseconds
+            val stopped = failure
+            if (stopped != null) {
+                telemetry.stopped(run, stopped.entity, stopped.cause, elapsed)
+                return SyncResult.Partial(failedAt = stopped.entity, cause = stopped.cause)
+            }
+            telemetry.completed(run, ordered.size, elapsed)
             return SyncResult.Success
         } finally {
             observer.onRunning(false)
         }
     }
 
+    private suspend fun skip(reason: String, retryable: Boolean): SyncResult {
+        telemetry.skipped(reason, retryable)
+        return SyncResult.Skipped(reason, retryable)
+    }
+
+    private suspend fun record(entity: SyncEntity, outcome: Outcome.Stopped): Failure {
+        outcome.cause?.let { synchronizer.recordFailure(entity, it) }
+        return Failure(entity, outcome.cause)
+    }
+
     /**
-     * One entity's turn, with a thrown exception folded into the same answer as a refusal.
+     * One entity's turn at one phase, with a thrown exception folded into the same answer as
+     * a refusal.
      *
      * A `Syncable` is expected to report failure by returning `false`. One that throws
      * instead is a bug in that `Syncable` rather than a reason to lose the run, so it is
@@ -80,14 +121,17 @@ internal class DefaultSyncEngine(
      * a run the app called off must not be recorded as one, and swallowing it would leave
      * the coroutine running after its scope was cancelled.
      */
-    private suspend fun Syncable.attempt(): Outcome =
+    private suspend fun Syncable.attempt(half: suspend Syncable.() -> Boolean): Outcome =
         try {
-            if (syncWith(synchronizer)) Outcome.Accepted else Outcome.Stopped(cause = null)
+            if (half()) Outcome.Accepted else Outcome.Stopped(cause = null)
         } catch (cancellation: kotlin.coroutines.cancellation.CancellationException) {
             throw cancellation
         } catch (e: Exception) {
             Outcome.Stopped(cause = e)
         }
+
+    /** Where the run first went wrong, carried to the end so both phases still run. */
+    private data class Failure(val entity: SyncEntity, val cause: Throwable?)
 
     private sealed interface Outcome {
         data object Accepted : Outcome
@@ -95,7 +139,8 @@ internal class DefaultSyncEngine(
     }
 
     private companion object {
-        const val NOT_ALLOWED = "not signed in"
         const val NOTHING_REGISTERED = "no syncables registered"
+        const val PHASE_PUSH = "push"
+        const val PHASE_PULL = "pull"
     }
 }

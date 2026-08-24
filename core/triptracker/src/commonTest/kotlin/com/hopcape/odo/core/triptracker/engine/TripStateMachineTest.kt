@@ -180,7 +180,12 @@ class TripStateMachineTest {
         val finalizing = go(pending, TripEvent.StitchWindowExpired, t0 + config.stitchWindow)
         assertEquals(TripPhase.Finalizing(original), finalizing.newState)
         assertEquals(
-            listOf(TripEffect.StopForegroundSession, TripEffect.StopFixes, TripEffect.Finalize(original)),
+            listOf(
+                TripEffect.StopForegroundSession,
+                TripEffect.StopFixes,
+                TripEffect.Finalize(original),
+                TripEffect.ClearSession,
+            ),
             finalizing.effects,
         )
 
@@ -239,7 +244,6 @@ class TripStateMachineTest {
             TripPhase.SoftPaused(theSession),
             TripPhase.SignalLost(theSession),
             TripPhase.PendingStop(theSession, t0 + config.stitchWindow),
-            TripPhase.Finalizing(theSession),
         )
 
         for (phase in livePhases) {
@@ -258,6 +262,29 @@ class TripStateMachineTest {
                 "phase=$phase",
             )
         }
+    }
+
+    /**
+     * Finalizing means Finalize was already dispatched for this exact session by the
+     * transition that entered this phase (#319) — a Disabled arriving before the next
+     * event resolves Finalizing -> Standby must release everything but must not finalize
+     * the session a second time.
+     */
+    @Test
+    fun disable_fromFinalizing_releasesWithoutRefinalizing() {
+        val theSession = session(distanceMeters = 1_234)
+        val result = go(TripPhase.Finalizing(theSession), TripEvent.Disabled, t0)
+        assertEquals(TripPhase.Disabled, result.newState)
+        assertEquals(
+            listOf(
+                TripEffect.StopForegroundSession,
+                TripEffect.StopFixes,
+                TripEffect.CancelTimer(TimerKind.IDLE),
+                TripEffect.CancelTimer(TimerKind.STITCH),
+                TripEffect.ClearSession,
+            ),
+            result.effects,
+        )
     }
 
     // ---- SessionRestored resumes or finalizes correctly ----
@@ -299,7 +326,7 @@ class TripStateMachineTest {
         val result = go(TripPhase.Standby(), TripEvent.SessionRestored(snapshot), t0)
         val finalizing = assertIs<TripPhase.Finalizing>(result.newState)
         assertEquals(900L, finalizing.session.distanceMeters)
-        assertEquals(listOf(TripEffect.Finalize(finalizing.session)), result.effects)
+        assertEquals(listOf(TripEffect.Finalize(finalizing.session), TripEffect.ClearSession), result.effects)
     }
 
     @Test

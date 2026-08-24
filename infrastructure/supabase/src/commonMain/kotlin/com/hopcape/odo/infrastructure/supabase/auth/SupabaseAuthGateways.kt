@@ -5,6 +5,8 @@ import arrow.core.flatMap
 import arrow.core.right
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -32,8 +34,16 @@ internal class FirebaseBridgeAuthGateway(
     private val endpoint: SupabaseTokenEndpoint,
 ) : AuthGateway {
 
-    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> =
-        verifier.startVerification(phone)
+    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> =
+        verifier.startVerification(phone).flatMap { outcome ->
+            when (outcome) {
+                PhoneVerificationOutcome.CodeSent -> OtpRequestOutcome.CodeSent.right()
+                PhoneVerificationOutcome.AlreadyVerified ->
+                    verifier.completeAutoVerification()
+                        .flatMap { proof -> endpoint.exchangeFirebaseToken(proof.value) }
+                        .map { OtpRequestOutcome.AlreadyVerified(it) }
+            }
+        }
 
     /** The number is already held by the verifier from [requestOtp], so it is not passed on. */
     override suspend fun verifyOtp(phone: PhoneNumber, code: String): Either<DomainError, AuthSession> =
@@ -73,8 +83,9 @@ internal class DevPasswordAuthGateway(
     private val endpoint: SupabaseTokenEndpoint,
 ) : AuthGateway {
 
-    /** No SMS to send. Reported as success so the flow reaches the code screen. */
-    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, Unit> = Unit.right()
+    /** No SMS to send. Reported as sent so the flow reaches the code screen. */
+    override suspend fun requestOtp(phone: PhoneNumber): Either<DomainError, OtpRequestOutcome> =
+        OtpRequestOutcome.CodeSent.right()
 
     /**
      * Whatever was typed is accepted, and the fixed account is signed in.

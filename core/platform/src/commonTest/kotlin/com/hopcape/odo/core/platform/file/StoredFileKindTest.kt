@@ -13,13 +13,13 @@ class StoredFileKindTest {
     }
 
     @Test
-    fun `is case insensitive, because the extension travels from a picked filename`() {
+    fun `is case insensitive because the extension travels from a picked filename`() {
         assertEquals(StoredFileKind.IMAGE, StoredFileKinds.of("documents/car-1/doc-1.JPEG"))
         assertEquals(StoredFileKind.PDF, StoredFileKinds.of("documents/car-1/doc-1.PDF"))
     }
 
     @Test
-    fun `anything else is unsupported, including the fallback extension`() {
+    fun `anything else is unsupported including the fallback extension`() {
         assertEquals(
             StoredFileKind.UNSUPPORTED,
             StoredFileKinds.of("documents/car-1/doc-1.${StorageKey.FALLBACK_EXTENSION}"),

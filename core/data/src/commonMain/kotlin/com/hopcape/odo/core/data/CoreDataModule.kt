@@ -162,7 +162,7 @@ val coreDataModule = module {
     // one, and a second unqualified single<SyncGate> would resolve *itself* instead —
     // this qualifier is what lets it name the thing it decorates.
     single<SyncGate>(named(QUALIFIER_SESSION_SYNC_GATE)) {
-        SessionSyncGate(tokens = get(), owners = get(), adoption = get())
+        SessionSyncGate(tokens = get(), sessions = get(), owners = get(), adoption = get())
     }
     // The engine's actual SyncGate: closes for a maintenance window before the session
     // gate's own check (and its adoption side effect) ever runs.

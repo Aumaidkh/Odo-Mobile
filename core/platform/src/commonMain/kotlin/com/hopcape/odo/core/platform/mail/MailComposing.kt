@@ -39,3 +39,48 @@ data class MailDraft(
  */
 @Composable
 expect fun rememberMailComposer(): (MailDraft) -> Unit
+
+/**
+ * The draft as a `mailto:` URI — the one form every mail app on both platforms reads.
+ *
+ * Shared rather than written per platform, which is how the two came apart in the first
+ * place: iOS put the subject and body in the URI while Android sent them as intent extras,
+ * and several Android mail apps do not read extras on a `SENDTO` intent. Those drafts
+ * opened with an empty subject line and an empty box, so a report that should have said
+ * which of three forms it came from arrived untitled and blank.
+ *
+ * The address keeps its `@` — escaping it gives `support%40odoapp.in`, which is a legal
+ * escape and still not what some clients put in the To field. The subject and body are
+ * escaped in full, and have to be: a body contains newlines and `&`, and both end the draft
+ * early if they reach the URL raw.
+ */
+internal fun MailDraft.toMailtoUri(): String =
+    "mailto:${to.percentEncoded(allow = "@")}" +
+        "?subject=${subject.percentEncoded()}" +
+        "&body=${body.percentEncoded()}"
+
+/**
+ * Percent-encodes one `mailto:` field, per RFC 3986.
+ *
+ * Written out rather than handed to a platform API so both actuals produce byte-identical
+ * URIs and there is one thing to test. Everything outside the unreserved set is escaped
+ * unless [allow] names it, which is stricter than necessary but never wrong.
+ *
+ * Encoding the UTF-8 bytes rather than the characters is what makes a body in any script
+ * survive the trip.
+ */
+private fun String.percentEncoded(allow: String = ""): String = buildString {
+    for (byte in this@percentEncoded.encodeToByteArray()) {
+        val value = byte.toInt() and 0xFF
+        val char = value.toChar()
+        val unreserved = char in 'A'..'Z' || char in 'a'..'z' || char in '0'..'9' ||
+            char in "-_.~" || char in allow
+        if (unreserved) {
+            append(char)
+        } else {
+            append('%').append(HEX[value shr 4]).append(HEX[value and 0x0F])
+        }
+    }
+}
+
+private const val HEX = "0123456789ABCDEF"

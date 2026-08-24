@@ -4,7 +4,9 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
@@ -56,6 +58,18 @@ internal class OwnerProfileRepositoryImpl(
             }
         }
 
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
+        telemetry.span(DataTelemetry.PROFILE, OP_RECORD_PHONE, ownerId.value) {
+            try {
+                local.recordPhone(ownerId, phone)
+                requestSync(OP_RECORD_PHONE, ownerId.value)
+                Unit.right()
+            } catch (e: Exception) {
+                telemetry.crashed(DataTelemetry.PROFILE, OP_RECORD_PHONE, e, ownerId.value)
+                DomainError.PersistenceFailure(e.message).left()
+            }
+        }
+
     override fun observe(): Flow<OwnerProfile?> =
         local.observe().catch { e ->
             telemetry.crashed(DataTelemetry.PROFILE, OP_OBSERVE, e)
@@ -76,6 +90,7 @@ internal class OwnerProfileRepositoryImpl(
 
     private companion object {
         const val OP_SAVE = "save"
+        const val OP_RECORD_PHONE = "recordPhone"
         const val OP_OBSERVE = "observe"
         const val OP_DELETE = "delete"
     }

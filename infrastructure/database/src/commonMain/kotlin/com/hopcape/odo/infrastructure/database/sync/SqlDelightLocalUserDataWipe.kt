@@ -50,6 +50,9 @@ internal class SqlDelightLocalUserDataWipe(
                     database.fuelFillQueries.deleteAllRows()
                     database.healthScoreQueries.deleteAllRows()
                     database.reminderQueries.deleteAllRows()
+                    // Trips were missing here, so signing out left them behind for the next
+                    // account to inherit. They carry an `owner_id` like everything else.
+                    database.tripQueries.deleteAllRows()
                     database.carQueries.deleteAllRows()
                     database.profileQueries.deleteAllRows()
                     // Without this the next sign-in's pull starts from a stale mark.
@@ -61,6 +64,15 @@ internal class SqlDelightLocalUserDataWipe(
                 // Reported and swallowed: sign-out has already happened as far as the owner
                 // is concerned, and throwing here would strand them on a screen with a
                 // session that is already gone.
+                //
+                // The cursors are then cleared on their own, because of the three things
+                // this transaction does they are the one whose survival is silent. Rows left
+                // behind are at least visible; a cursor left behind makes the *next*
+                // account's first pull a delta since a mark it never set, which fetches
+                // nothing and looks exactly like an empty account (issue #312). One
+                // statement over a tiny table, so it can fail where the big transaction did
+                // not.
+                clearCursors()
                 return@span
             }
 
@@ -81,7 +93,20 @@ internal class SqlDelightLocalUserDataWipe(
             database.serviceLogQueries.selectAllBillPhotoPaths().executeAsList().mapNotNull { it }
     }.getOrElse { emptyList() }
 
+    /**
+     * Second attempt at the one statement that must not be skipped.
+     *
+     * Its own try/catch: if even this fails there is nothing further to try, and sign-out
+     * still has to complete for the owner.
+     */
+    private suspend fun clearCursors() = try {
+        database.syncStateQueries.deleteAll()
+    } catch (e: Exception) {
+        telemetry.crashed(DataTelemetry.SYNC, OP_CLEAR_CURSORS, e)
+    }
+
     private companion object {
         const val OP_WIPE = "signOutWipe"
+        const val OP_CLEAR_CURSORS = "signOutClearCursors"
     }
 }

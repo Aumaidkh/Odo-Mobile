@@ -38,7 +38,7 @@ class RoutesTest {
     }
 
     @Test
-    fun `the search term comes from the query, not the path`() {
+    fun `the search term comes from the query not the path`() {
         assertEquals(Public.Search("challan"), routeOf("/search", "?q=challan"))
         assertEquals(Public.Search("challan"), routeOf("/search", "q=challan"))
     }

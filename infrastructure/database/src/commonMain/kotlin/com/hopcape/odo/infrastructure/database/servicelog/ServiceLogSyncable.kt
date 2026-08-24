@@ -17,5 +17,7 @@ internal class ServiceLogSyncable(
 
     override val entity: SyncEntity = SyncEntity.SERVICE_LOGS
 
-    override suspend fun syncWith(synchronizer: Synchronizer): Boolean = runner.run(synchronizer)
+    override suspend fun pushTo(synchronizer: Synchronizer): Boolean = runner.push(synchronizer)
+
+    override suspend fun pullFrom(synchronizer: Synchronizer): Boolean = runner.pull(synchronizer)
 }

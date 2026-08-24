@@ -12,6 +12,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.DistanceUnit
 import com.hopcape.odo.core.domain.document.model.DocumentType
+import com.hopcape.odo.core.domain.subscription.BillingPeriod
+import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
+import com.hopcape.odo.core.domain.subscription.SubscriptionState
+import kotlinx.datetime.LocalDate
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import org.junit.Before
 import org.junit.Rule
@@ -48,6 +52,9 @@ class ProfileEndToEndTest {
     fun startFromASetUpDevice() {
         resetProfile()
         seedOnboardedOwner()
+        // The plan is a process-scoped binding, so a test that switched Pro on would leave
+        // it on for the next one. Every test starts free unless it says otherwise.
+        setPlan(isPro = false)
         rule.activityRule.scenario.recreate()
     }
 
@@ -71,6 +78,43 @@ class ProfileEndToEndTest {
         // There is no auth yet, so the honest row is the one that can do something.
         rule.onNodeWithText(ProfileCopy.SIGN_IN).assertExists()
     }
+
+    /* ------------------------------ The plan ------------------------------ */
+
+    @Test
+    fun aSubscriber_seesTheirPlanAndAWayToManageIt() {
+        setPlan(isPro = true, subscription = subscription(renewsOn = LocalDate(2026, 9, 12)))
+
+        rule.openProfile()
+
+        rule.onNodeWithText(ProfileCopy.PRO_TITLE).assertExists()
+        rule.onNodeWithText(ProfileCopy.PRO_ACTIVE).assertExists()
+        rule.onNodeWithText(ProfileCopy.MANAGE_PLAN).assertExists()
+    }
+
+    /**
+     * The regression #317 was: the button was hidden whenever the store gave no
+     * per-subscriber link, which left a paying owner with no way to reach their
+     * subscription. The state now always carries somewhere to go, so a card that knows
+     * almost nothing still leads to the store.
+     */
+    @Test
+    fun aSubscriberTheStoreSaidLittleAbout_stillGetsTheManageButton() {
+        setPlan(isPro = true, subscription = subscription(renewsOn = null))
+
+        rule.openProfile()
+
+        rule.onNodeWithText(ProfileCopy.PRO_NO_DATE).assertExists()
+        rule.onNodeWithText(ProfileCopy.MANAGE_PLAN).assertExists()
+    }
+
+    /** The least the store can say about a live subscription. */
+    private fun subscription(renewsOn: LocalDate?) = SubscriptionState(
+        period = BillingPeriod.ANNUAL,
+        health = SubscriptionHealth.ACTIVE,
+        renewsOn = renewsOn,
+        managementUrl = "https://play.google.com/store/account/subscriptions",
+    )
 
     /* ------------------------------ Editing ------------------------------ */
 

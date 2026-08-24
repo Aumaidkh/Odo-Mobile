@@ -1,23 +1,17 @@
--- Schema 5 -> 6: the challans cache (feature/challan).
+-- Schema 5 -> 6: the owner's phone number on the local profile row.
 --
--- Two plain CREATE TABLEs — nothing existing is altered, so no SQLite 3.18 rebuild. An
--- install upgrading from 5 starts with no rows, which reads as "never checked": exactly
--- the state the challans screen opens with on a fresh install.
-CREATE TABLE challans (
-    id              TEXT NOT NULL PRIMARY KEY,
-    reg_no          TEXT NOT NULL,
-    violation       TEXT NOT NULL,
-    amount_paise    INTEGER NOT NULL,
-    location        TEXT,
-    issued_on       TEXT NOT NULL,
-    status          TEXT NOT NULL,
-    court_name      TEXT,
-    next_hearing_on TEXT
-);
-
-CREATE INDEX idx_challans_reg_no ON challans (reg_no, issued_on DESC);
-
-CREATE TABLE challan_checks (
-    reg_no     TEXT NOT NULL PRIMARY KEY,
-    checked_at TEXT NOT NULL
-);
+-- The number is what the account is; it is the only thing that identifies an owner to a
+-- human being, and support, the paywall and WhatsApp reminders all need to find somebody by
+-- it. It was never on the device at all: the server filled `profiles.phone` from a trigger
+-- that runs on INSERT into auth.users, so anyone whose row was created before GoTrue set the
+-- phone got NULL and nothing has ever written it since. The client could not fix that
+-- because it had no column to push from.
+--
+-- Appended, not inserted in the middle, because ALTER TABLE ADD COLUMN can only append and
+-- `SELECT *` has to produce the same column order on a fresh install as on an upgraded one.
+-- Profile.sq declares it last for that reason.
+--
+-- A plain ADD COLUMN with no NOT NULL and no default, so there is no SQLite 3.18 table
+-- rebuild here. Existing rows read as NULL until the next sign-in fills them in — which is
+-- correct, since the number is only known once a session proves it.
+ALTER TABLE profiles ADD COLUMN phone TEXT;

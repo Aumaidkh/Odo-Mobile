@@ -2,6 +2,10 @@ package com.hopcape.odo.core.platform.notification
 
 import com.hopcape.odo.core.domain.refuel.PaymentNotice
 import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
+// kotlin.concurrent.Volatile, not kotlin.jvm.Volatile. The JVM one arrives through default
+// imports on an Android compilation and does not exist for Native, which is why this file
+// compiled for Android and never for iOS.
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

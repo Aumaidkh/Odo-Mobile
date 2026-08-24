@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.database.sync
 
+import com.hopcape.odo.core.sync.SyncEntity
 import kotlin.time.Instant
 
 /**
@@ -82,8 +83,18 @@ internal interface SyncTable<Dto : Any> {
 
     /* ---- pull ---- */
 
-    /** Rows the server has changed since [since]. */
-    suspend fun fetch(since: Instant?): List<Dto>
+    /**
+     * Rows the server has changed since [since], or the reason this table could not say what
+     * to ask for.
+     *
+     * **Not a bare list, and that is the point.** Every scoped table used to answer an
+     * unknown owner or an unnamed car with an empty list, which the runner read as "the
+     * server has nothing new" — so the pull reported success, the cursor stayed put, and
+     * WorkManager dropped a job that had fetched none of the owner's data (issue #312). A
+     * scope it cannot name is a failure to fetch, not a fetch that found nothing, and
+     * [FetchResult.ScopeMissing] is how it says so.
+     */
+    suspend fun fetch(since: Instant?): FetchResult<Dto>
 
     /** What this device currently holds for [id], or null if it has never seen it. */
     fun localState(id: String): LocalRowState?
@@ -98,6 +109,37 @@ internal interface SyncTable<Dto : Any> {
      */
     fun applyRemote(dto: Dto)
 }
+
+/**
+ * What a fetch came back with.
+ *
+ * [ScopeMissing] is deliberately not an empty [Rows]: an empty result is a fact about the
+ * server, and a missing scope key is a fact about this device. Conflating them is what let a
+ * run that pulled nothing be recorded as a run that had nothing to pull.
+ */
+internal sealed interface FetchResult<out Dto : Any> {
+
+    /** What the server had. Empty is a perfectly good answer. */
+    data class Rows<out Dto : Any>(val rows: List<Dto>) : FetchResult<Dto>
+
+    /**
+     * This table could not name what to fetch — no signed-in owner, a placeholder id, a car
+     * that has not been pulled yet. [key] names which one, for the log; it never carries the
+     * value, which would be an identifier.
+     */
+    data class ScopeMissing(val key: String) : FetchResult<Nothing>
+}
+
+/**
+ * Thrown out of a pull whose table could not name its scope, so it lands in the runner's
+ * ordinary failure path: the cursor does not move, the entity is recorded as failed, and the
+ * run comes back [com.hopcape.odo.core.sync.SyncResult.Partial] — which is a retry.
+ *
+ * A dedicated type rather than a generic one because `lastError` stores the exception's
+ * class name, and "ScopeMissingException" is the whole diagnosis.
+ */
+internal class ScopeMissingException(entity: SyncEntity, key: String) :
+    IllegalStateException("$entity cannot pull: no $key")
 
 /**
  * What the local table knows about a row, reduced to the two facts the conflict rules need.

@@ -273,8 +273,24 @@ sealed interface DomainError {
     /**
      * The session is gone and could not be renewed — revoked, or the refresh token expired.
      * The app keeps working offline; only syncing stops until someone signs in again.
+     *
+     * **Terminal.** Whoever holds the session is expected to throw it away on seeing this.
+     * That is why [SessionUnavailable] exists beside it: everything used to arrive here,
+     * including a renewal that simply never got an answer.
      */
     data object SessionExpired : DomainError
+
+    /**
+     * The session could not be renewed *right now* — a timeout, a dropped connection, a 5xx
+     * from the identity service. Worth retrying, and emphatically not a reason to sign
+     * anybody out.
+     *
+     * Distinct from [SessionExpired] because the two used to be the same value, so a train
+     * tunnel could end a session as decisively as a revoked token. The install stopped
+     * syncing with nothing on screen to say so, and the next sign-in pulled a delta from
+     * cursors the owner believed they had cleared (issue #312).
+     */
+    data object SessionUnavailable : DomainError
 
     /* ---- Account deletion ---- */
 

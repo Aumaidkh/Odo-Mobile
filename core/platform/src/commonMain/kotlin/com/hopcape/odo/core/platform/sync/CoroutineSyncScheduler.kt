@@ -3,6 +3,7 @@ package com.hopcape.odo.core.platform.sync
 import com.hopcape.odo.core.sync.SyncEngine
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,23 +38,36 @@ internal class CoroutineSyncScheduler(
      */
     private val engine: () -> SyncEngine,
     private val scope: CoroutineScope,
+    private val telemetry: SyncTelemetry,
     private val debounce: Duration = DEFAULT_DEBOUNCE,
 ) : SyncScheduler {
 
     private var pending: Job? = null
     private var running: Job? = null
 
-    override fun scheduleStartupSync() = trigger(delay = Duration.ZERO)
+    override fun scheduleStartupSync() {
+        telemetry.requested(REASON_STARTUP)
+        trigger(delay = Duration.ZERO)
+    }
 
-    override fun requestSync(reason: SyncReason) = when (reason) {
-        // The only debounced trigger. Everything else is either a person waiting or an
-        // event that has already been coalesced by whatever produced it.
-        SyncReason.LocalWrite -> trigger(delay = debounce)
-        SyncReason.Manual,
-        SyncReason.AppForeground,
-        SyncReason.RemoteChange,
-        SyncReason.SignIn,
-        -> trigger(delay = Duration.ZERO)
+    /**
+     * Logged before the branch, so the record of *who asked* survives a run that never
+     * happens. A request that is debounced away, or dropped because a run is already in
+     * flight, leaves no other trace at all (issue #312).
+     */
+    override fun requestSync(reason: SyncReason) {
+        telemetry.requested(reason.name)
+        when (reason) {
+            // The only debounced trigger. Everything else is either a person waiting or an
+            // event that has already been coalesced by whatever produced it.
+            SyncReason.LocalWrite -> trigger(delay = debounce)
+            SyncReason.Manual,
+            SyncReason.AppForeground,
+            SyncReason.RemoteChange,
+            SyncReason.Reconnected,
+            SyncReason.SignIn,
+            -> trigger(delay = Duration.ZERO)
+        }
     }
 
     private fun trigger(delay: Duration) {
@@ -70,5 +84,8 @@ internal class CoroutineSyncScheduler(
     private companion object {
         /** Long enough to absorb a burst of edits, short enough that nobody notices. */
         val DEFAULT_DEBOUNCE = 5.seconds
+
+        /** `scheduleStartupSync` has no [SyncReason]; the log still needs to name it. */
+        const val REASON_STARTUP = "Startup"
     }
 }

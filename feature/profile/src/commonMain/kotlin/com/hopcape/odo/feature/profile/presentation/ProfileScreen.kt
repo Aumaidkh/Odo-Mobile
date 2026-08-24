@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -45,6 +46,7 @@ import com.hopcape.odo.core.designsystem.icons.IcStarFilled
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.shared.formatDate
+import com.hopcape.odo.core.domain.shared.formatTimeOfDay
 import com.hopcape.odo.core.domain.subscription.SubscriptionHealth
 import com.hopcape.odo.core.domain.subscription.SubscriptionState
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -96,10 +98,18 @@ import com.hopcape.odo.feature.profile.resources.pf_sync_pending
 import com.hopcape.odo.feature.profile.resources.pf_sync_pending_plural
 import com.hopcape.odo.feature.profile.resources.pf_sync_never
 import com.hopcape.odo.feature.profile.resources.pf_sync_blocked
-import com.hopcape.odo.feature.profile.resources.pf_sync_last
+import com.hopcape.odo.feature.profile.resources.pf_sync_last_on
+import com.hopcape.odo.feature.profile.resources.pf_sync_last_today
+import com.hopcape.odo.feature.profile.resources.pf_sync_last_yesterday
 import com.hopcape.odo.feature.profile.resources.pf_version
 import com.hopcape.odo.feature.profile.resources.pf_version_build
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * The Profile / account home. Switches between the Pro-plan card and the Go-Pro upsell,
@@ -390,13 +400,13 @@ private fun ProPlanCard(subscription: SubscriptionState?, onManage: (url: String
                 color = OdoTheme.colors.warning,
             )
         }
-        // Hidden when the store gave no management link. Cancelling has to happen in the
-        // store, so a button that opened nothing would be a control that lies.
-        subscription?.managementUrl?.let { url ->
+        // Always shown. Cancelling has to happen in the store, so this is the only way out
+        // of a subscription from inside the app, and `managementUrl` is never null.
+        subscription?.let { state ->
             OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
             OdoButton(
                 stringResource(Res.string.pf_manage_plan),
-                onClick = { onManage(url) },
+                onClick = { onManage(state.managementUrl) },
                 modifier = Modifier.fillMaxWidth(),
                 variant = OdoButtonVariant.Secondary,
             )
@@ -470,8 +480,7 @@ private fun SyncDebugRow(sync: SyncStatus) {
         sync.pendingCount > 1 -> stringResource(Res.string.pf_sync_pending_plural, sync.pendingCount)
         else -> stringResource(Res.string.pf_sync_idle)
     }
-    val last = sync.lastSyncedAt
-        ?.let { stringResource(Res.string.pf_sync_last, it.toString()) }
+    val last = sync.lastSyncedAt?.let { lastSyncedLabel(it) }
         ?: stringResource(Res.string.pf_sync_never)
     // A pending count on its own cannot say whether an upload is in progress or has been
     // refused the same way for three days, and those look identical to whoever is asking
@@ -486,4 +495,31 @@ private fun SyncDebugRow(sync: SyncStatus) {
         modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm)
             .testTag(ProfileTestTags.SYNC_ROW),
     )
+}
+
+/**
+ * When the last sync finished, as "10:12:32 AM today".
+ *
+ * This used to print the raw [Instant] — `2026-08-22T07:24:19.966Z`. That is UTC, in a
+ * format nobody reads, and the person looking at it is usually on a call being asked when
+ * their data last left the phone. The clock reading is the answer to that question; the day
+ * is a word after it, because a sync that ran today is the normal case and does not deserve
+ * a date.
+ *
+ * "Today" is worked out here rather than passed in: the row is already recomposed whenever
+ * the sync state changes, and a label that is one day stale until the next sync would be
+ * wrong in a way nobody would notice.
+ */
+@Composable
+private fun lastSyncedLabel(at: Instant): String {
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val moment = at.toLocalDateTime(zone)
+    val time = formatTimeOfDay(moment.time)
+    val today = Clock.System.now().toLocalDateTime(zone).date
+
+    return when (moment.date) {
+        today -> stringResource(Res.string.pf_sync_last_today, time)
+        today.minus(1, DateTimeUnit.DAY) -> stringResource(Res.string.pf_sync_last_yesterday, time)
+        else -> stringResource(Res.string.pf_sync_last_on, time, formatDate(moment.date))
+    }
 }

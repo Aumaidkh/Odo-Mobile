@@ -10,8 +10,11 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.domain.auth.AuthSession
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -20,6 +23,7 @@ import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.platform.sms.SmsAppSignature
 import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsCodeStatus
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
@@ -208,6 +212,7 @@ class OtpViewModelTest {
             telemetry = silentTelemetry(),
             scheduler = NoopScheduler,
             identity = NoopIdentity,
+            profiles = NoopProfiles,
             clock = MovingClock(),
         ),
         telemetry = silentTelemetry(),
@@ -226,7 +231,7 @@ class OtpViewModelTest {
         var requests = 0
         var verifications = 0
 
-        override suspend fun requestOtp(phone: PhoneNumber) = Unit.right().also { requests++ }
+        override suspend fun requestOtp(phone: PhoneNumber) = OtpRequestOutcome.CodeSent.right().also { requests++ }
         override suspend fun verifyOtp(phone: PhoneNumber, code: String) = verify.also { verifications++ }
         override suspend fun refresh(refreshToken: String) = session().right()
         override suspend fun signOut(accessToken: String) = Unit.right()
@@ -284,6 +289,14 @@ class OtpViewModelTest {
 }
 
 /** Nothing here is about the store. */
+/** The OTP screen's tests are about the screen; where the number is stored is not their business. */
+private object NoopProfiles : OwnerProfileRepository {
+    override suspend fun save(profile: OwnerProfile) = profile.right()
+    override fun observe(): Flow<OwnerProfile?> = flowOf(null)
+    override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber) = Unit.right()
+    override suspend fun delete() = Unit.right()
+}
+
 private object NoopIdentity : SubscriptionIdentity {
     override fun identify(ownerId: OwnerId) = Unit
     override fun forget() = Unit

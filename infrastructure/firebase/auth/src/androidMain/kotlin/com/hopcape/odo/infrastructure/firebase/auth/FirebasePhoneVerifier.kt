@@ -12,6 +12,7 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
+import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -50,22 +51,15 @@ internal class FirebasePhoneVerifier(
     private var verificationId: String? = null
 
     /**
-     * The credential from a verification the SDK completed by itself.
-     *
-     * Not acted on when it arrives: signing in while the owner is still looking at the code
-     * screen needs a way to tell them so, and `AuthGateway` has no channel for it. Held, and
-     * used by [submitCode] only when there is no [verificationId] to pair a typed code with.
-     *
-     * That case is instant verification, where no SMS is sent at all. This is the only thing
-     * that makes it finishable — but the owner is still sitting on a code screen waiting for
-     * a message that is not coming, and has to type six digits that are then ignored. Fixing
-     * that properly means giving the port a way to say "already verified", which is a change
-     * to `:feature:auth`.
+     * The credential from a verification the SDK completed by itself — instant verification,
+     * where no SMS is sent at all. [startVerification] answers
+     * [PhoneVerificationOutcome.AlreadyVerified] for this case, and whoever asked fetches the
+     * proof with [completeAutoVerification] rather than waiting on a code that never arrives.
      */
     @Volatile
     private var autoRetrieved: PhoneAuthCredential? = null
 
-    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, Unit> {
+    override suspend fun startVerification(phone: PhoneNumber): Either<DomainError, PhoneVerificationOutcome> {
         val activity = activities.get()
         if (activity == null) {
             onDiagnostic("No Activity is up, so Firebase cannot run Play Integrity or reCAPTCHA. No code sent.")
@@ -80,7 +74,7 @@ internal class FirebasePhoneVerifier(
 
                     override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
                         verificationId = id
-                        if (continuation.isActive) continuation.resume(Unit.right())
+                        if (continuation.isActive) continuation.resume(PhoneVerificationOutcome.CodeSent.right())
                     }
 
                     /**
@@ -92,10 +86,16 @@ internal class FirebasePhoneVerifier(
                      * a coroutine waiting for the other one would wait forever. The SDK offers
                      * no way to turn instant verification off for first-factor sign-in —
                      * `requireSmsValidation(true)` is multi-factor only and throws here.
+                     *
+                     * If `onCodeSent` already resumed the continuation (an SMS went out, and
+                     * the SDK's own on-device retriever then read it before the owner typed
+                     * anything), this still records the credential for [completeAutoVerification]
+                     * — but nothing observes it arriving after the fact, so the owner types the
+                     * code as usual. Only the no-SMS-at-all case is finishable automatically.
                      */
                     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                         autoRetrieved = credential
-                        if (continuation.isActive) continuation.resume(Unit.right())
+                        if (continuation.isActive) continuation.resume(PhoneVerificationOutcome.AlreadyVerified.right())
                     }
 
                     override fun onVerificationFailed(error: FirebaseException) {
@@ -134,12 +134,22 @@ internal class FirebasePhoneVerifier(
 
     override suspend fun submitCode(code: String): Either<DomainError, VerifiedPhoneToken> {
         val credential = verificationId?.let { PhoneAuthProvider.getCredential(it, code) }
-            ?: autoRetrieved
             // Nothing in flight — the process died between the two screens, or nobody asked
             // for a code. Either way the answer is resend, not retype.
             ?: return DomainError.OtpExpired.left()
+        return exchange(credential)
+    }
 
-        return runCatchingCancellableSuspend {
+    override suspend fun completeAutoVerification(): Either<DomainError, VerifiedPhoneToken> {
+        val credential = autoRetrieved
+            // Nothing in flight — startVerification never answered AlreadyVerified, or the
+            // process died between the two calls.
+            ?: return DomainError.OtpExpired.left()
+        return exchange(credential)
+    }
+
+    private suspend fun exchange(credential: PhoneAuthCredential): Either<DomainError, VerifiedPhoneToken> =
+        runCatchingCancellableSuspend {
             val user = auth.signInWithCredential(credential).await().user
                 ?: error("Firebase signed in with no user attached")
             // false: the token was minted by the sign-in that just returned, so forcing a
@@ -153,7 +163,6 @@ internal class FirebasePhoneVerifier(
                 error.toVerifyFailure().left()
             },
         )
-    }
 
     /**
      * Signing out of Firebase is not optional here. It keeps its own signed-in user
