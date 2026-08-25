@@ -3,6 +3,7 @@ package com.hopcape.odo.core.platform.video
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +29,7 @@ actual fun OdoVideoPlayer(
     state: OdoVideoState,
     modifier: Modifier,
     fit: OdoVideoFit,
+    playing: Boolean,
 ) {
     val context = LocalContext.current
 
@@ -44,7 +46,7 @@ actual fun OdoVideoPlayer(
             setMediaItem(MediaItem.fromUri(url))
             repeatMode = Player.REPEAT_MODE_ALL
             volume = 0f
-            playWhenReady = true
+            playWhenReady = playing
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
@@ -61,6 +63,10 @@ actual fun OdoVideoPlayer(
             prepare()
         }
     }
+
+    // Keyed on the flag, not on the player: the player is deliberately kept alive across
+    // this changing, because tearing it down is what costs a re-buffer.
+    LaunchedEffect(player, playing) { player.playWhenReady = playing }
 
     DisposableEffect(player) {
         onDispose { player.release() }

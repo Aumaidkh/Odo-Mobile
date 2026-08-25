@@ -83,9 +83,15 @@ internal fun WelcomeVideoScreen(
         ) {
             HorizontalPager(
                 state = pagerState,
+                // Keep the neighbour composed. At the default of 0 the pager disposes a page
+                // the moment it leaves the viewport, which released its player — so coming
+                // back to page one re-buffered the clip from zero and started it again.
+                beyondViewportPageCount = 1,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             ) { index ->
-                PageClip(pages[index])
+                // Alive but paused when it is not the page being looked at. Kept alive so it
+                // does not re-buffer; paused so a clip nobody can see is not being decoded.
+                PageClip(pages[index], playing = index == pagerState.currentPage)
             }
 
             PageCopy(pages[pagerState.settledPage])
@@ -132,7 +138,7 @@ internal fun WelcomeVideoScreen(
 }
 
 @Composable
-private fun PageClip(page: VideoPage) {
+private fun PageClip(page: VideoPage, playing: Boolean) {
     val videoState = rememberOdoVideoState()
 
     Box(
@@ -163,6 +169,7 @@ private fun PageClip(page: VideoPage) {
                 url = page.videoUrl,
                 state = videoState,
                 modifier = Modifier.fillMaxSize(),
+                playing = playing,
             )
         }
     }
