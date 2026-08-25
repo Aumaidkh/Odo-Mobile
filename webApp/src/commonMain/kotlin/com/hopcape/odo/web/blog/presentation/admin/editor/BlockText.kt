@@ -34,6 +34,9 @@ fun ArticleBlock.editableText(): String = when (this) {
     is ArticleBlock.BulletList -> items.joinToString("\n") { it.toMarkedText() }
     // The picture is chosen, not typed; the caption is the only part with words.
     is ArticleBlock.Image -> caption
+    // One row per line, cells split on a pipe — the shape people already type
+    // tables in, and it costs no grid UI.
+    is ArticleBlock.Table -> rows.joinToString("\n") { it.joinToString(" | ") }
 }
 
 /** The block that text describes, keeping whatever the block also carries. */
@@ -48,6 +51,11 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
         items = text.lines().filter { it.isNotBlank() }.map { it.toRuns() },
     )
     is ArticleBlock.Image -> copy(caption = text)
+    is ArticleBlock.Table -> copy(
+        rows = text.lines().filter { it.isNotBlank() }.map { row ->
+            row.split("|").map { it.trim() }
+        },
+    )
 }
 
 /**
@@ -95,7 +103,7 @@ fun ArticleBlock.AppShowcase.field(field: ShowcaseField): String = when (field) 
 }
 
 /** What the toolbar can add. Not every block type — an image is placed, not typed. */
-enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER, BULLETS }
+enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER, BULLETS, TABLE }
 
 fun BlockKind.empty(): ArticleBlock = when (this) {
     BlockKind.PARAGRAPH -> ArticleBlock.Paragraph(emptyList())
@@ -113,6 +121,8 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
     )
     BlockKind.DIVIDER -> ArticleBlock.Divider
     BlockKind.BULLETS -> ArticleBlock.BulletList(emptyList())
+    // Seeded with a header row: an empty grid gives no clue that | splits cells.
+    BlockKind.TABLE -> ArticleBlock.Table(rows = listOf(listOf("", "")))
 }
 
 /** The markers, in the order they have to be applied to nest correctly. */

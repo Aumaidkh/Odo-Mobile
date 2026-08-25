@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.resources.bl_editor_table
 import com.hopcape.odo.web.blog.resources.bl_editor_update
 import com.hopcape.odo.web.blog.ui.component.rememberRemoteImage
 import com.hopcape.odo.web.blog.resources.bl_editor_image_eyebrow
@@ -402,6 +403,9 @@ private fun EditorToolbar(
         }
         ToolButton(stringResource(Res.string.bl_editor_callout)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.CALLOUT))
+        }
+        ToolButton(stringResource(Res.string.bl_editor_table)) {
+            onEvent(EditorEvent.BlockAdded(BlockKind.TABLE))
         }
         ToolButton(stringResource(Res.string.bl_editor_bullets)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.BULLETS))

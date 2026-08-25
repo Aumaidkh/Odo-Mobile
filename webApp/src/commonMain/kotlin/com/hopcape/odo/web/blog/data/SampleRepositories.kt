@@ -373,6 +373,7 @@ private fun List<ArticleBlock>.wordCount(): Int = sumOf { block ->
         is ArticleBlock.BulletList -> block.items.sumOf { item -> item.sumOf { it.text.words() } }
         // Alt text is for a screen reader, not the reading time.
         is ArticleBlock.Image -> block.caption.words()
+        is ArticleBlock.Table -> block.rows.sumOf { row -> row.sumOf { it.words() } }
     }
 }
 

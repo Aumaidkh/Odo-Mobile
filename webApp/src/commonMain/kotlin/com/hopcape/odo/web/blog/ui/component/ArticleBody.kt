@@ -55,6 +55,36 @@ fun ArticleBody(
             when (block) {
                 // Its own margins, wider than a paragraph's, because the gap either
                 // side is what does the separating — the line only marks where.
+                is ArticleBlock.Table -> Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                ) {
+                    block.rows.forEachIndexed { rowIndex, row ->
+                        val header = block.hasHeader && rowIndex == 0
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            row.forEach { cell ->
+                                // Equal weights rather than measured columns: the widest
+                                // cell deciding the layout makes one long sentence squeeze
+                                // every other column to nothing.
+                                Text(
+                                    text = cell,
+                                    color = if (header) colors.text else colors.dim,
+                                    style = if (header) {
+                                        MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    } else {
+                                        MaterialTheme.typography.bodyMedium
+                                    },
+                                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                )
+                            }
+                        }
+                        // Under the header, and between rows. Not after the last one:
+                        // a rule with nothing below it reads as a missing row.
+                        if (rowIndex < block.rows.lastIndex) {
+                            HorizontalDivider(color = colors.border)
+                        }
+                    }
+                }
+
                 is ArticleBlock.Image -> {
                     val picture = rememberRemoteImage(block.url)
                     Column(modifier = Modifier.padding(vertical = 16.dp)) {

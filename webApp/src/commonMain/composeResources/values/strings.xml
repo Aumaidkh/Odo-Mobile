@@ -164,6 +164,7 @@
     <string name="bl_editor_callout">Callout</string>
     <string name="bl_editor_import">Import</string>
     <string name="bl_editor_bullets">Bullets</string>
+    <string name="bl_editor_table">Table</string>
     <string name="bl_editor_image_eyebrow">PICTURE</string>
     <string name="bl_editor_image_alt">Alt text</string>
     <string name="bl_editor_image_alt_hint">· what somebody who cannot see it is told</string>

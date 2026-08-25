@@ -119,6 +119,20 @@ sealed interface ArticleBlock {
      * who wanted a picture got a download button they then had to write around, and
      * the published alt attribute was whatever the card's heading happened to say.
      */
+    /**
+     * A table. [rows] is row-major, and the first row is the header when
+     * [hasHeader] is set.
+     *
+     * Cells are plain text on purpose. Runs inside a cell would double the editing
+     * surface for something a table almost never needs — a table earns its place by
+     * being scannable, and a bold word inside one is usually a sign it wanted to be
+     * a list.
+     */
+    data class Table(
+        val rows: List<List<String>>,
+        val hasHeader: Boolean = true,
+    ) : ArticleBlock
+
     data class Image(
         val url: String,
         val alt: String = "",
