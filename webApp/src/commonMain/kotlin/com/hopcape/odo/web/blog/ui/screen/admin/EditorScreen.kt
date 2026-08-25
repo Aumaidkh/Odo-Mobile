@@ -1,5 +1,14 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.ui.component.rememberRemoteImage
+import com.hopcape.odo.web.blog.resources.bl_editor_image_eyebrow
+import com.hopcape.odo.web.blog.resources.bl_editor_image_caption_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_image_caption
+import com.hopcape.odo.web.blog.resources.bl_editor_image_alt_hint
+import com.hopcape.odo.web.blog.resources.bl_editor_image_alt
+import com.hopcape.odo.web.blog.presentation.admin.editor.ImageField
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import com.hopcape.odo.web.blog.resources.bl_editor_bullets
 import com.hopcape.odo.web.blog.resources.bl_editor_divider
 import androidx.compose.material3.HorizontalDivider
@@ -213,6 +222,22 @@ fun EditorScreen(
                         // Nothing to type into, so it never joins `values` and
                         // never takes focus — it is drawn as the rule it will be,
                         // with the one action it has.
+                        // Two fields and a preview, none of which carry markers —
+                        // same reason the action card gets its own editor.
+                        if (block is ArticleBlock.Image) {
+                            ImageBlockEditor(
+                                block = block,
+                                onFieldChange = { field, value ->
+                                    onEvent(EditorEvent.ImageFieldChanged(index, field, value))
+                                },
+                                onRemove = {
+                                    values.remove(index)
+                                    onEvent(EditorEvent.BlockRemoved(index))
+                                },
+                            )
+                            return@forEachIndexed
+                        }
+
                         if (block is ArticleBlock.Divider) {
                             DividerBlockEditor(
                                 onRemove = {
@@ -678,5 +703,66 @@ private fun DividerBlockEditor(onRemove: () -> Unit) {
             color = colors.muted,
             style = MaterialTheme.typography.bodySmall,
         )
+    }
+}
+
+/**
+ * A placed picture: what it looks like, what it says to a screen reader, and what it
+ * says under itself.
+ *
+ * The alt field is here rather than in the insert sheet because alt describes *this*
+ * use of the picture. The same file in two articles wants two different sentences.
+ */
+@Composable
+private fun ImageBlockEditor(
+    block: ArticleBlock.Image,
+    onFieldChange: (ImageField, String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val colors = BlogThemeTokens.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surfaceRaised)
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Eyebrow(stringResource(Res.string.bl_editor_image_eyebrow), color = colors.link)
+            Spacer(Modifier.weight(1f))
+            TextLink(
+                text = stringResource(Res.string.bl_editor_remove_block),
+                onClick = onRemove,
+                color = colors.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        val picture = rememberRemoteImage(block.url)
+        if (picture != null) {
+            Image(
+                bitmap = picture,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.FillWidth,
+            )
+        }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_image_alt),
+            hint = stringResource(Res.string.bl_editor_image_alt_hint),
+            value = block.field(ImageField.ALT),
+            style = MaterialTheme.typography.bodyMedium,
+        ) { onFieldChange(ImageField.ALT, it) }
+
+        ActionField(
+            label = stringResource(Res.string.bl_editor_image_caption),
+            hint = stringResource(Res.string.bl_editor_image_caption_hint),
+            value = block.field(ImageField.CAPTION),
+            style = MaterialTheme.typography.bodyMedium,
+        ) { onFieldChange(ImageField.CAPTION, it) }
     }
 }

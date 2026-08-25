@@ -111,6 +111,21 @@ sealed interface ArticleBlock {
     data class BulletList(val items: List<List<TextRun>>) : ArticleBlock
 
     /**
+     * A picture in the body, with the two things a picture in an article needs and an
+     * app-promo card never had: [alt] for people who cannot see it, and [caption] for
+     * everyone else.
+     *
+     * Before this existed, choosing an image inserted an [AppShowcase] — so a writer
+     * who wanted a picture got a download button they then had to write around, and
+     * the published alt attribute was whatever the card's heading happened to say.
+     */
+    data class Image(
+        val url: String,
+        val alt: String = "",
+        val caption: String = "",
+    ) : ArticleBlock
+
+    /**
      * The app, shown inside the answer.
      *
      * The one piece of promotion inside an article, and it appears after the

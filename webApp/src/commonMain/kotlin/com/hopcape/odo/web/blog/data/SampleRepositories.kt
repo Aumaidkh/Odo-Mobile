@@ -371,6 +371,8 @@ private fun List<ArticleBlock>.wordCount(): Int = sumOf { block ->
         // A rule is not words; counting it would inflate the reading time.
         ArticleBlock.Divider -> 0
         is ArticleBlock.BulletList -> block.items.sumOf { item -> item.sumOf { it.text.words() } }
+        // Alt text is for a screen reader, not the reading time.
+        is ArticleBlock.Image -> block.caption.words()
     }
 }
 

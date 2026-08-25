@@ -32,6 +32,8 @@ fun ArticleBlock.editableText(): String = when (this) {
     // One bullet per line, so the markers parse per item and a list is typed
     // rather than assembled.
     is ArticleBlock.BulletList -> items.joinToString("\n") { it.toMarkedText() }
+    // The picture is chosen, not typed; the caption is the only part with words.
+    is ArticleBlock.Image -> caption
 }
 
 /** The block that text describes, keeping whatever the block also carries. */
@@ -45,6 +47,7 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.BulletList -> copy(
         items = text.lines().filter { it.isNotBlank() }.map { it.toRuns() },
     )
+    is ArticleBlock.Image -> copy(caption = text)
 }
 
 /**
@@ -57,6 +60,19 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
 enum class ShowcaseField { TITLE, BODY, CTA_LABEL, CTA_LINK, SCREENSHOT }
 
 /** One field of an action card, replaced. */
+/** The two things a picture needs that the picture itself cannot say. */
+enum class ImageField { ALT, CAPTION }
+
+fun ArticleBlock.Image.withField(field: ImageField, value: String): ArticleBlock.Image = when (field) {
+    ImageField.ALT -> copy(alt = value)
+    ImageField.CAPTION -> copy(caption = value)
+}
+
+fun ArticleBlock.Image.field(field: ImageField): String = when (field) {
+    ImageField.ALT -> alt
+    ImageField.CAPTION -> caption
+}
+
 fun ArticleBlock.AppShowcase.withField(field: ShowcaseField, value: String): ArticleBlock.AppShowcase =
     when (field) {
         ShowcaseField.TITLE -> copy(heading = value)

@@ -55,6 +55,8 @@ type Block = {
   link?: string
   screenshot?: string | null
   items?: Run[][]
+  alt?: string
+  caption?: string
 }
 type Post = {
   slug: string
@@ -106,6 +108,15 @@ const blockToHtml = (block: Block): string => {
     case "section":
       return `<h2 id="${escape(block.id ?? "")}">${escape(block.text ?? "")}</h2>`
     // Carries nothing, so there is nothing to escape.
+    case "image": {
+      const src = (block.screenshot ?? "").trim()
+      if (!src) return ""
+      const caption = (block.caption ?? "").trim()
+      return `<figure class="figure">` +
+        `<img src="${escape(src)}" alt="${escape(block.alt ?? caption)}" loading="lazy">` +
+        (caption ? `<figcaption>${escape(caption)}</figcaption>` : "") +
+        `</figure>`
+    }
     case "bullets":
       return `<ul class="bullets">` +
         (block.items ?? []).map((item) => `<li>${runsToHtml(item)}</li>`).join("") +
@@ -137,6 +148,7 @@ const blockToHtml = (block: Block): string => {
 const wordsOf = (post: Post) =>
   post.body.map((block) =>
     block.type === "section" ? block.text ?? "" :
+    block.type === "image" ? (block.caption ?? "") :
     block.type === "bullets" ? (block.items ?? []).map((i) => i.map((r) => r.text).join("")).join(" ") :
     block.type === "showcase" ? `${block.heading ?? ""} ${block.body ?? ""}` :
     runsToText(block.runs)
@@ -164,6 +176,9 @@ margin:0 0 10px}
 .rule{border:0;border-top:1px solid var(--border);margin:28px 0}
 .bullets{margin:8px 0 16px;padding-left:22px}
 .bullets li{margin:0 0 8px;color:var(--text)}
+.figure{margin:16px 0}
+.figure img{width:100%;border-radius:12px;display:block}
+.figure figcaption{margin-top:8px;color:var(--muted);font-size:14px}
 h1{font-size:44px;line-height:1.12;letter-spacing:-.02em;margin:0 0 16px}
 .dek{font-size:19px;color:var(--dim);margin:0 0 28px}
 .byline{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;

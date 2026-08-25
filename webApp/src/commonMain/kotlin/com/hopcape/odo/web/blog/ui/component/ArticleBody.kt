@@ -55,6 +55,30 @@ fun ArticleBody(
             when (block) {
                 // Its own margins, wider than a paragraph's, because the gap either
                 // side is what does the separating — the line only marks where.
+                is ArticleBlock.Image -> {
+                    val picture = rememberRemoteImage(block.url)
+                    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                        if (picture != null) {
+                            Image(
+                                bitmap = picture,
+                                // The alt text, which is what it is for. Falling back to
+                                // the caption beats announcing nothing at all.
+                                contentDescription = block.alt.ifBlank { block.caption }.ifBlank { null },
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.FillWidth,
+                            )
+                        }
+                        if (block.caption.isNotBlank()) {
+                            Text(
+                                text = block.caption,
+                                color = colors.muted,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
+                }
+
                 is ArticleBlock.BulletList -> Column(
                     modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
