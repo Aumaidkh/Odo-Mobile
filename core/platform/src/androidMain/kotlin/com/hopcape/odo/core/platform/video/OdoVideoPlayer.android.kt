@@ -84,6 +84,11 @@ actual fun OdoVideoPlayer(
                     OdoVideoFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     OdoVideoFit.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 }
+                // Both, not just the shutter. The shutter is the view that covers the
+                // surface until the first frame; PlayerView itself paints an opaque
+                // background behind it, which is what was hiding whatever a caller had
+                // drawn underneath — a poster still, in the onboarding intro's case.
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
                 setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                 this.player = player
             }

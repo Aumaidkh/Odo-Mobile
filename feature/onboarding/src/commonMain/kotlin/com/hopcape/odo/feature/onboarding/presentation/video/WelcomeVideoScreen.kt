@@ -87,7 +87,11 @@ internal fun WelcomeVideoScreen(
                 // the moment it leaves the viewport, which released its player — so coming
                 // back to page one re-buffered the clip from zero and started it again.
                 beyondViewportPageCount = 1,
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                // The clip's share of the screen lives on the pager, not inside the page.
+                // Sized inside it, the pager still took every spare pixel and the page
+                // filled a fraction of that — leaving the rest of the pager as a band of
+                // empty background between the clip and the copy.
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(ClipHeightFraction),
             ) { index ->
                 // Alive but paused when it is not the page being looked at. Kept alive so it
                 // does not re-buffer; paused so a clip nobody can see is not being decoded.
@@ -95,6 +99,10 @@ internal fun WelcomeVideoScreen(
             }
 
             PageCopy(pages[pagerState.settledPage])
+
+            // The slack the pager used to absorb. It sits here now, so the copy stays under
+            // the clip and the dots and CTA stay pinned to the bottom.
+            Spacer(Modifier.weight(1f))
 
             Spacer(Modifier.height(OdoTheme.spacing.lg))
 
@@ -141,11 +149,7 @@ internal fun WelcomeVideoScreen(
 private fun PageClip(page: VideoPage, playing: Boolean) {
     val videoState = rememberOdoVideoState()
 
-    Box(
-        // A share of the page rather than "whatever is left". Left to a weight the clip grew
-        // to fill the screen and squeezed the copy against the bottom.
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(VideoHeightFraction),
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // Not "if the URL is blank, skip the player": the player answers for a blank URL
         // too, and routing both cases through it keeps one definition of "there is no clip"
         // instead of two that can disagree.
@@ -231,11 +235,8 @@ private fun PageDots(count: Int, selected: Int) {
 }
 
 
-/**
- * How much of the page the clip takes. Roughly a quarter less than filling the space left
- * over, which is what it did before — that left the copy squeezed against the bottom.
- */
-private const val VideoHeightFraction = 0.55f
+/** The clip's share of the screen height. The copy, dots and CTA divide what is left. */
+private const val ClipHeightFraction = 0.55f
 
 private val DotSelected = 10.dp
 private val DotIdle = 6.dp
