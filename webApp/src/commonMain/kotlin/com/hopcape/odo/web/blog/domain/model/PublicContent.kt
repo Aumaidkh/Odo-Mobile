@@ -93,6 +93,15 @@ sealed interface ArticleBlock {
     data class Callout(val label: String, val runs: List<TextRun>) : ArticleBlock
 
     /**
+     * A horizontal rule — a break between two stretches of an article that are not
+     * different enough to earn a heading.
+     *
+     * It carries nothing, which is the point: there is no text, no id and nothing to
+     * edit, so it is the one block whose editor is a line and a remove link.
+     */
+    data object Divider : ArticleBlock
+
+    /**
      * The app, shown inside the answer.
      *
      * The one piece of promotion inside an article, and it appears after the

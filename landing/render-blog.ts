@@ -104,6 +104,9 @@ const blockToHtml = (block: Block): string => {
       return `<p>${runsToHtml(block.runs)}</p>`
     case "section":
       return `<h2 id="${escape(block.id ?? "")}">${escape(block.text ?? "")}</h2>`
+    // Carries nothing, so there is nothing to escape.
+    case "divider":
+      return `<hr class="rule">`
     case "callout":
       return `<aside class="callout">` +
         `<p class="eyebrow warning">${escape(block.label ?? "")}</p>` +
@@ -152,6 +155,7 @@ main{max-width:720px;margin:0 auto;padding:56px 24px 80px}
 .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
 margin:0 0 10px}
 .eyebrow.warning{color:var(--warning)}
+.rule{border:0;border-top:1px solid var(--border);margin:28px 0}
 h1{font-size:44px;line-height:1.12;letter-spacing:-.02em;margin:0 0 16px}
 .dek{font-size:19px;color:var(--dim);margin:0 0 28px}
 .byline{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;

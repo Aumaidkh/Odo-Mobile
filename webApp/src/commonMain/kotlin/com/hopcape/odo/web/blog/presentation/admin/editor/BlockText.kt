@@ -27,6 +27,8 @@ fun ArticleBlock.editableText(): String = when (this) {
     is ArticleBlock.Callout -> runs.toMarkedText()
     // Its own fields are edited in the block, not as one string.
     is ArticleBlock.AppShowcase -> heading
+    // Nothing to edit; the block is the rule itself.
+    ArticleBlock.Divider -> ""
 }
 
 /** The block that text describes, keeping whatever the block also carries. */
@@ -35,6 +37,7 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.Paragraph -> copy(runs = text.toRuns())
     is ArticleBlock.Callout -> copy(runs = text.toRuns())
     is ArticleBlock.AppShowcase -> copy(heading = text)
+    ArticleBlock.Divider -> this
 }
 
 /**
@@ -69,7 +72,7 @@ fun ArticleBlock.AppShowcase.field(field: ShowcaseField): String = when (field) 
 }
 
 /** What the toolbar can add. Not every block type — an image is placed, not typed. */
-enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION }
+enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER }
 
 fun BlockKind.empty(): ArticleBlock = when (this) {
     BlockKind.PARAGRAPH -> ArticleBlock.Paragraph(emptyList())
@@ -85,6 +88,7 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
         body = "",
         callToAction = "Download Odo",
     )
+    BlockKind.DIVIDER -> ArticleBlock.Divider
 }
 
 /** The markers, in the order they have to be applied to nest correctly. */

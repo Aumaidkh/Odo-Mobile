@@ -149,6 +149,7 @@ private const val SECTION = "section"
 private const val PARAGRAPH = "paragraph"
 private const val CALLOUT = "callout"
 private const val SHOWCASE = "showcase"
+private const val DIVIDER = "divider"
 
 internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
     BLOCKS.encodeToString(
@@ -166,6 +167,7 @@ internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
                     screenshot = block.screenshot,
                     link = block.link,
                 )
+                ArticleBlock.Divider -> BlockJson(type = DIVIDER)
             }
         },
     )
@@ -189,6 +191,7 @@ internal fun decodeBlocks(element: JsonElement): List<ArticleBlock> =
             PARAGRAPH -> ArticleBlock.Paragraph(json.runs.map { TextRun(it.text, it.bold, it.italic) })
             CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold, it.italic) })
             SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot, json.link)
+            DIVIDER -> ArticleBlock.Divider
             else -> null
         }
     }

@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.ui.component
 
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +52,13 @@ fun ArticleBody(
     Column(modifier.fillMaxWidth()) {
         blocks.forEach { block ->
             when (block) {
+                // Its own margins, wider than a paragraph's, because the gap either
+                // side is what does the separating — the line only marks where.
+                ArticleBlock.Divider -> HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 28.dp),
+                    color = colors.border,
+                )
+
                 is ArticleBlock.Section -> Text(
                     text = block.text,
                     color = colors.text,

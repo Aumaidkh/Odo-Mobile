@@ -1,5 +1,7 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.resources.bl_editor_divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -206,6 +209,19 @@ fun EditorScreen(
                         // editor and never touches `values` — none of its fields
                         // carry markers, so there is nothing to parse and nothing
                         // to be written back over a caret.
+                        // Nothing to type into, so it never joins `values` and
+                        // never takes focus — it is drawn as the rule it will be,
+                        // with the one action it has.
+                        if (block is ArticleBlock.Divider) {
+                            DividerBlockEditor(
+                                onRemove = {
+                                    values.remove(index)
+                                    onEvent(EditorEvent.BlockRemoved(index))
+                                },
+                            )
+                            return@forEachIndexed
+                        }
+
                         if (block is ArticleBlock.AppShowcase) {
                             ActionBlockEditor(
                                 block = block,
@@ -352,6 +368,9 @@ private fun EditorToolbar(
         }
         ToolButton(stringResource(Res.string.bl_editor_callout)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.CALLOUT))
+        }
+        ToolButton(stringResource(Res.string.bl_editor_divider)) {
+            onEvent(EditorEvent.BlockAdded(BlockKind.DIVIDER))
         }
         // The one block that sends a reader to the app. Without it an article can
         // answer the question and never offer anything.
@@ -633,3 +652,27 @@ private fun Tip() {
 
 /** True when something is on top of the editor. Kept here so the Box reads plainly. */
 internal val EditorUiState.hasSheet: Boolean get() = sheet != EditorSheet.None
+
+/**
+ * A rule in the editor: what it will look like, and a way to take it out.
+ *
+ * Deliberately not a text field with a placeholder. A divider has no content, and a
+ * caret sitting in one would be a caret with nowhere to go.
+ */
+@Composable
+private fun DividerBlockEditor(onRemove: () -> Unit) {
+    val colors = BlogThemeTokens.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = colors.border)
+        Spacer(Modifier.width(12.dp))
+        TextLink(
+            text = stringResource(Res.string.bl_editor_remove_block),
+            onClick = onRemove,
+            color = colors.muted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}

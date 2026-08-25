@@ -368,6 +368,8 @@ private fun List<ArticleBlock>.wordCount(): Int = sumOf { block ->
         is ArticleBlock.Callout -> block.runs.sumOf { it.text.words() }
         is ArticleBlock.Section -> block.text.words()
         is ArticleBlock.AppShowcase -> block.heading.words() + block.body.words()
+        // A rule is not words; counting it would inflate the reading time.
+        ArticleBlock.Divider -> 0
     }
 }
 
