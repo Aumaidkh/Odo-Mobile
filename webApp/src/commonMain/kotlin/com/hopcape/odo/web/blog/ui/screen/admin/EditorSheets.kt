@@ -55,7 +55,6 @@ import com.hopcape.odo.web.blog.resources.bl_conflict_replace
 import com.hopcape.odo.web.blog.resources.bl_conflict_replace_dek
 import com.hopcape.odo.web.blog.resources.bl_conflict_replace_heading
 import com.hopcape.odo.web.blog.resources.bl_conflict_use
-import com.hopcape.odo.web.blog.resources.bl_media_alt
 import com.hopcape.odo.web.blog.resources.bl_media_cancel
 import com.hopcape.odo.web.blog.resources.bl_media_empty
 import com.hopcape.odo.web.blog.resources.bl_media_insert_heading
@@ -575,13 +574,6 @@ private fun InsertImageSheet(state: EditorUiState, onEvent: (EditorEvent) -> Uni
                 )
             }
         }
-        // The alt text belongs to the placed image, so it is edited on the block
-        // once it is in the body rather than guessed at here.
-        Text(
-            text = stringResource(Res.string.bl_media_alt),
-            color = colors.muted,
-            style = MaterialTheme.typography.bodyMedium,
-        )
         TextLink(
             text = stringResource(Res.string.bl_media_cancel),
             onClick = { onEvent(EditorEvent.SheetDismissed) },

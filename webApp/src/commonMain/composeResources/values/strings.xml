@@ -228,8 +228,6 @@
     <string name="bl_media_limits">PNG or JPEG · up to 8 MB</string>
     <string name="bl_media_insert_heading">Insert image</string>
     <string name="bl_media_upload_new">Upload new</string>
-    <string name="bl_media_alt">Alt text</string>
-    <string name="bl_media_alt_hint">· for screen readers and search</string>
     <string name="bl_media_cancel">Cancel</string>
     <string name="bl_media_insert">Insert</string>
     <string name="bl_media_uploading">Uploading…</string>
