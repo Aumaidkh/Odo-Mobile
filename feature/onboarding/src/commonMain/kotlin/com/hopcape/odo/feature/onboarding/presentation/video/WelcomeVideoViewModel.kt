@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_body
+import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_poster
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_title
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_body
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_title
@@ -29,6 +30,7 @@ internal class WelcomeVideoViewModel(
             videoUrl = config.refuelVideoUrl,
             title = Res.string.onb_video_refuel_title,
             body = Res.string.onb_video_refuel_body,
+            poster = Res.drawable.onb_video_refuel_poster,
         ),
         VideoPage(
             videoUrl = config.scannerVideoUrl,

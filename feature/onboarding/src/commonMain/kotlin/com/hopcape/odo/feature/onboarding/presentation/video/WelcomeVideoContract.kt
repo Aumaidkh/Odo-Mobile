@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.onboarding.presentation.video
 
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -12,6 +13,15 @@ internal data class VideoPage(
     val videoUrl: String,
     val title: StringResource,
     val body: StringResource,
+    /**
+     * A still from the clip, shown behind it.
+     *
+     * It covers the wait while the clip buffers, but that is the smaller half. The clip is
+     * streamed, and onboarding runs exactly once — so on a first launch with no network the
+     * poster is not a placeholder, it is the whole page, permanently. `null` means no still
+     * has been exported for this page yet, and it falls back to an empty panel.
+     */
+    val poster: DrawableResource? = null,
 )
 
 internal sealed interface WelcomeVideoEvent {

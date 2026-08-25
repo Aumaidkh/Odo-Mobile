@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.onboarding.presentation.video
 
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import com.hopcape.odo.feature.onboarding.presentation.components.accentGlow
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -36,6 +39,7 @@ import com.hopcape.odo.core.platform.video.rememberOdoVideoState
 import com.hopcape.odo.core.platform.window.OdoLightSystemBars
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_body
+import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_poster
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_title
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_body
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_title
@@ -139,6 +143,21 @@ private fun PageClip(page: VideoPage) {
         // Not "if the URL is blank, skip the player": the player answers for a blank URL
         // too, and routing both cases through it keeps one definition of "there is no clip"
         // instead of two that can disagree.
+        // Behind the player, which stays transparent until it has a frame — so the still
+        // shows during the wait and the clip simply covers it when it arrives. No state to
+        // sequence, no crossfade, nothing to flicker.
+        //
+        // Crop, to match OdoVideoFit.Fill: a still fitted differently to the clip would
+        // jump the moment playback started.
+        page.poster?.let { poster ->
+            Image(
+                painter = painterResource(poster),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
         if (!videoState.hasFailed) {
             OdoVideoPlayer(
                 url = page.videoUrl,
@@ -233,6 +252,7 @@ private fun WelcomeVideoScreenPreview() = OdoPreview(padded = false) {
                 videoUrl = "",
                 title = Res.string.onb_video_refuel_title,
                 body = Res.string.onb_video_refuel_body,
+                poster = Res.drawable.onb_video_refuel_poster,
             ),
             VideoPage(
                 videoUrl = "",
