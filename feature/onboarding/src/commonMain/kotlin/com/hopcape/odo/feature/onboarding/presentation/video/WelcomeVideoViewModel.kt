@@ -8,6 +8,7 @@ import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_body
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_poster
 import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_title
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_body
+import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_poster
 import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_title
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -36,6 +37,7 @@ internal class WelcomeVideoViewModel(
             videoUrl = config.scannerVideoUrl,
             title = Res.string.onb_video_scanner_title,
             body = Res.string.onb_video_scanner_body,
+            poster = Res.drawable.onb_video_scanner_poster,
         ),
     )
 
