@@ -236,7 +236,7 @@ private fun PageDots(count: Int, selected: Int) {
 
 
 /** The clip's share of the screen height. The copy, dots and CTA divide what is left. */
-private const val ClipHeightFraction = 0.55f
+private const val ClipHeightFraction = 0.65f
 
 private val DotSelected = 10.dp
 private val DotIdle = 6.dp
