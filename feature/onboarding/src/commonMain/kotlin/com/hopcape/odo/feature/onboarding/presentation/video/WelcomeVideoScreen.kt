@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.onboarding.presentation.video
 
+import com.hopcape.odo.core.platform.video.OdoVideoStatus
+import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
@@ -150,25 +152,14 @@ internal fun WelcomeVideoScreen(
 private fun PageClip(page: VideoPage, playing: Boolean) {
     val videoState = rememberOdoVideoState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        // A ground colour of its own, so the moment before the still has decoded is black
+        // rather than a flash of the screen behind it.
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+    ) {
         // Not "if the URL is blank, skip the player": the player answers for a blank URL
         // too, and routing both cases through it keeps one definition of "there is no clip"
         // instead of two that can disagree.
-        // Behind the player, which stays transparent until it has a frame — so the still
-        // shows during the wait and the clip simply covers it when it arrives. No state to
-        // sequence, no crossfade, nothing to flicker.
-        //
-        // Crop, to match OdoVideoFit.Fill: a still fitted differently to the clip would
-        // jump the moment playback started.
-        page.poster?.let { poster ->
-            Image(
-                painter = painterResource(poster),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
         if (!videoState.hasFailed) {
             OdoVideoPlayer(
                 url = page.videoUrl,
@@ -177,13 +168,24 @@ private fun PageClip(page: VideoPage, playing: Boolean) {
                 playing = playing,
             )
         }
+
+        // On top of the player, not behind it. PlayerView draws through a SurfaceView,
+        // which punches its own hole in the window — anything Compose draws underneath is
+        // covered the moment that surface exists, transparent background or not. So the
+        // still sits above and is taken away once there is a real frame to uncover.
+        if (videoState.value != OdoVideoStatus.Playing) {
+            page.poster?.let { poster ->
+                Image(
+                    painter = painterResource(poster),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
 }
 
-/**
- * Title and body, laid out the way every other onboarding step lays them out —
- * screen-edge padding, `sm` between the two.
- */
 @Composable
 private fun PageCopy(page: VideoPage) {
     Column(

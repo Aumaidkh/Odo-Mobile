@@ -48,10 +48,12 @@ actual fun OdoVideoPlayer(
             volume = 0f
             playWhenReady = playing
             addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        state.status.value = OdoVideoStatus.Playing
-                    }
+                // Not STATE_READY. That means "ready to play", which arrives before
+                // anything has been drawn — a caller hiding its poster on it uncovers a
+                // surface that is still blank. This fires when a frame is actually on
+                // screen, which is the only moment the poster is safe to remove.
+                override fun onRenderedFirstFrame() {
+                    state.status.value = OdoVideoStatus.Playing
                 }
 
                 override fun onPlayerError(error: PlaybackException) {

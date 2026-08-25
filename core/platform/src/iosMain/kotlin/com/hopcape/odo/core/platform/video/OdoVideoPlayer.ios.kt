@@ -3,6 +3,7 @@ package com.hopcape.odo.core.platform.video
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
@@ -63,7 +64,6 @@ actual fun OdoVideoPlayer(
             player.play()
         }
         if (playing) player.play()
-        state.status.value = OdoVideoStatus.Playing
         onDispose {
             NSNotificationCenter.defaultCenter.removeObserver(observer)
             player.pause()
@@ -75,8 +75,19 @@ actual fun OdoVideoPlayer(
         if (playing) player.play() else player.pause()
     }
 
+    val view = remember(player, fit) { VideoPlayerView(player, fit) }
+
+    // The iOS twin of Android's onRenderedFirstFrame. AVPlayerLayer.readyForDisplay is the
+    // only honest "there is a frame on screen" signal here, and reporting Playing before it
+    // would have a caller take its poster away over a blank layer. Polled rather than
+    // observed: KVO from Kotlin/Native is a lot of machinery for a flag that flips once.
+    LaunchedEffect(view) {
+        while (!view.hasFrame()) delay(FrameCheckInterval)
+        state.status.value = OdoVideoStatus.Playing
+    }
+
     UIKitView(
-        factory = { VideoPlayerView(player, fit) },
+        factory = { view },
         modifier = modifier,
     )
 }
@@ -103,8 +114,13 @@ private class VideoPlayerView(player: AVPlayer, fit: OdoVideoFit) : UIView(frame
         layer.addSublayer(playerLayer)
     }
 
+    /** Whether the layer has something drawn, rather than merely being ready to play. */
+    fun hasFrame(): Boolean = playerLayer.readyForDisplay
+
     override fun layoutSubviews() {
         super.layoutSubviews()
         playerLayer.setFrame(bounds)
     }
 }
+
+private const val FrameCheckInterval = 50L
