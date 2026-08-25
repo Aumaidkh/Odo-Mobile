@@ -16,6 +16,16 @@ import androidx.compose.ui.Modifier
 enum class OdoVideoStatus { Loading, Playing, Failed }
 
 /**
+ * How a clip is fitted to the space it is given.
+ *
+ * [Fill] crops whatever does not fit, so the video reaches every edge; [Fit] keeps the whole
+ * frame and letterboxes the rest. Fill is the default because the usual caller is a clip
+ * used as a surface, where bars down the sides read as a mistake rather than as respect for
+ * the aspect ratio.
+ */
+enum class OdoVideoFit { Fill, Fit }
+
+/**
  * Held by the caller so the screen can react to a clip that never arrives — the whole
  * reason this is a state holder and not a fire-and-forget composable.
  */
@@ -46,4 +56,5 @@ expect fun OdoVideoPlayer(
     url: String,
     state: OdoVideoState,
     modifier: Modifier = Modifier,
+    fit: OdoVideoFit = OdoVideoFit.Fill,
 )

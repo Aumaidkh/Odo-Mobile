@@ -12,6 +12,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 
 /**
@@ -26,6 +27,7 @@ actual fun OdoVideoPlayer(
     url: String,
     state: OdoVideoState,
     modifier: Modifier,
+    fit: OdoVideoFit,
 ) {
     val context = LocalContext.current
 
@@ -69,6 +71,13 @@ actual fun OdoVideoPlayer(
         factory = {
             PlayerView(it).apply {
                 useController = false
+                // Defaults to RESIZE_MODE_FIT, which letterboxes. iOS's AVPlayerLayer
+                // defaults to filling, so leaving this alone made one component behave two
+                // ways depending on the platform.
+                resizeMode = when (fit) {
+                    OdoVideoFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    OdoVideoFit.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                }
                 setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                 this.player = player
             }

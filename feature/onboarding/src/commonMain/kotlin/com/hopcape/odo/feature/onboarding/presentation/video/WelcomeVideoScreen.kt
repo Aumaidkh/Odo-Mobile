@@ -84,11 +84,6 @@ internal fun WelcomeVideoScreen(
                 PageClip(pages[index])
             }
 
-            // Copy sits in the outer column, not inside the pager. Inside it, it was laid
-            // over the clip; out here the order on screen is the order in the code.
-            //
-            // It follows the settled page rather than the dragged one, so a half-swipe does
-            // not flip the words back and forth under the owner's thumb.
             PageCopy(pages[pagerState.settledPage])
 
             Spacer(Modifier.height(OdoTheme.spacing.lg))
@@ -97,29 +92,24 @@ internal fun WelcomeVideoScreen(
 
             Spacer(Modifier.height(OdoTheme.spacing.md))
 
-            // The same footer OnboardingStepScaffold gives every other step: screen-edge
-            // padding, bottom lg, full-width CTA with the accent glow.
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = OdoTheme.spacing.screenEdge)
-                    .padding(bottom = OdoTheme.spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                OdoButton(
-                    text = stringResource(
-                        if (onLastPage) Res.string.onb_video_cta else Res.string.onb_video_next,
-                    ),
-                    onClick = {
-                        if (onLastPage) {
-                            onEvent(WelcomeVideoEvent.NextClicked)
-                        } else {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().accentGlow(),
-                )
-            }
+            OdoButton(
+                text = stringResource(
+                    if (onLastPage) Res.string.onb_video_cta else Res.string.onb_video_next,
+                ),
+                onClick = {
+                    if (onLastPage) {
+                        onEvent(WelcomeVideoEvent.NextClicked)
+                    } else {
+                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(
+                    horizontal = OdoTheme.spacing.screenEdge
+                ).padding(
+                    top = OdoTheme.spacing.lg,
+                    bottom = OdoTheme.spacing.lg
+                ).accentGlow(),
+            )
         }
 
         Row(
@@ -168,10 +158,17 @@ private fun PageCopy(page: VideoPage) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = OdoTheme.spacing.screenEdge),
+            .padding(
+                horizontal = OdoTheme.spacing.screenEdge,
+                vertical = OdoTheme.spacing.xxl
+            ),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Spacer(
+            modifier = Modifier
+                .height(48.dp)
+        )
         OdoText(
             stringResource(page.title),
             style = OdoTheme.typography.title,
