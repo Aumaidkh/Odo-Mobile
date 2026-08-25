@@ -81,8 +81,17 @@ internal fun WelcomeVideoScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             ) { index ->
-                VideoPageContent(pages[index])
+                PageClip(pages[index])
             }
+
+            // Copy sits in the outer column, not inside the pager. Inside it, it was laid
+            // over the clip; out here the order on screen is the order in the code.
+            //
+            // It follows the settled page rather than the dragged one, so a half-swipe does
+            // not flip the words back and forth under the owner's thumb.
+            PageCopy(pages[pagerState.settledPage])
+
+            Spacer(Modifier.height(OdoTheme.spacing.lg))
 
             PageDots(count = pages.size, selected = pagerState.currentPage)
 
@@ -129,52 +138,52 @@ internal fun WelcomeVideoScreen(
 }
 
 @Composable
-private fun VideoPageContent(page: VideoPage) {
+private fun PageClip(page: VideoPage) {
     val videoState = rememberOdoVideoState()
 
+    Box(
+        // A share of the page rather than "whatever is left". Left to a weight the clip grew
+        // to fill the screen and squeezed the copy against the bottom.
+        modifier = Modifier.fillMaxWidth().fillMaxHeight(VideoHeightFraction),
+    ) {
+        // Not "if the URL is blank, skip the player": the player answers for a blank URL
+        // too, and routing both cases through it keeps one definition of "there is no clip"
+        // instead of two that can disagree.
+        if (!videoState.hasFailed) {
+            OdoVideoPlayer(
+                url = page.videoUrl,
+                state = videoState,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+/**
+ * Title and body, laid out the way every other onboarding step lays them out —
+ * screen-edge padding, `sm` between the two.
+ */
+@Composable
+private fun PageCopy(page: VideoPage) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            // A share of the page rather than "whatever is left". Left to a weight the clip
-            // grew to fill the screen and pushed the copy into the last two lines of it.
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(VideoHeightFraction),
-        ) {
-            // Not "if the URL is blank, skip the player": the player answers for a blank URL
-            // too, and routing both cases through it keeps one definition of "there is no
-            // clip" instead of two that can disagree.
-            if (!videoState.hasFailed) {
-                OdoVideoPlayer(
-                    url = page.videoUrl,
-                    state = videoState,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-        }
-
-        // Copy laid out the way every other onboarding step lays it out: screen-edge
-        // padding, lg between the block and what is above it, sm between title and body.
-        Column(
-            modifier = Modifier
-                .padding(horizontal = OdoTheme.spacing.screenEdge)
-                .padding(top = OdoTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            OdoText(
-                stringResource(page.title),
-                style = OdoTheme.typography.title,
-                color = OdoTheme.colors.text,
-                textAlign = TextAlign.Center,
-            )
-            OdoText(
-                stringResource(page.body),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textMuted,
-                textAlign = TextAlign.Center,
-            )
-        }
+        OdoText(
+            stringResource(page.title),
+            style = OdoTheme.typography.title,
+            color = OdoTheme.colors.text,
+            textAlign = TextAlign.Center,
+        )
+        OdoText(
+            stringResource(page.body),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textMuted,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
