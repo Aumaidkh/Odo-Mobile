@@ -44,7 +44,6 @@
     <string name="bl_article_contents_count">Contents · %1$d sections</string>
     <string name="bl_article_read_next">READ NEXT</string>
     <string name="bl_article_cta_heading">Check your challans</string>
-    <string name="bl_action_eyebrow">SHOWN INSIDE THE ARTICLE</string>
     <string name="bl_action_screenshot_slot">screenshot slot — drop in a real capture before publishing</string>
 
     <!-- ── Category ───────────────────────────────────────────────────────── -->

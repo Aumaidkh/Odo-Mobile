@@ -29,7 +29,6 @@ import com.hopcape.odo.web.blog.domain.model.TextRun
 import com.hopcape.odo.web.blog.platform.PLAY_LISTING
 import com.hopcape.odo.web.blog.platform.openExternal
 import com.hopcape.odo.web.blog.resources.Res
-import com.hopcape.odo.web.blog.resources.bl_action_eyebrow
 import com.hopcape.odo.web.blog.resources.bl_action_screenshot_slot
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
@@ -142,7 +141,6 @@ private fun AppShowcase(block: ArticleBlock.AppShowcase) {
             .padding(horizontal = 28.dp, vertical = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Eyebrow(stringResource(Res.string.bl_action_eyebrow))
         Text(block.heading, color = colors.text, style = MaterialTheme.typography.headlineMedium)
         Text(block.body, color = colors.dim, style = MaterialTheme.typography.titleLarge)
         PillButton(

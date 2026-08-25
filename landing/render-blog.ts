@@ -113,7 +113,6 @@ const blockToHtml = (block: Block): string => {
       const href = (block.link ?? "").trim() || PLAY
       const shot = (block.screenshot ?? "").trim()
       return `<div class="action">` +
-        `<p class="eyebrow">SHOWN INSIDE THE ARTICLE</p>` +
         `<h3>${escape(block.heading ?? "")}</h3>` +
         `<p>${escape(block.body ?? "")}</p>` +
         `<p><a class="cta" href="${escape(href)}" rel="nofollow">${escape(block.cta ?? "")}</a></p>` +
