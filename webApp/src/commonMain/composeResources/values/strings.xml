@@ -27,7 +27,6 @@
     <!-- ── Shared ─────────────────────────────────────────────────────────── -->
     <string name="bl_reading_minutes">%1$d min read</string>
     <string name="bl_all">All</string>
-    <string name="bl_loading">One moment…</string>
     <string name="bl_error_offline">No connection.</string>
     <string name="bl_error_generic">This did not load.</string>
     <string name="bl_error_not_found">This page was not found.</string>
