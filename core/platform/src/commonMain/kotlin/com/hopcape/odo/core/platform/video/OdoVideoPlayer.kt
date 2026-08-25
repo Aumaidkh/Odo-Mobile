@@ -45,6 +45,11 @@ fun rememberOdoVideoState(): OdoVideoState =
  * copy, not to be watched. Sound on a first launch is startling, and a scrub bar invites an
  * interaction that leads nowhere.
  *
+ * [playing] pauses without tearing down. A caller that keeps an off-screen clip composed —
+ * a pager holding its neighbour, say — should pass `false` for it rather than letting it
+ * decode a video nobody can see. Releasing it instead would mean re-buffering from zero the
+ * next time it came round.
+ *
  * **Streamed, not bundled.** The clips live behind remote URLs so they can be replaced
  * without a release. That is a deliberate trade — it means the first launch of a device with
  * no network gets no video — so every caller must stay usable when [state] reports
@@ -57,4 +62,5 @@ expect fun OdoVideoPlayer(
     state: OdoVideoState,
     modifier: Modifier = Modifier,
     fit: OdoVideoFit = OdoVideoFit.Fill,
+    playing: Boolean = true,
 )

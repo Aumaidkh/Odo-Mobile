@@ -2,6 +2,7 @@ package com.hopcape.odo.core.platform.video
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
@@ -38,6 +39,7 @@ actual fun OdoVideoPlayer(
     state: OdoVideoState,
     modifier: Modifier,
     fit: OdoVideoFit,
+    playing: Boolean,
 ) {
     // Same rule as Android: a blank URL is "no clip configured", answered here rather than
     // handed to a player that would fail a beat later and flicker through Loading first.
@@ -60,12 +62,17 @@ actual fun OdoVideoPlayer(
             player.seekToTime(CMTimeMake(value = 0, timescale = 1))
             player.play()
         }
-        player.play()
+        if (playing) player.play()
         state.status.value = OdoVideoStatus.Playing
         onDispose {
             NSNotificationCenter.defaultCenter.removeObserver(observer)
             player.pause()
         }
+    }
+
+    // Same as Android: pause rather than release, so coming back does not re-buffer.
+    LaunchedEffect(player, playing) {
+        if (playing) player.play() else player.pause()
     }
 
     UIKitView(
