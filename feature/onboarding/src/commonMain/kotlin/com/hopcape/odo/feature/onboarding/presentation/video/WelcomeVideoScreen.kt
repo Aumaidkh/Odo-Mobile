@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -22,13 +21,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.graphics.Color
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoDeviceFrame
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.preview.OdoPreview
+import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.platform.video.OdoVideoPlayer
 import com.hopcape.odo.core.platform.video.rememberOdoVideoState
+import com.hopcape.odo.core.platform.window.OdoLightSystemBars
 import com.hopcape.odo.feature.onboarding.resources.Res
+import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_body
+import com.hopcape.odo.feature.onboarding.resources.onb_video_refuel_title
+import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_body
+import com.hopcape.odo.feature.onboarding.resources.onb_video_scanner_title
 import com.hopcape.odo.feature.onboarding.resources.onb_video_cta
 import com.hopcape.odo.feature.onboarding.resources.onb_video_next
 import com.hopcape.odo.feature.onboarding.resources.onb_video_skip
@@ -54,10 +65,15 @@ internal fun WelcomeVideoScreen(
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == pages.lastIndex
 
+    // Black whatever the theme says, so the phone in the frame is the only lit thing on
+    // screen. That is also why the icons have to be forced light: the system would
+    // otherwise draw dark ones in light mode, onto black.
+    OdoLightSystemBars()
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(OdoTheme.colors.bg)
+            .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(OdoTheme.spacing.md),
     ) {
         Row(
@@ -73,7 +89,7 @@ internal fun WelcomeVideoScreen(
 
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(0.5f),
         ) { index ->
             VideoPageContent(pages[index])
         }
@@ -107,17 +123,15 @@ private fun VideoPageContent(page: VideoPage) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
+        OdoDeviceFrame(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(OdoTheme.spacing.md))
-                .background(OdoTheme.colors.surfaceRaised),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth(DeviceWidthFraction)
+                .weight(1f),
         ) {
             // Not "if the URL is blank, skip the player": the player answers for a blank URL
             // too, and routing both cases through it keeps one definition of "there is no
-            // clip" instead of two that can disagree.
+            // clip" instead of two that can disagree. When there is no clip the frame is
+            // still a phone — an empty screen, which reads as deliberate.
             if (!videoState.hasFailed) {
                 OdoVideoPlayer(
                     url = page.videoUrl,
@@ -132,6 +146,7 @@ private fun VideoPageContent(page: VideoPage) {
         OdoText(
             stringResource(page.title),
             style = OdoTheme.typography.title,
+            color = Color.White,
             textAlign = TextAlign.Center,
         )
 
@@ -140,7 +155,7 @@ private fun VideoPageContent(page: VideoPage) {
         OdoText(
             stringResource(page.body),
             style = OdoTheme.typography.body,
-            color = OdoTheme.colors.textMuted,
+            color = MutedOnBlack,
             textAlign = TextAlign.Center,
         )
     }
@@ -159,12 +174,49 @@ private fun PageDots(count: Int, selected: Int) {
                     .size(if (index == selected) DotSelected else DotIdle)
                     .clip(CircleShape)
                     .background(
-                        if (index == selected) OdoTheme.colors.accent else OdoTheme.colors.textMuted,
+                        if (index == selected) OdoTheme.colors.accent else MutedOnBlack,
                     ),
             )
         }
     }
 }
 
+
+/** Narrower than the screen so the black frames it, the way a hero shot is framed. */
+private const val DeviceWidthFraction = 0.66f
+
+/** The theme's muted text is tuned for the theme's background, not for black. */
+private val MutedOnBlack = Color(0xFFA0A0A6)
+
 private val DotSelected = 10.dp
 private val DotIdle = 6.dp
+
+/**
+ * The layout with no clips, which is what a preview can actually render — a preview has no
+ * player and no network, so a real URL would draw nothing here and say nothing true.
+ *
+ * It is also the state worth looking at most often: the empty frame is what a first launch
+ * with no network gets, and it has to look deliberate rather than broken.
+ *
+ * Both themes are rendered, and both should look identical: this screen commits to black
+ * whatever the theme says.
+ */
+@OdoThemePreviews
+@Composable
+private fun WelcomeVideoScreenPreview() = OdoPreview(padded = false) {
+    WelcomeVideoScreen(
+        pages = listOf(
+            VideoPage(
+                videoUrl = "",
+                title = Res.string.onb_video_refuel_title,
+                body = Res.string.onb_video_refuel_body,
+            ),
+            VideoPage(
+                videoUrl = "",
+                title = Res.string.onb_video_scanner_title,
+                body = Res.string.onb_video_scanner_body,
+            ),
+        ),
+        onEvent = {},
+    )
+}
