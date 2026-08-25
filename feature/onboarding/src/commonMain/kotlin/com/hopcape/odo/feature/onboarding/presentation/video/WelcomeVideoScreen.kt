@@ -1,5 +1,9 @@
 package com.hopcape.odo.feature.onboarding.presentation.video
 
+import com.hopcape.odo.feature.onboarding.presentation.components.accentGlow
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.graphics.Color
 import com.hopcape.odo.core.designsystem.component.OdoButton
-import com.hopcape.odo.core.designsystem.component.OdoDeviceFrame
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -65,20 +64,60 @@ internal fun WelcomeVideoScreen(
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == pages.lastIndex
 
-    // Black whatever the theme says, so the phone in the frame is the only lit thing on
-    // screen. That is also why the icons have to be forced light: the system would
-    // otherwise draw dark ones in light mode, onto black.
     OdoLightSystemBars()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(OdoTheme.spacing.md),
-    ) {
+    // A Box, not a Column with a header row: the clip has to start at y=0 and run up under
+    // the status bar, so nothing above it may consume the top inset. Skip is drawn over it
+    // instead of above it, and takes the inset itself.
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // Only the bottom. A CTA under the gesture pill cannot be pressed; the top
+                // is deliberately left alone.
+                .navigationBarsPadding(),
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) { index ->
+                VideoPageContent(pages[index])
+            }
+
+            PageDots(count = pages.size, selected = pagerState.currentPage)
+
+            Spacer(Modifier.height(OdoTheme.spacing.md))
+
+            // The same footer OnboardingStepScaffold gives every other step: screen-edge
+            // padding, bottom lg, full-width CTA with the accent glow.
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = OdoTheme.spacing.screenEdge)
+                    .padding(bottom = OdoTheme.spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                OdoButton(
+                    text = stringResource(
+                        if (onLastPage) Res.string.onb_video_cta else Res.string.onb_video_next,
+                    ),
+                    onClick = {
+                        if (onLastPage) {
+                            onEvent(WelcomeVideoEvent.NextClicked)
+                        } else {
+                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().accentGlow(),
+                )
+            }
+        }
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(horizontal = OdoTheme.spacing.screenEdge),
         ) {
             OdoButton(
                 text = stringResource(Res.string.onb_video_skip),
@@ -86,31 +125,6 @@ internal fun WelcomeVideoScreen(
                 variant = OdoButtonVariant.Tertiary,
             )
         }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(0.5f),
-        ) { index ->
-            VideoPageContent(pages[index])
-        }
-
-        PageDots(count = pages.size, selected = pagerState.currentPage)
-
-        Spacer(Modifier.height(OdoTheme.spacing.md))
-
-        OdoButton(
-            text = stringResource(
-                if (onLastPage) Res.string.onb_video_cta else Res.string.onb_video_next,
-            ),
-            onClick = {
-                if (onLastPage) {
-                    onEvent(WelcomeVideoEvent.NextClicked)
-                } else {
-                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -121,17 +135,15 @@ private fun VideoPageContent(page: VideoPage) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
-        OdoDeviceFrame(
-            modifier = Modifier
-                .fillMaxWidth(DeviceWidthFraction)
-                .weight(1f),
+        Box(
+            // A share of the page rather than "whatever is left". Left to a weight the clip
+            // grew to fill the screen and pushed the copy into the last two lines of it.
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(VideoHeightFraction),
         ) {
             // Not "if the URL is blank, skip the player": the player answers for a blank URL
             // too, and routing both cases through it keeps one definition of "there is no
-            // clip" instead of two that can disagree. When there is no clip the frame is
-            // still a phone — an empty screen, which reads as deliberate.
+            // clip" instead of two that can disagree.
             if (!videoState.hasFailed) {
                 OdoVideoPlayer(
                     url = page.videoUrl,
@@ -141,23 +153,28 @@ private fun VideoPageContent(page: VideoPage) {
             }
         }
 
-        Spacer(Modifier.height(OdoTheme.spacing.lg))
-
-        OdoText(
-            stringResource(page.title),
-            style = OdoTheme.typography.title,
-            color = Color.White,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(Modifier.height(OdoTheme.spacing.sm))
-
-        OdoText(
-            stringResource(page.body),
-            style = OdoTheme.typography.body,
-            color = MutedOnBlack,
-            textAlign = TextAlign.Center,
-        )
+        // Copy laid out the way every other onboarding step lays it out: screen-edge
+        // padding, lg between the block and what is above it, sm between title and body.
+        Column(
+            modifier = Modifier
+                .padding(horizontal = OdoTheme.spacing.screenEdge)
+                .padding(top = OdoTheme.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            OdoText(
+                stringResource(page.title),
+                style = OdoTheme.typography.title,
+                color = OdoTheme.colors.text,
+                textAlign = TextAlign.Center,
+            )
+            OdoText(
+                stringResource(page.body),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -174,7 +191,7 @@ private fun PageDots(count: Int, selected: Int) {
                     .size(if (index == selected) DotSelected else DotIdle)
                     .clip(CircleShape)
                     .background(
-                        if (index == selected) OdoTheme.colors.accent else MutedOnBlack,
+                        if (index == selected) OdoTheme.colors.accent else OdoTheme.colors.textMuted,
                     ),
             )
         }
@@ -182,11 +199,11 @@ private fun PageDots(count: Int, selected: Int) {
 }
 
 
-/** Narrower than the screen so the black frames it, the way a hero shot is framed. */
-private const val DeviceWidthFraction = 0.66f
-
-/** The theme's muted text is tuned for the theme's background, not for black. */
-private val MutedOnBlack = Color(0xFFA0A0A6)
+/**
+ * How much of the page the clip takes. Roughly a quarter less than filling the space left
+ * over, which is what it did before — that left the copy squeezed against the bottom.
+ */
+private const val VideoHeightFraction = 0.55f
 
 private val DotSelected = 10.dp
 private val DotIdle = 6.dp
