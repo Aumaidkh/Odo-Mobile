@@ -370,6 +370,7 @@ private fun List<ArticleBlock>.wordCount(): Int = sumOf { block ->
         is ArticleBlock.AppShowcase -> block.heading.words() + block.body.words()
         // A rule is not words; counting it would inflate the reading time.
         ArticleBlock.Divider -> 0
+        is ArticleBlock.BulletList -> block.items.sumOf { item -> item.sumOf { it.text.words() } }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.resources.bl_editor_bullets
 import com.hopcape.odo.web.blog.resources.bl_editor_divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
@@ -368,6 +369,9 @@ private fun EditorToolbar(
         }
         ToolButton(stringResource(Res.string.bl_editor_callout)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.CALLOUT))
+        }
+        ToolButton(stringResource(Res.string.bl_editor_bullets)) {
+            onEvent(EditorEvent.BlockAdded(BlockKind.BULLETS))
         }
         ToolButton(stringResource(Res.string.bl_editor_divider)) {
             onEvent(EditorEvent.BlockAdded(BlockKind.DIVIDER))

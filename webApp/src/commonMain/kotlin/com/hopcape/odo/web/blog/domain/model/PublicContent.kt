@@ -102,6 +102,15 @@ sealed interface ArticleBlock {
     data object Divider : ArticleBlock
 
     /**
+     * A bulleted list. Each item carries its own runs, so **bold** and *italic* work
+     * inside a bullet exactly as they do in a paragraph.
+     *
+     * One item per line in the editor, which is what makes it feel like typing a list
+     * rather than filling in a form.
+     */
+    data class BulletList(val items: List<List<TextRun>>) : ArticleBlock
+
+    /**
      * The app, shown inside the answer.
      *
      * The one piece of promotion inside an article, and it appears after the

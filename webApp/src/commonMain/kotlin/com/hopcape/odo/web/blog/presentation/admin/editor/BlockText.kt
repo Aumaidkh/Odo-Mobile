@@ -29,6 +29,9 @@ fun ArticleBlock.editableText(): String = when (this) {
     is ArticleBlock.AppShowcase -> heading
     // Nothing to edit; the block is the rule itself.
     ArticleBlock.Divider -> ""
+    // One bullet per line, so the markers parse per item and a list is typed
+    // rather than assembled.
+    is ArticleBlock.BulletList -> items.joinToString("\n") { it.toMarkedText() }
 }
 
 /** The block that text describes, keeping whatever the block also carries. */
@@ -38,6 +41,10 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.Callout -> copy(runs = text.toRuns())
     is ArticleBlock.AppShowcase -> copy(heading = text)
     ArticleBlock.Divider -> this
+    // Blank lines are dropped: a stray newline is a keystroke, not an empty bullet.
+    is ArticleBlock.BulletList -> copy(
+        items = text.lines().filter { it.isNotBlank() }.map { it.toRuns() },
+    )
 }
 
 /**
@@ -72,7 +79,7 @@ fun ArticleBlock.AppShowcase.field(field: ShowcaseField): String = when (field) 
 }
 
 /** What the toolbar can add. Not every block type — an image is placed, not typed. */
-enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER }
+enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER, BULLETS }
 
 fun BlockKind.empty(): ArticleBlock = when (this) {
     BlockKind.PARAGRAPH -> ArticleBlock.Paragraph(emptyList())
@@ -89,6 +96,7 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
         callToAction = "Download Odo",
     )
     BlockKind.DIVIDER -> ArticleBlock.Divider
+    BlockKind.BULLETS -> ArticleBlock.BulletList(emptyList())
 }
 
 /** The markers, in the order they have to be applied to nest correctly. */

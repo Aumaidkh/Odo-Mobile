@@ -54,6 +54,7 @@ type Block = {
   cta?: string
   link?: string
   screenshot?: string | null
+  items?: Run[][]
 }
 type Post = {
   slug: string
@@ -105,6 +106,10 @@ const blockToHtml = (block: Block): string => {
     case "section":
       return `<h2 id="${escape(block.id ?? "")}">${escape(block.text ?? "")}</h2>`
     // Carries nothing, so there is nothing to escape.
+    case "bullets":
+      return `<ul class="bullets">` +
+        (block.items ?? []).map((item) => `<li>${runsToHtml(item)}</li>`).join("") +
+        `</ul>`
     case "divider":
       return `<hr class="rule">`
     case "callout":
@@ -132,6 +137,7 @@ const blockToHtml = (block: Block): string => {
 const wordsOf = (post: Post) =>
   post.body.map((block) =>
     block.type === "section" ? block.text ?? "" :
+    block.type === "bullets" ? (block.items ?? []).map((i) => i.map((r) => r.text).join("")).join(" ") :
     block.type === "showcase" ? `${block.heading ?? ""} ${block.body ?? ""}` :
     runsToText(block.runs)
   ).join(" ")
@@ -156,6 +162,8 @@ main{max-width:720px;margin:0 auto;padding:56px 24px 80px}
 margin:0 0 10px}
 .eyebrow.warning{color:var(--warning)}
 .rule{border:0;border-top:1px solid var(--border);margin:28px 0}
+.bullets{margin:8px 0 16px;padding-left:22px}
+.bullets li{margin:0 0 8px;color:var(--text)}
 h1{font-size:44px;line-height:1.12;letter-spacing:-.02em;margin:0 0 16px}
 .dek{font-size:19px;color:var(--dim);margin:0 0 28px}
 .byline{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;

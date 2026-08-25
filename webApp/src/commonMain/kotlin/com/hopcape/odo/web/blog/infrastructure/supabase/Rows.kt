@@ -143,6 +143,7 @@ private data class BlockJson(
     val cta: String = "",
     val screenshot: String? = null,
     val link: String = "",
+    val items: List<List<RunJson>> = emptyList(),
 )
 
 private const val SECTION = "section"
@@ -150,6 +151,7 @@ private const val PARAGRAPH = "paragraph"
 private const val CALLOUT = "callout"
 private const val SHOWCASE = "showcase"
 private const val DIVIDER = "divider"
+private const val BULLETS = "bullets"
 
 internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
     BLOCKS.encodeToString(
@@ -168,6 +170,10 @@ internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
                     link = block.link,
                 )
                 ArticleBlock.Divider -> BlockJson(type = DIVIDER)
+                is ArticleBlock.BulletList -> BlockJson(
+                    type = BULLETS,
+                    items = block.items.map { item -> item.map { RunJson(it.text, it.bold, it.italic) } },
+                )
             }
         },
     )
@@ -192,6 +198,9 @@ internal fun decodeBlocks(element: JsonElement): List<ArticleBlock> =
             CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold, it.italic) })
             SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot, json.link)
             DIVIDER -> ArticleBlock.Divider
+            BULLETS -> ArticleBlock.BulletList(
+                json.items.map { item -> item.map { TextRun(it.text, it.bold, it.italic) } },
+            )
             else -> null
         }
     }

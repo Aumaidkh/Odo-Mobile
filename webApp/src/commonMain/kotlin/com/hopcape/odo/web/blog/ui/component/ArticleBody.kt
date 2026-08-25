@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.ui.component
 
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,6 +55,30 @@ fun ArticleBody(
             when (block) {
                 // Its own margins, wider than a paragraph's, because the gap either
                 // side is what does the separating — the line only marks where.
+                is ArticleBlock.BulletList -> Column(
+                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    block.items.forEach { item ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            // A glyph and a fixed gutter rather than a text bullet in the
+                            // run: the marker must not wrap with the words, and a wrapped
+                            // second line has to line up under the first.
+                            Text(
+                                text = "\u2022",
+                                color = colors.dim,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.width(20.dp),
+                            )
+                            Text(
+                                text = item.annotated(),
+                                color = colors.text,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+
                 ArticleBlock.Divider -> HorizontalDivider(
                     modifier = Modifier.padding(vertical = 28.dp),
                     color = colors.border,
