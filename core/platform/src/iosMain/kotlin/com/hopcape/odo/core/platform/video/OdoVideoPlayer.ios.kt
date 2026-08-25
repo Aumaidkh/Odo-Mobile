@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
+import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
@@ -36,6 +37,7 @@ actual fun OdoVideoPlayer(
     url: String,
     state: OdoVideoState,
     modifier: Modifier,
+    fit: OdoVideoFit,
 ) {
     // Same rule as Android: a blank URL is "no clip configured", answered here rather than
     // handed to a player that would fail a beat later and flicker through Loading first.
@@ -67,7 +69,7 @@ actual fun OdoVideoPlayer(
     }
 
     UIKitView(
-        factory = { VideoPlayerView(player) },
+        factory = { VideoPlayerView(player, fit) },
         modifier = modifier,
     )
 }
@@ -80,11 +82,14 @@ actual fun OdoVideoPlayer(
  * rotation is the wrong one. Same reason `CameraPreviewView` overrides it.
  */
 @OptIn(ExperimentalForeignApi::class)
-private class VideoPlayerView(player: AVPlayer) : UIView(frame = CGRectZero.readValue()) {
+private class VideoPlayerView(player: AVPlayer, fit: OdoVideoFit) : UIView(frame = CGRectZero.readValue()) {
 
     private val playerLayer = AVPlayerLayer().apply {
         this.player = player
-        videoGravity = AVLayerVideoGravityResizeAspectFill
+        videoGravity = when (fit) {
+            OdoVideoFit.Fill -> AVLayerVideoGravityResizeAspectFill
+            OdoVideoFit.Fit -> AVLayerVideoGravityResizeAspect
+        }
     }
 
     init {
