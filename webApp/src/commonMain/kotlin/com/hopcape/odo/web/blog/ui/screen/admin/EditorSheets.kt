@@ -1,5 +1,7 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.resources.bl_publish_update_now
+import com.hopcape.odo.web.blog.domain.model.PostStatus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -279,9 +281,16 @@ private fun Overlay(
 @Composable
 private fun PublishSheet(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
     val colors = BlogThemeTokens.colors
+    // The same sheet does both jobs, and always has: the SEO fields are editable
+    // whatever the status, and the slug check skips the post's own row so
+    // re-publishing under its own URL is not a conflict. Only the wording ever said
+    // otherwise.
+    val republishing = state.status == PostStatus.PUBLISHED
     Overlay(onDismiss = { onEvent(EditorEvent.SheetDismissed) }, maxWidth = 560) {
         Text(
-            text = stringResource(Res.string.bl_publish_publish_now),
+            text = stringResource(
+                if (republishing) Res.string.bl_publish_update_now else Res.string.bl_publish_publish_now,
+            ),
             color = colors.text,
             style = MaterialTheme.typography.headlineMedium,
         )
@@ -346,7 +355,9 @@ private fun PublishSheet(state: EditorUiState, onEvent: (EditorEvent) -> Unit) {
                 enabled = !state.saving,
             )
             PillButton(
-                text = stringResource(Res.string.bl_publish_publish_now),
+                text = stringResource(
+                    if (republishing) Res.string.bl_publish_update_now else Res.string.bl_publish_publish_now,
+                ),
                 onClick = { onEvent(EditorEvent.PublishConfirmed) },
                 enabled = state.canPublish,
             )

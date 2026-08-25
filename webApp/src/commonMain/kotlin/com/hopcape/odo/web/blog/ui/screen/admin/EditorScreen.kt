@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.ui.screen.admin
 
+import com.hopcape.odo.web.blog.resources.bl_editor_update
 import com.hopcape.odo.web.blog.ui.component.rememberRemoteImage
 import com.hopcape.odo.web.blog.resources.bl_editor_image_eyebrow
 import com.hopcape.odo.web.blog.resources.bl_editor_image_caption_hint
@@ -351,7 +352,14 @@ private fun EditorBar(state: EditorUiState, onEvent: (EditorEvent) -> Unit, onBa
             enabled = state.dirty && !state.saving,
         )
         PillButton(
-            text = stringResource(Res.string.bl_editor_publish),
+            // "Publish" on something already published reads like it would make a
+            // second copy, so nobody opens it to fix a meta description. The button
+            // has always done the right thing; it just never said so.
+            text = if (state.status == PostStatus.PUBLISHED) {
+                stringResource(Res.string.bl_editor_update)
+            } else {
+                stringResource(Res.string.bl_editor_publish)
+            },
             onClick = { onEvent(EditorEvent.PublishTapped) },
             enabled = state.canPublish,
         )

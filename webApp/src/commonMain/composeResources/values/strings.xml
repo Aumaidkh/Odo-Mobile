@@ -157,6 +157,7 @@
     <string name="bl_editor_counts">%1$d words · %2$d min</string>
     <string name="bl_editor_preview">Preview</string>
     <string name="bl_editor_publish">Publish</string>
+    <string name="bl_editor_update">Update</string>
     <string name="bl_editor_bold">B</string>
     <string name="bl_editor_italic">I</string>
     <string name="bl_editor_h2">H2</string>
@@ -197,6 +198,7 @@
     <string name="bl_publish_google_preview">GOOGLE PREVIEW</string>
     <string name="bl_publish_save_draft">Save draft</string>
     <string name="bl_publish_publish_now">Publish now</string>
+    <string name="bl_publish_update_now">Update the published post</string>
     <string name="bl_publish_breadcrumb">odoapp.in › blog › %1$s</string>
 
     <!-- ── Admin · slug conflict ──────────────────────────────────────────── -->
