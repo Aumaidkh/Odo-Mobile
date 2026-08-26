@@ -27,6 +27,16 @@ fun ArticleBlock.editableText(): String = when (this) {
     is ArticleBlock.Callout -> runs.toMarkedText()
     // Its own fields are edited in the block, not as one string.
     is ArticleBlock.AppShowcase -> heading
+    // Nothing to edit; the block is the rule itself.
+    ArticleBlock.Divider -> ""
+    // One bullet per line, so the markers parse per item and a list is typed
+    // rather than assembled.
+    is ArticleBlock.BulletList -> items.joinToString("\n") { it.toMarkedText() }
+    // The picture is chosen, not typed; the caption is the only part with words.
+    is ArticleBlock.Image -> caption
+    // One row per line, cells split on a pipe — the shape people already type
+    // tables in, and it costs no grid UI.
+    is ArticleBlock.Table -> rows.joinToString("\n") { it.joinToString(" | ") }
 }
 
 /** The block that text describes, keeping whatever the block also carries. */
@@ -35,6 +45,17 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
     is ArticleBlock.Paragraph -> copy(runs = text.toRuns())
     is ArticleBlock.Callout -> copy(runs = text.toRuns())
     is ArticleBlock.AppShowcase -> copy(heading = text)
+    ArticleBlock.Divider -> this
+    // Blank lines are dropped: a stray newline is a keystroke, not an empty bullet.
+    is ArticleBlock.BulletList -> copy(
+        items = text.lines().filter { it.isNotBlank() }.map { it.toRuns() },
+    )
+    is ArticleBlock.Image -> copy(caption = text)
+    is ArticleBlock.Table -> copy(
+        rows = text.lines().filter { it.isNotBlank() }.map { row ->
+            row.split("|").map { it.trim() }
+        },
+    )
 }
 
 /**
@@ -47,6 +68,19 @@ fun ArticleBlock.withText(text: String): ArticleBlock = when (this) {
 enum class ShowcaseField { TITLE, BODY, CTA_LABEL, CTA_LINK, SCREENSHOT }
 
 /** One field of an action card, replaced. */
+/** The two things a picture needs that the picture itself cannot say. */
+enum class ImageField { ALT, CAPTION }
+
+fun ArticleBlock.Image.withField(field: ImageField, value: String): ArticleBlock.Image = when (field) {
+    ImageField.ALT -> copy(alt = value)
+    ImageField.CAPTION -> copy(caption = value)
+}
+
+fun ArticleBlock.Image.field(field: ImageField): String = when (field) {
+    ImageField.ALT -> alt
+    ImageField.CAPTION -> caption
+}
+
 fun ArticleBlock.AppShowcase.withField(field: ShowcaseField, value: String): ArticleBlock.AppShowcase =
     when (field) {
         ShowcaseField.TITLE -> copy(heading = value)
@@ -69,7 +103,7 @@ fun ArticleBlock.AppShowcase.field(field: ShowcaseField): String = when (field) 
 }
 
 /** What the toolbar can add. Not every block type — an image is placed, not typed. */
-enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION }
+enum class BlockKind { PARAGRAPH, HEADING, CALLOUT, ACTION, DIVIDER, BULLETS, TABLE }
 
 fun BlockKind.empty(): ArticleBlock = when (this) {
     BlockKind.PARAGRAPH -> ArticleBlock.Paragraph(emptyList())
@@ -85,6 +119,10 @@ fun BlockKind.empty(): ArticleBlock = when (this) {
         body = "",
         callToAction = "Download Odo",
     )
+    BlockKind.DIVIDER -> ArticleBlock.Divider
+    BlockKind.BULLETS -> ArticleBlock.BulletList(emptyList())
+    // Seeded with a header row: an empty grid gives no clue that | splits cells.
+    BlockKind.TABLE -> ArticleBlock.Table(rows = listOf(listOf("", "")))
 }
 
 /** The markers, in the order they have to be applied to nest correctly. */

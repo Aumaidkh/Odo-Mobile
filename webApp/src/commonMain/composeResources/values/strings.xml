@@ -27,7 +27,6 @@
     <!-- ── Shared ─────────────────────────────────────────────────────────── -->
     <string name="bl_reading_minutes">%1$d min read</string>
     <string name="bl_all">All</string>
-    <string name="bl_loading">One moment…</string>
     <string name="bl_error_offline">No connection.</string>
     <string name="bl_error_generic">This did not load.</string>
     <string name="bl_error_not_found">This page was not found.</string>
@@ -44,7 +43,6 @@
     <string name="bl_article_contents_count">Contents · %1$d sections</string>
     <string name="bl_article_read_next">READ NEXT</string>
     <string name="bl_article_cta_heading">Check your challans</string>
-    <string name="bl_action_eyebrow">SHOWN INSIDE THE ARTICLE</string>
     <string name="bl_action_screenshot_slot">screenshot slot — drop in a real capture before publishing</string>
 
     <!-- ── Category ───────────────────────────────────────────────────────── -->
@@ -158,12 +156,21 @@
     <string name="bl_editor_counts">%1$d words · %2$d min</string>
     <string name="bl_editor_preview">Preview</string>
     <string name="bl_editor_publish">Publish</string>
+    <string name="bl_editor_update">Update</string>
     <string name="bl_editor_bold">B</string>
     <string name="bl_editor_italic">I</string>
     <string name="bl_editor_h2">H2</string>
     <string name="bl_editor_h3">H3</string>
     <string name="bl_editor_callout">Callout</string>
     <string name="bl_editor_import">Import</string>
+    <string name="bl_editor_bullets">Bullets</string>
+    <string name="bl_editor_table">Table</string>
+    <string name="bl_editor_image_eyebrow">PICTURE</string>
+    <string name="bl_editor_image_alt">Alt text</string>
+    <string name="bl_editor_image_alt_hint">· what somebody who cannot see it is told</string>
+    <string name="bl_editor_image_caption">Caption</string>
+    <string name="bl_editor_image_caption_hint">· optional, shown under the picture</string>
+    <string name="bl_editor_divider">Divider</string>
     <string name="bl_editor_action_card">Action</string>
     <string name="bl_editor_discard">Discard</string>
     <string name="bl_editor_category">Category</string>
@@ -191,6 +198,7 @@
     <string name="bl_publish_google_preview">GOOGLE PREVIEW</string>
     <string name="bl_publish_save_draft">Save draft</string>
     <string name="bl_publish_publish_now">Publish now</string>
+    <string name="bl_publish_update_now">Update the published post</string>
     <string name="bl_publish_breadcrumb">odoapp.in › blog › %1$s</string>
 
     <!-- ── Admin · slug conflict ──────────────────────────────────────────── -->
@@ -229,8 +237,6 @@
     <string name="bl_media_limits">PNG or JPEG · up to 8 MB</string>
     <string name="bl_media_insert_heading">Insert image</string>
     <string name="bl_media_upload_new">Upload new</string>
-    <string name="bl_media_alt">Alt text</string>
-    <string name="bl_media_alt_hint">· for screen readers and search</string>
     <string name="bl_media_cancel">Cancel</string>
     <string name="bl_media_insert">Insert</string>
     <string name="bl_media_uploading">Uploading…</string>

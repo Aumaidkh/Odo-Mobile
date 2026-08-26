@@ -1,5 +1,7 @@
 package com.hopcape.odo.web.blog.ui.component
 
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +31,6 @@ import com.hopcape.odo.web.blog.domain.model.TextRun
 import com.hopcape.odo.web.blog.platform.PLAY_LISTING
 import com.hopcape.odo.web.blog.platform.openExternal
 import com.hopcape.odo.web.blog.resources.Res
-import com.hopcape.odo.web.blog.resources.bl_action_eyebrow
 import com.hopcape.odo.web.blog.resources.bl_action_screenshot_slot
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
@@ -52,6 +53,91 @@ fun ArticleBody(
     Column(modifier.fillMaxWidth()) {
         blocks.forEach { block ->
             when (block) {
+                // Its own margins, wider than a paragraph's, because the gap either
+                // side is what does the separating — the line only marks where.
+                is ArticleBlock.Table -> Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                ) {
+                    block.rows.forEachIndexed { rowIndex, row ->
+                        val header = block.hasHeader && rowIndex == 0
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            row.forEach { cell ->
+                                // Equal weights rather than measured columns: the widest
+                                // cell deciding the layout makes one long sentence squeeze
+                                // every other column to nothing.
+                                Text(
+                                    text = cell,
+                                    color = if (header) colors.text else colors.dim,
+                                    style = if (header) {
+                                        MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    } else {
+                                        MaterialTheme.typography.bodyMedium
+                                    },
+                                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                )
+                            }
+                        }
+                        // Under the header, and between rows. Not after the last one:
+                        // a rule with nothing below it reads as a missing row.
+                        if (rowIndex < block.rows.lastIndex) {
+                            HorizontalDivider(color = colors.border)
+                        }
+                    }
+                }
+
+                is ArticleBlock.Image -> {
+                    val picture = rememberRemoteImage(block.url)
+                    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                        if (picture != null) {
+                            Image(
+                                bitmap = picture,
+                                // The alt text, which is what it is for. Falling back to
+                                // the caption beats announcing nothing at all.
+                                contentDescription = block.alt.ifBlank { block.caption }.ifBlank { null },
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.FillWidth,
+                            )
+                        }
+                        if (block.caption.isNotBlank()) {
+                            Text(
+                                text = block.caption,
+                                color = colors.muted,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
+                }
+
+                is ArticleBlock.BulletList -> Column(
+                    modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    block.items.forEach { item ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            // A glyph and a fixed gutter rather than a text bullet in the
+                            // run: the marker must not wrap with the words, and a wrapped
+                            // second line has to line up under the first.
+                            Text(
+                                text = "\u2022",
+                                color = colors.dim,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.width(20.dp),
+                            )
+                            Text(
+                                text = item.annotated(),
+                                color = colors.text,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+
+                ArticleBlock.Divider -> HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 28.dp),
+                    color = colors.border,
+                )
+
                 is ArticleBlock.Section -> Text(
                     text = block.text,
                     color = colors.text,
@@ -142,7 +228,6 @@ private fun AppShowcase(block: ArticleBlock.AppShowcase) {
             .padding(horizontal = 28.dp, vertical = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Eyebrow(stringResource(Res.string.bl_action_eyebrow))
         Text(block.heading, color = colors.text, style = MaterialTheme.typography.headlineMedium)
         Text(block.body, color = colors.dim, style = MaterialTheme.typography.titleLarge)
         PillButton(

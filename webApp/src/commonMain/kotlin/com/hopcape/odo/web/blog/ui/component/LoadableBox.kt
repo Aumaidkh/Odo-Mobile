@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.presentation.state.Loadable
 import com.hopcape.odo.web.blog.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
-import com.hopcape.odo.web.blog.resources.bl_loading
 import com.hopcape.odo.web.blog.resources.bl_retry
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens
 import org.jetbrains.compose.resources.stringResource
@@ -25,9 +24,10 @@ import org.jetbrains.compose.resources.stringResource
  * of these each would grow its own spinner and its own error copy. Two of them
  * would then disagree.
  *
- * There is no spinner. A blog page resolves in one request and a spinner that
- * appears for 200ms reads as a flicker; a line of text that says the same thing
- * does not move, so it is calmer when it is brief and still honest when it is not.
+ * There is no spinner, for the reason there never was: one that shows for 200ms
+ * reads as a flicker. The wait is a skeleton instead — it holds the shape of what is
+ * coming, so nothing jumps when the content lands, and it says how much is coming,
+ * which the line of text it replaces could not.
  */
 @Composable
 fun <T> LoadableBox(
@@ -37,12 +37,7 @@ fun <T> LoadableBox(
     content: @Composable (T) -> Unit,
 ) {
     when (state) {
-        is Loadable.Loading -> Text(
-            text = stringResource(Res.string.bl_loading),
-            modifier = modifier.padding(vertical = 48.dp),
-            color = BlogThemeTokens.colors.muted,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        is Loadable.Loading -> LoadingSkeleton(modifier)
 
         is Loadable.Failed -> Column(
             modifier = modifier.fillMaxWidth().padding(vertical = 48.dp),

@@ -54,6 +54,11 @@ type Block = {
   cta?: string
   link?: string
   screenshot?: string | null
+  items?: Run[][]
+  alt?: string
+  caption?: string
+  rows?: string[][]
+  hasHeader?: boolean
 }
 type Post = {
   slug: string
@@ -104,6 +109,33 @@ const blockToHtml = (block: Block): string => {
       return `<p>${runsToHtml(block.runs)}</p>`
     case "section":
       return `<h2 id="${escape(block.id ?? "")}">${escape(block.text ?? "")}</h2>`
+    // Carries nothing, so there is nothing to escape.
+    case "table": {
+      const rows = block.rows ?? []
+      if (rows.length === 0) return ""
+      const head = block.hasHeader !== false
+      const cell = (c: string, i: number) =>
+        head && i === 0 ? `<th>${escape(c)}</th>` : `<td>${escape(c)}</td>`
+      const body = rows
+        .map((row, i) => `<tr>${row.map((c) => cell(c, i)).join("")}</tr>`)
+        .join("")
+      return `<table class="table">${body}</table>`
+    }
+    case "image": {
+      const src = (block.screenshot ?? "").trim()
+      if (!src) return ""
+      const caption = (block.caption ?? "").trim()
+      return `<figure class="figure">` +
+        `<img src="${escape(src)}" alt="${escape(block.alt ?? caption)}" loading="lazy">` +
+        (caption ? `<figcaption>${escape(caption)}</figcaption>` : "") +
+        `</figure>`
+    }
+    case "bullets":
+      return `<ul class="bullets">` +
+        (block.items ?? []).map((item) => `<li>${runsToHtml(item)}</li>`).join("") +
+        `</ul>`
+    case "divider":
+      return `<hr class="rule">`
     case "callout":
       return `<aside class="callout">` +
         `<p class="eyebrow warning">${escape(block.label ?? "")}</p>` +
@@ -113,7 +145,6 @@ const blockToHtml = (block: Block): string => {
       const href = (block.link ?? "").trim() || PLAY
       const shot = (block.screenshot ?? "").trim()
       return `<div class="action">` +
-        `<p class="eyebrow">SHOWN INSIDE THE ARTICLE</p>` +
         `<h3>${escape(block.heading ?? "")}</h3>` +
         `<p>${escape(block.body ?? "")}</p>` +
         `<p><a class="cta" href="${escape(href)}" rel="nofollow">${escape(block.cta ?? "")}</a></p>` +
@@ -130,6 +161,9 @@ const blockToHtml = (block: Block): string => {
 const wordsOf = (post: Post) =>
   post.body.map((block) =>
     block.type === "section" ? block.text ?? "" :
+    block.type === "table" ? (block.rows ?? []).flat().join(" ") :
+    block.type === "image" ? (block.caption ?? "") :
+    block.type === "bullets" ? (block.items ?? []).map((i) => i.map((r) => r.text).join("")).join(" ") :
     block.type === "showcase" ? `${block.heading ?? ""} ${block.body ?? ""}` :
     runsToText(block.runs)
   ).join(" ")
@@ -153,6 +187,17 @@ main{max-width:720px;margin:0 auto;padding:56px 24px 80px}
 .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
 margin:0 0 10px}
 .eyebrow.warning{color:var(--warning)}
+.rule{border:0;border-top:1px solid var(--border);margin:28px 0}
+.bullets{margin:8px 0 16px;padding-left:22px}
+.bullets li{margin:0 0 8px;color:var(--text)}
+.figure{margin:16px 0}
+.figure img{width:100%;border-radius:12px;display:block}
+.figure figcaption{margin-top:8px;color:var(--muted);font-size:14px}
+.table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px}
+.table th,.table td{text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--border)}
+.table th{color:var(--text);font-weight:600}
+.table td{color:var(--dim)}
+.table tr:last-child th,.table tr:last-child td{border-bottom:0}
 h1{font-size:44px;line-height:1.12;letter-spacing:-.02em;margin:0 0 16px}
 .dek{font-size:19px;color:var(--dim);margin:0 0 28px}
 .byline{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;
