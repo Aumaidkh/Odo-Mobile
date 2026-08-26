@@ -8,7 +8,6 @@ import androidx.compose.foundation.Image
 import com.hopcape.odo.feature.onboarding.presentation.components.accentGlow
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,11 +89,14 @@ internal fun WelcomeVideoScreen(
                 // the moment it leaves the viewport, which released its player — so coming
                 // back to page one re-buffered the clip from zero and started it again.
                 beyondViewportPageCount = 1,
-                // The clip's share of the screen lives on the pager, not inside the page.
-                // Sized inside it, the pager still took every spare pixel and the page
-                // filled a fraction of that — leaving the rest of the pager as a band of
-                // empty background between the clip and the copy.
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(ClipHeightFraction),
+                // The clip takes what is left after the copy, the dots and the CTA have
+                // been measured — it is the only part of this screen that can be any
+                // height. A fixed fraction of the screen was the bug: at 0.65 of a short
+                // phone the three fixed blocks below needed more room than the remaining
+                // 0.35, so the CTA was laid out past the bottom edge and could not be
+                // reached. Weight makes the clip the thing that gives way, which is right:
+                // it is decoration, and the button is the only way out of this screen.
+                modifier = Modifier.fillMaxWidth().weight(1f),
             ) { index ->
                 // Alive but paused when it is not the page being looked at. Kept alive so it
                 // does not re-buffer; paused so a clip nobody can see is not being decoded.
@@ -102,12 +104,6 @@ internal fun WelcomeVideoScreen(
             }
 
             PageCopy(pages[pagerState.settledPage])
-
-            // The slack the pager used to absorb. It sits here now, so the copy stays under
-            // the clip and the dots and CTA stay pinned to the bottom.
-            Spacer(Modifier.weight(1f))
-
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
 
             PageDots(count = pages.size, selected = pagerState.currentPage)
 
@@ -193,15 +189,11 @@ private fun PageCopy(page: VideoPage) {
             .fillMaxWidth()
             .padding(
                 horizontal = OdoTheme.spacing.screenEdge,
-                vertical = OdoTheme.spacing.xxl
+                vertical = OdoTheme.spacing.xl,
             ),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(
-            modifier = Modifier
-                .height(48.dp)
-        )
         OdoText(
             stringResource(page.title),
             style = OdoTheme.typography.title,
@@ -237,9 +229,6 @@ private fun PageDots(count: Int, selected: Int) {
     }
 }
 
-
-/** The clip's share of the screen height. The copy, dots and CTA divide what is left. */
-private const val ClipHeightFraction = 0.65f
 
 private val DotSelected = 10.dp
 private val DotIdle = 6.dp

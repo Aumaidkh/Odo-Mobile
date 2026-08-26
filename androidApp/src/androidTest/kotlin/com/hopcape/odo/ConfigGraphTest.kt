@@ -23,6 +23,11 @@ import org.koin.mp.KoinPlatform
  * The unit tests build two-module graphs, which proves the wiring they contain and nothing
  * about the other twenty-odd. A missing definition is a runtime failure, so compiling is
  * not evidence: this is what says the thing is actually wired.
+ *
+ * **The values here are the compiled defaults, not the console's.** [OdoTestRunner] pins
+ * every key before the first test runs. Without it these assertions would be about whatever
+ * Firebase Remote Config happened to hold that morning — which is how a growth experiment
+ * switched on for real users came to fail four unrelated suites in this repository.
  */
 @RunWith(AndroidJUnit4::class)
 class ConfigGraphTest {
@@ -77,15 +82,16 @@ class ConfigGraphTest {
 
     @Test
     fun theOnboardingVariantResolvesAndDefaultsToTheUsualFlow() {
-        // The video flow is not built, so false is the only answer that matches what the
-        // app actually does.
+        // The compiled default, which is what a fresh install shows before its first fetch
+        // lands and what it keeps forever if that fetch never does. Both intros are built
+        // and both work; this is only about which one an unreached device opens.
         assertEquals(false, koin.get<OnboardingConfig>().videoEnabled)
     }
 
     @Test
     fun bothFeatureFlagsReadTheirCompiledDefaults() {
-        // No console values are set for this project, so both answer with the default the
-        // declaration carries — which is what a fresh install with no network sees.
+        // Pinned by the runner, so this is the default the declaration carries — which is
+        // what a fresh install with no network sees.
         val config = koin.get<FeatureConfig>()
 
         assertTrue(config.autoOdometerEnabled)
@@ -94,8 +100,8 @@ class ConfigGraphTest {
 
     @Test
     fun theDebugOverrideStoreIsBound() {
-        // Debug builds only, and this suite is one. describe() reporting DEFAULT for every
-        // key also says nothing is overridden on this device right now.
+        // Debug builds only, and this suite is one — the runner could not have pinned
+        // anything otherwise, so every assertion above rests on this binding existing.
         val described = koin.get<ConfigResolver>().describeAll()
 
         assertEquals(12, described.size)

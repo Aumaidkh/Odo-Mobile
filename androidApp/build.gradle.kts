@@ -52,7 +52,9 @@ android {
         // On-device (instrumented) tests. The end-to-end onboarding test drives the real
         // app — real Koin graph, real SQLite, real navigation — so it has to run here
         // rather than on the JVM.
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Ours, not the stock one: it pins config to compiled defaults so the suite cannot be
+        // broken by a flag someone flips in the Remote Config console. See OdoTestRunner.
+        testInstrumentationRunner = "com.hopcape.odo.OdoTestRunner"
     }
 }
 

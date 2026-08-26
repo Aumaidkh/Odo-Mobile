@@ -19,6 +19,7 @@ import kotlinx.datetime.LocalDate
 import com.hopcape.odo.feature.profile.presentation.ProfileTestTags
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.Assert.assertEquals
@@ -38,24 +39,33 @@ import org.junit.Assert.assertNull
 @RunWith(AndroidJUnit4::class)
 class ProfileEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDevice() })
+        .around(rule)
 
     /**
      * Start every test from a set-up device.
      *
-     * The activity is recreated because the rule launches it before this runs, so it may
-     * have already read a previous test's data — and where the app opens is decided once
-     * per launch.
+     * Chained ahead of the launch rather than run from `@Before`, because where the app
+     * opens is decided once per launch: a test that started with no profile would be driving
+     * an app that had already gone to the welcome carousel.
      */
-    @Before
-    fun startFromASetUpDevice() {
+    private fun startFromASetUpDevice() {
         resetProfile()
         seedOnboardedOwner()
         // The plan is a process-scoped binding, so a test that switched Pro on would leave
         // it on for the next one. Every test starts free unless it says otherwise.
         setPlan(isPro = false)
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------------ Reading it back ------------------------------ */

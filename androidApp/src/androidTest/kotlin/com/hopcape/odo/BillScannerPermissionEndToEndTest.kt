@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -34,11 +35,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class BillScannerPermissionEndToEndTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
-    @Before
-    fun startOnASetUpDeviceWithNoCameraPermission() {
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startOnASetUpDeviceWithNoCameraPermission() })
+        .around(rule)
+
+    private fun startOnASetUpDeviceWithNoCameraPermission() {
         assumeFalse(
             "CAMERA is already granted for this install — uninstall the app and run this class first.",
             cameraPermissionGranted(),
@@ -46,7 +57,6 @@ class BillScannerPermissionEndToEndTest {
         resetScanner()
         seedOnboardedOwner()
         installDefaultScanning()
-        rule.activityRule.scenario.recreate()
     }
 
     @Test

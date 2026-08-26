@@ -13,7 +13,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import org.junit.rules.ExternalResource
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 
 /**
@@ -94,6 +96,49 @@ internal fun OdoTestRule.waitUntilPresent(text: String, timeoutMillis: Long = DE
 private fun OdoTestRule.onAllNodesWithTextCount(text: String): Int =
     onAllNodesWithText(text).fetchSemanticsNodes().size
 
+/**
+ * Put the device in a known state **before** the activity launches.
+ *
+ * Where the app opens is decided once per launch and then held, so a `@Before` cannot
+ * arrange it: the rule has already started the activity by the time `@Before` runs. Chain
+ * this outside the compose rule instead, and the first frame is drawn against the state the
+ * test asked for:
+ *
+ * ```
+ * private val rule = createAndroidComposeRule<MainActivity>()
+ *
+ * @get:Rule
+ * val chain: RuleChain = RuleChain.outerRule(DeviceState { clearTheOwnersRows() }).around(rule)
+ * ```
+ *
+ * This replaces the older habit of calling `scenario.recreate()` from `@Before`. That worked
+ * while the start destination lived in a plain `remember`; it stopped working when the gate's
+ * answer and the Nav3 back stack were both moved into saved state, because `recreate()` is a
+ * configuration change and a configuration change is now — correctly — the one kind of
+ * rebuild that puts the owner back exactly where they were.
+ */
+internal class DeviceState(private val prepare: () -> Unit) : ExternalResource() {
+    override fun before() = prepare()
+}
+
+/**
+ * Start the app again from nothing, and hand back the scenario so the caller can close it.
+ *
+ * The distinction this exists for: `scenario.recreate()` rebuilds the activity *from saved
+ * state*, which restores the back stack and the answer the start-destination gate gave last
+ * time. It is the right model for a rotation and the wrong one for "what would the app do on
+ * the next launch?" — the gate is never re-read, so the question is never actually asked.
+ * Launching a new activity leaves `savedInstanceState` null, which is what a cold start does.
+ *
+ * A true process death is still only verified by hand; this shares the process, so anything
+ * held in a singleton survives. What it does prove is the part that broke in the field: the
+ * gate reading persisted state and opening somewhere else.
+ */
+internal fun OdoTestRule.relaunchTheApp(): ActivityScenario<MainActivity> {
+    activityRule.scenario.close()
+    return ActivityScenario.launch(MainActivity::class.java)
+}
+
 /** The app opens on the pitch when nothing has been set up; step into the flow from there. */
 internal fun OdoTestRule.startFromWelcome() {
     waitForText(Copy.WELCOME_HEADLINE, START_DESTINATION_TIMEOUT_MILLIS)
@@ -161,4 +206,4 @@ internal fun OdoTestRule.onNodeWithLabel(label: String): SemanticsNodeInteractio
 private const val DEFAULT_TIMEOUT_MILLIS = 5_000L
 
 /** The first frame waits on a database read, and on a cold start also on the catalog seed. */
-private const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L
+internal const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L

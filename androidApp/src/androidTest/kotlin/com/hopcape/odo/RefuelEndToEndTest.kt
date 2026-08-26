@@ -1,7 +1,12 @@
 package com.hopcape.odo
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -14,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -44,23 +50,28 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RefuelEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromACarWithAFillBehindIt() })
+        .around(rule)
 
     /**
      * Start every test from a set-up device with a car, a reading and one previous fill.
-     *
-     * The activity is recreated because the rule launches it before this runs, so it may
-     * have already read a previous test's data.
      */
-    @Before
-    fun startFromACarWithAFillBehindIt() {
+    private fun startFromACarWithAFillBehindIt() {
         resetRefuel()
         seedRefuelOwner()
         seedRefuelHistory()
         seedRefuelOwnerRate()
-        rule.activityRule.scenario.recreate()
-        rule.waitForIdle()
     }
 
     @Test
@@ -145,12 +156,18 @@ class RefuelEndToEndTest {
         rule.onNodeWithTag(refuelTag("confirm_button")).performScrollTo().performClick()
         rule.waitForIdle()
 
-        // The success screen's own way through, which is how an owner would get there.
-        rule.onNodeWithText(RefuelCopy.LOGGED_VIEW_TIMELINE).performScrollTo().performClick()
+        // The success screen's own way through, which is how an owner would get there. No
+        // scrollTo: the success screen fits on one page and has no scrollable parent, so
+        // asking to scroll to the link throws instead of finding it already in view.
+        rule.onNodeWithText(RefuelCopy.LOGGED_VIEW_TIMELINE).performClick()
         rule.waitForIdle()
 
         // The row states the tank, not a service: 15 litres at the station carried forward.
-        rule.onNodeWithTag(TimelineTestTags.FUEL_ROW, useUnmergedTree = true)
+        // First of several on purpose — the seeded fill this one was predicted from is on the
+        // timeline too, so insisting on a single fuel row would be asserting that logging a
+        // fill replaced the history instead of adding to it. The newest is on top.
+        rule.onAllNodesWithTag(TimelineTestTags.FUEL_ROW, useUnmergedTree = true)
+            .onFirst()
             .assertIsDisplayed()
         rule.onNodeWithText(
             "${RefuelFixtures.EXPECTED_LITRES} L at ${RefuelFixtures.LAST_FILL_STATION} · Rs. 1,500",
@@ -167,13 +184,25 @@ class RefuelEndToEndTest {
     }
 
     private fun openLogFill() {
+        // Wait for Home before reaching into it. The card is drawn once the dashboard's first
+        // read lands, and on a cold start that is after the test's first frame — without this
+        // the suite passes or fails on whether the database beat the instrumentation.
+        rule.waitUntil(START_DESTINATION_TIMEOUT_MILLIS) {
+            rule.onAllNodesWithTag(HomeTestTags.LOG_FILL_BUTTON).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag(HomeTestTags.LOG_FILL_BUTTON).performScrollTo().performClick()
         rule.waitForIdle()
         rule.onNodeWithText(RefuelCopy.LOG_TITLE).assertIsDisplayed()
     }
 
     private fun typeAmountAndContinue() {
-        rule.onNodeWithTag(refuelTag("log_amount_field"))
+        // The tag sits on the amount component; the node that actually takes text is the
+        // BasicTextField inside it, so the editable node has to be matched within the tagged
+        // subtree. Aiming at the tag itself finds a node with no RequestFocus and the input
+        // is refused — the same reason OnboardingFlowRobot.typeInto is written this way.
+        rule.onNode(
+            hasSetTextAction() and hasAnyAncestor(hasTestTag(refuelTag("log_amount_field"))),
+        )
             .performScrollTo()
             .performTextInput(RefuelFixtures.AMOUNT_TYPED)
         rule.waitForIdle()
