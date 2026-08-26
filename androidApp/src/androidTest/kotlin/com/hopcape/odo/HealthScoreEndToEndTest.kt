@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.feature.healthscore.presentation.HealthScoreTestTags
 import org.junit.After

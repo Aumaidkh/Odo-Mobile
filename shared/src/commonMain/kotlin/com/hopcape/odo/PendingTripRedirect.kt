@@ -1,6 +1,6 @@
 package com.hopcape.odo
 
-import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.trip.model.TripId
 import com.hopcape.odo.core.navigation.OdoDestination
 
@@ -16,12 +16,13 @@ import com.hopcape.odo.core.navigation.OdoDestination
  * A plain function rather than logic inlined in `App.kt`'s `LaunchedEffect` so the rule is
  * unit-testable on its own — the effect itself only wires Compose state into it.
  *
- * Always false while [FeatureFlags.AUTO_ODOMETER_ENABLED] is off: 1.0 records no trips, and
+ * Always false while `auto_odometer_enabled` is off: nothing records trips then, and
  * a leftover row from an earlier build must not take over the screen.
  */
 internal fun shouldRedirectToTripLogged(
     currentDestination: OdoDestination?,
     pendingTripId: TripId?,
-): Boolean = FeatureFlags.AUTO_ODOMETER_ENABLED &&
+    config: FeatureConfig,
+): Boolean = config.autoOdometerEnabled &&
     pendingTripId != null &&
     currentDestination is OdoDestination.TopLevel

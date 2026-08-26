@@ -56,6 +56,7 @@ val garageModule = module {
             tracker = get(),
             trips = get(),
             clock = get(),
+            config = get(),
         )
     }
     factory { UpdateOdometerUseCase(cars = get(), logs = get(), clock = get()) }

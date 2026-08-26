@@ -7,10 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
-import com.hopcape.odo.core.common.FeatureFlags
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeFalse
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -57,9 +54,11 @@ import org.junit.runner.RunWith
  * to `app_settings`, and this repo has no real migrations yet — an already-installed debug
  * build keeps its old schema and every write to `app_settings` fails against it.
  *
- * **1.0 skips all of it.** Every flow below starts at the garage card, which
- * [FeatureFlags.AUTO_ODOMETER_ENABLED] hides, so each test is guarded by `assumeTrue` and
- * [theGarageShowsNoAutoOdometerCardWhileTheFeatureIsOff] is the one that runs instead.
+ * `auto_odometer_enabled` defaults to true, so every flow below runs. It used to be a
+ * compile-time `const`, which no test could set — so each one guarded itself with
+ * `assumeTrue` and only whichever half the build was compiled for ever ran. The off path is
+ * covered by `ObserveAutoOdometerCardStateTest`, which can now set the flag and asserts the
+ * slot stays hidden in every cell.
  */
 @RunWith(AndroidJUnit4::class)
 class AutoOdometerEndToEndTest {
@@ -68,22 +67,18 @@ class AutoOdometerEndToEndTest {
     val rule = createAndroidComposeRule<MainActivity>()
 
     /**
-     * Conditional on the flag, because 1.0's manifest declares none of these — and
-     * `GrantPermissionRule` fails outright on a permission the app under test never asked
-     * for, before any `assumeTrue` in a test body gets to skip it.
+     * Unconditional now. The manifest declares all four, because the feature ships — a
+     * remote flag can turn it off but cannot remove a manifest entry, so the permissions
+     * are there either way and `GrantPermissionRule` has something to grant.
      */
     @get:Rule
     val trackingPermissions: TestRule =
-        if (FeatureFlags.AUTO_ODOMETER_ENABLED) {
-            GrantPermissionRule.grant(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-            )
-        } else {
-            TestRule { base, _ -> base }
-        }
+        GrantPermissionRule.grant(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+        )
 
     /**
      * Start every test from a set-up device with a car, >= 2 manual readings (the garage
@@ -103,7 +98,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun theGarageCardOpensTheEducationScreen() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
 
@@ -117,7 +111,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun educationsCtaOpensTheDevicePickerWithTheFakeCatalogsDevice() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
         rule.tapAutoOdometerCard()
@@ -134,7 +127,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun pickingTheDeviceCompletesSetupAndTurnsTrackingOnFromTheGarage() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
         rule.tapAutoOdometerCard()
@@ -152,7 +144,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun settingsShowsTrackingOnAndTheEnrolledTriggerDevice() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
         rule.tapAutoOdometerCard()
@@ -173,7 +164,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun aSeededTripRedirectsToTripLogged_andDoneAdvancesPastTheScreen() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
 
@@ -193,7 +183,6 @@ class AutoOdometerEndToEndTest {
 
     @Test
     fun aSeededTripsRejectPathAsksToConfirm_andMarksItRejected() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
 
@@ -208,20 +197,4 @@ class AutoOdometerEndToEndTest {
         assertEquals("REJECTED", storedTripStatus(AutoOdometerFixtures.TRIP_ID))
     }
 
-    /* ------------------------------ What 1.0 ships instead ------------------------------ */
-
-    /**
-     * The twin of every test above. Same seeding — a car with enough manual readings to
-     * earn the pitch card — and the slot stays empty, so there is no first step to take.
-     */
-    @Test
-    fun theGarageShowsNoAutoOdometerCardWhileTheFeatureIsOff() {
-        assumeFalse(FeatureFlags.AUTO_ODOMETER_ENABLED)
-
-        rule.openGarage()
-        rule.awaitText(GarageCopy.HISTORY)
-
-        rule.onNodeWithText(AutoOdometerCopy.CARD_TITLE).assertDoesNotExist()
-        rule.onNodeWithText(AutoOdometerCopy.CARD_CTA).assertDoesNotExist()
-    }
 }

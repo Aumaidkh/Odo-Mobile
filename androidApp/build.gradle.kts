@@ -84,6 +84,8 @@ dependencies {
     // SyncScheduler/SyncReason — the foreground and reconnect triggers are wired to
     // ProcessLifecycleOwner and ConnectivityManager, both of which live only here.
     implementation(projects.core.sync)
+    // ConfigRefresher — the one config fetch, from the process-lifecycle observer.
+    implementation(projects.core.config)
     // tripTrackerAndroidModule is included from the Koin bootstrap here, same as
     // corePlatformAndroidModule above.
     implementation(projects.core.triptracker)
@@ -136,6 +138,8 @@ dependencies {
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.
     androidTestImplementation(projects.feature.garage)
+    // ConfigGraphTest — asserts the config system against the real application graph.
+    androidTestImplementation(projects.core.config)
     // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.
     androidTestImplementation(projects.feature.costTracker)
     // The health score's semantics tags, and its HealthFactorKind-keyed row tags.

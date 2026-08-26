@@ -37,6 +37,16 @@
     <string name="pf_start_pro">See plans</string>
     <string name="pf_preferences">PREFERENCES</string>
     <string name="pf_notifications">Notifications</string>
+    <string name="pf_config">Config &amp; flags (debug)</string>
+    <string name="pf_config_title">Config &amp; flags</string>
+    <string name="pf_config_reset_all">Reset all overrides</string>
+    <string name="pf_config_reset">Reset</string>
+    <string name="pf_config_source_override">Override</string>
+    <string name="pf_config_source_remote">Remote</string>
+    <string name="pf_config_source_default">Default</string>
+    <string name="pf_config_owner">Owner: %1$s</string>
+    <string name="pf_config_empty">No config keys are registered.</string>
+    <string name="pf_config_value_hint">Value</string>
     <string name="pf_units">Units &amp; currency</string>
     <string name="pf_appearance">Appearance</string>
     <!-- #234: clears the coach marks' seen record so the tips fire again in context. -->

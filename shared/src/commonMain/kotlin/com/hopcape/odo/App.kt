@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.component.OdoBanner
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
@@ -203,12 +204,13 @@ private fun OdoApp(startDestination: OdoDestination) {
     // navigation decision). `shouldRedirectToTripLogged` carries the actual guard so it
     // stays unit-testable outside this composable.
     val pendingTripLogged = koinInject<PendingTripLoggedProvider>()
+    val featureConfig = koinInject<FeatureConfig>()
     val pendingTripId by produceState<TripId?>(initialValue = null, pendingTripLogged) {
         pendingTripLogged.pending().collect { value = it }
     }
     LaunchedEffect(currentDestination, pendingTripId) {
         val tripId = pendingTripId
-        if (shouldRedirectToTripLogged(currentDestination, tripId)) {
+        if (shouldRedirectToTripLogged(currentDestination, tripId, featureConfig)) {
             navigationManager.navigateTo(OdoDestination.AutoOdometer.TripLogged(tripId!!.value))
         }
     }

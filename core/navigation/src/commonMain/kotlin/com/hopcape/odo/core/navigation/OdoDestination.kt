@@ -77,6 +77,18 @@ sealed interface OdoDestination : NavKey {
         /** Sign-out confirmation — shown as a sheet. */
         @Serializable
         data object SignOut : Profile
+
+        /**
+         * The QA config screen: every registered key, its resolved value, and which step
+         * of the resolution order answered.
+         *
+         * Registered in every build, reachable in none but debug — the row that opens it
+         * is behind `BuildInfo.isDebug`. Keeping the route registered rather than
+         * conditionally absent matches how the refuel routes are handled: unreachable,
+         * not removed.
+         */
+        @Serializable
+        data object ConfigOverrides : Profile
     }
 
     /**

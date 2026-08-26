@@ -34,7 +34,7 @@ import org.junit.runner.RunWith
  *
  * **What is deliberately not covered.** The pump-display reader and the payment-notification
  * listener: one needs a camera pointed at a lit pump, the other a permission this build does
- * not declare (`FeatureFlags.SMART_REFUEL_DETECT_ENABLED`). Their parsers are unit-tested, and
+ * not declare (see `FeatureConfig.refuelDetectEnabled`). Their parsers are unit-tested, and
  * the funnel they hand to is exactly what these tests drive.
  *
  * **Before running:** the database gained a migration for `entry_source`, so an install

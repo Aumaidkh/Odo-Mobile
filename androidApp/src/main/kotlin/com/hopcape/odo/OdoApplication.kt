@@ -28,6 +28,7 @@ import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
@@ -160,6 +161,13 @@ class OdoApplication : Application() {
                     // never throws, so there is nothing here for a crash to come from.
                     CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
                         KoinPlatform.getKoin().get<AppStatusProvider>().refresh()
+                        // The one fetch the config system does. Reads never fetch on
+                        // their own, so a screen reading three keys does not trigger
+                        // three round trips or see the answer change mid-frame. On a
+                        // cold start this callback is also launch, so the "once at
+                        // launch, again on foreground" rule needs no second call site.
+                        // refresh() never throws.
+                        KoinPlatform.getKoin().get<ConfigRefresher>().refresh()
                     }
                 }
 
