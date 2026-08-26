@@ -6,7 +6,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.document.model.DocumentType
@@ -256,17 +258,41 @@ internal fun HomeTestRule.awaitHomeLoaded() {
     }
 }
 
-internal fun HomeTestRule.tapSeeBreakdown() = onNodeWithTag(HomeTestTags.BREAKDOWN_LINK).performClick()
+/*
+ * Every tap brings its target into view first.
+ *
+ * Home is one long scroll and most of these sit below the fold. `performClick` does not
+ * scroll: it injects a tap at the node's centre, and for a node outside the viewport that
+ * centre is off-screen, so the gesture lands on nothing. Nothing throws — the node exists and
+ * the click is delivered — and the test fails several lines later on the destination screen
+ * never arriving, which is a long way from the cause.
+ *
+ * [scrollIntoView] rather than `performScrollTo` because not every one of these lives in the
+ * scroller: the empty-state cards are drawn in a box that fills the screen and has no scroll
+ * action at all, and asking to scroll inside it throws. "Already in view" and "scrolled into
+ * view" are the same outcome here, so the distinction is not worth making the caller carry.
+ */
+private fun SemanticsNodeInteraction.scrollIntoView(): SemanticsNodeInteraction = apply {
+    runCatching { performScrollTo() }
+}
 
-internal fun HomeTestRule.tapAttention() = onNodeWithTag(HomeTestTags.ATTENTION_CARD).performClick()
+internal fun HomeTestRule.tapSeeBreakdown() =
+    onNodeWithTag(HomeTestTags.BREAKDOWN_LINK).scrollIntoView().performClick()
 
-internal fun HomeTestRule.tapRecent() = onNodeWithTag(HomeTestTags.RECENT_ROW).performClick()
+internal fun HomeTestRule.tapAttention() =
+    onNodeWithTag(HomeTestTags.ATTENTION_CARD).scrollIntoView().performClick()
 
-internal fun HomeTestRule.tapTimelineLink() = onNodeWithTag(HomeTestTags.TIMELINE_LINK).performClick()
+internal fun HomeTestRule.tapRecent() =
+    onNodeWithTag(HomeTestTags.RECENT_ROW).scrollIntoView().performClick()
 
-internal fun HomeTestRule.tapScanFirstBill() = onNodeWithTag(HomeTestTags.SCAN_FIRST_BUTTON).performClick()
+internal fun HomeTestRule.tapTimelineLink() =
+    onNodeWithTag(HomeTestTags.TIMELINE_LINK).scrollIntoView().performClick()
 
-internal fun HomeTestRule.tapChecklistDocuments() = onNodeWithTag(HomeTestTags.CHECKLIST_DOCS).performClick()
+internal fun HomeTestRule.tapScanFirstBill() =
+    onNodeWithTag(HomeTestTags.SCAN_FIRST_BUTTON).scrollIntoView().performClick()
+
+internal fun HomeTestRule.tapChecklistDocuments() =
+    onNodeWithTag(HomeTestTags.CHECKLIST_DOCS).scrollIntoView().performClick()
 
 /* ------------------------------ Assertions ------------------------------ */
 

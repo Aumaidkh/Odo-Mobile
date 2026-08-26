@@ -73,7 +73,8 @@ internal object CostCopy {
 
     /* The owner's own rate. */
     const val RATE_ACTION = "Set your rate"
-    const val RATE_TITLE = "What do you pay for fuel?"
+    /** Note the ASCII apostrophe: this one string is written with \' in the resources. */
+    const val RATE_TITLE = "What's your fuel price per litre?"
     const val RATE_SAVE = "Save rate"
     const val RATE_CLEAR = "Use Odo’s estimate instead"
     const val RATE_ERROR_RANGE = "Enter a price between Rs. 1 and Rs. 1000"
