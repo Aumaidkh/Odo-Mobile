@@ -37,6 +37,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.OdoNavHost
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.rememberNavigator
+import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import com.hopcape.odo.feature.autoodometer.PendingTripLoggedProvider
 import com.hopcape.odo.feature.dashboard.presentation.shell.OdoAppScaffold
 import com.hopcape.odo.shared.resources.Res
@@ -119,6 +120,9 @@ fun App() {
  */
 @Composable
 private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
+    // Which onboarding a new install opens into. Read here because this is the composable
+    // that owns the start destination.
+    val onboardingConfig = koinInject<OnboardingConfig>()
     // Read once, not observed. A Flow would re-fire mid-session — the first sync that
     // touches the profile would re-evaluate the gate and could yank someone out of what
     // they were doing back to Welcome. Where the app *opened* is a question with one
@@ -152,7 +156,7 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
             when (val returning = onboarded) {
                 null -> StartupScreen()
                 else -> OdoApp(
-                    startDestination = if (returning) OdoDestination.Home else OdoDestination.Welcome,
+                    startDestination = onboardingStartDestination(returning, onboardingConfig),
                 )
             }
         }

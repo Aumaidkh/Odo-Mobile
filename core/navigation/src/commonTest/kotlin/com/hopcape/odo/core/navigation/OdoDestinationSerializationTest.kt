@@ -33,6 +33,9 @@ class OdoDestinationSerializationTest {
     private val allDestinations: List<OdoDestination> = listOf(
         OdoDestination.Home,
         OdoDestination.Welcome,
+        // The video intro is a start destination too, so a key it cannot write back is a
+        // first run that restarts itself on a dark-mode switch.
+        OdoDestination.WelcomeVideo,
         OdoDestination.Onboarding,
         OdoDestination.CarDetail(carId = "car-1"),
         OdoDestination.Paywall(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),

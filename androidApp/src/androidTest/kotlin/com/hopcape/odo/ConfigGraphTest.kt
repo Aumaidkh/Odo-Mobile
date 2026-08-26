@@ -7,6 +7,7 @@ import com.hopcape.odo.core.config.ConfigResolver
 import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.config.NoRemoteConfigSource
+import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
@@ -52,6 +53,10 @@ class ConfigGraphTest {
                 "support_email",
                 "auto_odometer_enabled",
                 "refuel_detect_enabled",
+                // Declared in :feature:onboarding — a third module contributing keys.
+                "onboarding_video_enabled",
+                "onboarding_video_refuel_url",
+                "onboarding_video_scanner_url",
             ),
             keys,
         )
@@ -71,6 +76,13 @@ class ConfigGraphTest {
     }
 
     @Test
+    fun theOnboardingVariantResolvesAndDefaultsToTheUsualFlow() {
+        // The video flow is not built, so false is the only answer that matches what the
+        // app actually does.
+        assertEquals(false, koin.get<OnboardingConfig>().videoEnabled)
+    }
+
+    @Test
     fun bothFeatureFlagsReadTheirCompiledDefaults() {
         // No console values are set for this project, so both answer with the default the
         // declaration carries — which is what a fresh install with no network sees.
@@ -86,7 +98,7 @@ class ConfigGraphTest {
         // key also says nothing is overridden on this device right now.
         val described = koin.get<ConfigResolver>().describeAll()
 
-        assertEquals(9, described.size)
+        assertEquals(12, described.size)
         assertTrue(described.all { it.key.owner.isNotBlank() && it.key.why.isNotBlank() })
     }
 }
