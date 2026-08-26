@@ -18,6 +18,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -46,8 +47,19 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class BillScannerEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startOnASetUpDeviceWithNothingScanned() })
+        .around(rule)
 
     @get:Rule
     val cameraPermission: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
@@ -58,18 +70,13 @@ class BillScannerEndToEndTest {
      *
      * The defaults are reinstalled per test because Koin's overrides are process-scoped: an
      * extractor one test put in front of the port would otherwise still be there for the next.
-     *
-     * The activity is recreated because the rule launches it before this runs, so it may
-     * already have read a previous test's data.
      */
-    @Before
-    fun startOnASetUpDeviceWithNothingScanned() {
+    private fun startOnASetUpDeviceWithNothingScanned() {
         Intents.init()
         resetScanner()
         seedOnboardedOwner()
         seedCapturedPhoto()
         installDefaultScanning()
-        rule.activityRule.scenario.recreate()
     }
 
     @After

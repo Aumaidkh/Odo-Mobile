@@ -10,6 +10,7 @@ import androidx.test.rule.GrantPermissionRule
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
@@ -63,8 +64,19 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AutoOdometerEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDevice() })
+        .around(rule)
 
     /**
      * Unconditional now. The manifest declares all four, because the feature ships — a
@@ -85,13 +97,11 @@ class AutoOdometerEndToEndTest {
      * card's own visibility rule, plan §1's convention) and nothing auto-odometer has
      * touched yet.
      */
-    @Before
-    fun startFromASetUpDevice() {
+    private fun startFromASetUpDevice() {
         resetAutoOdometer()
         seedOnboardedOwner()
         seedServiceHistory()
         installFakeBondedDeviceCatalog(listOf(defaultFakeDevice()))
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------------ Flow 1: garage card -> education ------------------------------ */

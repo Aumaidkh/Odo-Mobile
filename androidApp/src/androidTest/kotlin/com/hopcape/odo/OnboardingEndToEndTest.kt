@@ -10,8 +10,8 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
-import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
@@ -26,34 +26,40 @@ import org.koin.core.context.GlobalContext
  * broken: the ViewModel stored nothing and setup reappeared on every launch. The seam that
  * was missing sat *between* the units, which is exactly what no unit test can see.
  *
- * **On "relaunch":** an instrumented test shares a process with the app, so `recreate()` is
- * an Activity relaunch rather than process death. It proves the gate reads persisted state
+ * **On "relaunch":** an instrumented test shares a process with the app, so starting a new
+ * activity is a relaunch rather than process death. It proves the gate reads persisted state
  * and opens elsewhere, which is the behaviour under test; a true cold start is verified by
  * hand.
  */
 @RunWith(AndroidJUnit4::class)
 class OnboardingEndToEndTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
     /**
-     * Start every test from a device that has never been set up.
+     * Empty the owner's rows, then launch — in that order.
+     *
+     * The order is the whole point. Where the app opens is decided once per launch and then
+     * held in saved state, so a `@Before` is too late: the rule has already drawn a first
+     * frame against the previous test's data, and only a new activity asks the question
+     * again. Chaining [DeviceState] outside the compose rule moves the reset in front of the
+     * launch.
      *
      * The rows go rather than the file: the database is a process-wide singleton with an
      * open connection, so deleting the file underneath it would leave that connection
      * writing to an unlinked inode while reads still served stale data. The seeded catalog
      * is left alone — it is reference data, not the owner's.
      */
-    @Before
-    fun startFromAnUnsetUpDevice() {
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { clearTheOwnersRows() })
+        .around(rule)
+
+    /** Everything the owner has, and nothing that was seeded as reference data. */
+    private fun clearTheOwnersRows() {
         val driver = GlobalContext.get().get<SqlDriver>()
         driver.execute(null, "DELETE FROM cars", 0)
         driver.execute(null, "DELETE FROM profiles", 0)
-        // The rule launches the activity *before* this runs, so by now it may already have
-        // read a previous test's data and opened on Home. Recreating it re-runs the
-        // start-destination gate against the tables we just emptied.
-        rule.activityRule.scenario.recreate()
     }
 
     @Test
@@ -83,11 +89,14 @@ class OnboardingEndToEndTest {
         // because by now there is something concrete worth backing up.
         rule.waitForText(Copy.AUTH_TITLE)
 
-        // The point of the whole flow: it does not happen twice.
-        rule.activityRule.scenario.recreate()
-        rule.waitForText(Copy.HOME_SCORE_WAITING)
-        rule.onNodeWithText(Copy.WELCOME_HEADLINE).assertDoesNotExist()
-        rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
+        // The point of the whole flow: it does not happen twice. A new activity rather than
+        // recreate(), because only a launch with no saved state re-asks the gate — see
+        // relaunchTheApp.
+        rule.relaunchTheApp().use {
+            rule.waitForText(Copy.HOME_SCORE_WAITING, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.onNodeWithText(Copy.WELCOME_HEADLINE).assertDoesNotExist()
+            rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
+        }
     }
 
     /**

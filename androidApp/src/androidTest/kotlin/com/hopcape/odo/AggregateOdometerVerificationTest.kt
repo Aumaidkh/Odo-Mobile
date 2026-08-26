@@ -10,6 +10,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.feature.garage.presentation.GarageTestTags
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 
@@ -23,16 +24,30 @@ import org.koin.core.context.GlobalContext
 @RunWith(AndroidJUnit4::class)
 class AggregateOdometerVerificationTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * The car exists before the activity does — 40,000 km is the baseline everything below
+     * is measured from.
+     *
+     * Seeding from inside the test and calling `recreate()` used to do this. It cannot any
+     * more: where the app opens is read once per launch and held in saved state, so a
+     * configuration change restores the answer instead of re-asking, and the garage this
+     * test opens is only reachable from Home.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(
+            DeviceState {
+                resetAutoOdometer()
+                seedOnboardedOwner()
+            },
+        )
+        .around(rule)
 
     @Test
     fun sameDayTripAfterAManualOdometerUpdate_addsOnTop() {
         // Half of this is the trip-logged redirect, which 1.0 does not have.
-        resetAutoOdometer()
-        seedOnboardedOwner() // baseline: 40,000 km
-        rule.activityRule.scenario.recreate()
-
         rule.openGarage()
         rule.awaitText(GarageCopy.HISTORY)
         rule.openOdometerSheet()

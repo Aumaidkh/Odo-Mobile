@@ -21,6 +21,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
@@ -61,8 +62,19 @@ import org.koin.core.context.GlobalContext
 @RunWith(AndroidJUnit4::class)
 class AutoOdometerTrackingBugsTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDevice() })
+        .around(rule)
 
     /** Same shape as [AutoOdometerEndToEndTest] — see its KDoc. */
     @get:Rule
@@ -74,8 +86,7 @@ class AutoOdometerTrackingBugsTest {
             Manifest.permission.ACCESS_BACKGROUND_LOCATION,
         )
 
-    @Before
-    fun startFromASetUpDevice() {
+    private fun startFromASetUpDevice() {
         // Before resetAutoOdometer(): reset resolves TripTracker, which constructs the
         // engine, which captures its LocationProvider — the scripted one must already be
         // the bound one by then.
@@ -84,7 +95,6 @@ class AutoOdometerTrackingBugsTest {
         seedOnboardedOwner()
         seedServiceHistory()
         installFakeBondedDeviceCatalog(listOf(defaultFakeDevice()))
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------ Report 1: stereo connect must auto-start ------------------------ */
