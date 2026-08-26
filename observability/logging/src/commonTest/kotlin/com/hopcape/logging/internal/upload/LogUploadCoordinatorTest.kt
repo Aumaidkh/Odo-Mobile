@@ -1,5 +1,6 @@
 package com.hopcape.logging.internal.upload
 
+import com.hopcape.logging.FakeDiagnosticRequests
 import com.hopcape.logging.FakeLogUploadTarget
 import com.hopcape.logging.RecordingLogger
 import com.hopcape.logging.api.LogFileStats
@@ -183,5 +184,52 @@ class LogUploadCoordinatorTest {
 
         assertEquals("upload_pass.done", logger.entries.last().event)
         assertEquals("Skipped", logger.entries.last().fields["outcome"])
+    }
+
+    @Test
+    fun uploadPending_withAnOpenRequest_filesEveryFileUnderItsReference() = runTest {
+        sealFile()
+        sealFile()
+        val target = FakeLogUploadTarget()
+        val requests = FakeDiagnosticRequests("ODO-AB12-CD34")
+        val coordinator = LogUploadCoordinator(RecordingLogger(), store, target, requests)
+
+        coordinator.uploadPending(isManual = true)
+
+        // A request means "the logs as they stood when I asked", which is every sealed file
+        // the device is still holding — not just the newest one.
+        assertEquals(listOf<String?>("ODO-AB12-CD34", "ODO-AB12-CD34"), target.references)
+        assertEquals(listOf("ODO-AB12-CD34"), requests.delivered)
+    }
+
+    @Test
+    fun uploadPending_leavingAFileBehind_doesNotCloseTheRequest() = runTest {
+        sealFile()
+        val requests = FakeDiagnosticRequests("ODO-AB12-CD34")
+        val coordinator = LogUploadCoordinator(
+            RecordingLogger(),
+            store,
+            FakeLogUploadTarget { LogUploadResult.RETRY },
+            requests,
+        )
+
+        coordinator.uploadPending(isManual = true)
+
+        // Closing it here would tell support the logs are there while they are still on the
+        // phone — the exact failure the reference exists to prevent.
+        assertTrue(requests.delivered.isEmpty())
+        assertEquals(1, requests.failed.size)
+    }
+
+    @Test
+    fun uploadPending_withNoOpenRequest_uploadsWithNoReference() = runTest {
+        sealFile()
+        val target = FakeLogUploadTarget()
+        val coordinator = LogUploadCoordinator(RecordingLogger(), store, target, FakeDiagnosticRequests())
+
+        coordinator.setAutoUploadConsent(granted = true)
+        coordinator.uploadPending(isManual = false)
+
+        assertEquals(listOf<String?>(null), target.references)
     }
 }

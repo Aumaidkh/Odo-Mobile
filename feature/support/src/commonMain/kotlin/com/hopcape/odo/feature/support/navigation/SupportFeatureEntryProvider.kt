@@ -1,10 +1,14 @@
 package com.hopcape.odo.feature.support.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import com.hopcape.logging.api.LogUploadScheduler
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.domain.support.SupportContacts
 import com.hopcape.odo.core.designsystem.component.ODO_MAX_STARS
@@ -20,7 +24,10 @@ import com.hopcape.odo.core.platform.mail.MailDraft
 import com.hopcape.odo.core.platform.mail.rememberMailComposer
 import com.hopcape.odo.core.platform.store.rememberStoreRater
 import com.hopcape.odo.core.platform.share.rememberTextSharer
+import com.hopcape.odo.feature.support.domain.RequestDiagnosticsUseCase
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
+import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsPrompt
+import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsPromptSheets
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
 import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
 import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
@@ -31,6 +38,7 @@ import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_email
 import com.hopcape.odo.feature.support.resources.sp_email_body
 import com.hopcape.odo.feature.support.resources.sp_email_subject
+import com.hopcape.odo.feature.support.resources.sp_fb_diagnostics_line
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_body
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_subject
@@ -49,7 +57,9 @@ import com.hopcape.odo.feature.support.resources.sp_rate
 import com.hopcape.odo.feature.support.resources.sp_rate_subject
 import com.hopcape.odo.feature.support.resources.sp_report
 import com.hopcape.odo.feature.support.resources.sp_terms
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -70,7 +80,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 internal class SupportFeatureEntryProvider(
     private val navigationManager: NavigationManager,
-    private val logUploadScheduler: LogUploadScheduler,
+    private val requestDiagnostics: RequestDiagnosticsUseCase,
     private val appInfo: AppInfo,
     private val deviceInfo: DeviceInfo,
     private val legalLinks: LegalLinks,
@@ -90,6 +100,11 @@ internal class SupportFeatureEntryProvider(
             // Blank means the build has no backend configured, and there is no Terms page to
             // open. The chip is left out rather than opening nothing.
             val termsUrl = legalLinks.termsOfUse.takeIf { it.isNotBlank() }
+
+            val scope = rememberCoroutineScope()
+            // The sheet stays where it is while this is asked and answered: the question is
+            // about a row on it, and popping first would make the answer arrive on Profile.
+            var prompt: DiagnosticsPrompt by remember { mutableStateOf(DiagnosticsPrompt.Hidden) }
 
             HelpSupportSheetContent(
                 supportEmail = supportEmail,
@@ -120,11 +135,18 @@ internal class SupportFeatureEntryProvider(
                 onTerms = termsUrl?.let { url -> { uriHandler.openUri(url) } },
                 onPrivacy = { nm.navigateTo(OdoDestination.Support.Privacy) },
                 onLicences = { nm.navigateTo(OdoDestination.Support.Licences) },
-                // "Send diagnostics" (docs/LOGGING_PLAN.md §9): queues an upload of whatever
-                // is logged so far, regardless of auto-upload consent — an explicit tap here
-                // is exactly what D3 (plan §1) means by "manual always available". Fire and
-                // forget: WorkManager owns the retry, and the row has nothing further to show.
-                onSendDiagnostics = { logUploadScheduler.requestUploadNow() },
+                // "Send diagnostics" (docs/LOGGING_PLAN.md §9): asks first, then queues an
+                // upload of whatever is logged so far, regardless of auto-upload consent — an
+                // explicit tap here is exactly what D3 (plan §1) means by "manual always
+                // available". It asks because the tap sends data off the phone, and it answers
+                // with a reference code because an upload nobody can quote is an orphan.
+                onSendDiagnostics = { prompt = DiagnosticsPrompt.Asking },
+            )
+
+            DiagnosticsPromptSheets(
+                prompt = prompt,
+                onConfirm = { scope.launch { prompt = DiagnosticsPrompt.Queued(requestDiagnostics()) } },
+                onDismiss = { prompt = DiagnosticsPrompt.Hidden },
             )
         }
 
@@ -135,6 +157,9 @@ internal class SupportFeatureEntryProvider(
                 intro = Res.string.sp_fb_report_intro,
                 subject = Res.string.sp_fb_report_subject,
                 body = Res.string.sp_fb_report_body,
+                // The only form that offers logs. An idea and a wrong benchmark have nothing
+                // in a log file worth reading.
+                attachDiagnostics = true,
             )
         }
         entry<OdoDestination.Support.SuggestIdea> {
@@ -206,26 +231,43 @@ internal class SupportFeatureEntryProvider(
         intro: StringResource,
         subject: StringResource,
         body: StringResource,
+        attachDiagnostics: Boolean = false,
     ) {
         val composeMail = rememberMailComposer()
         val supportAddress = supportContacts.email
         val subjectText = stringResource(subject)
         val footer = mailFooter()
+        val scope = rememberCoroutineScope()
 
         FeedbackScreen(
             title = stringResource(title),
             intro = stringResource(intro),
             template = stringResource(body),
             onBack = { nm.back() },
-            onSend = { message ->
-                nm.back()
-                composeMail(
-                    MailDraft(
-                        to = supportAddress,
-                        subject = subjectText,
-                        body = "$message\n\n$footer",
-                    ),
-                )
+            showAttachDiagnostics = attachDiagnostics,
+            onSend = { message, attach ->
+                // The form is popped inside the coroutine, after the composer has been asked
+                // for: leaving composition cancels this scope, so popping first would cancel
+                // the request that produces the reference in the draft.
+                scope.launch {
+                    val diagnosticsLine = if (attach) {
+                        getString(Res.string.sp_fb_diagnostics_line, requestDiagnostics())
+                    } else {
+                        null
+                    }
+                    // The reference goes under the build and device line, not into the
+                    // owner's own words: it is one more fact about the phone, and support
+                    // reads the whole footer as a block.
+                    val fullFooter = if (diagnosticsLine == null) footer else "$footer\n$diagnosticsLine"
+                    composeMail(
+                        MailDraft(
+                            to = supportAddress,
+                            subject = subjectText,
+                            body = "$message\n\n$fullFooter",
+                        ),
+                    )
+                    nm.back()
+                }
             },
         )
     }

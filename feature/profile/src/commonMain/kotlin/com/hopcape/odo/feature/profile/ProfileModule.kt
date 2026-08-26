@@ -56,7 +56,15 @@ val profileModule = module {
     }
     factory { SetAvatarUseCase(profiles = get(), files = get()) }
     factory {
-        DeleteAllDataUseCase(cars = get(), profiles = get(), settings = get(), files = get(), showcaseSeen = get())
+        DeleteAllDataUseCase(
+            cars = get(),
+            profiles = get(),
+            settings = get(),
+            files = get(),
+            showcaseSeen = get(),
+            // The diagnostics outbox, bound by databaseInfrastructureModule.
+            diagnosticRequests = get(),
+        )
     }
     factory { UpdatePrivacyUseCase(settings = get(), profiles = get(), trips = get()) }
     factory {

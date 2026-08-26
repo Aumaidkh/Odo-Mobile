@@ -1,0 +1,61 @@
+-- Diagnostics requests the owner has made — "send my logs", one row each.
+--
+-- **This table is what makes the reference code true.** The request and the upload happen at
+-- different times: somebody taps send with no signal, WorkManager runs hours later, and the
+-- process has died in between. The code printed in their support mail has to outlive all of
+-- that, so it is written here the moment it is shown, and the upload pass reads it back.
+--
+-- Device-local, like `pending_fills`: no sync columns, and none should be added. A request is
+-- something this phone owes the server, not part of the owner's record. It is also why the
+-- row is kept after delivery rather than deleted — support may ask about a code weeks later,
+-- and `deleteDeliveredBefore` is what stops the table growing forever.
+CREATE TABLE diagnostic_requests (
+    -- The code the owner was shown, e.g. `ODO-AB12-CD34` (DiagnosticReference).
+    reference  TEXT NOT NULL PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    -- OPEN until every file the device was holding has been delivered, then DELIVERED.
+    state      TEXT NOT NULL,
+    -- How many upload passes have tried and left something behind. Read when a request never
+    -- completes: a code with twenty attempts is a delivery problem, not a missing tap.
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+
+CREATE INDEX idx_diagnostic_requests_open ON diagnostic_requests (created_at) WHERE state = 'OPEN';
+
+-- INSERT OR IGNORE: the same reference twice is the same request. It cannot reopen one that
+-- has already been delivered, which is what a retry of the enqueue step would otherwise do.
+openRequest:
+INSERT OR IGNORE INTO diagnostic_requests (reference, created_at, state, attempts, last_error)
+VALUES (:reference, :createdAt, 'OPEN', 0, NULL);
+
+-- Oldest first: the request that has been waiting longest is the one somebody is chasing.
+selectOldestOpen:
+SELECT reference
+FROM diagnostic_requests
+WHERE state = 'OPEN'
+ORDER BY created_at
+LIMIT 1;
+
+markDelivered:
+UPDATE diagnostic_requests
+SET state = 'DELIVERED', last_error = NULL
+WHERE reference = :reference;
+
+recordFailedAttempt:
+UPDATE diagnostic_requests
+SET attempts = attempts + 1, last_error = :lastError
+WHERE reference = :reference;
+
+-- How many requests this device is still holding, in any state. Read by the retention test;
+-- nothing in the app branches on it.
+countRequests:
+SELECT COUNT(*)
+FROM diagnostic_requests;
+
+deleteDeliveredBefore:
+DELETE FROM diagnostic_requests
+WHERE state = 'DELIVERED' AND created_at < :before;
+
+deleteAllRequests:
+DELETE FROM diagnostic_requests;

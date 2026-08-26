@@ -305,6 +305,48 @@ class ProfileEndToEndTest {
     }
 
     @Test
+    fun helpSheet_offersSendDiagnostics_asksFirst_andAnswersWithACode() {
+        rule.openProfile()
+        rule.openHelpSheet()
+
+        // A real row now. It used to be a hidden tap on the version caption, which was
+        // neither a 48dp target nor anything TalkBack announced as a control — and the
+        // caption said "copy" while the tap uploaded.
+        rule.onNodeWithText(SupportCopy.DIAGNOSTICS).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText(SupportCopy.DIAGNOSTICS_SUBTITLE).assertExists()
+
+        rule.onNodeWithText(SupportCopy.DIAGNOSTICS).performClick()
+        rule.awaitTextContaining(SupportCopy.DIAGNOSTICS_CONFIRM_TITLE)
+
+        rule.onNodeWithText(SupportCopy.DIAGNOSTICS_CONFIRM_SEND).performClick()
+        rule.awaitTextContaining(SupportCopy.DIAGNOSTICS_QUEUED_TITLE)
+        // The code is the whole point: an upload nobody can quote is an orphan.
+        rule.onNodeWithText(SupportCopy.DIAGNOSTICS_REFERENCE_PREFIX, substring = true).assertExists()
+    }
+
+    @Test
+    fun reportAProblem_offersToAttachLogs() {
+        rule.openProfile()
+        rule.openHelpSheet()
+        rule.openFromHelpSheet(SupportCopy.REPORT, SupportCopy.REPORT_TEMPLATE_HEADING)
+
+        // Ticked by default: a report without logs is the one support has to answer with
+        // "can you send us diagnostics", which costs the owner another round trip.
+        rule.onNodeWithText(SupportCopy.ATTACH_DIAGNOSTICS).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun suggestAnIdea_doesNotOfferToAttachLogs() {
+        rule.openProfile()
+        rule.openHelpSheet()
+        rule.openFromHelpSheet(SupportCopy.IDEA, SupportCopy.IDEA_TEMPLATE_HEADING)
+
+        // Logs say nothing about a feature request, so asking for them here would be
+        // collecting data nobody would open.
+        rule.onNodeWithText(SupportCopy.ATTACH_DIAGNOSTICS).assertDoesNotExist()
+    }
+
+    @Test
     fun helpSheet_noLongerOffersChatOrTickets() {
         rule.openProfile()
         rule.openHelpSheet()
