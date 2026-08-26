@@ -16,6 +16,7 @@ import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.crashreporting.api.CrashConfig
 import com.hopcape.crashreporting.api.CrashReporter
+import com.hopcape.odo.core.platform.app.InstallationId
 import com.hopcape.logging.api.FileLoggingConfig
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
@@ -123,7 +124,16 @@ class OdoApplication : Application() {
             androidContext(this@OdoApplication)
         }
 
-        HLogger.tag("APP_LIFECYCLE").i("process_created", mapOf("appSessionId" to appSessionId))
+        // One id per installation, on both signals that can carry it. It is the first thing
+        // read when a support ticket quotes a reference: the log file says which phone wrote
+        // it, and a crash from the same phone lines up with it (docs/LOGGING_PLAN.md §7.3).
+        val installationId = KoinPlatform.getKoin().get<InstallationId>().value
+        CrashReporter.setCustomKey(KEY_INSTALL_ID, installationId)
+
+        HLogger.tag("APP_LIFECYCLE").i(
+            "process_created",
+            mapOf("appSessionId" to appSessionId, KEY_INSTALL_ID to installationId),
+        )
 
         // D3 (docs/LOGGING_PLAN.md §1): auto-upload is opt-in in release; debug/internal
         // builds start granted so the periodic path can be exercised without a manual consent
@@ -376,5 +386,11 @@ class OdoApplication : Application() {
         //  here so the acquisition funnel is observable during development; before
         //  launch, drive setConsent() from the user's recorded consent decision.
         HAnalytics.setConsent(ConsentStatus.GRANTED)
+    }
+
+    private companion object {
+        /** The Crashlytics key and log field the installation id is written under. Same
+         *  string on both, so one search covers a crash and the log file around it. */
+        const val KEY_INSTALL_ID = "install_id"
     }
 }

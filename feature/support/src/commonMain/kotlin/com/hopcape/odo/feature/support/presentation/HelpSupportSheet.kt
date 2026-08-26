@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.support.presentation
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -23,12 +22,15 @@ import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcEnvelope
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcMagnifier
+import com.hopcape.odo.core.designsystem.icons.IcSend
 import com.hopcape.odo.core.designsystem.icons.IcPencil
 import com.hopcape.odo.core.designsystem.icons.IcStarFilled
 import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.support.resources.Res
 import com.hopcape.odo.feature.support.resources.sp_close
+import com.hopcape.odo.feature.support.resources.sp_diag
+import com.hopcape.odo.feature.support.resources.sp_diag_sub
 import com.hopcape.odo.feature.support.resources.sp_email
 import com.hopcape.odo.feature.support.resources.sp_faqs
 import com.hopcape.odo.feature.support.resources.sp_flag
@@ -56,8 +58,9 @@ import org.jetbrains.compose.resources.stringResource
  * shown as a bottom-sheet destination from Profile's "Help & support" row.
  *
  * Every row is a navigation affordance and nothing else — this sheet holds no state and
- * makes no decision; each callback pushes the row's own destination. The sheet chrome
- * (drag handle, scrim, swipe-to-dismiss) comes from the navigation layer.
+ * makes no decision; each callback pushes the row's own destination, and [onSendDiagnostics]
+ * asks the caller to put the confirmation up. The sheet chrome (drag handle, scrim,
+ * swipe-to-dismiss) comes from the navigation layer.
  *
  * The support address is passed in rather than read from a resource — it is configured
  * remotely, so it is not a constant this file could hold.
@@ -97,6 +100,18 @@ internal fun HelpSupportSheetContent(
                 // remotely, and a row naming the wrong mailbox is worse than one naming none.
                 subtitle = supportEmail,
                 onClick = onEmail,
+            )
+            OdoDivider()
+            // A real row, 48dp and readable by TalkBack, instead of the hidden tap that used
+            // to sit on the version line. The subtitle demotes it deliberately: logs with no
+            // ticket behind them are an orphan upload, so the path that matters is "Report a
+            // problem", and this is here for when an agent asks for them directly.
+            SupportRow(
+                icon = IcSend,
+                title = stringResource(Res.string.sp_diag),
+                subtitle = stringResource(Res.string.sp_diag_sub),
+                onClick = onSendDiagnostics,
+                iconTint = OdoTheme.colors.textDim,
             )
         }
 
@@ -157,7 +172,7 @@ internal fun HelpSupportSheetContent(
             OdoChip(stringResource(Res.string.sp_licences), onClick = onLicences)
         }
 
-        VersionFooter(versionName = versionName, versionCode = versionCode, onClick = onSendDiagnostics)
+        VersionFooter(versionName = versionName, versionCode = versionCode)
     }
 }
 
@@ -215,14 +230,18 @@ private fun SearchBox(onClick: () -> Unit) {
 }
 
 /**
- * Version + build line; tapping it sends the current session's logs for a support ticket.
+ * Version + build line. A label, and nothing else.
  *
- * The build number is shown on every build type, which is the one place Odo does that. It
- * sits directly above the diagnostics tap, and an agent reading a ticket needs to know
- * which build produced the logs — the version name alone does not say.
+ * The build number is shown on every build type, which is the one place Odo does that: an
+ * agent reading a ticket needs to know which build produced it, and the version name alone
+ * does not say.
+ *
+ * It used to be tappable and used to send diagnostics. That failed twice over — the copy
+ * said "copy" while the tap uploaded, and a hidden tap on a 12sp caption is neither a 48dp
+ * target nor anything TalkBack announces as a control. The action is a row above now.
  */
 @Composable
-private fun VersionFooter(versionName: String, versionCode: Long, onClick: () -> Unit) {
+private fun VersionFooter(versionName: String, versionCode: Long) {
     OdoText(
         stringResource(Res.string.sp_version, versionName, versionCode.toString()),
         style = OdoTheme.typography.caption,
@@ -230,7 +249,6 @@ private fun VersionFooter(versionName: String, versionCode: Long, onClick: () ->
         textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(vertical = OdoTheme.spacing.sm),
     )
 }

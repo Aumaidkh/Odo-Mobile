@@ -1,7 +1,9 @@
 package com.hopcape.odo.core.platform
 
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.DefaultsInstallationId
 import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.app.InstallationId
 import com.hopcape.odo.core.platform.app.IosDeviceInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -65,6 +67,9 @@ val corePlatformIosModule = module {
     // No still-image reader on iOS yet — the live preview is the only way in. Answering
     single<AppInfo> { IosAppInfo() }
     single<DeviceInfo> { IosDeviceInfo() }
+
+    // One id per installation — the iOS half of the same diagnostics grouping key.
+    single<InstallationId> { DefaultsInstallationId() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
     single<NotificationAccess> { IosNotificationAccess() }
     single<DetectedFillNotifier> { IosDetectedFillNotifier() }

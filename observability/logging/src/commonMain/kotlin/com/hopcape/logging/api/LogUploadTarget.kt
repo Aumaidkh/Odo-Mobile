@@ -14,8 +14,13 @@ interface LogUploadTarget {
      * Uploads one sealed file. [file] carries its name, size, open/seal times and level
      * counts (§6.4) — enough for the target to build a server-side index row without
      * inspecting [bytes] itself (see `log_uploads`, plan §7.3).
+     *
+     * [reference] is the diagnostics code the owner was shown, when this file is part of a
+     * request they made ([DiagnosticRequests]). It is stored beside the file so support can
+     * find it from the code in the email. Null for the background pass, which nobody asked
+     * for and nobody is waiting on.
      */
-    suspend fun upload(file: LogFileHandle, bytes: ByteArray): LogUploadResult
+    suspend fun upload(file: LogFileHandle, bytes: ByteArray, reference: String? = null): LogUploadResult
 }
 
 /**

@@ -161,6 +161,9 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
                 tokens = get(),
                 owners = get(),
                 appInfo = get(),
+                // The stable per-installation id the storage path and the index row are
+                // grouped by. Bound by corePlatform{Android,Ios}Module.
+                installationId = get(),
                 postgrest = get(),
                 telemetry = get(),
             )

@@ -7,6 +7,8 @@ import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AndroidDeviceInfo
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.app.InstallationId
+import com.hopcape.odo.core.platform.app.PrefsInstallationId
 import com.hopcape.odo.core.platform.app.CurrentActivity
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -66,6 +68,10 @@ val corePlatformAndroidModule = module {
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
     // Needs no Context: the model and OS version are static Build fields.
     single<DeviceInfo> { AndroidDeviceInfo() }
+
+    // One id per installation, generated on first read. Diagnostics group by it, and the
+    // reference code on a support mail is derived from it (docs/LOGGING_PLAN.md).
+    single<InstallationId> { PrefsInstallationId(context = get<Context>()) }
     // createdAtStart, because it starts watching in its constructor: resolved on first use it
     // would begin listening after the Activity it is being asked about already resumed. See
     // ActivityTracker's comment.

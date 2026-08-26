@@ -21,10 +21,19 @@ import org.koin.dsl.module
  * (`:core:platform`, `:infrastructure:supabase`). `getOrNull` for the target: an
  * unconfigured Supabase build binds none, same as every other adapter there, and
  * `LogUploadCoordinator` treats that as [LogUploadOutcome.Skipped] rather than a failure.
+ * [DiagnosticRequests] is resolved the same way — present once a local database is bound.
  */
 val loggingModule: Module = module {
     single<Logger> { HLogger.asLogger() }
     single<LogUploadRunner> {
-        LogUploadCoordinator(logger = get(), store = get(), target = getOrNull())
+        LogUploadCoordinator(
+            logger = get(),
+            store = get(),
+            target = getOrNull(),
+            // The diagnostics outbox, bound by `:infrastructure:database`. `getOrNull` for
+            // the same reason as the target: a build without it still uploads, just with no
+            // reference to file the upload under.
+            requests = getOrNull(),
+        )
     }
 }

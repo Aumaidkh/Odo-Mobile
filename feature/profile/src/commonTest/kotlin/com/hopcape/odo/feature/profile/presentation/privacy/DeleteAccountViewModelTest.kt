@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.presentation.privacy
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.EraseOutcome
 import com.hopcape.odo.core.domain.auth.PhoneVerificationOutcome
@@ -142,6 +143,7 @@ class DeleteAccountViewModelTest {
                     settings = FakeSettingsRepository(),
                     files = files,
                     showcaseSeen = FakeShowcaseSeenStore(),
+                    diagnosticRequests = FakeDiagnosticRequests(),
                 ),
                 verifier = verifier,
             ),
@@ -431,6 +433,15 @@ class DeleteAccountViewModelTest {
         assertEquals(DeleteAccountEffect.Deleted, effect)
         assertEquals(1, cars.softDeleted.size)
     }
+    private class FakeDiagnosticRequests : DiagnosticRequests {
+        var cleared = false
+        override suspend fun open(reference: String, createdAtEpochMs: Long) = Unit
+        override suspend fun oldestOpen(): String? = null
+        override suspend fun markDelivered(reference: String) = Unit
+        override suspend fun markAttemptFailed(reference: String, error: String?) = Unit
+        override suspend fun clearAll() { cleared = true }
+    }
+
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {
         val seen = mutableSetOf<ShowcaseHookId>()
         override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen

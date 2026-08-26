@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.presentation
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
@@ -415,7 +416,7 @@ class ProfileViewModelsTest {
             ),
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),
-            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore()),
+            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore(), FakeDiagnosticRequests()),
             telemetry = testTelemetry(analytics),
         )
     }
@@ -445,6 +446,15 @@ class ProfileViewModelsTest {
         testScheduler.advanceUntilIdle()
 
         assertTrue(seenStore.seen.isEmpty())
+    }
+
+    private class FakeDiagnosticRequests : DiagnosticRequests {
+        var cleared = false
+        override suspend fun open(reference: String, createdAtEpochMs: Long) = Unit
+        override suspend fun oldestOpen(): String? = null
+        override suspend fun markDelivered(reference: String) = Unit
+        override suspend fun markAttemptFailed(reference: String, error: String?) = Unit
+        override suspend fun clearAll() { cleared = true }
     }
 
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {
