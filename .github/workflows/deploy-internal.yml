@@ -157,6 +157,11 @@ jobs:
           releaseFiles: androidApp/build/outputs/bundle/release/androidApp-release.aab
           track: internal
           releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
+          # The "What's new" text testers see. One file per locale, named
+          # whatsnew-<locale>. Nothing bumps this automatically, so rewrite it on
+          # the release branch for every upload or the previous release's notes
+          # go out again under a new version.
+          whatsNewDirectory: whatsnew
           # R8 runs on release (isMinifyEnabled), so Play gets the mapping and
           # crash reports in the console are deobfuscated.
           mappingFile: androidApp/build/outputs/mapping/release/mapping.txt
