@@ -128,7 +128,7 @@
     <string name="onb_video_refuel_title">Odo logs your fuel for you</string>
     <string name="onb_video_refuel_body">Pay at the pump and Odo reads the payment, works out the litres, and files the fill. No typing, no receipts to keep.</string>
     <string name="onb_video_scanner_title">Snap a bill, keep the record</string>
-    <string name="onb_video_scanner_body">Point the camera at a service bill. Odo pulls out the parts, the labour and the total, and adds it to your car\'s history.</string>
+    <string name="onb_video_scanner_body">Point the camera at a service bill. Odo pulls out the parts, the labour and the total, and adds it to your car’s history.</string>
     <string name="onb_video_next">Next</string>
     <string name="onb_video_cta">Get started</string>
     <string name="onb_video_skip">Skip</string>
