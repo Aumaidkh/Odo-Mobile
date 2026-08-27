@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import arrow.core.left
 import arrow.core.right
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
@@ -15,6 +16,7 @@ import com.hopcape.odo.core.domain.auth.PhoneVerifier
 import com.hopcape.odo.core.domain.auth.VerifiedPhoneToken
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.data.servicelog.ServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
@@ -27,6 +29,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorag
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import com.hopcape.performance.api.PerformanceTracer
+import kotlinx.coroutines.test.runTest
 import org.koin.core.context.stopKoin
 import org.koin.core.qualifier.named
 import org.koin.core.module.Module
@@ -125,6 +128,49 @@ class SupabaseModuleTest {
         val koin = graph(SupabaseEnvironment("", ""))
 
         assertEquals("", koin.get<LegalLinks>().privacyPolicy)
+    }
+
+    /**
+     * The crash this exists to stop: `1.3.3 (11)`, Crashlytics issue 893bc4b1, a fatal
+     * `NoDefinitionFoundException` the instant an owner tapped "Send code".
+     *
+     * `AuthGateway` was declared inside the `isConfigured` branch, like the remote ports
+     * above it. That is right for those — `coreDataModule` binds offline fakes underneath, so
+     * an override that never happens leaves a working fake standing. Nothing binds an
+     * `AuthGateway` underneath, so the same shape leaves a hole instead, and
+     * `LateBoundAuthGateway` resolves the gateway *per call* rather than at startup: the hole
+     * is invisible until the one moment someone signs in.
+     *
+     * Which is why this is asserted here and not left to a screen test. Every build a
+     * developer runs has credentials in `local.properties`, so the branch that crashed is the
+     * one no local run ever takes — the first build without them was the CI-built AAB that
+     * went to the internal track.
+     */
+    @Test
+    fun `without credentials the gateway is still bound so sign-in refuses instead of crashing`() {
+        val koin = graph(SupabaseEnvironment(url = "", anonKey = ""))
+
+        assertNotNull(
+            koin.getOrNull<AuthGateway>(),
+            "An unconfigured build binds no AuthGateway, so LateBoundAuthGateway's per-call " +
+                "get() throws NoDefinitionFoundException as soon as Send code is tapped.",
+        )
+    }
+
+    /**
+     * Bound is not enough — it has to answer, and answer a failure the screens already know
+     * how to say out loud. [DomainError.OtpRequestFailed] is what `PhoneViewModel.toMessage`
+     * turns into "Couldn't send the code", which is the honest thing to show a build that has
+     * no server to ask.
+     */
+    @Test
+    fun `the unconfigured gateway reports a send failure rather than pretending to succeed`() = runTest {
+        val koin = graph(SupabaseEnvironment(url = "", anonKey = ""))
+        val gateway = assertNotNull(koin.getOrNull<AuthGateway>())
+
+        val outcome = gateway.requestOtp(PhoneNumber.of("+919876543210").getOrNull()!!)
+
+        assertEquals(DomainError.OtpRequestFailed.left(), outcome)
     }
 
     @Test

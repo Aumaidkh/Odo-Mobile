@@ -65,6 +65,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.ODO_UPLOAD_KEY_ALIAS }}
           GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
           PLAY_SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           missing=()
           [ -n "$KEYSTORE" ] || missing+=(ODO_UPLOAD_KEYSTORE_BASE64)
@@ -72,6 +74,13 @@ jobs:
           [ -n "$KEY_ALIAS" ] || missing+=(ODO_UPLOAD_KEY_ALIAS)
           [ -n "$GOOGLE_SERVICES" ] || missing+=(GOOGLE_SERVICES_JSON_BASE64)
           [ -n "$PLAY_SERVICE_ACCOUNT" ] || missing+=(PLAY_SERVICE_ACCOUNT_JSON)
+          # Checked here for the same reason the signing key is: a build missing these
+          # still compiles, still signs and still uploads — it just has no server. Every
+          # Supabase port falls through to :core:data's offline fake, and sign-in refuses.
+          # That silence is what shipped 1.3.3 to the internal track with a dead Send code
+          # button (Crashlytics 893bc4b1), so it fails loudly here instead.
+          [ -n "$SUPABASE_URL" ] || missing+=(SUPABASE_URL)
+          [ -n "$SUPABASE_ANON_KEY" ] || missing+=(SUPABASE_ANON_KEY)
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Missing repository secrets: ${missing[*]}" >&2
             exit 1
@@ -132,6 +141,15 @@ jobs:
           # Optional: keystores are usually created with one password for both,
           # and ReleaseSigning.kt falls back to the store password when this is unset.
           ODO_UPLOAD_KEY_PASSWORD: ${{ secrets.ODO_UPLOAD_KEY_PASSWORD }}
+          # infrastructure/supabase/build.gradle.kts reads local.properties first and these
+          # env vars second. A runner has no local.properties, so this is the only way the
+          # credentials reach the build — without them SupabaseEnvironment.isConfigured is
+          # false and the whole remote layer is replaced by offline fakes.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Real phone sign-in rather than the fixed development account. Matches
+          # supabase.phoneAuth=true in a developer's local.properties.
+          SUPABASE_PHONE_AUTH: "true"
         run: ./gradlew :androidApp:bundleRelease
 
       # If the keystore path or passwords were wrong, the build still succeeds and
@@ -157,6 +175,11 @@ jobs:
           releaseFiles: androidApp/build/outputs/bundle/release/androidApp-release.aab
           track: internal
           releaseName: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})
+          # The "What's new" text testers see. One file per locale, named
+          # whatsnew-<locale>. Nothing bumps this automatically, so rewrite it on
+          # the release branch for every upload or the previous release's notes
+          # go out again under a new version.
+          whatsNewDirectory: whatsnew
           # R8 runs on release (isMinifyEnabled), so Play gets the mapping and
           # crash reports in the console are deobfuscated.
           mappingFile: androidApp/build/outputs/mapping/release/mapping.txt

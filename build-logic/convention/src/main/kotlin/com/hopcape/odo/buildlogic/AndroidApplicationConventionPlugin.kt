@@ -92,6 +92,38 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     it.matchingFallbacks.add("release")
                 }
 
+                // Release's R8 configuration — minified, resources shrunk, the same keep
+                // rules — but debuggable and signed with the debug key, so a crash that only
+                // happens once R8 has run can be reproduced under a debugger without the
+                // upload keystore. `:androidApp:assembleMinified`.
+                //
+                // Named "minified" rather than anything containing debug/stage/release, and
+                // that is not cosmetic: resolvedBuildFlavor() infers the BuildKonfig flavor by
+                // looking for those three words in the requested task names, so
+                // `assembleReleaseDebug` would match two at once and fail the build outright.
+                // An unrecognised name falls to its conservative default, "release", which is
+                // what this variant wants anyway — BuildInfo reports release and
+                // :infrastructure:supabase points at the production project, which is the
+                // whole point of reproducing a production crash here.
+                //
+                // No applicationIdSuffix on purpose. google-services.json lists only
+                // com.hopcape.odo, and a suffixed variant needs its own Firebase client or
+                // the Google Services plugin fails the build for it. Sharing release's
+                // applicationId means this cannot sit alongside a store build on the same
+                // device; the versionNameSuffix is what tells them apart on screen.
+                create("minified") {
+                    it.isDebuggable = true
+                    it.isMinifyEnabled = true
+                    it.isShrinkResources = true
+                    it.proguardFiles(
+                        getDefaultProguardFile("proguard-android-optimize.txt"),
+                        "proguard-rules.pro",
+                    )
+                    it.versionNameSuffix = "-minified"
+                    it.signingConfig = signingConfigs.getByName("debug")
+                    it.matchingFallbacks.add("release")
+                }
+
                 // R8 in full mode (AGP's default), plus resource shrinking. The keep rules
                 // live in androidApp/proguard-rules.pro; `proguard-android-optimize.txt` is
                 // the platform's own baseline, which the stack's libraries extend through
