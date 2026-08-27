@@ -13,6 +13,8 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isFirstRunStep
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEffect
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingFlow
@@ -105,16 +107,16 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
 
             is OnboardingEffect.Finish -> {
                 val destination = effect.start.toOdoDestination()
+                // The intro and the setup steps leave the back stack — first run doesn't
+                // repeat. finishFlow rather than popUpTo(Welcome), because the flow's root
+                // is whichever intro the remote flag chose, and popping up to the wrong
+                // one silently left the whole first run under the landing screen (#352).
                 if (effect.openScanner) {
                     // The start surface is seeded *under* the scanner rather than replaced by
                     // it. Leaving the scan errand pops its own steps and lands on whatever is
                     // below them, so with the scanner alone on the stack there would be
                     // nothing to land on and the owner would be stuck on the viewfinder.
-                    navigationManager.navigateTo(
-                        destination,
-                        popUpTo = OdoDestination.Welcome,
-                        inclusive = true,
-                    )
+                    navigationManager.finishFlow(destination, ::isFirstRunStep)
                     val scanner = OdoDestination.BillScanner.Capture()
                     // Sign-in still comes first; auth carries the scanner as its `next`, so
                     // both verifying and skipping arrive at the same viewfinder.
@@ -124,8 +126,7 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
                 } else {
                     val next =
                         if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination
-                    // Welcome and the setup steps leave the back stack — first run doesn't repeat.
-                    navigationManager.navigateTo(next, popUpTo = OdoDestination.Welcome, inclusive = true)
+                    navigationManager.finishFlow(next, ::isFirstRunStep)
                 }
             }
         }

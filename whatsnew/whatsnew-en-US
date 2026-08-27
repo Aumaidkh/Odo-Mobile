@@ -1,3 +1,1 @@
-Sending a support request is easier now. There is a dedicated button for sharing your diagnostic reference, so our team can look up your logs without you copying anything by hand.
-
-Also in this build: faster loading of previously opened content, and fixes to a few issues reported by testers.
+This update fixes three issues in the welcome experience: the new intro now appears on the very first open (not after a restart), the back button no longer walks back through setup after you finish, and a stray character in the intro text is gone.

@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.component.OdoBanner
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -133,14 +134,24 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
     // back through StartupScreen while the database is read again. The back stack survives
     // that now, so a blank frame in front of it would be the only thing still moving.
     var onboarded by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    // The decided start destination. Not saveable itself: after a configuration change
+    // the restored `onboarded` re-decides it synchronously in the initializer below, so
+    // the app never re-enters StartupScreen. Only a fresh launch takes the effect path.
+    var startDestination by remember {
+        mutableStateOf(onboarded?.let { onboardingStartDestination(it, onboardingConfig) })
+    }
     LaunchedEffect(koin) {
-        if (onboarded != null) return@LaunchedEffect
-        onboarded = withContext(Dispatchers.Default) {
+        if (startDestination != null) return@LaunchedEffect
+        val returning = withContext(Dispatchers.Default) {
             // Resolving the repository is what opens the database — and on first launch
             // seeds the vehicle catalog — so it happens off the main thread.
             val profiles = koin.get<OwnerProfileRepository>()
             profiles.observe().first()?.hasCompletedOnboarding == true
         }
+        onboarded = returning
+        // A new install waits (bounded) for the first Remote Config fetch before the
+        // video-onboarding flag is read — issue #351; a returning owner resolves at once.
+        startDestination = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
     }
 
     // Column + weighted Box regardless of whether the banner shows, so the tree shape
@@ -153,11 +164,9 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
             // Nothing is rendered until the answer is in. The start destination is the
             // stack's first element, so guessing Welcome and correcting later would flash
             // the intro at every returning owner before jumping to Home.
-            when (val returning = onboarded) {
+            when (val destination = startDestination) {
                 null -> StartupScreen()
-                else -> OdoApp(
-                    startDestination = onboardingStartDestination(returning, onboardingConfig),
-                )
+                else -> OdoApp(startDestination = destination)
             }
         }
     }
