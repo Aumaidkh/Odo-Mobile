@@ -37,6 +37,13 @@ internal fun Navigator.execute(command: NavigationCommand) {
 
         is NavigationCommand.FinishFlow -> {
             popFlow(command.belongsToFlow)
+            // The flow may own the root itself — first run is rooted at one of the intros.
+            // popFlow stops there (goBack never removes the root), so drop it explicitly:
+            // emptying the stack is fine here and only here, because a destination is
+            // pushed on the next line. LeaveFlow has no landing to push, which is why it
+            // keeps the stop-at-root behaviour.
+            val root = backStack.singleOrNull()
+            if (root != null && command.belongsToFlow(root)) popUpTo(root, inclusive = true)
             if (backStack.lastOrNull() != command.destination) navigate(command.destination)
         }
 
