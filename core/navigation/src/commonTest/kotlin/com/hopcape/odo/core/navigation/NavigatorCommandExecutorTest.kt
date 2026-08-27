@@ -126,6 +126,18 @@ class NavigatorCommandExecutorTest {
     }
 
     @Test
+    fun finishFlow_replacesTheRoot_whenTheFlowOwnsIt() {
+        // First run rooted at the video intro (issue #352): every entry on the stack
+        // belongs to the flow, so finishing must not leave the intro underneath the
+        // landing destination — back from there would replay the whole first run.
+        val nav = navigator(OdoDestination.WelcomeVideo, OdoDestination.Onboarding)
+
+        nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunStep))
+
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
     fun finishFlow_pushesTarget_whenTheFlowWasOpenedElsewhere() {
         val nav = navigator(
             OdoDestination.Home,
@@ -169,17 +181,18 @@ class NavigatorCommandExecutorTest {
     }
 
     @Test
-    fun finishFlow_neverPopsTheRoot() {
+    fun finishFlow_neverLeavesTheStackEmpty_evenWhenTheFlowOwnsTheOnlyEntry() {
+        // This used to assert the opposite — that a flow-owned root survived under the
+        // landing destination. That guarantee existed to keep the stack non-empty, but
+        // FinishFlow pushes its destination in the same command, so replacing the root is
+        // safe — and keeping it is the bug that made back replay first run (#352).
         val nav = navigator(OdoDestination.Documents.Add())
 
         nav.execute(
             NavigationCommand.FinishFlow(OdoDestination.Documents.Vault, ::isAddDocumentFlowStep),
         )
 
-        assertEquals(
-            listOf(OdoDestination.Documents.Add(), OdoDestination.Documents.Vault),
-            nav.backStack.toList(),
-        )
+        assertEquals(listOf(OdoDestination.Documents.Vault), nav.backStack.toList())
     }
 
     @Test

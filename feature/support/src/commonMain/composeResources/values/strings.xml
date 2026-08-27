@@ -83,7 +83,7 @@
     <string name="sp_pp_revision">Last updated %1$s · %2$s</string>
 
     <string name="sp_pp_short">The short version</string>
-    <string name="sp_pp_lede">Your bills, documents and car records belong to you. We store them so the app works, and we don\'t sell them or hand them to advertisers.</string>
+    <string name="sp_pp_lede">Your bills, documents and car records belong to you. We store them so the app works, and we don’t sell them or hand them to advertisers.</string>
 
     <string name="sp_pp_collect">WHAT WE COLLECT</string>
     <string name="sp_pp_collect_body">Your mobile number, the car details you enter, and anything you scan or upload — bills, insurance, PUC, RC.</string>
@@ -161,7 +161,7 @@
          different words. Titles are reused from the help sheet rows (sp_report, sp_idea,
          sp_flag) so a row and the screen it opens can never drift apart.
 
-         The button does not say "Send": Odo does not send anything. It opens the owner\'s own
+         The button does not say "Send": Odo does not send anything. It opens the owner’s own
          mail app on a draft, and they send it. Saying otherwise would be a lie the first time
          somebody backs out of the composer and assumes it went. -->
     <string name="sp_fb_hint">Your message</string>
@@ -197,7 +197,7 @@
          one cannot be checked against anything. -->
     <string name="sp_fb_flag_body">The job or part:\n\n\nWhat Odo showed:\n\n\nWhat I actually paid:\n\n\nMy city:\n</string>
 
-    <!-- Appended below the owner\'s message in the draft. %1$s is the version name, %2$s the
+    <!-- Appended below the owner’s message in the draft. %1$s is the version name, %2$s the
          build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
     <string name="sp_fb_mail_footer">---\nSent from Odo v%1$s (build %2$s)\n%3$s %4$s · %5$s</string>
     <!-- ===================== Licences ===================== -->

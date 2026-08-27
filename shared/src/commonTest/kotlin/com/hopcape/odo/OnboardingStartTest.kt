@@ -1,9 +1,14 @@
 package com.hopcape.odo
 
+import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 
 class OnboardingStartTest {
 
@@ -51,5 +56,65 @@ class OnboardingStartTest {
             OdoDestination.Home,
             onboardingStartDestination(returning = true, config(video = true)),
         )
+    }
+
+    /**
+     * A remote backend the fetch has not reached yet: the flag reads false until
+     * [refresh] completes, which takes [fetchTakes] of (virtual) time.
+     */
+    private class SlowRemote(
+        private val fetchTakes: kotlin.time.Duration,
+    ) : OnboardingConfig, ConfigRefresher {
+        var fetched = false
+            private set
+        var refreshCalls = 0
+            private set
+
+        override val videoEnabled: Boolean get() = fetched
+        override val refuelVideoUrl = ""
+        override val scannerVideoUrl = ""
+
+        override suspend fun refresh() {
+            refreshCalls += 1
+            delay(fetchTakes)
+            fetched = true
+        }
+    }
+
+    @Test
+    fun aNewInstallWaitsForTheFirstFetchBeforeChoosing() = runTest {
+        // Issue #351: on a fresh install the first fetch has not landed when the start
+        // destination is decided, so the flag reads false and the old onboarding shows —
+        // the video variant only appears on the next launch. The decision must wait for
+        // the fetch.
+        val remote = SlowRemote(fetchTakes = 1.seconds)
+        assertEquals(
+            OdoDestination.WelcomeVideo,
+            onboardingStartDestination(returning = false, config = remote, refresher = remote),
+        )
+    }
+
+    @Test
+    fun theWaitIsBoundedSoAnOfflineInstallStillOpens() = runTest {
+        // A device that cannot reach the backend must not sit on the startup screen.
+        // The wait has a ceiling, after which the compiled default decides.
+        val neverCompletes = object : ConfigRefresher {
+            override suspend fun refresh() = awaitCancellation()
+        }
+        assertEquals(
+            OdoDestination.Welcome,
+            onboardingStartDestination(returning = false, config(), neverCompletes),
+        )
+    }
+
+    @Test
+    fun aReturningOwnerNeverWaitsOnTheFetch() = runTest {
+        // Home is the answer whatever the config says, so there is nothing to wait for.
+        val remote = SlowRemote(fetchTakes = 1.seconds)
+        assertEquals(
+            OdoDestination.Home,
+            onboardingStartDestination(returning = true, config = remote, refresher = remote),
+        )
+        assertEquals(0, remote.refreshCalls)
     }
 }

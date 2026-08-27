@@ -102,6 +102,10 @@ kotlin {
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
         }
+        commonTest.dependencies {
+            // runTest for the start-destination gate, which waits on the first config fetch.
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }
 
