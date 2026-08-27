@@ -81,7 +81,7 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a push sends the fields the table now has, and categories to their own table`() = runTest {
+    fun `a push sends the fields the table now has and categories to their own table`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("[${serviceLogJson()}]") }
         SupabaseServiceLogRemoteDataSource(harness.postgrest).push(
             listOf(
@@ -213,7 +213,7 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a rejected request is reported once, not twice`() = runTest {
+    fun `a rejected request is reported once not twice`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("""{"message":"nope"}""", HttpStatusCode.Forbidden) }
 
         assertFailsWith<SupabaseRequestFailed> {
@@ -264,7 +264,7 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `every car-scoped pull filters on owner, not car`() = runTest {
+    fun `every car-scoped pull filters on owner not car`() = runTest {
         // One test over all six, so adding a seventh scoped entity that reaches for a car id
         // fails here rather than in production on somebody's first sign-in.
         val pulls: List<Pair<String, suspend (PostgrestClient) -> Unit>> = listOf(
@@ -304,7 +304,7 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a category the pool has nothing for is dropped, not reported as zero`() = runTest {
+    fun `a category the pool has nothing for is dropped not reported as zero`() = runTest {
         val harness = SupabaseTestHarness {
             // What `RETURNS TABLE` answers when no data points match: one row of nulls.
             MockResponse("""[{"avg_paise":null,"sample_size":0,"p25":null,"p75":null}]""")

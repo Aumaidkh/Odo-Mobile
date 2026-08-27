@@ -1,7 +1,9 @@
 package com.hopcape.odo
 
+import android.Manifest
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.feature.dashboard.presentation.home.HomeTestTags
 import org.junit.Before
@@ -41,6 +43,17 @@ class HomeEndToEndTest {
 
     @get:Rule
     val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * The first-scan button opens the camera, and the camera asks before it opens.
+     *
+     * Without this the button leads to the permission rationale instead of the scanner, and
+     * the test passes or fails on whether some earlier class happened to grant CAMERA to the
+     * install first — it is granted process-wide once any suite asks, so running the whole
+     * suite hid this and running this class alone exposed it.
+     */
+    @get:Rule
+    val cameraPermission: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
 
     companion object {
         /**

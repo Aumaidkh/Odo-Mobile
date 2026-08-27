@@ -104,7 +104,7 @@ class ServiceBillHtmlTest {
     }
 
     @Test
-    fun `the bill prints its own figures, not the record's`() {
+    fun `the bill prints its own figures not the record's`() {
         val page = html(scannedBill)
 
         assertPrinted(page, "12 Jul 2026")
@@ -200,7 +200,7 @@ class ServiceBillHtmlTest {
     }
 
     @Test
-    fun `the document is self-contained, A4 and set in the brand face`() {
+    fun `the document is self-contained A4 and set in the brand face`() {
         val page = html(scannedBill)
 
         assertPrinted(page, "@font-face")

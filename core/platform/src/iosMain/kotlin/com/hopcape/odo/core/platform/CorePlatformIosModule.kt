@@ -1,7 +1,9 @@
 package com.hopcape.odo.core.platform
 
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.app.DefaultsInstallationId
 import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.app.InstallationId
 import com.hopcape.odo.core.platform.app.IosDeviceInfo
 import com.hopcape.odo.core.platform.app.IosAppInfo
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -24,6 +26,10 @@ import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.config.ConfigRegistry
+import com.hopcape.odo.core.config.LocalConfigOverrides
+import com.hopcape.odo.core.platform.config.DefaultsLocalConfigOverrides
 import com.hopcape.odo.core.platform.showcase.DefaultsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.IosSmsAppSignature
 import com.hopcape.odo.core.platform.sms.IosSmsCodeReader
@@ -61,6 +67,9 @@ val corePlatformIosModule = module {
     // No still-image reader on iOS yet — the live preview is the only way in. Answering
     single<AppInfo> { IosAppInfo() }
     single<DeviceInfo> { IosDeviceInfo() }
+
+    // One id per installation — the iOS half of the same diagnostics grouping key.
+    single<InstallationId> { DefaultsInstallationId() }
     single<SystemNotificationSettings> { IosSystemNotificationSettings() }
     single<NotificationAccess> { IosNotificationAccess() }
     single<DetectedFillNotifier> { IosDetectedFillNotifier() }
@@ -75,6 +84,15 @@ val corePlatformIosModule = module {
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }
     single<ShowcaseSeenStore> { DefaultsShowcaseSeenStore() }
+
+    // Debug builds only — see the Android module for why.
+    if (BuildInfo.isDebug) {
+        single<LocalConfigOverrides> {
+            DefaultsLocalConfigOverrides(
+                knownKeys = { get<ConfigRegistry>().keys.map { it.key } },
+            )
+        }
+    }
 
     // iOS has no WorkManager, so sync runs in-process on an app-lifetime scope. That covers
     // every foreground trigger — launch, a local write, pull-to-refresh — which is what

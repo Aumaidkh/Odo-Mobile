@@ -7,7 +7,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.triptracker.TrackingStatus
@@ -20,9 +19,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
@@ -63,25 +62,31 @@ import org.koin.core.context.GlobalContext
 @RunWith(AndroidJUnit4::class)
 class AutoOdometerTrackingBugsTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
-    /** Same conditional shape as [AutoOdometerEndToEndTest] — see its KDoc. */
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDevice() })
+        .around(rule)
+
+    /** Same shape as [AutoOdometerEndToEndTest] — see its KDoc. */
     @get:Rule
     val trackingPermissions: TestRule =
-        if (FeatureFlags.AUTO_ODOMETER_ENABLED) {
-            GrantPermissionRule.grant(
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-            )
-        } else {
-            TestRule { base, _ -> base }
-        }
+        GrantPermissionRule.grant(
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+        )
 
-    @Before
-    fun startFromASetUpDevice() {
+    private fun startFromASetUpDevice() {
         // Before resetAutoOdometer(): reset resolves TripTracker, which constructs the
         // engine, which captures its LocationProvider — the scripted one must already be
         // the bound one by then.
@@ -90,7 +95,6 @@ class AutoOdometerTrackingBugsTest {
         seedOnboardedOwner()
         seedServiceHistory()
         installFakeBondedDeviceCatalog(listOf(defaultFakeDevice()))
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------ Report 1: stereo connect must auto-start ------------------------ */
@@ -104,7 +108,6 @@ class AutoOdometerTrackingBugsTest {
      */
     @Test
     fun stereoConnectStartsTracking_withoutAnyUiAction() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
         // The state CompleteSetup leaves behind: the bond and the persisted toggle — both
         // survive process death, and together they are what armFromPersistedState reads.
         runBlocking {
@@ -148,7 +151,6 @@ class AutoOdometerTrackingBugsTest {
      */
     @Test
     fun walkingAwayAfterIgnitionOff_isNotCountedAsCarDistance() {
-        assumeTrue(FeatureFlags.AUTO_ODOMETER_ENABLED)
 
         // Enroll at the use-case level — the same two calls `CompleteSetup` makes. The UI
         // path is AutoOdometerEndToEndTest's subject, and on a fresh install (a gradle

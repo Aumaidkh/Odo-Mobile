@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.database
 
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.analytics.api.AnalyticsEventStore
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentLocalDataSource
@@ -41,6 +42,7 @@ import com.hopcape.odo.infrastructure.database.cost.SqlDelightFuelFillLocalDataS
 import com.hopcape.odo.infrastructure.database.refuel.SqlDelightPendingFillStore
 import com.hopcape.odo.infrastructure.database.refuel.SqlDelightRefuelDetectionStore
 import com.hopcape.odo.infrastructure.database.cost.seedFuelPrices
+import com.hopcape.odo.infrastructure.database.diagnostics.SqlDelightDiagnosticRequests
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.db.createOdoDatabase
@@ -271,6 +273,11 @@ val databaseInfrastructureModule = module {
     // Detections waiting for an answer. Separate from the store above because it holds the
     // feature's output rather than its configuration, and a different screen reads it.
     single<PendingFillStore> { SqlDelightPendingFillStore(database = get()) }
+
+    // The diagnostics outbox `LogUploadCoordinator` reads. It lives here, not in the logging
+    // module, because a request has to survive a process death and only the database does
+    // that — logging owns what a request means, this owns keeping one.
+    single<DiagnosticRequests> { SqlDelightDiagnosticRequests(database = get(), clock = get()) }
 
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
 

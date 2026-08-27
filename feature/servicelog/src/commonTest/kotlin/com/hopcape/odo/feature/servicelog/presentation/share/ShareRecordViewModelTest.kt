@@ -152,7 +152,7 @@ class ShareRecordViewModelTest {
     /* ------------------------------ the Pro gate ------------------------------ */
 
     @Test
-    fun `a free owner with allowance left gets the export, not the paywall`() = runTest {
+    fun `a free owner with allowance left gets the export not the paywall`() = runTest {
         val files = RecordingFileStore()
         val viewModel = viewModel(files = files, isPro = false, exportsUsed = 2)
         advanceUntilIdle()
@@ -217,7 +217,7 @@ class ShareRecordViewModelTest {
     }
 
     @Test
-    fun `a Pro owner is never stopped, however many they have taken`() = runTest {
+    fun `a Pro owner is never stopped however many they have taken`() = runTest {
         val files = RecordingFileStore()
         val viewModel = viewModel(files = files, isPro = true, exportsUsed = 99)
         advanceUntilIdle()
@@ -260,7 +260,7 @@ class ShareRecordViewModelTest {
     }
 
     @Test
-    fun `tapping a target asks the host to render, and the sheet goes busy`() = runTest {
+    fun `tapping a target asks the host to render and the sheet goes busy`() = runTest {
         val viewModel = viewModel()
         val effects = mutableListOf<ShareRecordEffect>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.toList(effects) }
@@ -356,7 +356,7 @@ class ShareRecordViewModelTest {
     }
 
     @Test
-    fun `an empty render is a failure, not an empty document`() = runTest {
+    fun `an empty render is a failure not an empty document`() = runTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
@@ -415,7 +415,7 @@ class ShareRecordViewModelTest {
     /* ------------------------- the bill share ------------------------- */
 
     @Test
-    fun `opened on one entry, the sheet describes that bill rather than the record`() = runTest {
+    fun `opened on one entry the sheet describes that bill rather than the record`() = runTest {
         val viewModel = viewModel(logId = ServiceLogId("a"))
         advanceUntilIdle()
 
@@ -427,7 +427,7 @@ class ShareRecordViewModelTest {
     }
 
     @Test
-    fun `opened on one entry, the document rendered is the bill, not the record`() = runTest {
+    fun `opened on one entry the document rendered is the bill not the record`() = runTest {
         val files = RecordingFileStore()
         val viewModel = viewModel(files = files, logId = ServiceLogId("a"))
         val effects = mutableListOf<ShareRecordEffect>()

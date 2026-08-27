@@ -14,7 +14,7 @@ import kotlin.test.assertIs
 class MaintenanceAwareSyncGateTest {
 
     @Test
-    fun `allowed and session permits, sync is allowed`() = runTest {
+    fun `allowed and session permits sync is allowed`() = runTest {
         val session = FakeSyncGate(SyncVerdict.Allowed)
         val gate = MaintenanceAwareSyncGate(session, FakeAppStatusProvider(AppAvailability.Allowed))
 
@@ -22,7 +22,7 @@ class MaintenanceAwareSyncGateTest {
     }
 
     @Test
-    fun `allowed but no session, the session gate's own verdict is passed through`() = runTest {
+    fun `allowed but no session the session gate's own verdict is passed through`() = runTest {
         val verdict = SyncVerdict.NoSession("not signed in")
         val gate = MaintenanceAwareSyncGate(FakeSyncGate(verdict), FakeAppStatusProvider(AppAvailability.Allowed))
 

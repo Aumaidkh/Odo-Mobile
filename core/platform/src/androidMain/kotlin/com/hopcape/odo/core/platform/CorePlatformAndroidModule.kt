@@ -7,6 +7,8 @@ import com.hopcape.odo.core.platform.app.AndroidAppInfo
 import com.hopcape.odo.core.platform.app.AndroidDeviceInfo
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.DeviceInfo
+import com.hopcape.odo.core.platform.app.InstallationId
+import com.hopcape.odo.core.platform.app.PrefsInstallationId
 import com.hopcape.odo.core.platform.app.CurrentActivity
 import com.hopcape.odo.core.platform.camera.AndroidDocumentCropper
 import com.hopcape.odo.core.platform.camera.DocumentCropper
@@ -34,6 +36,9 @@ import com.hopcape.odo.core.platform.notification.WorkManagerDocumentReminderSch
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
+import com.hopcape.odo.core.config.LocalConfigOverrides
+import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.platform.config.PrefsLocalConfigOverrides
 import com.hopcape.odo.core.platform.showcase.PrefsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.AndroidSmsAppSignature
 import com.hopcape.odo.core.platform.sms.AndroidSmsCodeReader
@@ -63,6 +68,10 @@ val corePlatformAndroidModule = module {
     single<AppInfo> { AndroidAppInfo(context = get<Context>()) }
     // Needs no Context: the model and OS version are static Build fields.
     single<DeviceInfo> { AndroidDeviceInfo() }
+
+    // One id per installation, generated on first read. Diagnostics group by it, and the
+    // reference code on a support mail is derived from it (docs/LOGGING_PLAN.md).
+    single<InstallationId> { PrefsInstallationId(context = get<Context>()) }
     // createdAtStart, because it starts watching in its constructor: resolved on first use it
     // would begin listening after the Activity it is being asked about already resumed. See
     // ActivityTracker's comment.
@@ -104,6 +113,13 @@ val corePlatformAndroidModule = module {
     // Which coach marks have been seen — prefs, not the database, so nothing to migrate
     // (docs/SHOWCASE_PLAN.md decision 1). The arbiter that reads it is bound in :core:data.
     single<ShowcaseSeenStore> { PrefsShowcaseSeenStore(context = get<Context>()) }
+
+    // Debug builds only. ConfigResolver takes this with getOrNull, so a release build finds
+    // nothing behind the first step of the resolution order rather than taking a different
+    // path through it — the branch is not compiled out, there is simply no store.
+    if (BuildInfo.isDebug) {
+        single<LocalConfigOverrides> { PrefsLocalConfigOverrides(context = get<Context>()) }
+    }
     // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
     single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>(), telemetry = get()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }

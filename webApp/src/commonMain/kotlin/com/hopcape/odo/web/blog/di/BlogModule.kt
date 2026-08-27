@@ -1,5 +1,6 @@
 package com.hopcape.odo.web.blog.di
 
+import com.hopcape.odo.web.blog.data.CachingBlogRepository
 import com.hopcape.odo.web.blog.data.SampleAdminRepository
 import com.hopcape.odo.web.blog.data.SampleAuthRepository
 import com.hopcape.odo.web.blog.data.SampleBlogRepository
@@ -128,11 +129,15 @@ val blogModule: Module = module {
     }
 
     single<BlogRepository> {
-        if (get<BlogBackend>().isLive) {
-            SupabaseBlogRepository(postgrest = get(ANONYMOUS))
-        } else {
-            SampleBlogRepository()
-        }
+        // Wrapped, not built in: the repositories fetch, and remembering what was
+        // fetched is a separate concern that either of them gets for free.
+        CachingBlogRepository(
+            if (get<BlogBackend>().isLive) {
+                SupabaseBlogRepository(postgrest = get(ANONYMOUS))
+            } else {
+                SampleBlogRepository()
+            },
+        )
     }
 
     single<AuthRepository> {

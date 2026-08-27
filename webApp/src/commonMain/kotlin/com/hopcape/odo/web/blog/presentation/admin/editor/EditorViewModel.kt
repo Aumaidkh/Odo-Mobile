@@ -109,6 +109,9 @@ sealed interface EditorEvent {
     data object UnpublishConfirmed : EditorEvent
     data class ImageChosen(val item: MediaItem) : EditorEvent
 
+    /** Alt text or caption on a placed picture. */
+    data class ImageFieldChanged(val index: Int, val field: ImageField, val value: String) : EditorEvent
+
     /** The reader is leaving; the host asks first so unsaved work can be caught. */
     data object LeaveRequested : EditorEvent
     data object LeaveConfirmed : EditorEvent
@@ -289,15 +292,23 @@ class EditorViewModel(
 
             is EditorEvent.ImageChosen -> edit {
                 copy(
-                    // Placed as a showcase block: the only image the design puts in
-                    // a body is the app, in its own card, with a call to action.
-                    blocks = blocks + ArticleBlock.AppShowcase(
-                        heading = "",
-                        body = "",
-                        callToAction = "Download Odo",
-                        screenshot = event.item.url,
-                    ),
+                    // A picture, not a promo. This used to append an AppShowcase, so
+                    // asking for an image handed back a download button the writer then
+                    // had to write around.
+                    blocks = blocks + ArticleBlock.Image(url = event.item.url),
                     sheet = EditorSheet.None,
+                )
+            }
+
+            is EditorEvent.ImageFieldChanged -> edit {
+                copy(
+                    blocks = blocks.mapIndexed { index, block ->
+                        if (index == event.index && block is ArticleBlock.Image) {
+                            block.withField(event.field, event.value)
+                        } else {
+                            block
+                        }
+                    },
                 )
             }
 

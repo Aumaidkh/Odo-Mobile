@@ -29,6 +29,8 @@ kotlin {
             // fuel-price and odometer ports, and the three pure calculators. The feature's
             // own use cases live HERE, not in core.
             implementation(projects.core.domain)
+            // FeatureConfig — the injected replacement for the FeatureFlags consts.
+            implementation(projects.core.config)
             // The notification-access seam the auto-detect opt-in checks and opens.
             implementation(projects.core.platform)
             // Observability, instrumented at the presentation layer; the domain stays pure.

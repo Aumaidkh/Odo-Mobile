@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -38,20 +39,26 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ServiceLogEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDeviceWithNoServices() })
+        .around(rule)
 
     /**
      * Start every test from a set-up device with an empty log.
-     *
-     * The activity is recreated because the rule launches it before this runs, so it may have
-     * already read a previous test's data and resolved a different start destination.
      */
-    @Before
-    fun startFromASetUpDeviceWithNoServices() {
+    private fun startFromASetUpDeviceWithNoServices() {
         resetOwnerData()
         seedOnboardedOwner()
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------------ The list ------------------------------ */

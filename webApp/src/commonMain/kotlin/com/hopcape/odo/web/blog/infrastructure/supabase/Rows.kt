@@ -143,12 +143,21 @@ private data class BlockJson(
     val cta: String = "",
     val screenshot: String? = null,
     val link: String = "",
+    val items: List<List<RunJson>> = emptyList(),
+    val alt: String = "",
+    val caption: String = "",
+    val rows: List<List<String>> = emptyList(),
+    val hasHeader: Boolean = true,
 )
 
 private const val SECTION = "section"
 private const val PARAGRAPH = "paragraph"
 private const val CALLOUT = "callout"
 private const val SHOWCASE = "showcase"
+private const val DIVIDER = "divider"
+private const val BULLETS = "bullets"
+private const val IMAGE = "image"
+private const val TABLE = "table"
 
 internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
     BLOCKS.encodeToString(
@@ -165,6 +174,18 @@ internal fun encodeBlocks(blocks: List<ArticleBlock>): String =
                     cta = block.callToAction,
                     screenshot = block.screenshot,
                     link = block.link,
+                )
+                ArticleBlock.Divider -> BlockJson(type = DIVIDER)
+                is ArticleBlock.Table -> BlockJson(type = TABLE, rows = block.rows, hasHeader = block.hasHeader)
+                is ArticleBlock.Image -> BlockJson(
+                    type = IMAGE,
+                    screenshot = block.url,
+                    alt = block.alt,
+                    caption = block.caption,
+                )
+                is ArticleBlock.BulletList -> BlockJson(
+                    type = BULLETS,
+                    items = block.items.map { item -> item.map { RunJson(it.text, it.bold, it.italic) } },
                 )
             }
         },
@@ -189,6 +210,12 @@ internal fun decodeBlocks(element: JsonElement): List<ArticleBlock> =
             PARAGRAPH -> ArticleBlock.Paragraph(json.runs.map { TextRun(it.text, it.bold, it.italic) })
             CALLOUT -> ArticleBlock.Callout(json.label, json.runs.map { TextRun(it.text, it.bold, it.italic) })
             SHOWCASE -> ArticleBlock.AppShowcase(json.heading, json.body, json.cta, json.screenshot, json.link)
+            DIVIDER -> ArticleBlock.Divider
+            TABLE -> ArticleBlock.Table(json.rows, json.hasHeader)
+            IMAGE -> ArticleBlock.Image(json.screenshot.orEmpty(), json.alt, json.caption)
+            BULLETS -> ArticleBlock.BulletList(
+                json.items.map { item -> item.map { TextRun(it.text, it.bold, it.italic) } },
+            )
             else -> null
         }
     }

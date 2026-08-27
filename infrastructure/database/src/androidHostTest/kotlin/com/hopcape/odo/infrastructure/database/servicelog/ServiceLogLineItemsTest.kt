@@ -30,7 +30,7 @@ class ServiceLogLineItemsTest {
     }
 
     @Test
-    fun `a label keeps its commas, which is why this is not a GROUP_CONCAT column`() {
+    fun `a label keeps its commas which is why this is not a GROUP_CONCAT column`() {
         val items = listOf(line("Oil, filter, and labour", ServiceCategory.OIL_CHANGE, 280_000))
 
         assertEquals(items, items.toJson().toLineItems())
@@ -56,7 +56,7 @@ class ServiceLogLineItemsTest {
     }
 
     @Test
-    fun `a category written by a newer build keeps its line, as OTHER`() {
+    fun `a category written by a newer build keeps its line as OTHER`() {
         val restored = """[{"label":"Sunroof seal","category":"SUNROOF","amount_paise":45000}]""".toLineItems()
 
         assertEquals(1, restored.size)

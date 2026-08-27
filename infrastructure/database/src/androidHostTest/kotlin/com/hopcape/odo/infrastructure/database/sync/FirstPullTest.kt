@@ -48,7 +48,7 @@ class FirstPullTest {
     }
 
     @Test
-    fun `every car's entries arrive, not just the primary one's`() = runTest {
+    fun `every car's entries arrive not just the primary one's`() = runTest {
         // The same change fixes the multi-car gap: a pull keyed on the primary car could
         // never bring down a second car's history.
         val (db, driver) = inMemoryDatabase()
@@ -62,7 +62,7 @@ class FirstPullTest {
     }
 
     @Test
-    fun `a run with no owner is a retry, not a successful pull of nothing`() = runTest {
+    fun `a run with no owner is a retry not a successful pull of nothing`() = runTest {
         val (db, driver) = inMemoryDatabase()
         val remote = FakeRemote(emptyList())
         val synchronizer = FakeSynchronizer()

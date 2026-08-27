@@ -69,7 +69,7 @@ class BlobDownloaderTest {
     }
 
     @Test
-    fun `an empty object is not cached, so a later try can still find the real file`() = runTest {
+    fun `an empty object is not cached so a later try can still find the real file`() = runTest {
         val files = FakeFiles()
         val storage = FakeStorage(content = ByteArray(0))
 

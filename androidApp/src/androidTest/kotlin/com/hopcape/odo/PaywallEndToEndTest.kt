@@ -4,8 +4,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.Assert.assertEquals
@@ -26,17 +26,28 @@ import org.junit.Assert.assertEquals
 @RunWith(AndroidJUnit4::class)
 class PaywallEndToEndTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
     /**
-     * Start from a free owner, so the profile shows the upsell card rather than a plan.
+     * Start from a free owner on a set-up device, before the activity launches.
+     *
+     * The car matters even though no test looks at one. The paywall is reached from the
+     * profile, the profile is reached from Home, and Home is only where the app opens for an
+     * owner who has finished setup — so without a seeded profile every test here waits out
+     * the full start-up timeout on the welcome carousel. The seed has to run before the
+     * launch, because where the app opens is decided once per launch and then held.
      *
      * The plan is set explicitly rather than left to whatever the build's store answers,
      * because a test that overrides it changes a definition that outlives it.
      */
-    @Before
-    fun startFromAFreeOwner() {
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromAFreeOwner() })
+        .around(rule)
+
+    private fun startFromAFreeOwner() {
+        resetProfile()
+        seedOnboardedOwner()
         setProEntitlement(isPro = false)
         installNoStore()
     }
@@ -44,8 +55,8 @@ class PaywallEndToEndTest {
     /**
      * Reached from the profile's "Go Pro" card rather than the health-score lock.
      *
-     * Both open the same screen; this one needs no seeded car, so what a test fails on is the
-     * paywall rather than a fixture.
+     * Both open the same screen; this one needs no score history, so what a test fails on is
+     * the paywall rather than a fixture.
      */
     private fun openPaywall() {
         rule.openProfile()

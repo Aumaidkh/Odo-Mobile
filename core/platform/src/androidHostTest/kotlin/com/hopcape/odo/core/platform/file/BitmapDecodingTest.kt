@@ -20,7 +20,7 @@ class BitmapDecodingTest {
     }
 
     @Test
-    fun `the answer is always a power of two, which is all BitmapFactory honours`() {
+    fun `the answer is always a power of two which is all BitmapFactory honours`() {
         val samples = listOf(1200, 2400, 4000, 8000, 12000).map { sampleSizeFor(it, 1080) }
         samples.forEach { sample ->
             assertEquals(0, sample and (sample - 1), "$sample is not a power of two")

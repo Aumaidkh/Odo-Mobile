@@ -77,6 +77,18 @@ sealed interface OdoDestination : NavKey {
         /** Sign-out confirmation — shown as a sheet. */
         @Serializable
         data object SignOut : Profile
+
+        /**
+         * The QA config screen: every registered key, its resolved value, and which step
+         * of the resolution order answered.
+         *
+         * Registered in every build, reachable in none but debug — the row that opens it
+         * is behind `BuildInfo.isDebug`. Keeping the route registered rather than
+         * conditionally absent matches how the refuel routes are handled: unreachable,
+         * not removed.
+         */
+        @Serializable
+        data object ConfigOverrides : Profile
     }
 
     /**
@@ -605,6 +617,14 @@ sealed interface OdoDestination : NavKey {
     /** Intro carousel shown on first launch, before car setup. */
     @Serializable
     data object Welcome : OdoDestination
+
+    /**
+     * The video intro — the variant [Welcome] is replaced by when
+     * `onboarding_video_enabled` is on. Two pages, Smart Refuel then Bill Scanner, and then
+     * the same car setup [Welcome] leads to.
+     */
+    @Serializable
+    data object WelcomeVideo : OdoDestination
     @Serializable
     data object Onboarding : OdoDestination
 

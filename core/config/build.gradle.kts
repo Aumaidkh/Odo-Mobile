@@ -1,0 +1,38 @@
+plugins {
+    // commonMain-pure: no androidMain, no iosMain. A config declaration is
+    // platform-independent by definition, and there is nothing here that could
+    // need a platform implementation.
+    alias(libs.plugins.odo.kmpLibrary)
+    // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
+    alias(libs.plugins.odo.kmpTest)
+    // The registry and resolver are bound here, and every generated group's Koin module
+    // is emitted into whichever module declares it.
+    alias(libs.plugins.odo.koin)
+    // FeatureConfig is declared here, so this module generates its own config too. The
+    // convention plugin guards against the module depending on itself.
+    alias(libs.plugins.odo.config)
+}
+
+kotlin {
+    androidLibrary {
+        namespace = "com.hopcape.odo.core.config"
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // Flow, for the observe() read model. The only production dependency
+            // this module has. It deliberately does not depend on :core:common —
+            // nothing here needs it yet, and staying at the very bottom of the
+            // stack is what lets :core:domain take this module with no cycle.
+            api(libs.kotlinx.coroutines.core)
+            // BuildInfo.isDebug — the duplicate-key policy is fail-fast in debug and a log
+            // line in release, and this is the one global answer to which build this is.
+            implementation(projects.core.common)
+            // The release half of that policy needs somewhere to say it.
+            implementation(projects.observability.logging)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
+    }
+}

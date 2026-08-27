@@ -29,6 +29,8 @@ kotlin {
             // ServiceCategory / VerificationStatus + the ₹/km/date formatters the UI uses.
             // Brings Arrow transitively via domain (Amount.of returns Either).
             implementation(projects.core.domain)
+            // FeatureConfig — the injected replacement for the FeatureFlags consts.
+            implementation(projects.core.config)
             // The export pipeline: HtmlToPdf renderer, PlatformFileStore + StorageKey for
             // the written document, and the system share sheet — the same three the
             // service log's record export runs on.

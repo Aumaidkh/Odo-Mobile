@@ -52,7 +52,9 @@ android {
         // On-device (instrumented) tests. The end-to-end onboarding test drives the real
         // app — real Koin graph, real SQLite, real navigation — so it has to run here
         // rather than on the JVM.
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Ours, not the stock one: it pins config to compiled defaults so the suite cannot be
+        // broken by a flag someone flips in the Remote Config console. See OdoTestRunner.
+        testInstrumentationRunner = "com.hopcape.odo.OdoTestRunner"
     }
 }
 
@@ -84,6 +86,8 @@ dependencies {
     // SyncScheduler/SyncReason — the foreground and reconnect triggers are wired to
     // ProcessLifecycleOwner and ConnectivityManager, both of which live only here.
     implementation(projects.core.sync)
+    // ConfigRefresher — the one config fetch, from the process-lifecycle observer.
+    implementation(projects.core.config)
     // tripTrackerAndroidModule is included from the Koin bootstrap here, same as
     // corePlatformAndroidModule above.
     implementation(projects.core.triptracker)
@@ -136,6 +140,8 @@ dependencies {
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.
     androidTestImplementation(projects.feature.garage)
+    // ConfigGraphTest — asserts the config system against the real application graph.
+    androidTestImplementation(projects.core.config)
     // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.
     androidTestImplementation(projects.feature.costTracker)
     // The health score's semantics tags, and its HealthFactorKind-keyed row tags.

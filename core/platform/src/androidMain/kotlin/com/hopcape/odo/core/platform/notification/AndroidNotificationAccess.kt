@@ -37,6 +37,20 @@ internal class AndroidNotificationAccess(
     }
 
     /**
+     * Asks the package manager whether the component exists in this build's manifest.
+     *
+     * `getServiceInfo` throws `NameNotFoundException` for a component that is not declared,
+     * which is the only way to tell — an undeclared service is not "disabled", it simply is
+     * not there.
+     */
+    override fun isListenerDeclared(): Boolean = runCatching {
+        context.packageManager.getServiceInfo(
+            ComponentName(context, RefuelNotificationListenerService::class.java),
+            0,
+        )
+    }.isSuccess
+
+    /**
      * `FLAG_ACTIVITY_NEW_TASK` because the Context here is the application's, not an
      * activity's. A device with no such settings activity — rare, but possible on heavily
      * modified builds — leaves the owner where they are rather than crashing.

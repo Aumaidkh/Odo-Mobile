@@ -4,6 +4,7 @@ import com.hopcape.logging.api.LogFileHandle
 import com.hopcape.logging.api.LogFileStore
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LogUploadResult
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
@@ -110,15 +111,44 @@ internal class RecordingLogFileStore(
 }
 
 /** A [LogUploadTarget] whose result per call is decided by [resultFor] — defaults to always
- *  delivering. Records every file it was asked to upload, in call order. */
+ *  delivering. Records every file it was asked to upload, in call order, and the diagnostics
+ *  reference each was filed under. */
 internal class FakeLogUploadTarget(
     private val resultFor: (LogFileHandle) -> LogUploadResult = { LogUploadResult.DELIVERED },
 ) : LogUploadTarget {
     override val name: String = "fake"
     val uploaded = mutableListOf<LogFileHandle>()
+    val references = mutableListOf<String?>()
 
-    override suspend fun upload(file: LogFileHandle, bytes: ByteArray): LogUploadResult {
+    override suspend fun upload(file: LogFileHandle, bytes: ByteArray, reference: String?): LogUploadResult {
         uploaded += file
+        references += reference
         return resultFor(file)
+    }
+}
+
+/** A [DiagnosticRequests] outbox in memory. Records what the coordinator did with the
+ *  reference so a test can assert a partial pass did not close a request. */
+internal class FakeDiagnosticRequests(private var pending: String? = null) : DiagnosticRequests {
+    val delivered = mutableListOf<String>()
+    val failed = mutableListOf<Pair<String, String?>>()
+
+    override suspend fun open(reference: String, createdAtEpochMs: Long) {
+        pending = reference
+    }
+
+    override suspend fun oldestOpen(): String? = pending
+
+    override suspend fun markDelivered(reference: String) {
+        delivered += reference
+        pending = null
+    }
+
+    override suspend fun markAttemptFailed(reference: String, error: String?) {
+        failed += reference to error
+    }
+
+    override suspend fun clearAll() {
+        pending = null
     }
 }

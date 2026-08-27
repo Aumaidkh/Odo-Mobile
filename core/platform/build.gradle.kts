@@ -21,6 +21,9 @@ kotlin {
             // DomainError + Arrow's Either — a store that cannot write says so in the
             // same vocabulary as every other failing port.
             implementation(projects.core.domain)
+            // LocalConfigOverrides — the debug-only override store lives here because it
+            // needs SharedPreferences / NSUserDefaults, which :core:config cannot reach.
+            implementation(projects.core.config)
             // withContext(Dispatchers.IO) — the Keystore does real crypto work off the main thread.
             implementation(libs.kotlinx.coroutines.core)
             // SyncScheduler + SyncEngine — this module supplies the platform scheduler.
@@ -36,6 +39,10 @@ kotlin {
             // rememberLauncherForActivityResult for the system document picker, the camera
             // permission dialog, and the trip to the app's settings page.
             implementation(libs.androidx.activity.compose)
+            // OdoVideoPlayer's Android half. iOS uses AVPlayer, a system framework with
+            // no dependency of its own.
+            implementation(libs.androidx.media3.exoplayer)
+            implementation(libs.androidx.media3.ui)
             implementation(libs.androidx.work.runtime)
             // NotificationCompat + NotificationManagerCompat — the document-expiry reminders.
             implementation(libs.androidx.core.ktx)

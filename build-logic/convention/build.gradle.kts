@@ -62,5 +62,10 @@ gradlePlugin {
             implementationClass =
                 "com.hopcape.odo.buildlogic.KmpTestConventionPlugin"
         }
+        register("config") {
+            id = "odo.config"
+            implementationClass =
+                "com.hopcape.odo.buildlogic.ConfigConventionPlugin"
+        }
     }
 }

@@ -17,6 +17,8 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.sqldelight.db.SqlDriver
+import com.hopcape.odo.core.data.fairness.FairnessEstimateDto
+import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTestTags
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.feature.fairnesscheck.presentation.report.FairnessTestTags
@@ -25,6 +27,7 @@ import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.navigateTo
 import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
 import java.io.File
 
 /**
@@ -142,6 +145,82 @@ internal fun FairnessTestRule.openReportAsIfScanned() {
  * an entry has been verified but never judged, and running the check live is what puts the
  * real benchmark table under test rather than a snapshot written by the seed.
  */
+/**
+ * The city benchmarks the suite answers with, behind a binding that never changes identity.
+ *
+ * Two problems, one object. First, `SupabaseModule` loads after `:core:data` and rebinds
+ * `FairnessRemoteDataSource` to the real `get_fairness_estimate` RPC — later module wins — so
+ * on a device the check asks a backend with no pool for these categories and every verdict
+ * comes back "no city data". Second, and the reason a plain `loadModules` override is not
+ * enough: `FairnessRepository` is a `single` that takes the source as a constructor argument,
+ * so once any earlier test class has caused it to be built, rebinding the source changes what
+ * a *future* repository would get and nothing about the live one. Installing benchmarks then
+ * worked when this class ran alone and did nothing when it ran after anything else.
+ *
+ * So the binding is installed once, before the graph has been touched (see [OdoTestRunner]),
+ * and what moves is the answer inside it.
+ */
+internal object TestFairnessBenchmarks : FairnessRemoteDataSource {
+
+    /** Empty by default, which is what the real RPC currently answers for every category. */
+    @Volatile
+    private var canned: Map<String, Benchmark> = emptyMap()
+
+    override suspend fun estimates(
+        categories: List<String>,
+        city: String,
+    ): List<FairnessEstimateDto> = categories.mapNotNull { name ->
+        canned[name]?.let {
+            FairnessEstimateDto(
+                category = name,
+                city = city,
+                cityAveragePaise = it.averageRupees * 100,
+                sampleSize = it.sampleSize,
+                p25Paise = it.p25Rupees * 100,
+                p75Paise = it.p75Rupees * 100,
+            )
+        }
+    }
+
+    fun install(benchmarks: Map<String, Benchmark>) {
+        canned = benchmarks
+    }
+
+    /** Bound before the first test, so every later resolution sees this instance. */
+    fun bind() {
+        GlobalContext.get().loadModules(
+            listOf(module { single<FairnessRemoteDataSource> { TestFairnessBenchmarks } }),
+            allowOverride = true,
+        )
+    }
+}
+
+internal data class Benchmark(
+    val averageRupees: Long,
+    val sampleSize: Int,
+    val p25Rupees: Long,
+    val p75Rupees: Long,
+)
+
+/**
+ * Put known city benchmarks behind the check.
+ *
+ * The numbers mirror the canned table in `:core:data` because the assertions are written
+ * against them: BRAKES at Rs. 3,400 is what makes a Rs. 5,000 bill "Rs. 1,600 over", and AC
+ * ships a sample of 3 so the under-the-floor path stays reachable. ELECTRICAL is absent on
+ * purpose — a category with no benchmark at all is the fourth outcome.
+ */
+internal fun installFairnessBenchmarks() = TestFairnessBenchmarks.install(
+    mapOf(
+        "OIL_CHANGE" to Benchmark(2_100, 31, 1_800, 2_450),
+        "BRAKES" to Benchmark(3_400, 24, 2_900, 3_950),
+        "GENERAL_SERVICE" to Benchmark(4_200, 48, 3_600, 4_900),
+        "BATTERY" to Benchmark(5_800, 12, 5_200, 6_500),
+        "TYRES" to Benchmark(12_500, 9, 11_000, 14_000),
+        "AC" to Benchmark(2_600, 3, 2_200, 3_100),
+    ),
+)
+
 internal fun seedFairnessEntries() {
     insertFairnessLog(
         id = FairnessFixtures.OVER_ID,

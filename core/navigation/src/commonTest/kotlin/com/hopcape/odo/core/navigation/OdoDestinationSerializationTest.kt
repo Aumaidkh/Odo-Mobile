@@ -33,6 +33,9 @@ class OdoDestinationSerializationTest {
     private val allDestinations: List<OdoDestination> = listOf(
         OdoDestination.Home,
         OdoDestination.Welcome,
+        // The video intro is a start destination too, so a key it cannot write back is a
+        // first run that restarts itself on a dark-mode switch.
+        OdoDestination.WelcomeVideo,
         OdoDestination.Onboarding,
         OdoDestination.CarDetail(carId = "car-1"),
         OdoDestination.Paywall(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
@@ -56,6 +59,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Profile.Appearance,
         OdoDestination.Profile.Export,
         OdoDestination.Profile.SignOut,
+        OdoDestination.Profile.ConfigOverrides,
         // Garage — Home is both a Garage key and a TopLevel one, which is the case most
         // likely to confuse a sealed hierarchy that can reach a subtype by two paths.
         OdoDestination.Garage.Home,

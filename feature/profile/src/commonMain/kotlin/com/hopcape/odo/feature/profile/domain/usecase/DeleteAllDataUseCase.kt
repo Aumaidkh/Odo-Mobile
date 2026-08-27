@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.domain.usecase
 import arrow.core.Either
 import arrow.core.flatMap
 import arrow.core.right
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
@@ -22,8 +23,9 @@ import kotlinx.coroutines.flow.first
  *
  * The car goes first, because removing it is what takes the service logs and documents with
  * it in one transaction. Then the profile, which is what sends the next launch back to
- * first-run setup. Settings are reset last and are not allowed to fail the wipe: the owner
- * asked for their data gone, and a leftover theme is not their data.
+ * first-run setup. Settings, coach marks and the diagnostics outbox are cleared last and are
+ * not allowed to fail the wipe: the owner asked for their data gone, and a leftover theme is
+ * not their data.
  */
 internal class DeleteAllDataUseCase(
     private val cars: CarRepository,
@@ -31,6 +33,7 @@ internal class DeleteAllDataUseCase(
     private val settings: AppSettingsRepository,
     private val files: PlatformFileStore,
     private val showcaseSeen: ShowcaseSeenStore,
+    private val diagnosticRequests: DiagnosticRequests,
 ) {
     suspend operator fun invoke(): Either<DomainError, Unit> {
         val car = cars.observePrimaryCar().first()
@@ -46,6 +49,10 @@ internal class DeleteAllDataUseCase(
                 // A wiped phone is a new phone: the coach marks teach again (#224). Same
                 // not-allowed-to-fail class as the settings reset above.
                 showcaseSeen.clearAll()
+                // Diagnostics requests go with it. They hold no personal data — a code and a
+                // timestamp — but an open one would make the next upload from this phone
+                // file itself under a ticket that belongs to somebody who is gone.
+                diagnosticRequests.clearAll()
             }
     }
 }

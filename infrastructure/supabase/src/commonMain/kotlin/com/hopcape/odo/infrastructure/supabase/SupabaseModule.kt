@@ -20,6 +20,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
+import com.hopcape.odo.infrastructure.supabase.auth.UnavailableAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
@@ -103,12 +104,22 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         }
 
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
-        single<AuthGateway> {
-            if (environment.usePhoneAuth) {
-                FirebaseBridgeAuthGateway(verifier = get(), endpoint = get())
-            } else {
-                DevPasswordAuthGateway(endpoint = get())
-            }
+    }
+
+    // Outside the isConfigured branch, unlike the ports above it, and that difference is the
+    // whole point. An unbound port there falls through to the offline fake `coreDataModule`
+    // already registered; nothing registers an AuthGateway underneath this one, so leaving it
+    // unbound left a hole instead of a fallback. `LateBoundAuthGateway` resolves per call, so
+    // the hole surfaced as a fatal NoDefinitionFoundException the first time someone tapped
+    // "Send code" — 1.3.3 on the internal track, Crashlytics 893bc4b1.
+    //
+    // Lazy, so the two configured branches still only reach for SupabaseTokenEndpoint (which
+    // is inside that branch) on a build that has one.
+    single<AuthGateway> {
+        when {
+            !environment.isConfigured -> UnavailableAuthGateway(telemetry = get())
+            environment.usePhoneAuth -> FirebaseBridgeAuthGateway(verifier = get(), endpoint = get())
+            else -> DevPasswordAuthGateway(endpoint = get())
         }
     }
 
@@ -161,6 +172,9 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
                 tokens = get(),
                 owners = get(),
                 appInfo = get(),
+                // The stable per-installation id the storage path and the index row are
+                // grouped by. Bound by corePlatform{Android,Ios}Module.
+                installationId = get(),
                 postgrest = get(),
                 telemetry = get(),
             )
