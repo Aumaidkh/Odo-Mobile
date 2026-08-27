@@ -109,13 +109,18 @@ jobs:
           # A push has nothing to comment on; the check run alone carries the result.
           comment_mode: ${{ github.event_name == 'pull_request' && 'always' || 'off' }}
 
+      # Published on every run, not only on failure: a green run's report is the
+      # record of what was actually exercised.
       - name: Upload test reports
         uses: actions/upload-artifact@v7.0.1
-        if: failure()
+        if: always()
         with:
           name: unit-test-reports
-          path: '**/build/reports/tests/testAndroidHostTest/**'
+          path: |
+            **/build/reports/tests/testAndroidHostTest/**
+            **/build/test-results/testAndroidHostTest/*.xml
           retention-days: 7
+          if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
   # Compile gate: the whole graph has to produce an installable APK, and the
