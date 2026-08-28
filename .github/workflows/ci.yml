@@ -178,10 +178,34 @@ jobs:
             exit 0
           fi
           echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > androidApp/google-services.json
-          # A truncated or wrongly-encoded secret decodes to something that is not JSON and
-          # fails much later, inside AGP. Catch it here.
-          python3 -c 'import json,sys; json.load(open("androidApp/google-services.json"))'
-          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+          # Two things can be wrong with the decoded file, and both fail much later and much
+          # less clearly than they need to.
+          #
+          # A truncated or wrongly-encoded secret is not JSON at all, and AGP reports that
+          # from somewhere deep in its own plumbing.
+          #
+          # A valid file can still not cover this build. The APK installs under the base
+          # applicationId plus the debug suffix, and the Google Services plugin needs a
+          # client registered for it — or for one of its dot-prefixes, which is how a file
+          # listing only com.hopcape.odo serves com.hopcape.odo.debug. With neither it fails
+          # with "No matching client found for package name", naming a package the reader
+          # then has to go and register in the Firebase console.
+          #
+          # Neither is treated as a broken build. This job is the compile gate on every pull
+          # request, and a Firebase registration nobody has done yet must not turn every PR
+          # red. It degrades to the unconfigured APK it used to always produce, and says so.
+          app_id="$(sed -n 's/^odo-applicationId = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          suffix="$(sed -n 's/^odo-debugApplicationIdSuffix = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+
+          if python3 .github/scripts/check_google_services.py \
+               androidApp/google-services.json "$app_id$suffix"; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::google-services.json does not cover $app_id$suffix. Building without Firebase — sign-in, Crashlytics and Performance will be inert in this APK. Register the debug app in the Firebase console, re-download the file, and update the GOOGLE_SERVICES_JSON_BASE64 secret."
+            rm -f androidApp/google-services.json
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Assemble debug APK
         id: assemble
