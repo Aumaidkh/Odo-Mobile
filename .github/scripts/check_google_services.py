@@ -7,10 +7,11 @@ Kept as a file rather than inlined in the workflow because it needs a heredoc, a
 heredoc nested inside a YAML block scalar inside an `if` is the kind of thing that breaks
 silently on an indentation change nobody reviewed.
 
-The matching rule mirrors the Google Services Gradle plugin's own lookup: an exact match,
-or a client registered for any dot-prefix of the id. That prefix fallback is what lets a
-file listing only `com.hopcape.odo` serve a debug build installing as
-`com.hopcape.odo.debug`.
+The match has to be exact. The plugin does not fall back to a client registered for a
+shorter prefix — a file listing only `com.hopcape.odo` is rejected for a debug build
+installing as `com.hopcape.odo.debug`, which is what the first CI run of this workflow
+found. A local checkout gets away with it only because it also has a variant-specific
+`androidApp/src/debug/google-services.json`, which the plugin prefers over the root file.
 """
 
 import json
@@ -24,12 +25,6 @@ def covered_packages(path):
         client["client_info"]["android_client_info"]["package_name"]
         for client in data.get("client", [])
     }
-
-
-def candidates(application_id):
-    """`a.b.c` -> {`a.b.c`, `a.b`, `a`} — the ids a registered client could match."""
-    parts = application_id.split(".")
-    return {".".join(parts[:end]) for end in range(len(parts), 0, -1)}
 
 
 def main():
@@ -49,10 +44,10 @@ def main():
     print(f"google-services.json covers: {', '.join(sorted(covered)) or '(nothing)'}")
     print(f"this build installs as: {application_id}")
 
-    if covered & candidates(application_id):
+    if application_id in covered:
         return 0
 
-    print("no client matches, and no dot-prefix of it matches either")
+    print("no client is registered for it")
     return 1
 
 

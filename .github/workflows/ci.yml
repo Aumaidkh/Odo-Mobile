@@ -159,53 +159,64 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6.2.0
 
-      # Firebase phone auth, Crashlytics and Performance all need this file, and it is
+      # Firebase phone auth, Crashlytics and Performance all need this, and it is
       # gitignored because it names a specific Firebase project.
       #
-      # Skipped rather than failed when the secret is absent, because a pull request from
-      # a fork gets no secrets at all and an outside contributor's PR must still compile.
-      # What that produces is an APK with no Firebase and no Supabase — it launches, and
-      # sign-in and sync do not work. That used to be the only thing this job ever built,
-      # and it is why an APK downloaded from here could not run any signed-in E2E spec.
+      # Two files, because a debug build installs under a suffixed applicationId and the
+      # Google Services plugin needs a client registered for exactly that — it does not
+      # fall back to one registered for the base id. A local checkout has both: the root
+      # file for release, and androidApp/src/debug/google-services.json, which the plugin
+      # prefers for this build type. CI needs the same pair.
+      #
+      # The root file is still written even though the debug one is what gets read, because
+      # androidApp/build.gradle.kts only applies the plugin at all when the root file
+      # exists.
+      #
+      # A missing or unusable secret degrades to the unconfigured APK this job used to
+      # always produce, rather than failing. This is the compile gate on every pull request:
+      # a fork PR gets no secrets, and a Firebase registration nobody has done yet must not
+      # turn every PR red for a reason unrelated to the change under review.
       - name: Write google-services.json
         id: firebase
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICES_JSON_DEBUG_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_DEBUG_BASE64 }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "No GOOGLE_SERVICES_JSON_BASE64 — building without Firebase."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > androidApp/google-services.json
-
-          # Two things can be wrong with the decoded file, and both fail much later and much
-          # less clearly than they need to.
-          #
-          # A truncated or wrongly-encoded secret is not JSON at all, and AGP reports that
-          # from somewhere deep in its own plumbing.
-          #
-          # A valid file can still not cover this build. The APK installs under the base
-          # applicationId plus the debug suffix, and the Google Services plugin needs a
-          # client registered for it — or for one of its dot-prefixes, which is how a file
-          # listing only com.hopcape.odo serves com.hopcape.odo.debug. With neither it fails
-          # with "No matching client found for package name", naming a package the reader
-          # then has to go and register in the Firebase console.
-          #
-          # Neither is treated as a broken build. This job is the compile gate on every pull
-          # request, and a Firebase registration nobody has done yet must not turn every PR
-          # red. It degrades to the unconfigured APK it used to always produce, and says so.
+          set -u
           app_id="$(sed -n 's/^odo-applicationId = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
           suffix="$(sed -n 's/^odo-debugApplicationIdSuffix = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          debug_id="$app_id$suffix"
 
-          if python3 .github/scripts/check_google_services.py \
-               androidApp/google-services.json "$app_id$suffix"; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::google-services.json does not cover $app_id$suffix. Building without Firebase — sign-in, Crashlytics and Performance will be inert in this APK. Register the debug app in the Firebase console, re-download the file, and update the GOOGLE_SERVICES_JSON_BASE64 secret."
-            rm -f androidApp/google-services.json
+          give_up() {
+            echo "::warning::$1 Building without Firebase — sign-in, Crashlytics and Performance will be inert in this APK."
+            rm -f androidApp/google-services.json androidApp/src/debug/google-services.json
             echo "configured=false" >> "$GITHUB_OUTPUT"
+          }
+
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ] || [ -z "$GOOGLE_SERVICES_JSON_DEBUG_BASE64" ]; then
+            give_up "GOOGLE_SERVICES_JSON_BASE64 and GOOGLE_SERVICES_JSON_DEBUG_BASE64 are both required; at least one is unset."
+            exit 0
           fi
+
+          mkdir -p androidApp/src/debug
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > androidApp/google-services.json
+          echo "$GOOGLE_SERVICES_JSON_DEBUG_BASE64" | base64 --decode > androidApp/src/debug/google-services.json
+
+          # Only the debug file is checked against an id: it is the one this build reads.
+          # The root file is checked for being readable JSON at all, since a truncated
+          # secret there fails later and less clearly.
+          if ! python3 .github/scripts/check_google_services.py \
+                 androidApp/google-services.json "$app_id"; then
+            give_up "The root google-services.json is unusable or does not cover $app_id."
+            exit 0
+          fi
+          if ! python3 .github/scripts/check_google_services.py \
+                 androidApp/src/debug/google-services.json "$debug_id"; then
+            give_up "No client for $debug_id. Register the debug app in the Firebase console, re-download its google-services.json, and set it as GOOGLE_SERVICES_JSON_DEBUG_BASE64."
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Assemble debug APK
         id: assemble
