@@ -1,0 +1,414 @@
+{
+  "planTitle": "Odo 30-Day Launch Plan",
+  "planSource": "docs/GROWTH_PLAN_30DAY.md (v3, 2026-08-25) — conflict dikhe to GROWTH_PLAN.md jeetta hai",
+  "startDate": "2026-08-25",
+  "people": { "owner": "Aumaid", "teammate": "Zahid" },
+  "dailyMinimum": {
+    "owner": [
+      { "text": "Crash dashboard 5 min (production chal raha hai)", "fromDay": 9 }
+    ],
+    "teammate": [
+      { "text": "15 min: reviews reply (24h rule) + DMs + dono ka WhatsApp status", "fromDay": 5 }
+    ],
+    "both": [
+      { "text": "Sheet update — jo hua so likha; scoreboard khaali = kaam hua hi nahi", "fromDay": 1 }
+    ]
+  },
+  "days": [
+    {
+      "day": 0,
+      "label": "Din 0 — Pehle se taiyaar rakho",
+      "both": [
+        "Play Console access dono ke paas (teammate ko read access kaafi)",
+        "RevenueCat dashboard access confirm — Monday scoreboard ka 'naye paid' row yahin se aayega",
+        "PLAY_LISTING.md ka final text dono ek baar padho — listing me ab auto-odometer hero hai",
+        "Production baseline note karo: aaj ka crash-free %, auto-odo/refuel/paywall ka koi complaint pattern reviews me?",
+        "Google Sheet import: Odo_30Day_Launch_Tracker.xlsx (content calendar + scoreboard + groups + seed + spend + gate)"
+      ],
+      "owner": [],
+      "teammate": [],
+      "doneWhen": ["Paancho prep items tick"]
+    },
+    {
+      "day": 1,
+      "label": "Din 1",
+      "weekGoal": "HAFTA 1 (Din 1–7): review prompt + referral M1 me hi build, teammate ka content system khada (channels + freelancer + groups). Auto-odo/refuel/paywall ko chhedna nahi — production code hai.",
+      "owner": [
+        "Pro-gate audit (2–3h) — verify karo, build nahi: gates sirf output pe (PDF export, OCR, unlimited docs, trends/multi-car), input pe KABHI nahi (reminders, auto-odo, refuel — flywheel free rehta hai)"
+      ],
+      "teammate": [
+        "Instagram business account: @odo.app (na mile to closest variant). Bio: ek line + Play link",
+        "YouTube channel (Shorts ke liye) — same naam, same bio",
+        "Canva free account + owner se app ke 2 brand colours / font le lo"
+      ],
+      "both": [],
+      "doneWhen": ["Gate audit clear", "IG + YT live"]
+    },
+    {
+      "day": 2,
+      "label": "Din 2",
+      "owner": [
+        "Review-prompt design + build shuru (2–3h) — happy-moment trigger (PDF export ke baad / achhi mileage reveal pe), app-open pe KABHI nahi"
+      ],
+      "teammate": [
+        "Freelancer hunt (F2): Fiverr ('instagram reels editor hindi'), Upwork, Internshala, Telegram editing groups, Srinagar/Jammu creator FB groups — shortlist 5, MARKETING_ROADMAP.md §F2 ka brief sabko bhejo"
+      ],
+      "both": [],
+      "doneWhen": ["Review-prompt design locked", "5 briefs gaye"]
+    },
+    {
+      "day": 3,
+      "label": "Din 3",
+      "owner": [
+        "Review-prompt build continue (2–3h)"
+      ],
+      "teammate": [
+        "30 groups ki master list (sheet ke Groups tab me): Kashmir used-car FB groups, J&K owner groups, r/CarsIndia, Team-BHP, WhatsApp groups",
+        "Freelancer jawabo me se 2 best chuno → dono ko 1-1 paid trial reel (₹300–400); raw material Din 4 ko jayega"
+      ],
+      "both": [],
+      "doneWhen": ["Review-prompt halfway", "30-group sheet bhari", "2 trials assigned"]
+    },
+    {
+      "day": 4,
+      "label": "Din 4",
+      "owner": [
+        "Review-prompt build complete + internal QA (2–3h)"
+      ],
+      "teammate": [
+        "Recording session #1 (REEL_SCRIPTS_1-3.md ke steps se): pehle seed data bharo (Swift/WagonR, 6–8 service entries, PUC expiry ~20 din, odometer 48,236 type), phir Reel 1 (#1 PUC) + Reel 2 (#12 mileage) ke clips",
+        "Bonus: auto-odo LIVE hai — asli drive ke baad app kholte hue clip record kar lo (hook #11 ka raw material, launch reel stock)",
+        "Scripts + clips dono trial freelancers ko"
+      ],
+      "both": [],
+      "doneWhen": ["Review-prompt QA pass", "2 trial packets gaye", "#11 ka raw clip bank me"]
+    },
+    {
+      "day": 5,
+      "label": "Din 5",
+      "owner": [
+        "Referral flow (give-1/get-1) design shuru (1–2h)",
+        "Teammate ko listing ke liye raw app screenshots do (auto-odo + refuel screens SABSE pehle — ye differentiator hai)"
+      ],
+      "teammate": [
+        "Listing screenshots Canva me: 8 outcome-frames, captions PLAY_LISTING.md se. Screenshot #1 = auto-odometer ('km khud ginta hai'). Aaj 4 bana lo",
+        "Roz ka 15-min reviews/DM block aaj se aadat me"
+      ],
+      "both": [],
+      "doneWhen": ["Referral design locked", "4 screenshots draft"]
+    },
+    {
+      "day": 6,
+      "label": "Din 6 — owner ka dev block",
+      "owner": [
+        "Referral build complete + full regression (:androidApp:assembleDebug + module tests + E2E) + v1.3.x RC (review prompt + referral). Auto-odo/refuel/paywall pe koi regression nahi — chhedna nahi"
+      ],
+      "teammate": [
+        "Baaki 4 screenshots + IG/YT bio final (halka din)"
+      ],
+      "both": [],
+      "doneWhen": ["Referral build complete", "Regression green", "RC ready", "8/8 screenshots"]
+    },
+    {
+      "day": 7,
+      "label": "Din 7 — owner ka release/ASO ghanta",
+      "owner": [
+        "RC internal → closed testing pe (1h). Dono devices pe install, dogfood: review-prompt trigger ek baar, referral code generate+redeem ek baar"
+      ],
+      "teammate": [],
+      "both": [],
+      "doneWhen": ["v1.3.x closed testing pe, 2 devices pe chal raha"]
+    },
+    {
+      "day": 8,
+      "label": "Din 8",
+      "weekGoal": "HAFTA 2 (Din 8–14): v1.3.x PRODUCTION Din 9 ko, nayi listing live, pehli 2 Reels post, 20 groups join.",
+      "owner": [
+        "Closed-track dogfood + crash check (1h). Blocker nahi → kal submit ki taiyari"
+      ],
+      "teammate": [
+        "Pehla Monday scoreboard (30 min, owner ke saath) — sab ~zero hai, theek hai, aadat ban rahi hai",
+        "Hafte ka content calendar: Reel #1 (Din 9), Reel #2 (Din 11)",
+        "10 sabse active groups join. Link NAHI, intro NAHI — pehle 3 hafte sirf value (GROWTH_PLAN.md §5 rule)"
+      ],
+      "both": [],
+      "doneWhen": ["Scoreboard bhara", "10 groups joined", "go/no-go likha"]
+    },
+    {
+      "day": 9,
+      "label": "Din 9 — PRODUCTION",
+      "owner": [
+        "v1.3.x PRODUCTION submit (staged rollout 20%) (1h). Review prompt + referral ab revenue-adjacent numbers ginna shuru (ratings, k-factor)"
+      ],
+      "teammate": [
+        "Reel #1 POST (IG + YT Shorts + dono ke WhatsApp status)",
+        "Dono trial reels ka QC (hook 1.5s? captions? template? CTA? data readable?). Winner = regular editor, doosra = backup"
+      ],
+      "both": [],
+      "doneWhen": ["Production submit ho gaya", "Reel #1 live 4 jagah", "Editor chuna"]
+    },
+    {
+      "day": 10,
+      "label": "Din 10",
+      "owner": [
+        "Nayi listing live: title/short/full PLAY_LISTING.md se + 8 naye screenshots (1h). Baseline note karo (aaj ke impressions/conversion)"
+      ],
+      "teammate": [
+        "Reel #3 (hook #9 resale PDF) ka packet regular editor ko — PDF-hero shot winner editor ka pehla regular kaam"
+      ],
+      "both": [],
+      "doneWhen": ["Listing live + baseline likha", "Reel-3 packet gaya"]
+    },
+    {
+      "day": 11,
+      "label": "Din 11",
+      "owner": [
+        "Rollout crash-free/vitals check (30 min)"
+      ],
+      "teammate": [
+        "Reel #2 POST (4 jagah)",
+        "5 aur groups (total 20). Pehla genuine value-comment kisi group me"
+      ],
+      "both": [],
+      "doneWhen": ["Reel #2 live", "Groups 20"]
+    },
+    {
+      "day": 12,
+      "label": "Din 12",
+      "owner": [
+        "Rollout 20% → 50% (ya crash dikhe to halt + fix pehle) (1–2h)",
+        "Sab green → referral announce: push + dono ke status"
+      ],
+      "teammate": [
+        "Groups me observe: kaunse posts chalte hain, har group ke top-3 active members sheet me"
+      ],
+      "both": [],
+      "doneWhen": ["Rollout badhaya", "Referral announced"]
+    },
+    {
+      "day": 13,
+      "label": "Din 13 — owner ka dev block",
+      "owner": [
+        "Rollout monitor (crash-free, vitals, pehla paid? pehla referral redeem?)",
+        "Seed-prep: seed-user list ke liye personal-message drafts (Hafta 3) + review-prompt/referral edge-case buffer (self-referral, code reuse) agar closed-track data me kuch dikha ho"
+      ],
+      "teammate": [
+        "Content sheet update, reel views note (halka)"
+      ],
+      "both": [],
+      "doneWhen": ["Rollout verdict likha", "Seed-message drafts ready"]
+    },
+    {
+      "day": 14,
+      "label": "Din 14 — owner ka release/ASO ghanta",
+      "owner": [
+        "Rollout 50% → 100% (ya crash dikhe to halt + fix pehle) (1h)"
+      ],
+      "teammate": [],
+      "both": [],
+      "doneWhen": ["Rollout badhaya ya halt-reason likha"]
+    },
+    {
+      "day": 15,
+      "label": "Din 15",
+      "weekGoal": "HAFTA 3 (Din 15–21): 20 genuine seed installs + honest reviews (review-prompt + referral ab pehli baar asli users pe), daily status, Reels #3–4 live.",
+      "owner": [
+        "Rollout 100% (30 min). Crash dashboard roz ka 5-min ritual aaj se"
+      ],
+      "teammate": [
+        "Monday scoreboard (pehle asli numbers: installs, listing baseline, views)",
+        "Seed list: 20 genuine friends/family jo sach me gaadi rakhte hain — har naam ke aage kaun puchega, kab (sheet ka Seed tab)",
+        "Daily WhatsApp status shuru (dono ke number) — aaj se har din ek"
+      ],
+      "both": [],
+      "doneWhen": ["100% rollout", "Seed list 20 naam", "Status #1 laga"]
+    },
+    {
+      "day": 16,
+      "label": "Din 16",
+      "owner": [
+        "Reviews/DM reply ritual (30 min). Halka din — koi naya build nahi"
+      ],
+      "teammate": [
+        "Reel #3 POST (4 jagah)",
+        "5 aur groups (total 25). Do genuine value-comments"
+      ],
+      "both": [],
+      "doneWhen": ["Reel #3 live", "Comments kiye"]
+    },
+    {
+      "day": 17,
+      "label": "Din 17",
+      "owner": [],
+      "teammate": [
+        "Reels #5–6 ke scripts + recordings editor ko"
+      ],
+      "both": [
+        "Seed push shuru: 10 logo ko personal message (har ek ko uski gaadi ke hisaab se ek line — blast NAHI). Install ke baad haath pakad ke: pehla service log + ek reminder set + auto-odo enroll (D7 ka sabse bada hook) + referral code share unke ek dost ke saath (asli test, pehli baar)"
+      ],
+      "doneWhen": ["10 seed installs/messaged", "2 packets gaye"]
+    },
+    {
+      "day": 18,
+      "label": "Din 18",
+      "owner": [],
+      "teammate": [
+        "Status + groups routine. Aayi reels ka QC"
+      ],
+      "both": [
+        "Baaki 10 seed installs. Jinhone 2 din chalayi unse honest review — 'jo sach me lagta hai wahi likho' (review-prompt khud happy-moment pe maangega; manually push mat karo). Fake KABHI nahi — Play pakadta hai, account termination"
+      ],
+      "doneWhen": ["20/20 seed", "Pehle 5+ reviews"]
+    },
+    {
+      "day": 19,
+      "label": "Din 19",
+      "owner": [
+        "Pehla paid check (RevenueCat): koi ₹99 export / Pro? Pehla referral redemption bhi check (referral table). Seed me se 1–2 bhi = Target-track (1h)"
+      ],
+      "teammate": [
+        "Reel #4 POST (jo category R1–R3 me best chali, uska hook)",
+        "5 aur groups (total 30). r/CarsIndia + Team-BHP rules phir padho — agle hafte pehla post"
+      ],
+      "both": [],
+      "doneWhen": ["Reel #4 live", "Paid + referral status likha"]
+    },
+    {
+      "day": 20,
+      "label": "Din 20 — owner ka dev block",
+      "owner": [
+        "Seed feedback triage: 30-min wale fixes aaj hi (typo, copy, chhota bug), crash sabse pehle. Review-prompt/referral ka real-data bug dikhe (galat trigger, double-credit) to yahi fix karo"
+      ],
+      "teammate": [
+        "Content sheet + is hafte ki best reel note (halka)"
+      ],
+      "both": [],
+      "doneWhen": ["Quick-fix list clear"]
+    },
+    {
+      "day": 21,
+      "label": "Din 21 — owner ka release/ASO ghanta",
+      "owner": [
+        "v1.3.x.1 submit (zaroorat ho to): seed-surfaced quick fixes (1h)"
+      ],
+      "teammate": [],
+      "both": [],
+      "doneWhen": ["Patch submitted (ya 'koi fix zaroori nahi' likha)", "Listing numbers sheet me"]
+    },
+    {
+      "day": 22,
+      "label": "Din 22",
+      "weekGoal": "HAFTA 4 (Din 22–28): LAUNCH REEL (#11) + pehla group value-post, Reels #5–8 pipeline, pehla listing-conversion data point.",
+      "owner": [
+        "Monday scoreboard (30 min) — ab har row me number"
+      ],
+      "teammate": [
+        "LAUNCH REEL packet — hook #11 pakka: 'Maine kuch nahi kiya. App ne khud kilometre gin liye.' Din 4 ka drive-clip + zaroorat ho to fresh clip aaj. Editor ko rush request (24h, thoda extra do)",
+        "Bache groups join (jo bache hain)"
+      ],
+      "both": [],
+      "doneWhen": ["Launch packet editor ke paas", "Groups list poori"]
+    },
+    {
+      "day": 23,
+      "label": "Din 23",
+      "owner": [
+        "Review replies (24h rule) + crash check (30 min)"
+      ],
+      "teammate": [
+        "Pehla value-post sabse strong FB group me (3 hafte ki goodwill ke baad): 'Documented record = resale pe ₹20–40k zyada' — asli screenshot ke saath. Link NAHI. Din bhar comments me raho; koi app puchhe TABHI naam",
+        "Reels #7–8 ke scripts + recordings editor ko"
+      ],
+      "both": [],
+      "doneWhen": ["Value-post live + engaged", "2 packets gaye"]
+    },
+    {
+      "day": 24,
+      "label": "Din 24 — LAUNCH REEL",
+      "owner": [
+        "Referral k-factor ka pehla asli read (seed cohort ke data se) — is number pe hi M2 ka 'iterate ya chhodo' faisla (30 min)"
+      ],
+      "teammate": [
+        "LAUNCH REEL POST — 4 jagah + goodwill groups (jahan video allowed). Din bhar comments/DM pe"
+      ],
+      "both": [],
+      "doneWhen": ["Launch reel har jagah live", "Views/DM sheet me", "k-factor number likha"]
+    },
+    {
+      "day": 25,
+      "label": "Din 25",
+      "owner": [
+        "Installs ka source-split (Console → Store performance → Search terms): search vs social (30 min)"
+      ],
+      "teammate": [
+        "Launch reel ka doosra format test: wahi content, naya hook text/thumbnail — editor ko variant assign"
+      ],
+      "both": [],
+      "doneWhen": ["Variant assigned", "Source-split likha"]
+    },
+    {
+      "day": 26,
+      "label": "Din 26",
+      "owner": [
+        "Paid count vs gate (≥5): 3 se kam → seed users me jinke records bane hain unhe PDF export ka personal demo (dikhana, bechna nahi) (30 min)"
+      ],
+      "teammate": [
+        "Reel #5 POST",
+        "Doosre group me value-post #2 (PUC fine / winter-prep angle, group ke mizaaj se)",
+        "15-min DM/review block"
+      ],
+      "both": [],
+      "doneWhen": ["Reel #5 + value-post #2 live", "Paid-gap plan likha"]
+    },
+    {
+      "day": 27,
+      "label": "Din 27 — owner ka dev block",
+      "owner": [
+        "Listing conversion — pehla asli data point: >20% → sab theek, M2 me traffic focus; 15–20% → theek, A/B M3 me, kuch mat badlo; <15% → RED: screenshot #1 redo hi agla dev-block ka kaam (GROWTH_PLAN.md rule)",
+        "Saath me: review-prompt ka data (kitne prompts dikhe, kitne reviews) + referral k-factor ka doosra data point"
+      ],
+      "teammate": [
+        "Reel #6 QC (halka)"
+      ],
+      "both": [],
+      "doneWhen": ["Conversion number + verdict sheet me"]
+    },
+    {
+      "day": 28,
+      "label": "Din 28 — owner ka release/ASO ghanta",
+      "owner": [
+        "Gate pre-check (1h) — 2 din pehle gap dikh jaye to bharne ka time hai: installs? conversion? paid? crash-free? D7 (pehla seed cohort)?"
+      ],
+      "teammate": [
+        "Reel #6 POST (4 jagah)"
+      ],
+      "both": [],
+      "doneWhen": ["Pre-check table bhari", "Reel #6 live"]
+    },
+    {
+      "day": 29,
+      "label": "Din 29 — Month close",
+      "weekGoal": "Din 29–30: month close. Gate (Din 30): 250 installs · conversion >20% · ≥5 paid · crash-free >99% · D7 >15%.",
+      "owner": [],
+      "teammate": [
+        "Reel #7 POST + Reel #8 QC"
+      ],
+      "both": [
+        "Extended scoreboard (1h): poora table Floor/Target ke against + '3 wins' ritual (kharab mahina ho to bhi 3 milengi) + content audit: 8 reels me best hook kaunsa? Wahi category M2 me double"
+      ],
+      "doneWhen": ["Scoreboard + 3 wins likhe", "Best-hook verdict"]
+    },
+    {
+      "day": 30,
+      "label": "Din 30 — GATE REVIEW",
+      "owner": [],
+      "teammate": [
+        "M2 W1 ka content calendar draft (winter-prep hooks #21, #22)"
+      ],
+      "both": [
+        "GATE REVIEW (1h saath, imaandaari se): Installs 250 / conversion >20% / paid ≥5 / crash-free >99% / D7 >15%. Sab pass → M2 sirf iteration + winter-prep content, koi naya build nahi (pehle paid user ka screenshot frame karo). Conversion fail → M2 W1 dev slot screenshot #1 redo ko. Installs fail + conversion pass → reach problem: content volume + winter-prep wave, plan mat badlo. Kaam hi nahi hua → plan ka dosh nahi; pehle discipline, phir plan judge"
+      ],
+      "doneWhen": ["Gate table bhari + agla mahina unlocked/adjusted, likh ke"]
+    }
+  ]
+}
