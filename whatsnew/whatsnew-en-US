@@ -1,1 +1,1 @@
-This update fixes three issues in the welcome experience: the new intro now appears on the very first open (not after a restart), the back button no longer walks back through setup after you finish, and a stray character in the intro text is gone.
+Fixes Odo Pro. Plans and prices were not loading and purchases could not be completed — the upgrade screen now lists every plan again and buying works as it should.

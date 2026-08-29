@@ -67,6 +67,7 @@ jobs:
           PLAY_SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          REVENUECAT_API_KEY_ANDROID: ${{ secrets.REVENUECAT_API_KEY_ANDROID }}
         run: |
           missing=()
           [ -n "$KEYSTORE" ] || missing+=(ODO_UPLOAD_KEYSTORE_BASE64)
@@ -81,6 +82,13 @@ jobs:
           # button (Crashlytics 893bc4b1), so it fails loudly here instead.
           [ -n "$SUPABASE_URL" ] || missing+=(SUPABASE_URL)
           [ -n "$SUPABASE_ANON_KEY" ] || missing+=(SUPABASE_ANON_KEY)
+          # Same shape, same outcome: infrastructure/billing/build.gradle.kts reads
+          # local.properties first and this env var second, a runner has neither, and a blank
+          # key makes BillingEnvironment.isConfigured false. The paywall then binds
+          # UnconfiguredCatalog, every plan request answers NothingForSale, and the screen
+          # shows "nothing for sale" with no plans and no way to buy. It builds, signs and
+          # uploads exactly like a working one — which is how it reached production.
+          [ -n "$REVENUECAT_API_KEY_ANDROID" ] || missing+=(REVENUECAT_API_KEY_ANDROID)
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Missing repository secrets: ${missing[*]}" >&2
             exit 1
@@ -150,6 +158,13 @@ jobs:
           # Real phone sign-in rather than the fixed development account. Matches
           # supabase.phoneAuth=true in a developer's local.properties.
           SUPABASE_PHONE_AUTH: "true"
+          # The RevenueCat public SDK key for Google Play. Read by generateBillingConfig,
+          # which looks at local.properties first and this second — and a runner has no
+          # local.properties. Without it the bundle ships a paywall that cannot list a plan.
+          # No _TEST suffix: this is a release build, so it takes the live store key. Passing
+          # a test_ key here fails the build on purpose (the SDK crashes a release configured
+          # with one), which is why the release and test keys are separate secrets.
+          REVENUECAT_API_KEY_ANDROID: ${{ secrets.REVENUECAT_API_KEY_ANDROID }}
         run: ./gradlew :androidApp:bundleRelease
 
       # If the keystore path or passwords were wrong, the build still succeeds and
