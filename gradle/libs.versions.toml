@@ -52,8 +52,8 @@ odo-applicationId = "com.hopcape.odo"
 # Carries the pre-release qualifier too. It is not a separate catalog entry because
 # Gradle rejects an empty version string, so a `odo-versionQualifier` could never be
 # cleared for a final release. Drop the "-beta01" here when 1.0.0 ships.
-odo-versionName = "1.3.3.1"
-odo-versionCode = "13"
+odo-versionName = "1.3.3.2"
+odo-versionCode = "14"
 # Per-build-type suffixes. Read twice — once to build the APK, once to bake into
 # BuildInfo — so a build can never report an applicationId or version it does not have.
 # Release carries no suffix, which is why it has no entry: a version catalog cannot

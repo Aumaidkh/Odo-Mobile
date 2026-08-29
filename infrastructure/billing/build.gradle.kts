@@ -122,6 +122,27 @@ val generateBillingConfig by tasks.registering {
             "keep the test key in revenuecat.apiKey.android.test / .ios.test."
     }
 
+    // The mistake that reached production rather than a tester's phone: 1.3.3.1 shipped with no
+    // key at all. A blank key is a supported state everywhere else — a fresh checkout, a CI
+    // compile gate, a unit-test run all build and run fine without one — so nothing here
+    // complained, the bundle signed and uploaded like any other, and the paywall listed nothing
+    // because `billingInfrastructureModule` had bound `UnconfiguredCatalog`.
+    //
+    // Narrowed to the packaging tasks on purpose. `resolvedBuildFlavor()` answers "release" for
+    // anything it does not recognise — a bare `test`, a `lint` run, an IDE sync — so keying this
+    // off the flavor alone would fail CI's unit-test job on a runner that has no key and does
+    // not need one. Only an artifact that can be installed has to have one.
+    val isPackagingRelease = gradle.startParameter.taskNames.any {
+        it.contains("bundleRelease") || it.contains("assembleRelease")
+    }
+    check(!isPackagingRelease || androidKey.isNotBlank()) {
+        "This release bundle would ship with no RevenueCat key, so nothing in it can be sold: " +
+            "the paywall binds UnconfiguredCatalog, every plan request answers NothingForSale, " +
+            "and an owner sees an empty screen with no way to buy. Set revenuecat.apiKey.android " +
+            "in local.properties, or REVENUECAT_API_KEY_ANDROID in the environment on CI " +
+            "(.github/workflows/deploy-internal.yml passes it from the play-internal secret)."
+    }
+
     inputs.property("androidKey", androidKey)
     inputs.property("iosKey", iosKey)
     inputs.property("buildFlavor", buildFlavor)
