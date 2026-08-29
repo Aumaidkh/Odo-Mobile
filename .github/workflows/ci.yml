@@ -12,6 +12,15 @@ on:
   # nothing else builds it until the merge back to master.
   push:
     branches: ['releases/**']
+  # Build any branch on demand. Feature branches only reach CI through a PR, so without
+  # this there is no way to get an APK for a branch that has not opened one yet — which
+  # is exactly what the odo-e2e suite asks for when it is pointed at a branch.
+  workflow_dispatch:
+    inputs:
+      realPhoneAuth:
+        description: "Real phone sign-in (needed for the E2E suite). Off uses the fixed development account."
+        type: boolean
+        default: true
 
 # A new push to the same PR makes the in-flight run obsolete — cancel it rather
 # than paying for a result nobody will read. On a push there is no PR number, so
@@ -130,6 +139,12 @@ jobs:
     name: Debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The Firebase and Supabase credentials live on this environment rather than at repo
+    # level (deploy-internal.yml is the other consumer). It has no protection rules and no
+    # branch policy, so naming it here adds no gate — only access to the two secrets that
+    # decide whether this APK is usable. Moving them to repo-level secrets would let this
+    # line go away; it needs someone who can read the values to re-enter them.
+    environment: play-internal
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -144,15 +159,122 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6.2.0
 
+      # Firebase phone auth, Crashlytics and Performance all need this, and it is
+      # gitignored because it names a specific Firebase project.
+      #
+      # Two files, because a debug build installs under a suffixed applicationId and the
+      # Google Services plugin needs a client registered for exactly that — it does not
+      # fall back to one registered for the base id. A local checkout has both: the root
+      # file for release, and androidApp/src/debug/google-services.json, which the plugin
+      # prefers for this build type. CI needs the same pair.
+      #
+      # The root file is still written even though the debug one is what gets read, because
+      # androidApp/build.gradle.kts only applies the plugin at all when the root file
+      # exists.
+      #
+      # A missing or unusable secret degrades to the unconfigured APK this job used to
+      # always produce, rather than failing. This is the compile gate on every pull request:
+      # a fork PR gets no secrets, and a Firebase registration nobody has done yet must not
+      # turn every PR red for a reason unrelated to the change under review.
+      - name: Write google-services.json
+        id: firebase
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICES_JSON_DEBUG_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_DEBUG_BASE64 }}
+        run: |
+          set -u
+          app_id="$(sed -n 's/^odo-applicationId = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          suffix="$(sed -n 's/^odo-debugApplicationIdSuffix = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          debug_id="$app_id$suffix"
+
+          give_up() {
+            echo "::warning::$1 Building without Firebase — sign-in, Crashlytics and Performance will be inert in this APK."
+            rm -f androidApp/google-services.json androidApp/src/debug/google-services.json
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          }
+
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ] || [ -z "$GOOGLE_SERVICES_JSON_DEBUG_BASE64" ]; then
+            give_up "GOOGLE_SERVICES_JSON_BASE64 and GOOGLE_SERVICES_JSON_DEBUG_BASE64 are both required; at least one is unset."
+            exit 0
+          fi
+
+          mkdir -p androidApp/src/debug
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > androidApp/google-services.json
+          echo "$GOOGLE_SERVICES_JSON_DEBUG_BASE64" | base64 --decode > androidApp/src/debug/google-services.json
+
+          # Only the debug file is checked against an id: it is the one this build reads.
+          # The root file is checked for being readable JSON at all, since a truncated
+          # secret there fails later and less clearly.
+          if ! python3 .github/scripts/check_google_services.py \
+                 androidApp/google-services.json "$app_id"; then
+            give_up "The root google-services.json is unusable or does not cover $app_id."
+            exit 0
+          fi
+          if ! python3 .github/scripts/check_google_services.py \
+                 androidApp/src/debug/google-services.json "$debug_id"; then
+            give_up "No client for $debug_id. Register the debug app in the Firebase console, re-download its google-services.json, and set it as GOOGLE_SERVICES_JSON_DEBUG_BASE64."
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
       - name: Assemble debug APK
-        run: ./gradlew :androidApp:assembleDebug
+        id: assemble
+        env:
+          # infrastructure/supabase/build.gradle.kts reads local.properties first and these
+          # env vars second. A runner has no local.properties, so this is the only way the
+          # credentials reach the build — without them SupabaseEnvironment.isConfigured is
+          # false and the whole remote layer is replaced by offline fakes.
+          #
+          # The _DEV suffix is not decoration. A debug build resolves to the development
+          # Supabase project (generateSupabaseConfig: buildFlavor != release -> isDev), and
+          # isDev appends _DEV to the variable it looks for. Setting the unsuffixed
+          # SUPABASE_URL here would be read by nothing and would quietly produce the same
+          # unconfigured APK this change exists to stop — while also being the production
+          # project, which no test run should be writing into.
+          SUPABASE_URL_DEV: ${{ secrets.SUPABASE_URL_DEV }}
+          SUPABASE_ANON_KEY_DEV: ${{ secrets.SUPABASE_ANON_KEY_DEV }}
+          # Same suffix rule, from infrastructure/billing/build.gradle.kts. Optional: without
+          # it the paywall falls back to its unconfigured state, which no E2E spec asserts on.
+          REVENUECAT_API_KEY_ANDROID_TEST: ${{ secrets.REVENUECAT_API_KEY_ANDROID_TEST }}
+          # Real phone sign-in rather than the fixed development account. The E2E suite signs
+          # in with Firebase test numbers, and those only exist on the real path.
+          SUPABASE_PHONE_AUTH: ${{ github.event.inputs.realPhoneAuth == 'false' && 'false' || 'true' }}
+        run: |
+          if [ -n "$SUPABASE_URL_DEV" ] && [ -n "$SUPABASE_ANON_KEY_DEV" ]; then
+            echo "supabase=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No SUPABASE_URL_DEV / SUPABASE_ANON_KEY_DEV — sync and sign-in will not work in this APK."
+            echo "supabase=false" >> "$GITHUB_OUTPUT"
+          fi
+          ./gradlew :androidApp:assembleDebug
+
+      # Travels inside the artifact, so an APK found weeks later still says whether it can
+      # sign in. Without it the only way to find out is to install it and watch sign-in
+      # fail, which is how a whole afternoon goes.
+      - name: Describe the build
+        run: |
+          cat > androidApp/build/outputs/apk/debug/BUILD_CONFIG.txt <<INFO
+          commit     ${{ github.sha }}
+          ref        ${{ github.ref_name }}
+          run        ${{ github.run_id }}
+          run url    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          firebase   ${{ steps.firebase.outputs.configured }}
+          supabase   ${{ steps.assemble.outputs.supabase }}
+          phoneAuth  ${{ github.event.inputs.realPhoneAuth == 'false' && 'false' || 'true' }}
+          INFO
+          cat androidApp/build/outputs/apk/debug/BUILD_CONFIG.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7.0.1
         with:
           name: odo-debug-apk
-          path: androidApp/build/outputs/apk/debug/*.apk
-          retention-days: 14
+          path: |
+            androidApp/build/outputs/apk/debug/*.apk
+            androidApp/build/outputs/apk/debug/BUILD_CONFIG.txt
+          # 90 days, the maximum. Artifact storage is free on a public repository, so a
+          # shorter window buys nothing and costs the ability to re-test an older build.
+          retention-days: 90
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------

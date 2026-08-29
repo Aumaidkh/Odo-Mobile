@@ -1,0 +1,51 @@
+# Daily Telegram nudges for the 30-day launch plan (issue #356): every morning
+# (09:00 IST) the owner and the teammate each get their own task block for the
+# day, and at 15:00 IST both get the day's Done-when checklist. The plan data is the committed
+# social-automation/growth-plan/tasks.json (docs/GROWTH_PLAN_30DAY.md is
+# gitignored, so the runner cannot read it).
+#
+# Like social-render.yml, this file only runs from the default branch — GitHub
+# fires `schedule` and `workflow_dispatch` exclusively for workflows on it, so
+# nothing sends until this is merged to master. A scheduled run also checks out
+# master, which is fine here: the workflow, script and tasks.json all go live in
+# the same merge, and outside tasks.json's day range the script exits quietly.
+#
+# Repo secrets required: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (owner),
+# TELEGRAM_TEAMMATE_CHAT_ID.
+name: growth-plan-notify
+
+on:
+  schedule:
+    # 09:00 IST — today's tasks; 15:00 IST — Done-when reminder.
+    - cron: "30 3 * * *"
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which message to send"
+        type: choice
+        options: [morning, evening]
+        default: morning
+      force_day:
+        description: "Override the day number (testing)"
+        required: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Send today's growth-plan messages
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TEAMMATE_CHAT_ID: ${{ secrets.TELEGRAM_TEAMMATE_CHAT_ID }}
+          MODE: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode) || (github.event.schedule == '30 9 * * *' && 'evening') || 'morning' }}
+          FORCE_DAY: ${{ inputs.force_day }}
+        run: node social-automation/growth-plan/notify.js
