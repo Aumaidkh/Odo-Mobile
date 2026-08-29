@@ -10,6 +10,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveAutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.RemoveCarUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateCarDetailsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateOdometerUseCase
 import com.hopcape.odo.feature.garage.navigation.GarageFeatureEntryProvider
@@ -67,6 +68,7 @@ val garageModule = module {
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
+    factory { ReportUnlistedVehicleUseCase(reporter = get()) }
     // Everything the printed vehicle-details document is assembled from. The clock dates
     // the document, so a sheet left open across midnight still says the day it was
     // produced.
@@ -112,6 +114,7 @@ val garageModule = module {
             loadCatalog = get(),
             loadModels = get(),
             lookupPlate = get(),
+            reportUnlisted = get(),
             telemetry = get(),
         )
     }
@@ -122,6 +125,7 @@ val garageModule = module {
             updateDetails = get(),
             loadCatalog = get(),
             loadModels = get(),
+            reportUnlisted = get(),
             telemetry = get(),
         )
     }

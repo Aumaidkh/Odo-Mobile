@@ -12,6 +12,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.AddCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.garage.presentation.state.FormField
 import com.hopcape.odo.feature.garage.presentation.state.Submission
 import com.hopcape.odo.feature.garage.resources.Res
@@ -40,6 +41,7 @@ internal class AddCarViewModel(
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
     private val lookupPlate: LookupPlateUseCase,
+    private val reportUnlisted: ReportUnlistedVehicleUseCase,
     private val telemetry: GarageTelemetry,
 ) : ViewModel() {
 
@@ -136,10 +138,29 @@ internal class AddCarViewModel(
                 },
                 ifRight = {
                     _state.update { it.copy(submission = Submission.Succeeded) }
+                    reportIfUnlisted(fields)
                     emit(AddCarEffect.Added)
                 },
             )
         }
+    }
+
+    /**
+     * The car is already saved by the time this runs — reporting a make/model the catalog
+     * didn't have is a bonus for future owners, never a condition of this one's save. "Not in
+     * the catalog snapshot" is inferred rather than tracked through a picker event, so it
+     * catches every path to a free-typed value, not just the sheet's own "not listed" row.
+     */
+    private fun reportIfUnlisted(fields: CarFormFields) {
+        val make = fields.make.value ?: return
+        val model = fields.model.value ?: return
+        val options = _state.value.options
+        val knownMake = options.makes.any { it.equals(make, ignoreCase = true) }
+        val knownModel = options.models.any {
+            it.name.equals(model.name, ignoreCase = true) && it.variant == model.variant
+        }
+        if (knownMake && knownModel) return
+        viewModelScope.launch { reportUnlisted(make, model.name, model.variant) }
     }
 
     /** Edit one field and drop any pending failure — the form is being corrected. */

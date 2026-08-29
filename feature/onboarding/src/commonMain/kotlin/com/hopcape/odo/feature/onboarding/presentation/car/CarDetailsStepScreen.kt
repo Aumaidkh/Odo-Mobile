@@ -75,6 +75,9 @@ import com.hopcape.odo.feature.onboarding.resources.onb_fuel_sheet_subtitle
 import com.hopcape.odo.feature.onboarding.resources.onb_fuel_sheet_title
 import com.hopcape.odo.feature.onboarding.resources.onb_make_all
 import com.hopcape.odo.feature.onboarding.resources.onb_make_empty
+import com.hopcape.odo.feature.onboarding.resources.onb_make_not_listed
+import com.hopcape.odo.feature.onboarding.resources.onb_make_not_listed_confirm
+import com.hopcape.odo.feature.onboarding.resources.onb_make_not_listed_placeholder
 import com.hopcape.odo.feature.onboarding.resources.onb_make_popular
 import com.hopcape.odo.feature.onboarding.resources.onb_make_search
 import com.hopcape.odo.feature.onboarding.resources.onb_make_sheet_subtitle
@@ -82,6 +85,10 @@ import com.hopcape.odo.feature.onboarding.resources.onb_make_sheet_title
 import com.hopcape.odo.feature.onboarding.resources.onb_match_count
 import com.hopcape.odo.feature.onboarding.resources.onb_model_all
 import com.hopcape.odo.feature.onboarding.resources.onb_model_empty
+import com.hopcape.odo.feature.onboarding.resources.onb_model_not_listed
+import com.hopcape.odo.feature.onboarding.resources.onb_model_not_listed_confirm
+import com.hopcape.odo.feature.onboarding.resources.onb_model_not_listed_name_placeholder
+import com.hopcape.odo.feature.onboarding.resources.onb_model_not_listed_variant_placeholder
 import com.hopcape.odo.feature.onboarding.resources.onb_model_search
 import com.hopcape.odo.feature.onboarding.resources.onb_model_sheet_subtitle
 import com.hopcape.odo.feature.onboarding.resources.onb_model_sheet_title
@@ -99,9 +106,11 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Step 2 (manual route) — the same step, answered by hand when the plate lookup misses or
- * the owner doesn't want the registry to name their car. Four pickers, no free text: every
- * value has to match the catalog, because the fairness benchmarks are keyed on
- * make/model/year/fuel.
+ * the owner doesn't want the registry to name their car. Four pickers keyed to the catalog,
+ * because the fairness benchmarks are keyed on make/model/year/fuel — except make and model
+ * also offer "not listed" free text for a car the catalog doesn't have. A free-typed car
+ * simply has no peer group to benchmark against yet, which is honest: it has none until
+ * enough other owners report the same one (UnlistedVehicleReporter).
  *
  * The registration number opens the form, and it is required here exactly as it is on the
  * other route. It is the same field, holding the same value — somebody who typed a plate and
@@ -214,6 +223,9 @@ private fun CarDetailsForm(
                 emptyResultsText = stringResource(Res.string.onb_make_empty),
                 closeContentDescription = close,
                 placeholder = choose,
+                notListedLabel = stringResource(Res.string.onb_make_not_listed),
+                notListedPlaceholder = stringResource(Res.string.onb_make_not_listed_placeholder),
+                notListedConfirmLabel = stringResource(Res.string.onb_make_not_listed_confirm),
             )
         }
 
@@ -235,6 +247,10 @@ private fun CarDetailsForm(
                 emptyResultsText = stringResource(Res.string.onb_model_empty),
                 closeContentDescription = close,
                 placeholder = choose,
+                notListedLabel = stringResource(Res.string.onb_model_not_listed),
+                notListedNamePlaceholder = stringResource(Res.string.onb_model_not_listed_name_placeholder),
+                notListedVariantPlaceholder = stringResource(Res.string.onb_model_not_listed_variant_placeholder),
+                notListedConfirmLabel = stringResource(Res.string.onb_model_not_listed_confirm),
             )
         }
 

@@ -137,5 +137,8 @@ class DataTelemetry(
 
         /** The durable analytics event queue — SqlDelightAnalyticsEventStore. */
         const val ANALYTICS_EVENT = "analyticsevent"
+
+        /** The shared make/model reference data — its remote refresh and owner submissions. */
+        const val VEHICLE_CATALOG = "vehiclecatalog"
     }
 }

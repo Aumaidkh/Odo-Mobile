@@ -15,6 +15,7 @@ import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
+import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
@@ -33,7 +34,9 @@ import com.hopcape.odo.infrastructure.database.car.CarSyncable
 import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncTable
 import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
+import com.hopcape.odo.infrastructure.database.car.UnlistedVehicleReporterImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
@@ -280,6 +283,21 @@ val databaseInfrastructureModule = module {
     single<DiagnosticRequests> { SqlDelightDiagnosticRequests(database = get(), clock = get()) }
 
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
+
+    // Keeps the local make/model cache above current with the shared Supabase catalog.
+    // `createdAtStart` so the pull kicks off at launch rather than waiting for someone to
+    // open a car picker first; `refreshInBackground()` returns immediately regardless, so
+    // this never delays anything else Koin resolves at startup.
+    single(createdAtStart = true) {
+        VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get())
+            .also { it.refreshInBackground() }
+    }
+
+    // The client half of "my car isn't listed" — reports land in a holding table for review,
+    // never straight into the picker's own tables (garage/onboarding presentation module).
+    single<UnlistedVehicleReporter> {
+        UnlistedVehicleReporterImpl(remote = get(), owner = get(), telemetry = get())
+    }
 
     // Fuel prices live in a local table so correcting one never needs a release: the seed
     // fills it on first launch, M4's fuel-prices feed writes fresher rows on top, and the

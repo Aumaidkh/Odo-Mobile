@@ -9,136 +9,190 @@ internal data class SeedModel(val name: String, val variants: List<String> = emp
 internal data class SeedMake(val name: String, val models: List<SeedModel>)
 
 /**
- * Top Indian car brands (roughly by market share) with their popular models and trims.
- * Order here is the display order, and the first few makes are also what
- * `VehicleCatalog.popularMakes()` returns — so market share is stated once.
+ * Car makes and models sold in India — current and commonly-owned discontinued ones alike,
+ * since Odo tracks cars people already own, not new-car shopping. Order here is the display
+ * order, and the first few makes are also what `VehicleCatalog.popularMakes()` returns — so
+ * market share is stated once.
  *
- * **These trims are best-effort reference data, not verified manufacturer data.** Trim
- * ladders change with every facelift and vary by fuel/transmission, so some entries will be
- * stale or wrong. They must be checked against manufacturer sources before launch: a wrong
- * trim doesn't just look sloppy, it feeds per-km cost and the fairness benchmarks that Odo's
- * whole value rests on. Correcting them is cheap — seeding is idempotent (INSERT OR IGNORE
- * on deterministic slugs), so fixing a name and bumping the DB version is the whole job.
+ * **This is best-effort reference data, not verified manufacturer data.** Trim ladders change
+ * with every facelift and vary by fuel/transmission, so some entries will be stale or wrong.
+ * They must be checked against manufacturer sources before launch: a wrong trim doesn't just
+ * look sloppy, it feeds per-km cost and the fairness benchmarks that Odo's whole value rests
+ * on. Correcting a name here is cheap — bump [CURRENT_SEED_VERSION] and it reaches every
+ * installed app on its next launch (see [seedVehicleReferenceData]).
+ *
+ * Growing this list is now also unnecessary for most future cars: [VehicleCatalogRefresher]
+ * pulls fresher makes/models from Supabase in the background, so `RAW_SEED` below only has to
+ * cover day-one and offline installs, not every car forever. A missing make or model in the
+ * meantime is not a dead end either — both pickers offer "not listed" free text, which is
+ * also how new entries reach the shared catalog in the first place.
  *
  * Every model is *also* seeded without a trim (see [seedVehicleReferenceData]), so an owner
  * whose exact variant is missing can still name their car instead of picking a wrong one.
+ *
+ * ## Editing this list
+ *
+ * One line per model: `Make | Model | Trim1, Trim2, Trim3`. The trim list is optional — leave
+ * it off (or blank) for a model seeded with no trim ladder at all. Lines for the same make
+ * don't need to be contiguous, but keeping them together is the whole point of this format:
+ * a new model is one line, a new make is a handful of lines, and both are a plain-text diff
+ * instead of a nested builder call.
  */
-internal val VEHICLE_SEED: List<SeedMake> = listOf(
-    SeedMake(
-        "Maruti Suzuki",
-        listOf(
-            SeedModel("Swift", listOf("LXI", "VXI", "ZXI", "ZXI+")),
-            SeedModel("Baleno", listOf("Sigma", "Delta", "Zeta", "Alpha")),
-            SeedModel("Dzire", listOf("LXI", "VXI", "ZXI", "ZXI+")),
-            SeedModel("WagonR", listOf("LXI", "VXI", "ZXI", "ZXI+")),
-            SeedModel("Brezza", listOf("LXI", "VXI", "ZXI", "ZXI+")),
-            SeedModel("Ertiga", listOf("LXI", "VXI", "ZXI", "ZXI+")),
-            SeedModel("Alto K10", listOf("STD", "LXI", "VXI", "VXI+")),
-            SeedModel("Fronx", listOf("Sigma", "Delta", "Delta+", "Zeta", "Alpha")),
-            SeedModel("Grand Vitara", listOf("Sigma", "Delta", "Zeta", "Alpha")),
-        ),
-    ),
-    SeedMake(
-        "Hyundai",
-        listOf(
-            SeedModel("i20", listOf("Era", "Magna", "Sportz", "Asta", "Asta (O)")),
-            SeedModel("Venue", listOf("E", "S", "S (O)", "SX", "SX (O)")),
-            SeedModel("Creta", listOf("E", "EX", "S", "SX", "SX (O)")),
-            SeedModel("Verna", listOf("EX", "S", "SX", "SX (O)")),
-            SeedModel("Exter", listOf("EX", "S", "SX", "SX (O)")),
-            SeedModel("Grand i10 Nios", listOf("Era", "Magna", "Sportz", "Asta")),
-            SeedModel("Aura", listOf("E", "S", "SX", "SX (O)")),
-        ),
-    ),
-    SeedMake(
-        "Tata",
-        listOf(
-            SeedModel("Nexon", listOf("Smart", "Pure", "Creative", "Fearless")),
-            SeedModel("Punch", listOf("Pure", "Adventure", "Accomplished", "Creative")),
-            SeedModel("Tiago", listOf("XE", "XM", "XT", "XZ", "XZ+")),
-            SeedModel("Altroz", listOf("XE", "XM+", "XT", "XZ", "XZ+")),
-            SeedModel("Harrier", listOf("Smart", "Pure", "Adventure", "Fearless")),
-            SeedModel("Safari", listOf("Smart", "Pure", "Adventure", "Accomplished")),
-            SeedModel("Tigor", listOf("XE", "XM", "XZ", "XZ+")),
-        ),
-    ),
-    SeedMake(
-        "Mahindra",
-        listOf(
-            SeedModel("Scorpio-N", listOf("Z2", "Z4", "Z6", "Z8", "Z8 L")),
-            SeedModel("XUV700", listOf("MX", "AX3", "AX5", "AX7", "AX7 L")),
-            SeedModel("Thar", listOf("AX", "AX (O)", "LX")),
-            SeedModel("Bolero", listOf("B4", "B6", "B6 (O)")),
-            SeedModel("XUV300", listOf("W2", "W4", "W6", "W8", "W8 (O)")),
-            SeedModel("Scorpio Classic", listOf("S", "S11")),
-        ),
-    ),
-    SeedMake(
-        "Toyota",
-        listOf(
-            SeedModel("Innova Crysta", listOf("GX", "VX", "ZX")),
-            SeedModel("Innova Hycross", listOf("GX", "VX", "ZX", "ZX (O)")),
-            SeedModel("Fortuner", listOf("4x2", "4x4", "Legender")),
-            SeedModel("Glanza", listOf("E", "S", "G", "V")),
-            SeedModel("Urban Cruiser Hyryder", listOf("E", "S", "G", "V")),
-            SeedModel("Rumion", listOf("S", "G", "V")),
-        ),
-    ),
-    SeedMake(
-        "Kia",
-        listOf(
-            SeedModel("Seltos", listOf("HTE", "HTK", "HTK+", "HTX", "GTX+")),
-            SeedModel("Sonet", listOf("HTE", "HTK", "HTK+", "HTX", "GTX+")),
-            SeedModel("Carens", listOf("Premium", "Prestige", "Luxury", "Luxury Plus")),
-            SeedModel("Carnival", listOf("Premium", "Prestige", "Limousine")),
-        ),
-    ),
-    SeedMake(
-        "Honda",
-        listOf(
-            SeedModel("City", listOf("SV", "V", "VX", "ZX")),
-            SeedModel("Amaze", listOf("E", "S", "VX")),
-            SeedModel("Elevate", listOf("SV", "V", "VX", "ZX")),
-        ),
-    ),
-    SeedMake(
-        "Renault",
-        listOf(
-            SeedModel("Kwid", listOf("RXE", "RXL", "RXT", "Climber")),
-            SeedModel("Triber", listOf("RXE", "RXL", "RXT", "RXZ")),
-            SeedModel("Kiger", listOf("RXE", "RXL", "RXT", "RXZ")),
-        ),
-    ),
-    SeedMake(
-        "Volkswagen",
-        listOf(
-            SeedModel("Virtus", listOf("Comfortline", "Highline", "Topline", "GT Plus")),
-            SeedModel("Taigun", listOf("Comfortline", "Highline", "Topline", "GT Plus")),
-        ),
-    ),
-    SeedMake(
-        "Skoda",
-        listOf(
-            SeedModel("Slavia", listOf("Active", "Ambition", "Style")),
-            SeedModel("Kushaq", listOf("Active", "Ambition", "Style")),
-        ),
-    ),
-    SeedMake(
-        "MG",
-        listOf(
-            SeedModel("Hector", listOf("Style", "Smart", "Sharp", "Savvy")),
-            SeedModel("Astor", listOf("Style", "Super", "Smart", "Sharp", "Savvy")),
-            SeedModel("ZS EV", listOf("Excite", "Exclusive")),
-            SeedModel("Comet EV", listOf("Pace", "Play", "Plush")),
-        ),
-    ),
-    SeedMake(
-        "Nissan",
-        listOf(
-            SeedModel("Magnite", listOf("XE", "XL", "XV", "XV Premium")),
-        ),
-    ),
-)
+private val RAW_SEED = """
+Maruti Suzuki | Swift | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | Baleno | Sigma, Delta, Zeta, Alpha
+Maruti Suzuki | Dzire | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | WagonR | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | Brezza | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | Ertiga | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | Alto K10 | STD, LXI, VXI, VXI+
+Maruti Suzuki | Fronx | Sigma, Delta, Delta+, Zeta, Alpha
+Maruti Suzuki | Grand Vitara | Sigma, Delta, Zeta, Alpha
+Maruti Suzuki | Eeco | STD, 5 STR
+Maruti Suzuki | Celerio | LXI, VXI, ZXI, ZXI+
+Maruti Suzuki | S-Presso | STD, LXI, VXI, VXI+
+Hyundai | i20 | Era, Magna, Sportz, Asta, Asta (O)
+Hyundai | Venue | E, S, S (O), SX, SX (O)
+Hyundai | Creta | E, EX, S, SX, SX (O)
+Hyundai | Verna | EX, S, SX, SX (O)
+Hyundai | Exter | EX, S, SX, SX (O)
+Hyundai | Grand i10 Nios | Era, Magna, Sportz, Asta
+Hyundai | Aura | E, S, SX, SX (O)
+Hyundai | Alcazar | Prestige, Platinum, Signature
+Hyundai | Tucson | Signature, Platinum
+Hyundai | Santro | D-Lite, Era, Magna, Sportz, Asta
+Tata | Nexon | Smart, Pure, Creative, Fearless
+Tata | Punch | Pure, Adventure, Accomplished, Creative
+Tata | Tiago | XE, XM, XT, XZ, XZ+
+Tata | Altroz | XE, XM+, XT, XZ, XZ+
+Tata | Harrier | Smart, Pure, Adventure, Fearless
+Tata | Safari | Smart, Pure, Adventure, Accomplished
+Tata | Tigor | XE, XM, XZ, XZ+
+Tata | Curvv | Creative, Accomplished, Empowered
+Mahindra | Scorpio-N | Z2, Z4, Z6, Z8, Z8 L
+Mahindra | XUV700 | MX, AX3, AX5, AX7, AX7 L
+Mahindra | Thar | AX, AX (O), LX
+Mahindra | Bolero | B4, B6, B6 (O)
+Mahindra | XUV300 | W2, W4, W6, W8, W8 (O)
+Mahindra | Scorpio Classic | S, S11
+Mahindra | XUV400 | EC, EL
+Mahindra | Bolero Neo | N4, N8, N10
+Toyota | Innova Crysta | GX, VX, ZX
+Toyota | Innova Hycross | GX, VX, ZX, ZX (O)
+Toyota | Fortuner | 4x2, 4x4, Legender
+Toyota | Glanza | E, S, G, V
+Toyota | Urban Cruiser Hyryder | E, S, G, V
+Toyota | Rumion | S, G, V
+Toyota | Camry | Hybrid
+Toyota | Land Cruiser | VX, ZX
+Kia | Seltos | HTE, HTK, HTK+, HTX, GTX+
+Kia | Sonet | HTE, HTK, HTK+, HTX, GTX+
+Kia | Carens | Premium, Prestige, Luxury, Luxury Plus
+Kia | Carnival | Premium, Prestige, Limousine
+Kia | EV6 | GT Line
+Honda | City | SV, V, VX, ZX
+Honda | Amaze | E, S, VX
+Honda | Elevate | SV, V, VX, ZX
+Honda | Jazz | V, VX
+Renault | Kwid | RXE, RXL, RXT, Climber
+Renault | Triber | RXE, RXL, RXT, RXZ
+Renault | Kiger | RXE, RXL, RXT, RXZ
+Volkswagen | Virtus | Comfortline, Highline, Topline, GT Plus
+Volkswagen | Taigun | Comfortline, Highline, Topline, GT Plus
+Volkswagen | Tiguan | Elegance
+Skoda | Slavia | Active, Ambition, Style
+Skoda | Kushaq | Active, Ambition, Style
+Skoda | Octavia | Style, L&K
+Skoda | Superb | Style, L&K
+Skoda | Kodiaq | Style, L&K
+MG | Hector | Style, Smart, Sharp, Savvy
+MG | Astor | Style, Super, Smart, Sharp, Savvy
+MG | ZS EV | Excite, Exclusive
+MG | Comet EV | Pace, Play, Plush
+MG | Windsor EV | Excite, Exclusive
+Nissan | Magnite | XE, XL, XV, XV Premium
+Jeep | Compass | Sport, Longitude, Limited, Model S
+Jeep | Meridian | Longitude, Limited, Overland
+Citroen | C3 | Live, Feel, Shine
+Citroen | C3 Aircross | You, Plus, Max
+Citroen | Basalt | Plus, Max
+BYD | Atto 3 | Superior
+BYD | Seal | Premium, Performance
+BYD | e6 |
+Mercedes-Benz | A-Class Limousine | Progressive
+Mercedes-Benz | C-Class | Avantgarde, AMG Line
+Mercedes-Benz | E-Class | Avantgarde, AMG Line
+Mercedes-Benz | GLA | Progressive, AMG Line
+Mercedes-Benz | GLC | Avantgarde, AMG Line
+Mercedes-Benz | S-Class | S 350d, S 450
+BMW | 3 Series | Sport Line, Luxury Line, M Sport
+BMW | 5 Series | Sport Line, Luxury Line, M Sport
+BMW | X1 | sDrive, xLine, M Sport
+BMW | X3 | xLine, M Sport
+BMW | X5 | xLine, M Sport
+Audi | A4 | Premium, Premium Plus, Technology
+Audi | A6 | Premium, Premium Plus, Technology
+Audi | Q3 | Premium, Premium Plus, Technology
+Audi | Q5 | Premium Plus, Technology
+Volvo | XC40 | Momentum, Inscription, Ultimate
+Volvo | XC60 | Momentum, Inscription, Ultimate
+Volvo | XC90 | Momentum, Inscription, Ultimate
+Land Rover | Range Rover | SE, HSE, Autobiography
+Land Rover | Range Rover Sport | SE, HSE, Autobiography
+Land Rover | Range Rover Evoque | S, SE, HSE
+Land Rover | Discovery Sport | S, SE, HSE
+Land Rover | Defender | 90, 110, 130
+Jaguar | XF | Prestige, Portfolio, R-Dynamic
+Jaguar | F-Pace | Prestige, Portfolio, R-Dynamic
+Lexus | ES | Elegant, Luxury
+Lexus | NX | Elegant, Luxury, F Sport
+Lexus | RX | Elegant, Luxury, F Sport
+MINI | Cooper | Classic, Favoured
+MINI | Countryman | Classic, Favoured, JCW
+Porsche | Macan | Base, S, GTS
+Porsche | Cayenne | Base, S, GTS
+Isuzu | D-Max V-Cross | Base, Z
+Isuzu | MU-X | Base, Z
+Force Motors | Gurkha | 5-Door
+Force Motors | Trax | Cruiser
+Mitsubishi | Pajero Sport | Select Plus, Select Plus AT
+Fiat | Punto | Active, Dynamic, Emotion
+Fiat | Linea | Active, Dynamic, Emotion
+Chevrolet | Beat | LS, LT, LTZ
+Chevrolet | Spark | LS, LT
+Chevrolet | Cruze | LT, LTZ
+Chevrolet | Tavera | LS, Neo 3
+Datsun | GO | D, A, T
+Datsun | redi-GO | D, A, T
+Premier | Rio | NX, GX
+""".trimIndent()
+
+/**
+ * [RAW_SEED], parsed into the shape [seedVehicleReferenceData] inserts. `groupBy` keeps both
+ * the first-appearance order of each make and the append order of its models — the same
+ * ordering a hand-written `listOf(SeedMake(...))` would have given, so `display_order` still
+ * falls straight out of list position.
+ */
+internal val VEHICLE_SEED: List<SeedMake> by lazy {
+    RAW_SEED.lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { line ->
+            val columns = line.split("|").map { it.trim() }
+            val make = columns[0]
+            val model = SeedModel(
+                name = columns[1],
+                variants = columns.getOrNull(2)
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    .orEmpty(),
+            )
+            make to model
+        }
+        .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+        .map { (make, models) -> SeedMake(make, models) }
+}
 
 /**
  * Deterministic, INSERT-OR-IGNORE-friendly id slug.
@@ -154,8 +208,28 @@ private fun slug(vararg parts: String): String = parts.joinToString("-") { part 
 }
 
 /**
- * Populate the picker reference tables once. Idempotent: a no-op when makes
- * already exist, and INSERT OR IGNORE on stable slugs guards re-runs.
+ * Bump whenever [RAW_SEED] changes — a bigger catalog, a corrected trim, anything. This is
+ * the whole mechanism that lets a data fix ship without a schema migration: on a version
+ * mismatch, [seedVehicleReferenceData] replaces every row in `vehicle_make`/`vehicle_model`
+ * with what [VEHICLE_SEED] says now.
+ */
+private const val CURRENT_SEED_VERSION = 1L
+
+/**
+ * Populate the picker reference tables from [VEHICLE_SEED], replacing whatever they held
+ * before. A no-op once the stored `seed_version` already matches [CURRENT_SEED_VERSION] — an
+ * ordinary app launch does not re-run hundreds of inserts every time.
+ *
+ * This used to be "insert once, forever" (skip if the table already had rows), which meant a
+ * bigger or corrected catalog could only reach an installed app via a reinstall. Comparing a
+ * stored version instead means shipping more cars later is "edit [RAW_SEED], bump
+ * [CURRENT_SEED_VERSION]" — no schema migration needed per catalog update, only when the
+ * `vehicle_catalog_meta` table itself changes shape.
+ *
+ * Full delete-and-reinsert rather than INSERT-OR-IGNORE-on-top is what lets this also fix a
+ * typo, not just add rows: `cars.make`/`cars.model` are plain strings with no foreign key
+ * into these tables (DB_SCHEMA), so replacing every reference row can never orphan or change
+ * a car someone has already saved.
  *
  * Each model is inserted twice over: once with no trim, then once per trim. The trim-less
  * row is what stops a missing or renamed variant from blocking someone — they can always
@@ -167,11 +241,17 @@ private fun slug(vararg parts: String): String = parts.joinToString("-") { part 
  * [VARIANT_ORDER_SPAN] − 1 trims, far above any real ladder.
  */
 internal fun seedVehicleReferenceData(database: OdoDatabase) {
+    val metaQueries = database.vehicleCatalogMetaQueries
+    val storedVersion = metaQueries.selectSeedVersion().executeAsOneOrNull()
+    if (storedVersion == CURRENT_SEED_VERSION) return
+
     val makeQueries = database.vehicleMakeQueries
     val modelQueries = database.vehicleModelQueries
-    if (makeQueries.countMakes().executeAsOne() > 0L) return
 
     database.transaction {
+        modelQueries.deleteAllModels()
+        makeQueries.deleteAllMakes()
+
         VEHICLE_SEED.forEachIndexed { makeIndex, make ->
             val makeId = slug("make", make.name)
             makeQueries.insertMake(
@@ -200,6 +280,8 @@ internal fun seedVehicleReferenceData(database: OdoDatabase) {
                 }
             }
         }
+
+        metaQueries.setSeedVersion(CURRENT_SEED_VERSION)
     }
 }
 
