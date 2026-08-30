@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.profile.presentation
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.component.OdoCity
 import com.hopcape.odo.feature.profile.presentation.state.FormField
 import com.hopcape.odo.feature.profile.presentation.state.Submission
 
@@ -55,7 +56,7 @@ internal data class EditProfileUiState(
     val email: FormField<String> = FormField(),
     val city: FormField<String> = FormField(),
     val phoneNumber: String? = null,
-    val cities: List<String> = emptyList(),
+    val cities: List<OdoCity> = emptyList(),
     val avatarPath: String? = null,
     val isSignedIn: Boolean = false,
     val submission: Submission = Submission.Idle,
@@ -64,4 +65,17 @@ internal data class EditProfileUiState(
 ) {
     /** Nothing to save while a write is already running. */
     val canSave: Boolean get() = !submission.isInFlight && !deletion.isInFlight
+
+    /**
+     * What [OdoCityField] shows as chosen — a catalog match if there is one, else a synthetic
+     * row built from the typed name.
+     *
+     * [cities] only ever holds the synced catalog, so a city typed through "not listed" (or one
+     * that was, but hasn't been promoted and pulled down yet) has no row there. Without this
+     * fallback the field would show its "Choose" placeholder even though [city] holds a value
+     * that was already saved.
+     */
+    val selectedCity: OdoCity?
+        get() = cities.find { it.name.equals(city.value, ignoreCase = true) }
+            ?: city.value?.takeIf { it.isNotBlank() }?.let { OdoCity(id = "custom-$it", name = it) }
 }

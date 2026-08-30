@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
-import com.hopcape.odo.core.designsystem.component.OdoDropdownField
+import com.hopcape.odo.core.designsystem.component.OdoCityField
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -36,7 +36,17 @@ import com.hopcape.odo.feature.profile.resources.Res
 import com.hopcape.odo.feature.profile.resources.pf_cd_close
 import com.hopcape.odo.feature.profile.resources.pf_change_photo
 import com.hopcape.odo.feature.profile.resources.pf_city
+import com.hopcape.odo.feature.profile.resources.pf_city_add
+import com.hopcape.odo.feature.profile.resources.pf_city_all
+import com.hopcape.odo.feature.profile.resources.pf_city_choose
+import com.hopcape.odo.feature.profile.resources.pf_city_enter_hint
+import com.hopcape.odo.feature.profile.resources.pf_city_matches
+import com.hopcape.odo.feature.profile.resources.pf_city_no_matches
+import com.hopcape.odo.feature.profile.resources.pf_city_not_listed
 import com.hopcape.odo.feature.profile.resources.pf_city_note
+import com.hopcape.odo.feature.profile.resources.pf_city_search_hint
+import com.hopcape.odo.feature.profile.resources.pf_city_sheet_subtitle
+import com.hopcape.odo.feature.profile.resources.pf_city_sheet_title
 import com.hopcape.odo.feature.profile.resources.pf_edit_title
 import com.hopcape.odo.feature.profile.resources.pf_email
 import com.hopcape.odo.feature.profile.resources.pf_email_hint
@@ -66,6 +76,7 @@ internal fun EditProfileScreen(
     val pickPhoto = rememberFilePicker(mimeTypes = FileTypes.PHOTOS) { picked ->
         if (picked != null) onEvent(EditProfileEvent.PhotoPicked(picked))
     }
+    val cityMatchTemplate = stringResource(Res.string.pf_city_matches)
 
     OdoScreen(
         topBar = { CloseTopBar(stringResource(Res.string.pf_edit_title), stringResource(Res.string.pf_cd_close), onClose) },
@@ -152,17 +163,36 @@ internal fun EditProfileScreen(
                 errorText = state.email.error?.asString(),
                 modifier = Modifier.testTag(EditProfileTestTags.EMAIL_FIELD),
             )
-            OdoDropdownField(
-                selected = state.city.value,
-                options = state.cities,
-                onSelect = { onEvent(EditProfileEvent.CityChanged(it)) },
+            OdoCityField(
+                selected = state.selectedCity,
+                cities = state.cities,
+                onSelect = { onEvent(EditProfileEvent.CityChanged(it.name)) },
+                title = stringResource(Res.string.pf_city_sheet_title),
+                subtitle = stringResource(Res.string.pf_city_sheet_subtitle, state.cities.size),
+                searchPlaceholder = stringResource(Res.string.pf_city_search_hint),
+                matchCountLabel = cityMatchTemplate::withCount,
+                allSectionLabel = stringResource(Res.string.pf_city_all),
+                emptyResultsText = stringResource(Res.string.pf_city_no_matches),
+                closeContentDescription = stringResource(Res.string.pf_cd_close),
                 label = stringResource(Res.string.pf_city),
+                placeholder = stringResource(Res.string.pf_city_choose),
+                notListedLabel = stringResource(Res.string.pf_city_not_listed),
+                notListedPlaceholder = stringResource(Res.string.pf_city_enter_hint),
+                notListedConfirmLabel = stringResource(Res.string.pf_city_add),
                 modifier = Modifier.testTag(EditProfileTestTags.CITY_FIELD),
             )
             OdoText(stringResource(Res.string.pf_city_note), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
     }
 }
+
+/**
+ * Fills a `"%1$d ..."` template with [count]. [OdoCityField]'s `matchCountLabel` is a plain
+ * `(Int) -> String`, not `@Composable`, since it is called from inside the sheet's own layout,
+ * where `stringResource` can't be — so the template is read once in composition and formatted
+ * here, the same split `OnboardingChrome.withCount` uses for the car-model picker.
+ */
+private fun String.withCount(count: Int): String = replace("%1\$d", count.toString())
 
 /** Tags for the fields, which have no unique words of their own once emptied. */
 object EditProfileTestTags {
