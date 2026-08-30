@@ -111,3 +111,4 @@ landing/public/legal/
 # a project ref is in every request the app makes — but it is machine state, and
 # it is the one path under social-automation that a `git add -A` would sweep in.
 /social-automation/supabase/.temp/
+/supabase/migrations/20260830130000_promote_vehicle_catalog_submission.sql
