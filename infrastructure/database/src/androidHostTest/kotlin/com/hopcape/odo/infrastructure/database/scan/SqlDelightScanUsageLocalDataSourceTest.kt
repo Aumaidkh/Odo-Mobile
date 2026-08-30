@@ -74,7 +74,7 @@ class SqlDelightScanUsageLocalDataSourceTest {
     @Test
     fun theSchemaSaysItIsAtTheMigratedVersion() {
         assertEquals(
-            8L,
+            9L,
             OdoDatabase.Schema.version,
             "adding a migration file bumps this; an install upgrades only if it does",
         )

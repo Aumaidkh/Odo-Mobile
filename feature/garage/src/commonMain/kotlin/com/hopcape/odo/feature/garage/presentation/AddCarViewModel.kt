@@ -150,8 +150,15 @@ internal class AddCarViewModel(
      * didn't have is a bonus for future owners, never a condition of this one's save. "Not in
      * the catalog snapshot" is inferred rather than tracked through a picker event, so it
      * catches every path to a free-typed value, not just the sheet's own "not listed" row.
+     *
+     * Suspends inline on the caller's own coroutine rather than spawning a child
+     * `viewModelScope.launch` — [save] emits [AddCarEffect.Added] immediately after this
+     * returns, which navigates away and clears the ViewModel, so a child launch could be
+     * cancelled before its write ever ran. [reportUnlisted] itself only does a fast local
+     * insert now (the actual network push is the sync engine's job), so awaiting it here
+     * costs nothing worth racing against.
      */
-    private fun reportIfUnlisted(fields: CarFormFields) {
+    private suspend fun reportIfUnlisted(fields: CarFormFields) {
         val make = fields.make.value ?: return
         val model = fields.model.value ?: return
         val options = _state.value.options
@@ -160,7 +167,7 @@ internal class AddCarViewModel(
             it.name.equals(model.name, ignoreCase = true) && it.variant == model.variant
         }
         if (knownMake && knownModel) return
-        viewModelScope.launch { reportUnlisted(make, model.name, model.variant) }
+        reportUnlisted(make, model.name, model.variant)
     }
 
     /** Edit one field and drop any pending failure — the form is being corrected. */

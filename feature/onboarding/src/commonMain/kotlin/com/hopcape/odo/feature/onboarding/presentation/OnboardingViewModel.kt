@@ -390,8 +390,12 @@ internal class OnboardingViewModel(
      * come from the vehicle registry, which this catalog has no opinion on, so there is
      * nothing to compare there. See `:feature:garage`'s `AddCarViewModel.reportIfUnlisted` for
      * the same inference on the other place a car gets saved.
+     *
+     * Suspends inline rather than spawning a child `viewModelScope.launch` — [saveCarStep]'s
+     * caller advances the step (and can finish the flow) right after this returns, which
+     * would otherwise race a fire-and-forget launch against the ViewModel being cleared.
      */
-    private fun reportIfUnlisted(state: OnboardingUiState, command: SaveCarCommand) {
+    private suspend fun reportIfUnlisted(state: OnboardingUiState, command: SaveCarCommand) {
         if (!state.manualEntry) return
         val make = command.make ?: return
         val model = command.model ?: return
@@ -401,7 +405,7 @@ internal class OnboardingViewModel(
             it.name.equals(model, ignoreCase = true) && it.variant == command.variant
         }
         if (knownMake && knownModel) return
-        viewModelScope.launch { reportUnlisted(make, model, command.variant) }
+        reportUnlisted(make, model, command.variant)
     }
 
     /** Save the owner's answers and stamp setup as finished. */

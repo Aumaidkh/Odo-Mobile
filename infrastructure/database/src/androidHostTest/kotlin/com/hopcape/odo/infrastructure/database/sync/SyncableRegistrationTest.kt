@@ -59,6 +59,7 @@ class SyncableRegistrationTest {
             setOf(
                 SyncEntity.PROFILES,
                 SyncEntity.CARS,
+                SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
                 SyncEntity.TRIPS,
                 SyncEntity.FUEL_FILLS,
                 SyncEntity.SERVICE_LOGS,

@@ -145,8 +145,12 @@ internal class EditCarViewModel(
         }
     }
 
-    /** See AddCarViewModel.reportIfUnlisted — same inference, same fire-and-forget contract. */
-    private fun reportIfUnlisted(fields: CarFormFields) {
+    /**
+     * See `AddCarViewModel.reportIfUnlisted` — same inference, same fire-and-forget contract,
+     * and the same reason this suspends inline instead of spawning a child
+     * `viewModelScope.launch`: [save] navigates away right after this returns.
+     */
+    private suspend fun reportIfUnlisted(fields: CarFormFields) {
         val make = fields.make.value ?: return
         val model = fields.model.value ?: return
         val options = _state.value.options
@@ -155,7 +159,7 @@ internal class EditCarViewModel(
             it.name.equals(model.name, ignoreCase = true) && it.variant == model.variant
         }
         if (knownMake && knownModel) return
-        viewModelScope.launch { reportUnlisted(make, model.name, model.variant) }
+        reportUnlisted(make, model.name, model.variant)
     }
 
     /** Edit one field and drop any pending failure — the form is being corrected. */

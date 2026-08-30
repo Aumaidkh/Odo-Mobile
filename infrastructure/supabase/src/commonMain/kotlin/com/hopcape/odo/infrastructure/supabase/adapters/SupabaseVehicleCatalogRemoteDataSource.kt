@@ -11,8 +11,23 @@ import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
  *
  * The two fetches are plain, unscoped selects — these tables carry no `owner_id` and no RLS
  * beyond "anyone may read" (SUPABASE_BOOTSTRAP §vehicle catalog), unlike every other adapter
- * in this file. [submitUnlisted] is the only write, and it is a plain insert: the submission
- * carries no id the client ever needs again, so there is nothing to upsert against.
+ * in this file. [push] is the only write, and deliberately a plain [PostgrestClient.insert]
+ * with `returnRows = false`, never [PostgrestClient.upsert] and never `return=representation`:
+ * `vehicle_catalog_submissions` grants `authenticated` INSERT only (SUPABASE_BOOTSTRAP §vehicle
+ * catalog submissions) — no UPDATE, no SELECT, by design, since a submission is reviewed and
+ * promoted by hand from the SQL editor, never read back or changed by the app.
+ *
+ * **Both alternatives fail RLS, not just the obvious one.** An upsert's `ON CONFLICT DO
+ * UPDATE` plan needs the UPDATE policy this table intentionally does not have. Less obviously,
+ * `INSERT ... RETURNING` needs the SELECT policy it also intentionally does not have — Postgres
+ * checks the just-inserted row against the SELECT policies before handing it back, RLS or not,
+ * and a table with zero SELECT policies denies that by default. Verified directly against the
+ * live database: the identical INSERT succeeds with `returnRows = false` and fails with
+ * `42501` the moment `RETURNING` is added, regardless of upsert vs. plain insert.
+ *
+ * That means the accepted rows can never be read back to confirm what the server stored, so
+ * [push] answers with [submissions] itself rather than a server-echoed list — a call that
+ * didn't throw is the only signal this table's RLS will ever give.
  */
 internal class SupabaseVehicleCatalogRemoteDataSource(
     private val postgrest: PostgrestClient,
@@ -24,13 +39,14 @@ internal class SupabaseVehicleCatalogRemoteDataSource(
     override suspend fun fetchModels(): List<VehicleModelDto> =
         postgrest.select(table = MODELS_TABLE, serializer = VehicleModelDto.serializer(), order = "$COLUMN_DISPLAY_ORDER.asc")
 
-    override suspend fun submitUnlisted(submission: VehicleCatalogSubmissionDto) {
-        postgrest.upsert(
+    override suspend fun push(submissions: List<VehicleCatalogSubmissionDto>): List<VehicleCatalogSubmissionDto> {
+        postgrest.insert(
             table = SUBMISSIONS_TABLE,
             serializer = VehicleCatalogSubmissionDto.serializer(),
-            rows = listOf(submission),
+            rows = submissions,
             returnRows = false,
         )
+        return submissions
     }
 
     private companion object {

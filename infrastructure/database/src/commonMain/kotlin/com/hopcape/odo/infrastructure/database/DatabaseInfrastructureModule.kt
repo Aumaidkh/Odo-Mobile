@@ -37,6 +37,8 @@ import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
 import com.hopcape.odo.infrastructure.database.car.UnlistedVehicleReporterImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
@@ -293,11 +295,23 @@ val databaseInfrastructureModule = module {
             .also { it.refreshInBackground() }
     }
 
-    // The client half of "my car isn't listed" — reports land in a holding table for review,
-    // never straight into the picker's own tables (garage/onboarding presentation module).
+    // The client half of "my car isn't listed" — writes locally first (like every other
+    // pre-auth-safe table) and asks for a sync; VehicleCatalogSubmissionSyncable below is
+    // what actually reaches Supabase, landing in a holding table for review, never straight
+    // into the picker's own tables (garage/onboarding presentation module).
     single<UnlistedVehicleReporter> {
-        UnlistedVehicleReporterImpl(remote = get(), owner = get(), telemetry = get())
+        UnlistedVehicleReporterImpl(database = get(), owner = get(), idGenerator = get(), scheduler = get(), telemetry = get())
     }
+    single {
+        VehicleCatalogSubmissionSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
+                table = VehicleCatalogSubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
 
     // Fuel prices live in a local table so correcting one never needs a release: the seed
     // fills it on first launch, M4's fuel-prices feed writes fresher rows on top, and the

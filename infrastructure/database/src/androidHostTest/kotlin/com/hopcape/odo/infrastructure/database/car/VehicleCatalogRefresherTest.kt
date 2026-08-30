@@ -76,13 +76,13 @@ class VehicleCatalogRefresherTest {
     ) : VehicleCatalogRemoteDataSource {
         override suspend fun fetchMakes(): List<VehicleMakeDto> = makes
         override suspend fun fetchModels(): List<VehicleModelDto> = models
-        override suspend fun submitUnlisted(submission: VehicleCatalogSubmissionDto) = Unit
+        override suspend fun push(submissions: List<VehicleCatalogSubmissionDto>) = submissions
     }
 
     private object ThrowingRemote : VehicleCatalogRemoteDataSource {
         override suspend fun fetchMakes(): List<VehicleMakeDto> = error("network down")
         override suspend fun fetchModels(): List<VehicleModelDto> = error("network down")
-        override suspend fun submitUnlisted(submission: VehicleCatalogSubmissionDto) = Unit
+        override suspend fun push(submissions: List<VehicleCatalogSubmissionDto>) = submissions
     }
 
     private class SilentLogger : Logger {

@@ -17,6 +17,13 @@ enum class SyncEntity {
     CARS,
 
     /**
+     * A filed "my car isn't in the catalog" report. Anywhere after [CARS] would satisfy the
+     * FK — it has none, since it names a make/model as free text rather than referencing a
+     * row — but it sits here because it is filed at the same moment a car is saved.
+     */
+    VEHICLE_CATALOG_SUBMISSIONS,
+
+    /**
      * Automatically-detected drives (`docs/TRIPTRACKER_PLAN.md`). After [CARS] because a
      * trip only FKs to a car, not to a service log — nothing else references it.
      */

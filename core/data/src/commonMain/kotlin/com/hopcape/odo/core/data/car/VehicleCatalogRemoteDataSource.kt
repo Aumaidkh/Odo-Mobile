@@ -13,9 +13,14 @@ import kotlinx.serialization.Serializable
  * engine (SYNC_DESIGN's push/pull is per-owner): this is a one-way, unscoped refresh, not a
  * delta sync.
  *
- * [submitUnlisted] is the other direction — an owner naming a car the catalog does not have.
- * Submissions land in a holding table, not straight into the catalog: an unreviewed typo or
- * duplicate spelling would otherwise be selectable by every other owner within a refresh.
+ * [push] is the other direction — an owner naming a car the catalog does not have. Submissions
+ * land in a holding table, not straight into the catalog: an unreviewed typo or duplicate
+ * spelling would otherwise be selectable by every other owner within a refresh.
+ *
+ * Unlike [fetchMakes]/[fetchModels], [push] *is* driven by the `Syncable`/`Synchronizer`
+ * engine (`VehicleCatalogSubmissionSyncable`) — a submission is an owner-scoped write with its
+ * own local outbox, not a one-way unscoped refresh, so it belongs in the ordinary sync pass
+ * rather than behind a bespoke call site.
  */
 interface VehicleCatalogRemoteDataSource {
 
@@ -25,8 +30,8 @@ interface VehicleCatalogRemoteDataSource {
     /** Every model (and trim) in the shared catalog, in display order. */
     suspend fun fetchModels(): List<VehicleModelDto>
 
-    /** Record a car the catalog doesn't have yet, for later review — never blocks on failure. */
-    suspend fun submitUnlisted(submission: VehicleCatalogSubmissionDto)
+    /** Send unlisted-vehicle reports. The returned rows are what the server stored. */
+    suspend fun push(submissions: List<VehicleCatalogSubmissionDto>): List<VehicleCatalogSubmissionDto>
 }
 
 /** The wire shape of one row of `vehicle_makes` — snake_case to match the Postgres columns. */
@@ -50,12 +55,13 @@ data class VehicleModelDto(
 /**
  * One owner's report of a car the catalog is missing, bound for `vehicle_catalog_submissions`.
  *
- * No `id` — the server mints it (`default gen_random_uuid()`), because nothing local ever
- * needs to reference this row again; unlike every synced entity, there is no retry-by-id and
- * no pull-back.
+ * [id] is client-generated, like every other synced entity's primary key — sent explicitly on
+ * insert rather than left to the column's `default gen_random_uuid()`, which is what makes a
+ * retried push idempotent (the same id upserts the same row instead of creating a twin).
  */
 @Serializable
 data class VehicleCatalogSubmissionDto(
+    @SerialName("id") val id: String,
     @SerialName("owner_id") val ownerId: String,
     @SerialName("make") val make: String,
     @SerialName("model") val model: String,
@@ -70,5 +76,5 @@ data class VehicleCatalogSubmissionDto(
 internal class FakeVehicleCatalogRemoteDataSource : VehicleCatalogRemoteDataSource {
     override suspend fun fetchMakes(): List<VehicleMakeDto> = emptyList()
     override suspend fun fetchModels(): List<VehicleModelDto> = emptyList()
-    override suspend fun submitUnlisted(submission: VehicleCatalogSubmissionDto) = Unit
+    override suspend fun push(submissions: List<VehicleCatalogSubmissionDto>): List<VehicleCatalogSubmissionDto> = submissions
 }
