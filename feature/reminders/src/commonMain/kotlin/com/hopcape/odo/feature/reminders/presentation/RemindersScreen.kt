@@ -76,11 +76,17 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * The Reminders home — a status-toned summary (amber "needs attention" / green "all
  * caught up"), an urgent "this week" section when relevant, and the always-present
- * "upcoming" forward look. A "Manage" affordance sits in the header and a FAB adds one.
+ * "set up reminders" section: a mix of already-scheduled reminders further out and
+ * not-yet-created suggestions, which is why it isn't called "Upcoming" — half its rows
+ * aren't yet. A "Manage" affordance sits in the header and a FAB adds one.
+ *
+ * Every row in that section opens something on tap: an already-scheduled one opens its
+ * actions sheet, a suggestion opens the create form pre-filled with that preset's
+ * defaults (its "Remind me" button stays too, for accepting them outright).
  *
  * State-free: renders [state] and forwards intents. The tap callbacks carry the row's
  * *resolved* copy alongside the data, because only the composition can resolve a
- * resource and the sheet / one-tap create need the string.
+ * resource and the sheet / one-tap create / suggestion prefill all need the string.
  */
 @Composable
 internal fun RemindersScreen(
@@ -88,6 +94,7 @@ internal fun RemindersScreen(
     onManage: () -> Unit,
     onOpenActions: (ReminderRow, String, String) -> Unit,
     onRemindMe: (ReminderPreset, String) -> Unit,
+    onOpenSuggestion: (ReminderPreset, String) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,7 +114,7 @@ internal fun RemindersScreen(
                 OdoText(content.message.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
             }
 
-            is Loadable.Ready -> RemindersLoadedContent(content.value, padding, onOpenActions, onRemindMe)
+            is Loadable.Ready -> RemindersLoadedContent(content.value, padding, onOpenActions, onRemindMe, onOpenSuggestion)
         }
     }
 }
@@ -118,6 +125,7 @@ private fun RemindersLoadedContent(
     padding: PaddingValues,
     onOpenActions: (ReminderRow, String, String) -> Unit,
     onRemindMe: (ReminderPreset, String) -> Unit,
+    onOpenSuggestion: (ReminderPreset, String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -137,7 +145,7 @@ private fun RemindersLoadedContent(
         if (content.upcoming.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 SectionLabel(stringResource(Res.string.rm_upcoming))
-                UpcomingCard(content.upcoming, onRemindMe)
+                UpcomingCard(content.upcoming, onOpenActions, onRemindMe, onOpenSuggestion)
             }
         }
     }
@@ -288,32 +296,60 @@ private fun ThisWeekCard(row: ReminderRow, onOpen: (ReminderRow, String, String)
 }
 
 @Composable
-private fun UpcomingCard(rows: List<ReminderRow>, onRemindMe: (ReminderPreset, String) -> Unit) {
+private fun UpcomingCard(
+    rows: List<ReminderRow>,
+    onOpenActions: (ReminderRow, String, String) -> Unit,
+    onRemindMe: (ReminderPreset, String) -> Unit,
+    onOpenSuggestion: (ReminderPreset, String) -> Unit,
+) {
     OdoCard(
         contentPadding = PaddingValues(horizontal = OdoTheme.spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         rows.forEachIndexed { index, row ->
             if (index > 0) HorizontalDivider(color = OdoTheme.colors.border)
-            UpcomingRow(row, onRemindMe)
+            UpcomingRow(row, onOpenActions, onRemindMe, onOpenSuggestion)
         }
     }
 }
 
+/**
+ * Every row opens something on tap. A row already on the schedule (on-track or due-soon)
+ * opens the same actions sheet a "this week" card does — reschedule, snooze, turn off — so
+ * an owner who wants to change it is not limited to waiting it out. A [RowStatus.Suggested]
+ * row is not a reminder yet, so tapping it opens the create form pre-filled with that
+ * preset's defaults instead — adjust before it exists, rather than create-then-reschedule.
+ * Its own one-tap "Remind me" button stays too, for accepting the defaults outright.
+ */
 @Composable
-private fun UpcomingRow(row: ReminderRow, onRemindMe: (ReminderPreset, String) -> Unit) {
+private fun UpcomingRow(
+    row: ReminderRow,
+    onOpenActions: (ReminderRow, String, String) -> Unit,
+    onRemindMe: (ReminderPreset, String) -> Unit,
+    onOpenSuggestion: (ReminderPreset, String) -> Unit,
+) {
     val title = row.title.asString()
+    val due = row.line.asString()
+    val status = row.status
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                onClick = {
+                    if (status is RowStatus.Suggested) onOpenSuggestion(status.preset, title)
+                    else onOpenActions(row, title, due)
+                },
+            )
+            .padding(vertical = OdoTheme.spacing.md),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconChip(iconFor(row.icon), toneFor(row.icon))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
             OdoText(title, style = OdoTheme.typography.heading)
-            OdoText(row.line.asString(), style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
+            OdoText(due, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
         }
-        when (val status = row.status) {
+        when (status) {
             RowStatus.DueThisWeek, RowStatus.DueSoon ->
                 OdoBadge(stringResource(Res.string.rm_status_due_soon), tone = OdoBadgeTone.Warning)
 
@@ -389,11 +425,11 @@ private fun toneFor(icon: ReminderIcon): Color = when (icon) {
 @OdoThemePreviews
 @Composable
 private fun RemindersAttentionPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onAdd = {})
+    RemindersScreen(sampleRemindersAttention(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onOpenSuggestion = { _, _ -> }, onAdd = {})
 }
 
 @OdoThemePreviews
 @Composable
 private fun RemindersCaughtUpPreview() = OdoPreview(padded = false) {
-    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onAdd = {})
+    RemindersScreen(sampleRemindersCaughtUp(), onManage = {}, onOpenActions = { _, _, _ -> }, onRemindMe = { _, _ -> }, onOpenSuggestion = { _, _ -> }, onAdd = {})
 }

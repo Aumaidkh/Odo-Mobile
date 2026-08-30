@@ -29,7 +29,7 @@ internal object RemindersCopy {
     const val ATTENTION_BODY = "Tap a reminder below to act on it."
 
     const val SECTION_THIS_WEEK = "THIS WEEK"
-    const val SECTION_UPCOMING = "UPCOMING"
+    const val SECTION_UPCOMING = "SET UP REMINDERS"
 
     const val PILL_ON_TRACK = "On track"
     const val REMIND_ME = "Remind me"

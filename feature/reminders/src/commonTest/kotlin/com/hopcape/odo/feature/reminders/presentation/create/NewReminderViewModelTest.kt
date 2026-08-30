@@ -49,11 +49,13 @@ class NewReminderViewModelTest {
 
     private class Fixture(
         reminderId: String? = null,
+        suggestedPreset: String? = null,
+        suggestedName: String? = null,
         val reminders: FakeReminderRepository = FakeReminderRepository(),
         serviceLogs: FakeServiceLogRepository = FakeServiceLogRepository(),
     ) {
         val viewModel = NewReminderViewModel(
-            args = NewReminderArgs(reminderId),
+            args = NewReminderArgs(reminderId, suggestedPreset, suggestedName),
             activeCar = FakeActiveCarProvider(),
             owners = { TEST_OWNER },
             observeOdometer = ObserveCurrentOdometerUseCase(currentOdometerFrom(serviceLogs)),
@@ -139,6 +141,116 @@ class NewReminderViewModelTest {
         val stored = fixture.reminders.customs.single()
         assertEquals(ReminderCadence.EveryDistance(10_000), stored.cadence)
         assertEquals(42_000, stored.anchorKm)
+    }
+
+    @Test
+    fun distanceStepDefaultsToThePresetsOwnStep_andCanBeOverridden() = runTest {
+        val fixture = Fixture(
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 42_000))),
+        )
+        with(fixture.viewModel) {
+            onEvent(NewReminderEvent.PresetSelected(ReminderPreset.TYRE_ROTATION, "Tyre rotation"))
+            onEvent(NewReminderEvent.RepeatChanged(ReminderRepeat.BY_DISTANCE))
+        }
+        assertEquals(10_000, fixture.viewModel.state.value.distanceStepKm)
+
+        fixture.viewModel.onEvent(NewReminderEvent.DistanceStepChanged(5_000))
+        fixture.viewModel.onEvent(NewReminderEvent.SaveTapped)
+
+        assertEquals(ReminderCadence.EveryDistance(5_000), fixture.reminders.customs.single().cadence)
+    }
+
+    @Test
+    fun distanceStepDefaultsToTheGenericStep_forATopicWithNoDistanceCadenceOfItsOwn() = runTest {
+        val fixture = Fixture(
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 42_000))),
+        )
+        with(fixture.viewModel) {
+            onEvent(NewReminderEvent.CustomLabelSaved("Wheel alignment"))
+            onEvent(NewReminderEvent.RepeatChanged(ReminderRepeat.BY_DISTANCE))
+        }
+
+        assertEquals(NewReminderUiState.DEFAULT_DISTANCE_STEP_KM, fixture.viewModel.state.value.distanceStepKm)
+    }
+
+    @Test
+    fun aNonPositiveDistanceStepIsRefusedAndStoresNothing() = runTest {
+        val fixture = Fixture(
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 42_000))),
+        )
+        with(fixture.viewModel) {
+            onEvent(NewReminderEvent.PresetSelected(ReminderPreset.TYRE_ROTATION, "Tyre rotation"))
+            onEvent(NewReminderEvent.RepeatChanged(ReminderRepeat.BY_DISTANCE))
+            onEvent(NewReminderEvent.DistanceStepChanged(0))
+            onEvent(NewReminderEvent.SaveTapped)
+        }
+
+        assertNotNull(fixture.viewModel.state.value.distanceStepError)
+        assertTrue(fixture.reminders.customs.isEmpty())
+    }
+
+    @Test
+    fun editingADistanceReminderPrefillsItsStep() = runTest {
+        val existing = customReminder(
+            id = "rem-1",
+            cadence = ReminderCadence.EveryDistance(7_500),
+            anchorKm = 40_000,
+        )
+        val fixture = Fixture(
+            reminderId = "rem-1",
+            reminders = FakeReminderRepository(listOf(existing)),
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 40_000))),
+        )
+
+        val prefilled = fixture.viewModel.state.value
+        assertEquals(ReminderRepeat.BY_DISTANCE, prefilled.repeat)
+        assertEquals(7_500, prefilled.distanceStepKm)
+    }
+
+    @Test
+    fun tappingASuggestionRowPrefillsExactlyWhatOneTapCreateWouldHaveUsed() = runTest {
+        val fixture = Fixture(
+            suggestedPreset = ReminderPreset.TYRE_ROTATION.name,
+            suggestedName = "Tyre rotation",
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 42_000))),
+        )
+
+        val prefilled = fixture.viewModel.state.value
+        assertTrue(!prefilled.editing)
+        assertEquals(ReminderPreset.TYRE_ROTATION, prefilled.preset)
+        assertEquals("Tyre rotation", prefilled.name)
+        assertEquals(ReminderRepeat.BY_DISTANCE, prefilled.repeat)
+        assertEquals(10_000, prefilled.distanceStepKm)
+
+        // Nothing is created merely by opening the form — only saving does.
+        assertTrue(fixture.reminders.customs.isEmpty())
+    }
+
+    @Test
+    fun aSuggestionPrefillCanBeAdjustedBeforeSaving() = runTest {
+        val fixture = Fixture(
+            suggestedPreset = ReminderPreset.TYRE_ROTATION.name,
+            suggestedName = "Tyre rotation",
+            serviceLogs = FakeServiceLogRepository(readings = listOf(reading(km = 42_000))),
+        )
+
+        with(fixture.viewModel) {
+            onEvent(NewReminderEvent.DistanceStepChanged(5_000))
+            onEvent(NewReminderEvent.SaveTapped)
+        }
+
+        val stored = fixture.reminders.customs.single()
+        assertEquals(ReminderCadence.EveryDistance(5_000), stored.cadence)
+    }
+
+    @Test
+    fun aNonDistancePresetSuggestionPrefillsItsOwnCadence() = runTest {
+        val fixture = Fixture(
+            suggestedPreset = ReminderPreset.COOLANT.name,
+            suggestedName = "Coolant top-up",
+        )
+
+        assertEquals(ReminderRepeat.MONTHLY, fixture.viewModel.state.value.repeat)
     }
 
     @Test

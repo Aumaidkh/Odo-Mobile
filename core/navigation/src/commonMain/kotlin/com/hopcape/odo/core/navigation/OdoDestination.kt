@@ -161,9 +161,19 @@ sealed interface OdoDestination : NavKey {
         /**
          * Create a custom reminder — reached from the home's "+ Add" — or edit one when
          * [reminderId] names it (the actions sheet's "Reschedule").
+         *
+         * [suggestedPreset] + [suggestedName] pre-fill a create instead: tapping a
+         * suggestion row (rather than its "Remind me" button) opens here with that
+         * preset's defaults already picked, so the owner can adjust before saving instead
+         * of creating blind and rescheduling after. Both are `null` for a plain "+ Add".
+         * Ignored when [reminderId] is set — an edit always wins.
          */
         @Serializable
-        data class New(val reminderId: String? = null) : Reminders
+        data class New(
+            val reminderId: String? = null,
+            val suggestedPreset: String? = null,
+            val suggestedName: String? = null,
+        ) : Reminders
         /**
          * Actions for a "this week" reminder (reschedule / snooze / turn off) — shown as a
          * bottom-sheet destination from tapping the reminder's card. Primitives only, so

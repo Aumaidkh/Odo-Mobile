@@ -17,6 +17,12 @@ internal enum class ReminderRepeat { EVERY_15_DAYS, MONTHLY, BY_DISTANCE, ONCE }
  * [anchorKm] is the car's odometer reading today — what a distance cadence counts from.
  * `null` disables the by-distance chip: a reminder cannot count kilometres from a
  * reading nobody recorded.
+ *
+ * [distanceStepKm] is how far apart the nudges are for a distance cadence — always
+ * kilometres, canonical, the same way [anchorKm] is; the screen converts to/from the
+ * owner's chosen unit the same way it does for the anchor line. Prefilled from the
+ * picked preset's own step when it has one, [DEFAULT_DISTANCE_STEP_KM] otherwise, and
+ * always editable — a preset is a starting point, not a fixed interval.
  */
 @Immutable
 internal data class NewReminderUiState(
@@ -29,8 +35,10 @@ internal data class NewReminderUiState(
     val hour: Int = 9,
     val minute: Int = 0,
     val anchorKm: Int? = null,
+    val distanceStepKm: Int = DEFAULT_DISTANCE_STEP_KM,
     val nameError: UiText? = null,
     val startError: UiText? = null,
+    val distanceStepError: UiText? = null,
     val formError: UiText? = null,
     val saving: Boolean = false,
 ) {
@@ -38,4 +46,12 @@ internal data class NewReminderUiState(
     val customSelected: Boolean get() = preset == null
 
     val distanceAvailable: Boolean get() = anchorKm != null
+
+    internal companion object {
+        /**
+         * The kilometre step a by-distance reminder starts with when nothing — neither the
+         * picked preset nor a previous value — says otherwise.
+         */
+        const val DEFAULT_DISTANCE_STEP_KM = 10_000
+    }
 }
