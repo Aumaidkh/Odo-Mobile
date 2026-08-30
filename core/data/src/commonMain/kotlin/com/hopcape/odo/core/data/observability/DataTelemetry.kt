@@ -140,5 +140,8 @@ class DataTelemetry(
 
         /** The shared make/model reference data — its remote refresh and owner submissions. */
         const val VEHICLE_CATALOG = "vehiclecatalog"
+
+        /** The shared city reference data — its remote pull and owner submissions. */
+        const val CITY_CATALOG = "citycatalog"
     }
 }

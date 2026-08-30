@@ -1,0 +1,44 @@
+-- The local mirror of Supabase's `cities` lookup, backing the city picker.
+--
+-- Unlike vehicle_make/vehicle_model, this table IS pulled through the ordinary Syncable/
+-- Synchronizer engine (see CitySyncTable) rather than a one-way fetch-and-replace refresher.
+-- It carries no owner_id and is never written to locally — sync_status only exists so
+-- CitySyncTable can answer `localState` the same way every other table does; a row here is
+-- always 'SYNCED' the moment it lands, because nothing ever puts it back to PENDING.
+CREATE TABLE city (
+    id          TEXT NOT NULL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    state       TEXT NOT NULL,
+    tier        INTEGER NOT NULL,
+    is_active   INTEGER NOT NULL,
+    updated_at  TEXT NOT NULL,
+    sync_status TEXT NOT NULL DEFAULT 'SYNCED'
+);
+
+-- Every city the picker offers, alphabetical — is_active mirrors the server's soft-retire flag.
+selectActive:
+SELECT id, name, state, tier
+FROM city
+WHERE is_active = 1
+ORDER BY name;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM city
+WHERE id = :id;
+
+-- A pulled row, written as SYNCED. Two statements rather than an UPSERT: SQLite 3.18 ships
+-- with minSdk 26 and has no ON CONFLICT DO UPDATE.
+insertFromRemote:
+INSERT OR IGNORE INTO city (id, name, state, tier, is_active, updated_at, sync_status)
+VALUES (:id, :name, :state, :tier, :is_active, :updated_at, 'SYNCED');
+
+updateFromRemote:
+UPDATE city
+SET name = :name,
+    state = :state,
+    tier = :tier,
+    is_active = :is_active,
+    updated_at = :updated_at,
+    sync_status = 'SYNCED'
+WHERE id = :id;

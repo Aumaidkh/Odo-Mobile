@@ -14,6 +14,23 @@ package com.hopcape.odo.core.sync
  */
 enum class SyncEntity {
     PROFILES,
+
+    /**
+     * The shared city lookup (`docs/SUPABASE_BOOTSTRAP.md` §2). No `owner_id` — every account
+     * reads the same rows — so this is pull-only, the mirror image of
+     * [CITY_SUBMISSIONS]'s push-only. Placed here rather than after [CARS]: it is foundational
+     * reference data with no FK dependents, the same reason [PROFILES] leads the list.
+     */
+    CITIES,
+
+    /**
+     * A filed "my city isn't in the catalog" report. After [CITIES] would satisfy the FK — it
+     * has none, since it names a city as free text — but it sits here because it is filed at
+     * the same moment a profile is saved, the same way [VEHICLE_CATALOG_SUBMISSIONS] sits next
+     * to [CARS].
+     */
+    CITY_SUBMISSIONS,
+
     CARS,
 
     /**

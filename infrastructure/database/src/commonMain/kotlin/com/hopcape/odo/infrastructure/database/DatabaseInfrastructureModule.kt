@@ -17,6 +17,8 @@ import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
 import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
+import com.hopcape.odo.core.domain.city.CityCatalog
+import com.hopcape.odo.core.domain.city.UnlistedCityReporter
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
@@ -40,6 +42,12 @@ import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
+import com.hopcape.odo.infrastructure.database.city.CityCatalogImpl
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncTable
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncable
+import com.hopcape.odo.infrastructure.database.city.CitySyncTable
+import com.hopcape.odo.infrastructure.database.city.CitySyncable
+import com.hopcape.odo.infrastructure.database.city.UnlistedCityReporterImpl
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
@@ -307,6 +315,37 @@ val databaseInfrastructureModule = module {
             runner = SyncRunner(
                 entity = SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
                 table = VehicleCatalogSubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    single<CityCatalog> { CityCatalogImpl(database = get()) }
+
+    // Pull-only, like CityCatalog itself: CitySyncable's pullFrom is what keeps the local
+    // `city` cache current with Supabase's shared `cities` table, driven by the ordinary sync
+    // engine rather than a bespoke refresher (see CitySyncTable's class note).
+    single {
+        CitySyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITIES,
+                table = CitySyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // The client half of "my city isn't listed" — same shape as UnlistedVehicleReporter above.
+    single<UnlistedCityReporter> {
+        UnlistedCityReporterImpl(database = get(), owner = get(), idGenerator = get(), scheduler = get(), telemetry = get())
+    }
+    single {
+        CitySubmissionSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITY_SUBMISSIONS,
+                table = CitySubmissionSyncTable(database = get(), remote = get()),
                 database = get(),
                 telemetry = get(),
             ),
