@@ -103,8 +103,16 @@ Manual review still decides *whether* a submission is real — nothing here auto
 
 ### Status — dev
 
-**Not yet applied to either project.** Apply both migrations to dev (`gezicmstbgfpwwohiboq`) the
-same way as the vehicle catalog's — no extension to enable first this time:
+**Applied to `odo-mobile_dev` (`gezicmstbgfpwwohiboq`) on 2026-08-30.** An earlier `pg_cron`-based
+version of the promote job ran first and was live for a short while — its schedule
+(`promote-accepted-city-submissions`) has since been unscheduled and its function
+(`promote_city_submissions()`, plural) dropped, so only the trigger remains. Verified live with a
+throwaway submission wrapped in `begin ... rollback`: the trigger promoted it into `cities` and
+deleted the submission row in the same transaction, then the rollback discarded both. **Prod
+(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have this yet.**
+
+To apply from a fresh project, the same way as the vehicle catalog's — no extension to enable
+first this time:
 
 ```bash
 supabase link --project-ref gezicmstbgfpwwohiboq
@@ -133,8 +141,7 @@ rollback;
 ```
 
 Expect one row back from `cities` (`Srinagar`, `Jammu and Kashmir`, `2`) and a count of `0` from
-`city_submissions` — the row should already be gone. **Prod
-(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have this either.**
+`city_submissions` — the row should already be gone.
 
 ### Applying to prod
 
