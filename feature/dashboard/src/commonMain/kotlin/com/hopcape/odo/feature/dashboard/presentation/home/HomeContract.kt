@@ -61,6 +61,15 @@ internal sealed interface HomeEvent {
 
     /** Home left composition while the health coach mark was up — release the grant, not seen. */
     data object HealthShowcaseLeft : HomeEvent
+
+    /** The reminders-bell coach mark was tapped away. Seen forever. */
+    data object RemindersShowcaseDismissed : HomeEvent
+
+    /** The reminders coach mark's cutout was tapped — open Reminders, the bell it points at. Seen forever. */
+    data object RemindersShowcaseActedOn : HomeEvent
+
+    /** Home left composition while the reminders coach mark was up — release the grant, not seen. */
+    data object RemindersShowcaseLeft : HomeEvent
 }
 
 /** One-shot handoffs the route host performs. */

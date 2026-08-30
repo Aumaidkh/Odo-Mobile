@@ -142,4 +142,5 @@
     <!-- #232 — the Pro variant never mentions a plan; the free variant names the gate up front. -->
     <string name="hm_health_showcase">This score responds to what you log. The breakdown shows exactly what would move it.</string>
     <string name="hm_health_showcase_free">This score responds to what you log. The breakdown showing what would move it is included with Pro.</string>
+    <string name="hm_reminders_showcase">Tap the bell for reminders — services, renewals, and anything you set up yourself.</string>
 </resources>

@@ -30,4 +30,7 @@ enum class ShowcaseHookId {
 
     /** The Timeline's share action: the record leaves as one PDF a buyer will read — Pro-gated (#233). */
     RECORD_EXPORT,
+
+    /** The bell on Home: it is the only door into Reminders, and it carries no badge to say so. */
+    REMINDERS_BELL,
 }

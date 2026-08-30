@@ -48,6 +48,12 @@ internal data class HomeUiState(
     val healthShowcase: Boolean = false,
 
     /**
+     * Whether the reminders-bell coach mark is up — granted the first time the bell shows for
+     * a car, since the bell is the only door into Reminders and carries no badge of its own.
+     */
+    val remindersShowcase: Boolean = false,
+
+    /**
      * Whether the owner's plan is Pro — read only to pick the health coach mark's copy.
      * The epic's rule: a hook pointing at a gated feature says so in its own words (a
      * free owner is told the breakdown is included with Pro), and a Pro owner never sees

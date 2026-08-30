@@ -75,6 +75,7 @@ import com.hopcape.odo.core.designsystem.component.rememberCoachMarkAnchorState
 import com.hopcape.odo.feature.dashboard.presentation.shell.LocalScanCoachMarkAnchor
 import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase
 import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase_free
+import com.hopcape.odo.feature.dashboard.resources.hm_reminders_showcase
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
@@ -148,6 +149,8 @@ internal fun HomeScreen(
     val content = (state.content as? Loadable.Ready)?.value
     // The health card writes its bounds here for the #232 coach mark.
     val healthAnchor = rememberCoachMarkAnchorState()
+    // The bell writes its bounds here for the reminders-discoverability coach mark.
+    val remindersAnchor = rememberCoachMarkAnchorState()
     OdoScreen(
         modifier = modifier.testTag(HomeTestTags.SCREEN),
         bottomBar = {
@@ -177,7 +180,7 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, onEvent)
+                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, remindersAnchor, onEvent)
             }
         }
     }
@@ -212,6 +215,19 @@ internal fun HomeScreen(
             onAnchorTap = { onEvent(HomeEvent.HealthShowcaseActedOn) },
         )
     }
+
+    // The reminders-bell coach mark. Introduces the bell as the door into Reminders, since
+    // it carries no badge of its own (see the comment on the bell in HomeHeader). Same-visit
+    // priority against SCAN/HEALTH is the arbiter's call, not this screen's.
+    if (state.remindersShowcase) {
+        OdoCoachMark(
+            text = stringResource(Res.string.hm_reminders_showcase),
+            dismissLabel = stringResource(Res.string.hm_showcase_dismiss),
+            anchor = remindersAnchor,
+            onDismiss = { onEvent(HomeEvent.RemindersShowcaseDismissed) },
+            onAnchorTap = { onEvent(HomeEvent.RemindersShowcaseActedOn) },
+        )
+    }
 }
 
 @Composable
@@ -220,9 +236,10 @@ private fun HomeBody(
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
     healthAnchor: CoachMarkAnchorState,
+    remindersAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    HomeHeader(content, onEvent)
+    HomeHeader(content, onEvent, remindersAnchor)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
@@ -233,7 +250,7 @@ private fun HomeBody(
 // --- Header ---------------------------------------------------------------------
 
 @Composable
-private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
+private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit, remindersAnchor: CoachMarkAnchorState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -264,12 +281,14 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
         /*
          * The bell carries no unread dot. Nothing in the app knows what "unread" means yet
          * — reminders have no domain until M4 — and a dot that is always on, or always
-         * derived from the card directly below it, is a worse lie than no dot at all.
+         * derived from the card directly below it, is a worse lie than no dot at all. The
+         * reminders-bell coach mark is how it introduces itself instead: a one-time nudge,
+         * not a persistent claim about what's inside.
          */
         if (!content.hasNoCar) {
             CircleButton(
                 onClick = { onEvent(HomeEvent.BellTapped) },
-                modifier = Modifier.testTag(HomeTestTags.BELL_BUTTON),
+                modifier = Modifier.testTag(HomeTestTags.BELL_BUTTON).coachMarkAnchor(remindersAnchor),
             ) {
                 OdoIcon(
                     IcBellFilled,
