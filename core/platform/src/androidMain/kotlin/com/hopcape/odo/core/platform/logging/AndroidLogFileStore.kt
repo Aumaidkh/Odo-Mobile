@@ -47,6 +47,23 @@ class AndroidLogFileStore(private val dir: File) : LogFileStore {
         stream.flush()
     }
 
+    /**
+     * [activeFile] alone would only ever answer for *this* instance — but `OdoApplication`
+     * constructs its own `AndroidLogFileStore` directly for `HLogger.init(...)` (pre-Koin,
+     * see the class doc), and the Koin-bound instance a reader like the Logs screen actually
+     * gets is a *different object* that never calls [appendToActive] itself. Falling back to
+     * a directory scan is what [sealOrphans] already does for the same cross-instance
+     * reason — that one finds an active file a *dead* process left behind; this finds one a
+     * *live* process, in this same one, is currently writing.
+     */
+    override fun activeFileName(): String? = activeFile?.name ?: scanForActiveFile()
+
+    private fun scanForActiveFile(): String? =
+        dir.takeIf { it.exists() }
+            ?.listFiles { f -> f.isFile && LogFileNaming.isActive(f.name) }
+            ?.firstOrNull()
+            ?.name
+
     override fun sealActive(stats: LogFileStats): LogFileHandle? {
         val file = activeFile ?: return null
         activeStream?.close()

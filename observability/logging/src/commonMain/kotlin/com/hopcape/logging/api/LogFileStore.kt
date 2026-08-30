@@ -20,6 +20,11 @@ interface LogFileStore {
     /** Appends [lines] to the active file, opening a new one first if none is open. */
     fun appendToActive(lines: List<String>)
 
+    /** The active file's name, or `null` if none is open — nothing has logged yet in this
+     *  session, or the writer is between rotations right after a seal. Unlike [read], this
+     *  file is plain text, never gzip'd: only a *sealed* file is compressed. */
+    fun activeFileName(): String?
+
     /**
      * Seals the active file: flush, rename to its sealed name (`LogFileNaming.sealedFileName`),
      * persist [stats] as its `.meta` sidecar, and forget it as "active". Returns `null` when

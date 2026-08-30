@@ -79,16 +79,34 @@ sealed interface OdoDestination : NavKey {
         data object SignOut : Profile
 
         /**
+         * The developer-tools hub: "Config & Flags" and "Logs" as two rows on one screen,
+         * rather than either living loose on the account home.
+         *
+         * Registered in every build, reachable in none but debug — the row that opens it
+         * is behind `BuildInfo.isDebug`, same shape as [ConfigOverrides] below.
+         */
+        @Serializable
+        data object DeveloperOptions : Profile
+
+        /**
          * The QA config screen: every registered key, its resolved value, and which step
          * of the resolution order answered.
          *
-         * Registered in every build, reachable in none but debug — the row that opens it
-         * is behind `BuildInfo.isDebug`. Keeping the route registered rather than
-         * conditionally absent matches how the refuel routes are handled: unreachable,
-         * not removed.
+         * Registered in every build, reachable in none but debug — reached from
+         * [DeveloperOptions], never directly from the account home. Keeping the route
+         * registered rather than conditionally absent matches how the refuel routes are
+         * handled: unreachable, not removed.
          */
         @Serializable
         data object ConfigOverrides : Profile
+
+        /**
+         * The in-app log viewer — the current session's log file, filterable like Logcat
+         * (level, tag, message search), so a build can be read on-device without a Studio
+         * connection. Reached from [DeveloperOptions]; same debug-only reachability.
+         */
+        @Serializable
+        data object Logs : Profile
     }
 
     /**
