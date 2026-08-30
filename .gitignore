@@ -76,6 +76,9 @@ keystore/
 # Same reason: a fresh Supabase project has no vehicle catalog until this is run, and it
 # is generated from VehicleSeedData.kt's RAW_SEED, not something a clone can rebuild itself.
 !/supabase/seed_vehicle_catalog.sql
+# Hand-authored, not generated — a fresh Supabase project only has the 24-city bootstrap seed
+# until this is run, and issue #360 asks for a broader list than that.
+!/supabase/seed_cities.sql
 # `deno bundle` regenerates this from functions/legal on demand. A build output, and the
 # README says so — the seven files are the source of truth, not the pasted copy.
 /supabase/legal.bundle.js
@@ -112,3 +115,4 @@ landing/public/legal/
 # it is the one path under social-automation that a `git add -A` would sweep in.
 /social-automation/supabase/.temp/
 /supabase/migrations/20260830130000_promote_vehicle_catalog_submission.sql
+/supabase/migrations/20260830140100_promote_city_submissions.sql

@@ -80,6 +80,72 @@ not have this yet.**
 Real acceptances afterward are just: `update vehicle_catalog_submissions set status = 'accepted'
 where id = '<uuid>';` in the SQL Editor — the trigger does the rest.
 
+## Cities catalog: accept → auto-promote
+
+`20260830140000_city_submissions.sql` adds `city_submissions`, the "my city isn't listed" inbox —
+same insert-only shape as `vehicle_catalog_submissions`. `20260830140100_promote_city_submissions.sql`
+adds the promotion, and it works differently from the vehicle catalog on purpose:
+
+- **It deletes the submission row once it lands in `cities`.** `vehicle_catalog_submissions` keeps
+  every row forever as history; `city_submissions` does not — a promoted row leaves no trace here.
+  The trigger mechanism itself (`trg_promote_city_submission`, firing on insert or update of
+  `status`/`state`/`tier`) is otherwise the same shape as the vehicle catalog's — an earlier pass
+  used a `pg_cron` job polling every 10 minutes instead, which was switched out for this because
+  polling burns a run on every tick whether or not anything changed, and needed the `pg_cron`
+  extension enabled besides.
+- **A reviewer must fill in `state` by hand**, alongside `status = 'accepted'`, before a row is
+  eligible. The app only ever captures a city *name*, and `cities.state` is `NOT NULL` with
+  nothing sane to default it to — a submission missing it is left for the next run rather than
+  promoted with a guessed value. `tier` is different: it is only a low-confidence label the UI
+  reads, so a reviewer who forgets it does not block the promotion — it defaults to `3`.
+
+Manual review still decides *whether* a submission is real — nothing here auto-accepts anything.
+
+### Status — dev
+
+**Not yet applied to either project.** Apply both migrations to dev (`gezicmstbgfpwwohiboq`) the
+same way as the vehicle catalog's — no extension to enable first this time:
+
+```bash
+supabase link --project-ref gezicmstbgfpwwohiboq
+supabase db query --linked -f supabase/migrations/20260830140000_city_submissions.sql
+supabase db query --linked -f supabase/migrations/20260830140100_promote_city_submissions.sql
+```
+
+Verify with a throwaway submission wrapped in `begin ... rollback` — the trigger fires the moment
+the `update` below lands, nothing to wait on:
+
+```bash
+supabase db query --linked "
+begin;
+insert into city_submissions (id, owner_id, name, status, created_at)
+values (
+  '22222222-2222-2222-2222-222222222222',
+  (select id from profiles limit 1),
+  'Srinagar', 'pending', now()
+);
+update city_submissions set state = 'Jammu and Kashmir', tier = 2, status = 'accepted'
+  where id = '22222222-2222-2222-2222-222222222222';
+select id, name, state, tier from cities where lower(name) = 'srinagar';
+select count(*) from city_submissions where id = '22222222-2222-2222-2222-222222222222';
+rollback;
+"
+```
+
+Expect one row back from `cities` (`Srinagar`, `Jammu and Kashmir`, `2`) and a count of `0` from
+`city_submissions` — the row should already be gone. **Prod
+(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have this either.**
+
+### Applying to prod
+
+Same shape as the vehicle catalog's prod rollout above: link to `kxxgfhwnidgfvjowqaad`, run both
+migration files with `supabase db query --linked -f ...` (never `db push`), verify with the
+`begin ... rollback` block above, then re-link back to dev.
+
+Real acceptances afterward are: fill in `state` (and `tier`, if you want a confidence tier other
+than the default `3`) and `update city_submissions set status = 'accepted' where id = '<uuid>';`
+in the SQL Editor — the trigger does the rest immediately, in the same statement.
+
 | Function | What it is |
 | --- | --- |
 | [`firebase-session`](#firebase-session) | Trades a Firebase ID token for a Supabase session. The sign-in path. |
