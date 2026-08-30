@@ -7,6 +7,8 @@ import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -133,6 +135,12 @@ internal class SqlDelightCarLocalDataSource(
             queries.softDeleteCar(deletedAt = now, syncStatus = pending, id = id.value)
         }
     }
+
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? =
+        queries.selectByOwnerAndRegistration(
+            ownerId = ownerId.value,
+            registrationNumber = registrationNumber.value,
+        ).executeAsOneOrNull()?.toDomain()
 
     override fun observePrimary(): Flow<Car?> =
         queries.selectPrimaryCar()

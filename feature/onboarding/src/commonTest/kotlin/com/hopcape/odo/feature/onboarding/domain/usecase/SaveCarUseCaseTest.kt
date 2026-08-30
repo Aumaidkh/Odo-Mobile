@@ -8,6 +8,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
@@ -47,6 +48,9 @@ class SaveCarUseCaseTest {
             lastAdded = car
             return car.right()
         }
+
+        override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? =
+            lastAdded?.takeIf { it.ownerId == ownerId && it.registrationNumber == registrationNumber }
 
         override fun observePrimaryCar(): Flow<Car?> = flowOf(lastAdded)
 
@@ -152,6 +156,58 @@ class SaveCarUseCaseTest {
         assertEquals("car-1", result.getOrNull()?.id?.value)
         assertEquals(1, repo.updateCount)
         assertEquals(0, repo.addCount)
+    }
+
+    /**
+     * No [existing] id was passed — this looks like a first save — but a live car under the
+     * same plate is already on this owner's account, from a previous session or device.
+     * That is still an update, not a second car.
+     */
+    @Test
+    fun noExistingId_butALiveCarAlreadyHasThisPlate_updatesItInstead() = runTest {
+        val repo = FakeCarRepository()
+        // Simulate a car this account already has, pulled down or saved in an earlier
+        // session, with no `existing` id carried into *this* onboarding pass.
+        repo.lastAdded = Car.create(
+            id = CarId("earlier-car"),
+            ownerId = ownerId,
+            make = "Maruti",
+            model = "Swift",
+            year = 2018,
+            fuelType = FuelType.PETROL,
+            odometerKm = 40_000,
+            registrationNumber = "MH12AB1234",
+            isPrimary = true,
+        ).getOrNull()!!
+
+        val result = useCase(repo)(validCommand().copy(registrationNumber = "MH-12-AB-1234"), ownerId)
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("earlier-car", result.getOrNull()?.id?.value)
+        assertEquals(1, repo.updateCount)
+        assertEquals(0, repo.addCount)
+    }
+
+    @Test
+    fun noExistingId_andNoMatchingPlate_stillInsertsANewCar() = runTest {
+        val repo = FakeCarRepository()
+        repo.lastAdded = Car.create(
+            id = CarId("earlier-car"),
+            ownerId = ownerId,
+            make = "Maruti",
+            model = "Swift",
+            year = 2018,
+            fuelType = FuelType.PETROL,
+            odometerKm = 40_000,
+            registrationNumber = "DL01CD5678",
+            isPrimary = true,
+        ).getOrNull()!!
+
+        val result = useCase(repo)(validCommand().copy(registrationNumber = "MH12AB1234"), ownerId)
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(1, repo.addCount)
+        assertEquals(0, repo.updateCount)
     }
 
     @Test

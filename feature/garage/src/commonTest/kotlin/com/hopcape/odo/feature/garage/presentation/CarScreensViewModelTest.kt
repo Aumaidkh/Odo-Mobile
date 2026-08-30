@@ -105,7 +105,7 @@ class CarScreensViewModelTest {
         analytics: RecordingAnalytics = RecordingAnalytics(),
         reporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
     ) = AddCarViewModel(
-        addCar = AddCarUseCase(cars, FixedIdGenerator("new-car"), ownerProvider()),
+        addCar = AddCarUseCase(cars, FixedIdGenerator("new-car"), ownerProvider(), UpdateCarDetailsUseCase(cars)),
         loadCatalog = LoadVehicleCatalogUseCase(FakeVehicleCatalog()),
         loadModels = LoadCarModelsUseCase(FakeVehicleCatalog()),
         lookupPlate = LookupPlateUseCase(FakeVehicleRegistryLookup()),

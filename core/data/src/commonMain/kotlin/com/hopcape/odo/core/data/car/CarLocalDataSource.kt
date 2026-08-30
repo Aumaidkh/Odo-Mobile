@@ -2,6 +2,8 @@ package com.hopcape.odo.core.data.car
 
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -33,6 +35,9 @@ interface CarLocalDataSource {
      * reminders, in one transaction.
      */
     suspend fun softDelete(id: CarId)
+
+    /** The live car [ownerId] already has under [registrationNumber], or `null`. */
+    suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car?
 
     /** The primary car as it changes; `null` while there is none. */
     fun observePrimary(): Flow<Car?>

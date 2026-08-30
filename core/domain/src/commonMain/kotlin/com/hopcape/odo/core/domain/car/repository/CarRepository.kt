@@ -3,6 +3,8 @@ package com.hopcape.odo.core.domain.car.repository
 import arrow.core.Either
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +29,15 @@ interface CarRepository {
      * Returns [DomainError.CarNotFound] if no live car has this id.
      */
     suspend fun update(car: Car): Either<DomainError, Car>
+
+    /**
+     * The live car [ownerId] already has on file under [registrationNumber], if any.
+     *
+     * What lets "add a car" recognize a plate it already has and become an update instead
+     * of colliding with the DB's own `uq_cars_owner_reg` unique index — a plate identifies
+     * one physical car, so a second one under the same owner is never a genuinely new car.
+     */
+    suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car?
 
     fun observePrimaryCar(): Flow<Car?>
 

@@ -100,6 +100,9 @@ internal class FakeCarRepository(
             car.right()
         }
 
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? =
+        stored.value?.takeIf { it.ownerId == ownerId && it.registrationNumber == registrationNumber }
+
     override fun observePrimaryCar(): Flow<Car?> = stored
 
     override fun observe(id: CarId): Flow<Car?> = stored

@@ -16,6 +16,7 @@ import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
@@ -115,6 +116,7 @@ internal class FakeCarRepository(car: Car? = testCar()) : CarRepository {
 
     override suspend fun add(car: Car): Either<DomainError, Car> = car.right()
     override suspend fun update(car: Car): Either<DomainError, Car> = car.right()
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = stored
     override fun observe(id: CarId): Flow<Car?> = stored.map { car -> car?.takeIf { it.id == id } }
 

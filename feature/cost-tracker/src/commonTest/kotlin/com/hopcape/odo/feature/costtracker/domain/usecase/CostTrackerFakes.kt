@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
@@ -88,6 +89,7 @@ internal class FakeCarRepository(car: Car?) : CarRepository {
 
     override suspend fun add(car: Car): Either<DomainError, Car> = car.right()
     override suspend fun update(car: Car): Either<DomainError, Car> = car.right()
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = stored
     override fun observe(id: CarId): Flow<Car?> = stored
     override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = Unit.right()

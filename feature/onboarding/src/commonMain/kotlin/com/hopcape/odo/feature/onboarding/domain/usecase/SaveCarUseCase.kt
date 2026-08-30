@@ -6,6 +6,7 @@ import arrow.core.raise.either
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline
@@ -37,6 +38,13 @@ import kotlin.time.Clock
  * [UpdateOdometerUseCase][com.hopcape.odo.feature.garage.domain.usecase.UpdateOdometerUseCase]
  * already does for the same field.
  *
+ * [existing] only remembers a car *this onboarding session* already saved — it says
+ * nothing about a live car from a previous session or device already sitting on this
+ * owner's account. So when [existing] is `null`, this also looks up a live car under the
+ * same (normalized) plate before deciding: found one, and the "first" save is really an
+ * edit of it; found nothing, and it is a genuinely new car. A registration number is never
+ * allowed to end up on two cars for the same owner.
+ *
  * This use case is **feature-specific** (car onboarding), so it lives in
  * `:feature:onboarding`, not `:core:domain` — which keeps only the shared kernel (the [Car]
  * aggregate, value objects, the [CarRepository] port, [DomainError]).
@@ -57,7 +65,10 @@ internal class SaveCarUseCase(
         ownerId: OwnerId,
         existing: CarId? = null,
     ): EitherNel<DomainError, Car> = either {
-        val id = existing ?: CarId.new(idGenerator)
+        val registrationNumber = RegistrationNumber.of(command.registrationNumber)
+        val matchedExisting = existing
+            ?: registrationNumber?.let { cars.findByRegistration(ownerId, it) }?.id
+        val id = matchedExisting ?: CarId.new(idGenerator)
         val car = Car.create(
             id = id,
             ownerId = ownerId,
@@ -86,7 +97,7 @@ internal class SaveCarUseCase(
             known = known,
         ).mapLeft { nonEmptyListOf(it) }.bind()
 
-        val stored = if (existing == null) cars.add(car) else cars.update(car)
+        val stored = if (matchedExisting == null) cars.add(car) else cars.update(car)
         stored.mapLeft { nonEmptyListOf(it) }.bind()
     }
 }
