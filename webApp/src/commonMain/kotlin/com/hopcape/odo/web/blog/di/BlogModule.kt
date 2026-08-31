@@ -147,7 +147,11 @@ val blogModule: Module = module {
     single<AuthRepository> {
         if (get<BlogBackend>().isLive) {
             BlogAuthRepository(
-                firebase = FirebaseSignIn(client = get(), apiKey = FIREBASE_WEB_API_KEY),
+                // A public client identifier, and now one value rather than two:
+                // it used to be a constant in this file and is generated into
+                // BuildWebConfig alongside the Supabase pair, so the panel and the
+                // blog cannot end up naming different Firebase projects.
+                firebase = FirebaseSignIn(client = get(), apiKey = BuildWebConfig.FIREBASE_WEB_API_KEY),
                 supabase = get(),
                 postgrest = get(AS_AUTHOR),
             )
@@ -208,14 +212,6 @@ val blogModule: Module = module {
 
 
 /**
- * The Firebase web API key.
- *
- * A public client identifier — the same class of value the app ships inside
- * `google-services.json` and `web/build.ts` bakes into the account-deletion page.
- * It names the project; it authorises nothing. What decides who may publish is
- * `BLOG_AUTHOR_EMAILS` in the edge function's environment.
- */
-/**
  * Whether there is a database behind this build.
  *
  * A type rather than a bare `Boolean`, because Koin resolves by type and a second
@@ -223,6 +219,3 @@ val blogModule: Module = module {
  * Overriding it is also how a test asks for the sample repositories.
  */
 data class BlogBackend(val isLive: Boolean)
-
-
-private const val FIREBASE_WEB_API_KEY = "AIzaSyB8A39cTEw-_4mtRntVatyf5ZWYhiwojUc"

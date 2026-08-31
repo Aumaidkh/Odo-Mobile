@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the admin panel draws.
+
+  The `ad_` prefix follows the same rule as `bl_` in :webApp and `sl_` in
+  :feature:servicelog. English throughout: this is an internal tool for a team
+  that reads English, and nothing here is ever seen by an owner of the app.
+
+  Copy rule for this file specifically: an error should say what to do next. The
+  people reading these messages can fix most of what goes wrong, and "something
+  went wrong" wastes the one chance to tell them which thing.
+-->
+<resources>
+
+    <!-- Sign in -->
+    <string name="ad_signin_title">Odo Admin</string>
+    <string name="ad_signin_subtitle">Staff access only.</string>
+    <string name="ad_signin_email">Email</string>
+    <string name="ad_signin_password">Password</string>
+    <string name="ad_signin_submit">Sign in</string>
+    <string name="ad_signin_busy">Signing in…</string>
+    <string name="ad_signin_wrong_password">That password is not right. %1$d tries left.</string>
+    <string name="ad_signin_wrong_password_locked">That password is not right, and this account is now locked. Try again later.</string>
+
+    <!-- Errors. Each says what to do, not just that something failed. -->
+    <string name="ad_error_offline">Could not reach the server. Check the connection and try again.</string>
+    <string name="ad_error_not_found">That is not here any more.</string>
+    <string name="ad_error_signed_out">The session has expired. Sign in again.</string>
+    <string name="ad_error_not_staff">This account is not on the staff list. Ask a super admin to add it.</string>
+    <string name="ad_error_no_admins">Nobody is set up as staff yet. Run seed_admin.sql against this project first.</string>
+    <string name="ad_error_sign_in_unavailable">Email sign-in is switched off for this Firebase project. Turn it on in the console.</string>
+    <string name="ad_error_generic">That did not work. Try again.</string>
+
+    <!-- Shell -->
+    <string name="ad_nav_vehicles">Vehicles</string>
+    <string name="ad_nav_cities">Cities</string>
+    <string name="ad_nav_fairness">Fairness data</string>
+    <string name="ad_nav_users">Users</string>
+    <string name="ad_nav_blog">Blog</string>
+    <string name="ad_nav_audit">Audit log</string>
+    <string name="ad_nav_staff">Staff</string>
+    <string name="ad_sign_out">Sign out</string>
+
+    <!-- The signed-in placeholder S5 replaces with the real shell. -->
+    <string name="ad_session_roles">Roles: %1$s</string>
+    <string name="ad_session_permissions">Permissions: %1$s</string>
+    <string name="ad_session_route">Route: %1$s</string>
+    <string name="ad_session_none">none</string>
+
+    <!-- Sections with no screen yet. -->
+    <string name="ad_placeholder_title">Nothing here yet</string>
+    <string name="ad_placeholder_body">This section is planned but not built.</string>
+
+    <!-- Reached by typing a URL a role does not cover. -->
+    <string name="ad_no_access_title">No access</string>
+    <string name="ad_no_access_body">Your role does not cover this section. The server would refuse it too — this is not only the menu hiding it.</string>
+    <string name="ad_not_found_title">No such page</string>
+    <string name="ad_not_found_body">Nothing is served at that address.</string>
+
+</resources>

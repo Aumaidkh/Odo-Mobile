@@ -151,6 +151,36 @@ class Postgrest(
         }
     }.flatMap { text -> decode(ListSerializer(serializer), text) }
 
+    /**
+     * An RPC that returns one value rather than a set.
+     *
+     * A Postgres function declared `returns jsonb` answers with the object itself,
+     * not an array wrapping it, so [rpc]'s list decoding fails on the shape. The
+     * two cannot be one method: which of them applies is decided by the function's
+     * return type, and only the caller knows it.
+     *
+     * Null is a real answer, not a failure. `my_admin_identity()` returns SQL NULL
+     * for a caller who is not staff, and that is the whole point of asking.
+     */
+    suspend fun <T> rpcOne(
+        name: String,
+        body: String,
+        serializer: KSerializer<T>,
+    ): Either<WebError, T?> = request {
+        client.post("$baseUrl/rest/v1/rpc/$name") {
+            headers()
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+    }.flatMap { text ->
+        if (text.isBlank() || text == "null") {
+            null.right()
+        } else {
+            runCatching { LENIENT.decodeFromString(serializer, text) }
+                .fold({ it.right() }, { WebError.Unexpected("unreadable response: ${it.message}").left() })
+        }
+    }
+
     /** An RPC whose return value nobody reads — counting a page view. */
     suspend fun call(name: String, body: String): Either<WebError, Unit> =
         request {

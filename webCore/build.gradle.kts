@@ -56,6 +56,16 @@ kotlin {
     }
 }
 
+/**
+ * The production Firebase project's web API key.
+ *
+ * Public, and already a constant in this repository before it was moved here — it
+ * names `odo-mobile-ba9aa` and grants nothing on its own. It is the fallback so a
+ * clone with no `firebase.webApiKey` still signs in to production exactly as it
+ * did when :webApp hardcoded it.
+ */
+val PRODUCTION_FIREBASE_WEB_API_KEY = "AIzaSyB8A39cTEw-_4mtRntVatyf5ZWYhiwojUc"
+
 // ── Supabase credentials ─────────────────────────────────────────────────────
 /**
  * Generates `BuildWebConfig` from `local.properties` (or the environment on CI).
@@ -105,8 +115,28 @@ val generateWebConfig by tasks.registering {
             ?: System.getenv("SUPABASE_ANON_KEY$envSuffix")
         ).orEmpty()
 
+    /**
+     * The Firebase web API key, for the Auth REST API.
+     *
+     * A public client identifier — the same class of value `google-services.json`
+     * ships inside the app. It names a project; it authorises nothing. Who may
+     * actually sign in is decided by `BLOG_AUTHOR_EMAILS` and the `admin_users`
+     * table, server-side.
+     *
+     * Production falls back to the value that was already a constant in
+     * `BlogModule`, so a clone with no property behaves exactly as before. Dev has
+     * no fallback on purpose: the Supabase project and the Firebase project have
+     * to be the same environment, and silently pairing a dev database with a
+     * production sign-in is the kind of mismatch that reads as "wrong password".
+     */
+    val firebaseWebApiKey = (
+        properties.getProperty("firebase.webApiKey$propertySuffix")
+            ?: System.getenv("FIREBASE_WEB_API_KEY$envSuffix")
+        ).orEmpty().ifBlank { if (isDev) "" else PRODUCTION_FIREBASE_WEB_API_KEY }
+
     inputs.property("url", url)
     inputs.property("anonKey", anonKey)
+    inputs.property("firebaseWebApiKey", firebaseWebApiKey)
     outputs.dir(outputDir)
 
     doLast {
@@ -121,6 +151,13 @@ val generateWebConfig by tasks.registering {
             |object BuildWebConfig {
             |    const val SUPABASE_URL: String = "$url"
             |    const val SUPABASE_ANON_KEY: String = "$anonKey"
+            |    const val FIREBASE_WEB_API_KEY: String = "$firebaseWebApiKey"
+            |
+            |    /** Whether this build has everything it needs to reach a backend at all. */
+            |    val isConfigured: Boolean
+            |        get() = SUPABASE_URL.isNotBlank() &&
+            |            SUPABASE_ANON_KEY.isNotBlank() &&
+            |            FIREBASE_WEB_API_KEY.isNotBlank()
             |}
             |
             """.trimMargin(),
