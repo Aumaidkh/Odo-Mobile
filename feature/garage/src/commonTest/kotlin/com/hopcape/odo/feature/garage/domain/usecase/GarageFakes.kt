@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
+import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -158,6 +159,15 @@ internal class FakeVehicleCatalog(
     }
     override fun years(): List<Int> = listOf(2026, 2025, 2024)
     override fun fuelTypes(): List<FuelType> = FuelType.entries
+}
+
+/** Records every make/model/variant reported as unlisted, instead of reaching a network. */
+internal class FakeUnlistedVehicleReporter : UnlistedVehicleReporter {
+    val reports = mutableListOf<Triple<String, String, String?>>()
+
+    override suspend fun report(make: String, model: String, variant: String?) {
+        reports += Triple(make, model, variant)
+    }
 }
 
 /** Answers with [result] for any plate, and records what reached it. */

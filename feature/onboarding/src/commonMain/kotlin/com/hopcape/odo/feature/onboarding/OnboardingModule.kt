@@ -7,6 +7,7 @@ import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCa
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
@@ -36,6 +37,7 @@ val onboardingModule = module {
     factory { LoadVehicleCatalogUseCase(catalog = get()) }
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
+    factory { ReportUnlistedVehicleUseCase(reporter = get()) }
     factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
 
     // A `factory`, not a `single`: each instance mints its own trace id, so one instance covers
@@ -54,6 +56,7 @@ val onboardingModule = module {
             loadModels = get(),
             lookupPlate = get(),
             saveCar = get(),
+            reportUnlisted = get(),
             completeOnboarding = get(),
             currentOwner = get(),
             // Published by :feature:auth via the shared :core:domain port — onboarding

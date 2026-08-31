@@ -32,7 +32,7 @@ class OwnershipAdoptionTest {
 
         adoption(db).adopt(real, now)
 
-        listOf("cars", "service_logs", "documents", "health_scores", "overcharge_reports").forEach { table ->
+        listOf("cars", "service_logs", "documents", "health_scores", "overcharge_reports", "vehicle_catalog_submissions").forEach { table ->
             assertEquals(0, driver.count("SELECT COUNT(*) FROM $table WHERE owner_id = '$placeholder'"), table)
             assertEquals(1, driver.count("SELECT COUNT(*) FROM $table WHERE owner_id = '$real'"), table)
             assertEquals(
@@ -121,7 +121,7 @@ class OwnershipAdoptionTest {
 
         adoption(db).adopt(real, now)
 
-        listOf("cars", "service_logs", "documents", "health_scores", "overcharge_reports", "trips")
+        listOf("cars", "service_logs", "documents", "health_scores", "overcharge_reports", "vehicle_catalog_submissions", "trips")
             .forEach { table ->
                 assertEquals(0, driver.count("SELECT COUNT(*) FROM $table WHERE owner_id = '$other'"), table)
             }
@@ -211,6 +211,7 @@ class OwnershipAdoptionTest {
         driver.exec("INSERT INTO documents (id, car_id, owner_id, doc_type, storage_path, doc_source, created_at, updated_at, sync_status) VALUES ('doc-1', 'car-1', '$placeholder', 'INSURANCE', 'docs/doc-1.pdf', 'UPLOADED', '$now', '$now', 'SYNCED')")
         driver.exec("INSERT INTO health_scores (id, car_id, owner_id, score, maintenance_pts, documentation_pts, cost_efficiency_pts, history_pts, algo_version, computed_at, created_at, updated_at, sync_status) VALUES ('hs-1', 'car-1', '$placeholder', 72, 25, 20, 15, 12, 'rule-v1', '$now', '$now', '$now', 'SYNCED')")
         driver.exec("INSERT INTO overcharge_reports (id, service_log_id, owner_id, reason, created_at, updated_at, sync_status) VALUES ('oc-1', 'log-1', '$placeholder', 'ABOVE_MARKET_RATE', '$now', '$now', 'SYNCED')")
+        driver.exec("INSERT INTO vehicle_catalog_submissions (id, owner_id, make, model, created_at, updated_at, sync_status) VALUES ('vc-1', '$placeholder', 'Tata', 'Sierra', '$now', '$now', 'SYNCED')")
         return db to driver
     }
 
@@ -222,6 +223,7 @@ class OwnershipAdoptionTest {
         exec("INSERT INTO documents (id, car_id, owner_id, doc_type, storage_path, doc_source, created_at, updated_at, sync_status) VALUES ('other-doc', 'other-car', '$other', 'INSURANCE', 'docs/other.pdf', 'UPLOADED', '$now', '$now', 'SYNCED')")
         exec("INSERT INTO health_scores (id, car_id, owner_id, score, maintenance_pts, documentation_pts, cost_efficiency_pts, history_pts, algo_version, computed_at, created_at, updated_at, sync_status) VALUES ('other-hs', 'other-car', '$other', 60, 20, 18, 12, 10, 'rule-v1', '$now', '$now', '$now', 'SYNCED')")
         exec("INSERT INTO overcharge_reports (id, service_log_id, owner_id, reason, created_at, updated_at, sync_status) VALUES ('other-oc', 'other-log', '$other', 'ABOVE_MARKET_RATE', '$now', '$now', 'SYNCED')")
+        exec("INSERT INTO vehicle_catalog_submissions (id, owner_id, make, model, created_at, updated_at, sync_status) VALUES ('other-vc', '$other', 'Honda', 'City', '$now', '$now', 'SYNCED')")
         exec("INSERT INTO trips (id, car_id, owner_id, started_at, ended_at, distance_m, estimated_m, mode, status, created_at, updated_at, sync_status) VALUES ('other-trip', 'other-car', '$other', '$now', '$now', 4100, 4100, 'DRIVING', 'RECORDED', '$now', '$now', 'SYNCED')")
     }
 

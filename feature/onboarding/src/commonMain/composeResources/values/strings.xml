@@ -77,6 +77,9 @@
     <string name="onb_make_popular">POPULAR</string>
     <string name="onb_make_all">ALL BRANDS</string>
     <string name="onb_make_empty">No brands match that</string>
+    <string name="onb_make_not_listed">My car’s brand isn’t listed</string>
+    <string name="onb_make_not_listed_placeholder">Type your car’s brand</string>
+    <string name="onb_make_not_listed_confirm">Use this brand</string>
 
     <!-- Model sheet -->
     <string name="onb_model_sheet_title">Choose model</string>
@@ -84,6 +87,10 @@
     <string name="onb_model_search">Search models</string>
     <string name="onb_model_all">ALL MODELS</string>
     <string name="onb_model_empty">No models match that</string>
+    <string name="onb_model_not_listed">My car’s model isn’t listed</string>
+    <string name="onb_model_not_listed_name_placeholder">Type your car’s model</string>
+    <string name="onb_model_not_listed_variant_placeholder">Trim (optional)</string>
+    <string name="onb_model_not_listed_confirm">Use this model</string>
 
     <!-- Shared picker copy -->
     <string name="onb_match_count">%1$d MATCHING</string>

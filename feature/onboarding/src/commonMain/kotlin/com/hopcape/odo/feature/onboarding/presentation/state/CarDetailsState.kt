@@ -29,8 +29,10 @@ internal data class CatalogOptions(
 
 /**
  * The manual route of the car step — the same step answered by hand when the plate lookup
- * misses. Four pickers plus the odometer, no free text: every value has to match the
- * catalog, because the fairness benchmarks are keyed on make/model/year/fuel.
+ * misses. Four pickers plus the odometer, keyed to the catalog because the fairness
+ * benchmarks are keyed on make/model/year/fuel — except make and model also accept "not
+ * listed" free text, which simply opts that car out of benchmarking until enough other
+ * owners report the same one.
  *
  * [models] is a plain list rather than a [Loadable]: it is a local read that arrives in
  * milliseconds, and the picker has no loading affordance to render the wait in. A failed
