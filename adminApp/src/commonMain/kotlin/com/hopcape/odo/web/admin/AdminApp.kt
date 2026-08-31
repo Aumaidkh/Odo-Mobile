@@ -12,6 +12,8 @@ import androidx.compose.runtime.LaunchedEffect
 import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
 import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
+import com.hopcape.odo.web.admin.presentation.audit.AuditViewModel
+import com.hopcape.odo.web.admin.presentation.users.UsersViewModel
 import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInEffect
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
@@ -22,6 +24,8 @@ import com.hopcape.odo.web.admin.routing.mayOpen
 import com.hopcape.odo.web.admin.ui.chrome.AdminShell
 import com.hopcape.odo.web.admin.ui.screen.CitiesScreen
 import com.hopcape.odo.web.admin.ui.screen.NoAccessScreen
+import com.hopcape.odo.web.admin.ui.screen.AuditScreen
+import com.hopcape.odo.web.admin.ui.screen.UsersScreen
 import com.hopcape.odo.web.admin.ui.screen.VehiclesScreen
 import com.hopcape.odo.web.admin.ui.screen.NoRolesScreen
 import com.hopcape.odo.web.admin.ui.screen.NotFoundScreen
@@ -130,6 +134,8 @@ private fun SignedInArea(
                 // placeholder with a route, a permission and a nav item.
                 route is AdminRoute.Cities -> CitiesHost()
                 route is AdminRoute.Vehicles -> VehiclesHost()
+                route is AdminRoute.Users -> UsersHost()
+                route is AdminRoute.Audit -> AuditHost()
                 else -> PlaceholderScreen(route)
             }
         }
@@ -162,4 +168,20 @@ private fun VehiclesHost() {
     val viewModel: VehiclesViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     VehiclesScreen(state, viewModel::onEvent)
+}
+
+/** Support's one-account lookup. */
+@Composable
+private fun UsersHost() {
+    val viewModel: UsersViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    UsersScreen(state, viewModel::onEvent)
+}
+
+/** Who changed what. Read-only, because the table has no other kind of policy. */
+@Composable
+private fun AuditHost() {
+    val viewModel: AuditViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    AuditScreen(state, viewModel::onEvent)
 }

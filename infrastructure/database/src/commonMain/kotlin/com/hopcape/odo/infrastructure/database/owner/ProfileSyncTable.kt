@@ -82,8 +82,10 @@ internal class ProfileSyncTable(
             deleted_at = dto.deletedAt,
             remote_version = dto.updatedAt,
             phone = dto.phone,
+            restriction = dto.restriction,
         )
         queries.updateFromRemote(
+            restriction = dto.restriction,
             full_name = dto.fullName,
             onboarding_goal = dto.onboardingGoal?.uppercase(),
             onboarding_completed_at = dto.onboardingCompletedAt,

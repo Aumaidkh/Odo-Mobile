@@ -139,4 +139,45 @@
     <string name="ad_vehicles_rejected_done">Rejected.</string>
     <string name="ad_vehicles_deleted_done">Deleted.</string>
 
+
+    <!-- Users (#369) -->
+    <string name="ad_users_title">Users</string>
+    <string name="ad_users_search">Phone, email or account id</string>
+    <string name="ad_users_find">Find</string>
+    <string name="ad_users_hint">Exact match only. A support tool that lists everyone matching a few digits is an enumeration tool.</string>
+    <string name="ad_users_none">No account matches that.</string>
+    <string name="ad_users_since">Joined %1$s</string>
+    <string name="ad_users_no_email">No email on file</string>
+
+    <string name="ad_users_access">Access</string>
+    <string name="ad_users_access_none">Full access</string>
+    <string name="ad_users_access_read_only">Read only</string>
+    <string name="ad_users_access_blocked">Blocked</string>
+    <string name="ad_users_access_none_hint">Nothing is restricted.</string>
+    <string name="ad_users_access_read_only_hint">Their writes are refused by the server. The app keeps working on what is already on the device.</string>
+    <string name="ad_users_access_blocked_hint">They cannot sign in at all. Sign-in is refused before an account is touched.</string>
+    <string name="ad_users_reason">Reason (recorded in the audit log)</string>
+    <string name="ad_users_reason_required">A reason is required — this is what the audit log will show.</string>
+    <string name="ad_users_apply">Apply</string>
+
+    <string name="ad_users_entitlements">Entitlements</string>
+    <string name="ad_users_entitlements_empty">No overrides. Their access is whatever the store says.</string>
+    <string name="ad_users_feature">Feature</string>
+    <string name="ad_users_grant">Grant</string>
+    <string name="ad_users_revoke">Revoke</string>
+    <string name="ad_users_clear">Clear override</string>
+    <string name="ad_users_granted">Granted</string>
+    <string name="ad_users_revoked">Revoked</string>
+    <string name="ad_users_override_hint">An override beats the store in both directions. Clearing one hands the answer back to the store.</string>
+    <string name="ad_users_saved">Saved.</string>
+    <string name="ad_users_restriction_saved">Access updated.</string>
+    <string name="ad_users_cleared">Override cleared.</string>
+
+    <!-- Audit (part of #369) -->
+    <string name="ad_audit_title">Audit log</string>
+    <string name="ad_audit_count">%1$d entries</string>
+    <string name="ad_audit_empty">Nothing recorded yet.</string>
+    <string name="ad_audit_system">system</string>
+    <string name="ad_audit_filter">Filter by table or action</string>
+
 </resources>

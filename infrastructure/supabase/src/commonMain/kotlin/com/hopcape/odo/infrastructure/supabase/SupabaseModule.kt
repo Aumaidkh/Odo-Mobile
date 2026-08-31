@@ -3,6 +3,7 @@ package com.hopcape.odo.infrastructure.supabase
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.city.CityRemoteDataSource
+import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
@@ -37,6 +38,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorag
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseTripRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCityRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseEntitlementOverrideRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCitySubmissionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleCatalogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
@@ -155,6 +157,7 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<VehicleCatalogRemoteDataSource> { SupabaseVehicleCatalogRemoteDataSource(postgrest = get()) }
         single<CityRemoteDataSource> { SupabaseCityRemoteDataSource(postgrest = get()) }
+        single<EntitlementOverrideRemoteDataSource> { SupabaseEntitlementOverrideRemoteDataSource(postgrest = get()) }
         single<CitySubmissionRemoteDataSource> { SupabaseCitySubmissionRemoteDataSource(postgrest = get()) }
         single<ServiceLogRemoteDataSource> { SupabaseServiceLogRemoteDataSource(postgrest = get()) }
         single<TripRemoteDataSource> { SupabaseTripRemoteDataSource(postgrest = get()) }

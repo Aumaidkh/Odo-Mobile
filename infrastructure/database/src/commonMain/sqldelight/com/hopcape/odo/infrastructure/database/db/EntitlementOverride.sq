@@ -1,0 +1,50 @@
+-- Entitlement granted or withheld outside the store, mirrored from Supabase's
+-- `entitlement_overrides`.
+--
+-- Pull-only, exactly like `city`: the server is the only writer, and a device that could
+-- insert its own row here would be a device that could grant itself Pro.
+--
+-- `granted` is a value, not a presence check. A row saying false is a deliberate revoke —
+-- support cutting somebody off while the store still says they have paid — and that has to
+-- be distinguishable from no row at all, which means "nobody has looked at this account".
+--
+-- Kept on the device rather than read live, because the app is offline-first: an entitlement
+-- that disappears on a flaky connection is a Pro owner staring at a paywall.
+CREATE TABLE entitlement_override (
+    owner_id    TEXT NOT NULL,
+    feature     TEXT NOT NULL,
+    granted     INTEGER NOT NULL,
+    expires_at  TEXT,
+    updated_at  TEXT NOT NULL,
+    sync_status TEXT NOT NULL DEFAULT 'SYNCED',
+    PRIMARY KEY (owner_id, feature)
+);
+
+-- Every override for one owner. The composition upstream decides what they add up to.
+selectForOwner:
+SELECT owner_id, feature, granted, expires_at
+FROM entitlement_override
+WHERE owner_id = :ownerId;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM entitlement_override
+WHERE owner_id = :ownerId AND feature = :feature;
+
+-- Two statements rather than an UPSERT: SQLite 3.18 (minSdk 26) has none.
+insertFromRemote:
+INSERT OR IGNORE INTO entitlement_override (owner_id, feature, granted, expires_at, updated_at, sync_status)
+VALUES (:owner_id, :feature, :granted, :expires_at, :updated_at, 'SYNCED');
+
+updateFromRemote:
+UPDATE entitlement_override
+SET granted = :granted, expires_at = :expires_at, updated_at = :updated_at, sync_status = 'SYNCED'
+WHERE owner_id = :owner_id AND feature = :feature;
+
+-- Sign-out wipe, and the foreign-owned sweep sign-in does. An override belongs to one
+-- account and must never outlive its session on a shared device.
+deleteAllRows:
+DELETE FROM entitlement_override;
+
+deleteForeignOwned:
+DELETE FROM entitlement_override WHERE owner_id <> :ownerId;

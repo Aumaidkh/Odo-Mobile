@@ -116,8 +116,22 @@ Two things about it are worth knowing before touching either catalog:
   rebuilding that algorithm would eventually disagree with the seed data. The
   function is `security definer`, so it checks `admin_has` itself, first thing.
 
-The rest are placeholders: a route, a permission and a nav item, no screen. #368,
-#369 and #370 replace them one at a time. They exist now because the nav's
+**Users** and **Audit log** (#369) are built. Three things about them:
+
+- **read_only is not a hard block.** The restriction is enforced by `AS RESTRICTIVE`
+  policies, which AND with whatever each table already says — that is what let it
+  ship without rewriting every owner-scoped policy in the schema. They are split
+  per command (insert/update/delete) rather than `FOR ALL`, because `FOR ALL`
+  includes SELECT and a restricted owner who cannot read is blocked, not read-only.
+- **The panel is only half of it.** An override reaches the phone through a new
+  pull-only synced table (`entitlement_override`) and `OverridableEntitlementSource`,
+  which composes it over RevenueCat. The override wins in both directions: a grant
+  beats a free store answer, and a revoke beats a paying one.
+- **`blocked` is enforced at sign-in**, by `firebase-session` refusing to mint a
+  session. A restriction that only stops writes is `read_only`.
+
+The rest are placeholders: a route, a permission and a nav item, no screen. #368
+and #370 replace them. They exist now because the nav's
 shape is what the permission model is tested against.
 
 The hosting config is in place (§6); what is left before a first deploy is the

@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.billing
 
+import com.hopcape.odo.core.domain.entitlement.OverridableEntitlementSource
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
@@ -69,7 +70,14 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         single { CustomerInfoStream(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get()) }
         // Replaces coreDataModule's FreePlanEntitlementSource — the swap every gate in the
         // app has been waiting for since S2, and it is this one line.
-        single<EntitlementSource> { RevenueCatEntitlementSource(stream = get(), telemetry = get()) }
+        // Wrapped so a support grant or a revoke beats the store in both directions —
+        // see OverridableEntitlementSource for why the revoke half matters too.
+        single<EntitlementSource> {
+            OverridableEntitlementSource(
+                store = RevenueCatEntitlementSource(stream = get(), telemetry = get()),
+                overrides = get(),
+            )
+        }
         // The same customer info, read for what the profile card says rather than for what
         // the owner may do.
         single<SubscriptionStatusSource> { RevenueCatSubscriptionStatus(stream = get()) }
