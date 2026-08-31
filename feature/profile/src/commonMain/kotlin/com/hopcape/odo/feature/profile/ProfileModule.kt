@@ -4,7 +4,9 @@ import com.hopcape.odo.feature.profile.presentation.ConfigOverridesViewModel
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAccountUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAllDataUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.LoadCityCatalogUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.ReportUnlistedCityUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdatePrivacyUseCase
@@ -47,6 +49,8 @@ val profileModule = module {
         )
     }
     factory { UpdateOwnerDetailsUseCase(profiles = get()) }
+    factory { LoadCityCatalogUseCase(catalog = get()) }
+    factory { ReportUnlistedCityUseCase(reporter = get()) }
     factory {
         UpdateSettingsUseCase(
             settings = get(),
@@ -99,6 +103,8 @@ val profileModule = module {
             updateDetails = get(),
             setAvatar = get(),
             deleteAllData = get(),
+            loadCityCatalog = get(),
+            reportUnlistedCity = get(),
             telemetry = get(),
         )
     }

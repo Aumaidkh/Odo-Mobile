@@ -22,6 +22,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.AddCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveCarDetailsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
+import com.hopcape.odo.feature.garage.domain.usecase.FakeUnlistedVehicleReporter
 import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleCatalog
 import com.hopcape.odo.feature.garage.domain.usecase.currentOdometerFrom
 import com.hopcape.odo.feature.garage.domain.usecase.FakeVehicleRegistryLookup
@@ -32,6 +33,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.RemoveCarUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.TEST_CAR
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateCarDetailsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ownerProvider
@@ -101,11 +103,13 @@ class CarScreensViewModelTest {
     private fun addCarViewModel(
         cars: FakeCarRepository = FakeCarRepository(),
         analytics: RecordingAnalytics = RecordingAnalytics(),
+        reporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
     ) = AddCarViewModel(
         addCar = AddCarUseCase(cars, FixedIdGenerator("new-car"), ownerProvider()),
         loadCatalog = LoadVehicleCatalogUseCase(FakeVehicleCatalog()),
         loadModels = LoadCarModelsUseCase(FakeVehicleCatalog()),
         lookupPlate = LookupPlateUseCase(FakeVehicleRegistryLookup()),
+        reportUnlisted = ReportUnlistedVehicleUseCase(reporter),
         telemetry = testTelemetry(analytics),
     )
 
@@ -134,6 +138,42 @@ class CarScreensViewModelTest {
         assertEquals("Maruti Suzuki", car.make)
         assertEquals("VXI", car.variant)
         assertEquals(45_000, car.odometer.km)
+    }
+
+    @Test
+    fun savingACatalogCar_neverReportsIt() = runTest {
+        val reporter = FakeUnlistedVehicleReporter()
+        val viewModel = addCarViewModel(reporter = reporter)
+
+        viewModel.onEvent(AddCarEvent.MakeSelected("Maruti Suzuki"))
+        viewModel.onEvent(AddCarEvent.ModelSelected(CarModel("Swift", "VXI")))
+        viewModel.onEvent(AddCarEvent.YearSelected(2020))
+        viewModel.onEvent(AddCarEvent.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(AddCarEvent.OdometerChanged(45_000))
+        viewModel.onEvent(AddCarEvent.AddTapped)
+        assertIs<AddCarEffect.Added>(viewModel.effects.first())
+
+        assertTrue(reporter.reports.isEmpty())
+    }
+
+    /** The "not listed" free-text row (and any other path to a value outside the catalog). */
+    @Test
+    fun savingACarNotInTheCatalog_reportsItInTheBackground() = runTest {
+        val reporter = FakeUnlistedVehicleReporter()
+        val viewModel = addCarViewModel(reporter = reporter)
+
+        viewModel.onEvent(AddCarEvent.MakeSelected("Rare Motors"))
+        viewModel.onEvent(AddCarEvent.ModelSelected(CarModel("Concept One", "Turbo")))
+        viewModel.onEvent(AddCarEvent.YearSelected(2020))
+        viewModel.onEvent(AddCarEvent.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(AddCarEvent.OdometerChanged(45_000))
+        viewModel.onEvent(AddCarEvent.AddTapped)
+        assertIs<AddCarEffect.Added>(viewModel.effects.first())
+
+        val (make, model, variant) = reporter.reports.single()
+        assertEquals("Rare Motors", make)
+        assertEquals("Concept One", model)
+        assertEquals("Turbo", variant)
     }
 
     /** A rejected save marks the fields that caused it, not a lone banner over a valid form. */
@@ -190,12 +230,16 @@ class CarScreensViewModelTest {
 
     /* ------------------------------ Edit car ------------------------------ */
 
-    private fun editCarViewModel(cars: FakeCarRepository) = EditCarViewModel(
+    private fun editCarViewModel(
+        cars: FakeCarRepository,
+        reporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
+    ) = EditCarViewModel(
         activeCar = FakeActiveCar(TEST_CAR),
         observeGarage = garage(cars),
         updateDetails = UpdateCarDetailsUseCase(cars),
         loadCatalog = LoadVehicleCatalogUseCase(FakeVehicleCatalog()),
         loadModels = LoadCarModelsUseCase(FakeVehicleCatalog()),
+        reportUnlisted = ReportUnlistedVehicleUseCase(reporter),
         telemetry = testTelemetry(),
     )
 

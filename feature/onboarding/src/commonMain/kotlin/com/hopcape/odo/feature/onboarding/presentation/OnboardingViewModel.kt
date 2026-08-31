@@ -15,6 +15,7 @@ import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCa
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarCommand
 import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.VehicleCatalogSnapshot
@@ -79,6 +80,7 @@ internal class OnboardingViewModel(
     private val loadModels: LoadCarModelsUseCase,
     private val lookupPlate: LookupPlateUseCase,
     private val saveCar: SaveCarUseCase,
+    private val reportUnlisted: ReportUnlistedVehicleUseCase,
     private val completeOnboarding: CompleteOnboardingUseCase,
     private val currentOwner: CurrentOwnerProvider,
     private val sessionStatus: SessionStatusProvider,
@@ -375,8 +377,35 @@ internal class OnboardingViewModel(
             saveCar(command = command, ownerId = currentOwner.currentOwnerId(), existing = savedCarId)
         }.fold(
             ifLeft = { errors -> reportSaveFailure(errors); false },
-            ifRight = { car -> savedCarId = car.id; true },
+            ifRight = { car ->
+                savedCarId = car.id
+                reportIfUnlisted(state, command)
+                true
+            },
         )
+    }
+
+    /**
+     * Only the manual route answers against the catalog at all — the plate route's make/model
+     * come from the vehicle registry, which this catalog has no opinion on, so there is
+     * nothing to compare there. See `:feature:garage`'s `AddCarViewModel.reportIfUnlisted` for
+     * the same inference on the other place a car gets saved.
+     *
+     * Suspends inline rather than spawning a child `viewModelScope.launch` — [saveCarStep]'s
+     * caller advances the step (and can finish the flow) right after this returns, which
+     * would otherwise race a fire-and-forget launch against the ViewModel being cleared.
+     */
+    private suspend fun reportIfUnlisted(state: OnboardingUiState, command: SaveCarCommand) {
+        if (!state.manualEntry) return
+        val make = command.make ?: return
+        val model = command.model ?: return
+        val options = state.details.options ?: return
+        val knownMake = options.makes.any { it.equals(make, ignoreCase = true) }
+        val knownModel = state.details.models.any {
+            it.name.equals(model, ignoreCase = true) && it.variant == command.variant
+        }
+        if (knownMake && knownModel) return
+        reportUnlisted(make, model, command.variant)
     }
 
     /** Save the owner's answers and stamp setup as finished. */

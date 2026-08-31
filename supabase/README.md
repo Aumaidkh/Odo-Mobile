@@ -4,6 +4,155 @@ The schema itself is not here — it lives in `docs/SUPABASE_BOOTSTRAP.md` and i
 the dashboard's SQL Editor. This directory holds what cannot be a paste: the Edge Functions,
 and the SQL objects they depend on.
 
+**Migrations here are not tracked by `supabase db push`.** Both projects' schema was bootstrapped
+by hand-pasting SQL into the dashboard's SQL Editor rather than by running the CLI's migration
+flow, so the remote `supabase_migrations.schema_migrations` history table is empty on both — a
+plain `supabase db push` would try to replay every migration in this folder from the beginning,
+including ones already live. Apply a single new migration file directly instead:
+
+```bash
+supabase link --project-ref <project-ref>
+supabase db query --linked -f supabase/migrations/<file>.sql
+```
+
+## Vehicle catalog: accept → auto-promote
+
+`20260830130000_promote_vehicle_catalog_submission.sql` adds a trigger on
+`vehicle_catalog_submissions`: the moment a reviewer sets a row's `status` to `'accepted'`
+(hand-edited in the SQL Editor — the table has no client-facing update policy), it inserts the
+make (if new), the model's trim-less base row (if new), and the named trim (if given and new)
+into `vehicle_makes` / `vehicle_models`. Ids use the exact same slug algorithm as
+`VehicleSeedData.kt`'s `slug()`, so a promoted row lands where a bundled seed row for the same
+make/model/trim would have.
+
+Manual review still decides *whether* a submission is real — nothing here auto-accepts
+anything. This only automates the mechanical follow-up (writing the catalog rows by hand)
+once that call has already been made.
+
+### Status — dev
+
+Applied to `odo-mobile_dev` (`gezicmstbgfpwwohiboq`) on 2026-08-30 via the command above, and
+verified with a throwaway submission wrapped in `begin ... rollback` (insert as `pending`,
+`update ... set status = 'accepted'`, confirm the two `vehicle_models` rows appear under the
+existing `make-tata` row, `rollback`). **Prod (`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does
+not have this yet.**
+
+### Applying to prod
+
+1. **Link to the production project** (not the dev one — check `supabase status` or the ref if
+   unsure; the two refs are `gezicmstbgfpwwohiboq` = dev, `kxxgfhwnidgfvjowqaad` = prod):
+   ```bash
+   supabase link --project-ref kxxgfhwnidgfvjowqaad
+   ```
+2. **Apply the migration** — the same one-file command as above, not `supabase db push` (see the
+   note at the top of this file about why):
+   ```bash
+   supabase db query --linked -f supabase/migrations/20260830130000_promote_vehicle_catalog_submission.sql
+   ```
+3. **Verify without touching real data.** Run this in one shot; the transaction never commits,
+   so nothing is left behind either way:
+   ```bash
+   supabase db query --linked "
+   begin;
+   insert into vehicle_catalog_submissions (id, owner_id, make, model, variant, status, created_at)
+   values (
+     '11111111-1111-1111-1111-111111111111',
+     (select id from profiles limit 1),  -- any real profile id satisfies the FK for this test
+     'Tata', 'Sierra', 'Pure +', 'pending', now()
+   );
+   update vehicle_catalog_submissions set status = 'accepted'
+     where id = '11111111-1111-1111-1111-111111111111';
+   select id, make_id, name, variant, display_order from vehicle_models
+     where make_id = 'make-tata' and name = 'Sierra' order by display_order;
+   rollback;
+   "
+   ```
+   Expect two rows back: `model-tata-sierra` (`variant` null) and `model-tata-sierra-pure-plus`
+   (`variant` = `Pure +`). If `make-tata` doesn't already exist in prod's seed, adjust the
+   `make_id`/`name` in the query to a make you know is there, or drop the `where` clause and
+   just eyeball the newest two rows by `display_order`.
+4. **Re-link back to dev when done**, so a later `supabase db query --linked` from this repo
+   doesn't accidentally target prod:
+   ```bash
+   supabase link --project-ref gezicmstbgfpwwohiboq
+   ```
+
+Real acceptances afterward are just: `update vehicle_catalog_submissions set status = 'accepted'
+where id = '<uuid>';` in the SQL Editor — the trigger does the rest.
+
+## Cities catalog: accept → auto-promote
+
+`20260830140000_city_submissions.sql` adds `city_submissions`, the "my city isn't listed" inbox —
+same insert-only shape as `vehicle_catalog_submissions`. `20260830140100_promote_city_submissions.sql`
+adds the promotion, and it works differently from the vehicle catalog on purpose:
+
+- **It deletes the submission row once it lands in `cities`.** `vehicle_catalog_submissions` keeps
+  every row forever as history; `city_submissions` does not — a promoted row leaves no trace here.
+  The trigger mechanism itself (`trg_promote_city_submission`, firing on insert or update of
+  `status`/`state`/`tier`) is otherwise the same shape as the vehicle catalog's — an earlier pass
+  used a `pg_cron` job polling every 10 minutes instead, which was switched out for this because
+  polling burns a run on every tick whether or not anything changed, and needed the `pg_cron`
+  extension enabled besides.
+- **A reviewer must fill in `state` by hand**, alongside `status = 'accepted'`, before a row is
+  eligible. The app only ever captures a city *name*, and `cities.state` is `NOT NULL` with
+  nothing sane to default it to — a submission missing it is left for the next run rather than
+  promoted with a guessed value. `tier` is different: it is only a low-confidence label the UI
+  reads, so a reviewer who forgets it does not block the promotion — it defaults to `3`.
+
+Manual review still decides *whether* a submission is real — nothing here auto-accepts anything.
+
+### Status — dev
+
+**Applied to `odo-mobile_dev` (`gezicmstbgfpwwohiboq`) on 2026-08-30.** An earlier `pg_cron`-based
+version of the promote job ran first and was live for a short while — its schedule
+(`promote-accepted-city-submissions`) has since been unscheduled and its function
+(`promote_city_submissions()`, plural) dropped, so only the trigger remains. Verified live with a
+throwaway submission wrapped in `begin ... rollback`: the trigger promoted it into `cities` and
+deleted the submission row in the same transaction, then the rollback discarded both. **Prod
+(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have this yet.**
+
+To apply from a fresh project, the same way as the vehicle catalog's — no extension to enable
+first this time:
+
+```bash
+supabase link --project-ref gezicmstbgfpwwohiboq
+supabase db query --linked -f supabase/migrations/20260830140000_city_submissions.sql
+supabase db query --linked -f supabase/migrations/20260830140100_promote_city_submissions.sql
+```
+
+Verify with a throwaway submission wrapped in `begin ... rollback` — the trigger fires the moment
+the `update` below lands, nothing to wait on:
+
+```bash
+supabase db query --linked "
+begin;
+insert into city_submissions (id, owner_id, name, status, created_at)
+values (
+  '22222222-2222-2222-2222-222222222222',
+  (select id from profiles limit 1),
+  'Srinagar', 'pending', now()
+);
+update city_submissions set state = 'Jammu and Kashmir', tier = 2, status = 'accepted'
+  where id = '22222222-2222-2222-2222-222222222222';
+select id, name, state, tier from cities where lower(name) = 'srinagar';
+select count(*) from city_submissions where id = '22222222-2222-2222-2222-222222222222';
+rollback;
+"
+```
+
+Expect one row back from `cities` (`Srinagar`, `Jammu and Kashmir`, `2`) and a count of `0` from
+`city_submissions` — the row should already be gone.
+
+### Applying to prod
+
+Same shape as the vehicle catalog's prod rollout above: link to `kxxgfhwnidgfvjowqaad`, run both
+migration files with `supabase db query --linked -f ...` (never `db push`), verify with the
+`begin ... rollback` block above, then re-link back to dev.
+
+Real acceptances afterward are: fill in `state` (and `tier`, if you want a confidence tier other
+than the default `3`) and `update city_submissions set status = 'accepted' where id = '<uuid>';`
+in the SQL Editor — the trigger does the rest immediately, in the same statement.
+
 | Function | What it is |
 | --- | --- |
 | [`firebase-session`](#firebase-session) | Trades a Firebase ID token for a Supabase session. The sign-in path. |

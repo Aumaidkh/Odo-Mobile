@@ -1,0 +1,20 @@
+-- One row, always id 0: which seed generation `vehicle_make`/`vehicle_model` currently hold.
+--
+-- Replaces the old "insert only if the table is empty" guard, which could never fix or grow
+-- the seeded catalog after first launch — only a wipe-and-reinstall would re-seed. Comparing
+-- this against the code's current seed version lets a bigger or corrected bundled catalog
+-- reach an installed app on its next update, the same way a remote refresh replaces the
+-- tables with fresher server rows (VehicleCatalogRefresher).
+CREATE TABLE vehicle_catalog_meta (
+    id           INTEGER NOT NULL PRIMARY KEY,
+    seed_version INTEGER NOT NULL
+);
+
+selectSeedVersion:
+SELECT seed_version
+FROM vehicle_catalog_meta
+WHERE id = 0;
+
+setSeedVersion:
+INSERT OR REPLACE INTO vehicle_catalog_meta (id, seed_version)
+VALUES (0, ?);

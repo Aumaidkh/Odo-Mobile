@@ -106,6 +106,48 @@ internal class PostgrestClient(
     }
 
     /**
+     * `POST /rest/v1/{table}` with no `resolution` preference — a plain insert, never an
+     * upsert.
+     *
+     * **Deliberately distinct from [upsert].** `Prefer: resolution=merge-duplicates` compiles
+     * to `INSERT ... ON CONFLICT DO UPDATE`, which Postgres plans against *both* the INSERT
+     * and UPDATE policies whether or not a conflict ever happens — so calling [upsert] against
+     * a table that is insert-only by design (RLS grants no UPDATE, no SELECT) fails every
+     * single row with `42501` / HTTP 403, permanently, because there is no row it could ever
+     * satisfy. `return=representation` after a *plain* INSERT needs neither: it is answered
+     * from the INSERT's own `WITH CHECK`, the same way `RETURNING` works in plain SQL.
+     *
+     * For a client-generated id that is retried after a genuinely lost response, the server
+     * already holds the row and this becomes a duplicate-key `23505` / HTTP 409 — permanent,
+     * per [com.hopcape.odo.infrastructure.supabase.http.SupabaseRequestFailed], so the runner
+     * marks that one row `CONFLICT` and moves on rather than retrying it forever.
+     */
+    suspend fun <T> insert(
+        table: String,
+        serializer: KSerializer<T>,
+        rows: List<T>,
+        returnRows: Boolean = true,
+    ): List<T> {
+        if (rows.isEmpty()) return emptyList()
+        return call(operation = SupabaseTelemetry.INSERT, resource = table) {
+            val prefer = if (returnRows) RETURN_REPRESENTATION else RETURN_MINIMAL
+            val response = client.post("${environment.restUrl}/$table") {
+                authorize()
+                contentType(ContentType.Application.Json)
+                header(PREFER_HEADER, prefer)
+                setBody(SupabaseJson.encodeToString(ListSerializer(serializer), rows))
+            }
+            val body = response.readOrThrow(SupabaseTelemetry.INSERT, table)
+            if (!returnRows) {
+                telemetry.rows(SupabaseTelemetry.INSERT, table, rows.size)
+                return@call emptyList()
+            }
+            SupabaseJson.decodeFromString(ListSerializer(serializer), body)
+                .also { telemetry.rows(SupabaseTelemetry.INSERT, table, it.size) }
+        }
+    }
+
+    /**
      * `PATCH /rest/v1/{table}` — update the columns in [patch] on every row matching
      * [filters], without reading anything back.
      *

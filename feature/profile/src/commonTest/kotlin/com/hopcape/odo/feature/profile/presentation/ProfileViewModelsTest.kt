@@ -20,6 +20,10 @@ import com.hopcape.odo.feature.profile.domain.usecase.FakeFileStore
 import com.hopcape.odo.feature.profile.domain.usecase.FakeProfileRepository
 import com.hopcape.odo.feature.profile.domain.usecase.FakeSettingsRepository
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
+import com.hopcape.odo.core.domain.city.CityCatalog
+import com.hopcape.odo.core.domain.city.UnlistedCityReporter
+import com.hopcape.odo.feature.profile.domain.usecase.LoadCityCatalogUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.ReportUnlistedCityUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
@@ -160,7 +164,6 @@ class ProfileViewModelsTest {
         assertEquals("Rahul", state.name.value)
         assertEquals("rahul@example.com", state.email.value)
         assertEquals("Pune", state.city.value)
-        assertTrue(state.cities.contains("Pune"))
     }
 
     @Test
@@ -417,6 +420,10 @@ class ProfileViewModelsTest {
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),
             deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore(), FakeDiagnosticRequests()),
+            loadCityCatalog = LoadCityCatalogUseCase(catalog = object : CityCatalog {
+                override suspend fun cities() = emptyList<com.hopcape.odo.core.domain.city.City>()
+            }),
+            reportUnlistedCity = ReportUnlistedCityUseCase(reporter = UnlistedCityReporter { }),
             telemetry = testTelemetry(analytics),
         )
     }

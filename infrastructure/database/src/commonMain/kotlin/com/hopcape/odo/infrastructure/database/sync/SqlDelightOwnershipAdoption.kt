@@ -54,6 +54,7 @@ internal class SqlDelightOwnershipAdoption(
                     database.fuelFillQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.healthScoreQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.overchargeReportQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    database.vehicleCatalogSubmissionQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.reminderQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     // Trips were missing here. They are stamped with an owner like every
                     // other table and, since the pull became owner-scoped, an unadopted trip
@@ -92,6 +93,7 @@ internal class SqlDelightOwnershipAdoption(
         if (database.syncStateQueries.countForeignOwned(realOwnerId).executeAsOne() == 0L) return
 
         database.overchargeReportQueries.deleteForeignOwned(realOwnerId)
+        database.vehicleCatalogSubmissionQueries.deleteForeignOwned(realOwnerId)
         database.serviceLogQueries.deleteForeignOwned(realOwnerId)
         database.serviceLogQueries.deleteOrphanCategories()
         database.documentQueries.deleteForeignOwned(realOwnerId)

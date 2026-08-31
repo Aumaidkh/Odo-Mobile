@@ -28,3 +28,9 @@ LIMIT :limit;
 
 countMakes:
 SELECT count(*) FROM vehicle_make;
+
+-- Used only by a full reseed (bootstrap version bump or a remote refresh) — both replace the
+-- whole reference table rather than patch it, because these rows have no owner-entered data
+-- that a delete could lose (`cars.make` is a plain string, not a reference to this table).
+deleteAllMakes:
+DELETE FROM vehicle_make;

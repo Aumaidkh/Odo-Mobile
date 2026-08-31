@@ -92,20 +92,27 @@ fun App() {
 
     OdoTheme(darkTheme = settings.theme.isDark(), largerText = settings.largerText) {
         CompositionLocalProvider(LocalOdoDistanceFormat provides distanceFormat) {
-            // Above the nav host, inside the theme: no route, deep link, or pending
-            // redirect can navigate past a block, because there is no destination to
-            // reach — and the block screen is still branded and honours dark/light.
-            val current = availability
-            if (shouldBlock(current)) {
-                AppBlockedScreen(
-                    blocked = current as AppAvailability.Blocked,
-                    onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
-                )
-            } else {
-                OdoAppContent(
-                    koin = koin,
-                    maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
-                )
+            // The one parent every screen hangs off, which is why the test-tag opt-in goes
+            // here: `testTagsAsResourceId` applies to a semantics subtree, so setting it on
+            // the root covers the blocked screen and the startup screen as well as the nav
+            // host. Putting it on the activity instead would tie a decision about the whole
+            // UI tree to one platform's entry point, and iOS has no equivalent to give it.
+            Box(modifier = Modifier.fillMaxSize().debugTestTags()) {
+                // Above the nav host, inside the theme: no route, deep link, or pending
+                // redirect can navigate past a block, because there is no destination to
+                // reach — and the block screen is still branded and honours dark/light.
+                val current = availability
+                if (shouldBlock(current)) {
+                    AppBlockedScreen(
+                        blocked = current as AppAvailability.Blocked,
+                        onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
+                    )
+                } else {
+                    OdoAppContent(
+                        koin = koin,
+                        maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                    )
+                }
             }
         }
     }

@@ -1,0 +1,20 @@
+-- Schema 8 -> 9: vehicle_catalog_submissions, the local outbox for "my car isn't listed".
+--
+-- Before this, an unlisted-make/model report went straight from the ViewModel to a Postgrest
+-- call: lost outright when filed before sign-in (RLS refuses an unauthenticated insert, and
+-- the report was never queued anywhere), and a race with the ViewModel being cleared on
+-- navigate-away otherwise. A new table, so there is nothing to migrate — every report from
+-- here is written locally first and reaches Supabase through the ordinary sync outbox, the
+-- same way a car or a service log does.
+CREATE TABLE vehicle_catalog_submissions (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    make           TEXT NOT NULL,
+    model          TEXT NOT NULL,
+    variant        TEXT,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);

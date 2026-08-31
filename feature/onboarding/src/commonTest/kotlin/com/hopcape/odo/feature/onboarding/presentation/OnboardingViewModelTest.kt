@@ -10,6 +10,7 @@ import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
 import com.hopcape.performance.api.APM
 import com.hopcape.odo.core.domain.car.catalog.CarModel
+import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -36,6 +37,7 @@ import com.hopcape.odo.feature.onboarding.domain.usecase.CompleteOnboardingUseCa
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.onboarding.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.onboarding.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.onboarding.presentation.state.Loadable
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
@@ -315,6 +317,44 @@ class OnboardingViewModelTest {
         // And typing it here does not drag the owner back to the lookup they opted out of.
         assertTrue(viewModel.state.value.manualEntry)
         assertEquals(PlateLookup.Idle, viewModel.state.value.car.lookup)
+    }
+
+    /** The manual route's own path to a car outside the catalog — "not listed" free text. */
+    @Test
+    fun theManualRoute_reportsACarTheCatalogDoesNotHave() = runTest(dispatcher) {
+        val reporter = FakeUnlistedVehicleReporter()
+        val viewModel = viewModel(unlistedReporter = reporter)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected("Rare Motors"))
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.ModelSelected(CarModel("Concept One", "Turbo")))
+        viewModel.onEvent(OnboardingEvent.Details.YearSelected(2019))
+        viewModel.onEvent(OnboardingEvent.Details.FuelSelected(FuelType.PETROL))
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(HONDA_PLATE))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        val (make, model, variant) = reporter.reports.single()
+        assertEquals("Rare Motors", make)
+        assertEquals("Concept One", model)
+        assertEquals("Turbo", variant)
+    }
+
+    /** The registry's own claim is never compared against the catalog — there is nothing to. */
+    @Test
+    fun thePlateRoute_neverReportsEvenWhenTheCatalogDoesNotListTheMatch() = runTest(dispatcher) {
+        val reporter = FakeUnlistedVehicleReporter()
+        val viewModel = viewModel(unlistedReporter = reporter)
+        advanceUntilIdle()
+
+        completeTheWholeFlow(viewModel)
+
+        assertTrue(reporter.reports.isEmpty())
     }
 
     @Test
@@ -743,6 +783,7 @@ class OnboardingViewModelTest {
         profiles: FakeProfileRepository = FakeProfileRepository(),
         signedIn: Boolean = false,
         analytics: AnalyticsTracker = RecordingAnalytics(),
+        unlistedReporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
     ) = OnboardingViewModel(
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
@@ -754,6 +795,7 @@ class OnboardingViewModelTest {
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
             timeZone = TimeZone.UTC,
         ),
+        reportUnlisted = ReportUnlistedVehicleUseCase(unlistedReporter),
         completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
         currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
@@ -900,6 +942,13 @@ class OnboardingViewModelTest {
 
         private fun <T> read(value: () -> T): T =
             if (failing) throw IllegalStateException("catalog unavailable") else value()
+    }
+
+    private class FakeUnlistedVehicleReporter : UnlistedVehicleReporter {
+        val reports = mutableListOf<Triple<String, String, String?>>()
+        override suspend fun report(make: String, model: String, variant: String?) {
+            reports += Triple(make, model, variant)
+        }
     }
 
     private class FakeRegistry(

@@ -24,6 +24,10 @@ VALUES (?, ?, ?, ?, ?);
 countModels:
 SELECT count(*) FROM vehicle_model;
 
+-- See vehicle_make's deleteAllMakes — the same full-replace reasoning applies here.
+deleteAllModels:
+DELETE FROM vehicle_model;
+
 -- Models for a make selected by its display name (the catalog API takes a name).
 selectModelsByMakeName:
 SELECT vehicle_model.name, vehicle_model.variant

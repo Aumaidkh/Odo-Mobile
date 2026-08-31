@@ -10,8 +10,14 @@ import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
 import com.hopcape.odo.core.data.auth.OfflineAccountEraser
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
+import com.hopcape.odo.core.data.car.FakeVehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
+import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
+import com.hopcape.odo.core.data.city.CityRemoteDataSource
+import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
+import com.hopcape.odo.core.data.city.FakeCityRemoteDataSource
+import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
@@ -212,6 +218,9 @@ val coreDataModule = module {
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
     single<RemoteFileStorage> { FakeRemoteFileStorage() }
     single<CarRemoteDataSource> { FakeCarRemoteDataSource() }
+    single<VehicleCatalogRemoteDataSource> { FakeVehicleCatalogRemoteDataSource() }
+    single<CityRemoteDataSource> { FakeCityRemoteDataSource() }
+    single<CitySubmissionRemoteDataSource> { FakeCitySubmissionRemoteDataSource() }
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
     single<HealthScoreRemoteDataSource> { FakeHealthScoreRemoteDataSource() }
     single<TripRemoteDataSource> { FakeTripRemoteDataSource() }
