@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
 import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
+import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInEffect
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
 import com.hopcape.odo.web.admin.routing.AdminRoute
@@ -21,6 +22,7 @@ import com.hopcape.odo.web.admin.routing.mayOpen
 import com.hopcape.odo.web.admin.ui.chrome.AdminShell
 import com.hopcape.odo.web.admin.ui.screen.CitiesScreen
 import com.hopcape.odo.web.admin.ui.screen.NoAccessScreen
+import com.hopcape.odo.web.admin.ui.screen.VehiclesScreen
 import com.hopcape.odo.web.admin.ui.screen.NoRolesScreen
 import com.hopcape.odo.web.admin.ui.screen.NotFoundScreen
 import com.hopcape.odo.web.admin.ui.screen.PlaceholderScreen
@@ -127,6 +129,7 @@ private fun SignedInArea(
                 // One host per built section; everything else is still a
                 // placeholder with a route, a permission and a nav item.
                 route is AdminRoute.Cities -> CitiesHost()
+                route is AdminRoute.Vehicles -> VehiclesHost()
                 else -> PlaceholderScreen(route)
             }
         }
@@ -151,4 +154,12 @@ private fun CitiesHost() {
     val viewModel: CitiesViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     CitiesScreen(state, viewModel::onEvent)
+}
+
+/** The vehicle catalog. Scoped like the cities host, and for the same reason. */
+@Composable
+private fun VehiclesHost() {
+    val viewModel: VehiclesViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    VehiclesScreen(state, viewModel::onEvent)
 }

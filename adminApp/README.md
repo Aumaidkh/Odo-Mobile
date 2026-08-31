@@ -102,8 +102,22 @@ Two things about it are worth knowing before touching either catalog:
   for — success, with the row still there. Anything that needs a row gone needs a
   policy, not a retry.
 
-The rest are placeholders: a route, a permission and a nav item, no screen. #366,
-#368, #369 and #370 replace them one at a time. They exist now because the nav's
+**Vehicles** (#366) is built the same way, with two differences worth knowing:
+
+- **Vehicles delete; cities retire.** `cities` is pulled as a delta on
+  `updated_at`, so a deleted row is invisible to a client that already has it —
+  hence `is_active`. `vehicle_makes`/`vehicle_models` are fetch-and-replace, so a
+  row that stops being fetched stops existing locally, and `cars.make`/`cars.model`
+  are plain strings with no foreign key into the catalog. A delete is correct here
+  and an `is_active` would buy nothing.
+- **Adding goes through `admin_add_vehicle`, not three inserts.** One entry can
+  create a make, a trim-less model row and a named trim, they belong in one
+  transaction, and the text ids have to come from `vehicle_catalog_slug` — a client
+  rebuilding that algorithm would eventually disagree with the seed data. The
+  function is `security definer`, so it checks `admin_has` itself, first thing.
+
+The rest are placeholders: a route, a permission and a nav item, no screen. #368,
+#369 and #370 replace them one at a time. They exist now because the nav's
 shape is what the permission model is tested against.
 
 The hosting config is in place (§6); what is left before a first deploy is the

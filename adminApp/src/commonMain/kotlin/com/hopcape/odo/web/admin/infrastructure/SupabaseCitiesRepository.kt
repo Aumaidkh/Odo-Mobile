@@ -38,7 +38,7 @@ internal class SupabaseCitiesRepository(
     override suspend fun submissions(): Either<WebError, List<CitySubmission>> =
         postgrest.select(
             table = TABLE_SUBMISSIONS,
-            serializer = SubmissionRow.serializer(),
+            serializer = CitySubmissionRow.serializer(),
             // Oldest first: a queue is worked from the front, and somebody who
             // reported a missing city three weeks ago has waited longest.
             query = "select=id,name,state,tier,status,created_at&order=created_at.asc",
@@ -108,7 +108,7 @@ private data class CityRow(
 }
 
 @Serializable
-private data class SubmissionRow(
+private data class CitySubmissionRow(
     val id: String,
     val name: String,
     val state: String? = null,

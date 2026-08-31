@@ -96,4 +96,47 @@
     <string name="ad_cities_rejected_done">Rejected.</string>
     <string name="ad_cities_deleted_done">Deleted.</string>
 
+
+    <!-- Vehicles (#366). The catalog and the "my car isn't listed" queue. -->
+    <string name="ad_vehicles_title">Vehicles</string>
+    <string name="ad_vehicles_queue_title">Reported cars</string>
+    <string name="ad_vehicles_queue_count">%1$d waiting</string>
+    <string name="ad_vehicles_queue_empty">Nothing waiting to be reviewed.</string>
+    <string name="ad_vehicles_reported_on">Reported %1$s</string>
+    <string name="ad_vehicles_catalog_title">Catalog</string>
+    <string name="ad_vehicles_catalog_count">%1$d models</string>
+    <string name="ad_vehicles_search">Search by make, model or trim</string>
+    <string name="ad_vehicles_all_makes">All makes</string>
+    <string name="ad_vehicles_empty">Nothing matches that.</string>
+    <string name="ad_vehicles_no_models">No models under this make yet.</string>
+    <string name="ad_vehicles_base_row">Any trim</string>
+
+    <string name="ad_vehicles_add">Add a vehicle</string>
+    <string name="ad_vehicles_rename_make">Rename make</string>
+    <string name="ad_vehicles_edit_model">Edit model</string>
+    <string name="ad_vehicles_make">Make</string>
+    <string name="ad_vehicles_model">Model</string>
+    <string name="ad_vehicles_variant">Trim (optional)</string>
+    <string name="ad_vehicles_add_hint">An existing make is reused. A model always gets an "any trim" row as well, so an owner who does not know their exact trim can still pick the car.</string>
+    <string name="ad_vehicles_duplicate">That make, model and trim is already in the catalog.</string>
+
+    <string name="ad_vehicles_edit">Edit</string>
+    <string name="ad_vehicles_rename">Rename</string>
+    <string name="ad_vehicles_delete">Delete</string>
+    <string name="ad_vehicles_approve">Approve</string>
+    <string name="ad_vehicles_reject">Reject</string>
+
+    <string name="ad_vehicles_delete_title">Delete %1$s?</string>
+    <string name="ad_vehicles_delete_make_body">This removes the make and every one of its %1$d models. Saved cars are unaffected — they store the make and model as text, not as a link to the catalog.</string>
+    <string name="ad_vehicles_delete_model_body">This removes the model from the picker. Saved cars are unaffected — they store the make and model as text, not as a link to the catalog.</string>
+    <string name="ad_vehicles_delete_base_warning">This is the "any trim" row. Removing it leaves the trims but stops anyone picking the model without one.</string>
+    <string name="ad_vehicles_delete_confirm">Delete</string>
+
+    <string name="ad_vehicles_added">Added to the catalog.</string>
+    <string name="ad_vehicles_save">Save</string>
+    <string name="ad_vehicles_saved">Saved.</string>
+    <string name="ad_vehicles_approved_done">Approved and added to the catalog.</string>
+    <string name="ad_vehicles_rejected_done">Rejected.</string>
+    <string name="ad_vehicles_deleted_done">Deleted.</string>
+
 </resources>

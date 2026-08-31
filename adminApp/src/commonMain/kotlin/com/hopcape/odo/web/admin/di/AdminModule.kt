@@ -6,10 +6,13 @@ import arrow.core.right
 import com.hopcape.odo.web.admin.domain.AdminAuthRepository
 import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.domain.CitiesRepository
+import com.hopcape.odo.web.admin.domain.VehiclesRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseAdminAuthRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseCitiesRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabaseVehiclesRepository
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
 import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
+import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
 import com.hopcape.odo.web.core.config.BuildWebConfig
 import com.hopcape.odo.web.core.domain.WebError
@@ -74,10 +77,12 @@ val adminModule: Module = module {
     // so nothing ever resolves this — and a sample catalog would only make an
     // unconfigured build look like it was working.
     single<CitiesRepository> { SupabaseCitiesRepository(postgrest = get()) }
+    single<VehiclesRepository> { SupabaseVehiclesRepository(postgrest = get()) }
 
     viewModel { SessionViewModel(auth = get()) }
     viewModel { SignInViewModel(auth = get()) }
     viewModel { CitiesViewModel(cities = get()) }
+    viewModel { VehiclesViewModel(vehicles = get()) }
 }
 
 /**
