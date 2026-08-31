@@ -70,9 +70,13 @@ keystore/
 !/supabase/config.toml
 !/supabase/check-legal.sh
 !/supabase/check-blog.sh
+!/supabase/check-admin.sh
 # Hand-authored, and a clone needs it: the blog is a nav over a black page until
 # somebody runs it.
 !/supabase/seed_blog.sql
+# Same reason, and more so: nobody can sign in to /admin at all until this has been run once,
+# because granting the first role requires already holding one.
+!/supabase/seed_admin.sql
 # Same reason: a fresh Supabase project has no vehicle catalog until this is run, and it
 # is generated from VehicleSeedData.kt's RAW_SEED, not something a clone can rebuild itself.
 !/supabase/seed_vehicle_catalog.sql

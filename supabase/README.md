@@ -4,16 +4,87 @@ The schema itself is not here — it lives in `docs/SUPABASE_BOOTSTRAP.md` and i
 the dashboard's SQL Editor. This directory holds what cannot be a paste: the Edge Functions,
 and the SQL objects they depend on.
 
-**Migrations here are not tracked by `supabase db push`.** Both projects' schema was bootstrapped
-by hand-pasting SQL into the dashboard's SQL Editor rather than by running the CLI's migration
-flow, so the remote `supabase_migrations.schema_migrations` history table is empty on both — a
-plain `supabase db push` would try to replay every migration in this folder from the beginning,
-including ones already live. Apply a single new migration file directly instead:
+**Migration history: dev is repaired, prod is not.** Both projects' schema was bootstrapped by
+hand-pasting SQL into the dashboard's SQL Editor rather than by running the CLI's migration
+flow, so the remote `supabase_migrations.schema_migrations` history table started out empty on
+both — and a plain `supabase db push` would try to replay every migration in this folder from
+the beginning, including ones already live.
+
+On **dev** that has been fixed (2026-08-31). Every migration up to and including
+`20260830140100` was marked applied without being re-run, so `db push` now does the ordinary
+thing:
 
 ```bash
-supabase link --project-ref <project-ref>
-supabase db query --linked -f supabase/migrations/<file>.sql
+supabase db push --linked --dry-run   # always. read what it says it will replay.
+supabase db push --linked
 ```
+
+On **prod** the history is still empty and the dry-run still lists everything. Either repair it
+the same way before the first push, or paste the one file into the SQL Editor:
+
+```bash
+# The one-time repair. Only the versions already live on that project.
+supabase migration repair --linked --status applied <version> [<version>...]
+```
+
+`supabase db query` appears in older notes and no longer exists in the CLI — `db push` and the
+SQL Editor are the two ways in.
+
+## Admin panel: roles and permissions
+
+`20260831120000_admin_rbac.sql` is the permission model behind `/admin` (epic #363, planned in
+`docs/ADMIN_PANEL_PLAN.md`). Five tables — `admin_users`, `admin_roles`,
+`admin_role_permissions`, `admin_user_roles`, `admin_audit_log` — and three checks:
+`is_admin()`, `admin_has(permission)` and `current_admin_id()`.
+
+The one thing to know before changing anything here: **permissions are checked live, at query
+time, not read out of a JWT claim.** `is_blog_author()` reads a claim, so revoking a blog
+author's access only takes effect on their next token refresh. That is fine for the blog and
+not fine for a panel that can edit other people's entitlements, so every admin-gated policy
+calls `admin_has(...)`, which joins the tables above on `auth.uid()`.
+
+All three checks are `security definer`. That is not a preference — the policy protecting
+`admin_users` reads `admin_users`, which as an invoker-rights function is infinite recursion,
+reported as a policy error that reads like the table is broken.
+
+Three roles ship with the migration: `super_admin`, `content` (blog, both catalogs, fairness
+data) and `support` (user lookup, entitlement overrides, restriction, audit log). Nobody holds
+any of them until somebody is added.
+
+### Adding the first admin
+
+Granting a role requires `admin.roles.write`, and at first nobody holds it. The loop is broken
+from outside the model — the SQL Editor runs as the service role and bypasses RLS.
+
+Edit the two values at the top of `supabase/seed_admin.sql` and run it once. The address has to
+be one that can sign in to that environment's Firebase project with an email and a password,
+because that is what `admin-session` verifies before it looks anybody up here.
+
+`user_id` stays null in the seed. It is bound to a Supabase account by `admin-session` on the
+first sign-in, and that function is the only thing that should ever write it. This is also why
+`admin_users` is keyed by email and not by `auth.users.id`: the row has to exist before the
+person has an account.
+
+### Checking it
+
+```sh
+sh supabase/check-admin.sh dev     # or `prod`, the default
+```
+
+Asks the project what a stranger can see and do: that the five tables exist (a 404 and a
+closed table look identical from the outside otherwise), that every one of them answers `[]`,
+and that the three functions and every write are refused outright.
+
+What it does **not** cover, because it has no account to sign in with: that an active admin can
+actually read the model, that a `support` admin cannot write to it, and that the audit trigger
+fires. Those need a real admin session and are owed once `admin-session` exists.
+
+### Status — dev
+
+Applied 2026-08-31. `sh supabase/check-admin.sh dev` → 17 passed, 0 failed. No admin seeded
+yet. Not applied to prod.
+
+---
 
 ## Vehicle catalog: accept → auto-promote
 
