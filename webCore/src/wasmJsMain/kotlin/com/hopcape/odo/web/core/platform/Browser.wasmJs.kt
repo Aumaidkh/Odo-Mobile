@@ -1,6 +1,5 @@
-package com.hopcape.odo.web.blog.platform
+package com.hopcape.odo.web.core.platform
 
-import com.hopcape.odo.web.blog.domain.UploadRequest
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.khronos.webgl.ArrayBuffer

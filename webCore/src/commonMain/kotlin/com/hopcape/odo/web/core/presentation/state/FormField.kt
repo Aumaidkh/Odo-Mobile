@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.blog.presentation.state
+package com.hopcape.odo.web.core.presentation.state
 
 import androidx.compose.runtime.Immutable
 

@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.blog.presentation
+package com.hopcape.odo.web.core.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider

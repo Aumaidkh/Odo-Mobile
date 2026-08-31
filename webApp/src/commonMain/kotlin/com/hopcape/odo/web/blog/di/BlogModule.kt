@@ -5,14 +5,14 @@ import com.hopcape.odo.web.blog.data.SampleAdminRepository
 import com.hopcape.odo.web.blog.data.SampleAuthRepository
 import com.hopcape.odo.web.blog.data.SampleBlogRepository
 import com.hopcape.odo.web.blog.infrastructure.BlogAuthRepository
-import com.hopcape.odo.web.blog.infrastructure.firebase.FirebaseSignIn
-import com.hopcape.odo.web.blog.infrastructure.supabase.BuildBlogConfig
+import com.hopcape.odo.web.core.infrastructure.firebase.FirebaseSignIn
+import com.hopcape.odo.web.core.config.BuildWebConfig
 import com.hopcape.odo.web.blog.infrastructure.supabase.JsonPostImporter
-import com.hopcape.odo.web.blog.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
 import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseAdminRepository
 import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseBlogRepository
-import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseSession
-import com.hopcape.odo.web.blog.platform.tokenStore
+import com.hopcape.odo.web.core.infrastructure.supabase.SupabaseSession
+import com.hopcape.odo.web.core.platform.tokenStore
 import io.ktor.client.HttpClient
 import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.AuthRepository
@@ -88,16 +88,20 @@ val blogModule: Module = module {
      */
     single {
         BlogBackend(
-            isLive = BuildBlogConfig.SUPABASE_URL.isNotBlank() && BuildBlogConfig.SUPABASE_ANON_KEY.isNotBlank(),
+            isLive = BuildWebConfig.SUPABASE_URL.isNotBlank() && BuildWebConfig.SUPABASE_ANON_KEY.isNotBlank(),
         )
     }
 
     single {
         SupabaseSession(
             client = get(),
-            baseUrl = BuildBlogConfig.SUPABASE_URL,
-            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+            baseUrl = BuildWebConfig.SUPABASE_URL,
+            anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
             tokens = tokenStore(),
+            // The CMS's own gate. `admin-session` is a different function with a
+            // different list behind it, and naming it here is what keeps the two
+            // from being one function that hands out both.
+            sessionFunction = "blog-session",
         )
     }
 
@@ -113,8 +117,8 @@ val blogModule: Module = module {
     single(ANONYMOUS) {
         Postgrest(
             client = get(),
-            baseUrl = BuildBlogConfig.SUPABASE_URL,
-            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+            baseUrl = BuildWebConfig.SUPABASE_URL,
+            anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
             accessToken = { null },
         )
     }
@@ -122,8 +126,8 @@ val blogModule: Module = module {
     single(AS_AUTHOR) {
         Postgrest(
             client = get(),
-            baseUrl = BuildBlogConfig.SUPABASE_URL,
-            anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+            baseUrl = BuildWebConfig.SUPABASE_URL,
+            anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
             accessToken = { get<SupabaseSession>().accessToken() },
         )
     }
@@ -157,10 +161,10 @@ val blogModule: Module = module {
             SupabaseAdminRepository(
                 postgrest = get(AS_AUTHOR),
                 client = get(),
-                baseUrl = BuildBlogConfig.SUPABASE_URL,
-                anonKey = BuildBlogConfig.SUPABASE_ANON_KEY,
+                baseUrl = BuildWebConfig.SUPABASE_URL,
+                anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
                 accessToken = { get<SupabaseSession>().accessToken() },
-                authorId = { get<SupabaseSession>().authorId },
+                authorId = { get<SupabaseSession>().subjectId },
             )
         } else {
             SampleAdminRepository(auth = get())

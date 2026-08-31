@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.blog.platform
+package com.hopcape.odo.web.core.platform
 
 import kotlinx.browser.localStorage
 import org.w3c.dom.get

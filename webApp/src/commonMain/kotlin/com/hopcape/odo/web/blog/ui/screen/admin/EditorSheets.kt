@@ -39,7 +39,7 @@ import com.hopcape.odo.web.blog.domain.model.SeoDraft
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEvent
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorSheet
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorUiState
-import com.hopcape.odo.web.blog.presentation.state.resolve
+import com.hopcape.odo.web.core.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_admin_slug_prefix
 import com.hopcape.odo.web.blog.resources.bl_conflict_message

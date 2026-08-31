@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.blog.domain
+package com.hopcape.odo.web.core.domain
 
 /**
  * Everything a repository is allowed to fail with.
@@ -8,14 +8,19 @@ package com.hopcape.odo.web.blog.domain
  * failures are countable. Whatever a transport actually throws — a Ktor timeout,
  * a PostgREST error body — is mapped into one of these at the edge, so no screen
  * ever sees an HTTP status.
+ *
+ * Shared by both web apps, so the members are named for what happened rather than
+ * for who it happened to. What each one *says* is the app's own business: the blog
+ * reads [NotPermitted] as "you are not an author", the admin panel as "you are not
+ * staff", and neither word belongs in here.
  */
-sealed interface BlogError {
+sealed interface WebError {
 
     /** The request never reached anything. Retrying is worth offering. */
-    data object Offline : BlogError
+    data object Offline : WebError
 
-    /** There is no such post, category or author. Draws the 404 page. */
-    data object NotFound : BlogError
+    /** The thing asked for does not exist. Draws the 404 page. */
+    data object NotFound : WebError
 
     /**
      * The email and password did not match.
@@ -23,30 +28,33 @@ sealed interface BlogError {
      * [triesLeft] is what the design counts down. Null when the backend does not
      * say — the screen then drops the count rather than inventing one.
      */
-    data class SignInRejected(val triesLeft: Int?) : BlogError
+    data class SignInRejected(val triesLeft: Int?) : WebError
 
-    /** An admin call was made without a session, or with one that has expired. */
-    data object NotSignedIn : BlogError
+    /** A signed-in call was made without a session, or with one that has expired. */
+    data object NotSignedIn : WebError
 
     /**
-     * The credentials were right and the account still may not publish.
+     * The credentials were right and the account is still not allowed in.
+     *
+     * The 403 from a session function — `blog-session` refusing an address that is
+     * not an author, `admin-session` refusing one that is not on the staff list.
      *
      * A separate outcome from [SignInRejected] because it is not a typo: telling
      * somebody their password was wrong when it was not sends them round a loop
      * that cannot end.
      */
-    data object NotAnAuthor : BlogError
+    data object NotPermitted : WebError
 
     /**
-     * The password was right and the author list is empty, so it turned everybody
-     * away.
+     * The password was right and nobody is allowed in at all, because the list of
+     * who may is empty.
      *
-     * Separate from [NotAnAuthor] because they send you to different places. One
+     * Separate from [NotPermitted] because they send you to different places. One
      * is a decision about an account; this one is a setting nobody has filled in,
      * and reporting it as the first sends whoever is holding the correct password
      * looking at their own account.
      */
-    data object NoAuthorsConfigured : BlogError
+    data object NotConfigured : WebError
 
     /**
      * Sign-in cannot be attempted at all — the provider is switched off for this
@@ -56,8 +64,8 @@ sealed interface BlogError {
      * nothing the person at the keyboard does will fix it, so the screen has to
      * say something other than "try again".
      */
-    data object SignInUnavailable : BlogError
+    data object SignInUnavailable : WebError
 
     /** Anything else. [cause] is for the log, never for the reader. */
-    data class Unexpected(val cause: String? = null) : BlogError
+    data class Unexpected(val cause: String? = null) : WebError
 }

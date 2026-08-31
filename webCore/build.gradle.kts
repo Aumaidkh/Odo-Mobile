@@ -1,0 +1,133 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import java.util.Properties
+
+plugins {
+    // Not `odo.kmp.library`, for the same reason `:webApp` is not: that convention
+    // hands a module the Android and iOS targets and a static framework, and this
+    // one is browser-only. It applies the Kotlin Multiplatform plugin directly and
+    // adds the single target both web apps are built for.
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.odo.composeMultiplatform)
+    alias(libs.plugins.odo.koin)
+    alias(libs.plugins.odo.kmpTest)
+    alias(libs.plugins.kotlinSerialization)
+}
+
+kotlin {
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            // No `binaries.executable()`. This is a library: `:webApp` and
+            // `:adminApp` are the things with an entry point.
+            testTask {
+                useKarma { useChromeHeadless() }
+            }
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // Either<WebError, T> on every call that can fail, the same shape the
+            // app's ports use.
+            implementation(libs.arrow.core)
+            implementation(libs.kotlinx.coroutines.core)
+            // Effects.kt reaches for the Koin scope to build a route ViewModel.
+            implementation(libs.koin.composeViewmodel)
+            // Firebase Auth and PostgREST over their REST APIs. No
+            // ContentNegotiation, matching :infrastructure:supabase: the adapters
+            // decode with an explicit Json so a non-2xx body is inspected before
+            // anything parses it as success.
+            implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.serialization.json)
+        }
+        val wasmJsMain by getting {
+            dependencies {
+                // window / localStorage. Kotlin's stdlib carries no DOM bindings on
+                // Wasm, so even reading a stored token needs this.
+                implementation(libs.kotlinx.browser)
+            }
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+            // MockEngine — drives the Firebase adapter without a network or a
+            // Firebase project.
+            implementation(libs.ktor.client.mock)
+        }
+    }
+}
+
+// ── Supabase credentials ─────────────────────────────────────────────────────
+/**
+ * Generates `BuildWebConfig` from `local.properties` (or the environment on CI).
+ *
+ * This used to live in `:webApp` and generate a `BuildBlogConfig` only the blog
+ * could see. It is here now because both web apps need the same two values and
+ * neither should own them: the admin panel talks to the same project the blog
+ * does, and a second copy of this task is a second place for the two to drift.
+ *
+ * The same property names `:infrastructure:supabase` reads, so one checkout
+ * configures the app and both websites.
+ *
+ * Production unless `supabase.env=dev` says otherwise. The phone apps pick their
+ * project from the build type; a website has no build types, it has one
+ * deployment, and that deployment is production. The override exists for a local
+ * run against the scratch project.
+ *
+ * A missing value generates an empty string rather than failing the build. A
+ * clone with no credentials still has to compile and run — the modules that read
+ * this see the blanks and keep their sample repositories.
+ */
+val generateWebConfig by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/webconfig/kotlin")
+    val localProperties = rootProject.file("local.properties")
+
+    // Read at configuration time into plain Strings, so the task action captures
+    // values rather than the Project — which is what keeps it compatible with the
+    // configuration cache.
+    val properties = Properties().apply {
+        if (localProperties.exists()) localProperties.inputStream().use(::load)
+    }
+    val override = (properties.getProperty("supabase.env") ?: System.getenv("SUPABASE_ENV"))
+        .orEmpty().trim().lowercase()
+    require(override.isEmpty() || override == "dev" || override == "prod") {
+        "supabase.env must be 'dev' or 'prod', not '$override'"
+    }
+    val isDev = override == "dev"
+    val propertySuffix = if (isDev) ".dev" else ""
+    val envSuffix = if (isDev) "_DEV" else ""
+
+    val url = (
+        properties.getProperty("supabase.url$propertySuffix")
+            ?: System.getenv("SUPABASE_URL$envSuffix")
+        ).orEmpty().trimEnd('/')
+    val anonKey = (
+        properties.getProperty("supabase.anonKey$propertySuffix")
+            ?: System.getenv("SUPABASE_ANON_KEY$envSuffix")
+        ).orEmpty()
+
+    inputs.property("url", url)
+    inputs.property("anonKey", anonKey)
+    outputs.dir(outputDir)
+
+    doLast {
+        val directory = outputDir.get().asFile.resolve("com/hopcape/odo/web/core/config")
+        directory.mkdirs()
+        directory.resolve("BuildWebConfig.kt").writeText(
+            """
+            |// Generated by :webCore:generateWebConfig from local.properties.
+            |// Do not edit: the next build overwrites it.
+            |package com.hopcape.odo.web.core.config
+            |
+            |object BuildWebConfig {
+            |    const val SUPABASE_URL: String = "$url"
+            |    const val SUPABASE_ANON_KEY: String = "$anonKey"
+            |}
+            |
+            """.trimMargin(),
+        )
+    }
+}
+
+kotlin.sourceSets.named("commonMain") {
+    kotlin.srcDir(generateWebConfig)
+}

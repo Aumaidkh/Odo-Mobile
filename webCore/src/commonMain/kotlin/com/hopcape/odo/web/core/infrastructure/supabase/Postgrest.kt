@@ -1,9 +1,9 @@
-package com.hopcape.odo.web.blog.infrastructure.supabase
+package com.hopcape.odo.web.core.infrastructure.supabase
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -38,7 +38,7 @@ import kotlinx.serialization.json.Json
  * Nothing here knows what a post is. The repositories own the table names and the
  * payload shapes; this owns the protocol.
  */
-internal class Postgrest(
+class Postgrest(
     private val client: HttpClient,
     private val baseUrl: String,
     private val anonKey: String,
@@ -51,7 +51,7 @@ internal class Postgrest(
         table: String,
         serializer: KSerializer<T>,
         query: String = "",
-    ): Either<BlogError, List<T>> = request {
+    ): Either<WebError, List<T>> = request {
         client.get("$baseUrl/rest/v1/$table${query.prefixed()}") { headers() }
     }.flatMap { body -> decode(ListSerializer(serializer), body) }
 
@@ -76,7 +76,7 @@ internal class Postgrest(
          * — granting UPDATE would let a stranger rewrite a row they cannot see.
          */
         ignoreDuplicates: Boolean = false,
-    ): Either<BlogError, List<T>> = request {
+    ): Either<WebError, List<T>> = request {
         client.post("$baseUrl/rest/v1/$table?on_conflict=$onConflict") {
             headers()
             // `return=representation` so the caller gets the row as stored —
@@ -106,27 +106,27 @@ internal class Postgrest(
         table: String,
         body: String,
         conflictIsFine: Boolean = false,
-    ): Either<BlogError, Unit> {
+    ): Either<WebError, Unit> {
         val response = runCatching {
             client.post("$baseUrl/rest/v1/$table") {
                 headers()
                 contentType(ContentType.Application.Json)
                 setBody(body)
             }
-        }.getOrNull() ?: return BlogError.Offline.left()
+        }.getOrNull() ?: return WebError.Offline.left()
 
         if (response.status.isSuccess()) return Unit.right()
         if (conflictIsFine && response.status == HttpStatusCode.Conflict) return Unit.right()
 
         val text = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
         return when (response.status) {
-            HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> BlogError.NotSignedIn
-            else -> BlogError.Unexpected("postgrest ${response.status.value}: ${text.take(200)}")
+            HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> WebError.NotSignedIn
+            else -> WebError.Unexpected("postgrest ${response.status.value}: ${text.take(200)}")
         }.left()
     }
 
     /** `PATCH /rest/v1/{table}` — a partial update over whatever [query] matches. */
-    suspend fun patch(table: String, query: String, body: String): Either<BlogError, Unit> =
+    suspend fun patch(table: String, query: String, body: String): Either<WebError, Unit> =
         request {
             client.patch("$baseUrl/rest/v1/$table${query.prefixed()}") {
                 headers()
@@ -135,7 +135,7 @@ internal class Postgrest(
             }
         }.map { }
 
-    suspend fun delete(table: String, query: String): Either<BlogError, Unit> =
+    suspend fun delete(table: String, query: String): Either<WebError, Unit> =
         request { client.delete("$baseUrl/rest/v1/$table${query.prefixed()}") { headers() } }.map { }
 
     /** `POST /rest/v1/rpc/{name}`. [body] is the argument object. */
@@ -143,7 +143,7 @@ internal class Postgrest(
         name: String,
         body: String,
         serializer: KSerializer<T>,
-    ): Either<BlogError, List<T>> = request {
+    ): Either<WebError, List<T>> = request {
         client.post("$baseUrl/rest/v1/rpc/$name") {
             headers()
             contentType(ContentType.Application.Json)
@@ -152,7 +152,7 @@ internal class Postgrest(
     }.flatMap { text -> decode(ListSerializer(serializer), text) }
 
     /** An RPC whose return value nobody reads — counting a page view. */
-    suspend fun call(name: String, body: String): Either<BlogError, Unit> =
+    suspend fun call(name: String, body: String): Either<WebError, Unit> =
         request {
             client.post("$baseUrl/rest/v1/rpc/$name") {
                 headers()
@@ -174,27 +174,27 @@ internal class Postgrest(
     }
 
     /**
-     * Runs a call and turns everything that can go wrong into a [BlogError].
+     * Runs a call and turns everything that can go wrong into a [WebError].
      *
      * A thrown exception means the request never completed — offline, DNS, a
      * blocked origin. A non-2xx means it did, and the status says what happened:
      * 401 and 403 are a session that has run out or a policy that said no, which
      * the CMS draws as "sign in again" rather than as a failure.
      */
-    private suspend fun request(block: suspend () -> HttpResponse): Either<BlogError, String> {
-        val response = runCatching { block() }.getOrNull() ?: return BlogError.Offline.left()
+    private suspend fun request(block: suspend () -> HttpResponse): Either<WebError, String> {
+        val response = runCatching { block() }.getOrNull() ?: return WebError.Offline.left()
         val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
         if (response.status.isSuccess()) return body.right()
         return when (response.status) {
-            HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> BlogError.NotSignedIn
-            HttpStatusCode.NotFound -> BlogError.NotFound
-            else -> BlogError.Unexpected("postgrest ${response.status.value}: ${body.take(200)}")
+            HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> WebError.NotSignedIn
+            HttpStatusCode.NotFound -> WebError.NotFound
+            else -> WebError.Unexpected("postgrest ${response.status.value}: ${body.take(200)}")
         }.left()
     }
 
-    private fun <T> decode(serializer: KSerializer<List<T>>, body: String): Either<BlogError, List<T>> =
+    private fun <T> decode(serializer: KSerializer<List<T>>, body: String): Either<WebError, List<T>> =
         runCatching { LENIENT.decodeFromString(serializer, body) }
-            .fold({ it.right() }, { BlogError.Unexpected("unreadable response: ${it.message}").left() })
+            .fold({ it.right() }, { WebError.Unexpected("unreadable response: ${it.message}").left() })
 
     private fun String.prefixed(): String = if (isBlank()) "" else "?$this"
 
@@ -218,5 +218,5 @@ internal class Postgrest(
 }
 
 /** `flatMap` for the shape used above. Arrow has one; this avoids the import churn. */
-private inline fun <A, B> Either<BlogError, A>.flatMap(block: (A) -> Either<BlogError, B>): Either<BlogError, B> =
+private inline fun <A, B> Either<WebError, A>.flatMap(block: (A) -> Either<WebError, B>): Either<WebError, B> =
     fold({ it.left() }, block)

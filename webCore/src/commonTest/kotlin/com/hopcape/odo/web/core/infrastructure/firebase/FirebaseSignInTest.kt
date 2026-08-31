@@ -1,6 +1,6 @@
-package com.hopcape.odo.web.blog.infrastructure.firebase
+package com.hopcape.odo.web.core.infrastructure.firebase
 
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -71,13 +71,13 @@ class FirebaseSignInTest {
             wrong.identify("a@b.com", "x").leftOrNull(),
             unknown.identify("c@d.com", "x").leftOrNull(),
         )
-        assertEquals(BlogError.SignInRejected(null), wrong.identify("a@b.com", "x").leftOrNull())
+        assertEquals(WebError.SignInRejected(null), wrong.identify("a@b.com", "x").leftOrNull())
     }
 
     @Test
     fun `Firebase's own lockout is no tries left`() = runTest {
         assertEquals(
-            BlogError.SignInRejected(triesLeft = 0),
+            WebError.SignInRejected(triesLeft = 0),
             signIn(json("""{"error":{"message":"TOO_MANY_ATTEMPTS_TRY_LATER"}}""", HttpStatusCode.BadRequest))
                 .identify("a@b.com", "x").leftOrNull(),
         )
@@ -87,7 +87,7 @@ class FirebaseSignInTest {
     fun `a project with password sign-in switched off says so`() = runTest {
         // Its own outcome, because nothing the person at the keyboard does fixes it.
         assertEquals(
-            BlogError.SignInUnavailable,
+            WebError.SignInUnavailable,
             signIn(json("""{"error":{"message":"PASSWORD_LOGIN_DISABLED"}}""", HttpStatusCode.BadRequest))
                 .identify("a@b.com", "x").leftOrNull(),
         )

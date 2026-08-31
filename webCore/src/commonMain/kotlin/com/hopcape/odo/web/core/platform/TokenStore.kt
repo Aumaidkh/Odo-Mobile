@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.blog.platform
+package com.hopcape.odo.web.core.platform
 
 /**
  * Where the refresh token lives between page loads.

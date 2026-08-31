@@ -26,8 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.hopcape.odo.web.blog.domain.model.Category
-import com.hopcape.odo.web.blog.platform.PLAY_LISTING
-import com.hopcape.odo.web.blog.platform.openExternal
+import com.hopcape.odo.web.core.platform.PLAY_LISTING
+import com.hopcape.odo.web.core.platform.openExternal
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_brand
 import com.hopcape.odo.web.blog.resources.bl_footer_note

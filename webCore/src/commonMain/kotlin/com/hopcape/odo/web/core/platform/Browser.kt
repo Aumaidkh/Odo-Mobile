@@ -1,6 +1,5 @@
-package com.hopcape.odo.web.blog.platform
+package com.hopcape.odo.web.core.platform
 
-import com.hopcape.odo.web.blog.domain.UploadRequest
 
 /**
  * The three things this app needs from the browser that are not drawing.

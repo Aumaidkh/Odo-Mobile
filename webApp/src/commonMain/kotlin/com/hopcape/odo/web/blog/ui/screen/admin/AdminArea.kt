@@ -8,10 +8,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.collectAsState
-import com.hopcape.odo.web.blog.platform.copyToClipboard
-import com.hopcape.odo.web.blog.platform.openExternal
-import com.hopcape.odo.web.blog.presentation.CollectEffects
-import com.hopcape.odo.web.blog.presentation.rememberRouteViewModel
+import com.hopcape.odo.web.core.platform.copyToClipboard
+import com.hopcape.odo.web.core.platform.openExternal
+import com.hopcape.odo.web.core.presentation.CollectEffects
+import com.hopcape.odo.web.core.presentation.rememberRouteViewModel
 import com.hopcape.odo.web.blog.presentation.admin.SessionViewModel
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEffect
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEvent

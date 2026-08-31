@@ -1,9 +1,9 @@
-package com.hopcape.odo.web.blog.infrastructure.firebase
+package com.hopcape.odo.web.core.infrastructure.firebase
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -30,12 +30,12 @@ data class FirebaseIdentity(val idToken: String, val email: String, val displayN
  * the SDK would need an npm dependency, a JavaScript shim and externals to reach
  * it. This is one endpoint.
  */
-internal class FirebaseSignIn(
+class FirebaseSignIn(
     private val client: HttpClient,
     private val apiKey: String,
 ) {
 
-    suspend fun identify(email: String, password: String): Either<BlogError, FirebaseIdentity> {
+    suspend fun identify(email: String, password: String): Either<WebError, FirebaseIdentity> {
         val response = runCatching {
             client.post("$ENDPOINT?key=$apiKey") {
                 contentType(ContentType.Application.Json)
@@ -45,13 +45,13 @@ internal class FirebaseSignIn(
                 // token, and the failure that follows names the wrong thing.
                 setBody(REQUESTS.encodeToString(Request.serializer(), Request(email.trim(), password)))
             }
-        }.getOrNull() ?: return BlogError.Offline.left()
+        }.getOrNull() ?: return WebError.Offline.left()
 
         val payload = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
         if (!response.status.isSuccess()) return response.asError(payload).left()
 
         val body = runCatching { LENIENT.decodeFromString(Response.serializer(), payload) }.getOrNull()
-            ?: return BlogError.Unexpected("unreadable sign-in response").left()
+            ?: return WebError.Unexpected("unreadable sign-in response").left()
 
         return FirebaseIdentity(
             idToken = body.idToken,
@@ -67,17 +67,17 @@ internal class FirebaseSignIn(
      * it was the address or the password that was wrong tells an attacker which
      * addresses have accounts.
      */
-    private fun HttpResponse.asError(payload: String): BlogError {
+    private fun HttpResponse.asError(payload: String): WebError {
         val message = runCatching { LENIENT.decodeFromString(ErrorEnvelope.serializer(), payload) }
             .getOrNull()?.error?.message.orEmpty()
         return when {
             message.startsWith("PASSWORD_LOGIN_DISABLED") ||
-                message.startsWith("OPERATION_NOT_ALLOWED") -> BlogError.SignInUnavailable
+                message.startsWith("OPERATION_NOT_ALLOWED") -> WebError.SignInUnavailable
 
             // Firebase's own lockout. Zero is what the design draws as "no tries
             // left", which is exactly what this is.
             message.startsWith("TOO_MANY_ATTEMPTS_TRY_LATER") ||
-                message.startsWith("USER_DISABLED") -> BlogError.SignInRejected(triesLeft = 0)
+                message.startsWith("USER_DISABLED") -> WebError.SignInRejected(triesLeft = 0)
 
             message.startsWith("EMAIL_NOT_FOUND") ||
                 message.startsWith("INVALID_PASSWORD") ||
@@ -86,9 +86,9 @@ internal class FirebaseSignIn(
                 message.startsWith("MISSING_PASSWORD") ->
                 // Null, not a number: Firebase does not say how many attempts are
                 // left, and the screen drops the count rather than inventing one.
-                BlogError.SignInRejected(triesLeft = null)
+                WebError.SignInRejected(triesLeft = null)
 
-            else -> BlogError.Unexpected(message.ifBlank { "HTTP $status" })
+            else -> WebError.Unexpected(message.ifBlank { "HTTP $status" })
         }
     }
 

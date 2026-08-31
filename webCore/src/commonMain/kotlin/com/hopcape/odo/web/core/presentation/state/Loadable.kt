@@ -1,7 +1,7 @@
-package com.hopcape.odo.web.blog.presentation.state
+package com.hopcape.odo.web.core.presentation.state
 
 import androidx.compose.runtime.Immutable
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 
 /**
  * Something that has to be read before it can be shown, as the three states a
@@ -36,13 +36,13 @@ sealed interface Loadable<out T> {
     data class Failed(
         val message: UiText,
         val retryable: Boolean = true,
-        val reason: BlogError? = null,
+        val reason: WebError? = null,
     ) : Loadable<Nothing>
 }
 
 /** True when the thing being read simply is not there. */
 val Loadable<*>.isMissing: Boolean
-    get() = (this as? Loadable.Failed)?.reason == BlogError.NotFound
+    get() = (this as? Loadable.Failed)?.reason == WebError.NotFound
 
 /** The value, or null while loading or failed. */
 val <T> Loadable<T>.valueOrNull: T? get() = (this as? Loadable.Ready)?.value
