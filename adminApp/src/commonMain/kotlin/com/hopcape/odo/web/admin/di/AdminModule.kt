@@ -5,8 +5,11 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.web.admin.domain.AdminAuthRepository
 import com.hopcape.odo.web.admin.domain.AdminSession
+import com.hopcape.odo.web.admin.domain.CitiesRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseAdminAuthRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabaseCitiesRepository
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
+import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
 import com.hopcape.odo.web.core.config.BuildWebConfig
 import com.hopcape.odo.web.core.domain.WebError
@@ -67,8 +70,14 @@ val adminModule: Module = module {
         }
     }
 
+    // No `isConfigured` branch here. Without credentials nobody gets a session,
+    // so nothing ever resolves this — and a sample catalog would only make an
+    // unconfigured build look like it was working.
+    single<CitiesRepository> { SupabaseCitiesRepository(postgrest = get()) }
+
     viewModel { SessionViewModel(auth = get()) }
     viewModel { SignInViewModel(auth = get()) }
+    viewModel { CitiesViewModel(cities = get()) }
 }
 
 /**

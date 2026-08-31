@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.runtime.LaunchedEffect
 import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
+import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInEffect
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
 import com.hopcape.odo.web.admin.routing.AdminRoute
@@ -18,6 +19,7 @@ import com.hopcape.odo.web.admin.routing.Router
 import com.hopcape.odo.web.admin.routing.landingFor
 import com.hopcape.odo.web.admin.routing.mayOpen
 import com.hopcape.odo.web.admin.ui.chrome.AdminShell
+import com.hopcape.odo.web.admin.ui.screen.CitiesScreen
 import com.hopcape.odo.web.admin.ui.screen.NoAccessScreen
 import com.hopcape.odo.web.admin.ui.screen.NoRolesScreen
 import com.hopcape.odo.web.admin.ui.screen.NotFoundScreen
@@ -121,8 +123,11 @@ private fun SignedInArea(
         else -> AdminShell(session, route, router::go, onSignOut) {
             when {
                 route is AdminRoute.NotFound -> NotFoundScreen()
-                session.mayOpen(route) -> PlaceholderScreen(route)
-                else -> NoAccessScreen()
+                !session.mayOpen(route) -> NoAccessScreen()
+                // One host per built section; everything else is still a
+                // placeholder with a route, a permission and a nav item.
+                route is AdminRoute.Cities -> CitiesHost()
+                else -> PlaceholderScreen(route)
             }
         }
     }
@@ -132,4 +137,18 @@ private fun SignedInArea(
 @Composable
 private fun Blank() {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+}
+
+/**
+ * The cities catalog.
+ *
+ * Its own composable so the ViewModel is resolved inside the shell's content
+ * slot, which is where its lifetime should be: leaving the section disposes it,
+ * and coming back re-reads rather than showing a list that may be minutes stale.
+ */
+@Composable
+private fun CitiesHost() {
+    val viewModel: CitiesViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    CitiesScreen(state, viewModel::onEvent)
 }

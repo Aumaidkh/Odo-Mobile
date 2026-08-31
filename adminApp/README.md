@@ -83,11 +83,28 @@ An account that is staff and holds no roles is a real state — `seed_admin.sql`
 inserts the row and grants the role in two statements — so it gets its own screen
 rather than a blank page.
 
-## 4. Not built yet
+## 4. Sections
 
-Every section is a placeholder: it has a route, a permission and a nav item, and
-no screen. #366 to #370 replace them one at a time. They exist now because the
-nav's shape is what the permission model is tested against.
+**Cities** (#367) is built: the "my city isn't listed" queue above the catalog on
+one page, because a reviewer approving "Srinagar" needs to see whether the catalog
+already has it under another spelling.
+
+Two things about it are worth knowing before touching either catalog:
+
+- **Approving is an edit, not a click.** `cities.state` is NOT NULL and the app
+  only ever asks an owner for a name, so a reviewer has to supply the state. The
+  state, the tier and the status go in one PATCH: the promote trigger fires on
+  that update and reads the row as it then stands, so writing the status first
+  would fire it against a row whose state is still null — which its own guard
+  turns into a silent no-op.
+- **Retiring is `is_active`, not a delete.** There is no delete policy on
+  `cities`, and PostgREST reports `204` for a DELETE that RLS matched no rows
+  for — success, with the row still there. Anything that needs a row gone needs a
+  policy, not a retry.
+
+The rest are placeholders: a route, a permission and a nav item, no screen. #366,
+#368, #369 and #370 replace them one at a time. They exist now because the nav's
+shape is what the permission model is tested against.
 
 The hosting config is in place (§6); what is left before a first deploy is the
 prod server-side rollout, not code.

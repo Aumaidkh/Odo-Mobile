@@ -48,6 +48,10 @@ fun <T> ViewModel.loadInto(
 fun WebError.asUiText(): UiText = when (this) {
     WebError.Offline -> UiText.Resource(Res.string.bl_error_offline)
     WebError.NotFound -> UiText.Resource(Res.string.bl_error_not_found)
+    // The blog's one collision — a taken slug — is reported by PublishOutcome
+    // with the offending post attached, so this only catches the ones nothing
+    // else models.
+    WebError.Conflict -> UiText.Resource(Res.string.bl_error_generic)
     WebError.NotSignedIn -> UiText.Resource(Res.string.bl_admin_signed_out)
     WebError.NotPermitted -> UiText.Resource(Res.string.bl_admin_not_an_author)
     WebError.NotConfigured -> UiText.Resource(Res.string.bl_admin_no_authors)
@@ -67,6 +71,7 @@ val WebError.isRetryable: Boolean
     get() = when (this) {
         WebError.Offline, is WebError.Unexpected -> true
         WebError.NotFound,
+        WebError.Conflict,
         WebError.NotSignedIn,
         WebError.NotPermitted,
         WebError.NotConfigured,

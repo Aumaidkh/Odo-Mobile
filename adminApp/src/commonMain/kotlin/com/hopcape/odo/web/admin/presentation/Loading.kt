@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import arrow.core.Either
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.resources.ad_error_conflict
 import com.hopcape.odo.web.admin.resources.ad_error_generic
 import com.hopcape.odo.web.admin.resources.ad_error_not_found
 import com.hopcape.odo.web.admin.resources.ad_error_offline
@@ -48,6 +49,7 @@ fun <T> ViewModel.loadInto(
 fun WebError.asUiText(): UiText = when (this) {
     WebError.Offline -> UiText.Resource(Res.string.ad_error_offline)
     WebError.NotFound -> UiText.Resource(Res.string.ad_error_not_found)
+    WebError.Conflict -> UiText.Resource(Res.string.ad_error_conflict)
     WebError.NotSignedIn -> UiText.Resource(Res.string.ad_error_signed_out)
     WebError.NotPermitted -> UiText.Resource(Res.string.ad_error_not_staff)
     WebError.NotConfigured -> UiText.Resource(Res.string.ad_error_no_admins)
@@ -67,6 +69,7 @@ val WebError.isRetryable: Boolean
     get() = when (this) {
         WebError.Offline, is WebError.Unexpected -> true
         WebError.NotFound,
+        WebError.Conflict,
         WebError.NotSignedIn,
         WebError.NotPermitted,
         WebError.NotConfigured,

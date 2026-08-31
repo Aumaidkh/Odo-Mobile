@@ -29,6 +29,7 @@
     <string name="ad_error_not_staff">This account is not on the staff list. Ask a super admin to add it.</string>
     <string name="ad_error_no_admins">Nobody is set up as staff yet. Run seed_admin.sql against this project first.</string>
     <string name="ad_error_sign_in_unavailable">Email sign-in is switched off for this Firebase project. Turn it on in the console.</string>
+    <string name="ad_error_conflict">Something with that name is already there. Change it, or edit the one that exists.</string>
     <string name="ad_error_generic">That did not work. Try again.</string>
 
     <!-- Shell -->
@@ -40,6 +41,7 @@
     <string name="ad_nav_audit">Audit log</string>
     <string name="ad_nav_staff">Staff</string>
     <string name="ad_sign_out">Sign out</string>
+    <string name="ad_dismiss">Dismiss</string>
 
     <!-- Sections with no screen yet. -->
     <string name="ad_placeholder_body">This section is planned but not built yet.</string>
@@ -53,5 +55,45 @@
     <string name="ad_no_access_body">Your role does not cover this section. The server would refuse it too — this is not only the menu hiding it.</string>
     <string name="ad_not_found_title">No such page</string>
     <string name="ad_not_found_body">Nothing is served at that address.</string>
+
+
+    <!-- Cities (#367). The catalog and the "my city isn't listed" queue. -->
+    <string name="ad_cities_queue_title">Reported cities</string>
+    <string name="ad_cities_queue_count">%1$d waiting</string>
+    <string name="ad_cities_queue_empty">Nothing waiting to be reviewed.</string>
+    <string name="ad_cities_reported_on">Reported %1$s</string>
+    <string name="ad_cities_catalog_title">Catalog</string>
+    <string name="ad_cities_catalog_count">%1$d cities</string>
+    <string name="ad_cities_search">Search by name or state</string>
+    <string name="ad_cities_show_retired">Show retired</string>
+    <string name="ad_cities_empty">No city matches that.</string>
+    <string name="ad_cities_retired_badge">Retired</string>
+
+    <string name="ad_cities_add">Add a city</string>
+    <string name="ad_cities_edit_title">Edit city</string>
+    <string name="ad_cities_approve_title">Approve city</string>
+    <string name="ad_cities_name">Name</string>
+    <string name="ad_cities_state">State</string>
+    <string name="ad_cities_tier">Tier</string>
+    <string name="ad_cities_tier_value">%1$d</string>
+    <string name="ad_cities_tier_hint">Tier 3 is the default for anything unreviewed.</string>
+    <string name="ad_cities_state_required">A state is required — the catalog cannot store a city without one.</string>
+    <string name="ad_cities_duplicate">A city with that name is already in the catalog.</string>
+    <string name="ad_cities_save">Save</string>
+    <string name="ad_cities_cancel">Cancel</string>
+
+    <string name="ad_cities_edit">Edit</string>
+    <string name="ad_cities_retire">Retire</string>
+    <string name="ad_cities_restore">Restore</string>
+    <string name="ad_cities_approve">Approve</string>
+    <string name="ad_cities_reject">Reject</string>
+    <string name="ad_cities_delete">Delete</string>
+
+    <string name="ad_cities_saved">Saved.</string>
+    <string name="ad_cities_retired_done">Retired. Phones will stop offering it on their next sync.</string>
+    <string name="ad_cities_restored_done">Restored.</string>
+    <string name="ad_cities_approved_done">Approved and added to the catalog.</string>
+    <string name="ad_cities_rejected_done">Rejected.</string>
+    <string name="ad_cities_deleted_done">Deleted.</string>
 
 </resources>

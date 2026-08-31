@@ -66,6 +66,16 @@ sealed interface WebError {
      */
     data object SignInUnavailable : WebError
 
+    /**
+     * The write collided with something already there.
+     *
+     * PostgREST's 409 — in practice a unique constraint, like a city whose name
+     * already exists. Its own member because it is the one failure the person at
+     * the keyboard can fix immediately, and "that did not work" throws away the
+     * only useful thing anybody knew.
+     */
+    data object Conflict : WebError
+
     /** Anything else. [cause] is for the log, never for the reader. */
     data class Unexpected(val cause: String? = null) : WebError
 }

@@ -218,6 +218,9 @@ class Postgrest(
         return when (response.status) {
             HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden -> WebError.NotSignedIn
             HttpStatusCode.NotFound -> WebError.NotFound
+            // A unique constraint. Worth its own outcome: it is the one failure a
+            // caller can correct on the spot.
+            HttpStatusCode.Conflict -> WebError.Conflict
             else -> WebError.Unexpected("postgrest ${response.status.value}: ${body.take(200)}")
         }.left()
     }
