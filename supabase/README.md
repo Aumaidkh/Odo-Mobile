@@ -77,6 +77,21 @@ Edit the two values at the top of `supabase/seed_admin.sql` and run it once. The
 be one that can sign in to that environment's Firebase project with an email and a password,
 because that is what `admin-session` verifies before it looks anybody up here.
 
+**There is no CLI path that runs this file against a remote project.** `supabase db push` only
+replays migrations, and a one-off row for one person is not a migration — it would then run on
+prod too. `supabase db query` does not exist. So either paste it into the SQL Editor, or run it
+through `psql` (which is what the `\set` lines at the top are for) with the project's database
+password:
+
+```sh
+psql "postgresql://postgres.<ref>:<db-password>@<pooler-host>:5432/postgres" \
+  -f supabase/seed_admin.sql
+```
+
+Dev was seeded a third way, worth knowing because it needs no database password: the two inserts
+performed against PostgREST with the `service_role` key, which bypasses RLS exactly as the SQL
+Editor does. `supabase projects api-keys --project-ref <ref> --reveal` prints that key.
+
 `user_id` stays null in the seed. It is bound to a Supabase account by `admin-session` on the
 first sign-in, and that function is the only thing that should ever write it. This is also why
 `admin_users` is keyed by email and not by `auth.users.id`: the row has to exist before the
@@ -152,10 +167,23 @@ Applying the admin migrations also required giving dev the blog schema it had ne
 four blog migrations sort before these and `db push` will not insert behind them. Dev's
 migration history is now genuinely up to date, and an ordinary `db push` works there.
 
-**Not verified, and not verifiable without a real account:** the happy path, and the 403 for a
-valid Firebase token belonging to a non-staff address. Both need a Firebase email/password user
-to exist. Everything up to that point — method, body, token signature, CORS — is covered by
-`check-admin.sh`. No admin is seeded on dev yet, so the function currently refuses everybody.
+`admin@odoapp.in` is seeded as `super_admin` on dev, and the whole path has been exercised end
+to end against the real Firebase project:
+
+| | Result |
+|---|---|
+| Firebase email/password → `admin-session` → Supabase session | 200 |
+| `my_admin_identity()` under that session | the row, `super_admin`, all 9 permissions |
+| `admin_users.user_id` bound on first sign-in | bound |
+| A second sign-in writes `admin_users` again | it does not — no audit noise |
+| The admin's own session reads all five tables | 200, rows — **no RLS recursion** |
+| A write by that admin is attributed in the audit log | `actor_admin_id` set |
+| Service-role seed inserts are logged unattributed | `actor_admin_id` null, as designed |
+| A **valid** Firebase token for a non-staff address | 403 `not_an_admin` |
+| An ordinary authenticated app account reads the admin tables | five empty arrays |
+| That account writing `admin_users` / calling `my_admin_identity()` | 403 / null |
+
+The last two used throwaway accounts on both Firebase and Supabase, deleted afterwards.
 
 Nothing here is applied or deployed to prod.
 

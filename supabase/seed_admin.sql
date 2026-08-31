@@ -15,8 +15,8 @@
 -- Safe to re-run: it will not duplicate the admin or the role grant, and it will not
 -- resurrect an admin somebody deliberately deactivated.
 
-\set admin_email '\'you@example.com\''
-\set admin_name  '\'Your Name\''
+\set admin_email '\'admin@odoapp.in\''
+\set admin_name  '\'Murtaza\''
 
 -- The SQL editor does not support \set. If you are pasting this in rather than running it
 -- through psql, replace :admin_email and :admin_name below with quoted literals by hand.
