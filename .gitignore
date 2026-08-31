@@ -120,3 +120,4 @@ landing/public/legal/
 /social-automation/supabase/.temp/
 /supabase/migrations/20260830130000_promote_vehicle_catalog_submission.sql
 /supabase/migrations/20260830140100_promote_city_submissions.sql
+/play-frames/
