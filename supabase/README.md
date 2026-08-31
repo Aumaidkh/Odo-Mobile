@@ -10,20 +10,37 @@ flow, so the remote `supabase_migrations.schema_migrations` history table starte
 both — and a plain `supabase db push` would try to replay every migration in this folder from
 the beginning, including ones already live.
 
-On **dev** that has been fixed (2026-08-31). Every migration up to and including
-`20260830140100` was marked applied without being re-run, so `db push` now does the ordinary
-thing:
+On **dev** that has been fixed (2026-08-31): the eleven migrations that were genuinely live
+were marked `applied` without being re-run, so `db push` now does the ordinary thing.
 
 ```bash
 supabase db push --linked --dry-run   # always. read what it says it will replay.
 supabase db push --linked
 ```
 
-On **prod** the history is still empty and the dry-run still lists everything. Either repair it
-the same way before the first push, or paste the one file into the SQL Editor:
+**Repair only what is actually there.** The first attempt at this marked all fifteen applied,
+including the four blog ones — and dev has never had the blog schema. That is worse than an
+empty history: an empty one over-reports work to do, a wrongly-repaired one silently claims a
+table exists. The four were marked `reverted` again, so the dry-run now correctly refuses and
+names them.
+
+Check before repairing, rather than assuming. PostgREST tells you for free — `404` means the
+object is not there, any other status means it is:
 
 ```bash
-# The one-time repair. Only the versions already live on that project.
+curl -s -o /dev/null -w '%{http_code}\n' -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$URL/rest/v1/<table>?select=*&limit=1"
+```
+
+Dev therefore still has four migrations pending, and `db push` refuses them because they sort
+before the last applied one. `--include-all` is what applies them, whenever dev is meant to
+have the blog schema. It is not needed for anything the admin panel does.
+
+On **prod** the history is still empty and the dry-run lists everything. Repair it the same
+careful way before the first push, or paste the one file into the SQL Editor:
+
+```bash
+# The one-time repair. Only the versions you have confirmed are already live.
 supabase migration repair --linked --status applied <version> [<version>...]
 ```
 
@@ -79,10 +96,68 @@ What it does **not** cover, because it has no account to sign in with: that an a
 actually read the model, that a `support` admin cannot write to it, and that the audit trigger
 fires. Those need a real admin session and are owed once `admin-session` exists.
 
+## `admin-session`
+
+The sign-in gate for `/admin`, and the third sibling of `firebase-session` and `blog-session`.
+Firebase email/password proves who somebody is; this trades that token for a Supabase session.
+
+The difference from `blog-session` is where the allowlist lives. That one reads
+`BLOG_AUTHOR_EMAILS` out of the environment; this one reads the `admin_users` table — which is
+what makes adding an admin something a super-admin can do in the panel, with an audit row
+behind it, instead of a redeploy.
+
+It also does one thing the other two do not: **bind `admin_users.user_id`** on first sign-in.
+The row is keyed by email because it has to exist before the person has an account, but
+`admin_has()` joins on `user_id`. Until that binding runs once, a seeded admin can sign in and
+still have no permissions. The write only happens when it would actually change something —
+doing it every sign-in would put a row in `admin_audit_log` each time, and an audit log nobody
+can read through is the same as not having one.
+
+The session it mints carries `odo_admin` in `app_metadata`, which means "is staff at all" and
+nothing more. Every specific permission is checked live by `admin_has()` inside a policy.
+
+`20260831130000_admin_session_support.sql` carries the two SQL objects it needs:
+`auth_user_id_by_email` (a verbatim copy of the one in the blog migration, so the panel does
+not depend on a blog schema the project may not have) and `my_admin_identity()`, which the
+shell calls once after sign-in to decide what to draw in the nav.
+
+### Deploying
+
+```sh
+# Already set if firebase-session is deployed — the same list, used the same way. It must name
+# every Firebase project staff sign in against; dev and production are separate projects.
+supabase secrets set --project-ref <ref> FIREBASE_PROJECT_ID=odo-mobile-ba9aa
+
+# --no-verify-jwt: the caller is signing in and has no Supabase token yet.
+supabase functions deploy admin-session --no-verify-jwt --project-ref <ref>
+```
+
+### Before anyone can actually sign in
+
+Three things, in this order, and the first sign-in fails confusingly if any is missing:
+
+1. **Email/Password is enabled** on that environment's Firebase project, and the address has an
+   account there with a password. This function verifies a Firebase token; it does not create
+   Firebase users.
+2. **`seed_admin.sql` has been run** with that address, so the staff row exists.
+3. **The migrations are applied.** Without `20260831130000` the function reaches step 3 and
+   fails with a 500 (`session_mint_failed`); the log line names the step.
+
 ### Status — dev
 
-Applied 2026-08-31. `sh supabase/check-admin.sh dev` → 17 passed, 0 failed. No admin seeded
-yet. Not applied to prod.
+Both migrations applied and `admin-session` deployed, 2026-08-31.
+`sh supabase/check-admin.sh dev` → 24 passed, 0 failed.
+
+Applying the admin migrations also required giving dev the blog schema it had never had — the
+four blog migrations sort before these and `db push` will not insert behind them. Dev's
+migration history is now genuinely up to date, and an ordinary `db push` works there.
+
+**Not verified, and not verifiable without a real account:** the happy path, and the 403 for a
+valid Firebase token belonging to a non-staff address. Both need a Firebase email/password user
+to exist. Everything up to that point — method, body, token signature, CORS — is covered by
+`check-admin.sh`. No admin is seeded on dev yet, so the function currently refuses everybody.
+
+Nothing here is applied or deployed to prod.
 
 ---
 

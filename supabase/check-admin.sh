@@ -131,5 +131,31 @@ check       "writing to the audit log is refused" 401 "/rest/v1/admin_audit_log"
   -X POST -H 'Content-Type: application/json' -d '{"action":"INSERT","subject_type":"nope"}'
 
 echo
+echo "the sign-in exchange"
+# Deployed --no-verify-jwt, so these reach the handler on the anon key alone. That is the
+# point: somebody signing in has no Supabase token yet. What stops a stranger is the Firebase
+# signature check and the admin_users lookup behind it, not the gateway.
+check       "admin-session refuses GET"           405 "/functions/v1/admin-session" -X GET
+check       "admin-session refuses no body"       400 "/functions/v1/admin-session" \
+  -X POST -H 'Content-Type: application/json'
+check       "admin-session refuses a junk token"  401 "/functions/v1/admin-session" \
+  -X POST -H 'Content-Type: application/json' -d '{"idToken":"not-a-token"}'
+# A syntactically valid JWT that nobody signed. Catches a deploy where the JWKS verification
+# was skipped or misconfigured — the shape alone must never be enough.
+check       "admin-session refuses an unsigned token" 401 "/functions/v1/admin-session" \
+  -X POST -H 'Content-Type: application/json' \
+  -d '{"idToken":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhQGIuY29tIn0.x"}'
+check       "admin-session answers preflight"     204 "/functions/v1/admin-session" -X OPTIONS
+
+# The lookup admin-session needs at step 3. It ships in 20260831130000_admin_session_support.sql
+# rather than being borrowed from the blog schema, so that the panel works on a project that
+# has never had a blog. 401 means it is there and shut; 404 means that migration has not run
+# and sign-in will fail at step 3 with a 500.
+check       "the account lookup exists and is shut" 401 "/rest/v1/rpc/auth_user_id_by_email" \
+  -X POST -H 'Content-Type: application/json' -d '{"p_email":"someone@example.com"}'
+check       "the identity call exists and is shut" 401 "/rest/v1/rpc/my_admin_identity" \
+  -X POST -H 'Content-Type: application/json'
+
+echo
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
