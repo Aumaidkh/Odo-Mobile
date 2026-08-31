@@ -23,20 +23,20 @@ blog in #370 that bundle gets *smaller*.
 The two are still one deployment target — the same Firebase Hosting site — which is
 why the bundle is named `odo-admin.js` rather than sharing `odo-blog.js`.
 
-## 2. What is here (S4)
+## 2. What is here
 
 ```
 adminApp/src/
 ├─ commonMain/kotlin/com/hopcape/odo/web/admin/
-│  ├─ AdminApp.kt              the shell: signed-out → sign-in, signed-in → placeholder
+│  ├─ AdminApp.kt              the gate + the route guard
 │  ├─ domain/Permission.kt     the vocabulary, mirroring admin_role_permissions
 │  ├─ domain/AdminSession.kt   who is signed in + the auth port
 │  ├─ infrastructure/          Firebase → admin-session → my_admin_identity()
 │  ├─ presentation/            SessionViewModel, SignInViewModel, error → copy
-│  ├─ routing/                 AdminRoute, Routes, Router
-│  └─ ui/                      AdminTheme, SignInScreen
+│  ├─ routing/                 AdminRoute, Routes, Router, Landing (who sees what)
+│  └─ ui/                      AdminTheme, AdminShell, SignInScreen, section screens
 ├─ commonMain/composeResources/values/strings.xml   `ad_` prefixed
-├─ commonTest/…/RoutesTest.kt  the URL round trip + the permission invariants
+├─ commonTest/…/                RoutesTest (URL round trip), LandingTest (who sees what)
 └─ wasmJsMain/                 Main.kt, BrowserRouter, index.html
 ```
 
@@ -63,15 +63,36 @@ otherwise a link that was never real would look like it worked.
 table is behind an RLS policy calling `admin_has()`. A browser that lied about its
 permissions would draw itself a menu whose every button fails.
 
-## 3. Not built yet
+## 3. The shell, and the three checks
 
-S4 is the module, the routes and sign-in. The signed-in screen is a placeholder
-that prints the identity — it exists to prove the whole chain in a browser. **S5**
-adds the role-gated nav, the route guard and a screen per section; **S6** adds the
-Firebase Hosting rewrites and the `noindex` headers, without which `/admin/users`
-is a 404 on reload in production.
+A rail on the left listing only the sections this session may open, content on the
+right. Where somebody lands after signing in is the first section their role
+actually covers — not a fixed home page, because a support admin holds
+`users.read` and nothing else, and a fixed landing greeted them with "no access".
 
-## 4. Running it
+The same permission is checked three times, and only the last one matters:
+
+1. **The rail** hides sections this role cannot open. A courtesy.
+2. **The route guard** refuses one reached by typing its URL, and says the server
+   would refuse it too. Also a courtesy, and it is what stops a blank page being
+   mistaken for a broken one.
+3. **RLS** refuses the data. This is the control. `admin_has()` runs inside every
+   policy, at the moment of the write, where a browser cannot reach it.
+
+An account that is staff and holds no roles is a real state — `seed_admin.sql`
+inserts the row and grants the role in two statements — so it gets its own screen
+rather than a blank page.
+
+## 4. Not built yet
+
+Every section is a placeholder: it has a route, a permission and a nav item, and
+no screen. #366 to #370 replace them one at a time. They exist now because the
+nav's shape is what the permission model is tested against.
+
+**S6** still owes the Firebase Hosting rewrites and the `noindex` headers, without
+which `/admin/users` is a 404 on reload in production.
+
+## 5. Running it
 
 ```sh
 ./gradlew :adminApp:wasmJsBrowserDevelopmentRun   # http://localhost:8080/admin/
@@ -92,7 +113,7 @@ production Firebase project, and the mismatch surfaces as "wrong password" rathe
 than as a configuration problem — which is why the dev Firebase key has no
 fallback while the production one does.
 
-## 5. Configuration, and the trap it avoids
+## 6. Configuration, and the trap it avoids
 
 Credentials come from `:webCore`'s generated `BuildWebConfig`: `SUPABASE_URL`,
 `SUPABASE_ANON_KEY` and `FIREBASE_WEB_API_KEY`, read from `local.properties` or the
@@ -106,7 +127,7 @@ off" rather than one that fails at the first request. This codebase has shipped
 unconfigured builds three times, each time surfacing as a runtime error about the
 request instead of about the missing configuration.
 
-## 6. Signing in
+## 7. Signing in
 
 Firebase email/password proves identity; `admin-session` decides whether that
 address is staff and mints a Supabase session; `my_admin_identity()` says what they

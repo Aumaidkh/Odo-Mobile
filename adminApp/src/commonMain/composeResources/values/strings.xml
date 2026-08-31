@@ -41,15 +41,12 @@
     <string name="ad_nav_staff">Staff</string>
     <string name="ad_sign_out">Sign out</string>
 
-    <!-- The signed-in placeholder S5 replaces with the real shell. -->
-    <string name="ad_session_roles">Roles: %1$s</string>
-    <string name="ad_session_permissions">Permissions: %1$s</string>
-    <string name="ad_session_route">Route: %1$s</string>
-    <string name="ad_session_none">none</string>
-
     <!-- Sections with no screen yet. -->
-    <string name="ad_placeholder_title">Nothing here yet</string>
-    <string name="ad_placeholder_body">This section is planned but not built.</string>
+    <string name="ad_placeholder_body">This section is planned but not built yet.</string>
+
+    <!-- Staff, but holding no roles at all. -->
+    <string name="ad_no_roles_title">No roles yet</string>
+    <string name="ad_no_roles_body">This account is staff but holds no roles, so there is nothing to show. Ask a super admin to grant one.</string>
 
     <!-- Reached by typing a URL a role does not cover. -->
     <string name="ad_no_access_title">No access</string>

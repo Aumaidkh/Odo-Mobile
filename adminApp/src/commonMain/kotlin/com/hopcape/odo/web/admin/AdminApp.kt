@@ -1,35 +1,31 @@
 package com.hopcape.odo.web.admin
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
+import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInEffect
 import com.hopcape.odo.web.admin.presentation.signin.SignInViewModel
-import com.hopcape.odo.web.admin.resources.Res
-import com.hopcape.odo.web.admin.resources.ad_session_none
-import com.hopcape.odo.web.admin.resources.ad_session_permissions
-import com.hopcape.odo.web.admin.resources.ad_session_roles
-import com.hopcape.odo.web.admin.resources.ad_session_route
-import com.hopcape.odo.web.admin.resources.ad_sign_out
 import com.hopcape.odo.web.admin.routing.AdminRoute
 import com.hopcape.odo.web.admin.routing.Router
+import com.hopcape.odo.web.admin.routing.landingFor
+import com.hopcape.odo.web.admin.routing.mayOpen
+import com.hopcape.odo.web.admin.ui.chrome.AdminShell
+import com.hopcape.odo.web.admin.ui.screen.NoAccessScreen
+import com.hopcape.odo.web.admin.ui.screen.NoRolesScreen
+import com.hopcape.odo.web.admin.ui.screen.NotFoundScreen
+import com.hopcape.odo.web.admin.ui.screen.PlaceholderScreen
 import com.hopcape.odo.web.admin.ui.screen.SignInScreen
 import com.hopcape.odo.web.admin.ui.theme.AdminTheme
 import com.hopcape.odo.web.core.presentation.CollectEffects
 import com.hopcape.odo.web.core.presentation.RouteScope
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -42,10 +38,6 @@ import org.koin.compose.viewmodel.koinViewModel
  *
  * The session is resolved once, in the page scope, so moving between sections does
  * not re-check and flash the sign-in page in between.
- *
- * **This is S4's shell, not the finished one.** The role-gated nav, the per-section
- * route guard and the placeholder screens are S5; what is here proves the sign-in
- * chain end to end in a browser and nothing more.
  */
 @Composable
 fun AdminApp(router: Router) {
@@ -62,29 +54,28 @@ fun AdminApp(router: Router) {
                 SessionViewModel.State.Unknown ->
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
 
-                SessionViewModel.State.SignedOut -> SignInHost(router, sessions::refresh)
+                SessionViewModel.State.SignedOut -> SignInHost(sessions::refresh)
 
                 is SessionViewModel.State.SignedIn ->
-                    SignedIn(state, router, sessions::signOut)
+                    SignedInArea(state.session, router, sessions::signOut)
             }
         }
     }
 }
 
 @Composable
-private fun SignInHost(router: Router, onSignedIn: () -> Unit) {
+private fun SignInHost(onSignedIn: () -> Unit) {
     val viewModel: SignInViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            SignInEffect.SignedIn -> {
-                onSignedIn()
-                // The sign-in page is not somewhere to stay once it has worked.
-                // Where to go instead depends on what this admin may do, which S5's
-                // nav decides; for now anything but the sign-in URL will do.
-                if (router.current is AdminRoute.SignIn) router.replace(AdminRoute.Vehicles)
-            }
+            // Only re-read the session. Where to go next is not this screen's
+            // call: the answer depends on which sections the new session may
+            // open, and [SignedInArea] is what knows. Naming a route here sent a
+            // support admin — who holds `users.read` and nothing else — straight
+            // to the vehicle catalog and a "no access" page.
+            SignInEffect.SignedIn -> onSignedIn()
         }
     }
 
@@ -92,52 +83,53 @@ private fun SignInHost(router: Router, onSignedIn: () -> Unit) {
 }
 
 /**
- * Everything behind the gate — a placeholder until S5 builds the real shell.
+ * Everything behind the gate.
  *
- * It draws the identity rather than a welcome message on purpose: this is the
- * screen that shows, in a browser, that the Firebase exchange, the edge function,
- * the account binding and `my_admin_identity()` all agree about who signed in.
+ * One `when`, no early returns. A composable that returns halfway emits a
+ * different tree shape per route, and Compose keys its slots — including any
+ * ViewModel a host resolves — off that shape. `:webApp` learned this the hard way:
+ * its editor host and its editor ViewModel ended up as different instances, one
+ * holding the data and the other being the one drawn, with nothing failing
+ * anywhere.
+ *
+ * The permission check here is the second of three for the same fact. The rail
+ * already hid what this role cannot open; this refuses it when the URL is typed
+ * anyway; and RLS refuses the data underneath regardless. Only the last one is
+ * load-bearing — the other two exist so nobody is left staring at an empty table
+ * wondering whether it is broken or forbidden.
  */
 @Composable
-private fun SignedIn(
-    state: SessionViewModel.State.SignedIn,
+private fun SignedInArea(
+    session: AdminSession,
     router: Router,
     onSignOut: () -> Unit,
 ) {
-    val session = state.session
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(session.name, style = MaterialTheme.typography.headlineSmall)
-        Text(
-            session.email,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        val none = stringResource(Res.string.ad_session_none)
-        Text(
-            stringResource(Res.string.ad_session_roles, session.roles.joinToString().ifBlank { none }),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            stringResource(
-                Res.string.ad_session_permissions,
-                session.permissions.joinToString { it.id }.ifBlank { none },
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            stringResource(Res.string.ad_session_route, router.current.toString()),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        TextButton(onClick = onSignOut, modifier = Modifier.padding(top = 16.dp)) {
-            Text(stringResource(Res.string.ad_sign_out))
+    when (val route = router.current) {
+        // Already signed in, so the sign-in URL has nothing to show. `replace`,
+        // not `go`: it should not become a back-button stop.
+        AdminRoute.SignIn -> {
+            val landing = landingFor(session)
+            LaunchedEffect(landing) { landing?.let(router::replace) }
+            // Nothing to land on is an account that is staff and holds no roles.
+            // Saying so beats a blank page while a redirect that cannot happen
+            // never fires.
+            AdminShell(session, route, router::go, onSignOut) {
+                if (landing == null) NoRolesScreen() else Blank()
+            }
+        }
+
+        else -> AdminShell(session, route, router::go, onSignOut) {
+            when {
+                route is AdminRoute.NotFound -> NotFoundScreen()
+                session.mayOpen(route) -> PlaceholderScreen(route)
+                else -> NoAccessScreen()
+            }
         }
     }
+}
+
+/** Nothing, in the page's own colour. For the frame before a redirect lands. */
+@Composable
+private fun Blank() {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
 }
