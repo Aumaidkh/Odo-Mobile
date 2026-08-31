@@ -98,6 +98,14 @@ SELECT *
 FROM cars
 WHERE id = ? AND deleted_at IS NULL;
 
+-- The live car this owner already has under this plate, if any — what turns "add a car"
+-- into "update this one" instead of colliding with uq_cars_owner_reg above.
+selectByOwnerAndRegistration:
+SELECT *
+FROM cars
+WHERE owner_id = :ownerId AND registration_number = :registrationNumber AND deleted_at IS NULL
+LIMIT 1;
+
 -- Soft delete: the row stays as a tombstone so the deletion itself can sync and
 -- history/audit survives. It goes back to PENDING for exactly that reason.
 --

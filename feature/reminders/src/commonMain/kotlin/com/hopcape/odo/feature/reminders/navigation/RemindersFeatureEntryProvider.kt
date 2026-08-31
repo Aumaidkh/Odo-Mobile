@@ -72,6 +72,9 @@ internal fun RemindersRoute(navigationManager: NavigationManager) {
 
             RemindersEffect.OpenSettings -> navigationManager.navigateTo(OdoDestination.Reminders.Settings)
             RemindersEffect.OpenNew -> navigationManager.navigateTo(OdoDestination.Reminders.New())
+            is RemindersEffect.OpenNewFromSuggestion -> navigationManager.navigateTo(
+                OdoDestination.Reminders.New(suggestedPreset = effect.presetName, suggestedName = effect.name),
+            )
         }
     }
 
@@ -80,6 +83,7 @@ internal fun RemindersRoute(navigationManager: NavigationManager) {
         onManage = { viewModel.onEvent(RemindersEvent.ManageTapped) },
         onOpenActions = { row, title, due -> viewModel.onEvent(RemindersEvent.ReminderTapped(row, title, due)) },
         onRemindMe = { preset, name -> viewModel.onEvent(RemindersEvent.SuggestionTapped(preset, name)) },
+        onOpenSuggestion = { preset, name -> viewModel.onEvent(RemindersEvent.SuggestionRowTapped(preset, name)) },
         onAdd = { viewModel.onEvent(RemindersEvent.AddTapped) },
     )
 }
@@ -128,7 +132,13 @@ internal fun NewReminderRoute(
     key: OdoDestination.Reminders.New,
 ) {
     val viewModel = koinViewModel<NewReminderViewModel> {
-        parametersOf(NewReminderArgs(reminderId = key.reminderId))
+        parametersOf(
+            NewReminderArgs(
+                reminderId = key.reminderId,
+                suggestedPreset = key.suggestedPreset,
+                suggestedName = key.suggestedName,
+            ),
+        )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -147,6 +157,7 @@ internal fun NewReminderRoute(
         onRepeatChange = { viewModel.onEvent(NewReminderEvent.RepeatChanged(it)) },
         onStartChange = { viewModel.onEvent(NewReminderEvent.StartChanged(it)) },
         onTimeChange = { hour, minute -> viewModel.onEvent(NewReminderEvent.TimeChanged(hour, minute)) },
+        onDistanceStepChange = { viewModel.onEvent(NewReminderEvent.DistanceStepChanged(it)) },
         onChangeChannels = { viewModel.onEvent(NewReminderEvent.ChangeChannelsTapped) },
         onSave = { viewModel.onEvent(NewReminderEvent.SaveTapped) },
         onClose = { viewModel.onEvent(NewReminderEvent.CloseTapped) },

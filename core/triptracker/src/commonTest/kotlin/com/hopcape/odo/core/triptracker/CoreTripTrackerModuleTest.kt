@@ -11,6 +11,8 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
@@ -160,6 +162,7 @@ private object NoopCrash : CrashRecorder {
 private object NoopCarRepository : CarRepository {
     override suspend fun add(car: Car) = throw NotImplementedError()
     override suspend fun update(car: Car) = throw NotImplementedError()
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = flowOf(null)
     override fun observe(id: CarId): Flow<Car?> = flowOf(null)
     override suspend fun softDelete(id: CarId) = throw NotImplementedError()

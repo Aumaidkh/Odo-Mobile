@@ -7,12 +7,14 @@ import com.hopcape.odo.infrastructure.database.sync.SyncStatus
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -201,6 +203,57 @@ class SqlDelightCarLocalDataSourceTest {
         // The first car is demoted, not deleted.
         val first = db.carQueries.selectById("car-1").executeAsOne()
         assertEquals(0L, first.is_primary)
+    }
+
+    @Test
+    fun insertingTheSamePlateTwiceForTheSameOwner_violatesTheUniqueIndex() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(car("car-1"))
+
+        // uq_cars_owner_reg — the DB-level backstop findByRegistration exists to make
+        // unreachable in the normal path, still enforced if something races past it.
+        assertFailsWith<Exception> { local.insert(car("car-2")) }
+    }
+
+    @Test
+    fun findByRegistration_findsTheLiveCarUnderTheNormalizedPlate() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(car("car-1"))
+
+        val found = local.findByRegistration(ownerId, RegistrationNumber.of("MH-12-AB-1234")!!)
+
+        assertEquals("car-1", found?.id?.value)
+    }
+
+    @Test
+    fun findByRegistration_noMatch_isNull() = runTest {
+        val local = local(newDb())
+
+        assertNull(local.findByRegistration(ownerId, RegistrationNumber.of("DL01CD5678")!!))
+    }
+
+    @Test
+    fun findByRegistration_ignoresAnotherOwnersCarWithTheSamePlate() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(car("car-1"))
+
+        val found = local.findByRegistration(OwnerId("owner-2"), RegistrationNumber.of("MH12AB1234")!!)
+
+        assertNull(found, "a plate is unique per owner, not across owners")
+    }
+
+    @Test
+    fun findByRegistration_ignoresASoftDeletedCar() = runTest {
+        val db = newDb()
+        val local = local(db)
+        local.insert(car("car-1"))
+
+        local.softDelete(CarId("car-1"))
+
+        assertNull(local.findByRegistration(ownerId, RegistrationNumber.of("MH12AB1234")!!))
     }
 
     /**

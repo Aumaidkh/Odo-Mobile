@@ -18,6 +18,13 @@ internal sealed interface RemindersEvent {
     /** "Remind me" on a suggestion — creates the preset's reminder in place. */
     data class SuggestionTapped(val preset: ReminderPreset, val name: String) : RemindersEvent
 
+    /**
+     * The suggestion's row itself (not its "Remind me" button) — opens the create form
+     * pre-filled with the preset's defaults instead of creating blind. Both remain: this
+     * is for someone who wants to adjust something before it's a real reminder.
+     */
+    data class SuggestionRowTapped(val preset: ReminderPreset, val name: String) : RemindersEvent
+
     data object ManageTapped : RemindersEvent
 
     data object AddTapped : RemindersEvent
@@ -39,4 +46,7 @@ internal sealed interface RemindersEffect {
     data object OpenSettings : RemindersEffect
 
     data object OpenNew : RemindersEffect
+
+    /** Open the create form pre-filled with a suggestion's preset, per [RemindersEvent.SuggestionRowTapped]. */
+    data class OpenNewFromSuggestion(val presetName: String, val name: String) : RemindersEffect
 }

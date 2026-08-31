@@ -10,9 +10,9 @@ import com.hopcape.odo.core.domain.showcase.ShowcaseTelemetry
 /**
  * [ShowcaseTelemetry]'s real implementation — the same shape as [com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry].
  *
- * Three events keyed by hook, and nothing else: they answer whether each of the six coach
- * marks earns its place (#235) — shown-and-acted-on does, shown-and-dismissed at a high
- * rate is budget spent for nothing — and whether six was already too many. No PII by
+ * Three events keyed by hook, and nothing else: they answer whether each coach mark earns
+ * its place (#235) — shown-and-acted-on does, shown-and-dismissed at a high rate is budget
+ * spent for nothing — and whether the growing list is already too many. No PII by
  * construction: the hook name is the whole payload.
  */
 internal class ShowcaseTelemetryImpl(

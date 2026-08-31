@@ -10,6 +10,7 @@ import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -86,6 +87,7 @@ internal class FakeDocumentRepository(
 internal class FailingCarRepository : CarRepository {
     override suspend fun add(car: Car): Either<DomainError, Car> = car.right()
     override suspend fun update(car: Car): Either<DomainError, Car> = car.right()
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = observe(CarId("any"))
     override fun observe(id: CarId): Flow<Car?> = flow { throw IllegalStateException("db is gone") }
     override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = Unit.right()

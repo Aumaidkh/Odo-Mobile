@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
@@ -54,12 +55,15 @@ class CarRepositoryImplTest {
         private val softDeleteThrows: Throwable? = null,
         private val primary: Flow<Car?> = flowOf(null),
         private val byId: Flow<Car?> = flowOf(null),
+        private val byRegistration: Car? = null,
     ) : CarLocalDataSource {
         var inserted: Car? = null
             private set
         var updated: Car? = null
             private set
         var softDeleted: CarId? = null
+            private set
+        var lookedUpRegistration: RegistrationNumber? = null
             private set
 
         override suspend fun insert(car: Car) {
@@ -76,6 +80,11 @@ class CarRepositoryImplTest {
         override suspend fun softDelete(id: CarId) {
             softDeleteThrows?.let { throw it }
             softDeleted = id
+        }
+
+        override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? {
+            lookedUpRegistration = registrationNumber
+            return byRegistration
         }
 
         override fun observePrimary(): Flow<Car?> = primary
@@ -247,5 +256,24 @@ class CarRepositoryImplTest {
         val local = FakeCarLocalDataSource(byId = flow { throw RuntimeException("read failed") })
 
         assertNull(repo(local).observe(CarId("car-1")).first())
+    }
+
+    @Test
+    fun findByRegistration_passesThroughToLocal_withTheNormalizedPlate() = runTest {
+        val expected = car()
+        val local = FakeCarLocalDataSource(byRegistration = expected)
+        val plate = RegistrationNumber.of("MH12AB1234")!!
+
+        val found = repo(local).findByRegistration(ownerId, plate)
+
+        assertEquals(expected, found)
+        assertEquals(plate, local.lookedUpRegistration)
+    }
+
+    @Test
+    fun findByRegistration_noMatch_isNull() = runTest {
+        val local = FakeCarLocalDataSource(byRegistration = null)
+
+        assertNull(repo(local).findByRegistration(ownerId, RegistrationNumber.of("DL01CD5678")!!))
     }
 }

@@ -23,6 +23,15 @@ import kotlinx.coroutines.launch
  *
  * `logOut` returns the device to an anonymous identity. It does not cancel anything — the
  * subscription belongs to the account, and signing back in brings it straight back.
+ *
+ * **Guarded on [Purchases.isConfigured], not just on being bound.** This class is only bound
+ * when [BillingEnvironment.isConfigured] said a key exists at build time
+ * ([BillingInfrastructureModule]) — but `RevenueCatBootstrap.configure()` can still fail at
+ * runtime (a bad key, the SDK refusing to link) and swallows that failure rather than
+ * crashing startup over a subscription nobody has bought yet. Without this guard,
+ * `Purchases.sharedInstance` throws `UninitializedPropertyAccessException` the moment a sign-in
+ * reaches here, taking the whole app down for something a purchase-less flow should not
+ * depend on.
  */
 internal class RevenueCatIdentity(
     private val scope: CoroutineScope,
@@ -30,6 +39,10 @@ internal class RevenueCatIdentity(
 ) : SubscriptionIdentity {
 
     override fun identify(ownerId: OwnerId) {
+        if (!Purchases.isConfigured) {
+            telemetry.identifyFailed(NOT_CONFIGURED, "Purchases.configure() never succeeded")
+            return
+        }
         scope.launch {
             Purchases.sharedInstance.awaitLogInEither(newAppUserID = ownerId.value).fold(
                 ifLeft = { telemetry.identifyFailed(it.code.toString(), it.message) },
@@ -41,11 +54,19 @@ internal class RevenueCatIdentity(
     }
 
     override fun forget() {
+        if (!Purchases.isConfigured) {
+            telemetry.forgetFailed(NOT_CONFIGURED, "Purchases.configure() never succeeded")
+            return
+        }
         scope.launch {
             Purchases.sharedInstance.awaitLogOutEither().fold(
                 ifLeft = { telemetry.forgetFailed(it.code.toString(), it.message) },
                 ifRight = { telemetry.forgotten() },
             )
         }
+    }
+
+    private companion object {
+        const val NOT_CONFIGURED = "NOT_CONFIGURED"
     }
 }

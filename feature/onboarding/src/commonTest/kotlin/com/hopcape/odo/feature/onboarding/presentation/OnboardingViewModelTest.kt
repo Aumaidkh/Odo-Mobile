@@ -856,6 +856,8 @@ class OnboardingViewModelTest {
         override suspend fun update(car: Car): Either<DomainError, Car> =
             if (failing) DomainError.PersistenceFailure("disk full").left() else car.right().also { updated += car }
 
+        override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
+
         override fun observePrimaryCar(): Flow<Car?> = flowOf(added.lastOrNull())
 
         override fun observe(id: CarId): Flow<Car?> = flowOf(added.lastOrNull { it.id == id })

@@ -6,7 +6,9 @@ import arrow.core.right
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
 import com.hopcape.odo.core.sync.SyncScheduler
@@ -84,6 +86,9 @@ internal class CarRepositoryImpl(
                 DomainError.PersistenceFailure(e.message).left()
             }
         }
+
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? =
+        local.findByRegistration(ownerId, registrationNumber)
 
     override fun observePrimaryCar(): Flow<Car?> =
         local.observePrimary().reportingFailures(OP_OBSERVE_PRIMARY, id = null)

@@ -6,6 +6,7 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
@@ -59,6 +60,7 @@ class ObserveGarageUseCaseTest {
         val cars = MutableStateFlow(car)
         override suspend fun add(car: Car): Either<DomainError, Car> = car.right()
         override suspend fun update(car: Car): Either<DomainError, Car> = car.right()
+        override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
         override fun observePrimaryCar(): Flow<Car?> = cars
         override fun observe(id: CarId): Flow<Car?> = cars
         override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = Unit.right()

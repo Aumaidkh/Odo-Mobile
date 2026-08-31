@@ -62,7 +62,7 @@ val garageModule = module {
     }
     factory { UpdateOdometerUseCase(cars = get(), logs = get(), clock = get()) }
     factory { GetOdometerContextUseCase(logs = get(), currentOdometer = get(), clock = get()) }
-    factory { AddCarUseCase(cars = get(), idGenerator = get(), owner = get()) }
+    factory { AddCarUseCase(cars = get(), idGenerator = get(), owner = get(), updateCarDetails = get()) }
     factory { UpdateCarDetailsUseCase(cars = get()) }
     factory { RemoveCarUseCase(cars = get()) }
     factory { LoadVehicleCatalogUseCase(catalog = get()) }

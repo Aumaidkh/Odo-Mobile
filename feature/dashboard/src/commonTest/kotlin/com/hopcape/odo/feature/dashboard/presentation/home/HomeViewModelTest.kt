@@ -397,6 +397,73 @@ class HomeViewModelTest {
         assertTrue(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN in seen.seen)
     }
 
+    /** SCAN and HEALTH pre-seeded seen, so the default fixture's car leaves REMINDERS_BELL
+     *  as the only hook left to win the arbiter's grant. */
+    private fun seenStoreWithScanAndHealthAlreadySeen() = FakeShowcaseSeenStore().apply {
+        seen += ShowcaseHookId.SCAN_BUTTON
+        seen += ShowcaseHookId.HEALTH_SCORE_BREAKDOWN
+    }
+
+    @Test
+    fun remindersShowcase_grantedOnceACarExists_regardlessOfSetupState() = runTest(dispatcher) {
+        val vm = viewModel(seenStore = seenStoreWithScanAndHealthAlreadySeen())
+
+        assertTrue(vm.state.first { it.content is Loadable.Ready && it.remindersShowcase }.remindersShowcase)
+    }
+
+    @Test
+    fun remindersShowcase_notGranted_withNoCar() = runTest(dispatcher) {
+        val vm = viewModel(carId = null, seenStore = seenStoreWithScanAndHealthAlreadySeen())
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.remindersShowcase)
+    }
+
+    @Test
+    fun remindersShowcase_notGranted_whenAlreadySeen() = runTest(dispatcher) {
+        val seen = seenStoreWithScanAndHealthAlreadySeen().apply { seen += ShowcaseHookId.REMINDERS_BELL }
+        val vm = viewModel(seenStore = seen)
+
+        assertFalse(vm.state.first { it.content is Loadable.Ready }.remindersShowcase)
+    }
+
+    @Test
+    fun remindersShowcaseDismissed_hidesIt_andWritesSeen() = runTest(dispatcher) {
+        val seen = seenStoreWithScanAndHealthAlreadySeen()
+        val vm = viewModel(seenStore = seen)
+        vm.state.first { it.remindersShowcase }
+
+        vm.onEvent(HomeEvent.RemindersShowcaseDismissed)
+
+        assertFalse(vm.state.first { !it.remindersShowcase }.remindersShowcase)
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.REMINDERS_BELL in seen.seen)
+    }
+
+    @Test
+    fun remindersShowcaseActedOn_opensReminders_andWritesSeen() = runTest(dispatcher) {
+        val seen = seenStoreWithScanAndHealthAlreadySeen()
+        val vm = viewModel(seenStore = seen)
+        vm.state.first { it.remindersShowcase }
+
+        vm.onEvent(HomeEvent.RemindersShowcaseActedOn)
+
+        assertIs<HomeEffect.OpenReminders>(vm.effects.first())
+        advanceUntilIdle()
+        assertTrue(ShowcaseHookId.REMINDERS_BELL in seen.seen)
+    }
+
+    @Test
+    fun remindersShowcaseLeft_releasesWithoutSeen_soTheNextVisitShowsItAgain() = runTest(dispatcher) {
+        val seen = seenStoreWithScanAndHealthAlreadySeen()
+        val vm = viewModel(seenStore = seen)
+        vm.state.first { it.remindersShowcase }
+
+        vm.onEvent(HomeEvent.RemindersShowcaseLeft)
+
+        assertTrue(ShowcaseHookId.REMINDERS_BELL !in seen.seen)
+        assertTrue(vm.state.first { it.remindersShowcase }.remindersShowcase)
+    }
+
     @Test
     fun proPlan_isCarriedForTheProCopyVariant() = runTest(dispatcher) {
         val vm = viewModel(isPro = true)

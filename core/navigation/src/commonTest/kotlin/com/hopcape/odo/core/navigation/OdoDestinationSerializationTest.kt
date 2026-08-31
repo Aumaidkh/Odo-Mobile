@@ -59,7 +59,9 @@ class OdoDestinationSerializationTest {
         OdoDestination.Profile.Appearance,
         OdoDestination.Profile.Export,
         OdoDestination.Profile.SignOut,
+        OdoDestination.Profile.DeveloperOptions,
         OdoDestination.Profile.ConfigOverrides,
+        OdoDestination.Profile.Logs,
         // Garage — Home is both a Garage key and a TopLevel one, which is the case most
         // likely to confuse a sealed hierarchy that can reach a subtype by two paths.
         OdoDestination.Garage.Home,
@@ -74,6 +76,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Reminders.List,
         OdoDestination.Reminders.Settings,
         OdoDestination.Reminders.New(reminderId = "rem-1"),
+        OdoDestination.Reminders.New(suggestedPreset = "TYRE_ROTATION", suggestedName = "Tyre rotation"),
         OdoDestination.Reminders.Actions(
             kind = "INSURANCE",
             dueOn = "2026-04-01",

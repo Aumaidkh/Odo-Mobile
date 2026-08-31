@@ -183,4 +183,19 @@ class RemindersViewModelTest {
         fixture.viewModel.onEvent(RemindersEvent.AddTapped)
         assertIs<RemindersEffect.OpenNew>(fixture.viewModel.effects.firstOrNull())
     }
+
+    @Test
+    fun tappingASuggestionRowOpensTheFormPrefilled_ratherThanCreatingBlind() = runTest {
+        val fixture = Fixture()
+
+        fixture.viewModel.onEvent(
+            RemindersEvent.SuggestionRowTapped(ReminderPreset.TYRE_ROTATION, "Tyre rotation"),
+        )
+
+        val effect = assertIs<RemindersEffect.OpenNewFromSuggestion>(fixture.viewModel.effects.firstOrNull())
+        assertEquals(ReminderPreset.TYRE_ROTATION.name, effect.presetName)
+        assertEquals("Tyre rotation", effect.name)
+        // Unlike SuggestionTapped, nothing is created — this only asks to navigate.
+        assertTrue(fixture.reminders.customs.isEmpty())
+    }
 }

@@ -81,6 +81,11 @@ internal class HomeViewModel(
 
     private var healthShowcaseRequested = false
 
+    /** True while the reminders-bell coach mark holds the arbiter's grant. */
+    private val remindersShowcaseVisible = MutableStateFlow(false)
+
+    private var remindersShowcaseRequested = false
+
     private val _effects = Channel<HomeEffect>(Channel.BUFFERED)
     val effects: Flow<HomeEffect> = _effects.receiveAsFlow()
 
@@ -116,6 +121,7 @@ internal class HomeViewModel(
         .combine(offerAutoOdometer()) { ui, offer -> ui.copy(offerAutoOdometer = offer) }
         .combine(scanShowcaseVisible) { ui, visible -> ui.copy(scanShowcase = visible) }
         .combine(healthShowcaseVisible) { ui, visible -> ui.copy(healthShowcase = visible) }
+        .combine(remindersShowcaseVisible) { ui, visible -> ui.copy(remindersShowcase = visible) }
         // Read only to pick the Pro-gated coach marks' copy — never to hide them.
         .combine(entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }) { ui, pro ->
             ui.copy(proPlan = pro)
@@ -128,6 +134,7 @@ internal class HomeViewModel(
         }
         .onEach(::maybeRequestScanShowcase)
         .onEach(::maybeRequestHealthShowcase)
+        .onEach(::maybeRequestRemindersShowcase)
         .onEach(::reportOpened)
         .catch { cause ->
             telemetry.readFailed(cause)
@@ -175,6 +182,23 @@ internal class HomeViewModel(
         healthShowcaseRequested = true
         if (showcase.request(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN)) {
             healthShowcaseVisible.value = true
+        }
+    }
+
+    /**
+     * The reminders-bell hook's due-condition: a car exists, which is exactly when the bell
+     * itself renders. No further gate — unlike SCAN and HEALTH, there is no "has done the
+     * thing already" signal that would make the bell stop needing an introduction, so this
+     * stays due until it is shown once. If another hook is also due on the same visit, the
+     * arbiter grants one and this simply waits for Home's next visit.
+     */
+    private suspend fun maybeRequestRemindersShowcase(ui: HomeUiState) {
+        if (remindersShowcaseRequested) return
+        val content = ui.content.valueOrNull ?: return
+        if (content.hasNoCar) return
+        remindersShowcaseRequested = true
+        if (showcase.request(ShowcaseHookId.REMINDERS_BELL)) {
+            remindersShowcaseVisible.value = true
         }
     }
 
@@ -281,6 +305,24 @@ internal class HomeViewModel(
             if (healthShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.HEALTH_SCORE_BREAKDOWN)
             healthShowcaseVisible.value = false
             healthShowcaseRequested = false
+        }
+
+        HomeEvent.RemindersShowcaseDismissed -> {
+            remindersShowcaseVisible.value = false
+            viewModelScope.launch { showcase.dismissed(ShowcaseHookId.REMINDERS_BELL) }
+            Unit
+        }
+
+        HomeEvent.RemindersShowcaseActedOn -> {
+            remindersShowcaseVisible.value = false
+            viewModelScope.launch { showcase.actedOn(ShowcaseHookId.REMINDERS_BELL) }
+            send(HomeEffect.OpenReminders)
+        }
+
+        HomeEvent.RemindersShowcaseLeft -> {
+            if (remindersShowcaseVisible.value) showcase.surfaceLeft(ShowcaseHookId.REMINDERS_BELL)
+            remindersShowcaseVisible.value = false
+            remindersShowcaseRequested = false
         }
     }
 

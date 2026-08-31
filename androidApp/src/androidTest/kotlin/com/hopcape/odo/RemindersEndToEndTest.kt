@@ -154,7 +154,52 @@ class RemindersEndToEndTest {
         rule.onNodeWithText(RemindersCopy.ROW_INSURANCE).assertIsDisplayed()
     }
 
+    /**
+     * A row already on the schedule but comfortably on-track sits in "Upcoming", not "this
+     * week" — and until now, only a "this week" card opened the actions sheet. An owner
+     * whose reminder is fine for now had no way to reach it at all.
+     */
+    @Test
+    fun anUpcomingRowNotDueThisWeekStillOpensTheActionsSheet() {
+        rule.openReminders()
+        rule.awaitText(RemindersCopy.SUGGEST_TYRE)
+        rule.tapRemindMeOn(ReminderPreset.TYRE_ROTATION.name)
+        rule.awaitText(RemindersCopy.PILL_ON_TRACK)
+
+        rule.openActionsFor(RemindersCopy.SUGGEST_TYRE)
+
+        // Custom, so reschedule is offered; a distance target has no dated occurrence to skip.
+        rule.onNodeWithText(RemindersCopy.SHEET_RESCHEDULE).assertIsDisplayed()
+        rule.onNodeWithText(RemindersCopy.SHEET_SKIP).assertDoesNotExist()
+    }
+
     /* ------------------------------ Suggestions ------------------------------ */
+
+    /**
+     * Tapping the suggestion's row (not its "Remind me" button) opens the create form
+     * pre-filled with that preset's defaults, so it can be adjusted before it's a real
+     * reminder — rather than the old create-blind-then-reschedule round trip.
+     */
+    @Test
+    fun tappingASuggestionRowOpensTheFormPrefilled_readyToAdjustBeforeSaving() {
+        rule.openReminders()
+        rule.awaitText(RemindersCopy.SUGGEST_TYRE)
+
+        rule.onNodeWithText(RemindersCopy.SUGGEST_TYRE).performClick()
+
+        // Create mode, not edit — nothing was made just by opening this — pre-filled with
+        // exactly what "Remind me" would have used: the preset's name and its own cadence
+        // (by-distance, its own step), not the form's usual EVERY_15_DAYS default.
+        rule.awaitText(RemindersCopy.NEW_TITLE)
+        rule.awaitText(RemindersCopy.SUGGEST_TYRE)
+        rule.awaitText("10000")
+
+        rule.onNodeWithText(RemindersCopy.SAVE).performClick()
+
+        // Saved as a real, on-track reminder — and the suggestion it came from is gone.
+        rule.awaitText(RemindersCopy.PILL_ON_TRACK)
+        rule.awaitText(RemindersCopy.SUGGEST_TYRE)
+    }
 
     @Test
     fun remindMeCreatesThePresetInPlace() {

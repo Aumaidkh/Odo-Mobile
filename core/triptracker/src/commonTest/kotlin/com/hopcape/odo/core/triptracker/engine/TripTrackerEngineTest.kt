@@ -14,6 +14,7 @@ import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.PrivacyPreferences
@@ -572,6 +573,7 @@ private object FakeTrackingPreconditions : TrackingPreconditions {
 private class FakeCarRepository(private val car: Car) : CarRepository {
     override suspend fun add(car: Car): Either<DomainError, Car> = throw NotImplementedError()
     override suspend fun update(car: Car): Either<DomainError, Car> = throw NotImplementedError()
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = flowOf(car)
     override fun observe(id: CarId): Flow<Car?> = flowOf(car)
     override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = throw NotImplementedError()

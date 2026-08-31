@@ -32,6 +32,7 @@ import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.currentReading
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -121,6 +122,7 @@ internal class FakeCarRepository(initial: Car? = null) : CarRepository {
 
     override suspend fun add(car: Car): Either<DomainError, Car> = car.right().also { this.car.value = car }
     override suspend fun update(car: Car): Either<DomainError, Car> = car.right().also { this.car.value = car }
+    override suspend fun findByRegistration(ownerId: OwnerId, registrationNumber: RegistrationNumber): Car? = null
     override fun observePrimaryCar(): Flow<Car?> = car
     override fun observe(id: CarId): Flow<Car?> = car.map { held -> held?.takeIf { it.id == id } }
     override suspend fun softDelete(id: CarId): Either<DomainError, Unit> = Unit.right()

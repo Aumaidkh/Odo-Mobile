@@ -12,7 +12,7 @@
 
     <!-- Sections -->
     <string name="rm_this_week">THIS WEEK</string>
-    <string name="rm_upcoming">UPCOMING</string>
+    <string name="rm_upcoming">SET UP REMINDERS</string>
 
     <!-- Statuses -->
     <string name="rm_status_due_soon">Due soon</string>
@@ -94,9 +94,13 @@
     <string name="rm_new_change">Change</string>
     <string name="rm_new_save">Save reminder</string>
     <string name="rm_new_anchor">Counted from %1$s on the odometer</string>
+    <string name="rm_new_step_label">Every</string>
+    <string name="rm_new_step_km">Km</string>
+    <string name="rm_new_step_miles">Miles</string>
     <string name="rm_new_error_name_blank">Give it a name</string>
     <string name="rm_new_error_name_long">Keep it under %1$d characters</string>
     <string name="rm_new_error_start_past">Pick today or a later day</string>
+    <string name="rm_new_error_step_not_positive">Enter how far apart the nudges should be</string>
     <string name="rm_new_error_save">Couldn’t save. Try again.</string>
 
     <!-- This-week reminder actions (bottom sheet) -->

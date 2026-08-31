@@ -53,8 +53,10 @@ import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
+import com.hopcape.odo.core.designsystem.component.OdoOdometerField
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCalendar
 import com.hopcape.odo.core.designsystem.icons.IcClock
@@ -101,6 +103,9 @@ import com.hopcape.odo.feature.reminders.resources.rm_new_save
 import com.hopcape.odo.feature.reminders.resources.rm_new_starts_label
 import com.hopcape.odo.feature.reminders.resources.rm_new_starts_today
 import com.hopcape.odo.feature.reminders.resources.rm_new_starts_tomorrow
+import com.hopcape.odo.feature.reminders.resources.rm_new_step_km
+import com.hopcape.odo.feature.reminders.resources.rm_new_step_label
+import com.hopcape.odo.feature.reminders.resources.rm_new_step_miles
 import com.hopcape.odo.feature.reminders.resources.rm_new_time_label
 import com.hopcape.odo.feature.reminders.resources.rm_new_title
 import com.hopcape.odo.feature.reminders.resources.rm_new_title_edit
@@ -125,6 +130,7 @@ internal fun NewReminderScreen(
     onRepeatChange: (ReminderRepeat) -> Unit,
     onStartChange: (Long) -> Unit,
     onTimeChange: (Int, Int) -> Unit,
+    onDistanceStepChange: (Int) -> Unit,
     onChangeChannels: () -> Unit,
     onSave: () -> Unit,
     onClose: () -> Unit,
@@ -207,6 +213,16 @@ internal fun NewReminderScreen(
                         UiText(Res.string.rm_new_anchor, listOf(DistanceArg(state.anchorKm))).asString(),
                         style = OdoTheme.typography.bodySmall,
                         color = OdoTheme.colors.textDim,
+                    )
+                }
+            }
+
+            if (state.repeat == ReminderRepeat.BY_DISTANCE) {
+                Field(stringResource(Res.string.rm_new_step_label)) {
+                    DistanceStepField(
+                        stepKm = state.distanceStepKm,
+                        onStepChange = onDistanceStepChange,
+                        errorText = state.distanceStepError?.asString(),
                     )
                 }
             }
@@ -357,6 +373,29 @@ private fun SaveBar(onSave: () -> Unit) {
     }
 }
 
+/**
+ * How far apart the nudges are, in the owner's own unit — converted to/from kilometres at
+ * this screen, the same way an odometer entry is (see [com.hopcape.odo.core.designsystem.units.OdoDistanceFormat]).
+ * A local buffer holds what is on screen mid-typing; [stepKm] is only ever the last value
+ * that actually parsed, so backspacing to an empty field does not send a zero-km step.
+ */
+@Composable
+private fun DistanceStepField(stepKm: Int, onStepChange: (Int) -> Unit, errorText: String?) {
+    val format = LocalOdoDistanceFormat.current
+    var text by remember(stepKm) { mutableStateOf(format.display(stepKm).toString()) }
+    OdoOdometerField(
+        value = text,
+        onValueChange = { typed ->
+            text = typed
+            typed.toIntOrNull()?.takeIf { it > 0 }?.let { onStepChange(format.store(it)) }
+        },
+        kmLabel = stringResource(Res.string.rm_new_step_km),
+        milesLabel = stringResource(Res.string.rm_new_step_miles),
+        errorText = errorText,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 /** A read-only, tappable field that opens a picker — the field visual, but the whole surface is a button. */
 @Composable
 private fun PickerField(value: String, trailing: ImageVector, onClick: () -> Unit) {
@@ -458,6 +497,7 @@ private fun NewReminderScreenPreview() = OdoPreview(padded = false) {
         onRepeatChange = {},
         onStartChange = {},
         onTimeChange = { _, _ -> },
+        onDistanceStepChange = {},
         onChangeChannels = {},
         onSave = {},
         onClose = {},

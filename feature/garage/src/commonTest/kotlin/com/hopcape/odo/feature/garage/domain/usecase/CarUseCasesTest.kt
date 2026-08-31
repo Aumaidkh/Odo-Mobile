@@ -16,7 +16,12 @@ import kotlin.test.assertTrue
 class AddCarUseCaseTest {
 
     private fun useCase(cars: FakeCarRepository) =
-        AddCarUseCase(cars = cars, idGenerator = FixedIdGenerator("new-car"), owner = ownerProvider())
+        AddCarUseCase(
+            cars = cars,
+            idGenerator = FixedIdGenerator("new-car"),
+            owner = ownerProvider(),
+            updateCarDetails = UpdateCarDetailsUseCase(cars),
+        )
 
     private fun command(
         make: String? = "Maruti Suzuki",
@@ -78,6 +83,61 @@ class AddCarUseCaseTest {
         val result = useCase(FakeCarRepository(failing = true))(command())
 
         assertIs<DomainError.PersistenceFailure>(result.leftOrNull()?.head)
+    }
+
+    /**
+     * A plate this owner already has on file is never a second car — adding "another" car
+     * under the same registration number updates the one that's already there.
+     */
+    @Test
+    fun aPlateAlreadyOnFile_updatesTheExistingCar_insteadOfDuplicating() = runTest {
+        val cars = FakeCarRepository(testCar(odometerKm = 45_000))
+
+        val result = useCase(cars)(command(make = "Hyundai", model = "i20", year = 2022))
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertTrue(cars.added.isEmpty(), "must not create a second row")
+        val saved = cars.updated.single()
+        assertEquals(TEST_CAR, saved.id)
+        assertEquals("Hyundai", saved.make)
+        assertEquals("i20", saved.model)
+        assertEquals(2022, saved.year.value)
+        // Normalized the same way on either path.
+        assertEquals("MH12AB1234", saved.registrationNumber?.value)
+    }
+
+    /** Same plate, written with different punctuation — still the same car. */
+    @Test
+    fun aDifferentlyFormattedButEquivalentPlate_stillMatchesTheExistingCar() = runTest {
+        val cars = FakeCarRepository(testCar())
+
+        useCase(cars)(command().copy(registrationNumber = "MH-12-AB-1234"))
+
+        assertTrue(cars.added.isEmpty())
+        assertEquals(TEST_CAR, cars.updated.single().id)
+    }
+
+    /** The update path this delegates to is the one that already protects these fields. */
+    @Test
+    fun matchingAnExistingPlate_leavesTheOdometerAndPrimaryFlagUntouched() = runTest {
+        val cars = FakeCarRepository(testCar(odometerKm = 45_000, isPrimary = true))
+
+        useCase(cars)(command(odometerKm = 99_999))
+
+        val saved = cars.updated.single()
+        assertEquals(45_000, saved.odometer.km)
+        assertTrue(saved.isPrimary)
+    }
+
+    @Test
+    fun aNewPlate_stillCreatesANewCar() = runTest {
+        val cars = FakeCarRepository(testCar())
+
+        val result = useCase(cars)(command().copy(registrationNumber = "DL01CD5678"))
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertTrue(cars.updated.isEmpty())
+        assertEquals("DL01CD5678", cars.added.single().registrationNumber?.value)
     }
 }
 

@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.reminder.model.CustomReminder
 import com.hopcape.odo.core.domain.reminder.model.ReminderCadence
 import com.hopcape.odo.core.domain.reminder.model.ReminderId
+import com.hopcape.odo.core.domain.reminder.model.ReminderPreset
 import com.hopcape.odo.core.domain.reminder.model.ReminderTitle
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.reminders.domain.usecase.CreateCustomReminderUseCase
@@ -22,6 +23,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_new_error_name_blank
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_name_long
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_save
 import com.hopcape.odo.feature.reminders.resources.rm_new_error_start_past
+import com.hopcape.odo.feature.reminders.resources.rm_new_error_step_not_positive
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -76,7 +78,17 @@ internal class NewReminderViewModel(
         NewReminderUiState(
             editing = reminderId != null,
             startMillis = todayUtcMillis(),
-        ),
+        ).let { initial ->
+            // A suggestion row's tap, not "Remind me": pre-fill what one-tap create would
+            // have used, so this reads as "here's what that would make, tweak if you want"
+            // rather than a blank form. An edit's own prefill (below) always wins.
+            val preset = args.suggestedPreset?.let { name -> ReminderPreset.entries.find { it.name == name } }
+            if (reminderId == null && preset != null) {
+                initial.prefilledFromSuggestion(preset, args.suggestedName.orEmpty())
+            } else {
+                initial
+            }
+        },
     )
     val state: StateFlow<NewReminderUiState> = _state.asStateFlow()
 
@@ -88,7 +100,16 @@ internal class NewReminderViewModel(
     fun onEvent(event: NewReminderEvent) {
         when (event) {
             is NewReminderEvent.PresetSelected -> _state.update {
-                it.copy(preset = event.preset, name = event.defaultName, nameError = null)
+                val presetStep = (event.preset.defaultCadence as? ReminderCadence.EveryDistance)?.km
+                it.copy(
+                    preset = event.preset,
+                    name = event.defaultName,
+                    nameError = null,
+                    // Only a preset that is itself distance-based has an opinion on the
+                    // step; picking "Coolant" must not silently overwrite a step the owner
+                    // already typed for a by-distance reminder they are still building.
+                    distanceStepKm = presetStep ?: it.distanceStepKm,
+                )
             }
 
             is NewReminderEvent.CustomLabelSaved -> _state.update {
@@ -110,6 +131,10 @@ internal class NewReminderViewModel(
 
             is NewReminderEvent.TimeChanged -> _state.update {
                 it.copy(hour = event.hour, minute = event.minute)
+            }
+
+            is NewReminderEvent.DistanceStepChanged -> _state.update {
+                it.copy(distanceStepKm = event.km, distanceStepError = null)
             }
 
             NewReminderEvent.ChangeChannelsTapped -> _effects.trySend(NewReminderEffect.OpenSettings)
@@ -155,7 +180,9 @@ internal class NewReminderViewModel(
         val snapshot = _state.value
         if (snapshot.saving) return
         val carId = activeCar.activeCarId.value ?: return
-        _state.update { it.copy(saving = true, nameError = null, startError = null, formError = null) }
+        _state.update {
+            it.copy(saving = true, nameError = null, startError = null, distanceStepError = null, formError = null)
+        }
 
         val cadence = snapshot.repeat.toCadence()
         val command = CustomReminderCommand(
@@ -192,22 +219,13 @@ internal class NewReminderViewModel(
         const val MILLIS_PER_DAY = 86_400_000L
         const val OP_SAVE = "save"
         const val OP_PREFILL = "prefill"
-
-        /**
-         * The kilometre step of a by-distance reminder the form creates. The form has no
-         * step input; a preset carries its own, and an owner's own topic gets a service
-         * interval's worth.
-         */
-        const val DEFAULT_DISTANCE_STEP_KM = 10_000
     }
 
     private fun ReminderRepeat.toCadence(): ReminderCadence = when (this) {
         ReminderRepeat.EVERY_15_DAYS -> ReminderCadence.EveryDays(15)
         ReminderRepeat.MONTHLY -> ReminderCadence.Monthly
         ReminderRepeat.ONCE -> ReminderCadence.Once
-        ReminderRepeat.BY_DISTANCE ->
-            _state.value.preset?.defaultCadence as? ReminderCadence.EveryDistance
-                ?: ReminderCadence.EveryDistance(DEFAULT_DISTANCE_STEP_KM)
+        ReminderRepeat.BY_DISTANCE -> ReminderCadence.EveryDistance(_state.value.distanceStepKm)
     }
 }
 
@@ -225,6 +243,9 @@ private fun NewReminderUiState.withErrors(errors: NonEmptyList<DomainError>): Ne
             DomainError.ReminderStartInPast ->
                 next.copy(startError = UiText(Res.string.rm_new_error_start_past))
 
+            DomainError.ReminderIntervalNotPositive ->
+                next.copy(distanceStepError = UiText(Res.string.rm_new_error_step_not_positive))
+
             else -> next.copy(formError = UiText(Res.string.rm_new_error_save))
         }
     }
@@ -236,13 +257,28 @@ private fun NewReminderUiState.prefilledFrom(reminder: CustomReminder): NewRemin
     preset = reminder.preset,
     customLabel = if (reminder.preset == null) reminder.title.value else customLabel,
     name = reminder.title.value,
-    repeat = when (reminder.cadence) {
-        is ReminderCadence.EveryDays -> ReminderRepeat.EVERY_15_DAYS
-        ReminderCadence.Monthly -> ReminderRepeat.MONTHLY
-        ReminderCadence.Once -> ReminderRepeat.ONCE
-        is ReminderCadence.EveryDistance -> ReminderRepeat.BY_DISTANCE
-    },
+    repeat = reminder.cadence.toRepeat(),
+    distanceStepKm = (reminder.cadence as? ReminderCadence.EveryDistance)?.km ?: distanceStepKm,
     startMillis = reminder.startsOn.toEpochDays() * 86_400_000L,
     hour = reminder.at.hour,
     minute = reminder.at.minute,
 )
+
+/**
+ * A tapped suggestion's preset, pre-filling exactly what one-tap "Remind me" would have
+ * created — [RemindersViewModel.createFromSuggestion]'s own defaults — so the form reads
+ * as that reminder, ready to adjust before it's saved for real.
+ */
+private fun NewReminderUiState.prefilledFromSuggestion(preset: ReminderPreset, name: String): NewReminderUiState = copy(
+    preset = preset,
+    name = name,
+    repeat = preset.defaultCadence.toRepeat(),
+    distanceStepKm = (preset.defaultCadence as? ReminderCadence.EveryDistance)?.km ?: distanceStepKm,
+)
+
+private fun ReminderCadence.toRepeat(): ReminderRepeat = when (this) {
+    is ReminderCadence.EveryDays -> ReminderRepeat.EVERY_15_DAYS
+    ReminderCadence.Monthly -> ReminderRepeat.MONTHLY
+    ReminderCadence.Once -> ReminderRepeat.ONCE
+    is ReminderCadence.EveryDistance -> ReminderRepeat.BY_DISTANCE
+}

@@ -132,6 +132,8 @@ internal class RemindersViewModel(
             RemindersEvent.AddTapped -> emit(RemindersEffect.OpenNew)
             is RemindersEvent.ReminderTapped -> openActions(event)
             is RemindersEvent.SuggestionTapped -> createFromSuggestion(event.preset, event.name)
+            is RemindersEvent.SuggestionRowTapped ->
+                emit(RemindersEffect.OpenNewFromSuggestion(event.preset.name, event.name))
         }
     }
 
