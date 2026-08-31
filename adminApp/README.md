@@ -89,8 +89,8 @@ Every section is a placeholder: it has a route, a permission and a nav item, and
 no screen. #366 to #370 replace them one at a time. They exist now because the
 nav's shape is what the permission model is tested against.
 
-**S6** still owes the Firebase Hosting rewrites and the `noindex` headers, without
-which `/admin/users` is a 404 on reload in production.
+The hosting config is in place (§6); what is left before a first deploy is the
+prod server-side rollout, not code.
 
 ## 5. Running it
 
@@ -113,7 +113,55 @@ production Firebase project, and the mismatch surfaces as "wrong password" rathe
 than as a configuration problem — which is why the dev Firebase key has no
 fallback while the production one does.
 
-## 6. Configuration, and the trap it avoids
+## 6. Publishing
+
+Not deployed yet, and deliberately: the admin schema exists only on the **dev**
+Supabase project, so a deploy today would put a working sign-in page at
+`odoapp.in/admin` that correctly refuses everybody. Before the first deploy, prod
+needs `20260831120000_admin_rbac.sql` and `20260831130000_admin_session_support.sql`
+applied, `admin-session` deployed, and `seed_admin.sql` run — see
+`supabase/README.md`, including the note about prod's unrepaired migration history.
+
+When it is time, it is the blog's runbook with the paths changed. It goes to the
+same `odo-landing` Firebase site, and the blog's own deploy (`rm -rf
+landing/public/blog`) does not touch `public/admin`, so the two are independent.
+
+```sh
+./gradlew :adminApp:wasmJsBrowserDistribution
+rm -rf landing/public/admin && mkdir -p landing/public/admin
+cp -R adminApp/build/dist/wasmJs/productionExecutable/. landing/public/admin/
+rm -f landing/public/admin/*.map landing/public/admin/*.LICENSE.txt
+cd landing && firebase deploy --only hosting --project odo-mobile-ba9aa
+```
+
+Source maps are dropped on the way: another 1.5 MB, and they hand out the whole
+source tree — which matters more here than on the blog.
+
+Four things in `landing/firebase.json` make it work, and each has already bitten
+once on `/blog`:
+
+- **Two rewrites**, `/admin` and `/admin/**`. Firebase matches literally and the
+  second does not cover the first. Static files still win, so
+  `/admin/odo-admin.js` serves the bundle and only unmatched paths fall through.
+- **`'wasm-unsafe-eval'`** in `script-src`, or the bundle never starts and the page
+  sits on its boot placeholder.
+- **`base-uri 'self'`**, not `'none'`. The page carries `<base href="/admin/">`,
+  which is what makes a two-segment path find its own resources; `'none'` drops the
+  tag and the panel renders with none of its labels.
+- **Header sources must not overlap.** The `**/*.png` and `**/*.svg` rules win over
+  a specific source whichever order they appear in, so nothing under `/admin` may
+  be a png or an svg served from this site.
+
+`X-Robots-Tag: noindex, nofollow` is set on both sources, and `index.html` carries
+the same instruction as a `<meta name="robots">` — the header is the half a
+misordered rule can lose.
+
+The bare `/admin` document is `no-store` so a deploy is picked up immediately at
+the address people bookmark. Everything under it is `max-age=300`, because
+`/admin/**` also matches 12.5 MB of content-hashed `.wasm` that would otherwise be
+re-downloaded on every load.
+
+## 7. Configuration, and the trap it avoids
 
 Credentials come from `:webCore`'s generated `BuildWebConfig`: `SUPABASE_URL`,
 `SUPABASE_ANON_KEY` and `FIREBASE_WEB_API_KEY`, read from `local.properties` or the
@@ -127,7 +175,7 @@ off" rather than one that fails at the first request. This codebase has shipped
 unconfigured builds three times, each time surfacing as a runtime error about the
 request instead of about the missing configuration.
 
-## 7. Signing in
+## 8. Signing in
 
 Firebase email/password proves identity; `admin-session` decides whether that
 address is staff and mints a Supabase session; `my_admin_identity()` says what they
