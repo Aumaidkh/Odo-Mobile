@@ -134,9 +134,43 @@ val generateWebConfig by tasks.registering {
             ?: System.getenv("FIREBASE_WEB_API_KEY$envSuffix")
         ).orEmpty().ifBlank { if (isDev) "" else PRODUCTION_FIREBASE_WEB_API_KEY }
 
+    /**
+     * Where the blog and its CMS are served, with no trailing slash.
+     *
+     * Its own origin now, at the root of it — the blog moved off `odoapp.in/blog`
+     * onto `blog.odoapp.in`. Three things link across that boundary and none of
+     * them can use a relative path any more: the admin panel links into a post, and
+     * the blog's own footer links back to the marketing site's legal pages.
+     *
+     * Overridable from `blog.baseUrl[.dev]` for anyone running the CMS locally.
+     */
+    val blogBaseUrl = (
+        properties.getProperty("blog.baseUrl$propertySuffix")
+            ?: System.getenv("BLOG_BASE_URL$envSuffix")
+        ).orEmpty().trimEnd('/').ifBlank {
+        if (isDev) "https://odo-blog-dev.web.app" else "https://blog.odoapp.in"
+    }
+
+    /**
+     * The marketing site, which owns the root and the legal pages.
+     *
+     * Read by the blog for its footer links. Once the blog is on its own subdomain
+     * a relative `/legal/privacy` resolves against the blog and 404s, which is the
+     * one thing a privacy link must not do — a Play listing points at it.
+     */
+    val siteBaseUrl = (
+        properties.getProperty("site.baseUrl$propertySuffix")
+            ?: System.getenv("SITE_BASE_URL$envSuffix")
+        ).orEmpty().trimEnd('/').ifBlank {
+        // Dev has no landing site; the legal pages live on the mobile default site.
+        if (isDev) "https://odo-mobile-dev.web.app" else "https://odoapp.in"
+    }
+
     inputs.property("url", url)
     inputs.property("anonKey", anonKey)
     inputs.property("firebaseWebApiKey", firebaseWebApiKey)
+    inputs.property("blogBaseUrl", blogBaseUrl)
+    inputs.property("siteBaseUrl", siteBaseUrl)
     outputs.dir(outputDir)
 
     doLast {
@@ -152,6 +186,12 @@ val generateWebConfig by tasks.registering {
             |    const val SUPABASE_URL: String = "$url"
             |    const val SUPABASE_ANON_KEY: String = "$anonKey"
             |    const val FIREBASE_WEB_API_KEY: String = "$firebaseWebApiKey"
+            |
+            |    /** The blog's own origin, no trailing slash. The panel links into its editor. */
+            |    const val BLOG_BASE_URL: String = "$blogBaseUrl"
+            |
+            |    /** The marketing site, which owns the root and the legal pages. The blog links back. */
+            |    const val SITE_BASE_URL: String = "$siteBaseUrl"
             |
             |    /** Whether this build has everything it needs to reach a backend at all. */
             |    val isConfigured: Boolean

@@ -14,6 +14,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -57,6 +59,27 @@ class SupabaseSession(
     private var expiresAt: Instant? = null
 
     /**
+     * One refresh at a time.
+     *
+     * GoTrue rotates the refresh token on every use: the moment one call spends
+     * it, the stored value is dead. Two callers that spend the same token race,
+     * and the loser gets a 400 — which [restoreHoldingLock] reads as "this session
+     * is over" and answers by calling [clear], signing the tab out from under
+     * whoever won.
+     *
+     * That is not hypothetical. Opening `/admin/audit` directly did it every time:
+     * the shell restores the session at startup while the screen's view model is
+     * already asking for a token, both refresh, one wins, and the panel then made
+     * its reads anonymously. An anonymous read of a table with no anon policy is
+     * `200 []`, not an error, so the audit log drew "Nothing recorded yet" over a
+     * table with two hundred rows in it.
+     *
+     * A mutex plus a re-check inside it makes the second caller wait and then find
+     * the token the first one fetched, so the token is spent once.
+     */
+    private val refreshLock = Mutex()
+
+    /**
      * The address the session belongs to.
      *
      * Read off the token response rather than the stored refresh token, because
@@ -90,10 +113,18 @@ class SupabaseSession(
      * nobody can reproduce.
      */
     suspend fun accessToken(): String? {
-        val held = accessToken
-        val expiry = expiresAt
-        if (held != null && expiry != null && now() < expiry - HEADROOM) return held
-        return restore().getOrNull()?.let { accessToken }
+        held()?.let { return it }
+        return refreshLock.withLock {
+            // Somebody else may have refreshed while this call waited for the lock.
+            held() ?: restoreHoldingLock().getOrNull()?.let { accessToken }
+        }
+    }
+
+    /** The in-memory token, if there is one and it is not about to expire. */
+    private fun held(): String? {
+        val token = accessToken ?: return null
+        val expiry = expiresAt ?: return null
+        return token.takeIf { now() < expiry - HEADROOM }
     }
 
     /** Trades a Firebase ID token for a session. The one call that needs Firebase. */
@@ -126,7 +157,16 @@ class SupabaseSession(
      * A token that no longer works is not an error to report — it is somebody who
      * has to sign in again, which is what [WebError.NotSignedIn] means here.
      */
-    suspend fun restore(): Either<WebError, String?> {
+    suspend fun restore(): Either<WebError, String?> = refreshLock.withLock {
+        // Same double-check as [accessToken]: the panel's shell restores the
+        // session at startup while the first screen's view model is already asking
+        // for a token, and without this they would rotate the same refresh token
+        // twice. See [refreshLock].
+        held()?.let { return@withLock it.right() }
+        restoreHoldingLock()
+    }
+
+    private suspend fun restoreHoldingLock(): Either<WebError, String?> {
         val refreshToken = tokens.refreshToken ?: return null.right()
         val response = runCatching {
             client.post("$baseUrl/auth/v1/token?grant_type=refresh_token") {

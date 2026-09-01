@@ -44,6 +44,19 @@ class Postgrest(
     private val anonKey: String,
     /** The signed-in author's access token, or null for anonymous reads. */
     private val accessToken: suspend () -> String?,
+    /**
+     * True to refuse a request outright when there is no session, instead of
+     * sending it as `anon`.
+     *
+     * False for the blog, which is a public site and reads most of its content
+     * signed out. True for the admin panel, where no read is ever meant to be
+     * anonymous — and where the fallback is actively harmful: RLS answers an
+     * anonymous select with `200 []`, which every screen draws as "there is
+     * nothing here" rather than as "you are not signed in". A staff tool that
+     * reports an empty audit log because a token went missing is worse than one
+     * that reports an error.
+     */
+    private val requireSession: Boolean = false,
 ) {
 
     /** `GET /rest/v1/{table}`. [query] carries PostgREST's own filter syntax. */
@@ -107,6 +120,7 @@ class Postgrest(
         body: String,
         conflictIsFine: Boolean = false,
     ): Either<WebError, Unit> {
+        signedOut()?.let { return it.left() }
         val response = runCatching {
             client.post("$baseUrl/rest/v1/$table") {
                 headers()
@@ -204,6 +218,14 @@ class Postgrest(
     }
 
     /**
+     * [WebError.NotSignedIn] when this client may not fall back to `anon` and
+     * there is no token to use. Null the rest of the time, which is every call the
+     * blog makes and every call the panel makes while it holds a session.
+     */
+    private suspend fun signedOut(): WebError? =
+        if (requireSession && accessToken() == null) WebError.NotSignedIn else null
+
+    /**
      * Runs a call and turns everything that can go wrong into a [WebError].
      *
      * A thrown exception means the request never completed — offline, DNS, a
@@ -212,6 +234,7 @@ class Postgrest(
      * the CMS draws as "sign in again" rather than as a failure.
      */
     private suspend fun request(block: suspend () -> HttpResponse): Either<WebError, String> {
+        signedOut()?.let { return it.left() }
         val response = runCatching { block() }.getOrNull() ?: return WebError.Offline.left()
         val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
         if (response.status.isSuccess()) return body.right()
