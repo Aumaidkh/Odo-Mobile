@@ -23,6 +23,15 @@ import kotlinx.coroutines.launch
  *
  * `logOut` returns the device to an anonymous identity. It does not cancel anything — the
  * subscription belongs to the account, and signing back in brings it straight back.
+ *
+ * Binding this over [com.hopcape.odo.core.domain.subscription.SubscriptionIdentity] only means
+ * a key was present at startup ([com.hopcape.odo.infrastructure.billing.BillingEnvironment]) —
+ * it does not mean `Purchases.configure` actually succeeded. That call can fail for reasons
+ * outside this codebase (a bad or mismatched key), and `RevenueCatBootstrap` swallows the
+ * failure rather than bringing startup down over a subscription nobody has bought yet. Every
+ * call here is signed-in/signed-out lifecycle, unconditional and unrelated to whether a paywall
+ * was ever opened, so a guard is checked before touching `Purchases.sharedInstance` rather than
+ * assumed from the binding.
  */
 internal class RevenueCatIdentity(
     private val scope: CoroutineScope,
@@ -30,6 +39,10 @@ internal class RevenueCatIdentity(
 ) : SubscriptionIdentity {
 
     override fun identify(ownerId: OwnerId) {
+        if (!Purchases.isConfigured) {
+            telemetry.identifyFailed(NOT_CONFIGURED, NOT_CONFIGURED_MESSAGE)
+            return
+        }
         scope.launch {
             Purchases.sharedInstance.awaitLogInEither(newAppUserID = ownerId.value).fold(
                 ifLeft = { telemetry.identifyFailed(it.code.toString(), it.message) },
@@ -41,11 +54,20 @@ internal class RevenueCatIdentity(
     }
 
     override fun forget() {
+        if (!Purchases.isConfigured) {
+            telemetry.forgetFailed(NOT_CONFIGURED, NOT_CONFIGURED_MESSAGE)
+            return
+        }
         scope.launch {
             Purchases.sharedInstance.awaitLogOutEither().fold(
                 ifLeft = { telemetry.forgetFailed(it.code.toString(), it.message) },
                 ifRight = { telemetry.forgotten() },
             )
         }
+    }
+
+    private companion object {
+        const val NOT_CONFIGURED = "not_configured"
+        const val NOT_CONFIGURED_MESSAGE = "Purchases.configure did not succeed"
     }
 }

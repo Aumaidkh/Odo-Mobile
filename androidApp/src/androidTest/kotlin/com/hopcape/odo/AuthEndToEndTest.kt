@@ -14,8 +14,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.After
-import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -50,27 +50,32 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AuthEndToEndTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
     private lateinit var gateway: FakeAuthGateway
 
     /**
-     * Start every test signed out, on a set-up device, with a server that answers.
+     * Start every test signed out, on a set-up device, with a server that answers — and do
+     * all of it before the activity exists.
      *
-     * The activity is recreated last because the rule launches it before this runs, so it
-     * may already have read a previous test's data — and where the app opens is decided
-     * once per launch.
+     * These tests enter sign-in from the profile, which is only reachable from Home, and
+     * where the app opens is decided once per launch and then held in saved state. Seeding
+     * from `@Before` is therefore too late: the rule has already launched against the
+     * previous test's data, and the app has already decided it is showing first-run setup.
+     * [DeviceState] runs outside the compose rule, so the seed lands first.
      */
-    @Before
-    fun startSignedOutOnASetUpDevice() {
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startSignedOutOnASetUpDevice() })
+        .around(rule)
+
+    private fun startSignedOutOnASetUpDevice() {
         gateway = FakeAuthGateway()
         installAuthGateway(gateway)
         installSmsReader(SmsCodeStatus.Listening)
         clearSession()
         resetProfile()
         seedOnboardedOwner()
-        rule.activityRule.scenario.recreate()
     }
 
     /**

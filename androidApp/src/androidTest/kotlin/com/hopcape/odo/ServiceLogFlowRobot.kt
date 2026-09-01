@@ -324,9 +324,24 @@ internal fun LogTestRule.openServiceLog() {
     awaitText(LogCopy.LIST_TITLE)
 }
 
-/** Open the add form from the list's floating action button. */
+/**
+ * Open the add form, by whichever way in this list is offering.
+ *
+ * There are two, and which one is on screen depends on whether anything has been logged. A
+ * loaded list carries the FAB; an empty one deliberately does not — it offers "Scan a bill"
+ * and "Enter manually" in its empty state instead, and a FAB there would be a third copy of
+ * the same action. A robot that only knew about the FAB worked for every test that seeded
+ * history and failed for every test that did not.
+ */
 internal fun LogTestRule.openAddForm() {
-    onNodeWithLabel(LogCopy.ADD_SERVICE).performClick()
+    waitUntil(LOG_TIMEOUT_MILLIS) {
+        labelCount(LogCopy.ADD_SERVICE) > 0 || textCount(LogCopy.EMPTY_MANUAL) > 0
+    }
+    if (labelCount(LogCopy.ADD_SERVICE) > 0) {
+        onNodeWithLabel(LogCopy.ADD_SERVICE).performClick()
+    } else {
+        onNodeWithText(LogCopy.EMPTY_MANUAL).performClick()
+    }
     awaitText(LogCopy.FORM_TITLE_ADD)
 }
 

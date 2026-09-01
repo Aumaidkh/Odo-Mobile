@@ -93,6 +93,53 @@ sealed interface ArticleBlock {
     data class Callout(val label: String, val runs: List<TextRun>) : ArticleBlock
 
     /**
+     * A horizontal rule — a break between two stretches of an article that are not
+     * different enough to earn a heading.
+     *
+     * It carries nothing, which is the point: there is no text, no id and nothing to
+     * edit, so it is the one block whose editor is a line and a remove link.
+     */
+    data object Divider : ArticleBlock
+
+    /**
+     * A bulleted list. Each item carries its own runs, so **bold** and *italic* work
+     * inside a bullet exactly as they do in a paragraph.
+     *
+     * One item per line in the editor, which is what makes it feel like typing a list
+     * rather than filling in a form.
+     */
+    data class BulletList(val items: List<List<TextRun>>) : ArticleBlock
+
+    /**
+     * A picture in the body, with the two things a picture in an article needs and an
+     * app-promo card never had: [alt] for people who cannot see it, and [caption] for
+     * everyone else.
+     *
+     * Before this existed, choosing an image inserted an [AppShowcase] — so a writer
+     * who wanted a picture got a download button they then had to write around, and
+     * the published alt attribute was whatever the card's heading happened to say.
+     */
+    /**
+     * A table. [rows] is row-major, and the first row is the header when
+     * [hasHeader] is set.
+     *
+     * Cells are plain text on purpose. Runs inside a cell would double the editing
+     * surface for something a table almost never needs — a table earns its place by
+     * being scannable, and a bold word inside one is usually a sign it wanted to be
+     * a list.
+     */
+    data class Table(
+        val rows: List<List<String>>,
+        val hasHeader: Boolean = true,
+    ) : ArticleBlock
+
+    data class Image(
+        val url: String,
+        val alt: String = "",
+        val caption: String = "",
+    ) : ArticleBlock
+
+    /**
      * The app, shown inside the answer.
      *
      * The one piece of promotion inside an article, and it appears after the

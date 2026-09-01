@@ -19,6 +19,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.core.config.ConfigRefresher
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.component.OdoBanner
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
@@ -36,6 +38,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.OdoNavHost
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.navigation.rememberNavigator
+import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import com.hopcape.odo.feature.autoodometer.PendingTripLoggedProvider
 import com.hopcape.odo.feature.dashboard.presentation.shell.OdoAppScaffold
 import com.hopcape.odo.shared.resources.Res
@@ -89,20 +92,27 @@ fun App() {
 
     OdoTheme(darkTheme = settings.theme.isDark(), largerText = settings.largerText) {
         CompositionLocalProvider(LocalOdoDistanceFormat provides distanceFormat) {
-            // Above the nav host, inside the theme: no route, deep link, or pending
-            // redirect can navigate past a block, because there is no destination to
-            // reach — and the block screen is still branded and honours dark/light.
-            val current = availability
-            if (shouldBlock(current)) {
-                AppBlockedScreen(
-                    blocked = current as AppAvailability.Blocked,
-                    onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
-                )
-            } else {
-                OdoAppContent(
-                    koin = koin,
-                    maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
-                )
+            // The one parent every screen hangs off, which is why the test-tag opt-in goes
+            // here: `testTagsAsResourceId` applies to a semantics subtree, so setting it on
+            // the root covers the blocked screen and the startup screen as well as the nav
+            // host. Putting it on the activity instead would tie a decision about the whole
+            // UI tree to one platform's entry point, and iOS has no equivalent to give it.
+            Box(modifier = Modifier.fillMaxSize().debugTestTags()) {
+                // Above the nav host, inside the theme: no route, deep link, or pending
+                // redirect can navigate past a block, because there is no destination to
+                // reach — and the block screen is still branded and honours dark/light.
+                val current = availability
+                if (shouldBlock(current)) {
+                    AppBlockedScreen(
+                        blocked = current as AppAvailability.Blocked,
+                        onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
+                    )
+                } else {
+                    OdoAppContent(
+                        koin = koin,
+                        maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                    )
+                }
             }
         }
     }
@@ -118,6 +128,9 @@ fun App() {
  */
 @Composable
 private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
+    // Which onboarding a new install opens into. Read here because this is the composable
+    // that owns the start destination.
+    val onboardingConfig = koinInject<OnboardingConfig>()
     // Read once, not observed. A Flow would re-fire mid-session — the first sync that
     // touches the profile would re-evaluate the gate and could yank someone out of what
     // they were doing back to Welcome. Where the app *opened* is a question with one
@@ -128,14 +141,24 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
     // back through StartupScreen while the database is read again. The back stack survives
     // that now, so a blank frame in front of it would be the only thing still moving.
     var onboarded by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    // The decided start destination. Not saveable itself: after a configuration change
+    // the restored `onboarded` re-decides it synchronously in the initializer below, so
+    // the app never re-enters StartupScreen. Only a fresh launch takes the effect path.
+    var startDestination by remember {
+        mutableStateOf(onboarded?.let { onboardingStartDestination(it, onboardingConfig) })
+    }
     LaunchedEffect(koin) {
-        if (onboarded != null) return@LaunchedEffect
-        onboarded = withContext(Dispatchers.Default) {
+        if (startDestination != null) return@LaunchedEffect
+        val returning = withContext(Dispatchers.Default) {
             // Resolving the repository is what opens the database — and on first launch
             // seeds the vehicle catalog — so it happens off the main thread.
             val profiles = koin.get<OwnerProfileRepository>()
             profiles.observe().first()?.hasCompletedOnboarding == true
         }
+        onboarded = returning
+        // A new install waits (bounded) for the first Remote Config fetch before the
+        // video-onboarding flag is read — issue #351; a returning owner resolves at once.
+        startDestination = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
     }
 
     // Column + weighted Box regardless of whether the banner shows, so the tree shape
@@ -148,11 +171,9 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
             // Nothing is rendered until the answer is in. The start destination is the
             // stack's first element, so guessing Welcome and correcting later would flash
             // the intro at every returning owner before jumping to Home.
-            when (val returning = onboarded) {
+            when (val destination = startDestination) {
                 null -> StartupScreen()
-                else -> OdoApp(
-                    startDestination = if (returning) OdoDestination.Home else OdoDestination.Welcome,
-                )
+                else -> OdoApp(startDestination = destination)
             }
         }
     }
@@ -203,12 +224,13 @@ private fun OdoApp(startDestination: OdoDestination) {
     // navigation decision). `shouldRedirectToTripLogged` carries the actual guard so it
     // stays unit-testable outside this composable.
     val pendingTripLogged = koinInject<PendingTripLoggedProvider>()
+    val featureConfig = koinInject<FeatureConfig>()
     val pendingTripId by produceState<TripId?>(initialValue = null, pendingTripLogged) {
         pendingTripLogged.pending().collect { value = it }
     }
     LaunchedEffect(currentDestination, pendingTripId) {
         val tripId = pendingTripId
-        if (shouldRedirectToTripLogged(currentDestination, tripId)) {
+        if (shouldRedirectToTripLogged(currentDestination, tripId, featureConfig)) {
             navigationManager.navigateTo(OdoDestination.AutoOdometer.TripLogged(tripId!!.value))
         }
     }

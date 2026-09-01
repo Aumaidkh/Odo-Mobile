@@ -33,6 +33,9 @@ import com.hopcape.odo.feature.garage.resources.gr_fuel_sheet_subtitle
 import com.hopcape.odo.feature.garage.resources.gr_fuel_sheet_title
 import com.hopcape.odo.feature.garage.resources.gr_make_all
 import com.hopcape.odo.feature.garage.resources.gr_make_empty
+import com.hopcape.odo.feature.garage.resources.gr_make_not_listed
+import com.hopcape.odo.feature.garage.resources.gr_make_not_listed_confirm
+import com.hopcape.odo.feature.garage.resources.gr_make_not_listed_placeholder
 import com.hopcape.odo.feature.garage.resources.gr_make_popular
 import com.hopcape.odo.feature.garage.resources.gr_make_search
 import com.hopcape.odo.feature.garage.resources.gr_make_sheet_subtitle
@@ -40,6 +43,10 @@ import com.hopcape.odo.feature.garage.resources.gr_make_sheet_title
 import com.hopcape.odo.feature.garage.resources.gr_match_count
 import com.hopcape.odo.feature.garage.resources.gr_model_all
 import com.hopcape.odo.feature.garage.resources.gr_model_empty
+import com.hopcape.odo.feature.garage.resources.gr_model_not_listed
+import com.hopcape.odo.feature.garage.resources.gr_model_not_listed_confirm
+import com.hopcape.odo.feature.garage.resources.gr_model_not_listed_name_placeholder
+import com.hopcape.odo.feature.garage.resources.gr_model_not_listed_variant_placeholder
 import com.hopcape.odo.feature.garage.resources.gr_model_search
 import com.hopcape.odo.feature.garage.resources.gr_model_sheet_subtitle
 import com.hopcape.odo.feature.garage.resources.gr_model_sheet_title
@@ -92,6 +99,9 @@ internal fun CarDetailFields(
                 closeContentDescription = close,
                 placeholder = choose,
                 errorText = fields.make.error?.asString(),
+                notListedLabel = stringResource(Res.string.gr_make_not_listed),
+                notListedPlaceholder = stringResource(Res.string.gr_make_not_listed_placeholder),
+                notListedConfirmLabel = stringResource(Res.string.gr_make_not_listed_confirm),
             )
         }
 
@@ -111,6 +121,10 @@ internal fun CarDetailFields(
                 closeContentDescription = close,
                 placeholder = choose,
                 errorText = fields.model.error?.asString(),
+                notListedLabel = stringResource(Res.string.gr_model_not_listed),
+                notListedNamePlaceholder = stringResource(Res.string.gr_model_not_listed_name_placeholder),
+                notListedVariantPlaceholder = stringResource(Res.string.gr_model_not_listed_variant_placeholder),
+                notListedConfirmLabel = stringResource(Res.string.gr_model_not_listed_confirm),
             )
         }
 

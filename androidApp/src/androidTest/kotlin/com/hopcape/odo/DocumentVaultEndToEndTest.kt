@@ -90,7 +90,8 @@ class DocumentVaultEndToEndTest {
      * Start every test from a set-up device with an empty vault.
      *
      * The activity is recreated because the rule launches it before this runs, so it may have
-     * already read a previous test's data.
+     * already read a previous test's data. The class-wide seed above is what keeps the gate's
+     * answer correct across that rebuild; this only refreshes what the screens have read.
      *
      * Intents are captured for the whole class, not only the tests that pick a file: starting
      * the recording once keeps it symmetrical with the release in [tearDown].

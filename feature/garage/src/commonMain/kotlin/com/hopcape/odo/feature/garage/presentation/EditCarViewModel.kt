@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.CarDetailsCommand
 import com.hopcape.odo.feature.garage.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateCarDetailsUseCase
 import com.hopcape.odo.feature.garage.presentation.state.FormField
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
@@ -42,6 +43,7 @@ internal class EditCarViewModel(
     private val updateDetails: UpdateCarDetailsUseCase,
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
+    private val reportUnlisted: ReportUnlistedVehicleUseCase,
     private val telemetry: GarageTelemetry,
 ) : ViewModel() {
 
@@ -136,10 +138,28 @@ internal class EditCarViewModel(
                 },
                 ifRight = {
                     _state.update { it.copy(submission = Submission.Succeeded) }
+                    reportIfUnlisted(fields)
                     emit(EditCarEffect.Saved)
                 },
             )
         }
+    }
+
+    /**
+     * See `AddCarViewModel.reportIfUnlisted` — same inference, same fire-and-forget contract,
+     * and the same reason this suspends inline instead of spawning a child
+     * `viewModelScope.launch`: [save] navigates away right after this returns.
+     */
+    private suspend fun reportIfUnlisted(fields: CarFormFields) {
+        val make = fields.make.value ?: return
+        val model = fields.model.value ?: return
+        val options = _state.value.options
+        val knownMake = options.makes.any { it.equals(make, ignoreCase = true) }
+        val knownModel = options.models.any {
+            it.name.equals(model.name, ignoreCase = true) && it.variant == model.variant
+        }
+        if (knownMake && knownModel) return
+        reportUnlisted(make, model.name, model.variant)
     }
 
     /** Edit one field and drop any pending failure — the form is being corrected. */

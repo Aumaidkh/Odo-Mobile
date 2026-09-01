@@ -3,7 +3,9 @@ package com.hopcape.odo
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -26,6 +28,9 @@ internal object PaywallCopy {
 
     /** On the profile, not the paywall — the card that opens it. */
     const val GO_PRO = "Go Pro"
+
+    /** The card's button — the only thing on it that actually opens the paywall. */
+    const val SEE_PLANS = "See plans"
     const val RESTORE = "Restore"
     const val MONTHLY = "Monthly"
     const val ANNUAL = "Annual"
@@ -88,31 +93,64 @@ internal fun installOffer(
             ),
         ),
     )
-    installCatalog(SubscriptionCatalog { offer.right() })
+    installCatalog { offer.right() }
 }
 
 /** A store that cannot be reached — the state that must show a retry and no price. */
 internal fun installUnreachableStore() {
-    installCatalog(SubscriptionCatalog { DomainError.StoreUnavailable.left() })
+    installCatalog { DomainError.StoreUnavailable.left() }
 }
 
 /** Restore the shipped behaviour for a build with no store key. */
 internal fun installNoStore() {
-    installCatalog(SubscriptionCatalog { DomainError.NothingForSale.left() })
+    installCatalog { DomainError.NothingForSale.left() }
 }
 
-private fun installCatalog(catalog: SubscriptionCatalog) {
+/**
+ * One catalog for the whole process, whose answer the tests move.
+ *
+ * The obvious implementation — rebind `SubscriptionCatalog` in Koin on every install — works
+ * right up to the retry test and cannot work there at all. [PaywallViewModel] takes its
+ * catalog as a constructor dependency, so the instance it holds is the one that existed when
+ * the screen opened; a later rebinding changes what the *next* ViewModel would get and
+ * nothing about the live one. Tapping "Try again" therefore re-asked the broken store and
+ * the offer never arrived.
+ *
+ * Holding a mutable answer behind a single binding means retry re-enters the same object and
+ * sees whatever the test last installed, which is what "the store came back" actually looks
+ * like.
+ */
+private object SwitchableCatalog : SubscriptionCatalog {
+    @Volatile
+    var answer: () -> Either<DomainError, Offer> = { DomainError.NothingForSale.left() }
+
+    override suspend fun current(): Either<DomainError, Offer> = answer()
+}
+
+private var catalogBound = false
+
+private fun installCatalog(answer: () -> Either<DomainError, Offer>) {
+    SwitchableCatalog.answer = answer
+    if (catalogBound) return
     GlobalContext.get().loadModules(
-        listOf(module { single<SubscriptionCatalog> { catalog } }),
+        listOf(module { single<SubscriptionCatalog> { SwitchableCatalog } }),
         allowOverride = true,
     )
+    catalogBound = true
 }
 
 /* ------------------------------ Getting there ------------------------------ */
 
-/** Open the paywall from the profile's upsell card, which is where a free owner sees it. */
+/**
+ * Open the paywall from the profile's upsell card, which is where a free owner sees it.
+ *
+ * The card's button, not its "Go Pro" heading. The heading is a plain label with no click
+ * action of its own and the card is not clickable as a whole, so a tap on the heading lands
+ * on nothing and the test then fails on the paywall being absent rather than on never having
+ * asked for it. The button is also below the four feature rows, so it needs scrolling to.
+ */
 internal fun PaywallTestRule.goPro() {
-    onNodeWithText(PaywallCopy.GO_PRO).performClick()
+    onNodeWithText(PaywallCopy.SEE_PLANS).performScrollTo().performClick()
     waitForIdle()
 }
 

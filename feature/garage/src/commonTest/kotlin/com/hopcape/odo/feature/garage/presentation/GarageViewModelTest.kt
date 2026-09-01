@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.garage.presentation
 
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
@@ -72,6 +73,10 @@ class GarageViewModelTest {
             tracker = FakeTripTracker(enabled = false),
             trips = FakeTripRepository(),
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            config = object : FeatureConfig {
+                override val autoOdometerEnabled = true
+                override val refuelDetectEnabled = true
+            },
             timeZone = TimeZone.UTC,
         ),
         challans = FakeChallanRepository(),

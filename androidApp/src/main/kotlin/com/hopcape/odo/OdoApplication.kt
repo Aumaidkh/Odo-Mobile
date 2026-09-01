@@ -16,6 +16,7 @@ import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.HAnalytics
 import com.hopcape.crashreporting.api.CrashConfig
 import com.hopcape.crashreporting.api.CrashReporter
+import com.hopcape.odo.core.platform.app.InstallationId
 import com.hopcape.logging.api.FileLoggingConfig
 import com.hopcape.logging.api.HLogger
 import com.hopcape.logging.api.LogLevel
@@ -28,6 +29,7 @@ import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
 import com.hopcape.odo.core.sync.SyncReason
+import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.tripTrackerAndroidModule
@@ -122,7 +124,16 @@ class OdoApplication : Application() {
             androidContext(this@OdoApplication)
         }
 
-        HLogger.tag("APP_LIFECYCLE").i("process_created", mapOf("appSessionId" to appSessionId))
+        // One id per installation, on both signals that can carry it. It is the first thing
+        // read when a support ticket quotes a reference: the log file says which phone wrote
+        // it, and a crash from the same phone lines up with it (docs/LOGGING_PLAN.md §7.3).
+        val installationId = KoinPlatform.getKoin().get<InstallationId>().value
+        CrashReporter.setCustomKey(KEY_INSTALL_ID, installationId)
+
+        HLogger.tag("APP_LIFECYCLE").i(
+            "process_created",
+            mapOf("appSessionId" to appSessionId, KEY_INSTALL_ID to installationId),
+        )
 
         // D3 (docs/LOGGING_PLAN.md §1): auto-upload is opt-in in release; debug/internal
         // builds start granted so the periodic path can be exercised without a manual consent
@@ -160,6 +171,13 @@ class OdoApplication : Application() {
                     // never throws, so there is nothing here for a crash to come from.
                     CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
                         KoinPlatform.getKoin().get<AppStatusProvider>().refresh()
+                        // The one fetch the config system does. Reads never fetch on
+                        // their own, so a screen reading three keys does not trigger
+                        // three round trips or see the answer change mid-frame. On a
+                        // cold start this callback is also launch, so the "once at
+                        // launch, again on foreground" rule needs no second call site.
+                        // refresh() never throws.
+                        KoinPlatform.getKoin().get<ConfigRefresher>().refresh()
                     }
                 }
 
@@ -368,5 +386,11 @@ class OdoApplication : Application() {
         //  here so the acquisition funnel is observable during development; before
         //  launch, drive setConsent() from the user's recorded consent decision.
         HAnalytics.setConsent(ConsentStatus.GRANTED)
+    }
+
+    private companion object {
+        /** The Crashlytics key and log field the installation id is written under. Same
+         *  string on both, so one search covers a crash and the log file around it. */
+        const val KEY_INSTALL_ID = "install_id"
     }
 }

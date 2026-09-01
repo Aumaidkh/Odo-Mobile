@@ -2,11 +2,13 @@ package com.hopcape.odo.feature.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.designsystem.component.OdoCity
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.profile.domain.model.SUPPORTED_CITIES
 import com.hopcape.odo.feature.profile.domain.usecase.DeleteAllDataUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.LoadCityCatalogUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.OwnerDetailsCommand
+import com.hopcape.odo.feature.profile.domain.usecase.ReportUnlistedCityUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.presentation.state.Submission
@@ -33,10 +35,12 @@ internal class EditProfileViewModel(
     private val updateDetails: UpdateOwnerDetailsUseCase,
     private val setAvatar: SetAvatarUseCase,
     private val deleteAllData: DeleteAllDataUseCase,
+    private val loadCityCatalog: LoadCityCatalogUseCase,
+    private val reportUnlistedCity: ReportUnlistedCityUseCase,
     private val telemetry: ProfileTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(EditProfileUiState(cities = SUPPORTED_CITIES))
+    private val _state = MutableStateFlow(EditProfileUiState())
     val state: StateFlow<EditProfileUiState> = _state.asStateFlow()
 
     private val _effects = Channel<EditProfileEffect>(Channel.BUFFERED)
@@ -78,6 +82,10 @@ internal class EditProfileViewModel(
                 )
             }
         }
+        viewModelScope.launch {
+            val cities = loadCityCatalog().map { OdoCity(id = it.id, name = it.name, subtitle = it.state) }
+            _state.update { it.copy(cities = cities) }
+        }
     }
 
     private fun save() {
@@ -96,11 +104,27 @@ internal class EditProfileViewModel(
                 ifLeft = { errors -> _state.update { it.withErrors(errors.toList()) } },
                 ifRight = {
                     cityOnOpen = current.city.value
+                    reportIfUnlisted(current)
                     _state.update { it.copy(submission = Submission.Succeeded) }
                     _effects.trySend(EditProfileEffect.Saved)
                 },
             )
         }
+    }
+
+    /**
+     * Best-effort report of a city the picker's catalog doesn't have, the same inference
+     * `OnboardingViewModel.reportIfUnlisted` makes for an unlisted car.
+     *
+     * Suspends inline rather than spawning a child `viewModelScope.launch` — [save]'s caller
+     * sends the [EditProfileEffect.Saved] effect right after this returns, which would
+     * otherwise race a fire-and-forget launch against the ViewModel being cleared.
+     */
+    private suspend fun reportIfUnlisted(state: EditProfileUiState) {
+        val name = state.city.value?.takeIf { it.isNotBlank() } ?: return
+        val known = state.cities.any { it.name.equals(name, ignoreCase = true) }
+        if (known) return
+        reportUnlistedCity(name)
     }
 
     private fun savePhoto(pickedRef: String) {

@@ -1,0 +1,19 @@
+-- Schema 6 -> 7: the diagnostics outbox.
+--
+-- "Send diagnostics" used to be fire and forget: the tap queued an upload and nothing
+-- recorded that it had been asked for. The upload arrived on the server with no way to tell
+-- which ticket it belonged to, and a support mail could not quote anything to look up. This
+-- table holds the request between the tap and the upload, which may be hours and a process
+-- death apart.
+--
+-- A new table, so there is nothing to rebuild and no existing row to migrate. An installed
+-- build gets an empty outbox, which is the correct state for a device that has never asked.
+CREATE TABLE diagnostic_requests (
+    reference  TEXT NOT NULL PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    state      TEXT NOT NULL,
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+);
+
+CREATE INDEX idx_diagnostic_requests_open ON diagnostic_requests (created_at) WHERE state = 'OPEN';

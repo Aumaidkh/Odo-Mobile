@@ -20,7 +20,7 @@ internal object RefuelCopy {
 
     /* The prefilled form. */
     const val LOG_TITLE = "Log a fill"
-    const val PREFILL_NOTE = "Filled in from your last visit. Change what's different."
+    const val PREFILL_NOTE = "Filled in from your last visit. Change what’s different."
     const val STATION_LABEL = "Station"
     const val STATION_NOTE = "last used"
     const val RATE_CARRIED = "carried forward"
@@ -32,7 +32,7 @@ internal object RefuelCopy {
     /* The confirm surface every channel lands on. */
     const val CONFIRM_TITLE = "Confirm this fill"
     const val CONFIRM_CTA = "Confirm & log"
-    const val CONFIRM_REJECT = "This wasn't fuel"
+    const val CONFIRM_REJECT = "This wasn’t fuel"
     const val ODOMETER_WARNING = "PREDICTED — CHECK IT"
     const val ORIGIN_HISTORY = "FROM HISTORY"
     const val ORIGIN_DERIVED = "CALCULATED"

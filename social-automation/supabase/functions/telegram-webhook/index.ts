@@ -1,6 +1,9 @@
 // Telegram approval webhook. The renderer sends the owner a preview with
 // [Approve] / [Reject] inline buttons; Telegram calls this function on tap.
-// Approve → publish feed post + story via IG Graph API → log. Reject → mark.
+// Approve → publish feed post/carousel (+ story) via IG Graph API → log.
+// Reject → mark. If the item is flagged crosspost_fb, a ready-to-upload
+// Facebook message (caption + image links) follows a successful publish —
+// the owner posts it to the FB page manually.
 //
 // Register once (after deploy):
 //   curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
@@ -27,36 +30,46 @@ async function igToken(): Promise<string> {
   return data?.value ?? Deno.env.get("IG_ACCESS_TOKEN") ?? "YOUR_LONG_LIVED_IG_TOKEN_HERE";
 }
 
-async function igPublish(imageUrl: string, caption: string | null, story: boolean): Promise<string> {
-  const token = await igToken();
-  const params = new URLSearchParams({ image_url: imageUrl, access_token: token });
-  if (story) params.set("media_type", "STORIES");
-  if (caption) params.set("caption", caption);
+async function createContainer(token: string, fields: Record<string, string>): Promise<string> {
+  const params = new URLSearchParams({ ...fields, access_token: token });
+  let json: Record<string, unknown> = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`${IG}/${IG_USER_ID}/media`, { method: "POST", body: params });
+    json = await res.json();
+    if (res.ok) return json.id as string;
+    // 9004/2207052 = IG couldn't fetch the image URL. Flaky in practice even
+    // when the URL serves fine (it claims is_transient:false) — retry.
+    const err = (json as { error?: { code?: number; error_subcode?: number } }).error;
+    const fetchFlake = err?.code === 9004 || err?.error_subcode === 2207052;
+    if (!fetchFlake) break;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error(`container: ${JSON.stringify(json)}`);
+}
 
-  const containerRes = await fetch(`${IG}/${IG_USER_ID}/media`, { method: "POST", body: params });
-  const container = await containerRes.json();
-  if (!containerRes.ok) throw new Error(`container: ${JSON.stringify(container)}`);
-
-  // Publishing straight away races container processing (error 9007 / subcode
-  // 2207027 "media not available"). Wait for FINISHED, then publish with retries.
+// Publishing straight away races container processing (error 9007 / subcode
+// 2207027 "media not available"). Wait for FINISHED before moving on.
+async function waitFinished(token: string, containerId: string) {
   for (let i = 0; i < 15; i++) {
-    const statusRes = await fetch(`${IG}/${container.id}?fields=status_code&access_token=${token}`);
-    const status = await statusRes.json();
-    if (status.status_code === "FINISHED") break;
+    const res = await fetch(`${IG}/${containerId}?fields=status_code&access_token=${token}`);
+    const status = await res.json();
+    if (status.status_code === "FINISHED") return;
     if (status.status_code === "ERROR" || status.status_code === "EXPIRED") {
       throw new Error(`container status: ${JSON.stringify(status)}`);
     }
     await new Promise((r) => setTimeout(r, 2000));
   }
+}
 
+async function publishContainer(token: string, containerId: string): Promise<string> {
   let published: Record<string, unknown> = {};
   for (let attempt = 0; attempt < 4; attempt++) {
-    const publishRes = await fetch(`${IG}/${IG_USER_ID}/media_publish`, {
+    const res = await fetch(`${IG}/${IG_USER_ID}/media_publish`, {
       method: "POST",
-      body: new URLSearchParams({ creation_id: container.id, access_token: token }),
+      body: new URLSearchParams({ creation_id: containerId, access_token: token }),
     });
-    published = await publishRes.json();
-    if (publishRes.ok) return published.id as string;
+    published = await res.json();
+    if (res.ok) return published.id as string;
     const err = (published as { error?: { code?: number; error_subcode?: number } }).error;
     const notReady = err?.code === 9007 || err?.error_subcode === 2207027;
     if (!notReady) break;
@@ -65,12 +78,115 @@ async function igPublish(imageUrl: string, caption: string | null, story: boolea
   throw new Error(`publish: ${JSON.stringify(published)}`);
 }
 
-async function tg(method: string, body: Record<string, unknown>) {
-  await fetch(`${TG}/${method}`, {
+async function igPublishSingle(imageUrl: string, caption: string | null, story: boolean): Promise<string> {
+  const token = await igToken();
+  const fields: Record<string, string> = { image_url: imageUrl };
+  if (story) fields.media_type = "STORIES";
+  if (caption) fields.caption = caption;
+  const id = await createContainer(token, fields);
+  await waitFinished(token, id);
+  return await publishContainer(token, id);
+}
+
+// ── Facebook Page publishing ──
+// The IG-Login token can't touch a FB Page; a separate Page access token
+// (from a long-lived user token of a Page admin) lives in app_config.
+const FB = "https://graph.facebook.com/v23.0";
+
+async function fbCreds(): Promise<{ pageId: string; token: string }> {
+  const { data } = await supabase.from("app_config").select("key, value").in("key", ["fb_page_id", "fb_page_token"]);
+  const map = Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]));
+  return {
+    pageId: map.fb_page_id ?? Deno.env.get("FB_PAGE_ID") ?? "",
+    token: map.fb_page_token ?? Deno.env.get("FB_PAGE_TOKEN") ?? "",
+  };
+}
+
+async function fbPublish(imageUrls: string[], message: string): Promise<string> {
+  const { pageId, token } = await fbCreds();
+  if (!pageId || !token) throw new Error("fb_page_id / fb_page_token missing in social.app_config");
+
+  // Single image: one photo post carrying the caption.
+  if (imageUrls.length === 1) {
+    const res = await fetch(`${FB}/${pageId}/photos`, {
+      method: "POST",
+      body: new URLSearchParams({ url: imageUrls[0], caption: message, access_token: token }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(`fb photo: ${JSON.stringify(json)}`);
+    return (json.post_id ?? json.id) as string;
+  }
+
+  // Multi image: upload each unpublished, then one feed post attaching them all.
+  const ids: string[] = [];
+  for (const url of imageUrls) {
+    const res = await fetch(`${FB}/${pageId}/photos`, {
+      method: "POST",
+      body: new URLSearchParams({ url, published: "false", access_token: token }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(`fb unpublished photo: ${JSON.stringify(json)}`);
+    ids.push(json.id as string);
+  }
+  const params = new URLSearchParams({ message, access_token: token });
+  ids.forEach((id, i) => params.set(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
+  const res = await fetch(`${FB}/${pageId}/feed`, { method: "POST", body: params });
+  const json = await res.json();
+  if (!res.ok) throw new Error(`fb feed: ${JSON.stringify(json)}`);
+  return json.id as string;
+}
+
+async function igPublishCarousel(imageUrls: string[], caption: string): Promise<string> {
+  const token = await igToken();
+  const children: string[] = [];
+  for (const url of imageUrls) {
+    children.push(await createContainer(token, { image_url: url, is_carousel_item: "true" }));
+  }
+  for (const child of children) await waitFinished(token, child);
+  const parent = await createContainer(token, {
+    media_type: "CAROUSEL",
+    children: children.join(","),
+    caption,
+  });
+  await waitFinished(token, parent);
+  return await publishContainer(token, parent);
+}
+
+async function tg(method: string, body: Record<string, unknown>): Promise<{ ok: boolean }> {
+  const res = await fetch(`${TG}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  return await res.json();
+}
+
+// Singles' approval message is a photo (caption edit); carousels' is a plain
+// text message under the album (text edit). Editing without reply_markup drops
+// the inline keyboard — pass keepButtons on failures so the owner can retry.
+async function editResult(
+  item: { id: number; format?: string },
+  chatId: number,
+  messageId: number,
+  text: string,
+  keepButtons = false,
+  prefix = "", // "" = IG actions, "fb_" = FB Page actions
+) {
+  const markup = keepButtons
+    ? {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🔁 Retry", callback_data: `${prefix}approve:${item.id}` },
+          { text: "❌ Reject", callback_data: `${prefix}reject:${item.id}` },
+        ]],
+      },
+    }
+    : {};
+  if ((item.format ?? "single") === "carousel") {
+    await tg("editMessageText", { chat_id: chatId, message_id: messageId, text, ...markup });
+  } else {
+    await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption: text, ...markup });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -87,8 +203,82 @@ Deno.serve(async (req) => {
   const chatId = cb.message.chat.id;
   const messageId = cb.message.message_id;
 
+  // ── Growth-plan task ticks (gp:<n>) ──
+  // The 30-day-plan notifier (social-automation/growth-plan) sends task lists
+  // whose tickable lines start with ☐/✅, plus one numbered button per line.
+  // State lives in the message itself: toggle the n-th checkbox line, rebuild
+  // the text and the keyboard from it. No queue item, no DB.
+  if (action === "gp") {
+    const idx = Number(idRaw);
+    const lines: string[] = String(cb.message.text ?? "").split("\n");
+    let seen = 0;
+    let nowTicked: boolean | null = null;
+    for (let i = 0; i < lines.length; i++) {
+      if (!lines[i].startsWith("☐ ") && !lines[i].startsWith("✅ ")) continue;
+      seen++;
+      if (seen === idx) {
+        nowTicked = lines[i].startsWith("☐ ");
+        lines[i] = (nowTicked ? "✅ " : "☐ ") + lines[i].slice(2);
+        break;
+      }
+    }
+    if (nowTicked === null) {
+      await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Ye item nahi mila." });
+      return Response.json({ ok: true });
+    }
+    const states = lines
+      .filter((l) => l.startsWith("☐ ") || l.startsWith("✅ "))
+      .map((l) => l.startsWith("✅ "));
+    const buttons = states.map((done, i) => ({
+      text: `${done ? "✅" : "☐"} ${i + 1}`,
+      callback_data: `gp:${i + 1}`,
+    }));
+    const rows: typeof buttons[] = [];
+    for (let i = 0; i < buttons.length; i += 5) rows.push(buttons.slice(i, i + 5));
+    await tg("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text: lines.join("\n"),
+      reply_markup: { inline_keyboard: rows },
+    });
+    await tg("answerCallbackQuery", { callback_query_id: cb.id, text: nowTicked ? "Ticked ✔" : "Un-ticked" });
+    return Response.json({ ok: true });
+  }
+
   const { data: item } = await supabase.from("content_queue").select("*").eq("id", queueId).single();
-  if (!item || item.status !== "rendered") {
+  if (!item) {
+    await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Ye item ab actionable nahi hai." });
+    return Response.json({ ok: true });
+  }
+
+  // FB Page actions run on their own lifecycle (fb_status), independent of the
+  // IG approval — the IG post may or may not be published yet.
+  if (action === "fb_approve" || action === "fb_reject") {
+    if (item.fb_status !== "pending") {
+      await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Ye FB item ab actionable nahi hai." });
+      return Response.json({ ok: true });
+    }
+    if (action === "fb_reject") {
+      await supabase.from("content_queue").update({ fb_status: "rejected", updated_at: new Date().toISOString() }).eq("id", queueId);
+      await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "FB rejected." });
+      await editResult(item, chatId, messageId, `❌ FB rejected (#${queueId})`);
+      return Response.json({ ok: true });
+    }
+    await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "FB Page pe publishing…" });
+    try {
+      const caption = `${item.copy.caption}\n\n${item.copy.hashtags}`;
+      const urls: string[] = item.format === "carousel" ? item.carousel_urls : [item.post_image_url];
+      const fbPostId = await fbPublish(urls, caption);
+      await supabase.from("content_queue").update({ fb_status: "published", fb_post_id: fbPostId, updated_at: new Date().toISOString() }).eq("id", queueId);
+      await editResult(item, chatId, messageId, `✅ FB Page pe published (#${queueId})\npost: ${fbPostId}`);
+    } catch (e) {
+      await supabase.from("content_queue").update({ error: String(e), updated_at: new Date().toISOString() }).eq("id", queueId);
+      await editResult(item, chatId, messageId, `⚠️ FB publish FAILED (#${queueId})\n${String(e).slice(0, 300)}`, true, "fb_");
+    }
+    return Response.json({ ok: true });
+  }
+
+  if (item.status !== "rendered") {
     await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Ye item ab actionable nahi hai." });
     return Response.json({ ok: true });
   }
@@ -96,7 +286,7 @@ Deno.serve(async (req) => {
   if (action === "reject") {
     await supabase.from("content_queue").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", queueId);
     await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Rejected." });
-    await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption: `❌ Rejected (#${queueId})` });
+    await editResult(item, chatId, messageId, `❌ Rejected (#${queueId})`);
     return Response.json({ ok: true });
   }
 
@@ -104,20 +294,24 @@ Deno.serve(async (req) => {
     await tg("answerCallbackQuery", { callback_query_id: cb.id, text: "Publishing…" });
     try {
       const caption = `${item.copy.caption}\n\n${item.copy.hashtags}`;
-      const mediaId = await igPublish(item.post_image_url, caption, false);
+      const mediaId = item.format === "carousel"
+        ? await igPublishCarousel(item.carousel_urls, caption)
+        : await igPublishSingle(item.post_image_url, caption, false);
       let storyId: string | null = null;
       if (item.story_image_url) {
-        storyId = await igPublish(item.story_image_url, null, true);
+        storyId = await igPublishSingle(item.story_image_url, null, true);
       }
       await supabase.from("content_queue").update({ status: "published", updated_at: new Date().toISOString() }).eq("id", queueId);
       await supabase.from("post_log").insert({ queue_id: queueId, ig_media_id: mediaId, ig_story_id: storyId });
-      await tg("editMessageCaption", {
-        chat_id: chatId, message_id: messageId,
-        caption: `✅ Published (#${queueId})\nfeed: ${mediaId}${storyId ? `\nstory: ${storyId}` : ""}`,
-      });
+      await editResult(item, chatId, messageId,
+        `✅ Published (#${queueId})\nfeed: ${mediaId}${storyId ? `\nstory: ${storyId}` : ""}`);
+
+      // FB copies are delivered by the renderer at render time, straight to the
+      // FB uploader's chat (owner's call: no approval gate on FB) — nothing to
+      // do here.
     } catch (e) {
       await supabase.from("content_queue").update({ error: String(e), updated_at: new Date().toISOString() }).eq("id", queueId);
-      await tg("editMessageCaption", { chat_id: chatId, message_id: messageId, caption: `⚠️ Publish FAILED (#${queueId})\n${String(e).slice(0, 300)}` });
+      await editResult(item, chatId, messageId, `⚠️ Publish FAILED (#${queueId})\n${String(e).slice(0, 300)}`, true);
     }
   }
 

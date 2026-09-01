@@ -1,5 +1,6 @@
 package com.hopcape.logging.internal.upload
 
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.logging.api.LogFileStore
 import com.hopcape.logging.api.LogUploadOutcome
 import com.hopcape.logging.api.LogUploadResult
@@ -17,11 +18,17 @@ import kotlin.concurrent.Volatile
  * [target] is `null` on a build with no configured upload destination (an unconfigured
  * Supabase project) — every pass is [LogUploadOutcome.Skipped] in that case, the same as
  * every other Supabase adapter's absence.
+ *
+ * [requests] is the diagnostics outbox. A pass asks it for the oldest request still waiting
+ * and files every file it uploads under that reference, so the code in somebody's support
+ * mail finds their logs. It is `null` on a build with no local database bound, and the pass
+ * then uploads without a reference rather than not uploading.
  */
 internal class LogUploadCoordinator(
     private val logger: Logger,
     private val store: LogFileStore,
     private val target: LogUploadTarget?,
+    private val requests: DiagnosticRequests? = null,
 ) : LogUploadRunner {
 
     @Volatile
@@ -58,6 +65,10 @@ internal class LogUploadCoordinator(
         // means everything logged so far, not just what had already rotated naturally.
         logger.flush()
 
+        // Read before the first upload, not per file: every file this pass sends belongs to
+        // the same request, and a request opened mid-pass belongs to the next one.
+        val reference = requests?.oldestOpen()
+
         val sealedFiles = store.listSealed()
         var processed = 0
         var anyLeftForRetry = false
@@ -65,7 +76,7 @@ internal class LogUploadCoordinator(
         for (file in sealedFiles) {
             val bytes = store.read(file.name) ?: continue // deleted from under us; nothing to do
 
-            when (uploadTarget.upload(file, bytes)) {
+            when (uploadTarget.upload(file, bytes, reference)) {
                 LogUploadResult.DELIVERED -> {
                     store.delete(file.name)
                     processed++
@@ -80,10 +91,30 @@ internal class LogUploadCoordinator(
             }
         }
 
+        settle(reference, anyLeftForRetry)
+
         return if (anyLeftForRetry) LogUploadOutcome.Partial else LogUploadOutcome.Delivered(processed)
+    }
+
+    /**
+     * Closes the request out, or records that this attempt did not finish it.
+     *
+     * A request is only delivered once nothing is left behind. Closing it on a partial pass
+     * would tell support the logs are there while some are still on the phone, and that is
+     * the failure this whole path exists to avoid.
+     */
+    private suspend fun settle(reference: String?, anyLeftForRetry: Boolean) {
+        if (reference == null) return
+        val outbox = requests ?: return
+        if (anyLeftForRetry) {
+            outbox.markAttemptFailed(reference, RETRY_REASON)
+        } else {
+            outbox.markDelivered(reference)
+        }
     }
 
     private companion object {
         const val TAG = "LogUpload"
+        const val RETRY_REASON = "files left for retry"
     }
 }

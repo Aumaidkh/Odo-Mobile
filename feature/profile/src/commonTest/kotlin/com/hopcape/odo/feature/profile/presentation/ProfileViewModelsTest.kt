@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.profile.presentation
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
@@ -19,6 +20,10 @@ import com.hopcape.odo.feature.profile.domain.usecase.FakeFileStore
 import com.hopcape.odo.feature.profile.domain.usecase.FakeProfileRepository
 import com.hopcape.odo.feature.profile.domain.usecase.FakeSettingsRepository
 import com.hopcape.odo.feature.profile.domain.usecase.ObserveProfileUseCase
+import com.hopcape.odo.core.domain.city.CityCatalog
+import com.hopcape.odo.core.domain.city.UnlistedCityReporter
+import com.hopcape.odo.feature.profile.domain.usecase.LoadCityCatalogUseCase
+import com.hopcape.odo.feature.profile.domain.usecase.ReportUnlistedCityUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.SetAvatarUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateOwnerDetailsUseCase
 import com.hopcape.odo.feature.profile.domain.usecase.UpdateSettingsUseCase
@@ -159,7 +164,6 @@ class ProfileViewModelsTest {
         assertEquals("Rahul", state.name.value)
         assertEquals("rahul@example.com", state.email.value)
         assertEquals("Pune", state.city.value)
-        assertTrue(state.cities.contains("Pune"))
     }
 
     @Test
@@ -415,7 +419,11 @@ class ProfileViewModelsTest {
             ),
             updateDetails = UpdateOwnerDetailsUseCase(profiles),
             setAvatar = SetAvatarUseCase(profiles, files),
-            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore()),
+            deleteAllData = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore(), FakeDiagnosticRequests()),
+            loadCityCatalog = LoadCityCatalogUseCase(catalog = object : CityCatalog {
+                override suspend fun cities() = emptyList<com.hopcape.odo.core.domain.city.City>()
+            }),
+            reportUnlistedCity = ReportUnlistedCityUseCase(reporter = UnlistedCityReporter { }),
             telemetry = testTelemetry(analytics),
         )
     }
@@ -445,6 +453,15 @@ class ProfileViewModelsTest {
         testScheduler.advanceUntilIdle()
 
         assertTrue(seenStore.seen.isEmpty())
+    }
+
+    private class FakeDiagnosticRequests : DiagnosticRequests {
+        var cleared = false
+        override suspend fun open(reference: String, createdAtEpochMs: Long) = Unit
+        override suspend fun oldestOpen(): String? = null
+        override suspend fun markDelivered(reference: String) = Unit
+        override suspend fun markAttemptFailed(reference: String, error: String?) = Unit
+        override suspend fun clearAll() { cleared = true }
     }
 
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {

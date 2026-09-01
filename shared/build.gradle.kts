@@ -43,6 +43,8 @@ kotlin {
             // OwnerProfile.hasCompletedOnboarding through the existing repository port.
             // Brings coroutines + Arrow along via :core:domain's api dependencies.
             implementation(projects.core.domain)
+            // coreConfigModule, listed in initKoin.
+            implementation(projects.core.config)
             implementation(projects.feature.auth)
             implementation(projects.feature.autoOdometer)
             implementation(projects.feature.onboarding)
@@ -100,6 +102,10 @@ kotlin {
             implementation(projects.observability.crashreporting)
             // koinInject()/getKoin()/KoinContext for App(); brings koin-compose in.
             implementation(libs.koin.composeViewmodel)
+        }
+        commonTest.dependencies {
+            // runTest for the start-destination gate, which waits on the first config fetch.
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

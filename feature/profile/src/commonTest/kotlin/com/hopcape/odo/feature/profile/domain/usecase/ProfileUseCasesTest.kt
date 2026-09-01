@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.profile.domain.usecase
 
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -231,7 +232,7 @@ class ProfileUseCasesTest {
         val settings = FakeSettingsRepository(AppSettings(theme = ThemePreference.DARK))
         val files = FakeFileStore()
 
-        val result = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore())()
+        val result = DeleteAllDataUseCase(cars, profiles, settings, files, FakeShowcaseSeenStore(), FakeDiagnosticRequests())()
 
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals(listOf(testCar().id), cars.softDeleted)
@@ -246,12 +247,28 @@ class ProfileUseCasesTest {
         val cars = FakeCarRepository(car = null)
         val profiles = FakeProfileRepository()
 
-        val result = DeleteAllDataUseCase(cars, profiles, FakeSettingsRepository(), FakeFileStore(), FakeShowcaseSeenStore())()
+        val result = DeleteAllDataUseCase(
+            cars,
+            profiles,
+            FakeSettingsRepository(),
+            FakeFileStore(),
+            FakeShowcaseSeenStore(),
+            FakeDiagnosticRequests(),
+        )()
 
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals(emptyList(), cars.softDeleted)
         assertEquals(1, profiles.deleteCount)
     }
+    private class FakeDiagnosticRequests : DiagnosticRequests {
+        var cleared = false
+        override suspend fun open(reference: String, createdAtEpochMs: Long) = Unit
+        override suspend fun oldestOpen(): String? = null
+        override suspend fun markDelivered(reference: String) = Unit
+        override suspend fun markAttemptFailed(reference: String, error: String?) = Unit
+        override suspend fun clearAll() { cleared = true }
+    }
+
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {
         val seen = mutableSetOf<ShowcaseHookId>()
         override suspend fun isSeen(hook: ShowcaseHookId): Boolean = hook in seen

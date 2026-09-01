@@ -45,6 +45,7 @@ internal class SqlDelightLocalUserDataWipe(
                     // Children first: a foreign key would refuse the parent otherwise.
                     database.serviceLogQueries.deleteAllCategories()
                     database.overchargeReportQueries.deleteAllRows()
+                    database.vehicleCatalogSubmissionQueries.deleteAllRows()
                     database.serviceLogQueries.deleteAllRows()
                     database.documentQueries.deleteAllRows()
                     database.fuelFillQueries.deleteAllRows()

@@ -35,11 +35,40 @@
     <string name="sp_licences">Licences</string>
 
     <!-- Footer. %1$s is the version name, %2$s the build number, e.g.
-         "Odo v1.0.0-beta01 (build 1) · tap to copy diagnostics".
+         "Odo v1.0.0-beta01 (build 1)".
          The build number is shown on every build type here, unlike the profile footer: this
          line is the one a support ticket quotes, and the version alone does not identify a
-         build. -->
-    <string name="sp_version">Odo v%1$s (build %2$s) · tap to copy diagnostics</string>
+         build.
+
+         It used to say "tap to copy diagnostics" and was tappable, which was wrong twice:
+         nothing was copied — the tap uploaded logs to the server — and a hidden tap on a
+         12sp caption is the gesture Android uses for developer menus, not a way to offer
+         something to an owner. Sending diagnostics is a row of its own now. -->
+    <string name="sp_version">Odo v%1$s (build %2$s)</string>
+
+    <!-- ===================== Send diagnostics ===================== -->
+    <!-- Deliberately demoted. Logs with no ticket attached are an orphan upload: nobody knows
+         what problem they were sent for. The path that matters is "Report a problem", which
+         attaches them to a message. This row exists because "please send us diagnostics" is
+         the most common thing a support agent says, and the owner needs something to tap when
+         they hear it. -->
+    <string name="sp_diag">Send diagnostics</string>
+    <string name="sp_diag_sub">Only if support asked you to</string>
+    <string name="sp_diag_confirm_title">Send diagnostics?</string>
+    <!-- Says what leaves the phone and what does not. The second half is the load-bearing
+         one: somebody agreeing to send "logs" has no way to know whether that includes their
+         bills and papers, and it never does. -->
+    <string name="sp_diag_confirm_body">This sends recent app logs — what the app did, when, and any errors. Your bills, documents, photos and trip locations are not included.</string>
+    <!-- "Send", not "Send diagnostics": the dialog title already names what this is,
+         and a button repeating the row it came from reads as the row itself. -->
+    <string name="sp_diag_confirm_send">Send</string>
+    <string name="sp_diag_cancel">Cancel</string>
+    <string name="sp_diag_sent_title">Diagnostics queued</string>
+    <!-- %1$s is the reference code. "Queued", not "sent": the upload waits for a network and
+         may finish minutes later, and claiming it has arrived would be the same kind of lie
+         the old footer told. -->
+    <string name="sp_diag_sent_body">Quote this code when you reply to support:\n\n%1$s\n\nThe upload finishes on its own once you have a connection.</string>
+    <string name="sp_diag_done">Done</string>
 
     <!-- ===================== Privacy policy ===================== -->
     <!-- The in-app summary. Deliberately short and native rather than a web view: this has
@@ -54,7 +83,7 @@
     <string name="sp_pp_revision">Last updated %1$s · %2$s</string>
 
     <string name="sp_pp_short">The short version</string>
-    <string name="sp_pp_lede">Your bills, documents and car records belong to you. We store them so the app works, and we don\'t sell them or hand them to advertisers.</string>
+    <string name="sp_pp_lede">Your bills, documents and car records belong to you. We store them so the app works, and we don’t sell them or hand them to advertisers.</string>
 
     <string name="sp_pp_collect">WHAT WE COLLECT</string>
     <string name="sp_pp_collect_body">Your mobile number, the car details you enter, and anything you scan or upload — bills, insurance, PUC, RC.</string>
@@ -132,7 +161,7 @@
          different words. Titles are reused from the help sheet rows (sp_report, sp_idea,
          sp_flag) so a row and the screen it opens can never drift apart.
 
-         The button does not say "Send": Odo does not send anything. It opens the owner\'s own
+         The button does not say "Send": Odo does not send anything. It opens the owner’s own
          mail app on a draft, and they send it. Saying otherwise would be a lie the first time
          somebody backs out of the composer and assumes it went. -->
     <string name="sp_fb_hint">Your message</string>
@@ -140,6 +169,16 @@
     <!-- Stated on the form, not just in the draft: somebody deciding whether to write at all
          should know what rides along before they start typing. -->
     <string name="sp_fb_attach_note">Your app version and phone model are added to the email so we can work out what went wrong. Nothing is sent until you send it, and you can edit or delete any of it first.</string>
+    <!-- The attach-diagnostics choice, on the problem report only. An idea or a wrong price
+         has no logs worth reading, and a checkbox there would be noise asking for data
+         nobody would open. Default on: a problem report without logs is the one support has
+         to answer with "can you send us diagnostics", which costs the owner another round
+         trip. -->
+    <string name="sp_fb_attach_diagnostics">Attach diagnostics</string>
+    <string name="sp_fb_attach_diagnostics_sub">Recent app logs — what the app did and any errors. No bills, documents, photos or trip locations.</string>
+    <!-- Added to the draft under the footer when diagnostics are attached. %1$s is the
+         reference code the logs upload under. -->
+    <string name="sp_fb_diagnostics_line">Diagnostics: %1$s</string>
 
     <string name="sp_fb_report_intro">Tell us what happened. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_report_subject">Problem report</string>
@@ -158,7 +197,7 @@
          one cannot be checked against anything. -->
     <string name="sp_fb_flag_body">The job or part:\n\n\nWhat Odo showed:\n\n\nWhat I actually paid:\n\n\nMy city:\n</string>
 
-    <!-- Appended below the owner\'s message in the draft. %1$s is the version name, %2$s the
+    <!-- Appended below the owner’s message in the draft. %1$s is the version name, %2$s the
          build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
     <string name="sp_fb_mail_footer">---\nSent from Odo v%1$s (build %2$s)\n%3$s %4$s · %5$s</string>
     <!-- ===================== Licences ===================== -->

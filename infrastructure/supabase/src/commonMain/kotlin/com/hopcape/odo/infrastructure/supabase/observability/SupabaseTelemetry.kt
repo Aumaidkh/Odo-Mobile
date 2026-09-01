@@ -125,6 +125,16 @@ internal class SupabaseTelemetry(
         logger.warn(TAG, "not.configured")
     }
 
+    /**
+     * Sign-in was asked for on a build with no credentials.
+     *
+     * Separate from [notConfigured], which fires once at startup: this one names the moment
+     * an owner actually tried, which is the line that says why the screen refused.
+     */
+    fun signInUnavailable() {
+        logger.warn(TAG, "auth.unavailable")
+    }
+
     /** Bridges the performance module's coroutine-carried trace to the logging module's. */
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
@@ -149,6 +159,7 @@ internal class SupabaseTelemetry(
         /* Operation names used as the first half of every span/event name. */
         const val SELECT = "select"
         const val UPSERT = "upsert"
+        const val INSERT = "insert"
         const val UPDATE = "update"
         const val RPC = "rpc"
         const val UPLOAD = "upload"

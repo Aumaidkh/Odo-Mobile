@@ -1,7 +1,7 @@
 package com.hopcape.odo.feature.garage.domain.usecase
 
 import arrow.core.getOrElse
-import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.trip.model.Trip
@@ -21,14 +21,15 @@ import kotlin.time.Instant
 /**
  * Visibility matrix (reading count x setup state) for the garage's auto-odometer slot (F9).
  *
- * The matrix describes the slot with [FeatureFlags.AUTO_ODOMETER_ENABLED] on. While it is
- * off the slot is [AutoOdometerCardState.Hidden] in every cell, which is what
- * [whileTheFeatureIsOff_theSlotIsHiddenNoMatterWhatIsOnRecord] asserts; kotlin-test has no
- * `assumeTrue`, so the other tests return early rather than fail.
+ * The matrix describes the slot with `auto_odometer_enabled` on. While it is off the slot
+ * is [AutoOdometerCardState.Hidden] in every cell, which is what
+ * [whileTheFeatureIsOff_theSlotIsHiddenNoMatterWhatIsOnRecord] asserts.
+ *
+ * Both states run in this one suite. The flag used to be a `const`, so a test could not set
+ * it and every case guarded itself with an early return — meaning only whichever half the
+ * build happened to be compiled for ever ran.
  */
 class ObserveAutoOdometerCardStateTest {
-
-    private val featureOn = FeatureFlags.AUTO_ODOMETER_ENABLED
 
     private val timeZone = TimeZone.UTC
     private val now = Instant.parse("2026-08-07T12:00:00Z")
@@ -43,14 +44,21 @@ class ObserveAutoOdometerCardStateTest {
         bond: VehicleBond? = null,
         enabled: Boolean = false,
         trips: List<Trip> = emptyList(),
+        featureEnabled: Boolean = true,
     ) = ObserveAutoOdometerCardState(
         serviceLogs = FakeServiceLogRepository(readings = readings),
         bonds = FakeVehicleBondStore(initial = bond),
         tracker = FakeTripTracker(enabled = enabled),
         trips = FakeTripRepository(initial = trips),
         clock = FixedClock(now),
+        config = featureConfig(autoOdometer = featureEnabled),
         timeZone = timeZone,
     )
+
+    private fun featureConfig(autoOdometer: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = autoOdometer
+        override val refuelDetectEnabled = true
+    }
 
     @Test
     fun zeroReadings_notSetUp_isHidden() = runTest {
@@ -68,7 +76,6 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun twoOrMoreReadings_notSetUp_showsThePitchCardWithTheLiveCount() = runTest {
-        if (!featureOn) return@runTest
         val readings = listOf(
             reading(LocalDate(2026, 6, 1), 10_000),
             reading(LocalDate(2026, 7, 1), 10_500),
@@ -82,7 +89,6 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun setUp_showsTheStatusTile_regardlessOfReadingCount() = runTest {
-        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val trip = testTrip(
             id = "t1",
@@ -105,7 +111,6 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun setUp_withNoReadingsAtAll_stillShowsTheTileNotHidden() = runTest {
-        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val state = useCase(readings = emptyList(), bond = bond, enabled = true)(TEST_CAR).first()
 
@@ -114,7 +119,6 @@ class ObserveAutoOdometerCardStateTest {
 
     @Test
     fun bondWithoutTrackingEnabled_isNotConsideredSetUp() = runTest {
-        if (!featureOn) return@runTest
         val bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO)
         val readings = listOf(
             reading(LocalDate(2026, 7, 1), 10_000),
@@ -133,18 +137,20 @@ class ObserveAutoOdometerCardStateTest {
      */
     @Test
     fun whileTheFeatureIsOff_theSlotIsHiddenNoMatterWhatIsOnRecord() = runTest {
-        if (featureOn) return@runTest
         val readings = listOf(
             reading(LocalDate(2026, 7, 1), 10_000),
             reading(LocalDate(2026, 8, 1), 10_500),
         )
 
-        assertIs<AutoOdometerCardState.Hidden>(useCase(readings = readings)(TEST_CAR).first())
+        assertIs<AutoOdometerCardState.Hidden>(
+            useCase(readings = readings, featureEnabled = false)(TEST_CAR).first(),
+        )
         assertIs<AutoOdometerCardState.Hidden>(
             useCase(
                 readings = readings,
                 bond = VehicleBond(TEST_CAR, "AA:BB:CC:DD:EE:FF", TriggerMode.STEREO),
                 enabled = true,
+                featureEnabled = false,
             )(TEST_CAR).first(),
         )
     }

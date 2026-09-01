@@ -12,6 +12,8 @@ internal class IosNotificationAccess : NotificationAccess {
 
     override fun isGranted(): Boolean = false
 
+    override fun isListenerDeclared(): Boolean = false
+
     override fun open() = Unit
 
     override fun requestRebind() = Unit

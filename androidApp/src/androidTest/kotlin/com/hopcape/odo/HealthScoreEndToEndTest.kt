@@ -4,7 +4,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.domain.health.model.HealthFactorKind
 import com.hopcape.odo.feature.healthscore.presentation.HealthScoreTestTags
 import org.junit.After
@@ -13,6 +12,7 @@ import org.junit.Assume.assumeFalse
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -43,17 +43,25 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HealthScoreEndToEndTest {
 
-    @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
 
     /**
-     * Start every test from a set-up device with a car and no score history.
+     * Start every test from a set-up device with a car and no score history — before the
+     * activity launches.
+     *
+     * The order matters: where the app opens is decided once per launch and then held in
+     * saved state, and every test here drives from Home. Seeding from `@Before` left the
+     * first test of the class looking at first-run setup, and no rebuild would move it off.
      *
      * Pro is set explicitly rather than left to the shipped stub, because a test that
      * overrides it changes a definition that outlives it.
      */
-    @Before
-    fun startFromACarWithNoScoreYet() {
+    @get:Rule
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromACarWithNoScoreYet() })
+        .around(rule)
+
+    private fun startFromACarWithNoScoreYet() {
         resetHealthScore()
         setProEntitlement(isPro = true)
         seedHealthOwner()
@@ -341,9 +349,11 @@ class HealthScoreEndToEndTest {
     /* ------------------------------ Fixtures ------------------------------ */
 
     /**
-     * A car with two bill-backed services and its three papers on file, then a fresh
-     * activity: the rule launches one before the seed lands, so it may still be showing a
-     * previous test's data.
+     * A car with two bill-backed services and its three papers on file, then a rebuild so
+     * the screens re-read what was just written.
+     *
+     * `recreate()` is enough here, unlike the class-wide seed above: this runs with the app
+     * already on Home, so the destination the rebuild restores is the one we want.
      */
     private fun startWellKeptCar(
         withPuc: Boolean = true,
@@ -354,7 +364,11 @@ class HealthScoreEndToEndTest {
         rule.activityRule.scenario.recreate()
     }
 
-    /** A car added today: nothing logged, nothing uploaded, one baseline reading. */
+    /**
+     * A car added today: nothing logged, nothing uploaded, one baseline reading.
+     *
+     * The seed is already done by the time this runs; the rebuild only makes Home read it.
+     */
     private fun startEmptyCar() {
         rule.activityRule.scenario.recreate()
     }

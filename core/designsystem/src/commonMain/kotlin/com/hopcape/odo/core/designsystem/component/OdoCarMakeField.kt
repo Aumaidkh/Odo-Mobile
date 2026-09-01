@@ -112,6 +112,11 @@ data class OdoCarMake(
  * @param label / [placeholder] the collapsed field's label and empty-state text.
  * @param errorText when non-null, the field turns danger-coloured and this shows below it,
  *   replacing [helperText] (same rule as [OdoInputField]).
+ * @param notListedLabel when non-null, shows a footer row below the lists ("My car's brand
+ *   isn't listed") that switches the sheet to a plain text field; confirming it calls
+ *   [onSelect] with a synthetic [OdoCarMake] built from what was typed. `null` (the default)
+ *   omits the row entirely, so existing call sites are unaffected. [notListedPlaceholder] and
+ *   [notListedConfirmLabel] are required alongside it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,6 +139,9 @@ fun OdoCarMakeField(
     helperText: String? = null,
     errorText: String? = null,
     enabled: Boolean = true,
+    notListedLabel: String? = null,
+    notListedPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -187,6 +195,9 @@ fun OdoCarMakeField(
                 allSectionLabel = allSectionLabel,
                 emptyResultsText = emptyResultsText,
                 closeContentDescription = closeContentDescription,
+                notListedLabel = notListedLabel,
+                notListedPlaceholder = notListedPlaceholder,
+                notListedConfirmLabel = notListedConfirmLabel,
                 onSelect = { make ->
                     onSelect(make)
                     dismiss()
@@ -266,11 +277,27 @@ private fun CarMakeSheet(
     closeContentDescription: String,
     onSelect: (OdoCarMake) -> Unit,
     onClose: () -> Unit,
+    notListedLabel: String? = null,
+    notListedPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
 ) {
     val colors = OdoTheme.colors
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     val searching = trimmed.isNotEmpty()
+    var enteringCustom by remember { mutableStateOf(false) }
+
+    if (enteringCustom && notListedPlaceholder != null && notListedConfirmLabel != null) {
+        NotListedEntry(
+            title = title,
+            placeholder = notListedPlaceholder,
+            confirmLabel = notListedConfirmLabel,
+            closeContentDescription = closeContentDescription,
+            onConfirm = { typed -> onSelect(OdoCarMake(id = CUSTOM_MAKE_ID_PREFIX + typed, name = typed)) },
+            onClose = onClose,
+        )
+        return
+    }
 
     val matches = if (searching) {
         makes.filter { it.name.contains(trimmed, ignoreCase = true) }
@@ -373,9 +400,76 @@ private fun CarMakeSheet(
                     )
                 }
             }
+
+            if (notListedLabel != null) {
+                item(key = "not-listed") {
+                    NotListedRow(text = notListedLabel, onClick = { enteringCustom = true })
+                }
+            }
         }
     }
 }
+
+/** The footer row offering the free-text escape hatch — a tap switches the sheet to [NotListedEntry]. */
+@Composable
+private fun NotListedRow(text: String, onClick: () -> Unit) {
+    OdoText(
+        text = text,
+        style = OdoTheme.typography.bodySmall,
+        color = OdoTheme.colors.accent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = OdoTheme.spacing.md),
+    )
+}
+
+/**
+ * The sheet body once "not listed" is tapped: one text field and a confirm button, in place
+ * of every list — there is nothing left to search once the owner is naming their own brand.
+ */
+@Composable
+private fun NotListedEntry(
+    title: String,
+    placeholder: String,
+    confirmLabel: String,
+    closeContentDescription: String,
+    onConfirm: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = OdoTheme.colors
+    var typed by remember { mutableStateOf("") }
+    val trimmed = typed.trim()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge)
+            .padding(bottom = OdoTheme.spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            OdoText(title, style = OdoTheme.typography.title, color = colors.text, modifier = Modifier.weight(1f))
+            OdoIconButton(
+                imageVector = IcClose,
+                contentDescription = closeContentDescription,
+                onClick = onClose,
+                tint = colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+        }
+        OdoInputField(value = typed, onValueChange = { typed = it }, placeholder = placeholder, singleLine = true)
+        OdoButton(
+            text = confirmLabel,
+            onClick = { onConfirm(trimmed) },
+            enabled = trimmed.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Prefix on a free-typed make's synthetic id — never matches a seeded make's slug-based id. */
+private const val CUSTOM_MAKE_ID_PREFIX = "custom-"
 
 /** A tracked-caps section eyebrow ("1 MATCH", "POPULAR IN PUNE"). */
 @Composable

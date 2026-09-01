@@ -6,4 +6,8 @@ plugins {
     alias(libs.plugins.composeMultiplatform) apply false
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
+    // Same reason: the Kotlin JVM and KSP plugins are resolved once here so a module
+    // can apply them by id without a version, and without a second classloader.
+    alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.ksp) apply false
 }

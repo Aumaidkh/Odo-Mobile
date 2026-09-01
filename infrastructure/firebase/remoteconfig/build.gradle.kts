@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
+    // Generates the impls, contributions and Koin modules for RemoteConfigKeys.kt.
+    alias(libs.plugins.odo.config)
 }
 
 kotlin {
@@ -28,11 +30,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)
-        }
-        androidMain.dependencies {
-            // Task.await() — bridges setDefaultsAsync's native Task<Void> to a suspend
-            // call (LocalRemoteConfigDefaults.android.kt).
-            implementation(libs.kotlinx.coroutines.play.services)
         }
     }
 }

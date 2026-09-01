@@ -114,6 +114,34 @@ class VehicleCatalogImplTest {
     }
 
     @Test
+    fun reseed_replacesRowsWhenTheStoredVersionIsStale() = runTest {
+        val db = seededDb()
+        // Simulate an app update that changed the bundled catalog: the stored version no
+        // longer matches what the (unchanged, in this test) code ships.
+        db.vehicleCatalogMetaQueries.setSeedVersion(-1L)
+        db.vehicleMakeQueries.deleteAllMakes()
+        db.vehicleModelQueries.deleteAllModels()
+        assertEquals(0L, db.vehicleMakeQueries.countMakes().executeAsOne())
+
+        seedVehicleReferenceData(db)
+
+        assertEquals(VEHICLE_SEED.size.toLong(), db.vehicleMakeQueries.countMakes().executeAsOne())
+        assertTrue(db.vehicleModelQueries.countModels().executeAsOne() > 0)
+    }
+
+    @Test
+    fun reseed_isSkippedWhenTheStoredVersionAlreadyMatches() = runTest {
+        val db = seededDb()
+        // A row an ordinary reseed would never insert — proof that a matching version
+        // short-circuits before the delete-and-reinsert runs at all.
+        db.vehicleMakeQueries.insertMake(id = "sentinel", name = "Sentinel Motors", display_order = 999L)
+
+        seedVehicleReferenceData(db)
+
+        assertTrue(db.vehicleMakeQueries.selectAllMakes().executeAsList().contains("Sentinel Motors"))
+    }
+
+    @Test
     fun years_areNewestFirstAndNeverInTheFuture() = runTest {
         val currentYear = Year.now().value
         val catalog = VehicleCatalogImpl(seededDb())

@@ -1,0 +1,99 @@
+package com.hopcape.odo.core.platform.video
+
+import androidx.annotation.OptIn
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+
+/**
+ * ExoPlayer behind a [PlayerView] with every control switched off.
+ *
+ * The player is released in a [DisposableEffect] rather than left to the GC: an ExoPlayer
+ * holds a codec and a surface, and onboarding is exactly the screen an owner leaves quickly.
+ */
+@OptIn(UnstableApi::class)
+@Composable
+actual fun OdoVideoPlayer(
+    url: String,
+    state: OdoVideoState,
+    modifier: Modifier,
+    fit: OdoVideoFit,
+    playing: Boolean,
+) {
+    val context = LocalContext.current
+
+    // A blank URL is the "no clip configured" case, not something to hand to a player —
+    // ExoPlayer would report it as a source error a beat later and the screen would flicker
+    // through Loading on the way to the same answer.
+    if (url.isBlank()) {
+        state.status.value = OdoVideoStatus.Failed
+        return
+    }
+
+    val player = remember(url) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(url))
+            repeatMode = Player.REPEAT_MODE_ALL
+            volume = 0f
+            playWhenReady = playing
+            addListener(object : Player.Listener {
+                // Not STATE_READY. That means "ready to play", which arrives before
+                // anything has been drawn — a caller hiding its poster on it uncovers a
+                // surface that is still blank. This fires when a frame is actually on
+                // screen, which is the only moment the poster is safe to remove.
+                override fun onRenderedFirstFrame() {
+                    state.status.value = OdoVideoStatus.Playing
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    // No network on a first launch lands here, which is the case the
+                    // remote-URL decision made possible and the caller has to survive.
+                    state.status.value = OdoVideoStatus.Failed
+                }
+            })
+            prepare()
+        }
+    }
+
+    // Keyed on the flag, not on the player: the player is deliberately kept alive across
+    // this changing, because tearing it down is what costs a re-buffer.
+    LaunchedEffect(player, playing) { player.playWhenReady = playing }
+
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = {
+            PlayerView(it).apply {
+                useController = false
+                // Defaults to RESIZE_MODE_FIT, which letterboxes. iOS's AVPlayerLayer
+                // defaults to filling, so leaving this alone made one component behave two
+                // ways depending on the platform.
+                resizeMode = when (fit) {
+                    OdoVideoFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    OdoVideoFit.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                }
+                // Both, not just the shutter. The shutter is the view that covers the
+                // surface until the first frame; PlayerView itself paints an opaque
+                // background behind it, which is what was hiding whatever a caller had
+                // drawn underneath — a poster still, in the onboarding intro's case.
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                this.player = player
+            }
+        },
+    )
+}

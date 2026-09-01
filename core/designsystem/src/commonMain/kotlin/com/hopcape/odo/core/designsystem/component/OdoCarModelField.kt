@@ -89,6 +89,11 @@ data class OdoCarModel(
  *
  * @param matchCountLabel renders the match-count eyebrow for a result count ("2 MATCHES").
  * @param errorText when non-null, puts the field in its danger state and shows below.
+ * @param notListedLabel when non-null, shows a footer row below the list ("My car's model
+ *   isn't listed") that switches the sheet to plain text fields for the model name and an
+ *   optional trim; confirming it calls [onSelect] with a synthetic [OdoCarModel]. `null` (the
+ *   default) omits the row, so existing call sites are unaffected. [notListedNamePlaceholder],
+ *   [notListedVariantPlaceholder] and [notListedConfirmLabel] are required alongside it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +114,10 @@ fun OdoCarModelField(
     helperText: String? = null,
     errorText: String? = null,
     enabled: Boolean = true,
+    notListedLabel: String? = null,
+    notListedNamePlaceholder: String? = null,
+    notListedVariantPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -160,6 +169,10 @@ fun OdoCarModelField(
                 allSectionLabel = allSectionLabel,
                 emptyResultsText = emptyResultsText,
                 closeContentDescription = closeContentDescription,
+                notListedLabel = notListedLabel,
+                notListedNamePlaceholder = notListedNamePlaceholder,
+                notListedVariantPlaceholder = notListedVariantPlaceholder,
+                notListedConfirmLabel = notListedConfirmLabel,
                 onSelect = { model ->
                     onSelect(model)
                     dismiss()
@@ -243,11 +256,31 @@ private fun CarModelSheet(
     closeContentDescription: String,
     onSelect: (OdoCarModel) -> Unit,
     onClose: () -> Unit,
+    notListedLabel: String? = null,
+    notListedNamePlaceholder: String? = null,
+    notListedVariantPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
 ) {
     val colors = OdoTheme.colors
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     val searching = trimmed.isNotEmpty()
+    var enteringCustom by remember { mutableStateOf(false) }
+
+    if (enteringCustom && notListedNamePlaceholder != null && notListedVariantPlaceholder != null && notListedConfirmLabel != null) {
+        NotListedModelEntry(
+            title = title,
+            namePlaceholder = notListedNamePlaceholder,
+            variantPlaceholder = notListedVariantPlaceholder,
+            confirmLabel = notListedConfirmLabel,
+            closeContentDescription = closeContentDescription,
+            onConfirm = { name, variant ->
+                onSelect(OdoCarModel(id = CUSTOM_MODEL_ID_PREFIX + name, name = name, variant = variant))
+            },
+            onClose = onClose,
+        )
+        return
+    }
 
     // Trim is searchable too: an owner who knows their car as "VX CVT" finds it that way.
     val rows = if (searching) {
@@ -324,9 +357,75 @@ private fun CarModelSheet(
                     )
                 }
             }
+
+            if (notListedLabel != null) {
+                item(key = "not-listed") {
+                    OdoText(
+                        text = notListedLabel,
+                        style = OdoTheme.typography.bodySmall,
+                        color = colors.accent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button, onClick = { enteringCustom = true })
+                            .padding(vertical = OdoTheme.spacing.md),
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * The sheet body once "not listed" is tapped: the model name, an optional trim, and a
+ * confirm button — the trim is optional here for the same reason every seeded model also
+ * gets a trim-less row: an owner who doesn't know their exact trim must still be able to
+ * name their car.
+ */
+@Composable
+private fun NotListedModelEntry(
+    title: String,
+    namePlaceholder: String,
+    variantPlaceholder: String,
+    confirmLabel: String,
+    closeContentDescription: String,
+    onConfirm: (name: String, variant: String?) -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = OdoTheme.colors
+    var name by remember { mutableStateOf("") }
+    var variant by remember { mutableStateOf("") }
+    val trimmedName = name.trim()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge)
+            .padding(bottom = OdoTheme.spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            OdoText(title, style = OdoTheme.typography.title, color = colors.text, modifier = Modifier.weight(1f))
+            OdoIconButton(
+                imageVector = IcClose,
+                contentDescription = closeContentDescription,
+                onClick = onClose,
+                tint = colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+        }
+        OdoInputField(value = name, onValueChange = { name = it }, placeholder = namePlaceholder, singleLine = true)
+        OdoInputField(value = variant, onValueChange = { variant = it }, placeholder = variantPlaceholder, singleLine = true)
+        OdoButton(
+            text = confirmLabel,
+            onClick = { onConfirm(trimmedName, variant.trim().ifEmpty { null }) },
+            enabled = trimmedName.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Prefix on a free-typed model's synthetic id — never matches a seeded model's slug-based id. */
+private const val CUSTOM_MODEL_ID_PREFIX = "custom-"
 
 /** A tracked-caps section eyebrow ("2 MATCHES", "ALL MODELS"). */
 @Composable

@@ -3,7 +3,7 @@ package com.hopcape.odo.feature.refuel.domain
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.common.BuildVariant
 import com.hopcape.logging.api.HLogger
-import com.hopcape.odo.core.common.FeatureFlags
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.cost.model.FuelFillDraft
@@ -34,7 +34,7 @@ import kotlin.time.Clock
  * each notice into either a notification or, when the owner has asked for that, a written
  * fill.
  *
- * Nothing here runs while `FeatureFlags.SMART_REFUEL_DETECT_ENABLED` is false. [start] returns
+ * Nothing here runs while `refuel_detect_enabled` is off. [start] returns
  * before subscribing to anything, so a listener service that somehow got bound would publish
  * into a flow with no collector.
  *
@@ -57,9 +57,20 @@ class RefuelDetectionWorker internal constructor(
     private val access: NotificationAccess,
     private val clock: Clock,
     private val copy: DetectionCopy,
+    private val config: FeatureConfig,
 ) {
     fun start(scope: CoroutineScope) {
-        if (!FeatureFlags.SMART_REFUEL_DETECT_ENABLED) return
+        if (!config.refuelDetectEnabled) return
+
+        // Remote config turns things off, never on. This flag can be switched on in the
+        // console, but the listener's <service> entry is deliberately absent from the
+        // Android manifest, and a service the manifest does not declare is one the OS will
+        // never bind. Without this line that combination is an invisible no-op: the flag
+        // reads as on, nothing is ever delivered, and nothing says why.
+        if (!access.isListenerDeclared()) {
+            HLogger.tag(TAG).w("detect_listener_not_declared")
+            return
+        }
 
         // Granted is not the same as bound: the OS unbinds the listener on every app update,
         // and some builds unbind it again whenever they reclaim the process. Nothing reports

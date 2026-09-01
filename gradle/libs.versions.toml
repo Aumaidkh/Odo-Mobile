@@ -9,6 +9,9 @@ androidx-core = "1.13.1"
 # Glance — the home-screen widget toolkit. A separate line from Compose because it
 # versions on its own cadence and does not follow the Compose BOM.
 androidx-glance = "1.1.1"
+# Media3/ExoPlayer — the Android half of OdoVideoPlayer. iOS uses AVPlayer, which is a
+# system framework and needs no dependency.
+androidx-media3 = "1.11.0"
 androidx-espresso = "3.7.0"
 androidx-testRunner = "1.7.0"
 androidx-testRules = "1.7.0"
@@ -30,6 +33,16 @@ camerax = "1.6.1"
 composeMultiplatform = "1.11.1"
 junit = "4.13.2"
 kotlin = "2.4.0"
+# KSP — annotation processing for the config/feature-flag codegen (epic #321).
+# Independent versioning: 2.3.x no longer encodes the Kotlin version. 2.3.10+ is
+# required on Kotlin 2.4.0, which changed the default module name — earlier KSP
+# releases do not sanitise the ':' in the internal-name suffix and fail the build.
+ksp = "2.3.11"
+# Code generation for the config processor. Build-time only, never on a runtime classpath.
+kotlinPoet = "2.3.0"
+# kotlin-compile-testing, Zac Sweers' maintained fork. 0.13.0 is built against Kotlin
+# 2.4.0, which is what this repo uses; it carries KSP 2.3.9 and resolves up to ours.
+kotlinCompileTesting = "0.13.0"
 material3 = "1.11.0-alpha07"
 
 # App identity / build config — single source of truth shared by every module.
@@ -39,8 +52,8 @@ odo-applicationId = "com.hopcape.odo"
 # Carries the pre-release qualifier too. It is not a separate catalog entry because
 # Gradle rejects an empty version string, so a `odo-versionQualifier` could never be
 # cleared for a final release. Drop the "-beta01" here when 1.0.0 ships.
-odo-versionName = "1.3.2.1"
-odo-versionCode = "10"
+odo-versionName = "1.3.3.3"
+odo-versionCode = "15"
 # Per-build-type suffixes. Read twice — once to build the APK, once to bake into
 # BuildInfo — so a build can never report an applicationId or version it does not have.
 # Release carries no suffix, which is why it has no entry: a version catalog cannot
@@ -215,6 +228,12 @@ kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-cor
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifInterface" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+# The API a symbol processor is written against. Compile-only for the processor
+# module; never on a runtime classpath.
+ksp-symbolProcessingApi = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+kotlinPoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinPoet" }
+kotlinCompileTesting-core = { module = "dev.zacsweers.kctfork:core", version.ref = "kotlinCompileTesting" }
+kotlinCompileTesting-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlinCompileTesting" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
@@ -230,6 +249,8 @@ androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "a
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
 playServices-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 playServices-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "androidx-media3" }
+androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "androidx-media3" }
 # CameraX — camera-view carries PreviewView + LifecycleCameraController, which is the whole
 # Android side of the camera seam; camera2 is the backing implementation it binds to.
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
@@ -265,6 +286,10 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 # Used only to compile build-logic with a Kotlin version that matches the
 # Kotlin Gradle plugin (newer than the one embedded in Gradle's kotlin-dsl).
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# KSP Gradle plugin. Applied only through kspCommonMainMetadata — see docs/CONFIG_FLAGS_PLAN.md
+# "The one real risk": KSP cannot build a kspAndroid configuration against AGP's
+# com.android.kotlin.multiplatform.library (google/ksp#2476).
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 # SQLDelight Gradle plugin — generates the typed DB API for :core:data.
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 # kotlinx-serialization compiler plugin — applied directly by :core:data (sync DTOs and
@@ -286,3 +311,4 @@ odo-androidApplication = { id = "odo.android.application" }
 odo-composeMultiplatform = { id = "odo.compose.multiplatform" }
 odo-koin = { id = "odo.koin" }
 odo-kmpTest = { id = "odo.kmp.test" }
+odo-config = { id = "odo.config" }

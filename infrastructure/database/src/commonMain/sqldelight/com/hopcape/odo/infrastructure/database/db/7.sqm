@@ -1,0 +1,16 @@
+-- Schema 7 -> 8: track which seed generation the vehicle catalog holds.
+--
+-- Before this, `vehicle_make`/`vehicle_model` were seeded once and never touched again — the
+-- only way to grow or correct the bundled catalog on an installed app was a reinstall. This
+-- table is what lets `seedVehicleReferenceData` tell "still on the seed this app shipped
+-- with" apart from "app updated, bundled catalog changed", and re-seed only in the second
+-- case.
+--
+-- A new table, so there is nothing to rebuild and no existing row to migrate. An installed
+-- build reads no row here (seed_version 0), which compares unequal to any real seed version
+-- and re-seeds once on the next launch after this migration — same rows, just re-inserted
+-- under the new version-tracked path.
+CREATE TABLE vehicle_catalog_meta (
+    id           INTEGER NOT NULL PRIMARY KEY,
+    seed_version INTEGER NOT NULL
+);

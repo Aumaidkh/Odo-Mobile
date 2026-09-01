@@ -22,6 +22,18 @@ interface NotificationAccess {
     fun isGranted(): Boolean
 
     /**
+     * Whether this build declares the notification listener at all.
+     *
+     * Separate from [isGranted] because they fail in opposite directions. A permission that
+     * was never granted is the owner's to change; a service the manifest does not declare is
+     * one the OS will never bind no matter what the owner or a remote flag says, and nothing
+     * anywhere reports that. Declaring it is what puts
+     * `BIND_NOTIFICATION_LISTENER_SERVICE` in front of a Play reviewer, so a build can
+     * legitimately ship without it — this is how the code above notices.
+     */
+    fun isListenerDeclared(): Boolean
+
+    /**
      * Open the system page where the owner grants or revokes it.
      *
      * There is no callback. The owner leaves the app, changes a switch, and comes back;

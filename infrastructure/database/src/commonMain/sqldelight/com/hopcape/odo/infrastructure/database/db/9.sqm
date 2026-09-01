@@ -1,0 +1,26 @@
+-- Schema 9 -> 10: city, the local mirror of Supabase's `cities` lookup, and
+-- city_submissions, the local outbox for "my city isn't listed".
+--
+-- Unlike vehicle_make/vehicle_model, `city` is pulled through the ordinary Syncable engine
+-- (CitySyncTable) rather than a one-way refresher — see City.sq's table comment. New tables,
+-- so there is nothing to migrate.
+CREATE TABLE city (
+    id          TEXT NOT NULL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    state       TEXT NOT NULL,
+    tier        INTEGER NOT NULL,
+    is_active   INTEGER NOT NULL,
+    updated_at  TEXT NOT NULL,
+    sync_status TEXT NOT NULL DEFAULT 'SYNCED'
+);
+
+CREATE TABLE city_submissions (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);

@@ -111,6 +111,8 @@ internal object SupportCopy {
     const val REPORT = "Report a problem"
     const val IDEA = "Suggest an idea"
     const val FLAG = "Flag wrong price data"
+    const val DIAGNOSTICS = "Send diagnostics"
+    const val DIAGNOSTICS_SUBTITLE = "Only if support asked you to"
     const val FAQS = "FAQs"
     const val PRIVACY = "Privacy"
     const val LICENCES = "Licences"
@@ -124,8 +126,20 @@ internal object SupportCopy {
     const val SEARCH_EMPTY = "Nothing matched"
     const val FEEDBACK_SEND = "Continue in email"
 
+    /* The two steps of sending logs by hand. */
+    const val DIAGNOSTICS_CONFIRM_TITLE = "Send diagnostics?"
+    const val DIAGNOSTICS_CONFIRM_SEND = "Send"
+    const val DIAGNOSTICS_QUEUED_TITLE = "Diagnostics queued"
+    /** Every reference starts with this, so a test can assert one was shown without knowing
+     *  which installation it came from. */
+    const val DIAGNOSTICS_REFERENCE_PREFIX = "ODO-"
+
+    /** The problem report's opt-in for attaching logs. Absent on the other two forms. */
+    const val ATTACH_DIAGNOSTICS = "Attach diagnostics"
+
     /** The form opens on headings rather than an empty box, so this is what proves it opened. */
     const val REPORT_TEMPLATE_HEADING = "What went wrong:"
+    const val IDEA_TEMPLATE_HEADING = "What I would like Odo to do:"
 
     const val LICENCE_APACHE = "Apache License 2.0"
 

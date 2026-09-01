@@ -17,6 +17,7 @@ import com.hopcape.odo.feature.reminders.presentation.RemindersTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -42,15 +43,24 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RemindersEndToEndTest {
 
+    private val rule = createAndroidComposeRule<MainActivity>()
+
+    /**
+     * Put the device in the state each test needs **before** the activity launches.
+     *
+     * Where the app opens is decided once per launch and then held in saved state, so a
+     * `@Before` is too late — the rule has already drawn a first frame against the previous
+     * test's data. [DeviceState] runs outside the compose rule, so the seed lands first.
+     */
     @get:Rule
-    val rule = createAndroidComposeRule<MainActivity>()
+    val chain: RuleChain = RuleChain
+        .outerRule(DeviceState { startFromASetUpDevice() })
+        .around(rule)
 
     /** Start every test from a set-up device with no reminders and default settings. */
-    @Before
-    fun startFromASetUpDevice() {
+    private fun startFromASetUpDevice() {
         resetReminders()
         seedOnboardedOwner()
-        rule.activityRule.scenario.recreate()
     }
 
     /* ------------------------------ The list ------------------------------ */
@@ -268,11 +278,15 @@ class RemindersEndToEndTest {
         // The toggle wrote through to the same device store the profile screen edits.
         rule.waitUntil { settingsFlag("notif_service_due") == 0L }
 
-        // Still off after the process would have re-read it — the row, not memory.
-        rule.activityRule.scenario.recreate()
-        rule.openReminders()
-        rule.awaitText(RemindersCopy.TITLE)
-        rule.openReminderSettings()
-        rule.onNodeWithTag(RemindersTestTags.settingsToggle("SERVICE")).performScrollTo().assertIsOff()
+        // Still off after the process would have re-read it — the row, not memory. A new
+        // activity rather than recreate(): a rebuild restores the back stack, so the app
+        // would come back on this very settings screen with its state still in memory, which
+        // is the one thing this assertion must not be allowed to read.
+        rule.relaunchTheApp().use {
+            rule.openReminders()
+            rule.awaitText(RemindersCopy.TITLE)
+            rule.openReminderSettings()
+            rule.onNodeWithTag(RemindersTestTags.settingsToggle("SERVICE")).performScrollTo().assertIsOff()
+        }
     }
 }

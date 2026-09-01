@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.database
 
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.analytics.api.AnalyticsEventStore
+import com.hopcape.logging.api.DiagnosticRequests
 import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentLocalDataSource
@@ -15,7 +16,10 @@ import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
+import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
+import com.hopcape.odo.core.domain.city.CityCatalog
+import com.hopcape.odo.core.domain.city.UnlistedCityReporter
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
@@ -33,8 +37,18 @@ import com.hopcape.odo.infrastructure.database.car.CarSyncable
 import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncTable
 import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
+import com.hopcape.odo.infrastructure.database.car.UnlistedVehicleReporterImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
+import com.hopcape.odo.infrastructure.database.city.CityCatalogImpl
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncTable
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncable
+import com.hopcape.odo.infrastructure.database.city.CitySyncTable
+import com.hopcape.odo.infrastructure.database.city.CitySyncable
+import com.hopcape.odo.infrastructure.database.city.UnlistedCityReporterImpl
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
@@ -42,6 +56,7 @@ import com.hopcape.odo.infrastructure.database.cost.SqlDelightFuelFillLocalDataS
 import com.hopcape.odo.infrastructure.database.refuel.SqlDelightPendingFillStore
 import com.hopcape.odo.infrastructure.database.refuel.SqlDelightRefuelDetectionStore
 import com.hopcape.odo.infrastructure.database.cost.seedFuelPrices
+import com.hopcape.odo.infrastructure.database.diagnostics.SqlDelightDiagnosticRequests
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.db.createOdoDatabase
@@ -277,7 +292,70 @@ val databaseInfrastructureModule = module {
     // feature's output rather than its configuration, and a different screen reads it.
     single<PendingFillStore> { SqlDelightPendingFillStore(database = get()) }
 
+    // The diagnostics outbox `LogUploadCoordinator` reads. It lives here, not in the logging
+    // module, because a request has to survive a process death and only the database does
+    // that — logging owns what a request means, this owns keeping one.
+    single<DiagnosticRequests> { SqlDelightDiagnosticRequests(database = get(), clock = get()) }
+
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
+
+    // Keeps the local make/model cache above current with the shared Supabase catalog.
+    // `createdAtStart` so the pull kicks off at launch rather than waiting for someone to
+    // open a car picker first; `refreshInBackground()` returns immediately regardless, so
+    // this never delays anything else Koin resolves at startup.
+    single(createdAtStart = true) {
+        VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get())
+            .also { it.refreshInBackground() }
+    }
+
+    // The client half of "my car isn't listed" — writes locally first (like every other
+    // pre-auth-safe table) and asks for a sync; VehicleCatalogSubmissionSyncable below is
+    // what actually reaches Supabase, landing in a holding table for review, never straight
+    // into the picker's own tables (garage/onboarding presentation module).
+    single<UnlistedVehicleReporter> {
+        UnlistedVehicleReporterImpl(database = get(), owner = get(), idGenerator = get(), scheduler = get(), telemetry = get())
+    }
+    single {
+        VehicleCatalogSubmissionSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
+                table = VehicleCatalogSubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    single<CityCatalog> { CityCatalogImpl(database = get()) }
+
+    // Pull-only, like CityCatalog itself: CitySyncable's pullFrom is what keeps the local
+    // `city` cache current with Supabase's shared `cities` table, driven by the ordinary sync
+    // engine rather than a bespoke refresher (see CitySyncTable's class note).
+    single {
+        CitySyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITIES,
+                table = CitySyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // The client half of "my city isn't listed" — same shape as UnlistedVehicleReporter above.
+    single<UnlistedCityReporter> {
+        UnlistedCityReporterImpl(database = get(), owner = get(), idGenerator = get(), scheduler = get(), telemetry = get())
+    }
+    single {
+        CitySubmissionSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITY_SUBMISSIONS,
+                table = CitySubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
 
     // Fuel prices live in a local table so correcting one never needs a release: the seed
     // fills it on first launch, M4's fuel-prices feed writes fresher rows on top, and the
