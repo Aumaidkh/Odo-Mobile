@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.garage.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.challan.repository.ChallanRepository
@@ -44,6 +45,7 @@ internal class GarageViewModel(
     observeAutoOdometerCard: ObserveAutoOdometerCardState,
     challans: ChallanRepository,
     private val telemetry: GarageTelemetry,
+    featureConfig: FeatureConfig
 ) : ViewModel() {
 
     private val _effects = Channel<GarageEffect>(Channel.BUFFERED)
@@ -89,6 +91,7 @@ internal class GarageViewModel(
                                 GarageChallanSummary(
                                     pendingCount = list.count { it.isPayableOnline },
                                     lastCheckedAt = checked,
+                                    showChallans = featureConfig.challanEnabled
                                 )
                             }
                         }

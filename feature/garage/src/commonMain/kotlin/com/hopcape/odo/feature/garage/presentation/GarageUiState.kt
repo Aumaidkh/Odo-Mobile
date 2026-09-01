@@ -59,4 +59,5 @@ internal data class GarageContent(
 internal data class GarageChallanSummary(
     val pendingCount: Int,
     val lastCheckedAt: Instant?,
+    val showChallans: Boolean
 )

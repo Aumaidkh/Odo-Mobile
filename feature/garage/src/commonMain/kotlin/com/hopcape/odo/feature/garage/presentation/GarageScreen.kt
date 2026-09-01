@@ -25,8 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.hopcape.odo.core.common.BuildInfo
-import com.hopcape.odo.core.common.FeatureFlags
 import com.hopcape.odo.core.designsystem.component.OdoBadge
 import androidx.compose.runtime.remember
 import kotlin.time.Instant
@@ -222,6 +220,7 @@ private fun PopulatedGarage(
         ChallanSection(
             summary = content.challans,
             onClick = { onEvent(GarageEvent.ViewAllChallans) },
+            showChallans = content.challans?.showChallans ?: false
         )
         DocumentsSection(
             documents = content.documents,
@@ -249,8 +248,9 @@ private fun PopulatedGarage(
 private fun ChallanSection(
     summary: GarageChallanSummary?,
     onClick: () -> Unit = {},
+    showChallans: Boolean
 ) {
-    AnimatedVisibility(FeatureFlags.CHALLANS_ENABLED && summary != null) {
+    AnimatedVisibility(showChallans ) {
         summary ?: return@AnimatedVisibility
         OdoCard(onClick = onClick) {
             Row(

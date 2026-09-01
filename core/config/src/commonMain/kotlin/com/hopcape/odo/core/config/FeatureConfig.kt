@@ -54,4 +54,13 @@ interface FeatureConfig {
         why = "Kill switch for notification-based refuel detection",
     )
     val refuelDetectEnabled: Boolean
+
+
+    @Flag(
+        key = "challan_check_enabled",
+        default = false,
+        owner = "growth",
+        why = "Support Challan check for a vehicle"
+    )
+    val challanEnabled: Boolean
 }

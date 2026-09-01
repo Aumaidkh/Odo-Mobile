@@ -99,6 +99,7 @@ val garageModule = module {
             observeAutoOdometerCard = get(),
             challans = get(),
             telemetry = get(),
+            featureConfig = get()
         )
     }
     viewModel {
