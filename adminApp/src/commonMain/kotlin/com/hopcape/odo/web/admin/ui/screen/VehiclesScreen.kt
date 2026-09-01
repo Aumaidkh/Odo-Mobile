@@ -1,32 +1,26 @@
 package com.hopcape.odo.web.admin.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.domain.VehicleModel
 import com.hopcape.odo.web.admin.domain.VehicleSubmission
@@ -37,7 +31,7 @@ import com.hopcape.odo.web.admin.presentation.vehicles.VehicleEditorMode
 import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesEvent
 import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesUiState
 import com.hopcape.odo.web.admin.resources.Res
-import com.hopcape.odo.web.admin.resources.ad_dismiss
+import com.hopcape.odo.web.admin.resources.ad_cities_cancel
 import com.hopcape.odo.web.admin.resources.ad_vehicles_add
 import com.hopcape.odo.web.admin.resources.ad_vehicles_add_hint
 import com.hopcape.odo.web.admin.resources.ad_vehicles_all_makes
@@ -51,7 +45,6 @@ import com.hopcape.odo.web.admin.resources.ad_vehicles_delete_confirm
 import com.hopcape.odo.web.admin.resources.ad_vehicles_delete_make_body
 import com.hopcape.odo.web.admin.resources.ad_vehicles_delete_model_body
 import com.hopcape.odo.web.admin.resources.ad_vehicles_delete_title
-import com.hopcape.odo.web.admin.resources.ad_vehicles_duplicate
 import com.hopcape.odo.web.admin.resources.ad_vehicles_edit
 import com.hopcape.odo.web.admin.resources.ad_vehicles_edit_model
 import com.hopcape.odo.web.admin.resources.ad_vehicles_empty
@@ -66,67 +59,130 @@ import com.hopcape.odo.web.admin.resources.ad_vehicles_rename
 import com.hopcape.odo.web.admin.resources.ad_vehicles_rename_make
 import com.hopcape.odo.web.admin.resources.ad_vehicles_reported_on
 import com.hopcape.odo.web.admin.resources.ad_vehicles_save
-import com.hopcape.odo.web.admin.resources.ad_vehicles_search
-import com.hopcape.odo.web.admin.resources.ad_vehicles_title
 import com.hopcape.odo.web.admin.resources.ad_vehicles_variant
+import com.hopcape.odo.web.admin.ui.component.AdminField
+import com.hopcape.odo.web.admin.ui.component.Banner
+import com.hopcape.odo.web.admin.ui.component.Cell
+import com.hopcape.odo.web.admin.ui.component.CellPrimary
+import com.hopcape.odo.web.admin.ui.component.CellSecondary
+import com.hopcape.odo.web.admin.ui.component.FieldLabel
+import com.hopcape.odo.web.admin.ui.component.Muted
+import com.hopcape.odo.web.admin.resources.ad_vehicles_showing_makes
+import com.hopcape.odo.web.admin.ui.component.Pager
+import com.hopcape.odo.web.admin.ui.component.Panel
+import com.hopcape.odo.web.admin.resources.ad_vehicles_showing_makes
+import com.hopcape.odo.web.admin.ui.component.Pager
+import com.hopcape.odo.web.admin.ui.component.PanelHeader
+import com.hopcape.odo.web.admin.ui.component.Pill
+import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.RowAction
+import com.hopcape.odo.web.admin.ui.component.StatusText
+import com.hopcape.odo.web.admin.ui.component.TableRow
+import com.hopcape.odo.web.admin.ui.theme.AdminTokens
+import com.hopcape.odo.web.admin.ui.theme.AdminType
 import com.hopcape.odo.web.core.presentation.state.resolve
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * The queue above the catalog, grouped by make.
  *
- * The catalog is a few thousand rows, so it is read once and filtered here rather
- * than re-queried per make: searching across every make is the thing a reviewer
+ * The catalog is a few thousand rows, read once and filtered here rather than
+ * re-queried per make: searching across every make is the thing a reviewer
  * actually does — checking whether a reported car is already listed under a
  * slightly different spelling — and a per-make request makes that impossible.
+ *
+ * The search box lives in the chrome. One box on a page is the design; two is a
+ * question about which one applies.
  */
 @Composable
 fun VehiclesScreen(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxSize().padding(26.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Header(state, onEvent) }
-
             item {
-                SectionHeading(
-                    title = stringResource(Res.string.ad_vehicles_queue_title),
-                    count = stringResource(Res.string.ad_vehicles_queue_count, state.pending.size),
-                )
-            }
-            if (state.pending.isEmpty()) {
-                item { Muted(stringResource(Res.string.ad_vehicles_queue_empty)) }
-            } else {
-                items(state.pending, key = { it.id }) { submission -> SubmissionRow(submission, state.busy, onEvent) }
-            }
-
-            item {
-                SectionHeading(
-                    title = stringResource(Res.string.ad_vehicles_catalog_title),
-                    count = stringResource(Res.string.ad_vehicles_catalog_count, state.modelCount),
-                )
-            }
-            item { Filters(state, onEvent) }
-
-            if (state.groups.isEmpty()) {
-                item { Muted(stringResource(Res.string.ad_vehicles_empty)) }
-            } else {
-                state.groups.forEach { group ->
-                    item(key = "make-${group.make.id}") { MakeHeader(group, state.busy, onEvent) }
-                    if (group.models.isEmpty()) {
-                        item(key = "empty-${group.make.id}") {
-                            Muted(stringResource(Res.string.ad_vehicles_no_models))
-                        }
+                Panel {
+                    PanelHeader(stringResource(Res.string.ad_vehicles_queue_title)) {
+                        Pill(stringResource(Res.string.ad_vehicles_queue_count, state.pending.size))
+                    }
+                    if (state.pending.isEmpty()) {
+                        Muted(stringResource(Res.string.ad_vehicles_queue_empty))
                     } else {
-                        items(group.models, key = { it.id }) { model ->
-                            ModelRow(model, state.busy, onEvent)
-                        }
+                        state.pending.forEach { SubmissionRow(it, state.busy, onEvent) }
                     }
                 }
             }
 
-            item { Spacer(Modifier.padding(bottom = 32.dp)) }
+            item {
+                Panel {
+                    PanelHeader(stringResource(Res.string.ad_vehicles_catalog_title)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Pill(stringResource(Res.string.ad_vehicles_catalog_count, state.modelCount))
+                            PrimaryAction(
+                                stringResource(Res.string.ad_vehicles_add),
+                                { onEvent(VehiclesEvent.AddRequested) },
+                                enabled = !state.busy,
+                            )
+                        }
+                    }
+                    Column(Modifier.padding(16.dp)) { Makes(state, onEvent) }
+                }
+            }
+
+            if (state.groups.isEmpty()) {
+                item { Panel { Muted(stringResource(Res.string.ad_vehicles_empty)) } }
+            } else {
+                item {
+                    Pager(
+                        page = state.page,
+                        total = state.matchingGroups.size,
+                        label = stringResource(
+                            Res.string.ad_vehicles_showing_makes,
+                            state.page.first(state.matchingGroups.size),
+                            state.page.last(state.matchingGroups.size),
+                            state.matchingGroups.size,
+                        ),
+                        onPrevious = { onEvent(VehiclesEvent.PreviousPage) },
+                        onNext = { onEvent(VehiclesEvent.NextPage) },
+                    )
+                }
+                state.groups.forEach { group ->
+                    item(key = "make-${group.make.id}") {
+                        Panel {
+                            PanelHeader(group.make.name.uppercase()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    RowAction(
+                                        stringResource(Res.string.ad_vehicles_rename),
+                                        { onEvent(VehiclesEvent.RenameMakeRequested(group.make)) },
+                                        !state.busy,
+                                    )
+                                    RowAction(
+                                        stringResource(Res.string.ad_vehicles_delete),
+                                        {
+                                            onEvent(
+                                                VehiclesEvent.DeleteRequested(
+                                                    DeleteTarget.Make(group.make, group.models.size),
+                                                ),
+                                            )
+                                        },
+                                        !state.busy,
+                                        color = AdminTokens.danger,
+                                    )
+                                }
+                            }
+                            if (group.models.isEmpty()) {
+                                Muted(stringResource(Res.string.ad_vehicles_no_models))
+                            } else {
+                                group.models.forEach { ModelRow(it, state.busy, onEvent) }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         state.message?.let { message ->
@@ -138,127 +194,83 @@ fun VehiclesScreen(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
     state.pendingDelete?.let { DeleteDialog(it, state.busy, onEvent) }
 }
 
+/** A scrolling strip: dozens of makes, and a wrapping grid would fill the screen. */
 @Composable
-private fun Header(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
+private fun Makes(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 32.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            stringResource(Res.string.ad_vehicles_title),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.weight(1f),
-        )
-        Button(onClick = { onEvent(VehiclesEvent.AddRequested) }, enabled = !state.busy) {
-            Text(stringResource(Res.string.ad_vehicles_add))
+        MakeChip(stringResource(Res.string.ad_vehicles_all_makes), state.selectedMakeId == null) {
+            onEvent(VehiclesEvent.MakeSelected(null))
         }
-    }
-}
-
-@Composable
-private fun Filters(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        OutlinedTextField(
-            value = state.search,
-            onValueChange = { onEvent(VehiclesEvent.SearchChanged(it)) },
-            label = { Text(stringResource(Res.string.ad_vehicles_search)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // A scrolling strip rather than a wrapping grid: there are dozens of makes
-        // and a grid of them would push the catalog off the first screen.
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = state.selectedMakeId == null,
-                onClick = { onEvent(VehiclesEvent.MakeSelected(null)) },
-                label = { Text(stringResource(Res.string.ad_vehicles_all_makes)) },
-            )
-            state.allMakes.forEach { make ->
-                FilterChip(
-                    selected = state.selectedMakeId == make.id,
-                    onClick = { onEvent(VehiclesEvent.MakeSelected(make.id)) },
-                    label = { Text(make.name) },
-                )
+        state.allMakes.forEach { make ->
+            MakeChip(make.name, state.selectedMakeId == make.id) {
+                onEvent(VehiclesEvent.MakeSelected(make.id))
             }
         }
     }
 }
 
 @Composable
-private fun SubmissionRow(submission: VehicleSubmission, busy: Boolean, onEvent: (VehiclesEvent) -> Unit) {
-    RowCard {
-        Column(Modifier.weight(1f)) {
-            Text(
-                listOfNotNull(submission.make, submission.model, submission.variant).joinToString(" "),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                stringResource(Res.string.ad_vehicles_reported_on, submission.createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        // One click, unlike a city: a vehicle submission already carries a make
-        // and a model, and the trim is genuinely optional, so there is nothing
-        // for a reviewer to fill in first.
-        TextButton(onClick = { onEvent(VehiclesEvent.SubmissionApproved(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_vehicles_approve))
-        }
-        TextButton(onClick = { onEvent(VehiclesEvent.SubmissionRejected(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_vehicles_reject))
-        }
-        TextButton(onClick = { onEvent(VehiclesEvent.SubmissionDeleted(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_vehicles_delete), color = MaterialTheme.colorScheme.error)
-        }
+private fun MakeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) AdminTokens.text else AdminTokens.field)
+            .border(1.dp, if (selected) AdminTokens.text else AdminTokens.border, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+    ) {
+        Text(
+            label,
+            style = AdminType.strong,
+            color = if (selected) AdminTokens.canvas else AdminTokens.textStrong,
+            maxLines = 1,
+        )
     }
 }
 
 @Composable
-private fun MakeHeader(group: MakeGroup, busy: Boolean, onEvent: (VehiclesEvent) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(group.make.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        TextButton(onClick = { onEvent(VehiclesEvent.RenameMakeRequested(group.make)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_vehicles_rename))
+private fun SubmissionRow(submission: VehicleSubmission, busy: Boolean, onEvent: (VehiclesEvent) -> Unit) {
+    TableRow {
+        Column(Modifier.weight(1f)) {
+            CellPrimary(listOfNotNull(submission.make, submission.model, submission.variant).joinToString(" "))
+            CellSecondary(stringResource(Res.string.ad_vehicles_reported_on, submission.createdAt))
         }
-        TextButton(
-            onClick = {
-                onEvent(VehiclesEvent.DeleteRequested(DeleteTarget.Make(group.make, group.models.size)))
-            },
-            enabled = !busy,
-        ) {
-            Text(stringResource(Res.string.ad_vehicles_delete), color = MaterialTheme.colorScheme.error)
-        }
+        // One click, unlike a city: a vehicle submission already carries a make and
+        // a model, and the trim is genuinely optional, so there is nothing for a
+        // reviewer to fill in first.
+        RowAction(stringResource(Res.string.ad_vehicles_approve), { onEvent(VehiclesEvent.SubmissionApproved(submission)) }, !busy)
+        RowAction(stringResource(Res.string.ad_vehicles_reject), { onEvent(VehiclesEvent.SubmissionRejected(submission)) }, !busy)
+        RowAction(
+            stringResource(Res.string.ad_vehicles_delete),
+            { onEvent(VehiclesEvent.SubmissionDeleted(submission)) },
+            !busy,
+            color = AdminTokens.danger,
+        )
     }
 }
 
 @Composable
 private fun ModelRow(model: VehicleModel, busy: Boolean, onEvent: (VehiclesEvent) -> Unit) {
-    RowCard {
-        Column(Modifier.weight(1f)) {
-            Text(model.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                // The trim-less row is labelled rather than left blank: an empty
-                // second line reads like missing data, and this row is the one an
-                // owner picks when they do not know their trim.
-                model.variant ?: stringResource(Res.string.ad_vehicles_base_row),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    TableRow {
+        Column(Modifier.weight(2f)) {
+            CellPrimary(model.name)
+            // The trim-less row is labelled rather than left blank: an empty second
+            // line reads like missing data, and this row is the one an owner picks
+            // when they do not know their trim.
+            CellSecondary(model.variant ?: stringResource(Res.string.ad_vehicles_base_row))
+        }
+        Cell(model.id, Modifier.weight(2f))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+            RowAction(stringResource(Res.string.ad_vehicles_edit), { onEvent(VehiclesEvent.EditModelRequested(model)) }, !busy)
+            RowAction(
+                stringResource(Res.string.ad_vehicles_delete),
+                { onEvent(VehiclesEvent.DeleteRequested(DeleteTarget.Model(model))) },
+                !busy,
+                color = AdminTokens.danger,
             )
-        }
-        TextButton(onClick = { onEvent(VehiclesEvent.EditModelRequested(model)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_vehicles_edit))
-        }
-        TextButton(
-            onClick = { onEvent(VehiclesEvent.DeleteRequested(DeleteTarget.Model(model))) },
-            enabled = !busy,
-        ) {
-            Text(stringResource(Res.string.ad_vehicles_delete), color = MaterialTheme.colorScheme.error)
         }
     }
 }
@@ -268,6 +280,9 @@ private fun EditorDialog(editor: VehicleEditor, busy: Boolean, onEvent: (Vehicle
     val isNew = editor.mode == VehicleEditorMode.New
     AlertDialog(
         onDismissRequest = { onEvent(VehiclesEvent.EditorDismissed) },
+        containerColor = AdminTokens.card,
+        titleContentColor = AdminTokens.text,
+        textContentColor = AdminTokens.textStrong,
         title = {
             Text(
                 when (editor.mode) {
@@ -275,62 +290,61 @@ private fun EditorDialog(editor: VehicleEditor, busy: Boolean, onEvent: (Vehicle
                     is VehicleEditorMode.RenameMake -> stringResource(Res.string.ad_vehicles_rename_make)
                     is VehicleEditorMode.EditModel -> stringResource(Res.string.ad_vehicles_edit_model)
                 },
+                style = AdminType.title,
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (editor.mode !is VehicleEditorMode.EditModel) {
-                    OutlinedTextField(
-                        value = editor.make.value,
-                        onValueChange = { onEvent(VehiclesEvent.EditorMakeChanged(it)) },
-                        label = { Text(stringResource(Res.string.ad_vehicles_make)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column {
+                        FieldLabel(stringResource(Res.string.ad_vehicles_make).uppercase())
+                        AdminField(
+                            editor.make.value,
+                            { onEvent(VehiclesEvent.EditorMakeChanged(it)) },
+                            stringResource(Res.string.ad_vehicles_make),
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
                 if (editor.mode !is VehicleEditorMode.RenameMake) {
-                    OutlinedTextField(
-                        value = editor.model.value,
-                        onValueChange = { onEvent(VehiclesEvent.EditorModelChanged(it)) },
-                        label = { Text(stringResource(Res.string.ad_vehicles_model)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = editor.variant.value,
-                        onValueChange = { onEvent(VehiclesEvent.EditorVariantChanged(it)) },
-                        label = { Text(stringResource(Res.string.ad_vehicles_variant)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column {
+                        FieldLabel(stringResource(Res.string.ad_vehicles_model).uppercase())
+                        AdminField(
+                            editor.model.value,
+                            { onEvent(VehiclesEvent.EditorModelChanged(it)) },
+                            stringResource(Res.string.ad_vehicles_model),
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Column {
+                        FieldLabel(stringResource(Res.string.ad_vehicles_variant).uppercase())
+                        AdminField(
+                            editor.variant.value,
+                            { onEvent(VehiclesEvent.EditorVariantChanged(it)) },
+                            stringResource(Res.string.ad_vehicles_variant),
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
-                editor.error?.let {
-                    Text(it.resolve(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                }
+                editor.error?.let { StatusText(it.resolve(), AdminTokens.danger) }
                 if (isNew) {
                     Text(
                         stringResource(Res.string.ad_vehicles_add_hint),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AdminType.caption,
+                        color = AdminTokens.textDim,
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onEvent(VehiclesEvent.EditorSubmitted) }, enabled = editor.canSubmit && !busy) {
-                Text(
-                    if (isNew) {
-                        stringResource(Res.string.ad_vehicles_add)
-                    } else {
-                        stringResource(Res.string.ad_vehicles_save)
-                    },
-                )
-            }
+            PrimaryAction(
+                if (isNew) stringResource(Res.string.ad_vehicles_add) else stringResource(Res.string.ad_vehicles_save),
+                { onEvent(VehiclesEvent.EditorSubmitted) },
+                enabled = editor.canSubmit && !busy,
+            )
         },
         dismissButton = {
-            TextButton(onClick = { onEvent(VehiclesEvent.EditorDismissed) }) {
-                Text(stringResource(Res.string.ad_dismiss))
-            }
+            RowAction(stringResource(Res.string.ad_cities_cancel), { onEvent(VehiclesEvent.EditorDismissed) })
         },
     )
 }
@@ -346,20 +360,30 @@ private fun EditorDialog(editor: VehicleEditor, busy: Boolean, onEvent: (Vehicle
 private fun DeleteDialog(target: DeleteTarget, busy: Boolean, onEvent: (VehiclesEvent) -> Unit) {
     AlertDialog(
         onDismissRequest = { onEvent(VehiclesEvent.DeleteDismissed) },
-        title = { Text(stringResource(Res.string.ad_vehicles_delete_title, target.label)) },
+        containerColor = AdminTokens.card,
+        titleContentColor = AdminTokens.text,
+        textContentColor = AdminTokens.textStrong,
+        title = { Text(stringResource(Res.string.ad_vehicles_delete_title, target.label), style = AdminType.title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (target) {
                     is DeleteTarget.Make ->
-                        Text(stringResource(Res.string.ad_vehicles_delete_make_body, target.modelCount))
+                        Text(
+                            stringResource(Res.string.ad_vehicles_delete_make_body, target.modelCount),
+                            style = AdminType.body,
+                            color = AdminTokens.textStrong,
+                        )
 
                     is DeleteTarget.Model -> {
-                        Text(stringResource(Res.string.ad_vehicles_delete_model_body))
+                        Text(
+                            stringResource(Res.string.ad_vehicles_delete_model_body),
+                            style = AdminType.body,
+                            color = AdminTokens.textStrong,
+                        )
                         if (target.model.isBaseRow) {
-                            Text(
+                            StatusText(
                                 stringResource(Res.string.ad_vehicles_delete_base_warning),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
+                                AdminTokens.accent,
                             )
                         }
                     }
@@ -367,14 +391,14 @@ private fun DeleteDialog(target: DeleteTarget, busy: Boolean, onEvent: (Vehicles
             }
         },
         confirmButton = {
-            Button(onClick = { onEvent(VehiclesEvent.DeleteConfirmed) }, enabled = !busy) {
-                Text(stringResource(Res.string.ad_vehicles_delete_confirm))
-            }
+            PrimaryAction(
+                stringResource(Res.string.ad_vehicles_delete_confirm),
+                { onEvent(VehiclesEvent.DeleteConfirmed) },
+                enabled = !busy,
+            )
         },
         dismissButton = {
-            TextButton(onClick = { onEvent(VehiclesEvent.DeleteDismissed) }) {
-                Text(stringResource(Res.string.ad_dismiss))
-            }
+            RowAction(stringResource(Res.string.ad_cities_cancel), { onEvent(VehiclesEvent.DeleteDismissed) })
         },
     )
 }

@@ -40,6 +40,31 @@ data class ManagedUser(
 )
 
 /**
+ * One row of the directory.
+ *
+ * [phone] and [email] arrive masked from the database, not masked here. A client
+ * that received the real value and drew dots over it would be one developer
+ * console away from showing everything, with nothing logged.
+ */
+data class DirectoryUser(
+    val id: String,
+    val name: String?,
+    val maskedPhone: String?,
+    val maskedEmail: String?,
+    val city: String?,
+    val cars: Int,
+    val restriction: Restriction,
+    /** True granted, false revoked, null when support has decided nothing. */
+    val proOverride: Boolean?,
+)
+
+/** A page of the directory, and how many rows there are in total. */
+data class UserPage(val total: Int, val rows: List<DirectoryUser>)
+
+/** What a reveal hands back. */
+data class RevealedContact(val phone: String?, val email: String?)
+
+/**
  * Looking somebody up, and changing what they may do.
  *
  * [find] is exact-match by design — a support tool that lists every account
@@ -50,6 +75,20 @@ interface UsersRepository {
 
     /** Null when nothing matches that phone, email or id. */
     suspend fun find(query: String): Either<WebError, ManagedUser?>
+
+    /**
+     * A page of the directory, optionally narrowed by a partial phone, address or
+     * name. Contact details come back masked.
+     */
+    suspend fun list(query: String, limit: Int, offset: Int): Either<WebError, UserPage>
+
+    /**
+     * The real contact details for one account.
+     *
+     * Writes an audit row first, in the same transaction, so there is no path that
+     * hands over a number without recording who asked.
+     */
+    suspend fun reveal(id: String): Either<WebError, RevealedContact?>
 
     /**
      * Grant or revoke a feature for one owner.

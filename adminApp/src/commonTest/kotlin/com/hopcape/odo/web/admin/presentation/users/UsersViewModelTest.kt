@@ -3,6 +3,8 @@ package com.hopcape.odo.web.admin.presentation.users
 import arrow.core.Either
 import arrow.core.right
 import com.hopcape.odo.web.admin.domain.ManagedUser
+import com.hopcape.odo.web.admin.domain.RevealedContact
+import com.hopcape.odo.web.admin.domain.UserPage
 import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.core.domain.WebError
@@ -29,6 +31,15 @@ class UsersViewModelTest {
         override suspend fun find(query: String): Either<WebError, ManagedUser?> {
             calls += "find:$query"
             return found.right()
+        }
+        var page: UserPage = UserPage(0, emptyList())
+        override suspend fun list(query: String, limit: Int, offset: Int): Either<WebError, UserPage> {
+            calls += "list:$query|$limit|$offset"
+            return page.right()
+        }
+        override suspend fun reveal(id: String): Either<WebError, RevealedContact?> {
+            calls += "reveal:$id"
+            return RevealedContact("+919000000000", null).right()
         }
         override suspend fun setEntitlement(ownerId: String, feature: String, granted: Boolean, reason: String) =
             record("entitlement:$ownerId|$feature|$granted|$reason")
@@ -77,7 +88,7 @@ class UsersViewModelTest {
         vm.onEvent(UsersEvent.RestrictionPicked(Restriction.Blocked))
         vm.onEvent(UsersEvent.RestrictionApplied)
 
-        assertTrue(repo.calls.isEmpty())
+        assertTrue(repo.calls.none { !it.startsWith("list:") && !it.startsWith("find:") })
         assertNotNull(vm.state.value.reasonError)
     }
 
@@ -92,7 +103,7 @@ class UsersViewModelTest {
         vm.onEvent(UsersEvent.RestrictionPicked(Restriction.None))
         vm.onEvent(UsersEvent.RestrictionApplied)
 
-        assertEquals("restrict:owner-1|none|null", repo.calls.first())
+        assertTrue(repo.calls.contains("restrict:owner-1|none|null"))
     }
 
     @Test
@@ -105,7 +116,7 @@ class UsersViewModelTest {
         vm.onEvent(UsersEvent.FeatureChanged("pro"))
         vm.onEvent(UsersEvent.EntitlementSet(granted = true))
 
-        assertTrue(repo.calls.first().startsWith("entitlement:owner-1|PRO|true|"))
+        assertTrue(repo.calls.any { it.startsWith("entitlement:owner-1|PRO|true|") })
     }
 
     @Test
@@ -117,7 +128,7 @@ class UsersViewModelTest {
         vm.onEvent(UsersEvent.RestrictionApplied)
         vm.onEvent(UsersEvent.EntitlementSet(granted = true))
 
-        assertTrue(repo.calls.isEmpty())
+        assertTrue(repo.calls.none { !it.startsWith("list:") && !it.startsWith("find:") })
     }
 
     @Test

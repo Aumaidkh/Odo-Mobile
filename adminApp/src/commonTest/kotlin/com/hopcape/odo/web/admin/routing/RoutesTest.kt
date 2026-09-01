@@ -16,13 +16,17 @@ class RoutesTest {
 
     @Test
     fun `each section has its own segment`() {
+        assertEquals(AdminRoute.Dashboard, routeOf("/dashboard"))
+        assertEquals(AdminRoute.Users, routeOf("/users"))
+        assertEquals(AdminRoute.Roles, routeOf("/roles"))
+        assertEquals(AdminRoute.Content, routeOf("/content"))
+        assertEquals(AdminRoute.Catalogue, routeOf("/catalogue"))
         assertEquals(AdminRoute.Vehicles, routeOf("/vehicles"))
         assertEquals(AdminRoute.Cities, routeOf("/cities"))
-        assertEquals(AdminRoute.Fairness, routeOf("/fairness"))
-        assertEquals(AdminRoute.Users, routeOf("/users"))
-        assertEquals(AdminRoute.Blog, routeOf("/blog"))
+        assertEquals(AdminRoute.Tickets, routeOf("/tickets"))
+        assertEquals(AdminRoute.Billing, routeOf("/billing"))
+        assertEquals(AdminRoute.Flags, routeOf("/flags"))
         assertEquals(AdminRoute.Audit, routeOf("/audit"))
-        assertEquals(AdminRoute.Staff, routeOf("/staff"))
     }
 
     @Test
@@ -42,7 +46,45 @@ class RoutesTest {
      */
     @Test
     fun `a nested path is not a page`() {
+        // Two levels are only a page for the sections that have a detail view.
+        // Users is not one of them, and a nested path under it stays a 404.
         assertEquals(AdminRoute.NotFound("/users/42"), routeOf("/users/42"))
+        assertEquals(AdminRoute.NotFound("/cities/42"), routeOf("/cities/42"))
+        assertEquals(AdminRoute.NotFound("/tickets/1/reply"), routeOf("/tickets/1/reply"))
+    }
+
+    @Test
+    fun `a ticket id that is not a number is a 404, not ticket zero`() {
+        // The id comes out of a URL somebody may have typed or truncated, and
+        // `toLongOrNull` is the difference between a 404 and silently opening the
+        // wrong ticket.
+        assertEquals(AdminRoute.NotFound("/tickets/abc"), routeOf("/tickets/abc"))
+        assertEquals(AdminRoute.TicketDetail(7), routeOf("/tickets/7"))
+    }
+
+    @Test
+    fun `detail routes round-trip through their location`() {
+        // Same guarantee as the sections: a detail page reached by clicking a row
+        // and one reached by refreshing its URL have to be the same page.
+        listOf(
+            AdminRoute.TicketDetail(1),
+            AdminRoute.TicketDetail(9007199254740993L),
+            AdminRoute.PostDetail("6b1f1a2c-0000-4000-8000-000000000001"),
+            // Ids are uuids today, but the column is text and slugs are the obvious
+            // next thing to put in it.
+            AdminRoute.PostDetail("a slug with spaces"),
+            AdminRoute.PostDetail("percent%and/slash"),
+        ).forEach { route ->
+            assertEquals(route, routeOf(route.location()), "round trip failed for $route")
+        }
+    }
+
+    @Test
+    fun `a detail page keeps its section lit in the rail`() {
+        assertEquals(AdminRoute.Tickets, AdminRoute.TicketDetail(3).parent)
+        assertEquals(AdminRoute.Content, AdminRoute.PostDetail("x").parent)
+        // A section is its own parent, so the rail's comparison needs no special case.
+        assertEquals(AdminRoute.Cities, AdminRoute.Cities.parent)
     }
 
     /**

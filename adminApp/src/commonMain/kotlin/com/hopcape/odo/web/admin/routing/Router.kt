@@ -41,7 +41,15 @@ interface Router {
 fun basePathOf(pathname: String): String =
     if (pathname == ADMIN_BASE || pathname.startsWith("$ADMIN_BASE/")) ADMIN_BASE else ""
 
-/** The path `landing/firebase.json` serves this app from. */
+/**
+ * The path this app used to be served from.
+ *
+ * It has its own origin now — `admin.odoapp.in`, at the root — so the base is
+ * normally empty. Kept because the hosting config still 301s the old `/admin`
+ * paths to the root for links saved while it lived under the marketing site, and
+ * because
+ * [basePathOf] has to keep working for anybody serving it under a path locally.
+ */
 const val ADMIN_BASE: String = "/admin"
 
 /**

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import arrow.core.Either
+import com.hopcape.odo.web.admin.domain.DirectoryUser
 import com.hopcape.odo.web.admin.domain.ManagedUser
 import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
@@ -25,6 +26,12 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 
 sealed interface UsersEvent {
+    /** Open one account from the directory. */
+    data class Opened(val id: String) : UsersEvent
+    data object Closed : UsersEvent
+    data class Revealed(val id: String) : UsersEvent
+    data object NextPage : UsersEvent
+    data object PreviousPage : UsersEvent
     data class QueryChanged(val value: String) : UsersEvent
     data object Search : UsersEvent
     data class RestrictionPicked(val restriction: Restriction) : UsersEvent
@@ -38,6 +45,12 @@ sealed interface UsersEvent {
 
 @Immutable
 data class UsersUiState(
+    /** The directory, as the table draws it. */
+    val directory: List<DirectoryUser> = emptyList(),
+    val total: Int = 0,
+    val page: Int = 0,
+    /** Contact details a reveal has unmasked, by account id. Never persisted. */
+    val revealed: Map<String, String> = emptyMap(),
     val query: FormField<String> = textField(),
     val user: ManagedUser? = null,
     /** True once a search has run and found nothing, so the empty state is earned. */
@@ -52,6 +65,16 @@ data class UsersUiState(
 ) {
     val canSearch: Boolean get() = !busy && query.value.isNotBlank()
     val restrictionChanged: Boolean get() = user != null && proposed != user.restriction
+
+    val firstShown: Int get() = if (directory.isEmpty()) 0 else page * PAGE_SIZE + 1
+    val lastShown: Int get() = page * PAGE_SIZE + directory.size
+    val hasNext: Boolean get() = lastShown < total
+    val hasPrevious: Boolean get() = page > 0
+
+    internal companion object {
+        /** A screenful. The design shows a page, not an infinite scroll. */
+        const val PAGE_SIZE = 25
+    }
 }
 
 /**
@@ -70,10 +93,20 @@ class UsersViewModel(
 
     fun onEvent(event: UsersEvent) {
         when (event) {
-            is UsersEvent.QueryChanged ->
+            is UsersEvent.QueryChanged -> {
                 _state.value = _state.value.copy(query = _state.value.query.update(event.value))
+                // The header's box drives the directory directly. Typing narrows the
+                // list; Enter is only needed for the exact-match jump below.
+                loadPage(0)
+            }
 
             UsersEvent.Search -> search()
+
+            is UsersEvent.Opened -> open(event.id)
+            UsersEvent.Closed -> _state.value = _state.value.copy(user = null, searched = false)
+            is UsersEvent.Revealed -> reveal(event.id)
+            UsersEvent.NextPage -> if (_state.value.hasNext) loadPage(_state.value.page + 1)
+            UsersEvent.PreviousPage -> if (_state.value.hasPrevious) loadPage(_state.value.page - 1)
 
             is UsersEvent.RestrictionPicked ->
                 _state.value = _state.value.copy(proposed = event.restriction, reasonError = null)
@@ -94,6 +127,63 @@ class UsersViewModel(
             }
 
             UsersEvent.MessageDismissed -> _state.value = _state.value.copy(message = null)
+        }
+    }
+
+    init {
+        loadPage(0)
+    }
+
+    /**
+     * The directory.
+     *
+     * Re-read from page zero whenever the search term changes: a term that matched
+     * on page three has no page three.
+     */
+    private fun loadPage(page: Int) {
+        viewModelScope.launch {
+            users.list(_state.value.query.value.trim(), UsersUiState.PAGE_SIZE, page * UsersUiState.PAGE_SIZE).fold(
+                ifLeft = { error -> _state.value = _state.value.copy(message = error.asUiText()) },
+                ifRight = { result ->
+                    _state.value = _state.value.copy(directory = result.rows, total = result.total, page = page)
+                },
+            )
+        }
+    }
+
+    /** Open one account, by id, from a directory row. */
+    private fun open(id: String) {
+        _state.value = _state.value.copy(busy = true, message = null)
+        viewModelScope.launch {
+            users.find(id).fold(
+                ifLeft = { error -> _state.value = _state.value.copy(busy = false, message = error.asUiText()) },
+                ifRight = { found ->
+                    _state.value = _state.value.copy(
+                        busy = false,
+                        user = found,
+                        searched = true,
+                        proposed = found?.restriction ?: Restriction.None,
+                        reason = textField(found?.restrictionReason.orEmpty()),
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Unmask one account's contact details.
+     *
+     * The server writes the audit row before it answers, so there is nothing to
+     * log here — and nothing this client could skip.
+     */
+    private fun reveal(id: String) {
+        viewModelScope.launch {
+            users.reveal(id).onRight { contact ->
+                val shown = listOfNotNull(contact?.phone, contact?.email).joinToString(" · ")
+                if (shown.isNotEmpty()) {
+                    _state.value = _state.value.copy(revealed = _state.value.revealed + (id to shown))
+                }
+            }
         }
     }
 
@@ -160,6 +250,7 @@ class UsersViewModel(
                 ifLeft = { error -> _state.value = _state.value.copy(busy = false, message = error.asUiText()) },
                 ifRight = {
                     _state.value = _state.value.copy(busy = false, message = UiText.Resource(done))
+                    loadPage(_state.value.page)
                     // Re-read rather than patch the state: what the account now
                     // looks like is the server's answer, not this client's guess.
                     search()

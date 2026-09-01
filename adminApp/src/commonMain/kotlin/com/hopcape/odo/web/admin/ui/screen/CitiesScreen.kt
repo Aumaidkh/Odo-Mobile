@@ -1,32 +1,26 @@
 package com.hopcape.odo.web.admin.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.domain.City
 import com.hopcape.odo.web.admin.domain.CitySubmission
@@ -55,15 +49,37 @@ import com.hopcape.odo.web.admin.resources.ad_cities_restore
 import com.hopcape.odo.web.admin.resources.ad_cities_retire
 import com.hopcape.odo.web.admin.resources.ad_cities_retired_badge
 import com.hopcape.odo.web.admin.resources.ad_cities_save
-import com.hopcape.odo.web.admin.resources.ad_cities_search
 import com.hopcape.odo.web.admin.resources.ad_cities_show_retired
 import com.hopcape.odo.web.admin.resources.ad_cities_state
 import com.hopcape.odo.web.admin.resources.ad_cities_tier
 import com.hopcape.odo.web.admin.resources.ad_cities_tier_hint
 import com.hopcape.odo.web.admin.resources.ad_cities_tier_value
-import com.hopcape.odo.web.admin.resources.ad_dismiss
+import com.hopcape.odo.web.admin.ui.component.AdminField
+import com.hopcape.odo.web.admin.ui.component.Banner
+import com.hopcape.odo.web.admin.ui.component.Cell
+import com.hopcape.odo.web.admin.ui.component.CellPrimary
+import com.hopcape.odo.web.admin.ui.component.CellSecondary
+import com.hopcape.odo.web.admin.ui.component.FieldLabel
+import com.hopcape.odo.web.admin.ui.component.Muted
+import com.hopcape.odo.web.admin.resources.ad_users_showing
+import com.hopcape.odo.web.admin.ui.component.Pager
+import com.hopcape.odo.web.admin.ui.component.Panel
+import com.hopcape.odo.web.admin.ui.component.RowPanel
+import com.hopcape.odo.web.admin.resources.ad_users_showing
+import com.hopcape.odo.web.admin.ui.component.Pager
+import com.hopcape.odo.web.admin.ui.component.PanelHeader
+import com.hopcape.odo.web.admin.ui.component.Pill
+import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.RowAction
+import com.hopcape.odo.web.admin.ui.component.StatusText
+import com.hopcape.odo.web.admin.ui.component.TableHead
+import com.hopcape.odo.web.admin.ui.component.TableRow
+import com.hopcape.odo.web.admin.ui.theme.AdminTokens
+import com.hopcape.odo.web.admin.ui.theme.AdminType
 import com.hopcape.odo.web.core.presentation.state.resolve
 import org.jetbrains.compose.resources.stringResource
+
+private val COLUMNS = listOf(2.2f, 1.4f, 0.7f, 1.4f)
 
 /**
  * The queue above the catalog, on one page.
@@ -76,43 +92,69 @@ import org.jetbrains.compose.resources.stringResource
 fun CitiesScreen(state: CitiesUiState, onEvent: (CitiesEvent) -> Unit) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxSize().padding(26.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Header(state, onEvent) }
-
             item {
-                SectionHeading(
-                    title = stringResource(Res.string.ad_cities_queue_title),
-                    count = stringResource(Res.string.ad_cities_queue_count, state.pending.size),
-                )
-            }
-
-            if (state.pending.isEmpty()) {
-                item { Muted(stringResource(Res.string.ad_cities_queue_empty)) }
-            } else {
-                items(state.pending, key = { it.id }) { submission ->
-                    SubmissionRow(submission, state.busy, onEvent)
+                Panel {
+                    PanelHeader(stringResource(Res.string.ad_cities_queue_title)) {
+                        Pill(stringResource(Res.string.ad_cities_queue_count, state.pending.size))
+                    }
+                    if (state.pending.isEmpty()) {
+                        Muted(stringResource(Res.string.ad_cities_queue_empty))
+                    } else {
+                        state.pending.forEach { submission -> SubmissionRow(submission, state.busy, onEvent) }
+                    }
                 }
             }
 
             item {
-                SectionHeading(
-                    title = stringResource(Res.string.ad_cities_catalog_title),
-                    count = stringResource(Res.string.ad_cities_catalog_count, state.visible.size),
-                )
+                Panel {
+                    PanelHeader(stringResource(Res.string.ad_cities_catalog_title)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            RetiredToggle(state.showRetired) { onEvent(CitiesEvent.RetiredVisibilityToggled) }
+                            Pill(stringResource(Res.string.ad_cities_catalog_count, state.matching.size))
+                            PrimaryAction(
+                                stringResource(Res.string.ad_cities_add),
+                                { onEvent(CitiesEvent.AddRequested) },
+                                enabled = !state.busy,
+                            )
+                        }
+                    }
+                    TableHead(
+                        listOf(
+                            stringResource(Res.string.ad_cities_name).uppercase(),
+                            stringResource(Res.string.ad_cities_state).uppercase(),
+                            stringResource(Res.string.ad_cities_tier).uppercase(),
+                            "",
+                        ),
+                        COLUMNS,
+                    )
+                }
             }
-            item { Filters(state, onEvent) }
 
             if (state.visible.isEmpty()) {
-                item { Muted(stringResource(Res.string.ad_cities_empty)) }
+                item { Panel { Muted(stringResource(Res.string.ad_cities_empty)) } }
             } else {
-                items(state.visible, key = { it.id }) { city ->
-                    CityRow(city, state.busy, onEvent)
+                items(state.visible, key = { it.id }) { city -> CityRow(city, state.busy, onEvent) }
+                item {
+                    Pager(
+                        page = state.page,
+                        total = state.matching.size,
+                        label = stringResource(
+                            Res.string.ad_users_showing,
+                            state.page.first(state.matching.size),
+                            state.page.last(state.matching.size),
+                            state.matching.size,
+                        ),
+                        onPrevious = { onEvent(CitiesEvent.PreviousPage) },
+                        onNext = { onEvent(CitiesEvent.NextPage) },
+                    )
                 }
             }
-
-            item { Spacer(Modifier.padding(bottom = 32.dp)) }
         }
 
         state.message?.let { message ->
@@ -120,120 +162,82 @@ fun CitiesScreen(state: CitiesUiState, onEvent: (CitiesEvent) -> Unit) {
         }
     }
 
-    state.editor?.let { editor ->
-        EditorDialog(editor, state.busy, onEvent)
-    }
+    state.editor?.let { EditorDialog(it, state.busy, onEvent) }
 }
 
+/** The retired filter, as a chip rather than a checkbox — Material's is 48dp tall. */
 @Composable
-private fun Header(state: CitiesUiState, onEvent: (CitiesEvent) -> Unit) {
+private fun RetiredToggle(on: Boolean, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 32.dp, bottom = 8.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(AdminTokens.field)
+            .border(1.dp, if (on) AdminTokens.borderHover else AdminTokens.border, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 11.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        Box(
+            Modifier.size(5.dp).clip(RoundedCornerShape(999.dp))
+                .background(if (on) AdminTokens.accent else AdminTokens.textDim),
+        )
         Text(
-            stringResource(Res.string.ad_cities_catalog_title),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.weight(1f),
+            stringResource(Res.string.ad_cities_show_retired),
+            style = AdminType.strong,
+            color = if (on) AdminTokens.textStrong else AdminTokens.textFaint,
         )
-        Button(onClick = { onEvent(CitiesEvent.AddRequested) }, enabled = !state.busy) {
-            Text(stringResource(Res.string.ad_cities_add))
-        }
-    }
-}
-
-@Composable
-private fun Filters(state: CitiesUiState, onEvent: (CitiesEvent) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        OutlinedTextField(
-            value = state.search,
-            onValueChange = { onEvent(CitiesEvent.SearchChanged(it)) },
-            label = { Text(stringResource(Res.string.ad_cities_search)) },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(
-                checked = state.showRetired,
-                onCheckedChange = { onEvent(CitiesEvent.RetiredVisibilityToggled) },
-            )
-            Text(stringResource(Res.string.ad_cities_show_retired), style = MaterialTheme.typography.bodyMedium)
-        }
     }
 }
 
 @Composable
 private fun SubmissionRow(submission: CitySubmission, busy: Boolean, onEvent: (CitiesEvent) -> Unit) {
-    RowCard {
+    TableRow {
         Column(Modifier.weight(1f)) {
-            Text(submission.name, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                stringResource(Res.string.ad_cities_reported_on, submission.createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            CellPrimary(submission.name)
+            CellSecondary(stringResource(Res.string.ad_cities_reported_on, submission.createdAt))
         }
         // Approve opens the editor rather than acting directly: `cities.state` is
         // NOT NULL and the app never asked the owner for one, so there is always a
         // field to fill before this can become a catalog row.
-        TextButton(onClick = { onEvent(CitiesEvent.ApproveRequested(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_cities_approve))
-        }
-        TextButton(onClick = { onEvent(CitiesEvent.SubmissionRejected(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_cities_reject))
-        }
-        TextButton(onClick = { onEvent(CitiesEvent.SubmissionDeleted(submission)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_cities_delete), color = MaterialTheme.colorScheme.error)
-        }
+        RowAction(stringResource(Res.string.ad_cities_approve), { onEvent(CitiesEvent.ApproveRequested(submission)) }, !busy)
+        RowAction(stringResource(Res.string.ad_cities_reject), { onEvent(CitiesEvent.SubmissionRejected(submission)) }, !busy)
+        RowAction(
+            stringResource(Res.string.ad_cities_delete),
+            { onEvent(CitiesEvent.SubmissionDeleted(submission)) },
+            !busy,
+            color = AdminTokens.danger,
+        )
     }
 }
 
 @Composable
 private fun CityRow(city: City, busy: Boolean, onEvent: (CitiesEvent) -> Unit) {
-    RowCard {
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    city.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (city.isActive) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    RowPanel {
+        TableRow {
+            Column(Modifier.weight(COLUMNS[0])) {
+                CellPrimary(city.name, color = if (city.isActive) AdminTokens.text else AdminTokens.textFaint)
                 if (!city.isActive) {
-                    Text(
-                        stringResource(Res.string.ad_cities_retired_badge),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
+                    CellSecondary(stringResource(Res.string.ad_cities_retired_badge))
                 }
             }
-            Text(
-                "${city.state} · ${stringResource(Res.string.ad_cities_tier)} ${city.tier}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        TextButton(onClick = { onEvent(CitiesEvent.EditRequested(city)) }, enabled = !busy) {
-            Text(stringResource(Res.string.ad_cities_edit))
-        }
-        TextButton(onClick = { onEvent(CitiesEvent.ActiveToggled(city)) }, enabled = !busy) {
-            Text(
-                if (city.isActive) {
-                    stringResource(Res.string.ad_cities_retire)
-                } else {
-                    stringResource(Res.string.ad_cities_restore)
-                },
-            )
+            Cell(city.state, Modifier.weight(COLUMNS[1]))
+            Cell(city.tier.toString(), Modifier.weight(COLUMNS[2]))
+            Row(
+                modifier = Modifier.weight(COLUMNS[3]),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                RowAction(stringResource(Res.string.ad_cities_edit), { onEvent(CitiesEvent.EditRequested(city)) }, !busy)
+                RowAction(
+                    if (city.isActive) {
+                        stringResource(Res.string.ad_cities_retire)
+                    } else {
+                        stringResource(Res.string.ad_cities_restore)
+                    },
+                    { onEvent(CitiesEvent.ActiveToggled(city)) },
+                    !busy,
+                )
+            }
         }
     }
 }
@@ -242,6 +246,9 @@ private fun CityRow(city: City, busy: Boolean, onEvent: (CitiesEvent) -> Unit) {
 private fun EditorDialog(editor: CityEditor, busy: Boolean, onEvent: (CitiesEvent) -> Unit) {
     AlertDialog(
         onDismissRequest = { onEvent(CitiesEvent.EditorDismissed) },
+        containerColor = AdminTokens.card,
+        titleContentColor = AdminTokens.text,
+        textContentColor = AdminTokens.textStrong,
         title = {
             Text(
                 when (editor.mode) {
@@ -249,63 +256,80 @@ private fun EditorDialog(editor: CityEditor, busy: Boolean, onEvent: (CitiesEven
                     is CityEditorMode.Edit -> stringResource(Res.string.ad_cities_edit_title)
                     is CityEditorMode.Approve -> stringResource(Res.string.ad_cities_approve_title)
                 },
+                style = AdminType.title,
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = editor.name.value,
-                    onValueChange = { onEvent(CitiesEvent.EditorNameChanged(it)) },
-                    label = { Text(stringResource(Res.string.ad_cities_name)) },
-                    singleLine = true,
-                    isError = editor.nameError != null,
-                    supportingText = editor.nameError?.let { { Text(it.resolve()) } },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = editor.state.value,
-                    onValueChange = { onEvent(CitiesEvent.EditorStateChanged(it)) },
-                    label = { Text(stringResource(Res.string.ad_cities_state)) },
-                    singleLine = true,
-                    isError = editor.stateError != null,
-                    supportingText = editor.stateError?.let { { Text(it.resolve()) } },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(stringResource(Res.string.ad_cities_tier), style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(1, 2, 3).forEach { tier ->
-                        FilterChip(
-                            selected = editor.tier == tier,
-                            onClick = { onEvent(CitiesEvent.EditorTierChanged(tier)) },
-                            label = { Text(stringResource(Res.string.ad_cities_tier_value, tier)) },
-                        )
-                    }
+                Column {
+                    FieldLabel(stringResource(Res.string.ad_cities_name).uppercase())
+                    AdminField(
+                        editor.name.value,
+                        { onEvent(CitiesEvent.EditorNameChanged(it)) },
+                        stringResource(Res.string.ad_cities_name),
+                        Modifier.fillMaxWidth(),
+                    )
+                    editor.nameError?.let { StatusText(it.resolve(), AdminTokens.danger, Modifier.padding(top = 4.dp)) }
                 }
-                Text(
-                    stringResource(Res.string.ad_cities_tier_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column {
+                    FieldLabel(stringResource(Res.string.ad_cities_state).uppercase())
+                    AdminField(
+                        editor.state.value,
+                        { onEvent(CitiesEvent.EditorStateChanged(it)) },
+                        stringResource(Res.string.ad_cities_state),
+                        Modifier.fillMaxWidth(),
+                    )
+                    editor.stateError?.let { StatusText(it.resolve(), AdminTokens.danger, Modifier.padding(top = 4.dp)) }
+                }
+                Column {
+                    FieldLabel(stringResource(Res.string.ad_cities_tier).uppercase())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(1, 2, 3).forEach { tier ->
+                            TierChip(tier, editor.tier == tier) { onEvent(CitiesEvent.EditorTierChanged(tier)) }
+                        }
+                    }
+                    Text(
+                        stringResource(Res.string.ad_cities_tier_hint),
+                        style = AdminType.caption,
+                        color = AdminTokens.textDim,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onEvent(CitiesEvent.EditorSubmitted) },
+            PrimaryAction(
+                if (editor.mode is CityEditorMode.Approve) {
+                    stringResource(Res.string.ad_cities_approve)
+                } else {
+                    stringResource(Res.string.ad_cities_save)
+                },
+                { onEvent(CitiesEvent.EditorSubmitted) },
                 enabled = editor.canSubmit && !busy,
-            ) {
-                Text(
-                    if (editor.mode is CityEditorMode.Approve) {
-                        stringResource(Res.string.ad_cities_approve)
-                    } else {
-                        stringResource(Res.string.ad_cities_save)
-                    },
-                )
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = { onEvent(CitiesEvent.EditorDismissed) }) {
-                Text(stringResource(Res.string.ad_cities_cancel))
-            }
+            RowAction(stringResource(Res.string.ad_cities_cancel), { onEvent(CitiesEvent.EditorDismissed) })
         },
     )
+}
+
+@Composable
+private fun TierChip(tier: Int, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .width(56.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (selected) AdminTokens.text else AdminTokens.field)
+            .border(1.dp, if (selected) AdminTokens.text else AdminTokens.border, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(Res.string.ad_cities_tier_value, tier),
+            style = AdminType.strong,
+            color = if (selected) AdminTokens.canvas else AdminTokens.textStrong,
+        )
+    }
 }

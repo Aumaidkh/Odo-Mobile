@@ -7,118 +7,114 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.presentation.signin.SignInEvent
 import com.hopcape.odo.web.admin.presentation.signin.SignInUiState
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.resources.ad_shell_wordmark
+import com.hopcape.odo.web.admin.resources.ad_shell_wordmark_sub
 import com.hopcape.odo.web.admin.resources.ad_signin_busy
 import com.hopcape.odo.web.admin.resources.ad_signin_email
 import com.hopcape.odo.web.admin.resources.ad_signin_password
 import com.hopcape.odo.web.admin.resources.ad_signin_submit
 import com.hopcape.odo.web.admin.resources.ad_signin_subtitle
-import com.hopcape.odo.web.admin.resources.ad_signin_title
+import com.hopcape.odo.web.admin.ui.component.AdminField
+import com.hopcape.odo.web.admin.ui.component.FieldLabel
+import com.hopcape.odo.web.admin.ui.component.Panel
+import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.StatusText
+import com.hopcape.odo.web.admin.ui.theme.AdminTokens
+import com.hopcape.odo.web.admin.ui.theme.AdminType
 import com.hopcape.odo.web.core.presentation.state.resolve
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * One card, centred, with nothing else on the page.
  *
- * No "forgot password" and no "create account", and neither is an omission. Both
+ * No "forgot password" and no "create account", and neither is an omission: both
  * are Firebase console operations for a staff account — there is no self-serve
- * path into this panel by design, and offering a link that leads nowhere is worse
- * than offering none.
+ * path into this panel by design, and a link that leads nowhere is worse than none.
+ *
+ * **Every colour here is explicit.** Nothing wraps this in a Material `Surface`, so
+ * `LocalContentColor` is black — a `Text` that does not name its colour renders
+ * black on black and simply is not there. That is how the title went missing on the
+ * first deploy, and it is why this screen is built from the panel's own components
+ * rather than Material's.
  */
 @Composable
 fun SignInScreen(state: SignInUiState, onEvent: (SignInEvent) -> Unit) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize().background(AdminTokens.canvas),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            modifier = Modifier.widthIn(max = 360.dp).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(stringResource(Res.string.ad_signin_title), style = MaterialTheme.typography.headlineSmall)
-            Text(
-                stringResource(Res.string.ad_signin_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-
-            OutlinedTextField(
-                value = state.email.value,
-                onValueChange = { onEvent(SignInEvent.EmailChanged(it)) },
-                label = { Text(stringResource(Res.string.ad_signin_email)) },
-                singleLine = true,
-                enabled = !state.busy,
-                isError = state.error != null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            OutlinedTextField(
-                value = state.password.value,
-                onValueChange = { onEvent(SignInEvent.PasswordChanged(it)) },
-                label = { Text(stringResource(Res.string.ad_signin_password)) },
-                singleLine = true,
-                enabled = !state.busy,
-                isError = state.error != null,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Go,
-                ),
-                // Enter submits. Reaching for the mouse to sign in is the kind of
-                // small friction that this page will impose several times a day.
-                keyboardActions = KeyboardActions(onGo = { onEvent(SignInEvent.Submit) }),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // Under the password field, where the design of every other sign-in in
-            // this codebase puts it.
-            state.error?.let { error ->
-                Text(
-                    error.resolve(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            Button(
-                onClick = { onEvent(SignInEvent.Submit) },
-                enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        Panel(Modifier.width(380.dp)) {
+            Column(
+                modifier = Modifier.padding(28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (state.busy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(end = 8.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(Res.string.ad_shell_wordmark),
+                        style = AdminType.wordmark,
+                        color = AdminTokens.text,
                     )
-                    Text(stringResource(Res.string.ad_signin_busy))
-                } else {
-                    Text(stringResource(Res.string.ad_signin_submit))
+                    Text(
+                        stringResource(Res.string.ad_shell_wordmark_sub),
+                        style = AdminType.micro,
+                        color = AdminTokens.textFaint,
+                    )
                 }
+
+                Text(
+                    stringResource(Res.string.ad_signin_subtitle),
+                    style = AdminType.body,
+                    color = AdminTokens.textFaint,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+
+                Column {
+                    FieldLabel(stringResource(Res.string.ad_signin_email).uppercase())
+                    AdminField(
+                        value = state.email.value,
+                        onValueChange = { onEvent(SignInEvent.EmailChanged(it)) },
+                        placeholder = stringResource(Res.string.ad_signin_email),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.busy,
+                    )
+                }
+
+                Column {
+                    FieldLabel(stringResource(Res.string.ad_signin_password).uppercase())
+                    AdminField(
+                        value = state.password.value,
+                        onValueChange = { onEvent(SignInEvent.PasswordChanged(it)) },
+                        placeholder = stringResource(Res.string.ad_signin_password),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.busy,
+                        masked = true,
+                    )
+                }
+
+                // Under the fields, where the design of every other sign-in in this
+                // codebase puts it.
+                state.error?.let { error ->
+                    StatusText(error.resolve(), AdminTokens.danger)
+                }
+
+                PrimaryAction(
+                    label = if (state.busy) {
+                        stringResource(Res.string.ad_signin_busy)
+                    } else {
+                        stringResource(Res.string.ad_signin_submit)
+                    },
+                    onClick = { onEvent(SignInEvent.Submit) },
+                    enabled = state.canSubmit,
+                )
             }
         }
     }

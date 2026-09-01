@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.admin.domain.AuditEntry
 import com.hopcape.odo.web.admin.domain.AuditRepository
 import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.valueOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,12 +17,15 @@ import kotlinx.coroutines.launch
 sealed interface AuditEvent {
     data object Refresh : AuditEvent
     data class FilterChanged(val value: String) : AuditEvent
+    data object NextPage : AuditEvent
+    data object PreviousPage : AuditEvent
 }
 
 @Immutable
 data class AuditUiState(
     val entries: Loadable<List<AuditEntry>> = Loadable.Loading,
     val filter: String = "",
+    val page: Page = Page(0),
 ) {
     /**
      * Filtered here rather than in the query.
@@ -30,7 +34,7 @@ data class AuditUiState(
      * usually narrowing by eye — "what happened to cities today". A round trip per
      * keystroke buys nothing at this size.
      */
-    val visible: List<AuditEntry>
+    val matching: List<AuditEntry>
         get() {
             val term = filter.trim()
             if (term.isEmpty()) return entries.valueOrNull.orEmpty()
@@ -40,6 +44,8 @@ data class AuditUiState(
                     it.actorEmail?.contains(term, ignoreCase = true) == true
             }
         }
+
+    val visible: List<AuditEntry> get() = page.windowOf(matching)
 }
 
 class AuditViewModel(
@@ -59,7 +65,16 @@ class AuditViewModel(
     fun onEvent(event: AuditEvent) {
         when (event) {
             AuditEvent.Refresh -> load()
-            is AuditEvent.FilterChanged -> _state.value = _state.value.copy(filter = event.value)
+            is AuditEvent.FilterChanged ->
+                _state.value = _state.value.copy(filter = event.value, page = _state.value.page.reset())
+
+            AuditEvent.NextPage -> if (_state.value.page.hasNext(_state.value.matching.size)) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index + 1))
+            }
+
+            AuditEvent.PreviousPage -> if (_state.value.page.hasPrevious) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index - 1))
+            }
         }
     }
 

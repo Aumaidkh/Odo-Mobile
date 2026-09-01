@@ -11,6 +11,7 @@ import com.hopcape.odo.web.admin.domain.VehiclesRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
 import com.hopcape.odo.web.admin.presentation.loadInto
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.admin.resources.ad_vehicles_added
 import com.hopcape.odo.web.admin.resources.ad_vehicles_approved_done
 import com.hopcape.odo.web.admin.resources.ad_vehicles_deleted_done
@@ -33,6 +34,8 @@ sealed interface VehiclesEvent {
     data object Refresh : VehiclesEvent
     data class SearchChanged(val value: String) : VehiclesEvent
     data class MakeSelected(val makeId: String?) : VehiclesEvent
+    data object NextPage : VehiclesEvent
+    data object PreviousPage : VehiclesEvent
 
     data object AddRequested : VehiclesEvent
     data class RenameMakeRequested(val make: VehicleMake) : VehiclesEvent
@@ -112,6 +115,7 @@ data class VehiclesUiState(
     val search: String = "",
     /** Null means every make. A filter, not navigation — the URL does not change. */
     val selectedMakeId: String? = null,
+    val page: Page = Page(0, size = 10),
     val editor: VehicleEditor? = null,
     val pendingDelete: DeleteTarget? = null,
     val busy: Boolean = false,
@@ -131,7 +135,8 @@ data class VehiclesUiState(
      * matches keeps all of its models; otherwise only the models that match
      * survive, and a make with none left drops out.
      */
-    val groups: List<MakeGroup>
+    /** Every make the filter admits, before the page window. */
+    val matchingGroups: List<MakeGroup>
         get() {
             val term = search.trim()
             val byMake = models.valueOrNull.orEmpty().groupBy { it.makeId }
@@ -159,7 +164,16 @@ data class VehiclesUiState(
                 }
         }
 
-    val modelCount: Int get() = groups.sumOf { it.models.size }
+    /**
+     * The makes actually drawn.
+     *
+     * Paged by make rather than by model: a page that cut Tata in half would put
+     * six of its models at the bottom of one page and the rest at the top of the
+     * next, under a heading that had scrolled away.
+     */
+    val groups: List<MakeGroup> get() = page.windowOf(matchingGroups)
+
+    val modelCount: Int get() = matchingGroups.sumOf { it.models.size }
 
     internal companion object {
         const val PENDING = "pending"
@@ -195,8 +209,21 @@ class VehiclesViewModel(
     fun onEvent(event: VehiclesEvent) {
         when (event) {
             VehiclesEvent.Refresh -> load()
-            is VehiclesEvent.SearchChanged -> _state.value = _state.value.copy(search = event.value)
-            is VehiclesEvent.MakeSelected -> _state.value = _state.value.copy(selectedMakeId = event.makeId)
+            // Both reset the window: a filter matching nothing on page four would
+            // otherwise look like an empty catalog.
+            is VehiclesEvent.SearchChanged ->
+                _state.value = _state.value.copy(search = event.value, page = _state.value.page.reset())
+
+            is VehiclesEvent.MakeSelected ->
+                _state.value = _state.value.copy(selectedMakeId = event.makeId, page = _state.value.page.reset())
+
+            VehiclesEvent.NextPage -> if (_state.value.page.hasNext(_state.value.matchingGroups.size)) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index + 1))
+            }
+
+            VehiclesEvent.PreviousPage -> if (_state.value.page.hasPrevious) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index - 1))
+            }
 
             VehiclesEvent.AddRequested -> _state.value = _state.value.copy(
                 editor = VehicleEditor(VehicleEditorMode.New, textField(), textField(), textField()),

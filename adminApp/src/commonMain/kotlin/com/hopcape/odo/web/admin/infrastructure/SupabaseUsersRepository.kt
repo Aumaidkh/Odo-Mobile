@@ -4,7 +4,10 @@ import arrow.core.Either
 import com.hopcape.odo.web.admin.domain.AuditEntry
 import com.hopcape.odo.web.admin.domain.AuditRepository
 import com.hopcape.odo.web.admin.domain.EntitlementOverride
+import com.hopcape.odo.web.admin.domain.DirectoryUser
 import com.hopcape.odo.web.admin.domain.ManagedUser
+import com.hopcape.odo.web.admin.domain.RevealedContact
+import com.hopcape.odo.web.admin.domain.UserPage
 import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.core.domain.WebError
@@ -32,6 +35,38 @@ internal class SupabaseUsersRepository(
             body = """{"p_query":"${query.jsonEscaped()}"}""",
             serializer = UserRow.serializer(),
         ).map { row -> row?.toUser() }
+
+    override suspend fun list(query: String, limit: Int, offset: Int): Either<WebError, UserPage> {
+        val queryJson = query.trim().takeIf { it.isNotEmpty() }?.let { "\"${it.jsonEscaped()}\"" } ?: "null"
+        return postgrest.rpcOne(
+            name = "admin_list_users",
+            body = """{"p_query":$queryJson,"p_limit":$limit,"p_offset":$offset}""",
+            serializer = PageRow.serializer(),
+        ).map { page ->
+            UserPage(
+                total = page?.total ?: 0,
+                rows = page?.rows.orEmpty().map {
+                    DirectoryUser(
+                        id = it.id,
+                        name = it.name,
+                        maskedPhone = it.phone,
+                        maskedEmail = it.email,
+                        city = it.city,
+                        cars = it.cars,
+                        restriction = Restriction.ofId(it.restriction),
+                        proOverride = it.proOverride,
+                    )
+                },
+            )
+        }
+    }
+
+    override suspend fun reveal(id: String): Either<WebError, RevealedContact?> =
+        postgrest.rpcOne(
+            name = "admin_reveal_user_contact",
+            body = """{"p_id":"$id"}""",
+            serializer = RevealRow.serializer(),
+        ).map { row -> row?.let { RevealedContact(it.phone, it.email) } }
 
     override suspend fun setEntitlement(
         ownerId: String,
@@ -105,6 +140,27 @@ internal class SupabaseAuditRepository(
             }
         }
 }
+
+@Serializable
+private data class PageRow(
+    val total: Int = 0,
+    val rows: List<DirectoryRow> = emptyList(),
+)
+
+@Serializable
+private data class DirectoryRow(
+    val id: String,
+    val name: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val city: String? = null,
+    val cars: Int = 0,
+    val restriction: String? = null,
+    @SerialName("pro_override") val proOverride: Boolean? = null,
+)
+
+@Serializable
+private data class RevealRow(val phone: String? = null, val email: String? = null)
 
 @Serializable
 private data class UserRow(

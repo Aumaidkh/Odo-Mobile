@@ -10,6 +10,7 @@ import com.hopcape.odo.web.admin.domain.CitySubmission
 import com.hopcape.odo.web.admin.presentation.asUiText
 import com.hopcape.odo.web.admin.presentation.loadInto
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.admin.resources.ad_cities_approved_done
 import com.hopcape.odo.web.admin.resources.ad_cities_deleted_done
 import com.hopcape.odo.web.admin.resources.ad_cities_duplicate
@@ -33,6 +34,8 @@ sealed interface CitiesEvent {
     data object Refresh : CitiesEvent
     data class SearchChanged(val value: String) : CitiesEvent
     data object RetiredVisibilityToggled : CitiesEvent
+    data object NextPage : CitiesEvent
+    data object PreviousPage : CitiesEvent
 
     data object AddRequested : CitiesEvent
     data class EditRequested(val city: City) : CitiesEvent
@@ -83,6 +86,7 @@ data class CitiesUiState(
     val submissions: Loadable<List<CitySubmission>> = Loadable.Loading,
     val search: String = "",
     val showRetired: Boolean = false,
+    val page: Page = Page(0),
     val editor: CityEditor? = null,
     val busy: Boolean = false,
     val message: UiText? = null,
@@ -99,7 +103,8 @@ data class CitiesUiState(
      * retired ones are the least interesting — but they have to be reachable,
      * because restoring one is impossible if it cannot be listed.
      */
-    val visible: List<City>
+    /** Everything the filter admits, before the page window. */
+    val matching: List<City>
         get() {
             val all = catalog.valueOrNull.orEmpty()
             val term = search.trim()
@@ -111,6 +116,9 @@ data class CitiesUiState(
                         it.state.contains(term, ignoreCase = true)
                 }
         }
+
+    /** The rows actually drawn. */
+    val visible: List<City> get() = page.windowOf(matching)
 
     internal companion object {
         const val PENDING = "pending"
@@ -144,9 +152,24 @@ class CitiesViewModel(
     fun onEvent(event: CitiesEvent) {
         when (event) {
             CitiesEvent.Refresh -> load()
-            is CitiesEvent.SearchChanged -> _state.value = _state.value.copy(search = event.value)
+            // Both reset the window: a filter that matches nothing on page four
+            // would otherwise look like an empty catalog.
+            is CitiesEvent.SearchChanged ->
+                _state.value = _state.value.copy(search = event.value, page = _state.value.page.reset())
+
             CitiesEvent.RetiredVisibilityToggled ->
-                _state.value = _state.value.copy(showRetired = !_state.value.showRetired)
+                _state.value = _state.value.copy(
+                    showRetired = !_state.value.showRetired,
+                    page = _state.value.page.reset(),
+                )
+
+            CitiesEvent.NextPage -> if (_state.value.page.hasNext(_state.value.matching.size)) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index + 1))
+            }
+
+            CitiesEvent.PreviousPage -> if (_state.value.page.hasPrevious) {
+                _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index - 1))
+            }
 
             CitiesEvent.AddRequested -> _state.value = _state.value.copy(
                 editor = CityEditor(CityEditorMode.New, textField(), textField(), DEFAULT_TIER),

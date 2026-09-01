@@ -30,8 +30,34 @@ data class AdminSession(
      */
     fun can(permission: Permission): Boolean = permission in permissions
 
-    /** The initial the account chip draws. */
-    val initial: String get() = name.take(1).uppercase().ifBlank { email.take(1).uppercase() }
+    /**
+     * The two letters the account chip draws.
+     *
+     * Two rather than one because a 28dp circle has room and one letter is a
+     * weak identifier on a shared tool — "A" belongs to too many people.
+     * Falls back to the address when there is no name yet.
+     */
+    val initials: String
+        get() {
+            val parts = name.trim().split(" ").filter { it.isNotBlank() }
+            return when {
+                parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}".uppercase()
+                parts.size == 1 -> parts[0].take(2).uppercase()
+                else -> email.take(2).uppercase()
+            }
+        }
+
+    /**
+     * The role, for the chip beside the name and in the header.
+     *
+     * The first one held, title-cased from its slug. Somebody with two roles is
+     * rare and the chip has room for one; the full list is on the roles screen.
+     */
+    val roleLabel: String
+        get() = roles.firstOrNull()
+            ?.split("_")
+            ?.joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
+            ?: "No role"
 }
 
 /**

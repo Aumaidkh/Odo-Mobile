@@ -47,16 +47,19 @@ class LandingTest {
     }
 
     @Test
-    fun `content sees the catalogs and the blog, and not the users`() {
+    fun `content sees the content and catalog sections, and not the users`() {
         assertEquals(
-            listOf(AdminRoute.Vehicles, AdminRoute.Cities, AdminRoute.Fairness, AdminRoute.Blog),
+            listOf(AdminRoute.Content, AdminRoute.Catalogue, AdminRoute.Vehicles, AdminRoute.Cities),
             sectionsFor(content),
         )
     }
 
     @Test
-    fun `support sees the users and the audit log, and not the catalogs`() {
-        assertEquals(listOf(AdminRoute.Users, AdminRoute.Audit), sectionsFor(support))
+    fun `support sees the user-facing sections, and not the catalogs`() {
+        assertEquals(
+            listOf(AdminRoute.Dashboard, AdminRoute.Users, AdminRoute.Tickets, AdminRoute.Billing, AdminRoute.Audit),
+            sectionsFor(support),
+        )
     }
 
     /**
@@ -69,8 +72,8 @@ class LandingTest {
             val landing = landingFor(session)
             assertTrue(landing != null && session.mayOpen(landing), "bad landing for $landing")
         }
-        assertEquals(AdminRoute.Vehicles, landingFor(content))
-        assertEquals(AdminRoute.Users, landingFor(support))
+        assertEquals(AdminRoute.Content, landingFor(content))
+        assertEquals(AdminRoute.Dashboard, landingFor(support))
     }
 
     @Test
@@ -89,16 +92,16 @@ class LandingTest {
     fun `a hidden section is refused when reached by URL`() {
         assertFalse(support.mayOpen(AdminRoute.Vehicles))
         assertFalse(content.mayOpen(AdminRoute.Users))
-        assertFalse(content.mayOpen(AdminRoute.Staff))
+        assertFalse(content.mayOpen(AdminRoute.Roles))
         assertTrue(support.mayOpen(AdminRoute.Users))
     }
 
-    /** Only super admin holds `admin.roles.write`, so only they manage staff. */
+    /** Only super admin holds `admin.roles.write`, so only they edit the grid. */
     @Test
-    fun `only a super admin sees the staff section`() {
-        assertTrue(superAdmin.mayOpen(AdminRoute.Staff))
-        assertFalse(content.mayOpen(AdminRoute.Staff))
-        assertFalse(support.mayOpen(AdminRoute.Staff))
+    fun `only a super admin sees the roles section`() {
+        assertTrue(superAdmin.mayOpen(AdminRoute.Roles))
+        assertFalse(content.mayOpen(AdminRoute.Roles))
+        assertFalse(support.mayOpen(AdminRoute.Roles))
     }
 
     /** Sign-in and 404 carry no permission, so they are open to anyone signed in. */

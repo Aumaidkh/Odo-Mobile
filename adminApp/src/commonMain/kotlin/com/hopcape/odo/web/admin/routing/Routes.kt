@@ -26,8 +26,16 @@ fun routeOf(path: String): AdminRoute {
     // never see.
     return when {
         segments.isEmpty() -> AdminRoute.SignIn
-        segments.size > 1 -> AdminRoute.NotFound(path)
-        else -> SECTIONS_BY_SEGMENT[segments[0]] ?: AdminRoute.NotFound(path)
+        segments.size == 1 -> SECTIONS_BY_SEGMENT[segments[0]] ?: AdminRoute.NotFound(path)
+        // Two levels, and only for the sections that have a detail page. A ticket
+        // id that is not a number is a 404 rather than a ticket zero — the id comes
+        // from a URL somebody may have typed.
+        segments.size == 2 -> when (segments[0]) {
+            "tickets" -> segments[1].toLongOrNull()?.let(AdminRoute::TicketDetail) ?: AdminRoute.NotFound(path)
+            "content" -> AdminRoute.PostDetail(decode(segments[1]))
+            else -> AdminRoute.NotFound(path)
+        }
+        else -> AdminRoute.NotFound(path)
     }
 }
 
@@ -40,7 +48,39 @@ fun AdminRoute.location(): String = when (this) {
     AdminRoute.SignIn -> ""
     // Keeping the path a 404 was reached at is the whole point of holding it.
     is AdminRoute.NotFound -> attempted
+    is AdminRoute.TicketDetail -> "/tickets/$id"
+    is AdminRoute.PostDetail -> "/content/${encode(id)}"
     else -> "/${segmentOf(this)}"
+}
+
+/**
+ * Percent-encodes a path segment.
+ *
+ * A post id is a uuid today and needs none of this, but the id is put into a URL
+ * and read back out of one, and a round trip that only works for the shape it
+ * happens to have is a round trip that breaks the day slugs are used instead.
+ */
+private fun encode(value: String): String = buildString {
+    for (c in value) {
+        if (c.isLetterOrDigit() || c in "-_.~") append(c)
+        else for (b in c.toString().encodeToByteArray()) append('%').append((b.toInt() and 0xFF).toString(16).uppercase().padStart(2, '0'))
+    }
+}
+
+private fun decode(value: String): String {
+    if ('%' !in value) return value
+    val bytes = ArrayList<Byte>(value.length)
+    var i = 0
+    while (i < value.length) {
+        val c = value[i]
+        if (c == '%' && i + 2 < value.length) {
+            val hex = value.substring(i + 1, i + 3).toIntOrNull(16)
+            if (hex != null) { bytes.add(hex.toByte()); i += 3; continue }
+        }
+        for (b in c.toString().encodeToByteArray()) bytes.add(b)
+        i++
+    }
+    return bytes.toByteArray().decodeToString()
 }
 
 /**
@@ -54,11 +94,15 @@ private fun segmentOf(route: AdminRoute): String =
     SECTIONS_BY_SEGMENT.entries.first { it.value == route }.key
 
 private val SECTIONS_BY_SEGMENT: Map<String, AdminRoute> = mapOf(
+    "dashboard" to AdminRoute.Dashboard,
+    "users" to AdminRoute.Users,
+    "roles" to AdminRoute.Roles,
+    "content" to AdminRoute.Content,
+    "catalogue" to AdminRoute.Catalogue,
     "vehicles" to AdminRoute.Vehicles,
     "cities" to AdminRoute.Cities,
-    "fairness" to AdminRoute.Fairness,
-    "users" to AdminRoute.Users,
-    "blog" to AdminRoute.Blog,
+    "tickets" to AdminRoute.Tickets,
+    "billing" to AdminRoute.Billing,
+    "flags" to AdminRoute.Flags,
     "audit" to AdminRoute.Audit,
-    "staff" to AdminRoute.Staff,
 )

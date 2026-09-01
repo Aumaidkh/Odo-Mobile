@@ -23,6 +23,15 @@ enum class Permission(val id: String) {
     UsersRestrictWrite("users.restrict.write"),
     AuditRead("audit.read"),
     AdminRolesWrite("admin.roles.write"),
+
+    /**
+     * Rollout percentages and kill switches.
+     *
+     * Separate from [AdminRolesWrite] on purpose: shipping a flag is an
+     * engineering action somebody may hold without also being able to grant
+     * themselves more access.
+     */
+    FlagsWrite("flags.write"),
     ;
 
     companion object {

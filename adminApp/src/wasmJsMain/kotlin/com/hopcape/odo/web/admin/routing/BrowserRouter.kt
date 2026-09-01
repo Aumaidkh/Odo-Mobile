@@ -13,9 +13,9 @@ import kotlinx.browser.window
  * place — it pushes the address and it moves the app — and `popstate` moves the app
  * when somebody uses the back button.
  *
- * Refresh only survives because `landing/firebase.json` rewrites everything under
- * `/admin/` to this app's own `index.html`. Without that rewrite every section is a
- * 404 on reload, and nothing in this class can tell.
+ * Refresh only survives because the hosting config in `adminApp/hosting` rewrites
+ * every unmatched path to this app's own `index.html`. Without that rewrite every
+ * section is a 404 on reload, and nothing in this class can tell.
  */
 class BrowserRouter : Router {
 
