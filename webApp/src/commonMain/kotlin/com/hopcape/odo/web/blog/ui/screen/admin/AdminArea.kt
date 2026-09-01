@@ -168,7 +168,8 @@ private fun EditorHost(route: Admin.Editor, router: Router) {
             // thing that knows whether there is unsaved work to warn about.
             EditorEffect.Leave -> router.go(Admin.Posts)
             is EditorEffect.CopyUrl -> copyToClipboard(effect.url)
-            is EditorEffect.OpenPost -> openExternal("/blog/${effect.slug}")
+            // The blog is served at the root of its own origin now, not under /blog.
+            is EditorEffect.OpenPost -> openExternal("/${effect.slug}")
         }
     }
 
