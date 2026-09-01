@@ -1,19 +1,22 @@
 package com.hopcape.odo.core.config
 
 /**
- * The two feature switches that used to be `const val`s in `:core:common`.
+ * The app's feature switches, the first two of which used to be `const val`s in
+ * `:core:common`.
  *
- * They are declared here, not in a feature module, because neither has a single owner:
+ * They are declared here, not in a feature module, because none has a single owner:
  * `auto_odometer_enabled` is read from `:shared`, `:feature:garage` and
  * `:feature:dashboard`, and a feature module depending on a sibling feature module is not
  * something this repo does anywhere. `:core:config` is the same altitude `FeatureFlags`
  * sat at.
  *
- * Both default to **true**, because both were `true` in code, and a fresh install with no
- * network has to behave the way it behaves now.
+ * The kill switches default to **true**, because they were `true` in code, and a fresh
+ * install with no network has to behave the way it behaves now. A launch flag defaults
+ * to **false** for the same reason read backwards: the feature is not live yet, and no
+ * fetch may ever land — see [challanEnabled].
  *
- * **Remote config turns things off, never on.** A flag can only reach code the installed
- * APK already contains and the manifest already declares — see [refuelDetectEnabled].
+ * **Remote config only reaches code the installed APK already contains** and the
+ * manifest already declares — see [refuelDetectEnabled] for the flag where that bites.
  */
 @ConfigGroup("features")
 interface FeatureConfig {
@@ -55,12 +58,26 @@ interface FeatureConfig {
     )
     val refuelDetectEnabled: Boolean
 
-
+    /**
+     * Whether the garage shows the challan row — pending traffic challans on the owner's
+     * car, and the lookup screens behind it.
+     *
+     * The one launch flag here: it defaults to **false** and is flipped on from the
+     * console when the feature is ready to be seen. Unlike [refuelDetectEnabled]'s
+     * on-switch, turning this on works, because everything the row needs — the screens,
+     * the repository, the challan tables — already ships in the APK. The flag only
+     * decides whether the garage offers a way in.
+     *
+     * Off hides the garage row and with it every path into the challan screens, so after
+     * launch the same key doubles as the kill switch. Read from `:feature:garage` at the
+     * moment the challan summary is built, not observed live — a flip lands on the next
+     * garage load, which is acceptable for a launch gate.
+     */
     @Flag(
         key = "challan_check_enabled",
         default = false,
         owner = "growth",
-        why = "Support Challan check for a vehicle"
+        why = "Support Challan check for a vehicle",
     )
     val challanEnabled: Boolean
 }
