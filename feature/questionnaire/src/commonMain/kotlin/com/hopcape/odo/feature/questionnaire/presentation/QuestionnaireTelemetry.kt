@@ -10,7 +10,7 @@ import com.hopcape.logging.api.Logger
  * Everything emitted is a constant this repo declares — a question key, an option name, a
  * count, an error type. Never anything the owner typed.
  */
-internal class QuestionnaireTelemetry(
+class QuestionnaireTelemetry(
     private val logger: Logger,
     private val analytics: AnalyticsTracker,
 ) {
