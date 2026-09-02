@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.icons.IcChevronDown
@@ -280,7 +281,7 @@ private fun HeaderAction(
 ) {
     OdoText(
         text = text,
-        style = OdoTheme.typography.label,
+        style = OdoTheme.typography.label.copy(fontWeight = FontWeight.Bold),
         color = color,
         maxLines = 1,
         textAlign = TextAlign.Center,
