@@ -31,10 +31,8 @@ import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookup
 import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookupError
 import com.hopcape.odo.feature.onboarding.presentation.state.ProfileState
 import com.hopcape.odo.feature.onboarding.presentation.state.RtoMatch
-import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 import com.hopcape.odo.feature.onboarding.presentation.state.text
 import com.hopcape.odo.feature.onboarding.presentation.state.toDomain
-import com.hopcape.odo.feature.onboarding.presentation.state.toStartDestination
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_details_catalog_error_body
 import com.hopcape.odo.feature.onboarding.resources.onb_profile_name_error_blank
@@ -484,31 +482,13 @@ internal class OnboardingViewModel(
      * the camera button also wants the scanner opened once the owner has landed.
      */
     private fun finish(openScanner: Boolean = false) {
-        val start = chosenStartDestination()
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
             goal = _state.value.profile.goal.value?.toDomain(),
-            destination = start,
             signInOffered = signInFirst,
         )
-        emit(
-            OnboardingEffect.Finish(
-                start = start,
-                signInFirst = signInFirst,
-                openScanner = openScanner,
-            ),
-        )
+        emit(OnboardingEffect.Finish(signInFirst = signInFirst, openScanner = openScanner))
     }
-
-    /**
-     * The surface the owner's goal earned them (PRD §5.1). A missing goal falls back to the
-     * dashboard rather than blocking: the goal is a routing hint, and no hint is not a reason
-     * to strand someone at the end of setup.
-     */
-    private fun chosenStartDestination(): StartDestination = _state.value.profile.goal.value
-        ?.toDomain()
-        ?.toStartDestination()
-        ?: StartDestination.DASHBOARD
 
     /* ------------------------------ State writers ------------------------------ */
 

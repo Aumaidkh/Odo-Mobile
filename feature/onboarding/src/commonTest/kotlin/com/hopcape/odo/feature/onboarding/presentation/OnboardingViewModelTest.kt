@@ -44,7 +44,6 @@ import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOptio
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookup
 import com.hopcape.odo.feature.onboarding.presentation.state.PlateLookupError
-import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -519,17 +518,19 @@ class OnboardingViewModelTest {
 
     /* ------------------------------ Finishing ------------------------------ */
 
+    /**
+     * The goal no longer picks a surface. It used to name one of three, and all three
+     * resolved to the dashboard, so the choice was never real — the owner's answer is now
+     * stored and read by whoever wants it rather than spent on routing.
+     */
     @Test
-    fun skippingTheScan_finishesOnTheSurfaceTheGoalEarned() = runTest(dispatcher) {
+    fun skippingTheScan_finishesRegardlessOfTheGoal() = runTest(dispatcher) {
         val viewModel = viewModel()
         viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.SELL_FOR_MORE))
 
         viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
 
-        assertEquals(
-            OnboardingEffect.Finish(start = StartDestination.RESALE_PASSPORT, signInFirst = true),
-            viewModel.effects.first(),
-        )
+        assertEquals(OnboardingEffect.Finish(signInFirst = true), viewModel.effects.first())
     }
 
     @Test
@@ -538,11 +539,8 @@ class OnboardingViewModelTest {
 
         viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
 
-        // The goal is a routing hint; missing it is no reason to strand the owner.
-        assertEquals(
-            OnboardingEffect.Finish(start = StartDestination.DASHBOARD, signInFirst = true),
-            viewModel.effects.first(),
-        )
+        // A missing goal is no reason to strand the owner at the end of setup.
+        assertEquals(OnboardingEffect.Finish(signInFirst = true), viewModel.effects.first())
     }
 
     @Test
@@ -552,7 +550,7 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
 
         val effect = viewModel.effects.first()
-        assertEquals(OnboardingEffect.Finish(StartDestination.DASHBOARD, signInFirst = false), effect)
+        assertEquals(OnboardingEffect.Finish(signInFirst = false), effect)
     }
 
     @Test
@@ -565,11 +563,7 @@ class OnboardingViewModelTest {
         // flow still open is what let an owner reach the fairness report, and the profile
         // editor behind it, without ever passing the sign-in offer.
         assertEquals(
-            OnboardingEffect.Finish(
-                start = StartDestination.DASHBOARD,
-                signInFirst = false,
-                openScanner = true,
-            ),
+            OnboardingEffect.Finish(signInFirst = false, openScanner = true),
             viewModel.effects.first(),
         )
     }
@@ -581,11 +575,7 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.Scan.ScanClicked)
 
         assertEquals(
-            OnboardingEffect.Finish(
-                start = StartDestination.DASHBOARD,
-                signInFirst = true,
-                openScanner = true,
-            ),
+            OnboardingEffect.Finish(signInFirst = true, openScanner = true),
             viewModel.effects.first(),
         )
     }

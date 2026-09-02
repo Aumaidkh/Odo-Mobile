@@ -24,14 +24,17 @@ object QuestionKeys {
 }
 
 /**
- * Still SINGLE. Multi-select goals and the routing change that has to come with them are the
- * next slice; making it MULTI here would store a set nothing downstream can read yet.
+ * MULTI, because tracking costs *and* not wanting to miss a renewal is the normal case.
+ *
+ * Nothing reads the set yet. Goal-based routing used to be the one reader and it is gone —
+ * it sent every goal to the same screen anyway — so ordering the dashboard by these answers
+ * is its own decision, taken once there are real sets to order by.
  */
 private val GoalQuestion = Question(
     key = QuestionKeys.Goal,
     title = Res.string.qn_goal_title,
     subtitle = Res.string.qn_goal_subtitle,
-    selection = SelectionMode.SINGLE,
+    selection = SelectionMode.MULTI,
     options = listOf(
         // The card and the stored value differ on purpose: the copy is goal-shaped while
         // OnboardingGoal is storage-shaped. Re-wording a card must not touch stored data.

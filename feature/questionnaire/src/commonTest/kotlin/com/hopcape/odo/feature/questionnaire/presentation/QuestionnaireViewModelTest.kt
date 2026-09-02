@@ -71,16 +71,41 @@ class QuestionnaireViewModelTest {
         assertEquals(setOf("TRACK_COSTS"), viewModel.state.value.selected(goal))
     }
 
-    /** The goal question is SINGLE, so a second tap replaces rather than adds. */
+    /** Goals are MULTI: tracking costs and never missing a renewal is the normal case. */
     @Test
-    fun pickingOnASingleQuestionReplaces() = runTest(dispatcher) {
+    fun pickingASecondGoalKeepsTheFirst() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
 
         viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "TRACK_COSTS"))
         viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "SELL_SOON"))
 
-        assertEquals(setOf("SELL_SOON"), viewModel.state.value.selected(goal))
+        assertEquals(setOf("TRACK_COSTS", "SELL_SOON"), viewModel.state.value.selected(goal))
+    }
+
+    @Test
+    fun tappingAPickedGoalAgainRemovesIt() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "TRACK_COSTS"))
+
+        viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "TRACK_COSTS"))
+
+        assertTrue(viewModel.state.value.selected(goal).isEmpty())
+    }
+
+    @Test
+    fun everyPickedGoalIsStored() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val viewModel = viewModel(repository = repository)
+        advanceUntilIdle()
+        viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "TRACK_COSTS"))
+        viewModel.onEvent(QuestionnaireEvent.OptionToggled(goal, "NEVER_MISS_RENEWAL"))
+
+        viewModel.onEvent(QuestionnaireEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(setOf("TRACK_COSTS", "NEVER_MISS_RENEWAL"), repository.saved[goal])
     }
 
     @Test

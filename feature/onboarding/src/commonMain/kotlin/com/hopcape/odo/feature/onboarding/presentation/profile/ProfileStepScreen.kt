@@ -47,8 +47,8 @@ import org.jetbrains.compose.resources.stringResource
  * address: the subtitle says so out loud, because the usual sign-up form is exactly what
  * makes people abandon first-run.
  *
- * The goal is not a preference — it decides where the app opens after setup
- * (`StartDestinationMapping`), so it is asked as three plain outcomes rather than features.
+ * The goal is asked as three plain outcomes rather than features. It is stored on the
+ * profile and read by whoever wants it; it no longer decides where the app opens.
  *
  * Stateless: renders [profile] and forwards [OnboardingEvent]s.
  */

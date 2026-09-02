@@ -5,7 +5,6 @@ import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingUiState
-import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 
 /**
  * What the owner did, as data. One hierarchy for the whole flow (it is one ViewModel), but
@@ -74,8 +73,8 @@ internal sealed interface OnboardingEvent {
  * host, never re-applied on recomposition.
  *
  * Every one of them is data: the ViewModel decides *what* should happen and the route turns
- * it into a navigation command. That is why [Finish] carries a [StartDestination] and a
- * flag rather than a `NavKey` — presentation stays free of navigation types.
+ * it into a navigation command. That is why [Finish] carries flags rather than a `NavKey` —
+ * presentation stays free of navigation types.
  */
 internal sealed interface OnboardingEffect {
 
@@ -97,12 +96,11 @@ internal sealed interface OnboardingEffect {
      * [openScanner] is true when the owner left through the first-scan step's camera
      * button rather than by skipping. The scan is *not* an escape from the end of setup:
      * it still finishes here, so the sign-in offer is made first and the scanner opens on
-     * top of [start] afterwards. Handing off to the scanner directly is what let an owner
+     * top of the dashboard afterwards. Handing off to the scanner directly is what let an owner
      * reach the fairness report — and the profile editor behind its "set your city" —
      * without ever being asked to sign in.
      */
     data class Finish(
-        val start: StartDestination,
         val signInFirst: Boolean,
         val openScanner: Boolean = false,
     ) : OnboardingEffect

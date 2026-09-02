@@ -106,7 +106,11 @@ internal fun OnboardingRoute(navigationManager: NavigationManager) {
             is OnboardingEffect.SaveFailed -> Unit
 
             is OnboardingEffect.Finish -> {
-                val destination = effect.start.toOdoDestination()
+                // Always the dashboard. Onboarding used to pick a surface from the owner's
+                // goal, but all three choices resolved to this one, so the choice was never
+                // real. The goals are now stored by the questionnaire (#394) and read by
+                // whatever wants them.
+                val destination = OdoDestination.Home
                 // The intro and the setup steps leave the back stack — first run doesn't
                 // repeat. finishFlow rather than popUpTo(Welcome), because the flow's root
                 // is whichever intro the remote flag chose, and popping up to the wrong

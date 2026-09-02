@@ -14,7 +14,6 @@ import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.onboarding.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
-import com.hopcape.odo.feature.onboarding.presentation.state.StartDestination
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import com.hopcape.performance.api.currentTraceContext
@@ -127,10 +126,11 @@ internal class OnboardingTelemetry(
         logger.info(TAG, Event.FIRST_SCAN_SKIPPED, tc = flowTrace.toLog())
     }
 
-    fun completed(goal: OnboardingGoal?, destination: StartDestination, signInOffered: Boolean) {
+    // `destination` used to be a field here. It is gone with goal-based routing, which sent
+    // every goal to the same screen — the property was a constant and told a dashboard nothing.
+    fun completed(goal: OnboardingGoal?, signInOffered: Boolean) {
         val fields = mapOf(
             Key.GOAL to (goal?.name ?: UNSET),
-            Key.DESTINATION to destination.name,
             Key.SIGN_IN_OFFERED to signInOffered,
         )
         analytics.track(Event.COMPLETED, fields)

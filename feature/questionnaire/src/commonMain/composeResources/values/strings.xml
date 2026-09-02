@@ -4,7 +4,7 @@
     <!-- Goal question. The copy is lifted from onboarding's profile step, which still owns
          its own copy until the cut-over slice. -->
     <string name="qn_goal_title">What brings you here?</string>
-    <string name="qn_goal_subtitle">This decides what we show you first. You can change it later.</string>
+    <string name="qn_goal_subtitle">Pick as many as you like. You can change this later.</string>
     <string name="qn_goal_overpay">Stop overpaying</string>
     <string name="qn_goal_healthy">Keep the car healthy</string>
     <string name="qn_goal_resale">Sell it for more</string>
