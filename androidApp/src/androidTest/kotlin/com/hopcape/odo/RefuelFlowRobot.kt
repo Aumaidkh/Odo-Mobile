@@ -93,9 +93,9 @@ private fun refuelDriver(): SqlDriver = GlobalContext.get().get()
 internal fun seedRefuelOwner() = with(refuelDriver()) {
     execute(
         null,
-        "INSERT INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, " +
+        "INSERT INTO profiles (id, full_name, onboarding_completed_at, city, " +
             "created_at, updated_at, sync_status) VALUES ('${RefuelFixtures.OWNER}', 'Rohit', " +
-            "'TRACK_COSTS', '$REFUEL_SEEDED_AT', 'Pune', '$REFUEL_SEEDED_AT', '$REFUEL_SEEDED_AT', 'PENDING')",
+            "'$REFUEL_SEEDED_AT', 'Pune', '$REFUEL_SEEDED_AT', '$REFUEL_SEEDED_AT', 'PENDING')",
         0,
     )
     execute(
