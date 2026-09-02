@@ -540,29 +540,6 @@ class OnboardingViewModelTest {
         assertEquals(setOf("TRACK_COSTS", "SELL_SOON"), answers.saved[QuestionKeys.Goal])
     }
 
-    /**
-     * `profiles.onboarding_goal` takes one value and is still written until it is dropped, so
-     * a set has to nominate one. Registry order decides, so the same set always nominates the
-     * same goal rather than whichever card was tapped first.
-     */
-    @Test
-    fun theProfileStep_stillFeedsTheOldColumnOneGoal() = runTest(dispatcher) {
-        val profiles = FakeProfileRepository()
-        val viewModel = viewModel(profiles = profiles)
-        viewModel.answerCarStep()
-        advanceUntilIdle()
-        viewModel.onEvent(OnboardingEvent.ContinueClicked)
-        advanceUntilIdle()
-
-        viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
-        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
-        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
-        viewModel.onEvent(OnboardingEvent.ContinueClicked)
-        advanceUntilIdle()
-
-        assertEquals(OnboardingGoal.TRACK_COSTS, profiles.saved.last().goal)
-    }
-
     @Test
     fun tappingAPickedGoalAgainRemovesIt() = runTest(dispatcher) {
         val viewModel = viewModel()

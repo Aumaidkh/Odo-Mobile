@@ -101,7 +101,6 @@ internal fun testProfile(name: String? = "Rahul", city: String? = "Pune"): Owner
     OwnerProfile.reconstitute(
         id = TEST_OWNER,
         name = name,
-        goal = null,
         onboardingCompletedAt = NOW,
         city = city,
     )

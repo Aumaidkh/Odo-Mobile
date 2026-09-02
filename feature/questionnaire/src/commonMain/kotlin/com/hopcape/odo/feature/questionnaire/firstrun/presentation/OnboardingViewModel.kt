@@ -308,18 +308,6 @@ internal class OnboardingViewModel(
      * the surface the owner lands on, so which goals people pick is what says whether those
      * surfaces are the right three.
      */
-    /**
-     * The one goal that still fits `profiles.onboarding_goal`, which takes a single value and
-     * is written until it is dropped.
-     *
-     * Card order decides, not enum order: the two differ, and the owner can only reason about
-     * the order they saw. The same set always nominates the same goal either way.
-     */
-    private fun primaryGoal(goals: Set<String>): OnboardingGoal? =
-        questions.require(QuestionKeys.Goal).options
-            .firstOrNull { it.value in goals }
-            ?.let { picked -> OnboardingGoal.entries.firstOrNull { it.name == picked.value } }
-
     private fun onGoalToggled(value: String) {
         val mode = questions.require(QuestionKeys.Goal).selection
         OnboardingGoal.entries.firstOrNull { it.name == value }?.let(telemetry::goalSelected)
@@ -428,23 +416,13 @@ internal class OnboardingViewModel(
     /**
      * Save the owner's answers and stamp setup as finished.
      *
-     * The goals are written twice on purpose. `profile_answers` is where they live now and is
-     * the only place that can hold more than one; `profiles.onboarding_goal` keeps getting the
-     * first of them until that column is dropped, so a build from either side of the migration
-     * reads a profile that finished setup.
-     *
      * The answers write is not allowed to fail the step. It is the newer of the two stores and
      * a lost set is recoverable from the profile screen, whereas refusing to finish setup over
      * it would strand the owner on the last step.
      */
     private suspend fun saveProfile(state: OnboardingUiState): Boolean = telemetry.profileSave {
         answers.save(QuestionKeys.Goal, state.profile.goals)
-        completeOnboarding(
-            CompleteOnboardingCommand(
-                name = state.profile.name.text,
-                goal = primaryGoal(state.profile.goals),
-            ),
-        )
+        completeOnboarding(CompleteOnboardingCommand(name = state.profile.name.text))
     }.fold(
         ifLeft = { errors -> reportSaveFailure(errors); false },
         ifRight = { true },
@@ -515,7 +493,7 @@ internal class OnboardingViewModel(
     private fun finish(openScanner: Boolean = false) {
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
-            goal = primaryGoal(_state.value.profile.goals),
+            goals = _state.value.profile.goals,
             signInOffered = signInFirst,
         )
         emit(OnboardingEffect.Finish(signInFirst = signInFirst, openScanner = openScanner))

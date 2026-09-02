@@ -66,7 +66,6 @@ data class ProfileDto(
      * Defaulted so an older server row without the column still decodes.
      */
     @SerialName("restriction") val restriction: String = "none",
-    @SerialName("onboarding_goal") val onboardingGoal: String? = null,
     @SerialName("onboarding_completed_at") val onboardingCompletedAt: String? = null,
     @SerialName("email") val email: String? = null,
     @SerialName("avatar_path") val avatarPath: String? = null,

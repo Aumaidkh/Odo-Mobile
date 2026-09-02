@@ -4,7 +4,6 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
-import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
@@ -56,7 +55,7 @@ class CompleteOnboardingUseCaseTest {
         val profiles = FakeProfileRepository()
 
         val result = useCase(profiles)(
-            CompleteOnboardingCommand(name = "  Rahul  ", goal = OnboardingGoal.TRACK_COSTS),
+            CompleteOnboardingCommand(name = "  Rahul  "),
         )
 
         assertTrue(result.isRight(), "expected Right but was $result")
@@ -64,40 +63,23 @@ class CompleteOnboardingUseCaseTest {
         assertEquals(1, profiles.saveCount)
         assertEquals(ownerId, saved?.id)
         assertEquals("Rahul", saved?.name?.value)
-        assertEquals(OnboardingGoal.TRACK_COSTS, saved?.goal)
         // Stamped before the save, so a stored profile never claims setup is unfinished.
         assertEquals(now, saved?.onboardingCompletedAt)
         assertTrue(saved?.hasCompletedOnboarding ?: false)
     }
 
     @Test
-    fun missingAnswers_accumulateAndPersistNothing() = runTest {
+    fun aMissingName_persistsNothing() = runTest {
         val profiles = FakeProfileRepository()
 
-        val errors = useCase(profiles)(CompleteOnboardingCommand(name = " ", goal = null))
+        val errors = useCase(profiles)(CompleteOnboardingCommand(name = " "))
             .leftOrNull()
             ?.toList()
             .orEmpty()
 
-        // Both failures at once — the step shows them together instead of one per submit.
-        assertEquals(2, errors.size, "expected both failures but got $errors")
-        assertTrue(DomainError.BlankOwnerName in errors)
-        assertTrue(DomainError.MissingOnboardingGoal in errors)
-        assertEquals(0, profiles.saveCount)
-    }
-
-    @Test
-    fun missingGoalAlone_blocksCompletion() = runTest {
-        // This rule is onboarding's, not the domain's: OwnerProfile itself accepts a
-        // goal-less profile, because the server creates one at signup.
-        val profiles = FakeProfileRepository()
-
-        val errors = useCase(profiles)(CompleteOnboardingCommand("Rahul", null))
-            .leftOrNull()
-            ?.toList()
-            .orEmpty()
-
-        assertEquals(listOf(DomainError.MissingOnboardingGoal), errors)
+        // The name is the only thing this use case validates now — goals are stored
+        // separately, before it runs.
+        assertEquals(listOf(DomainError.BlankOwnerName), errors)
         assertEquals(0, profiles.saveCount)
     }
 
@@ -105,7 +87,7 @@ class CompleteOnboardingUseCaseTest {
     fun invalidName_blocksCompletion() = runTest {
         val profiles = FakeProfileRepository()
 
-        val errors = useCase(profiles)(CompleteOnboardingCommand("R", OnboardingGoal.SELL_SOON))
+        val errors = useCase(profiles)(CompleteOnboardingCommand("R"))
             .leftOrNull()
             ?.toList()
             .orEmpty()
@@ -119,7 +101,7 @@ class CompleteOnboardingUseCaseTest {
         val profiles = FakeProfileRepository { DomainError.PersistenceFailure("disk full").left() }
 
         val result = useCase(profiles)(
-            CompleteOnboardingCommand("Rahul", OnboardingGoal.NEVER_MISS_RENEWAL),
+            CompleteOnboardingCommand("Rahul"),
         )
 
         assertIs<DomainError.PersistenceFailure>(result.leftOrNull()?.single())

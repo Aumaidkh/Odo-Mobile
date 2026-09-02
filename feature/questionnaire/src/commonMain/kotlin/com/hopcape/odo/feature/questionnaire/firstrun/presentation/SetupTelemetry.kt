@@ -110,9 +110,10 @@ internal class SetupTelemetry(
 
     // `destination` used to be a field here. It is gone with goal-based routing, which sent
     // every goal to the same screen — the property was a constant and told a dashboard nothing.
-    fun completed(goal: OnboardingGoal?, signInOffered: Boolean) {
+    /** Every goal picked, not one nominated from the set — the column that took one is gone. */
+    fun completed(goals: Set<String>, signInOffered: Boolean) {
         val fields = mapOf(
-            Key.GOAL to (goal?.name ?: UNSET),
+            Key.GOAL to goals.sorted().joinToString(",").ifEmpty { UNSET },
             Key.SIGN_IN_OFFERED to signInOffered,
         )
         analytics.track(Event.COMPLETED, fields)

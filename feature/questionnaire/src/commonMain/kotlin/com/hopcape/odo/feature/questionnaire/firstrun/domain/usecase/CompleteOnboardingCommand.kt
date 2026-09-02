@@ -1,6 +1,5 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase
 
-import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 
 /**
  * Raw, unvalidated answers from the profile step. Fields are nullable because the screen
@@ -8,5 +7,4 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
  */
 internal data class CompleteOnboardingCommand(
     val name: String?,
-    val goal: OnboardingGoal?,
 )

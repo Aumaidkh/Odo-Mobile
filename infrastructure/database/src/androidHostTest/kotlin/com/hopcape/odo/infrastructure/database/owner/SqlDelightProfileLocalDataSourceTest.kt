@@ -4,7 +4,6 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
-import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
@@ -57,11 +56,9 @@ class SqlDelightProfileLocalDataSourceTest {
 
     private fun profile(
         name: String = "Rahul",
-        goal: OnboardingGoal = OnboardingGoal.TRACK_COSTS,
     ): OwnerProfile = OwnerProfile.new(
         id = ownerId,
         name = OwnerName.of(name).getOrNull()!!,
-        goal = goal,
     )
 
     @Test
@@ -74,7 +71,6 @@ class SqlDelightProfileLocalDataSourceTest {
         val stored = local.observe().first()
         assertNotNull(stored)
         assertEquals("Rahul", stored.name?.value)
-        assertEquals(OnboardingGoal.TRACK_COSTS, stored.goal)
 
         val row = db.profileQueries.selectProfileById(ownerId.value).executeAsOne()
         assertEquals(SyncStatus.PENDING.name, row.sync_status)
@@ -107,13 +103,12 @@ class SqlDelightProfileLocalDataSourceTest {
         local.save(profile())
         val createdAt = db.profileQueries.selectProfileById(ownerId.value).executeAsOne().created_at
 
-        local.save(profile(goal = OnboardingGoal.SELL_SOON))
+        local.save(profile())
         val afterEdit = db.profileQueries.selectProfileById(ownerId.value).executeAsOne()
 
         // The ignored insert is what protects this: the first write owns the creation
         // time, and only updated_at moves on an edit.
         assertEquals(createdAt, afterEdit.created_at)
-        assertEquals(OnboardingGoal.SELL_SOON.name, afterEdit.onboarding_goal)
     }
 
     @Test
@@ -131,11 +126,10 @@ class SqlDelightProfileLocalDataSourceTest {
     @Test
     fun observe_readsBackASignupShapedRowWithNoAnswersYet() = runTest {
         val db = newDb()
-        // A row as the server's signup trigger would create it: no name, no goal.
+        // A row as the server's signup trigger would create it: no name yet.
         db.profileQueries.insertProfile(
             id = ownerId.value,
             fullName = null,
-            onboardingGoal = null,
             onboardingCompletedAt = null,
             city = null,
             email = null,
@@ -149,7 +143,6 @@ class SqlDelightProfileLocalDataSourceTest {
         val stored = local(db).observe().first()
         assertNotNull(stored)
         assertNull(stored.name)
-        assertNull(stored.goal)
     }
 
     /* ---------------------------- the owner's phone number ---------------------------- */
@@ -231,7 +224,6 @@ class SqlDelightProfileLocalDataSourceTest {
                 CREATE TABLE profiles (
                     id TEXT NOT NULL PRIMARY KEY,
                     full_name TEXT,
-                    onboarding_goal TEXT,
                     onboarding_completed_at TEXT,
                     city TEXT,
                     email TEXT,
@@ -256,30 +248,6 @@ class SqlDelightProfileLocalDataSourceTest {
         val db = OdoDatabase(driver)
         local(db).recordPhone(ownerId, phone)
         assertEquals(phone.value, local(db).observe().first()?.phone?.value)
-    }
-
-    @Test
-    fun observe_unknownStoredGoal_readsAsNotAnsweredRatherThanCrashing() = runTest {
-        val db = newDb()
-        // Written by a newer build, or corrupt. The goal only picks a landing surface,
-        // so the profile stays usable without it.
-        db.profileQueries.insertProfile(
-            id = ownerId.value,
-            fullName = "Rahul",
-            onboardingGoal = "TIME_TRAVEL",
-            onboardingCompletedAt = null,
-            city = null,
-            email = null,
-            avatarPath = null,
-            sharesPrices = 1,
-            now = completedAt.toString(),
-            syncStatus = SyncStatus.SYNCED.name,
-            phone = null,
-        )
-
-        val stored = local(db).observe().first()
-        assertEquals("Rahul", stored?.name?.value)
-        assertNull(stored?.goal)
     }
 
     @Test

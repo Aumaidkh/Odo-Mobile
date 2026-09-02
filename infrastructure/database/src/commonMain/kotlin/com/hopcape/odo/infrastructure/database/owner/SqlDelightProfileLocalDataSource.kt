@@ -33,7 +33,6 @@ internal class SqlDelightProfileLocalDataSource(
     override suspend fun save(profile: OwnerProfile) {
         val now = clock.now().toString()
         val fullName = profile.name?.value
-        val goal = profile.goal?.name
         val completedAt = profile.onboardingCompletedAt?.toString()
         val email = profile.email?.value
         val phone = profile.phone?.value
@@ -45,7 +44,6 @@ internal class SqlDelightProfileLocalDataSource(
             queries.insertProfile(
                 id = profile.id.value,
                 fullName = fullName,
-                onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
                 city = profile.city,
                 email = email,
@@ -57,7 +55,6 @@ internal class SqlDelightProfileLocalDataSource(
             )
             queries.updateProfile(
                 fullName = fullName,
-                onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
                 city = profile.city,
                 email = email,
@@ -95,7 +92,6 @@ internal class SqlDelightProfileLocalDataSource(
                 queries.insertProfile(
                     id = ownerId.value,
                     fullName = null,
-                    onboardingGoal = null,
                     onboardingCompletedAt = null,
                     city = null,
                     email = null,
