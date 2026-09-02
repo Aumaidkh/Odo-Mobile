@@ -268,4 +268,17 @@
     <string name="gr_fuel_diesel">Diesel</string>
     <string name="gr_fuel_cng">CNG</string>
     <string name="gr_fuel_electric">Electric</string>
+
+    <!-- Challans row (feature/challan; debug + stage only for now). -->
+    <string name="gr_challans_title">Challans</string>
+    <string name="gr_challans_checked">Checked %1$s</string>
+    <string name="gr_challans_not_checked">Not checked yet</string>
+    <string name="gr_challans_pending">%1$d PENDING</string>
+    <string name="gr_time_just_now">just now</string>
+    <string name="gr_time_minutes">%1$d minutes ago</string>
+    <string name="gr_time_minute">%1$d minute ago</string>
+    <string name="gr_time_hours">%1$d hours ago</string>
+    <string name="gr_time_hour">%1$d hour ago</string>
+    <string name="gr_time_days">%1$d days ago</string>
+    <string name="gr_time_day">%1$d day ago</string>
 </resources>

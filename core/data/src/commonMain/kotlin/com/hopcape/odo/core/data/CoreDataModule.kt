@@ -14,6 +14,13 @@ import com.hopcape.odo.core.data.car.FakeVehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
+import com.hopcape.odo.core.data.city.CityRemoteDataSource
+import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
+import com.hopcape.odo.core.data.city.FakeCityRemoteDataSource
+import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
+import com.hopcape.odo.core.domain.entitlement.OverridableEntitlementSource
+import com.hopcape.odo.core.data.entitlement.FakeEntitlementOverrideRemoteDataSource
+import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
@@ -46,6 +53,9 @@ import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
+import com.hopcape.odo.core.data.challan.ChallanRemoteDataSource
+import com.hopcape.odo.core.data.challan.ChallanRepositoryImpl
+import com.hopcape.odo.core.data.challan.FakeChallanRemoteDataSource
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.odometer.CurrentOdometerProviderImpl
 import com.hopcape.odo.core.data.owner.FakeProfileRemoteDataSource
@@ -85,6 +95,7 @@ import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.challan.repository.ChallanRepository
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
@@ -184,6 +195,11 @@ val coreDataModule = module {
     // this only keeps what the month delta is measured against.
     single { HealthScoreRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     single<HealthScoreRepository> { get<HealthScoreRepositoryImpl>() }
+    // A vehicle's challans: local cache for the owner's own car, the records source for
+    // one-off lookups. The source is the Fake below until Supabase (or, later, a real
+    // government API) overrides it.
+    single { ChallanRepositoryImpl(local = get(), remote = get(), telemetry = get()) }
+    single<ChallanRepository> { get<ChallanRepositoryImpl>() }
     single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
     // The one way to get a verdict. Any feature injects the port and gets the same
     // benchmarks, so no screen carries a benchmark table of its own.
@@ -215,8 +231,12 @@ val coreDataModule = module {
     single<RemoteFileStorage> { FakeRemoteFileStorage() }
     single<CarRemoteDataSource> { FakeCarRemoteDataSource() }
     single<VehicleCatalogRemoteDataSource> { FakeVehicleCatalogRemoteDataSource() }
+    single<CityRemoteDataSource> { FakeCityRemoteDataSource() }
+    single<EntitlementOverrideRemoteDataSource> { FakeEntitlementOverrideRemoteDataSource() }
+    single<CitySubmissionRemoteDataSource> { FakeCitySubmissionRemoteDataSource() }
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
     single<HealthScoreRemoteDataSource> { FakeHealthScoreRemoteDataSource() }
+    single<ChallanRemoteDataSource> { FakeChallanRemoteDataSource() }
     single<TripRemoteDataSource> { FakeTripRemoteDataSource() }
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.
@@ -229,7 +249,12 @@ val coreDataModule = module {
     // What the owner's plan grants. Everyone is on the free plan until something sells a
     // subscription; :infrastructure:billing replaces this with the RevenueCat-backed source
     // on this one line, and every gate below follows without being touched.
-    single<EntitlementSource> { FreePlanEntitlementSource() }
+    // Wrapped, not bare: an admin can grant Pro to a build with no billing behind it —
+    // an internal tester, or a device where the store is unavailable — and that grant
+    // has to be honoured by whichever source is standing.
+    single<EntitlementSource> {
+        OverridableEntitlementSource(store = FreePlanEntitlementSource(), overrides = get())
+    }
 
     // The two counted gates, both reading the plan above. They keep their own ports because
     // their callers ask a shaped question ("how many documents", "how many scans left"), but

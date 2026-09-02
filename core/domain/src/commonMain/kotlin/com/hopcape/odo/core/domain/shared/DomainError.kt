@@ -325,6 +325,17 @@ sealed interface DomainError {
      */
     data object LocalDataSurvivedErase : DomainError
 
+    /* ---- Challans ---- */
+
+    /**
+     * The challan records source did not answer — down, unreachable, or refusing.
+     *
+     * Its own case (not [PersistenceFailure]) because the screen's response is specific:
+     * say whose problem it is, show the last known result with its age, and offer a
+     * retry — none of which fits a generic storage failure.
+     */
+    data object ChallanRecordsUnreachable : DomainError
+
     /* ---- Trips ---- */
 
     /** No live trip has this id — it was never written, or has been deleted. */

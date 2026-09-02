@@ -41,7 +41,11 @@ CREATE TABLE profiles (
     deleted_at              TEXT,
     remote_version          TEXT,
     sync_status             TEXT NOT NULL DEFAULT 'PENDING',
-    phone                   TEXT
+    phone                   TEXT,
+    -- none | read_only | blocked, mirroring the server. The app reads it only to explain
+    -- itself: the enforcement is a restrictive RLS policy on every owned table, and for
+    -- `blocked`, firebase-session refusing to mint a session at all.
+    restriction             TEXT NOT NULL DEFAULT 'none'
 );
 
 -- Saving a profile is insert-or-update, but it is deliberately NOT written as an
@@ -161,8 +165,8 @@ WHERE id = :id;
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
 insertFromRemote:
-INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone)
-VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED', :phone);
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone, restriction)
+VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED', :phone, :restriction);
 
 updateFromRemote:
 UPDATE profiles
@@ -179,6 +183,7 @@ SET full_name = :full_name,
     created_at = :created_at,
     updated_at = :updated_at,
     deleted_at = :deleted_at,
+    restriction = :restriction,
     remote_version = :remote_version, sync_status = 'SYNCED'
 WHERE id = :id;
 

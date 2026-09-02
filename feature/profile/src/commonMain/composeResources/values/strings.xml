@@ -90,6 +90,18 @@
     <string name="pf_email_hint">Add an email for receipts</string>
     <string name="pf_city">City</string>
     <string name="pf_city_note">Sets your price benchmarks.</string>
+    <string name="pf_city_choose">Choose</string>
+    <string name="pf_city_sheet_title">Choose city</string>
+    <!-- Sheet subheading, e.g. "24 cities available". -->
+    <string name="pf_city_sheet_subtitle">%1$d cities available</string>
+    <string name="pf_city_search_hint">Search cities</string>
+    <!-- Matches-section header while searching, e.g. "3 MATCHING". -->
+    <string name="pf_city_matches">%1$d MATCHING</string>
+    <string name="pf_city_all">All cities</string>
+    <string name="pf_city_no_matches">No cities match</string>
+    <string name="pf_city_not_listed">My city isn’t listed</string>
+    <string name="pf_city_enter_hint">Enter your city</string>
+    <string name="pf_city_add">Add</string>
     <string name="pf_save">Save changes</string>
     <string name="pf_delete">Delete my data</string>
     <string name="pf_mobile_signed_out">Sign in to add your number</string>

@@ -4,16 +4,190 @@ The schema itself is not here — it lives in `docs/SUPABASE_BOOTSTRAP.md` and i
 the dashboard's SQL Editor. This directory holds what cannot be a paste: the Edge Functions,
 and the SQL objects they depend on.
 
-**Migrations here are not tracked by `supabase db push`.** Both projects' schema was bootstrapped
-by hand-pasting SQL into the dashboard's SQL Editor rather than by running the CLI's migration
-flow, so the remote `supabase_migrations.schema_migrations` history table is empty on both — a
-plain `supabase db push` would try to replay every migration in this folder from the beginning,
-including ones already live. Apply a single new migration file directly instead:
+**Migration history: dev is repaired, prod is not.** Both projects' schema was bootstrapped by
+hand-pasting SQL into the dashboard's SQL Editor rather than by running the CLI's migration
+flow, so the remote `supabase_migrations.schema_migrations` history table started out empty on
+both — and a plain `supabase db push` would try to replay every migration in this folder from
+the beginning, including ones already live.
+
+On **dev** that has been fixed (2026-08-31): the eleven migrations that were genuinely live
+were marked `applied` without being re-run, so `db push` now does the ordinary thing.
 
 ```bash
-supabase link --project-ref <project-ref>
-supabase db query --linked -f supabase/migrations/<file>.sql
+supabase db push --linked --dry-run   # always. read what it says it will replay.
+supabase db push --linked
 ```
+
+**Repair only what is actually there.** The first attempt at this marked all fifteen applied,
+including the four blog ones — and dev has never had the blog schema. That is worse than an
+empty history: an empty one over-reports work to do, a wrongly-repaired one silently claims a
+table exists. The four were marked `reverted` again, so the dry-run now correctly refuses and
+names them.
+
+Check before repairing, rather than assuming. PostgREST tells you for free — `404` means the
+object is not there, any other status means it is:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$URL/rest/v1/<table>?select=*&limit=1"
+```
+
+Dev therefore still has four migrations pending, and `db push` refuses them because they sort
+before the last applied one. `--include-all` is what applies them, whenever dev is meant to
+have the blog schema. It is not needed for anything the admin panel does.
+
+On **prod** the history is still empty and the dry-run lists everything. Repair it the same
+careful way before the first push, or paste the one file into the SQL Editor:
+
+```bash
+# The one-time repair. Only the versions you have confirmed are already live.
+supabase migration repair --linked --status applied <version> [<version>...]
+```
+
+`supabase db query` appears in older notes and no longer exists in the CLI — `db push` and the
+SQL Editor are the two ways in.
+
+## Admin panel: roles and permissions
+
+`20260831120000_admin_rbac.sql` is the permission model behind `/admin` (epic #363, planned in
+`docs/ADMIN_PANEL_PLAN.md`). Five tables — `admin_users`, `admin_roles`,
+`admin_role_permissions`, `admin_user_roles`, `admin_audit_log` — and three checks:
+`is_admin()`, `admin_has(permission)` and `current_admin_id()`.
+
+The one thing to know before changing anything here: **permissions are checked live, at query
+time, not read out of a JWT claim.** `is_blog_author()` reads a claim, so revoking a blog
+author's access only takes effect on their next token refresh. That is fine for the blog and
+not fine for a panel that can edit other people's entitlements, so every admin-gated policy
+calls `admin_has(...)`, which joins the tables above on `auth.uid()`.
+
+All three checks are `security definer`. That is not a preference — the policy protecting
+`admin_users` reads `admin_users`, which as an invoker-rights function is infinite recursion,
+reported as a policy error that reads like the table is broken.
+
+Three roles ship with the migration: `super_admin`, `content` (blog, both catalogs, fairness
+data) and `support` (user lookup, entitlement overrides, restriction, audit log). Nobody holds
+any of them until somebody is added.
+
+### Adding the first admin
+
+Granting a role requires `admin.roles.write`, and at first nobody holds it. The loop is broken
+from outside the model — the SQL Editor runs as the service role and bypasses RLS.
+
+Edit the two values at the top of `supabase/seed_admin.sql` and run it once. The address has to
+be one that can sign in to that environment's Firebase project with an email and a password,
+because that is what `admin-session` verifies before it looks anybody up here.
+
+**There is no CLI path that runs this file against a remote project.** `supabase db push` only
+replays migrations, and a one-off row for one person is not a migration — it would then run on
+prod too. `supabase db query` does not exist. So either paste it into the SQL Editor, or run it
+through `psql` (which is what the `\set` lines at the top are for) with the project's database
+password:
+
+```sh
+psql "postgresql://postgres.<ref>:<db-password>@<pooler-host>:5432/postgres" \
+  -f supabase/seed_admin.sql
+```
+
+Dev was seeded a third way, worth knowing because it needs no database password: the two inserts
+performed against PostgREST with the `service_role` key, which bypasses RLS exactly as the SQL
+Editor does. `supabase projects api-keys --project-ref <ref> --reveal` prints that key.
+
+`user_id` stays null in the seed. It is bound to a Supabase account by `admin-session` on the
+first sign-in, and that function is the only thing that should ever write it. This is also why
+`admin_users` is keyed by email and not by `auth.users.id`: the row has to exist before the
+person has an account.
+
+### Checking it
+
+```sh
+sh supabase/check-admin.sh dev     # or `prod`, the default
+```
+
+Asks the project what a stranger can see and do: that the five tables exist (a 404 and a
+closed table look identical from the outside otherwise), that every one of them answers `[]`,
+and that the three functions and every write are refused outright.
+
+What it does **not** cover, because it has no account to sign in with: that an active admin can
+actually read the model, that a `support` admin cannot write to it, and that the audit trigger
+fires. Those need a real admin session and are owed once `admin-session` exists.
+
+## `admin-session`
+
+The sign-in gate for `/admin`, and the third sibling of `firebase-session` and `blog-session`.
+Firebase email/password proves who somebody is; this trades that token for a Supabase session.
+
+The difference from `blog-session` is where the allowlist lives. That one reads
+`BLOG_AUTHOR_EMAILS` out of the environment; this one reads the `admin_users` table — which is
+what makes adding an admin something a super-admin can do in the panel, with an audit row
+behind it, instead of a redeploy.
+
+It also does one thing the other two do not: **bind `admin_users.user_id`** on first sign-in.
+The row is keyed by email because it has to exist before the person has an account, but
+`admin_has()` joins on `user_id`. Until that binding runs once, a seeded admin can sign in and
+still have no permissions. The write only happens when it would actually change something —
+doing it every sign-in would put a row in `admin_audit_log` each time, and an audit log nobody
+can read through is the same as not having one.
+
+The session it mints carries `odo_admin` in `app_metadata`, which means "is staff at all" and
+nothing more. Every specific permission is checked live by `admin_has()` inside a policy.
+
+`20260831130000_admin_session_support.sql` carries the two SQL objects it needs:
+`auth_user_id_by_email` (a verbatim copy of the one in the blog migration, so the panel does
+not depend on a blog schema the project may not have) and `my_admin_identity()`, which the
+shell calls once after sign-in to decide what to draw in the nav.
+
+### Deploying
+
+```sh
+# Already set if firebase-session is deployed — the same list, used the same way. It must name
+# every Firebase project staff sign in against; dev and production are separate projects.
+supabase secrets set --project-ref <ref> FIREBASE_PROJECT_ID=odo-mobile-ba9aa
+
+# --no-verify-jwt: the caller is signing in and has no Supabase token yet.
+supabase functions deploy admin-session --no-verify-jwt --project-ref <ref>
+```
+
+### Before anyone can actually sign in
+
+Three things, in this order, and the first sign-in fails confusingly if any is missing:
+
+1. **Email/Password is enabled** on that environment's Firebase project, and the address has an
+   account there with a password. This function verifies a Firebase token; it does not create
+   Firebase users.
+2. **`seed_admin.sql` has been run** with that address, so the staff row exists.
+3. **The migrations are applied.** Without `20260831130000` the function reaches step 3 and
+   fails with a 500 (`session_mint_failed`); the log line names the step.
+
+### Status — dev
+
+Both migrations applied and `admin-session` deployed, 2026-08-31.
+`sh supabase/check-admin.sh dev` → 24 passed, 0 failed.
+
+Applying the admin migrations also required giving dev the blog schema it had never had — the
+four blog migrations sort before these and `db push` will not insert behind them. Dev's
+migration history is now genuinely up to date, and an ordinary `db push` works there.
+
+`admin@odoapp.in` is seeded as `super_admin` on dev, and the whole path has been exercised end
+to end against the real Firebase project:
+
+| | Result |
+|---|---|
+| Firebase email/password → `admin-session` → Supabase session | 200 |
+| `my_admin_identity()` under that session | the row, `super_admin`, all 9 permissions |
+| `admin_users.user_id` bound on first sign-in | bound |
+| A second sign-in writes `admin_users` again | it does not — no audit noise |
+| The admin's own session reads all five tables | 200, rows — **no RLS recursion** |
+| A write by that admin is attributed in the audit log | `actor_admin_id` set |
+| Service-role seed inserts are logged unattributed | `actor_admin_id` null, as designed |
+| A **valid** Firebase token for a non-staff address | 403 `not_an_admin` |
+| An ordinary authenticated app account reads the admin tables | five empty arrays |
+| That account writing `admin_users` / calling `my_admin_identity()` | 403 / null |
+
+The last two used throwaway accounts on both Firebase and Supabase, deleted afterwards.
+
+Nothing here is applied or deployed to prod.
+
+---
 
 ## Vehicle catalog: accept → auto-promote
 
@@ -85,6 +259,79 @@ behavior, verified the same way with the submission row confirmed gone afterward
 
 Real acceptances afterward are just: `update vehicle_catalog_submissions set status = 'accepted'
 where id = '<uuid>';` in the SQL Editor — the trigger does the rest.
+
+## Cities catalog: accept → auto-promote
+
+`20260830140000_city_submissions.sql` adds `city_submissions`, the "my city isn't listed" inbox —
+same insert-only shape as `vehicle_catalog_submissions`. `20260830140100_promote_city_submissions.sql`
+adds the promotion, and it works differently from the vehicle catalog on purpose:
+
+- **It deletes the submission row once it lands in `cities`.** `vehicle_catalog_submissions` keeps
+  every row forever as history; `city_submissions` does not — a promoted row leaves no trace here.
+  The trigger mechanism itself (`trg_promote_city_submission`, firing on insert or update of
+  `status`/`state`/`tier`) is otherwise the same shape as the vehicle catalog's — an earlier pass
+  used a `pg_cron` job polling every 10 minutes instead, which was switched out for this because
+  polling burns a run on every tick whether or not anything changed, and needed the `pg_cron`
+  extension enabled besides.
+- **A reviewer must fill in `state` by hand**, alongside `status = 'accepted'`, before a row is
+  eligible. The app only ever captures a city *name*, and `cities.state` is `NOT NULL` with
+  nothing sane to default it to — a submission missing it is left for the next run rather than
+  promoted with a guessed value. `tier` is different: it is only a low-confidence label the UI
+  reads, so a reviewer who forgets it does not block the promotion — it defaults to `3`.
+
+Manual review still decides *whether* a submission is real — nothing here auto-accepts anything.
+
+### Status — dev
+
+**Applied to `odo-mobile_dev` (`gezicmstbgfpwwohiboq`) on 2026-08-30.** An earlier `pg_cron`-based
+version of the promote job ran first and was live for a short while — its schedule
+(`promote-accepted-city-submissions`) has since been unscheduled and its function
+(`promote_city_submissions()`, plural) dropped, so only the trigger remains. Verified live with a
+throwaway submission wrapped in `begin ... rollback`: the trigger promoted it into `cities` and
+deleted the submission row in the same transaction, then the rollback discarded both. **Prod
+(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have this yet.**
+
+To apply from a fresh project, the same way as the vehicle catalog's — no extension to enable
+first this time:
+
+```bash
+supabase link --project-ref gezicmstbgfpwwohiboq
+supabase db query --linked -f supabase/migrations/20260830140000_city_submissions.sql
+supabase db query --linked -f supabase/migrations/20260830140100_promote_city_submissions.sql
+```
+
+Verify with a throwaway submission wrapped in `begin ... rollback` — the trigger fires the moment
+the `update` below lands, nothing to wait on:
+
+```bash
+supabase db query --linked "
+begin;
+insert into city_submissions (id, owner_id, name, status, created_at)
+values (
+  '22222222-2222-2222-2222-222222222222',
+  (select id from profiles limit 1),
+  'Srinagar', 'pending', now()
+);
+update city_submissions set state = 'Jammu and Kashmir', tier = 2, status = 'accepted'
+  where id = '22222222-2222-2222-2222-222222222222';
+select id, name, state, tier from cities where lower(name) = 'srinagar';
+select count(*) from city_submissions where id = '22222222-2222-2222-2222-222222222222';
+rollback;
+"
+```
+
+Expect one row back from `cities` (`Srinagar`, `Jammu and Kashmir`, `2`) and a count of `0` from
+`city_submissions` — the row should already be gone.
+
+### Applying to prod
+
+Same shape as the vehicle catalog's prod rollout above: link to `kxxgfhwnidgfvjowqaad`, run both
+migration files with `supabase db query --linked -f ...` (never `db push`), verify with the
+`begin ... rollback` block above, then re-link back to dev.
+
+Real acceptances afterward are: fill in `state` (and `tier`, if you want a confidence tier other
+than the default `3`) and `update city_submissions set status = 'accepted' where id = '<uuid>';`
+in the SQL Editor — the trigger does the rest immediately, in the same statement.
 
 | Function | What it is |
 | --- | --- |

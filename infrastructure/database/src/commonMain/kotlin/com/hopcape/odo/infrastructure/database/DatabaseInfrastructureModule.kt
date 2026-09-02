@@ -7,6 +7,7 @@ import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentLocalDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportLocalDataSource
+import com.hopcape.odo.core.data.challan.ChallanLocalDataSource
 import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
@@ -17,6 +18,8 @@ import com.hopcape.odo.core.data.sync.OwnershipAdoption
 import com.hopcape.odo.core.data.trip.TripLocalDataSource
 import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
+import com.hopcape.odo.core.domain.city.CityCatalog
+import com.hopcape.odo.core.domain.city.UnlistedCityReporter
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceOverrides
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceProvider
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
@@ -40,6 +43,16 @@ import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
 import com.hopcape.odo.infrastructure.database.car.seedVehicleReferenceData
+import com.hopcape.odo.infrastructure.database.city.CityCatalogImpl
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncTable
+import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncable
+import com.hopcape.odo.infrastructure.database.city.CitySyncTable
+import com.hopcape.odo.core.domain.entitlement.EntitlementOverrides
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverrideSyncTable
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverridesImpl
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverrideSyncable
+import com.hopcape.odo.infrastructure.database.city.CitySyncable
+import com.hopcape.odo.infrastructure.database.city.UnlistedCityReporterImpl
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
 import com.hopcape.odo.core.domain.refuel.PendingFillStore
 import com.hopcape.odo.core.domain.refuel.RefuelDetectionStore
@@ -57,6 +70,7 @@ import com.hopcape.odo.infrastructure.database.document.SqlDelightDocumentLocalD
 import com.hopcape.odo.infrastructure.database.fairness.OverchargeReportSyncTable
 import com.hopcape.odo.infrastructure.database.fairness.OverchargeReportSyncable
 import com.hopcape.odo.infrastructure.database.fairness.SqlDelightOverchargeReportLocalDataSource
+import com.hopcape.odo.infrastructure.database.challan.SqlDelightChallanLocalDataSource
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncTable
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncable
 import com.hopcape.odo.infrastructure.database.health.SqlDelightHealthScoreLocalDataSource
@@ -207,6 +221,9 @@ val databaseInfrastructureModule = module {
     // Score history, not today's score: the number on screen is computed on read, and
     // this only keeps what the month delta is measured against.
     single<HealthScoreLocalDataSource> { SqlDelightHealthScoreLocalDataSource(database = get()) }
+    // The challans cache — external reference data, so no Syncable and no sync table:
+    // a refresh replaces the plate's rows from the records source wholesale.
+    single<ChallanLocalDataSource> { SqlDelightChallanLocalDataSource(database = get()) }
     single {
         HealthScoreSyncable(
             runner = SyncRunner(
@@ -307,6 +324,59 @@ val databaseInfrastructureModule = module {
             runner = SyncRunner(
                 entity = SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
                 table = VehicleCatalogSubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // What the composed EntitlementSource reads. Local, so a comp granted yesterday still
+    // stands in a tunnel today.
+    single<EntitlementOverrides> {
+        EntitlementOverridesImpl(
+            database = get(),
+            ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+        )
+    }
+
+    // Pull-only, and first after profiles: what it decides — whether this owner was granted
+    // Pro outside the store — gates screens that draw as soon as the app opens.
+    single {
+        EntitlementOverrideSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.ENTITLEMENT_OVERRIDES,
+                table = EntitlementOverrideSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    single<CityCatalog> { CityCatalogImpl(database = get()) }
+
+    // Pull-only, like CityCatalog itself: CitySyncable's pullFrom is what keeps the local
+    // `city` cache current with Supabase's shared `cities` table, driven by the ordinary sync
+    // engine rather than a bespoke refresher (see CitySyncTable's class note).
+    single {
+        CitySyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITIES,
+                table = CitySyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // The client half of "my city isn't listed" — same shape as UnlistedVehicleReporter above.
+    single<UnlistedCityReporter> {
+        UnlistedCityReporterImpl(database = get(), owner = get(), idGenerator = get(), scheduler = get(), telemetry = get())
+    }
+    single {
+        CitySubmissionSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CITY_SUBMISSIONS,
+                table = CitySubmissionSyncTable(database = get(), remote = get()),
                 database = get(),
                 telemetry = get(),
             ),

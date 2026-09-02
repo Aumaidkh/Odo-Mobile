@@ -2,14 +2,17 @@ package com.hopcape.odo.feature.garage.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
+import com.hopcape.odo.core.domain.challan.repository.ChallanRepository
 import com.hopcape.odo.feature.garage.domain.model.AutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.model.GarageDocument
 import com.hopcape.odo.feature.garage.domain.model.verifiedCount
 import com.hopcape.odo.feature.garage.domain.usecase.GarageSnapshot
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveAutoOdometerCardState
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
+import com.hopcape.odo.feature.garage.presentation.GarageEffect.*
 import com.hopcape.odo.feature.garage.presentation.state.Loadable
 import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_error_load_failed
@@ -23,6 +26,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -38,7 +43,9 @@ internal class GarageViewModel(
     private val activeCar: ActiveCarProvider,
     observeGarage: ObserveGarageUseCase,
     observeAutoOdometerCard: ObserveAutoOdometerCardState,
+    challans: ChallanRepository,
     private val telemetry: GarageTelemetry,
+    featureConfig: FeatureConfig
 ) : ViewModel() {
 
     private val _effects = Channel<GarageEffect>(Channel.BUFFERED)
@@ -67,7 +74,29 @@ internal class GarageViewModel(
             if (carId == null) {
                 flowOf(emptyContent())
             } else {
-                combine(observeGarage(carId), observeAutoOdometerCard(carId), ::toContent)
+                // The challans row rides on the car's plate: no plate, no row. Derived
+                // from the same garage read so the row can never name a different car.
+                val garage = observeGarage(carId)
+                val challanSummary = garage
+                    .map { snapshot -> snapshot.car?.registrationNumber }
+                    .distinctUntilChanged()
+                    .flatMapLatest { regNo ->
+                        if (regNo == null) {
+                            flowOf(null)
+                        } else {
+                            combine(
+                                challans.observe(regNo),
+                                challans.observeLastChecked(regNo),
+                            ) { list, checked ->
+                                GarageChallanSummary(
+                                    pendingCount = list.count { it.isPayableOnline },
+                                    lastCheckedAt = checked,
+                                    showChallans = featureConfig.challanEnabled
+                                )
+                            }
+                        }
+                    }
+                combine(garage, observeAutoOdometerCard(carId), challanSummary, ::toContent)
             }
         }
         .onEach(::reportOpened)
@@ -88,7 +117,7 @@ internal class GarageViewModel(
         GarageEvent.UpdateOdometerTapped -> emit(GarageEffect.OpenUpdateOdometer)
         GarageEvent.CarMenuTapped -> emit(GarageEffect.OpenCarActions)
         GarageEvent.ManageDocumentsTapped -> emit(GarageEffect.OpenDocumentVault)
-        is GarageEvent.DocumentTapped -> emit(GarageEffect.OpenDocument(event.id))
+        is GarageEvent.DocumentTapped -> emit(OpenDocument(event.id))
         GarageEvent.AddDocumentTapped -> emit(GarageEffect.OpenAddDocument)
         GarageEvent.AddServiceTapped -> emit(GarageEffect.OpenAddToHistory)
         is GarageEvent.ServiceTapped -> openService(event)
@@ -97,6 +126,7 @@ internal class GarageViewModel(
             emit(GarageEffect.OpenAutoOdometerEducation)
         }
         GarageEvent.AutoOdometerStatusTileTapped -> emit(GarageEffect.OpenAutoOdometerSettings)
+        GarageEvent.ViewAllChallans -> emit(GarageEffect.OpenChallans)
     }
 
     private fun selectFilter(event: GarageEvent.FilterSelected) {
@@ -163,6 +193,7 @@ private fun emptyContent(): Loadable<GarageContent> = Loadable.Ready(
 private fun toContent(
     snapshot: GarageSnapshot,
     autoOdometerCard: AutoOdometerCardState,
+    challans: GarageChallanSummary?,
 ): Loadable<GarageContent> = Loadable.Ready(
     GarageContent(
         car = snapshot.car,
@@ -170,5 +201,6 @@ private fun toContent(
         documents = snapshot.documents,
         history = snapshot.history,
         autoOdometerCard = autoOdometerCard,
+        challans = challans,
     ),
 )

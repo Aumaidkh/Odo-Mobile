@@ -2,10 +2,14 @@ package com.hopcape.odo.infrastructure.supabase
 
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
+import com.hopcape.odo.core.data.city.CityRemoteDataSource
+import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
+import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
+import com.hopcape.odo.core.data.challan.ChallanRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
@@ -23,6 +27,7 @@ import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.UnavailableAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseChallanRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -34,6 +39,9 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseReminderRemoteDa
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorage
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseTripRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCityRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseEntitlementOverrideRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCitySubmissionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleCatalogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClientEngine
@@ -150,9 +158,17 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<ProfileRemoteDataSource> { SupabaseProfileRemoteDataSource(postgrest = get()) }
         single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<VehicleCatalogRemoteDataSource> { SupabaseVehicleCatalogRemoteDataSource(postgrest = get()) }
+        single<CityRemoteDataSource> { SupabaseCityRemoteDataSource(postgrest = get()) }
+        single<EntitlementOverrideRemoteDataSource> { SupabaseEntitlementOverrideRemoteDataSource(postgrest = get()) }
+        single<CitySubmissionRemoteDataSource> { SupabaseCitySubmissionRemoteDataSource(postgrest = get()) }
         single<ServiceLogRemoteDataSource> { SupabaseServiceLogRemoteDataSource(postgrest = get()) }
         single<TripRemoteDataSource> { SupabaseTripRemoteDataSource(postgrest = get()) }
         single<HealthScoreRemoteDataSource> { SupabaseHealthScoreRemoteDataSource(postgrest = get()) }
+        // TEMPORARILY parked on the Fake from coreDataModule: the challans tables
+        // (supabase/migrations/20260822090000_challans.sql) are not applied to the
+        // project yet, and a source that times out on every open is worse than sample
+        // data. Uncomment once the migration has been run.
+        // single<ChallanRemoteDataSource> { SupabaseChallanRemoteDataSource(postgrest = get()) }
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FuelFillRemoteDataSource> { SupabaseFuelFillRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }

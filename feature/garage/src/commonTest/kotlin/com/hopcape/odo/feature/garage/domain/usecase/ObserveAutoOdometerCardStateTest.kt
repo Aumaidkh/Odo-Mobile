@@ -58,6 +58,7 @@ class ObserveAutoOdometerCardStateTest {
     private fun featureConfig(autoOdometer: Boolean) = object : FeatureConfig {
         override val autoOdometerEnabled = autoOdometer
         override val refuelDetectEnabled = true
+        override val challanEnabled = false
     }
 
     @Test

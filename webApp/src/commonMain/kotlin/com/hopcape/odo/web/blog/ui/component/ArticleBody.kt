@@ -28,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.TextRun
-import com.hopcape.odo.web.blog.platform.PLAY_LISTING
-import com.hopcape.odo.web.blog.platform.openExternal
+import com.hopcape.odo.web.core.platform.PLAY_LISTING
+import com.hopcape.odo.web.core.platform.openExternal
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_action_screenshot_slot
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens

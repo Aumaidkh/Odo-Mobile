@@ -19,6 +19,7 @@ import com.hopcape.odo.core.triptracker.coreTripTrackerModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
+import com.hopcape.odo.feature.challan.di.challanModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
 import com.hopcape.odo.feature.dashboard.dashboardModule
 import com.hopcape.odo.feature.documentvault.documentVaultModule
@@ -39,6 +40,7 @@ import com.hopcape.odo.infrastructure.billing.billingInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
+import com.hopcape.odo.infrastructure.supabase.config.supabaseConfigModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import com.hopcape.odo.preview.filePreviewModule
 import kotlinx.coroutines.CancellationException
@@ -133,15 +135,21 @@ fun initKoin(
         // register a ConfigContribution, and immediately before the module that supplies
         // the real ConfigSource — the Firebase one replaces its no-backend defaults.
         coreConfigModule,
+        // Immediately after coreConfigModule, and that position is the wiring: feature
+        // flags live in the `app_config` table now, and this replaces that module's
+        // NoRemoteConfigSource and ConfigRefresher.None. Listed inside supabaseModule
+        // it would be overridden by those defaults a few lines later.
+        supabaseConfigModule,
         // Same reason again: its AppStatusSource binding replaces coreDataModule's
-        // AlwaysAvailableAppStatusSource, which blocks nothing. It also replaces
-        // coreConfigModule's NoRemoteConfigSource and ConfigRefresher.None.
+        // AlwaysAvailableAppStatusSource, which blocks nothing. It no longer supplies
+        // the ConfigSource — the line above does.
         firebaseRemoteConfigModule,
         // After coreDataModule for the same reason: from S6 its EntitlementSource binding
         // replaces that module's FreePlanEntitlementSource. Today it only configures the
         // RevenueCat SDK, which it does while Koin starts.
         billingInfrastructureModule,
         platformModule,
+        challanModule
     )
 }.also { application ->
     // Restore the session, then ask for the launch's first sync — in that order, because a

@@ -129,6 +129,7 @@ class DataTelemetry(
         /** Fuel fills — the measured half of the running cost, kept apart from the price feed. */
         const val FUEL_FILL = "fuelfill"
         const val HEALTH_SCORE = "healthscore"
+        const val CHALLAN = "challan"
 
         /** Custom reminders + dismissals — the stored half; the derived feed has no rows. */
         const val REMINDER = "reminder"
@@ -140,5 +141,8 @@ class DataTelemetry(
 
         /** The shared make/model reference data — its remote refresh and owner submissions. */
         const val VEHICLE_CATALOG = "vehiclecatalog"
+
+        /** The shared city reference data — its remote pull and owner submissions. */
+        const val CITY_CATALOG = "citycatalog"
     }
 }

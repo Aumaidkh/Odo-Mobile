@@ -1,0 +1,81 @@
+-- An owner's "my city isn't listed" report — a city name the picker couldn't find, filed the
+-- moment the profile itself is saved.
+--
+-- Syncable in its own right, the same way vehicle_catalog_submissions is: a report is its own
+-- record, submitted once, with no other row referencing it. Push-only — city_submissions has
+-- no owner-facing lifecycle (no status this device ever reads back), so there is nothing for a
+-- pull to fetch.
+--
+-- Landing here first (rather than a direct network call from the ViewModel) is what makes a
+-- report survive being filed before sign-in: the row is durable the moment it is written, sign-in
+-- adoption re-stamps it like every other placeholder-owned row, and the ordinary outbox is what
+-- actually reaches Supabase.
+CREATE TABLE city_submissions (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+insertSubmission:
+INSERT INTO city_submissions (
+    id, owner_id, name, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :name, :now, :now, NULL, NULL, :syncStatus
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). The outbox only — see the table note on why there is no pull side.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The outbox: everything the server has not accepted yet, oldest change first so a
+-- partial push still leaves the table in a sensible order.
+selectPending:
+SELECT *
+FROM city_submissions
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+-- The two facts the last-write-wins comparison needs.
+selectSyncState:
+SELECT sync_status, updated_at
+FROM city_submissions
+WHERE id = :id;
+
+-- Bookkeeping only. The local row is already the newest version, so nothing but the sync
+-- columns changes here (SYNC_DESIGN §6.1).
+markSynced:
+UPDATE city_submissions
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+-- The server refused this row and will refuse it again. Leaves the outbox so one bad row
+-- cannot hold up every other table's sync.
+markConflict:
+UPDATE city_submissions
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- Sign-in adoption (SYNC_DESIGN §9): move rows filed before there was an account onto the
+-- account that just signed in, and put them back in the outbox. Matching on the placeholder
+-- is what makes this idempotent — a second run finds nothing.
+adoptOwnership:
+UPDATE city_submissions
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+-- Sign-out wipe. Hard delete, deliberately not a soft one: a soft delete would leave the row
+-- PENDING, and the next sign-in would push a stranger's report under the new account.
+deleteAllRows:
+DELETE FROM city_submissions;
+
+-- Rows belonging to some *other* account, left behind by a sign-out wipe that did not
+-- finish. They can never be pushed (RLS refuses an owner_id that is not auth.uid()), so they
+-- are removed the same way every other user-owned table's foreign rows are.
+deleteForeignOwned:
+DELETE FROM city_submissions
+WHERE owner_id <> :ownerId;

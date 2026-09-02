@@ -247,7 +247,11 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
-        OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = 6L).await()
+        // All the way to current, not just to 6. The generated queries select every column
+        // the schema has, so stopping at the migration under test leaves them asking for
+        // columns a later one adds — which is a failure about the newest column rather
+        // than about the one this test is here for.
+        OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = OdoDatabase.Schema.version).await()
 
         val db = OdoDatabase(driver)
         local(db).recordPhone(ownerId, phone)

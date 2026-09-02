@@ -40,25 +40,19 @@ class ConfigWiringTest {
     }.koin
 
     @Test
-    fun `the Firebase source replaces the no-backend default`() {
-        val source = graph().get<ConfigSource>()
-
-        assertTrue(
-            source is RemoteConfigSource,
-            "expected RemoteConfigSource, got ${source::class.simpleName}. Listing " +
-                "firebaseRemoteConfigModule before coreConfigModule puts the " +
-                "no-backend source back and every key stays on its default.",
-        )
-    }
-
-    @Test
-    fun `the source and the refresher are the same object`() {
-        // The generation counter lives in the instance. Two definitions would mean the
-        // refresher bumps one object while every flow watches another, so no screen would
-        // ever update after a fetch.
+    fun `this module no longer supplies the ConfigSource`() {
+        // Feature flags moved to the `app_config` table; supabaseConfigModule binds the
+        // source now, listed immediately after coreConfigModule. This module keeps the
+        // app-status gate and nothing else about config.
+        //
+        // Asserted rather than deleted, because a RemoteConfigSource binding put back
+        // here would be listed *after* supabaseConfigModule in initKoin and would
+        // silently win — flags would go back to reading an empty Remote Config template
+        // and every key would resolve to its compiled default with nothing to show why.
         val koin = graph()
 
-        assertSame(koin.get<ConfigSource>(), koin.get<ConfigRefresher>() as Any)
+        assertSame(NoRemoteConfigSource, koin.get<ConfigSource>())
+        assertSame(ConfigRefresher.None, koin.get<ConfigRefresher>())
     }
 
     @Test
@@ -83,6 +77,7 @@ class ConfigWiringTest {
                 // keys somewhere.
                 "auto_odometer_enabled",
                 "refuel_detect_enabled",
+                "challan_check_enabled",
             ),
             keys,
         )

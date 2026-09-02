@@ -156,6 +156,10 @@ class OdoDestinationSerializationTest {
         OdoDestination.Auth.Phone(next = OdoDestination.Garage.Home),
         OdoDestination.Auth.Otp(phone = "9876543210", next = OdoDestination.Timeline.List),
         OdoDestination.Auth.Verifying(next = OdoDestination.CostTracker.Home),
+        // Challan
+        OdoDestination.Challan.List,
+        OdoDestination.Challan.Lookup,
+        OdoDestination.Challan.Result(regNo = "MH12AB1234"),
     )
 
     @Test

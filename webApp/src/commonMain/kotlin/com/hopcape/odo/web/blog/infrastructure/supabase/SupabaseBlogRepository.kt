@@ -4,7 +4,10 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.raise.either
 import arrow.core.right
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.core.infrastructure.supabase.encoded
+import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
+import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.domain.model.AuthorPage
@@ -30,11 +33,11 @@ internal class SupabaseBlogRepository(
     private val postgrest: Postgrest,
 ) : BlogRepository {
 
-    override suspend fun categories(): Either<BlogError, List<Category>> =
+    override suspend fun categories(): Either<WebError, List<Category>> =
         postgrest.select("blog_categories", CategoryRow.serializer(), "order=position.asc")
             .map { rows -> rows.map { it.toCategory() } }
 
-    override suspend fun index(): Either<BlogError, IndexPage> = either {
+    override suspend fun index(): Either<WebError, IndexPage> = either {
         val posts = postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
@@ -48,12 +51,12 @@ internal class SupabaseBlogRepository(
         )
     }
 
-    override suspend fun article(slug: String): Either<BlogError, Article> = either {
+    override suspend fun article(slug: String): Either<WebError, Article> = either {
         val row = postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
             query = "$EMBED&slug=eq.${slug.encoded()}&limit=1",
-        ).bind().firstOrNull() ?: raise(BlogError.NotFound)
+        ).bind().firstOrNull() ?: raise(WebError.NotFound)
 
         val summary = row.toSummary()
         Article(
@@ -72,12 +75,12 @@ internal class SupabaseBlogRepository(
         )
     }
 
-    override suspend fun category(slug: String): Either<BlogError, CategoryPage> = either {
+    override suspend fun category(slug: String): Either<WebError, CategoryPage> = either {
         val category = postgrest.select(
             table = "blog_categories",
             serializer = CategoryRow.serializer(),
             query = "slug=eq.${slug.encoded()}&limit=1",
-        ).bind().firstOrNull()?.toCategory() ?: raise(BlogError.NotFound)
+        ).bind().firstOrNull()?.toCategory() ?: raise(WebError.NotFound)
 
         CategoryPage(
             category = category,
@@ -89,12 +92,12 @@ internal class SupabaseBlogRepository(
         )
     }
 
-    override suspend fun author(slug: String): Either<BlogError, AuthorPage> = either {
+    override suspend fun author(slug: String): Either<WebError, AuthorPage> = either {
         val row = postgrest.select(
             table = "blog_authors",
             serializer = AuthorRow.serializer(),
             query = "slug=eq.${slug.encoded()}&limit=1",
-        ).bind().firstOrNull() ?: raise(BlogError.NotFound)
+        ).bind().firstOrNull() ?: raise(WebError.NotFound)
 
         val posts = postgrest.select(
             table = "blog_posts",
@@ -115,7 +118,7 @@ internal class SupabaseBlogRepository(
      * grows. The index is on a generated column, so the client never has to know
      * how the vector is built.
      */
-    override suspend fun search(query: String): Either<BlogError, SearchResults> = either {
+    override suspend fun search(query: String): Either<WebError, SearchResults> = either {
         val term = query.trim()
         if (term.isEmpty()) return@either SearchResults(query, emptyList(), emptyList())
 
@@ -134,14 +137,14 @@ internal class SupabaseBlogRepository(
         )
     }
 
-    override suspend fun mostRead(limit: Int): Either<BlogError, List<PostSummary>> =
+    override suspend fun mostRead(limit: Int): Either<WebError, List<PostSummary>> =
         postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
             query = "$EMBED&order=views.desc&limit=$limit",
         ).map { rows -> rows.map { it.toSummary() } }
 
-    override suspend fun subscribe(email: String): Either<BlogError, Unit> =
+    override suspend fun subscribe(email: String): Either<WebError, Unit> =
         // A plain insert. Anything that asks PostgREST to resolve a conflict makes
         // the request an upsert, and an upsert needs an UPDATE policy this table
         // deliberately does not have. The 409 from subscribing twice is fine.
@@ -151,7 +154,7 @@ internal class SupabaseBlogRepository(
             conflictIsFine = true,
         )
 
-    override suspend fun requestTopic(email: String, query: String): Either<BlogError, Unit> =
+    override suspend fun requestTopic(email: String, query: String): Either<WebError, Unit> =
         postgrest.insert(
             table = "blog_topic_requests",
             body = """{"email":"${email.trim().jsonEscaped()}","query":"${query.jsonEscaped()}"}""",
@@ -190,29 +193,3 @@ internal class SupabaseBlogRepository(
 /** PostgREST returns `[]` from an insert that asks for nothing back. */
 @kotlinx.serialization.Serializable
 internal class EmptyRow
-
-/**
- * Percent-encodes a value going into a PostgREST query string.
- *
- * A slug is url-safe by construction, but a search term is whatever somebody
- * typed — including the `&` that would otherwise end the filter and start a new
- * parameter.
- */
-internal fun String.encoded(): String = buildString {
-    this@encoded.encodeToByteArray().forEach { byte ->
-        val character = byte.toInt().toChar()
-        if (byte >= 0 && (character.isLetterOrDigit() || character in "-_.~")) {
-            append(character)
-        } else {
-            append('%')
-            append(HEX[(byte.toInt() shr 4) and 0xF])
-            append(HEX[byte.toInt() and 0xF])
-        }
-    }
-}
-
-/** Escapes a value going inside a hand-built JSON string literal. */
-internal fun String.jsonEscaped(): String =
-    replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-
-private const val HEX = "0123456789ABCDEF"
