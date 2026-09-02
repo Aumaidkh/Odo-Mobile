@@ -195,21 +195,24 @@ Nothing here is applied or deployed to prod.
 `vehicle_catalog_submissions`: the moment a reviewer sets a row's `status` to `'accepted'`
 (hand-edited in the SQL Editor — the table has no client-facing update policy), it inserts the
 make (if new), the model's trim-less base row (if new), and the named trim (if given and new)
-into `vehicle_makes` / `vehicle_models`. Ids use the exact same slug algorithm as
-`VehicleSeedData.kt`'s `slug()`, so a promoted row lands where a bundled seed row for the same
-make/model/trim would have.
+into `vehicle_makes` / `vehicle_models`, then deletes the submission row. Ids use the exact same
+slug algorithm as `VehicleSeedData.kt`'s `slug()`, so a promoted row lands where a bundled seed
+row for the same make/model/trim would have.
 
 Manual review still decides *whether* a submission is real — nothing here auto-accepts
-anything. This only automates the mechanical follow-up (writing the catalog rows by hand)
-once that call has already been made.
+anything. This only automates the mechanical follow-up (writing the catalog rows by hand, then
+clearing the inbox) once that call has already been made. The submission row is deleted rather
+than kept as history — the same behavior the cities catalog's promote trigger uses; this table
+used to keep every row forever, and no longer does.
 
 ### Status — dev
 
 Applied to `odo-mobile_dev` (`gezicmstbgfpwwohiboq`) on 2026-08-30 via the command above, and
 verified with a throwaway submission wrapped in `begin ... rollback` (insert as `pending`,
 `update ... set status = 'accepted'`, confirm the two `vehicle_models` rows appear under the
-existing `make-tata` row, `rollback`). **Prod (`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does
-not have this yet.**
+existing `make-tata` row, `rollback`). Re-applied the same day to add the delete-on-promote
+behavior, verified the same way with the submission row confirmed gone afterward. **Prod
+(`odo-mobile-ba9aa` / `kxxgfhwnidgfvjowqaad`) does not have either version yet.**
 
 ### Applying to prod
 
@@ -238,13 +241,16 @@ not have this yet.**
      where id = '11111111-1111-1111-1111-111111111111';
    select id, make_id, name, variant, display_order from vehicle_models
      where make_id = 'make-tata' and name = 'Sierra' order by display_order;
+   select count(*) from vehicle_catalog_submissions where id = '11111111-1111-1111-1111-111111111111';
    rollback;
    "
    ```
-   Expect two rows back: `model-tata-sierra` (`variant` null) and `model-tata-sierra-pure-plus`
-   (`variant` = `Pure +`). If `make-tata` doesn't already exist in prod's seed, adjust the
-   `make_id`/`name` in the query to a make you know is there, or drop the `where` clause and
-   just eyeball the newest two rows by `display_order`.
+   Expect two rows back from `vehicle_models`: `model-tata-sierra` (`variant` null) and
+   `model-tata-sierra-pure-plus` (`variant` = `Pure +`), and a count of `0` from
+   `vehicle_catalog_submissions` — the submission row should already be gone. If `make-tata`
+   doesn't already exist in prod's seed, adjust the `make_id`/`name` in the query to a make you
+   know is there, or drop the `where` clause and just eyeball the newest two rows by
+   `display_order`.
 4. **Re-link back to dev when done**, so a later `supabase db query --linked` from this repo
    doesn't accidentally target prod:
    ```bash

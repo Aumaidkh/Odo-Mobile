@@ -35,6 +35,7 @@ import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
+import com.hopcape.odo.core.designsystem.icons.IcGearFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
@@ -53,7 +54,6 @@ import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.suffix
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
 import com.hopcape.odo.feature.profile.resources.Res
-import com.hopcape.odo.feature.profile.resources.pf_config
 import com.hopcape.odo.feature.profile.resources.pf_appear_dark
 import com.hopcape.odo.feature.profile.resources.pf_appear_light
 import com.hopcape.odo.feature.profile.resources.pf_appear_system
@@ -62,6 +62,7 @@ import com.hopcape.odo.feature.profile.resources.pf_show_around
 import com.hopcape.odo.feature.profile.resources.pf_cd_back
 import com.hopcape.odo.feature.profile.resources.pf_city_missing
 import com.hopcape.odo.feature.profile.resources.pf_data_privacy
+import com.hopcape.odo.feature.profile.resources.pf_developer_options
 import com.hopcape.odo.feature.profile.resources.pf_edit
 import com.hopcape.odo.feature.profile.resources.pf_export
 import com.hopcape.odo.feature.profile.resources.pf_free_plan
@@ -137,9 +138,9 @@ internal fun ProfileScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onShowAround: () -> Unit = {},
-    /** Debug builds only. A release build never offers a way into the config screen. */
+    /** Debug builds only. A release build never offers a way into Developer Options. */
     debugToolsVisible: Boolean = false,
-    onConfigOverrides: () -> Unit = {},
+    onDeveloperOptions: () -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
@@ -184,7 +185,7 @@ internal fun ProfileScreen(
                 onSignOut = onSignOut,
                 onShowAround = onShowAround,
                 debugToolsVisible = debugToolsVisible,
-                onConfigOverrides = onConfigOverrides,
+                onDeveloperOptions = onDeveloperOptions,
             )
         }
     }
@@ -195,7 +196,7 @@ private fun ProfileContentColumn(
     content: ProfileContent,
     version: String,
     debugToolsVisible: Boolean = false,
-    onConfigOverrides: () -> Unit = {},
+    onDeveloperOptions: () -> Unit = {},
     buildNumber: Long?,
     sync: SyncStatus,
     padding: PaddingValues,
@@ -287,9 +288,9 @@ private fun ProfileContentColumn(
             // same shape the refuel routes use.
             if (debugToolsVisible) {
                 SettingsRow(
-                    icon = IcInfo,
-                    title = stringResource(Res.string.pf_config),
-                    onClick = onConfigOverrides,
+                    icon = IcGearFilled,
+                    title = stringResource(Res.string.pf_developer_options),
+                    onClick = onDeveloperOptions,
                 )
                 RowDivider()
             }
