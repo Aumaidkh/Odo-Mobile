@@ -5,6 +5,7 @@ import com.hopcape.odo.core.data.appstatus.observability.appStatusAnalyticsEvent
 import com.hopcape.odo.core.data.showcase.observability.showcaseAnalyticsEvents
 import com.hopcape.odo.feature.autoodometer.autoOdometerAnalyticsEvents
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
+import com.hopcape.odo.feature.questionnaire.firstrun.setupAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
 import com.hopcape.odo.feature.dashboard.dashboardAnalyticsEvents
 import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
@@ -34,7 +35,7 @@ import com.hopcape.odo.feature.timeline.timelineAnalyticsEvents
  * funnel is being checked. A feature that ships telemetry ships its schema in the same change.
  */
 val odoAnalyticsEvents: List<EventSchema> =
-    onboardingAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
+    onboardingAnalyticsEvents + setupAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
         garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents +
         timelineAnalyticsEvents + dashboardAnalyticsEvents + fairnessCheckAnalyticsEvents +
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +

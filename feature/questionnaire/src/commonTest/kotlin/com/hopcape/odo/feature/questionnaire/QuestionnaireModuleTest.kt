@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import org.koin.core.context.stopKoin
 import org.koin.dsl.koinApplication
@@ -37,13 +38,18 @@ class QuestionnaireModuleTest {
     @AfterTest
     fun tearDown() = stopKoin()
 
+    /**
+     * Two providers: the registry-driven questionnaire screen, and first-run setup. Both must
+     * survive `getAll`, which is what `bind FeatureEntryProvider::class` buys — registering
+     * them as `single<FeatureEntryProvider>` would silently leave one.
+     */
     @Test
-    fun theEntryProviderIsBoundSoTheHostCollectsIt() {
+    fun bothEntryProvidersAreBoundSoTheHostCollectsThem() {
         val koin = graph()
 
         val providers = koin.getAll<FeatureEntryProvider>()
 
-        assertIs<FeatureEntryProvider>(providers.single())
+        assertEquals(2, providers.size, "found: ${'$'}{providers.map { it::class.simpleName }}")
     }
 
     @Test

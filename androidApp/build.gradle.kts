@@ -133,6 +133,8 @@ dependencies {
     // androidx's would pull a second, differently-versioned compose ui-test.
     // The flow's semantics tags, shared with the UI so a typo can't split them.
     androidTestImplementation(projects.feature.onboarding)
+    // The setup steps and their test tags moved here from :feature:onboarding (#394).
+    androidTestImplementation(projects.feature.questionnaire)
     androidTestImplementation(projects.feature.servicelog)
     // FairnessTestTags — the fairness report is asserted by identity, not by its copy.
     androidTestImplementation(projects.feature.fairnessCheck)

@@ -27,7 +27,11 @@ kotlin {
             // The telemetry facade's two ports. Interfaces only; the app bootstrap configures them.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
-            // koinViewModel() for the route.
+            // OdoVideoPlayer's sibling needs: the moved setup steps use platform pieces.
+            implementation(projects.core.platform)
+            // The moved steps time catalog reads, plate lookups and saves.
+            implementation(projects.observability.performance)
+            // koinViewModel() for the routes.
             implementation(libs.koin.composeViewmodel)
         }
         commonTest.dependencies {

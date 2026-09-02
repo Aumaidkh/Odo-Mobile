@@ -18,6 +18,9 @@ import org.koin.dsl.module
  */
 val questionnaireModule = module {
 
+    // Everything first-run setup asks: the car steps, the name and goals, the scan prompt.
+    includes(com.hopcape.odo.feature.questionnaire.firstrun.setupModule)
+
     single { odoQuestions() }
 
     factory { QuestionnaireTelemetry(logger = get(), analytics = get()) }
