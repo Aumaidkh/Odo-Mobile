@@ -98,6 +98,22 @@ SELECT *
 FROM cars
 WHERE id = ? AND deleted_at IS NULL;
 
+-- The five vehicle attributes behind a plate this owner has already entered, for
+-- the "is this your car?" suggestion. Scoped to the owner and served by
+-- `uq_cars_owner_reg`; the plate arrives normalized (uppercase, no spaces).
+--
+-- At most one live row can match — that index says so — but a removed car keeps
+-- its row, and its plate is free to be added again. `deleted_at IS NULL` is what
+-- picks the live one; the ordering is a tie-break that should never be needed.
+selectAttributesByRegistration:
+SELECT make, model, variant, year, fuel_type
+FROM cars
+WHERE owner_id = :ownerId
+  AND registration_number = :registrationNumber
+  AND deleted_at IS NULL
+ORDER BY updated_at DESC
+LIMIT 1;
+
 -- Soft delete: the row stays as a tombstone so the deletion itself can sync and
 -- history/audit survives. It goes back to PENDING for exactly that reason.
 --

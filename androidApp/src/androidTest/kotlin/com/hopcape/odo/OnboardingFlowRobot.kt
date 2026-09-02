@@ -15,7 +15,19 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
+import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.ModelYear
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.shared.DomainError
 import org.junit.rules.ExternalResource
+import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 
 /**
@@ -33,10 +45,13 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTes
 internal object Copy {
     const val WELCOME_HEADLINE = "Know what your car really costs you."
     const val WELCOME_CTA = "Get started"
+    const val WELCOME_SIGN_IN = "Already using Odo? Sign in"
     const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
     const val LOOKUP_NOT_FOUND = "No record for this plate"
+    const val MATCH_SOURCE_OWN = "From your earlier Odo record"
+    const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
@@ -57,7 +72,7 @@ internal object Copy {
     const val HOME_SCORE_WAITING = "Your score is waiting"
 }
 
-/** What the development registry stub resolves, and what it does not. */
+/** What [installStubVehicleRegistry]'s lookup resolves, and what it does not. */
 internal object Fixtures {
     const val KNOWN_PLATE = "JK03N3078"
     const val MATCHED_CAR = "Maruti Suzuki Swift VXI"
@@ -207,3 +222,50 @@ private const val DEFAULT_TIMEOUT_MILLIS = 5_000L
 
 /** The first frame waits on a database read, and on a cold start also on the catalog seed. */
 internal const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L
+
+/* ------------------------------ Plate lookup ------------------------------ */
+
+/**
+ * Put a fixed plate lookup in front of the car step.
+ *
+ * Always installed, never left to the real one. A debug build *is* configured, so the bound
+ * chain would read the owner's cars off the server and — once `plate_lookup_enabled` is on —
+ * call `resolve_plate`. A test that did that would be testing the network and would answer
+ * differently on every project.
+ *
+ * The fixtures it serves are the ones [Fixtures] names: [Fixtures.KNOWN_PLATE] resolves and
+ * [Fixtures.UNKNOWN_PLATE] does not, which is what the two routes through the car step are
+ * written against.
+ *
+ * [source] decides which record the match claims to come from, because that is what the card
+ * tells the owner and the two claims carry different weight.
+ */
+internal fun installStubVehicleRegistry(source: VehicleSource = VehicleSource.OWN_RECORD) {
+    val lookup = StubOnboardingRegistry(source)
+    GlobalContext.get().loadModules(
+        listOf(module { single<VehicleRegistryLookup> { lookup } }),
+        allowOverride = true,
+    )
+}
+
+private class StubOnboardingRegistry(
+    private val source: VehicleSource,
+) : VehicleRegistryLookup {
+    override suspend fun lookup(
+        registrationNumber: RegistrationNumber,
+    ): Either<DomainError, RegisteredVehicle> =
+        if (registrationNumber.value == Fixtures.KNOWN_PLATE) {
+            RegisteredVehicle(
+                make = Fixtures.MAKE,
+                model = Fixtures.MODEL,
+                variant = "VXI",
+                year = ModelYear.of(2020).getOrNull()!!,
+                fuelType = FuelType.PETROL,
+                source = source,
+            ).right()
+        } else {
+            // "No record" and not "unavailable": the manual route is reached through the
+            // not-found copy, and a retry button instead would strand the test.
+            DomainError.RegistrationNotFound.left()
+        }
+}

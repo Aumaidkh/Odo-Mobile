@@ -78,6 +78,7 @@ class ConfigWiringTest {
                 "auto_odometer_enabled",
                 "refuel_detect_enabled",
                 "challan_check_enabled",
+                "plate_lookup_enabled",
             ),
             keys,
         )

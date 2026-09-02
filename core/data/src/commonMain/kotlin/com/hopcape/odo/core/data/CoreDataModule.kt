@@ -13,6 +13,7 @@ import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.FakeVehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.car.PrimaryCarProvider
 import com.hopcape.odo.core.data.car.StubVehicleRegistryLookup
+import com.hopcape.odo.core.data.car.vehicleRegistryLookup
 import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.city.CityRemoteDataSource
 import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
@@ -246,10 +247,18 @@ val coreDataModule = module {
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.
     single<AccountEraser> { OfflineAccountEraser() }
-    // Development stub: it knows a couple of hardcoded plates so the "is this your
-    // car?" path can be walked, and answers RegistrationNotFound for everything else.
-    // MUST be swapped for a real adapter before launch — this one line is the swap.
-    single<VehicleRegistryLookup> { StubVehicleRegistryLookup() }
+    // The plate lookup without a server: this device's own cars, then the hardcoded
+    // plates so a checkout with no credentials can still walk the "is this your car?"
+    // path. `supabaseModule` replaces the whole binding once a build has credentials,
+    // and the stub is not part of what it builds.
+    single<VehicleRegistryLookup> {
+        vehicleRegistryLookup(
+            cars = get(),
+            owners = get(),
+            telemetry = get(),
+            laterTiers = listOf(StubVehicleRegistryLookup()),
+        )
+    }
 
     // What the owner's plan grants. Everyone is on the free plan until something sells a
     // subscription; :infrastructure:billing replaces this with the RevenueCat-backed source

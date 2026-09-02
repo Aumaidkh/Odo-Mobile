@@ -130,6 +130,8 @@ because it makes history machine-readable (changelogs, semver bumps) and human-s
 - `subject` = imperative mood, lowercase, **no trailing period**, ≤ 50 chars.
     - ✅ `feat(billscanner): add camera capture and compression`
     - ❌ `Added camera stuff.` / `fixed bug` / `WIP`
+    - This is the **commit** rule. A **PR title** gets 100 chars and may use uppercase and
+      dots — see §4.1.
 
 > Imperative mood rule of thumb: the subject should complete the sentence *"If applied, this commit will ___"*.
 > 
@@ -202,7 +204,16 @@ Yes, even solo. The PR is your self-review checkpoint.
 ### 4.1 PR rules
 
 - **Target:** `main`. **Source:** a short-lived branch.
-- **Title:** same Conventional-Commit format as a commit subject (it usually *becomes* the squash commit). e.g. `feat(reminders): add insurance expiry scheduling`.
+- **Title:** the same `<type>(<scope>): <subject>` shape as a commit, with a **looser subject
+  rule** — up to **100 characters**, and **uppercase letters and dots are allowed** after the
+  colon. e.g. `feat(reminders): add insurance expiry scheduling`, or
+  `chore(deps): bump Ktor to 3.5.2 for the Supabase client`.
+  A title names real things — Supabase, Ktor 3.5.2, RevenueCat — and lowercasing them reads
+  worse rather than more consistently. The tighter commit-subject rule in §3.1 (lowercase,
+  no trailing period, ≤ 50) still applies to **commits**, because `git log --oneline` has to
+  stay scannable and the squash message is written by hand in `PR_DESCRIPTION.md` (§4.2)
+  rather than taken from the title.
+  Enforced by the `PR title` job in `.github/workflows/ci.yml`; keep the two in step.
 - **Size:** keep diffs reviewable (aim < ~400 lines changed). Large milestone work = multiple PRs.
 - **CI must be green** before merge (build + lint + unit tests).
 - **Self-review the diff** in the PR view before merging — you catch things in the diff you miss in the editor.

@@ -5,12 +5,16 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 /**
@@ -145,4 +149,17 @@ internal class SqlDelightCarLocalDataSource(
             .asFlow()
             .mapToOneOrNull(dispatcher)
             .map { row -> row?.toDomain() }
+
+    // A row whose year or fuel label the domain refuses is dropped rather than raised: a
+    // suggestion is optional, and failing the lookup over one unreadable stored row would
+    // take the manual form away from the owner too.
+    override suspend fun vehicleByRegistration(
+        ownerId: OwnerId,
+        registrationNumber: RegistrationNumber,
+    ): RegisteredVehicle? = withContext(dispatcher) {
+        queries.selectAttributesByRegistration(
+            ownerId = ownerId.value,
+            registrationNumber = registrationNumber.value,
+        ).executeAsOneOrNull()?.toRegisteredVehicle()
+    }
 }

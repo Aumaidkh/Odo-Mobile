@@ -41,6 +41,31 @@ class WelcomeViewModelTest {
     }
 
     @Test
+    fun signingIn_skipsCarSetupEntirely() = runTest(dispatcher) {
+        val viewModel = viewModel()
+
+        viewModel.onEvent(WelcomeEvent.SignInClicked)
+
+        // A returning owner's car comes back through sync. Setting one up again would
+        // make a second car, not restore the first.
+        assertEquals(WelcomeEffect.OpenSignIn, viewModel.effects.first())
+    }
+
+    @Test
+    fun signingIn_isCountedApartFromCompletingThePitch() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+
+        viewModel(analytics).onEvent(WelcomeEvent.SignInClicked)
+
+        // Two different funnels with two different ends. Counting them as one would hide
+        // how many first-run installs are actually returning owners.
+        assertEquals(
+            listOf(OnboardingTelemetry.Event.WELCOME_SHOWN, OnboardingTelemetry.Event.WELCOME_SIGN_IN),
+            analytics.names,
+        )
+    }
+
+    @Test
     fun theLegalLinks_areOffered() = runTest(dispatcher) {
         val viewModel = viewModel()
 

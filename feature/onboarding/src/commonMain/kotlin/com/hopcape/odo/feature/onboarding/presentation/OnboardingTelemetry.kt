@@ -34,6 +34,18 @@ internal class OnboardingTelemetry(
         logger.info(TAG, Event.WELCOME_COMPLETED, tc = flowTrace.toLog())
     }
 
+    /**
+     * The owner said they already have an account and went to sign in instead of setting up.
+     *
+     * Counted separately from [welcomeCompleted]: it is a different funnel with a different
+     * end, and reading them as one would hide how many first-run installs are actually
+     * returning owners.
+     */
+    fun signInFromWelcome() {
+        analytics.track(Event.WELCOME_SIGN_IN)
+        logger.info(TAG, Event.WELCOME_SIGN_IN, tc = flowTrace.toLog())
+    }
+
     /** Which legal page was opened — the only property is *which*, never who opened it. */
     fun legalOpened(document: String) {
         analytics.track(Event.LEGAL_OPENED, mapOf(Key.DOCUMENT to document))
@@ -52,6 +64,7 @@ internal class OnboardingTelemetry(
     object Event {
         const val WELCOME_SHOWN = "onboarding_welcome_shown"
         const val WELCOME_COMPLETED = "onboarding_welcome_completed"
+        const val WELCOME_SIGN_IN = "onboarding_welcome_sign_in"
         const val LEGAL_OPENED = "onboarding_legal_opened"
     }
 

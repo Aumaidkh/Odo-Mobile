@@ -13,6 +13,7 @@ import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.catalog.UnlistedVehicleReporter
 import com.hopcape.odo.core.domain.car.catalog.VehicleCatalog
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
@@ -1031,6 +1032,7 @@ class OnboardingViewModelTest {
             variant = "VXI",
             year = ModelYear.of(2020).getOrNull()!!,
             fuelType = FuelType.PETROL,
+            source = VehicleSource.OWN_RECORD,
         )
 
         val HONDA_CITY = RegisteredVehicle(
@@ -1039,6 +1041,7 @@ class OnboardingViewModelTest {
             variant = "VX",
             year = ModelYear.of(2020).getOrNull()!!,
             fuelType = FuelType.PETROL,
+            source = VehicleSource.OWN_RECORD,
         )
     }
 }
