@@ -1,0 +1,7 @@
+{
+  "//": "firebase.json in this directory makes it the project directory, and the CLI looks for .firebaserc beside that file rather than walking up to the repo root.",
+  "projects": {
+    "default": "odo-mobile-ba9aa",
+    "prod": "odo-mobile-ba9aa"
+  }
+}

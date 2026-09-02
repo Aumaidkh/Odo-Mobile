@@ -38,6 +38,8 @@ import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
 import com.hopcape.odo.core.config.LocalConfigOverrides
 import com.hopcape.odo.core.common.BuildInfo
+import com.hopcape.odo.core.config.ConfigSnapshotStore
+import com.hopcape.odo.core.platform.config.PrefsConfigSnapshotStore
 import com.hopcape.odo.core.platform.config.PrefsLocalConfigOverrides
 import com.hopcape.odo.core.platform.showcase.PrefsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.AndroidSmsAppSignature
@@ -120,6 +122,10 @@ val corePlatformAndroidModule = module {
     if (BuildInfo.isDebug) {
         single<LocalConfigOverrides> { PrefsLocalConfigOverrides(context = get<Context>()) }
     }
+    // Release too, unlike the overrides above: this is not a QA affordance, it is what
+    // lets a cold start resolve last launch's remote values instead of falling back to
+    // compiled defaults until the first fetch lands.
+    single<ConfigSnapshotStore> { PrefsConfigSnapshotStore(context = get<Context>()) }
     // Replaces :core:data's NoopSyncScheduler — the one line that turns the engine on.
     single<SyncScheduler> { WorkManagerSyncScheduler(context = get<Context>(), telemetry = get()) }
     single<SmsCodeReader> { AndroidSmsCodeReader(context = get<Context>()) }

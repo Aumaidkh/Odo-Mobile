@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.domain.model.PostSummary
 import com.hopcape.odo.web.blog.presentation.notfound.NotFoundEvent
-import com.hopcape.odo.web.blog.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_not_found_code
 import com.hopcape.odo.web.blog.resources.bl_not_found_dek

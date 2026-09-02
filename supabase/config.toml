@@ -19,6 +19,39 @@ verify_jwt = false
 # valid, unexpired Firebase ID token for this project, carrying a phone claim.
 verify_jwt = false
 
+[functions.admin-session]
+# Same as its two siblings: the caller is signing in and has no Supabase token yet. It does
+# its own authentication — a valid, unexpired Firebase ID token for one of our projects,
+# carrying an email that is in `admin_users` with is_active.
+#
+# Pinned here rather than left to `--no-verify-jwt` on the command line, because the toggle
+# has a habit of switching itself back on when a function is updated and nothing announces it
+# (see supabase/check-legal.sh). A deploy that forgets the flag would turn every sign-in into
+# a 401 with no clue why.
+verify_jwt = false
+
+[functions.blog-session]
+# Same as its siblings: the caller is signing in and has no Supabase token yet, so it does its
+# own authentication — a valid, unexpired Firebase ID token carrying an email that is in
+# `blog_authors`.
+#
+# This entry was missing while the function ran only on production, where it had been deployed
+# with `--no-verify-jwt` by hand. Absent from this file it defaults to *on*, so the first
+# deploy to a new project turns every author sign-in into a 401 that says nothing about why.
+verify_jwt = false
+
+[functions.admin-config]
+# Unlike the three session functions, the caller here is already signed in, so the platform's
+# own JWT check is exactly the right gate — and the function then asks admin_has('flags.write')
+# as the caller on top, because a valid session is not a permission.
+verify_jwt = true
+
+[functions.admin-invite]
+# Like admin-config: the caller is already signed in, so the platform's own JWT check is the
+# right gate — and the function then insists on admin_has('admin.roles.write') on top, because
+# a valid session is not a permission.
+verify_jwt = true
+
 [functions.blog-rebuild]
 # The caller is an author who is already signed in, so the platform's own JWT check is
 # exactly the right gate — and the function then insists on the blog_author claim on top,

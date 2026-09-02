@@ -26,8 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.hopcape.odo.web.blog.domain.model.Category
-import com.hopcape.odo.web.blog.platform.PLAY_LISTING
-import com.hopcape.odo.web.blog.platform.openExternal
+import com.hopcape.odo.web.core.platform.PLAY_LISTING
+import com.hopcape.odo.web.core.config.BuildWebConfig
+import com.hopcape.odo.web.core.platform.openExternal
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_brand
 import com.hopcape.odo.web.blog.resources.bl_footer_note
@@ -207,8 +208,20 @@ private fun PublicFooter(onNavigate: (BlogRoute) -> Unit) {
             )
             // The legal pages are separately deployed HTML on the same domain, so
             // they are a navigation out of this app rather than a route in it.
-            TextLink(stringResource(Res.string.bl_footer_privacy), { openExternal("/legal/privacy") }, color = colors.muted)
-            TextLink(stringResource(Res.string.bl_footer_terms), { openExternal("/legal/terms") }, color = colors.muted)
+            // Absolute, not relative. The legal pages belong to the marketing site,
+            // and since the blog moved to its own subdomain a bare "/legal/privacy"
+            // resolves against the blog and 404s — on the very link the Play
+            // listing points at.
+            TextLink(
+                stringResource(Res.string.bl_footer_privacy),
+                { openExternal("${BuildWebConfig.SITE_BASE_URL}/legal/privacy") },
+                color = colors.muted,
+            )
+            TextLink(
+                stringResource(Res.string.bl_footer_terms),
+                { openExternal("${BuildWebConfig.SITE_BASE_URL}/legal/terms") },
+                color = colors.muted,
+            )
         }
     }
 }

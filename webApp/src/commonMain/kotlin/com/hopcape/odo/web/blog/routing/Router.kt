@@ -44,7 +44,14 @@ interface Router {
 fun basePathOf(pathname: String): String =
     if (pathname == BLOG_BASE || pathname.startsWith("$BLOG_BASE/")) BLOG_BASE else ""
 
-/** The path `landing/firebase.json` serves this app from. */
+/**
+ * The path this app used to be served from.
+ *
+ * The blog has its own origin now — `blog.odoapp.in`, at the root — so the base is
+ * normally empty. Kept because the hosting config still 301s the old `/blog` paths to the root
+ * for the twenty published URLs that were under it, and because [basePathOf] has to
+ * keep working for anybody serving it under a path locally.
+ */
 const val BLOG_BASE: String = "/blog"
 
 /**

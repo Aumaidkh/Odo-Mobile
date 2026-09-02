@@ -46,6 +46,10 @@ import com.hopcape.odo.infrastructure.database.city.CityCatalogImpl
 import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncTable
 import com.hopcape.odo.infrastructure.database.city.CitySubmissionSyncable
 import com.hopcape.odo.infrastructure.database.city.CitySyncTable
+import com.hopcape.odo.core.domain.entitlement.EntitlementOverrides
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverrideSyncTable
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverridesImpl
+import com.hopcape.odo.infrastructure.database.entitlement.EntitlementOverrideSyncable
 import com.hopcape.odo.infrastructure.database.city.CitySyncable
 import com.hopcape.odo.infrastructure.database.city.UnlistedCityReporterImpl
 import com.hopcape.odo.infrastructure.database.cost.LocalFuelPriceProvider
@@ -315,6 +319,28 @@ val databaseInfrastructureModule = module {
             runner = SyncRunner(
                 entity = SyncEntity.VEHICLE_CATALOG_SUBMISSIONS,
                 table = VehicleCatalogSubmissionSyncTable(database = get(), remote = get()),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // What the composed EntitlementSource reads. Local, so a comp granted yesterday still
+    // stands in a tunnel today.
+    single<EntitlementOverrides> {
+        EntitlementOverridesImpl(
+            database = get(),
+            ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+        )
+    }
+
+    // Pull-only, and first after profiles: what it decides — whether this owner was granted
+    // Pro outside the store — gates screens that draw as soon as the app opens.
+    single {
+        EntitlementOverrideSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.ENTITLEMENT_OVERRIDES,
+                table = EntitlementOverrideSyncTable(database = get(), remote = get()),
                 database = get(),
                 telemetry = get(),
             ),

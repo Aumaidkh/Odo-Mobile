@@ -58,6 +58,7 @@ class SyncableRegistrationTest {
         assertEquals(
             setOf(
                 SyncEntity.PROFILES,
+                SyncEntity.ENTITLEMENT_OVERRIDES,
                 SyncEntity.CITIES,
                 SyncEntity.CITY_SUBMISSIONS,
                 SyncEntity.CARS,

@@ -36,6 +36,8 @@ include(":androidApp")
 // mobile app modules rather than a library: it has its own entry point, its own
 // design tokens (the web ones, not the app's) and ships to Firebase Hosting.
 include(":webApp")
+include(":webCore")
+include(":adminApp")
 include(":shared")
 include(":core:common")
 include(":core:config")

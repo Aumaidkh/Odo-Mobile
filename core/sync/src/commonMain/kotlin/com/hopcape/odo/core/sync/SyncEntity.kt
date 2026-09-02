@@ -16,6 +16,17 @@ enum class SyncEntity {
     PROFILES,
 
     /**
+     * Entitlement granted or withheld outside the store (issue #369). Pull-only: the server
+     * is the only writer, because an entitlement a device could grant itself would not be one.
+     *
+     * Directly after [PROFILES] because it FKs to one, and because what it decides — whether
+     * this owner is Pro — gates screens that draw as soon as the app opens. A cursor behind
+     * the rest of the list would mean a comp granted yesterday arriving after the paywall had
+     * already been shown today.
+     */
+    ENTITLEMENT_OVERRIDES,
+
+    /**
      * The shared city lookup (`docs/SUPABASE_BOOTSTRAP.md` §2). No `owner_id` — every account
      * reads the same rows — so this is pull-only, the mirror image of
      * [CITY_SUBMISSIONS]'s push-only. Placed here rather than after [CARS]: it is foundational

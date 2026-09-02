@@ -122,6 +122,28 @@ Deno.serve(async (req) => {
     let userId: string
     if (existingId) {
       userId = existingId
+
+      // ---- 2a. Is this account blocked? ----
+      //
+      // Before anything else is done with it. `blocked` is the hard half of the restriction
+      // added in 20260831160000_user_management.sql, and hard means "cannot sign back in" —
+      // a restriction that only stops writes is `read_only`, which is a different setting.
+      //
+      // Its own error code so the app can say why rather than showing the wrong-OTP message
+      // to somebody whose OTP was right. Nothing here reveals the reason: that is support's
+      // to give, not the sign-in screen's.
+      step = 'check-restriction'
+      const { data: profile, error: profileError } = await admin
+        .from('profiles')
+        .select('restriction')
+        .eq('id', userId)
+        .maybeSingle()
+      if (profileError) throw profileError
+      if (profile?.restriction === 'blocked') {
+        console.log('firebase-session refused: blocked account')
+        return fail(403, 'account_blocked')
+      }
+
       step = 'read-existing'
       // An account that predates this function — or one created by any other path — may have
       // no email, and `generateLink` below needs one. Backfilling is cheaper than a second

@@ -51,8 +51,10 @@ val firebaseRemoteConfigModule = module {
     // One instance bound to both interfaces, not two definitions: the generation counter
     // lives in it, so a second instance would fetch on one object and leave every flow
     // watching the other.
-    single { RemoteConfigSource(gateway = get()) } binds
-        arrayOf(ConfigSource::class, ConfigRefresher::class)
+    // No ConfigSource here any more. Feature flags come from the `app_config` table
+    // via supabaseConfigModule — see SupabaseConfigModule for why. What this module
+    // still owns is the app-status gate below, which reads its own Remote Config key
+    // and is a different question from a feature flag.
 
     // Replaces supabaseModule's build-time links, and resolves that one as its fallback —
     // hence the qualifier. Same later-wins wiring as the AppStatusSource above, with one

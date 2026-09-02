@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the admin panel draws.
+
+  The `ad_` prefix follows the same rule as `bl_` in :webApp and `sl_` in
+  :feature:servicelog. English throughout: this is an internal tool for a team
+  that reads English, and nothing here is ever seen by an owner of the app.
+
+  Copy rule for this file specifically: an error should say what to do next. The
+  people reading these messages can fix most of what goes wrong, and "something
+  went wrong" wastes the one chance to tell them which thing.
+-->
+<resources>
+
+    <!-- Sign in -->
+    <string name="ad_signin_title">Odo Admin</string>
+    <string name="ad_signin_subtitle">Staff access only.</string>
+    <string name="ad_signin_email">Email</string>
+    <string name="ad_signin_password">Password</string>
+    <string name="ad_signin_submit">Sign in</string>
+    <string name="ad_signin_busy">Signing in…</string>
+    <string name="ad_signin_wrong_password">That password is not right. %1$d tries left.</string>
+    <string name="ad_signin_wrong_password_locked">That password is not right, and this account is now locked. Try again later.</string>
+
+    <!-- Errors. Each says what to do, not just that something failed. -->
+    <string name="ad_error_offline">Could not reach the server. Check the connection and try again.</string>
+    <string name="ad_error_not_found">That is not here any more.</string>
+    <string name="ad_error_signed_out">The session has expired. Sign in again.</string>
+    <string name="ad_error_not_staff">This account is not on the staff list. Ask a super admin to add it.</string>
+    <string name="ad_error_no_admins">Nobody is set up as staff yet. Run seed_admin.sql against this project first.</string>
+    <string name="ad_error_sign_in_unavailable">Email sign-in is switched off for this Firebase project. Turn it on in the console.</string>
+    <string name="ad_error_conflict">Something with that name is already there. Change it, or edit the one that exists.</string>
+    <string name="ad_error_generic">That did not work. Try again.</string>
+
+    <!-- Shell -->
+    <string name="ad_shell_wordmark">ODO</string>
+    <string name="ad_shell_wordmark_sub">ADMIN</string>
+    <string name="ad_shell_search">Search users, cars, tickets</string>
+    <string name="ad_sign_out">Sign out</string>
+    <string name="ad_dismiss">Dismiss</string>
+
+    <string name="ad_nav_dashboard">Dashboard</string>
+    <string name="ad_nav_users">Users</string>
+    <string name="ad_nav_roles">Roles &amp; permissions</string>
+    <string name="ad_nav_content">Content</string>
+    <string name="ad_nav_catalogue">Service catalogue</string>
+    <string name="ad_nav_vehicles">Vehicle database</string>
+    <string name="ad_nav_cities">Cities</string>
+    <string name="ad_nav_tickets">Support tickets</string>
+    <string name="ad_nav_billing">Billing</string>
+    <string name="ad_nav_flags">Feature flags</string>
+    <string name="ad_nav_audit">Audit log</string>
+
+    <string name="ad_sub_dashboard">Ops overview</string>
+    <string name="ad_sub_users">Search, inspect and restrict accounts</string>
+    <string name="ad_sub_roles">Who holds which role, and what each role may do</string>
+    <string name="ad_sub_content">Blog posts and publishing</string>
+    <string name="ad_sub_catalogue">Items, intervals and cost benchmarks</string>
+    <string name="ad_sub_vehicles">Makes, models and variants</string>
+    <string name="ad_sub_cities">The shared city lookup, and what owners have reported</string>
+    <string name="ad_sub_tickets">Queue sorted by SLA</string>
+    <string name="ad_sub_billing">Subscriptions and revenue</string>
+    <string name="ad_sub_flags">Rollout by percentage</string>
+    <string name="ad_sub_audit">Who changed what, newest first</string>
+
+    <!-- Sections with no screen yet. -->
+    <string name="ad_placeholder_body">This section is in the design but has nothing behind it yet. It is left empty rather than filled with sample numbers, so nothing here can be mistaken for a real figure.</string>
+
+    <!-- Staff, but holding no roles at all. -->
+    <string name="ad_no_roles_title">No roles yet</string>
+    <string name="ad_no_roles_body">This account is staff but holds no roles, so there is nothing to show. Ask a super admin to grant one.</string>
+
+    <!-- Reached by typing a URL a role does not cover. -->
+    <string name="ad_no_access_title">No access</string>
+    <string name="ad_no_access_body">Your role does not cover this section. The server would refuse it too — this is not only the menu hiding it.</string>
+    <string name="ad_not_found_title">No such page</string>
+    <string name="ad_not_found_body">Nothing is served at that address.</string>
+
+
+    <!-- Cities (#367). The catalog and the "my city isn't listed" queue. -->
+    <string name="ad_cities_queue_title">Reported cities</string>
+    <string name="ad_cities_queue_count">%1$d waiting</string>
+    <string name="ad_cities_queue_empty">Nothing waiting to be reviewed.</string>
+    <string name="ad_cities_reported_on">Reported %1$s</string>
+    <string name="ad_cities_catalog_title">Catalog</string>
+    <string name="ad_cities_catalog_count">%1$d cities</string>
+    <string name="ad_cities_search">Search by name or state</string>
+    <string name="ad_cities_show_retired">Show retired</string>
+    <string name="ad_cities_empty">No city matches that.</string>
+    <string name="ad_cities_retired_badge">Retired</string>
+
+    <string name="ad_cities_add">Add a city</string>
+    <string name="ad_cities_edit_title">Edit city</string>
+    <string name="ad_cities_approve_title">Approve city</string>
+    <string name="ad_cities_name">Name</string>
+    <string name="ad_cities_state">State</string>
+    <string name="ad_cities_tier">Tier</string>
+    <string name="ad_cities_tier_value">%1$d</string>
+    <string name="ad_cities_tier_hint">Tier 3 is the default for anything unreviewed.</string>
+    <string name="ad_cities_state_required">A state is required — the catalog cannot store a city without one.</string>
+    <string name="ad_cities_duplicate">A city with that name is already in the catalog.</string>
+    <string name="ad_cities_save">Save</string>
+    <string name="ad_cities_cancel">Cancel</string>
+
+    <string name="ad_cities_edit">Edit</string>
+    <string name="ad_cities_retire">Retire</string>
+    <string name="ad_cities_restore">Restore</string>
+    <string name="ad_cities_approve">Approve</string>
+    <string name="ad_cities_reject">Reject</string>
+    <string name="ad_cities_delete">Delete</string>
+
+    <string name="ad_cities_saved">Saved.</string>
+    <string name="ad_cities_retired_done">Retired. Phones will stop offering it on their next sync.</string>
+    <string name="ad_cities_restored_done">Restored.</string>
+    <string name="ad_cities_approved_done">Approved and added to the catalog.</string>
+    <string name="ad_cities_rejected_done">Rejected.</string>
+    <string name="ad_cities_deleted_done">Deleted.</string>
+
+
+    <!-- Vehicles (#366). The catalog and the "my car isn't listed" queue. -->
+    <string name="ad_vehicles_title">Vehicles</string>
+    <string name="ad_vehicles_queue_title">Reported cars</string>
+    <string name="ad_vehicles_queue_count">%1$d waiting</string>
+    <string name="ad_vehicles_queue_empty">Nothing waiting to be reviewed.</string>
+    <string name="ad_vehicles_reported_on">Reported %1$s</string>
+    <string name="ad_vehicles_catalog_title">Catalog</string>
+    <string name="ad_vehicles_catalog_count">%1$d models</string>
+    <string name="ad_vehicles_search">Search by make, model or trim</string>
+    <string name="ad_vehicles_all_makes">All makes</string>
+    <string name="ad_vehicles_empty">Nothing matches that.</string>
+    <string name="ad_vehicles_no_models">No models under this make yet.</string>
+    <string name="ad_vehicles_base_row">Any trim</string>
+
+    <string name="ad_vehicles_add">Add a vehicle</string>
+    <string name="ad_vehicles_rename_make">Rename make</string>
+    <string name="ad_vehicles_edit_model">Edit model</string>
+    <string name="ad_vehicles_make">Make</string>
+    <string name="ad_vehicles_model">Model</string>
+    <string name="ad_vehicles_variant">Trim (optional)</string>
+    <string name="ad_vehicles_add_hint">An existing make is reused. A model always gets an "any trim" row as well, so an owner who does not know their exact trim can still pick the car.</string>
+    <string name="ad_vehicles_duplicate">That make, model and trim is already in the catalog.</string>
+
+    <string name="ad_vehicles_edit">Edit</string>
+    <string name="ad_vehicles_rename">Rename</string>
+    <string name="ad_vehicles_delete">Delete</string>
+    <string name="ad_vehicles_approve">Approve</string>
+    <string name="ad_vehicles_reject">Reject</string>
+
+    <string name="ad_vehicles_delete_title">Delete %1$s?</string>
+    <string name="ad_vehicles_delete_make_body">This removes the make and every one of its %1$d models. Saved cars are unaffected — they store the make and model as text, not as a link to the catalog.</string>
+    <string name="ad_vehicles_delete_model_body">This removes the model from the picker. Saved cars are unaffected — they store the make and model as text, not as a link to the catalog.</string>
+    <string name="ad_vehicles_delete_base_warning">This is the "any trim" row. Removing it leaves the trims but stops anyone picking the model without one.</string>
+    <string name="ad_vehicles_delete_confirm">Delete</string>
+
+    <string name="ad_vehicles_added">Added to the catalog.</string>
+    <string name="ad_vehicles_save">Save</string>
+    <string name="ad_vehicles_showing_makes">Showing makes %1$d–%2$d of %3$d</string>
+    <string name="ad_vehicles_saved">Saved.</string>
+    <string name="ad_vehicles_approved_done">Approved and added to the catalog.</string>
+    <string name="ad_vehicles_rejected_done">Rejected.</string>
+    <string name="ad_vehicles_deleted_done">Deleted.</string>
+
+
+    <!-- Users (#369) -->
+    <string name="ad_users_title">Users</string>
+    <string name="ad_users_search">Phone, email or account id</string>
+    <string name="ad_users_find">Find</string>
+    <string name="ad_users_hint">Exact match only. A support tool that lists everyone matching a few digits is an enumeration tool.</string>
+    <string name="ad_users_none">No account matches that.</string>
+    <string name="ad_users_since">Joined %1$s</string>
+    <string name="ad_users_no_email">No email on file</string>
+
+    <string name="ad_users_access">Access</string>
+    <string name="ad_users_access_none">Full access</string>
+    <string name="ad_users_access_read_only">Read only</string>
+    <string name="ad_users_access_blocked">Blocked</string>
+    <string name="ad_users_access_none_hint">Nothing is restricted.</string>
+    <string name="ad_users_access_read_only_hint">Their writes are refused by the server. The app keeps working on what is already on the device.</string>
+    <string name="ad_users_access_blocked_hint">They cannot sign in at all. Sign-in is refused before an account is touched.</string>
+    <string name="ad_users_reason">Reason (recorded in the audit log)</string>
+    <string name="ad_users_reason_required">A reason is required — this is what the audit log will show.</string>
+    <string name="ad_users_apply">Apply</string>
+
+    <string name="ad_users_entitlements">Entitlements</string>
+    <string name="ad_users_entitlements_empty">No overrides. Their access is whatever the store says.</string>
+    <string name="ad_users_feature">Feature</string>
+    <string name="ad_users_grant">Grant</string>
+    <string name="ad_users_revoke">Revoke</string>
+    <string name="ad_users_clear">Clear override</string>
+    <string name="ad_users_granted">Granted</string>
+    <string name="ad_users_revoked">Revoked</string>
+    <string name="ad_users_override_hint">An override beats the store in both directions. Clearing one hands the answer back to the store.</string>
+    <string name="ad_users_saved">Saved.</string>
+    <string name="ad_users_restriction_saved">Access updated.</string>
+    <string name="ad_users_cleared">Override cleared.</string>
+
+    <!-- Audit (part of #369) -->
+    <string name="ad_audit_title">Audit log</string>
+    <string name="ad_audit_count">%1$d entries</string>
+    <string name="ad_audit_empty">Nothing recorded yet.</string>
+    <string name="ad_audit_system">system</string>
+    <string name="ad_common_retry">Try again</string>
+    <string name="ad_staff_title">Staff</string>
+    <string name="ad_staff_hint">Who may sign in to this panel, and what each of them holds. A role decides what somebody can do; the grid below decides what a role means.</string>
+    <string name="ad_staff_empty">Nobody on the list.</string>
+    <string name="ad_staff_add">Add someone</string>
+    <string name="ad_staff_invite">Send invite</string>
+    <string name="ad_staff_invited">Invited. They will get an email with a link to set a password.</string>
+    <string name="ad_staff_add_title">Add someone to the panel</string>
+    <string name="ad_staff_add_hint">Adding them also emails them a link to set a password. Give them a role below — a person with no role can sign in and see nothing.</string>
+    <string name="ad_staff_email">Email</string>
+    <string name="ad_staff_name">Name</string>
+    <string name="ad_staff_roles">ROLES</string>
+    <string name="ad_staff_you">you</string>
+    <string name="ad_staff_pending">Has never signed in. Send an invite if they did not get the email.</string>
+    <string name="ad_staff_revoked">REVOKED</string>
+    <string name="ad_staff_revoke">Revoke access</string>
+    <string name="ad_staff_restore">Restore access</string>
+    <string name="ad_roles_new">New role</string>
+    <string name="ad_roles_new_title">New role</string>
+    <string name="ad_roles_new_hint">Created with no permissions. Grant them in the grid above.</string>
+    <string name="ad_roles_slug">Slug</string>
+    <string name="ad_roles_slug_error">Lowercase letters, digits and underscores, starting with a letter.</string>
+    <string name="ad_roles_name">Name</string>
+    <string name="ad_roles_description">Description</string>
+    <string name="ad_post_back">Back to posts</string>
+    <string name="ad_post_meta">Details</string>
+    <string name="ad_post_body">Preview</string>
+    <string name="ad_post_body_note">The post as it reads. Edit to change the words.</string>
+    <string name="ad_post_save">Save</string>
+    <string name="ad_post_live">Open live page</string>
+    <string name="ad_post_body_editing">Editing the words. Images and tables are kept as they are &#8212; they are edited in the blog&#8217;s own editor.</string>
+    <string name="ad_post_block_flatten">This block has bold or italic in it. Editing here saves it as plain text.</string>
+    <string name="ad_post_block_divider">A horizontal rule. Nothing to edit.</string>
+    <string name="ad_post_block_label">Eyebrow, e.g. WORTH KNOWING</string>
+    <string name="ad_post_block_text">Text</string>
+    <string name="ad_post_block_bullets">One bullet per line</string>
+    <string name="ad_post_block_kept">Kept as it is.</string>
+    <string name="ad_post_block_add">ADD</string>
+    <string name="ad_post_block_up">Move up</string>
+    <string name="ad_post_block_down">Move down</string>
+    <string name="ad_post_block_image">IMAGE</string>
+    <string name="ad_post_block_table">TABLE</string>
+    <string name="ad_post_block_app">APP</string>
+    <string name="ad_post_block_other">BLOCK</string>
+    <string name="ad_audit_col_action">ACTION</string>
+    <string name="ad_audit_col_table">TABLE</string>
+    <string name="ad_audit_col_actor">ACTOR</string>
+    <string name="ad_audit_col_when">WHEN</string>
+    <string name="ad_post_open_editor">Open block editor</string>
+    <string name="ad_post_reading">%1$d words · %2$d min read · %3$d views</string>
+    <string name="ad_content_body_empty">This post has no body yet.</string>
+    <string name="ad_content_field_seo">SEO title</string>
+    <string name="ad_content_field_meta">Meta description</string>
+    <string name="ad_content_saved">Saved.</string>
+    <string name="ad_ticket_back">Back to the queue</string>
+    <string name="ad_ticket_body">Message</string>
+    <string name="ad_ticket_move">Status</string>
+    <string name="ad_ticket_priority">Priority</string>
+    <string name="ad_ticket_meta_contact">From</string>
+    <string name="ad_ticket_meta_opened">Opened</string>
+    <string name="ad_ticket_meta_status">Status</string>
+    <string name="ad_ticket_meta_priority">Priority</string>
+    <string name="ad_ticket_gone">Ticket #%1$d is not in the queue. It may have been deleted.</string>
+    <string name="ad_ticket_detail_title">Ticket #%1$d</string>
+    <string name="ad_sub_ticket_detail">The whole message, and what happens next</string>
+    <string name="ad_post_detail_title">Post</string>
+    <string name="ad_sub_post_detail">Read it, edit it, publish it</string>
+
+    <!-- Dashboard -->
+    <string name="ad_dash_attention">Needs attention</string>
+    <string name="ad_dash_attention_clear">Nothing waiting. Everything filed is dealt with.</string>
+    <string name="ad_dash_attn_urgent">%1$d urgent tickets waiting on a reply</string>
+    <string name="ad_dash_attn_open">%1$d other tickets open</string>
+    <string name="ad_dash_attn_vehicle">%1$d vehicles reported as missing</string>
+    <string name="ad_dash_attn_city">%1$d cities reported as missing</string>
+    <string name="ad_dash_attn_drafts">%1$d posts still in draft</string>
+    <string name="ad_dash_attn_pastdue">%1$d subscriptions past due</string>
+    <string name="ad_dash_metric_users">OWNERS</string>
+    <string name="ad_dash_metric_cars">CARS</string>
+    <string name="ad_dash_metric_pro">PRO, ACTIVE</string>
+    <string name="ad_dash_metric_tickets">TICKETS OPEN</string>
+    <string name="ad_dash_metric_posts">POSTS PUBLISHED</string>
+    <string name="ad_dash_metric_logs">SERVICE LOGS</string>
+    <string name="ad_dash_metric_documents">DOCUMENTS</string>
+    <string name="ad_dash_sub_cars">%1$d service logs against them</string>
+    <string name="ad_dash_sub_pro">%1$d past due</string>
+    <string name="ad_dash_sub_tickets">%1$d high or urgent</string>
+    <string name="ad_dash_delta_up">+%1$d%% on last week</string>
+    <string name="ad_dash_delta_down">-%1$d%% on last week</string>
+    <string name="ad_dash_delta_flat">Level with last week</string>
+    <string name="ad_dash_signups">Signups, last 14 days</string>
+    <string name="ad_dash_signups_none">Nobody signed up in the last fortnight.</string>
+    <string name="ad_dash_activity">Recent activity</string>
+    <string name="ad_dash_activity_empty">Nothing recorded yet.</string>
+    <string name="ad_audit_filter">Filter by table or action</string>
+
+
+    <!-- Roles &amp; permissions -->
+    <string name="ad_roles_matrix">PERMISSION MATRIX</string>
+    <string name="ad_roles_matrix_hint">Click any cell to grant or revoke it. Changes apply on the next request, not the next sign-in.</string>
+    <string name="ad_roles_two_states">Two states, not four. admin_role_permissions stores a permission or it does not, and admin_has() answers yes or no — a READ cell the server cannot tell from WRITE would be a promise nothing keeps.</string>
+    <string name="ad_roles_resource">RESOURCE</string>
+    <string name="ad_roles_list">ROLES</string>
+    <string name="ad_roles_members">%1$d holding</string>
+    <string name="ad_roles_granted">FULL</string>
+    <string name="ad_roles_denied">—</string>
+
+    <!-- Sections in the design with nothing behind them yet -->
+    <string name="ad_notbuilt_title">%1$s is not built yet</string>
+
+
+    <!-- The user directory -->
+    <string name="ad_users_directory">DIRECTORY</string>
+    <string name="ad_users_masked_note">PII masked · reveals are logged</string>
+    <string name="ad_users_col_user">USER</string>
+    <string name="ad_users_col_phone">PHONE</string>
+    <string name="ad_users_col_city">CITY</string>
+    <string name="ad_users_col_cars">CARS</string>
+    <string name="ad_users_col_plan">PLAN</string>
+    <string name="ad_users_col_status">STATUS</string>
+    <string name="ad_users_col_action">ACTION</string>
+    <string name="ad_users_reveal">REVEAL</string>
+    <string name="ad_users_open">Open</string>
+    <string name="ad_users_close">Close</string>
+    <string name="ad_users_showing">Showing %1$d–%2$d of %3$d</string>
+    <string name="ad_users_previous">Previous</string>
+    <string name="ad_users_next">Next</string>
+    <string name="ad_users_empty">No account matches that.</string>
+    <string name="ad_users_unnamed">No name</string>
+    <string name="ad_users_plan_granted">GRANTED</string>
+    <string name="ad_users_plan_revoked">REVOKED</string>
+    <string name="ad_users_plan_store">STORE</string>
+    <string name="ad_users_status_none">Active</string>
+    <string name="ad_users_status_read_only">Read only</string>
+    <string name="ad_users_status_blocked">Blocked</string>
+    <string name="ad_users_account">ACCOUNT</string>
+
+
+    <!-- Content (the blog) -->
+    <string name="ad_content_posts">POSTS</string>
+    <string name="ad_content_count">%1$d posts</string>
+    <string name="ad_content_drafts">%1$d drafts</string>
+    <string name="ad_content_empty">No post matches that.</string>
+    <string name="ad_content_col_title">TITLE</string>
+    <string name="ad_content_col_author">AUTHOR</string>
+    <string name="ad_content_col_views">VIEWS</string>
+    <string name="ad_content_col_updated">UPDATED</string>
+    <string name="ad_content_col_status">STATUS</string>
+    <string name="ad_content_col_action">ACTION</string>
+    <string name="ad_content_status_published">Published</string>
+    <string name="ad_content_status_draft">Draft</string>
+    <string name="ad_content_publish">Publish</string>
+    <string name="ad_content_unpublish">Unpublish</string>
+    <string name="ad_content_delete">Delete</string>
+    <string name="ad_content_edit">Edit</string>
+    <string name="ad_content_view">View</string>
+    <string name="ad_content_no_slug">No URL yet</string>
+    <string name="ad_content_no_author">No author</string>
+    <string name="ad_content_published">Published. It is live on odoapp.in/blog.</string>
+    <string name="ad_content_unpublished">Unpublished. The URL now 404s.</string>
+    <string name="ad_content_deleted">Deleted.</string>
+    <string name="ad_content_created">Draft created. Write the body in the editor.</string>
+    <string name="ad_content_new">New post</string>
+    <string name="ad_content_new_title">New draft</string>
+    <string name="ad_content_field_title">Title</string>
+    <string name="ad_content_field_dek">Dek</string>
+    <string name="ad_content_field_slug">URL slug</string>
+    <string name="ad_content_field_category">Category</string>
+    <string name="ad_content_no_category">None</string>
+    <string name="ad_content_slug_taken">That slug is taken, or reserved by the blog\'s own routes.</string>
+    <string name="ad_content_create_hint">Creates a draft. The body is written in the blog’s own editor, which opens in a new tab — this form takes the parts the list and the URL need.</string>
+    <string name="ad_content_create">Create draft</string>
+    <string name="ad_content_delete_title">Delete “%1$s”?</string>
+    <string name="ad_content_delete_body">The row goes. This is offered for drafts only — a published post has a URL somebody may have shared, and unpublishing is what keeps that from becoming a 404.</string>
+    <string name="ad_content_editor_note">Click a post to edit it. The editor is the blog’s own and opens in a new tab; bringing it into this panel is #370.</string>
+
+
+    <!-- Feature flags -->
+    <string name="ad_flags_title">REMOTE CONFIG</string>
+    <string name="ad_flags_count">%1$d parameters</string>
+    <string name="ad_flags_empty">No parameter matches that.</string>
+    <string name="ad_flags_col_key">KEY</string>
+    <string name="ad_flags_col_value">VALUE</string>
+    <string name="ad_flags_col_action">ACTION</string>
+    <string name="ad_flags_on">ON</string>
+    <string name="ad_flags_off">OFF</string>
+    <string name="ad_flags_col_state">State</string>
+    <string name="ad_flags_active">Active</string>
+    <string name="ad_flags_parked">Parked</string>
+    <string name="ad_flags_park">Park</string>
+    <string name="ad_flags_restore">Restore</string>
+    <string name="ad_flags_malformed">Not a valid %1$s — devices will fall back to the built-in default.</string>
+    <string name="ad_flags_edit">Edit</string>
+    <string name="ad_flags_save">Save</string>
+    <string name="ad_flags_saved">Saved. Devices pick it up on their next fetch.</string>
+    <string name="ad_flags_note">Each row overrides a key declared in the app. Parking a row removes the override, and the app falls back to the value it shipped with. Changes reach devices on their next config refresh.</string>
+    <string name="ad_flags_unconfigured_title">Remote Config is not connected</string>
+    <string name="ad_flags_unconfigured_body">This build was not given a Supabase URL and key, so there is no database to read flags from. Set them in local.properties and rebuild.</string>
+
+
+    <!-- Service catalogue, tickets, billing -->
+    <string name="ad_ops_saved">Saved.</string>
+
+    <string name="ad_cat_title">SERVICE ITEMS</string>
+    <string name="ad_cat_count">%1$d items</string>
+    <string name="ad_cat_empty">No item matches that.</string>
+    <string name="ad_cat_col_item">SERVICE ITEM</string>
+    <string name="ad_cat_col_interval">INTERVAL</string>
+    <string name="ad_cat_col_benchmark">BENCHMARK</string>
+    <string name="ad_cat_col_action">ACTION</string>
+    <string name="ad_cat_every_km">every %1$s km</string>
+    <string name="ad_cat_every_months">every %1$d months</string>
+    <string name="ad_cat_or">, or </string>
+    <string name="ad_cat_no_interval">not set</string>
+    <string name="ad_cat_rupees">₹%1$s</string>
+    <string name="ad_cat_no_benchmark">—</string>
+    <string name="ad_cat_edit">Edit</string>
+    <string name="ad_cat_retire">Retire</string>
+    <string name="ad_cat_restore">Restore</string>
+    <string name="ad_cat_retired">Retired</string>
+    <string name="ad_cat_edit_title">Edit service item</string>
+    <string name="ad_cat_field_name">Name</string>
+    <string name="ad_cat_field_km">Interval (km)</string>
+    <string name="ad_cat_field_months">Interval (months)</string>
+    <string name="ad_cat_field_rupees">Benchmark (₹)</string>
+    <string name="ad_cat_field_notes">Notes</string>
+    <string name="ad_cat_hint">Both intervals may be set — a service due at whichever comes first is one rule, not two. Leave either blank if it does not apply. The benchmark is what the job ought to cost, not what anybody is charged.</string>
+
+    <string name="ad_tickets_title">QUEUE</string>
+    <string name="ad_tickets_open">%1$d open</string>
+    <string name="ad_tickets_count">%1$d tickets</string>
+    <string name="ad_tickets_empty">Nothing matches that.</string>
+    <string name="ad_tickets_col_subject">SUBJECT</string>
+    <string name="ad_tickets_col_from">FROM</string>
+    <string name="ad_tickets_col_opened">OPENED</string>
+    <string name="ad_tickets_col_priority">PRIORITY</string>
+    <string name="ad_tickets_col_status">STATUS</string>
+    <string name="ad_tickets_col_action">ACTION</string>
+    <string name="ad_tickets_escalate">Escalate</string>
+    <string name="ad_tickets_seeded">Seeded sample tickets on the development project. Nothing in the app files one yet — :feature:support sends email — so this is the queue\'s shape rather than a live inbox.</string>
+
+    <string name="ad_billing_title">SUBSCRIPTIONS</string>
+    <string name="ad_billing_count">%1$d subscriptions</string>
+    <string name="ad_billing_empty">Nothing matches that.</string>
+    <string name="ad_billing_col_subscriber">SUBSCRIBER</string>
+    <string name="ad_billing_col_tier">TIER</string>
+    <string name="ad_billing_col_started">STARTED</string>
+    <string name="ad_billing_col_renews">RENEWS</string>
+    <string name="ad_billing_col_status">STATUS</string>
+    <string name="ad_billing_active">%1$d active</string>
+    <string name="ad_billing_past_due">%1$d past due</string>
+    <string name="ad_billing_cancelled">%1$d cancelled</string>
+    <string name="ad_billing_renewing">%1$d renewing in 30 days</string>
+    <string name="ad_billing_readonly">Read-only. A subscription\'s truth lives with the store — editing a row here would produce a figure that disagrees with what the owner was charged. To grant access outside a subscription, use the entitlement override on the user.</string>
+    <string name="ad_billing_no_contact">No number on file</string>
+
+</resources>

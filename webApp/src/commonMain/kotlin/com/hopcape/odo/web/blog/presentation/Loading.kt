@@ -3,9 +3,9 @@ package com.hopcape.odo.web.blog.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import arrow.core.Either
-import com.hopcape.odo.web.blog.domain.BlogError
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.UiText
+import com.hopcape.odo.web.core.domain.WebError
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.UiText
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_error_generic
 import com.hopcape.odo.web.blog.resources.bl_error_not_found
@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
  */
 fun <T> ViewModel.loadInto(
     target: MutableStateFlow<Loadable<T>>,
-    read: suspend () -> Either<BlogError, T>,
+    read: suspend () -> Either<WebError, T>,
 ) {
     target.value = Loadable.Loading
     viewModelScope.launch {
@@ -45,15 +45,19 @@ fun <T> ViewModel.loadInto(
  * a status code to everybody who will ever read it, and the detail that would
  * help a developer belongs in a log, not on a page.
  */
-fun BlogError.asUiText(): UiText = when (this) {
-    BlogError.Offline -> UiText.Resource(Res.string.bl_error_offline)
-    BlogError.NotFound -> UiText.Resource(Res.string.bl_error_not_found)
-    BlogError.NotSignedIn -> UiText.Resource(Res.string.bl_admin_signed_out)
-    BlogError.NotAnAuthor -> UiText.Resource(Res.string.bl_admin_not_an_author)
-    BlogError.NoAuthorsConfigured -> UiText.Resource(Res.string.bl_admin_no_authors)
-    BlogError.SignInUnavailable -> UiText.Resource(Res.string.bl_admin_sign_in_unavailable)
-    is BlogError.SignInRejected -> UiText.Resource(Res.string.bl_error_generic)
-    is BlogError.Unexpected -> UiText.Resource(Res.string.bl_error_generic)
+fun WebError.asUiText(): UiText = when (this) {
+    WebError.Offline -> UiText.Resource(Res.string.bl_error_offline)
+    WebError.NotFound -> UiText.Resource(Res.string.bl_error_not_found)
+    // The blog's one collision — a taken slug — is reported by PublishOutcome
+    // with the offending post attached, so this only catches the ones nothing
+    // else models.
+    WebError.Conflict -> UiText.Resource(Res.string.bl_error_generic)
+    WebError.NotSignedIn -> UiText.Resource(Res.string.bl_admin_signed_out)
+    WebError.NotPermitted -> UiText.Resource(Res.string.bl_admin_not_an_author)
+    WebError.NotConfigured -> UiText.Resource(Res.string.bl_admin_no_authors)
+    WebError.SignInUnavailable -> UiText.Resource(Res.string.bl_admin_sign_in_unavailable)
+    is WebError.SignInRejected -> UiText.Resource(Res.string.bl_error_generic)
+    is WebError.Unexpected -> UiText.Resource(Res.string.bl_error_generic)
 }
 
 /**
@@ -63,14 +67,15 @@ fun BlogError.asUiText(): UiText = when (this) {
  * needs a sign-in rather than a retry — offering the button in either case
  * teaches readers that the button does nothing.
  */
-val BlogError.isRetryable: Boolean
+val WebError.isRetryable: Boolean
     get() = when (this) {
-        BlogError.Offline, is BlogError.Unexpected -> true
-        BlogError.NotFound,
-        BlogError.NotSignedIn,
-        BlogError.NotAnAuthor,
-        BlogError.NoAuthorsConfigured,
-        BlogError.SignInUnavailable,
-        is BlogError.SignInRejected,
+        WebError.Offline, is WebError.Unexpected -> true
+        WebError.NotFound,
+        WebError.Conflict,
+        WebError.NotSignedIn,
+        WebError.NotPermitted,
+        WebError.NotConfigured,
+        WebError.SignInUnavailable,
+        is WebError.SignInRejected,
         -> false
     }

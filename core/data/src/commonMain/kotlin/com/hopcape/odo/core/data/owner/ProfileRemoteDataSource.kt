@@ -55,6 +55,17 @@ data class ProfileDto(
      * `Profile.sq`).
      */
     @SerialName("phone") val phone: String? = null,
+    /**
+     * none | read_only | blocked — whether support has restricted this account (#369).
+     *
+     * Pull-only in practice: the client writes whatever it last read, and the column's
+     * update policy is admin-only, so a device claiming to be unrestricted changes nothing.
+     * The app reads it to explain itself; the enforcement is a restrictive policy on every
+     * owned table and, for blocked, firebase-session refusing to mint a session.
+     *
+     * Defaulted so an older server row without the column still decodes.
+     */
+    @SerialName("restriction") val restriction: String = "none",
     @SerialName("onboarding_goal") val onboardingGoal: String? = null,
     @SerialName("onboarding_completed_at") val onboardingCompletedAt: String? = null,
     @SerialName("email") val email: String? = null,
