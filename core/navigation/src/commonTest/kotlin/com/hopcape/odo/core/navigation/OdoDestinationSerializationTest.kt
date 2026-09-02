@@ -158,6 +158,8 @@ class OdoDestinationSerializationTest {
         OdoDestination.Challan.List,
         OdoDestination.Challan.Lookup,
         OdoDestination.Challan.Result(regNo = "MH12AB1234"),
+        // Questionnaire — the keys are a list, so this also covers a collection argument.
+        OdoDestination.Questionnaire(keys = listOf("goal.v1")),
     )
 
     @Test
