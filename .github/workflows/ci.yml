@@ -40,8 +40,10 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # The PR title becomes the squash commit message, so it is held to the same
-  # Conventional Commit rules as a commit subject (docs/VCS_CONVENTIONS.md).
+  # The PR title is Conventional Commit shaped, but it is not the squash message —
+  # that is chosen deliberately in PR_DESCRIPTION.md (§4.2). So the subject here is
+  # held to the looser PR-title rule, not the commit-subject one: 100 characters,
+  # and uppercase and dots are allowed (docs/VCS_CONVENTIONS.md §4.1).
   # ---------------------------------------------------------------------------
   pr-title:
     name: PR title
@@ -71,12 +73,14 @@ jobs:
             revert
           # Scope is encouraged but optional, per the conventions doc.
           requireScope: false
-          # Imperative, lowercase, no trailing period, <= 50 chars.
-          subjectPattern: ^(?![A-Z])(?!.*\.$).{1,50}$
+          # Imperative, <= 100 chars. Uppercase and dots are allowed: a title names
+          # real things — Supabase, Ktor 3.5.2, RevenueCat — and lowercasing them
+          # makes it harder to read, not more consistent.
+          subjectPattern: ^.{1,100}$
           subjectPatternError: >-
-            The subject "{subject}" of PR title "{title}" is invalid: it must
-            start lowercase, carry no trailing period, and stay within 50
-            characters (docs/VCS_CONVENTIONS.md).
+            The subject "{subject}" of PR title "{title}" is invalid: it must be
+            non-empty and stay within 100 characters
+            (docs/VCS_CONVENTIONS.md §4.1).
 
   # ---------------------------------------------------------------------------
   # Unit tests: every module's commonTest + androidHostTest, on the JVM.
