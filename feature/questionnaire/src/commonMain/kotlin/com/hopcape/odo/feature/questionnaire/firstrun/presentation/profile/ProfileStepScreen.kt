@@ -9,7 +9,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoOptionCard
 import com.hopcape.odo.feature.questionnaire.Question
-import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.SelectionMode
 import com.hopcape.odo.feature.questionnaire.odoQuestions
 import com.hopcape.odo.core.designsystem.component.OdoText

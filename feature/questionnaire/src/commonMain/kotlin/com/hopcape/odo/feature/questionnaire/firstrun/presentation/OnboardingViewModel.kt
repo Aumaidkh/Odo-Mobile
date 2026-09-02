@@ -27,7 +27,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadabl
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
-import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.QuestionRegistry
 import com.hopcape.odo.feature.questionnaire.presentation.toggle
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep

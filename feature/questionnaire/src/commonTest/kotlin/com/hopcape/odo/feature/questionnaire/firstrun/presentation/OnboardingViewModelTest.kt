@@ -44,7 +44,7 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionAnswer
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
-import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.odoQuestions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf

@@ -4,7 +4,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
-import com.hopcape.odo.core.domain.owner.model.QuestionKey
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_healthy
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_overpay
@@ -12,16 +12,14 @@ import com.hopcape.odo.feature.questionnaire.resources.qn_goal_resale
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_title
 
-/**
- * The declared questions.
- *
+/*
  * Keys carry a version. If a question changes enough that an old answer no longer means the
  * same thing, add `.v2` rather than editing `.v1` — the old answers then stop being read
  * instead of being counted as answers to a question nobody was asked.
+ *
+ * The keys themselves live in :core:domain's QuestionKeys, because callers outside this module
+ * name them. What is declared here is the question: its copy, icons and options.
  */
-object QuestionKeys {
-    val Goal = QuestionKey("goal.v1")
-}
 
 /**
  * MULTI, because tracking costs *and* not wanting to miss a renewal is the normal case.

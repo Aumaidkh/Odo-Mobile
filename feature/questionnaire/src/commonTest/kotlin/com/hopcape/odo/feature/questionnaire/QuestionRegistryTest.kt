@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.questionnaire
 
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
