@@ -106,7 +106,10 @@ class ConfigGraphTest {
         // anything otherwise, so every assertion above rests on this binding existing.
         val described = koin.get<ConfigResolver>().describeAll()
 
-        assertEquals(12, described.size)
+        // Against the registry rather than a literal count. A number here says nothing
+        // theRegistryHoldsEveryKeyDeclaredAnywhere does not say more precisely, and it
+        // fails on every key added afterwards — which is how it came to expect 12 of 14.
+        assertEquals(koin.get<ConfigRegistry>().keys.map { it.key }.toSet(), described.map { it.key.key }.toSet())
         assertTrue(described.all { it.key.owner.isNotBlank() && it.key.why.isNotBlank() })
     }
 }

@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import org.koin.core.context.GlobalContext
 
 /**
@@ -149,6 +150,43 @@ class OnboardingEndToEndTest {
         // Straight to the number, with no car step in between.
         rule.waitForText(Copy.AUTH_TITLE)
         rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
+    }
+
+    /**
+     * The match names where it came from (issue #392, D3).
+     *
+     * The card used to say only what the car was. It now answers from Odo's own records
+     * rather than the RTO, and an owner cannot weigh a suggestion without knowing whether
+     * it is their own history or a stranger's.
+     */
+    @Test
+    fun aMatchFromTheOwnersOwnRecords_saysSo() {
+        rule.startFromWelcome()
+
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+        rule.waitForText(Fixtures.MATCHED_CAR)
+
+        rule.onNodeWithText(Copy.MATCH_SOURCE_OWN).assertIsDisplayed()
+    }
+
+    /**
+     * A car somebody else entered under this plate is flagged as exactly that.
+     *
+     * The guardrail behind the whole cross-owner tier. Cars change hands, so this is a guess
+     * about the owner's car rather than something they wrote down — and a wrong car accepted
+     * silently becomes the car every fairness benchmark and health score is computed from.
+     * The copy has to differ, and it has to carry the nudge to check.
+     */
+    @Test
+    fun aMatchFromAnotherOwnersRecord_asksTheOwnerToCheckIt() {
+        installStubVehicleRegistry(VehicleSource.ANOTHER_RECORD)
+        rule.startFromWelcome()
+
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+        rule.waitForText(Fixtures.MATCHED_CAR)
+
+        rule.onNodeWithText(Copy.MATCH_SOURCE_OTHER).assertIsDisplayed()
+        rule.onNodeWithText(Copy.MATCH_SOURCE_OWN).assertDoesNotExist()
     }
 
     @Test

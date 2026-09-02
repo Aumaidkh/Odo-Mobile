@@ -50,6 +50,8 @@ internal object Copy {
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
     const val LOOKUP_NOT_FOUND = "No record for this plate"
+    const val MATCH_SOURCE_OWN = "From your earlier Odo record"
+    const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
@@ -234,15 +236,21 @@ internal const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L
  * The fixtures it serves are the ones [Fixtures] names: [Fixtures.KNOWN_PLATE] resolves and
  * [Fixtures.UNKNOWN_PLATE] does not, which is what the two routes through the car step are
  * written against.
+ *
+ * [source] decides which record the match claims to come from, because that is what the card
+ * tells the owner and the two claims carry different weight.
  */
-internal fun installStubVehicleRegistry() {
+internal fun installStubVehicleRegistry(source: VehicleSource = VehicleSource.OWN_RECORD) {
+    val lookup = StubOnboardingRegistry(source)
     GlobalContext.get().loadModules(
-        listOf(module { single<VehicleRegistryLookup> { StubOnboardingRegistry } }),
+        listOf(module { single<VehicleRegistryLookup> { lookup } }),
         allowOverride = true,
     )
 }
 
-private object StubOnboardingRegistry : VehicleRegistryLookup {
+private class StubOnboardingRegistry(
+    private val source: VehicleSource,
+) : VehicleRegistryLookup {
     override suspend fun lookup(
         registrationNumber: RegistrationNumber,
     ): Either<DomainError, RegisteredVehicle> =
@@ -253,7 +261,7 @@ private object StubOnboardingRegistry : VehicleRegistryLookup {
                 variant = "VXI",
                 year = ModelYear.of(2020).getOrNull()!!,
                 fuelType = FuelType.PETROL,
-                source = VehicleSource.OWN_RECORD,
+                source = source,
             ).right()
         } else {
             // "No record" and not "unavailable": the manual route is reached through the
