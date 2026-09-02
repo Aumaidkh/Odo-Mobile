@@ -9,4 +9,10 @@
     <string name="qn_goal_healthy">Keep the car healthy</string>
     <string name="qn_goal_resale">Sell it for more</string>
 
+
+    <!-- Screen chrome. -->
+    <string name="qn_screen_title">A few questions</string>
+    <string name="qn_continue">Continue</string>
+    <string name="qn_selected">Selected</string>
+
 </resources>

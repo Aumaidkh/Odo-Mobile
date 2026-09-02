@@ -629,6 +629,19 @@ sealed interface OdoDestination : NavKey {
     data object Onboarding : OdoDestination
 
     /**
+     * Asks the owner a set of questions (#394) and stores the answers.
+     *
+     * [keys] names which questions to ask, so onboarding can run the whole set while the
+     * profile screen edits one. Plain strings, not a feature type, so `:core:navigation`
+     * stays free of the questionnaire's presentation types — the registry resolves them.
+     *
+     * An unknown key is skipped rather than failing: a deep link built by an older build
+     * should ask what it can, not refuse to open.
+     */
+    @Serializable
+    data class Questionnaire(val keys: List<String>) : OdoDestination
+
+    /**
      * Sign-in flow — phone → otp → verifying.
      *
      * Deliberately **after** car setup, never before it: Odo works fully offline, so first

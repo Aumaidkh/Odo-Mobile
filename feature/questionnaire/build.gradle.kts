@@ -21,6 +21,17 @@ kotlin {
             implementation(projects.core.designsystem)
             // QuestionKey and the answer types the options map to.
             implementation(projects.core.domain)
+            // Nav3 command bus + entry-provider registration. Features navigate only through
+            // :core:navigation, never by importing another feature.
+            implementation(projects.core.navigation)
+            // The telemetry facade's two ports. Interfaces only; the app bootstrap configures them.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
+            // koinViewModel() for the route.
+            implementation(libs.koin.composeViewmodel)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

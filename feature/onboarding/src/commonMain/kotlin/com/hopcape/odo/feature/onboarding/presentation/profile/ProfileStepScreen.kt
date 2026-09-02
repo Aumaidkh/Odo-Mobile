@@ -1,27 +1,14 @@
 package com.hopcape.odo.feature.onboarding.presentation.profile
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
+import com.hopcape.odo.core.designsystem.component.OdoOptionCard
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
@@ -33,7 +20,6 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
-import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingGoalOption
@@ -116,10 +102,12 @@ internal fun ProfileStepScreen(
                 color = OdoTheme.colors.textDim,
             )
             GOALS.forEach { goal ->
-                GoalCard(
-                    goal = goal,
+                OdoOptionCard(
+                    label = stringResource(goal.label),
+                    icon = goal.icon,
                     selected = profile.goal.value == goal.option,
                     onClick = { onEvent(OnboardingEvent.Profile.GoalSelected(goal.option)) },
+                    selectedContentDescription = stringResource(Res.string.onb_cd_goal_selected),
                 )
             }
         }
@@ -135,54 +123,6 @@ private val GOALS = listOf(
     Goal(OnboardingGoalOption.STAY_HEALTHY, IcSpeedometer, Res.string.onb_goal_healthy),
     Goal(OnboardingGoalOption.SELL_FOR_MORE, IcTagFilled, Res.string.onb_goal_resale),
 )
-
-/** One goal, as a full-width tappable card — selection is an accent wash plus a check. */
-@Composable
-private fun GoalCard(goal: Goal, selected: Boolean, onClick: () -> Unit) {
-    val colors = OdoTheme.colors
-    val shape = OdoTheme.shapes.card
-    val border by animateColorAsState(
-        targetValue = if (selected) colors.accent else colors.border,
-        animationSpec = tween(OdoTheme.motion.baseMillis, easing = OdoTheme.motion.easeStandard),
-        label = "goalBorder",
-    )
-    val container by animateColorAsState(
-        targetValue = if (selected) colors.accent.copy(alpha = 0.10f) else colors.surface,
-        animationSpec = tween(OdoTheme.motion.baseMillis, easing = OdoTheme.motion.easeStandard),
-        label = "goalContainer",
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .clip(shape)
-            .background(container)
-            .border(if (selected) 1.5.dp else 1.dp, border, shape)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = OdoTheme.spacing.lg, vertical = OdoTheme.spacing.md),
-        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconTile(
-            icon = goal.icon,
-            tint = if (selected) colors.accent else colors.textDim,
-        )
-        OdoText(
-            text = stringResource(goal.label),
-            style = OdoTheme.typography.heading,
-            color = colors.text,
-            modifier = Modifier.weight(1f),
-        )
-        if (selected) {
-            OdoIcon(
-                IcCheck,
-                contentDescription = stringResource(Res.string.onb_cd_goal_selected),
-                tint = colors.accent,
-                size = OdoTheme.iconSizes.large,
-            )
-        }
-    }
-}
 
 @OdoThemePreviews
 @Composable
