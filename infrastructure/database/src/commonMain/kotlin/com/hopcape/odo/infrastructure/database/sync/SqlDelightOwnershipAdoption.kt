@@ -60,6 +60,9 @@ internal class SqlDelightOwnershipAdoption(
                     // other table and, since the pull became owner-scoped, an unadopted trip
                     // is one this account can neither push nor recognise as its own.
                     database.tripQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    // Answers given during onboarding, before anyone signed in. Unadopted,
+                    // this account can neither push them nor claim them.
+                    database.profileAnswerQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
 
                     // Last, and a re-key rather than a stamp. `UPDATE OR IGNORE` because the
                     // signed-in account may already have a profile row pulled from the
@@ -102,6 +105,7 @@ internal class SqlDelightOwnershipAdoption(
         database.reminderQueries.deleteForeignOwned(realOwnerId)
         database.tripQueries.deleteForeignOwned(realOwnerId)
         database.carQueries.deleteForeignOwned(realOwnerId)
+        database.profileAnswerQueries.deleteForeignOwned(realOwnerId)
         database.profileQueries.deleteForeignOwned(realOwnerId)
 
         // The cursors described the evicted account's pull. Left in place, this account's

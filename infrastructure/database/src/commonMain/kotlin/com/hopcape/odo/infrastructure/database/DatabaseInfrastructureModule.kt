@@ -9,6 +9,7 @@ import com.hopcape.odo.core.data.document.DocumentLocalDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportLocalDataSource
 import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
+import com.hopcape.odo.core.data.owner.QuestionAnswerLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
 import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
@@ -72,6 +73,9 @@ import com.hopcape.odo.infrastructure.database.fairness.SqlDelightOverchargeRepo
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncTable
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncable
 import com.hopcape.odo.infrastructure.database.health.SqlDelightHealthScoreLocalDataSource
+import com.hopcape.odo.infrastructure.database.owner.QuestionAnswerSyncTable
+import com.hopcape.odo.infrastructure.database.owner.QuestionAnswerSyncable
+import com.hopcape.odo.infrastructure.database.owner.SqlDelightQuestionAnswerLocalDataSource
 import com.hopcape.odo.infrastructure.database.owner.ProfileSyncTable
 import com.hopcape.odo.infrastructure.database.owner.ProfileSyncable
 import com.hopcape.odo.infrastructure.database.owner.SqlDelightProfileLocalDataSource
@@ -273,6 +277,26 @@ val databaseInfrastructureModule = module {
             runner = SyncRunner(
                 entity = SyncEntity.FUEL_FILLS,
                 table = FuelFillSyncTable(
+                    database = get(),
+                    remote = get(),
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+
+    // Questionnaire answers (#394). Owner-scoped. Answers given during onboarding predate
+    // any account, so adoption moves them across at the first sign-in.
+    single<QuestionAnswerLocalDataSource> {
+        SqlDelightQuestionAnswerLocalDataSource(database = get(), idGenerator = get())
+    }
+    single {
+        QuestionAnswerSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.PROFILE_ANSWERS,
+                table = QuestionAnswerSyncTable(
                     database = get(),
                     remote = get(),
                     ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
