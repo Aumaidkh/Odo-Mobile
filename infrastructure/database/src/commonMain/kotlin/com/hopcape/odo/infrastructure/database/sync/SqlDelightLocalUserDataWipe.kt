@@ -49,6 +49,7 @@ internal class SqlDelightLocalUserDataWipe(
                     database.serviceLogQueries.deleteAllRows()
                     database.documentQueries.deleteAllRows()
                     database.fuelFillQueries.deleteAllRows()
+                    database.profileAnswerQueries.deleteAllRows()
                     database.healthScoreQueries.deleteAllRows()
                     database.reminderQueries.deleteAllRows()
                     // Trips were missing here, so signing out left them behind for the next

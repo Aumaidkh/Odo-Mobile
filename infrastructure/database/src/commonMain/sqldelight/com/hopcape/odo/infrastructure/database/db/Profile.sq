@@ -2,9 +2,12 @@
 -- (Postgres types mapped to SQLite). One row per signed-in owner; on a device
 -- with no account it holds the single local placeholder owner.
 --
--- `full_name` and `onboarding_goal` are nullable to match the server, where the
--- row is created by trigger at signup — before onboarding has asked anything.
--- A pull can therefore legitimately bring back a nameless profile.
+-- `full_name` is nullable to match the server, where the row is created by
+-- trigger at signup — before onboarding has asked anything. A pull can
+-- therefore legitimately bring back a nameless profile.
+--
+-- `onboarding_goal` used to sit here. Goals live in `profile_answers` now, which
+-- is the only shape that can hold more than one (#394).
 --
 -- `city` is nullable and stays null until the owner sets it on their profile
 -- screen; onboarding deliberately does not ask. It is the key for fairness
@@ -30,7 +33,6 @@
 CREATE TABLE profiles (
     id                      TEXT NOT NULL PRIMARY KEY,
     full_name               TEXT,
-    onboarding_goal         TEXT,
     onboarding_completed_at TEXT,
     city                    TEXT,
     email                   TEXT,
@@ -58,10 +60,10 @@ CREATE TABLE profiles (
 -- first write owns the creation time.
 insertProfile:
 INSERT OR IGNORE INTO profiles (
-    id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path,
+    id, full_name, onboarding_completed_at, city, email, avatar_path,
     shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone
 ) VALUES (
-    :id, :fullName, :onboardingGoal, :onboardingCompletedAt, :city, :email, :avatarPath,
+    :id, :fullName, :onboardingCompletedAt, :city, :email, :avatarPath,
     :sharesPrices, :now, :now, NULL, NULL, :syncStatus, :phone
 );
 
@@ -71,7 +73,6 @@ INSERT OR IGNORE INTO profiles (
 updateProfile:
 UPDATE profiles
 SET full_name               = :fullName,
-    onboarding_goal         = :onboardingGoal,
     onboarding_completed_at = :onboardingCompletedAt,
     city                    = :city,
     email                   = :email,
@@ -165,13 +166,12 @@ WHERE id = :id;
 -- ships with minSdk 26 and has no ON CONFLICT DO UPDATE. The caller runs them inside
 -- the pull's transaction.
 insertFromRemote:
-INSERT OR IGNORE INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone, restriction)
-VALUES (:id, :full_name, :onboarding_goal, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED', :phone, :restriction);
+INSERT OR IGNORE INTO profiles (id, full_name, onboarding_completed_at, city, email, avatar_path, shares_prices, created_at, updated_at, deleted_at, remote_version, sync_status, phone, restriction)
+VALUES (:id, :full_name, :onboarding_completed_at, :city, :email, :avatar_path, :shares_prices, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED', :phone, :restriction);
 
 updateFromRemote:
 UPDATE profiles
 SET full_name = :full_name,
-    onboarding_goal = :onboarding_goal,
     onboarding_completed_at = :onboarding_completed_at,
     email = :email,
     avatar_path = :avatar_path,

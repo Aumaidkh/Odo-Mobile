@@ -69,7 +69,6 @@ internal class ProfileSyncTable(
         queries.insertFromRemote(
             id = dto.id,
             full_name = dto.fullName,
-            onboarding_goal = dto.onboardingGoal?.uppercase(),
             onboarding_completed_at = dto.onboardingCompletedAt,
             // Only on insert, and only ever null: a row this device has never seen has no
             // local city to keep, and the server's is an id we cannot resolve yet.
@@ -87,7 +86,6 @@ internal class ProfileSyncTable(
         queries.updateFromRemote(
             restriction = dto.restriction,
             full_name = dto.fullName,
-            onboarding_goal = dto.onboardingGoal?.uppercase(),
             onboarding_completed_at = dto.onboardingCompletedAt,
             email = dto.email,
             avatar_path = dto.avatarPath,
@@ -115,7 +113,6 @@ private fun Profiles.toDto() = ProfileDto(
     id = id,
     fullName = full_name,
     phone = phone,
-    onboardingGoal = onboarding_goal?.lowercase(),
     onboardingCompletedAt = onboarding_completed_at,
     email = email,
     avatarPath = avatar_path,

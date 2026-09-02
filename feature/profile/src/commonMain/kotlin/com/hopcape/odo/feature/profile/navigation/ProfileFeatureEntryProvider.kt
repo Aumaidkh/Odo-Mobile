@@ -19,6 +19,7 @@ import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
@@ -101,6 +102,10 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onNotifications = { navigationManager.navigateTo(OdoDestination.Profile.Notifications) },
         onUnits = { navigationManager.navigateTo(OdoDestination.Profile.Units) },
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
+        // The questionnaire, asked for the goal alone. It is the same destination first-run
+        // setup could use; naming the keys is what keeps editing one answer from reopening
+        // the whole flow.
+        onGoals = { navigationManager.navigateTo(OdoDestination.Questionnaire(listOf(QuestionKeys.Goal.value))) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
         onPrivacy = { navigationManager.navigateTo(OdoDestination.Profile.Privacy) },
         debugToolsVisible = BuildInfo.isDebug,

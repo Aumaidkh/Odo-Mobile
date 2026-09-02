@@ -123,6 +123,9 @@ class DataTelemetry(
         const val FAIRNESS = "fairness"
         const val OVERCHARGE = "overcharge"
         const val PROFILE = "profile"
+
+        /** Questionnaire answers (#394). Apart from [PROFILE]: different table, different writes. */
+        const val QUESTIONNAIRE = "questionnaire"
         const val DOCUMENT = "document"
         const val FUEL_PRICE = "fuelprice"
 

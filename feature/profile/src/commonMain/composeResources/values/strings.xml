@@ -58,6 +58,7 @@
     <string name="pf_units">Units &amp; currency</string>
     <string name="pf_appearance">Appearance</string>
     <!-- #234: clears the coach marks' seen record so the tips fire again in context. -->
+    <string name="pf_goals">Your goals</string>
     <string name="pf_show_around">Show me around again</string>
     <string name="pf_data_privacy">DATA &amp; PRIVACY</string>
     <string name="pf_export">Export my data</string>

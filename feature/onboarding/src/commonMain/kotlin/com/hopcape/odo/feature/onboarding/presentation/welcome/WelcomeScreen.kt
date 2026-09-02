@@ -51,8 +51,8 @@ import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
-import com.hopcape.odo.feature.onboarding.presentation.components.accentGlow
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
+import com.hopcape.odo.core.designsystem.modifier.accentGlow
 import com.hopcape.odo.feature.onboarding.resources.Res
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_cta
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal
@@ -218,7 +218,7 @@ private fun ValueRow(prop: ValueProp) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconTile(prop.icon)
+        OdoIconTile(prop.icon)
         OdoText(
             text = stringResource(prop.text),
             style = OdoTheme.typography.body,

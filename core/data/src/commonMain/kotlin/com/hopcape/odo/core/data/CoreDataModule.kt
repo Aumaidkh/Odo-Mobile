@@ -26,11 +26,15 @@ import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
 import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
 import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
+import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
+import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.owner.QuestionnaireRepositoryImpl
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRepositoryImpl
@@ -225,6 +229,7 @@ val coreDataModule = module {
     single<ServiceLogRemoteDataSource> { FakeServiceLogRemoteDataSource() }
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
+    single<QuestionAnswerRemoteDataSource> { FakeQuestionAnswerRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
@@ -283,6 +288,17 @@ val coreDataModule = module {
     // posting to a table that does not exist would only manufacture failures. The rows
     // carry the sync columns and wait as PENDING.
     single<FuelFillRepository> { FuelFillRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
+
+    // Questionnaire answers (#394). The server table exists, so unlike fuel fills above this
+    // one syncs; its Syncable is wired in `databaseInfrastructureModule`.
+    single<QuestionnaireRepository> {
+        QuestionnaireRepositoryImpl(
+            local = get(),
+            currentOwner = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
 
     // Blocks nothing until a real remote is configured. Swapped for
     // RemoteConfigAppStatusSource by :infrastructure:firebase:remoteconfig's Koin module,

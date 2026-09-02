@@ -16,7 +16,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import org.junit.rules.ExternalResource
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 
 /**
  * The words the onboarding flow puts on screen, mirrored from each feature's `strings.xml`.

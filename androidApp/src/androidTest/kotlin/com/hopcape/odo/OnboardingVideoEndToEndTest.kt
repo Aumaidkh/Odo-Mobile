@@ -10,7 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import org.koin.core.context.GlobalContext
 
 /**

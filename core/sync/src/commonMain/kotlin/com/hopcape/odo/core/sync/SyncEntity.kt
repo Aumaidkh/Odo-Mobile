@@ -16,6 +16,15 @@ enum class SyncEntity {
     PROFILES,
 
     /**
+     * The owner's questionnaire answers (#394). After [PROFILES] because a row references one
+     * and nothing references it.
+     *
+     * Ahead of [ENTITLEMENT_OVERRIDES] because it is push-and-pull while that one is
+     * pull-only, so the owner's own edits go first.
+     */
+    PROFILE_ANSWERS,
+
+    /**
      * Entitlement granted or withheld outside the store (issue #369). Pull-only: the server
      * is the only writer, because an entitlement a device could grant itself would not be one.
      *

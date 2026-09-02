@@ -78,16 +78,25 @@ internal class PostgrestClient(
      * An empty [rows] is answered without a request. PostgREST accepts an empty array, but a
      * round trip to be told nothing happened is a round trip on a metered connection.
      */
+    /**
+     * @param onConflict the columns PostgREST resolves a duplicate on, as `"a,b,c"`. Null
+     *   resolves on the primary key, which is right for a table whose only uniqueness is its
+     *   id. Name a unique index instead when a row can arrive under a *different* id than the
+     *   one already stored — otherwise the insert violates that index and the server answers
+     *   409, which the engine reads as a permanent refusal and parks the row in `CONFLICT`.
+     */
     suspend fun <T> upsert(
         table: String,
         serializer: KSerializer<T>,
         rows: List<T>,
         returnRows: Boolean = true,
+        onConflict: String? = null,
     ): List<T> {
         if (rows.isEmpty()) return emptyList()
         return call(operation = SupabaseTelemetry.UPSERT, resource = table) {
             val prefer = if (returnRows) "$MERGE_DUPLICATES,$RETURN_REPRESENTATION" else "$MERGE_DUPLICATES,$RETURN_MINIMAL"
-            val response = client.post("${environment.restUrl}/$table") {
+            val target = onConflict?.let { "?on_conflict=$it" }.orEmpty()
+            val response = client.post("${environment.restUrl}/$table$target") {
                 authorize()
                 contentType(ContentType.Application.Json)
                 header(PREFER_HEADER, prefer)

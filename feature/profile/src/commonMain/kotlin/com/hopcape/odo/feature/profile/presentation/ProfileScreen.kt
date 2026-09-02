@@ -36,6 +36,7 @@ import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
 import com.hopcape.odo.core.designsystem.icons.IcGearFilled
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
@@ -58,6 +59,7 @@ import com.hopcape.odo.feature.profile.resources.pf_appear_dark
 import com.hopcape.odo.feature.profile.resources.pf_appear_light
 import com.hopcape.odo.feature.profile.resources.pf_appear_system
 import com.hopcape.odo.feature.profile.resources.pf_appearance
+import com.hopcape.odo.feature.profile.resources.pf_goals
 import com.hopcape.odo.feature.profile.resources.pf_show_around
 import com.hopcape.odo.feature.profile.resources.pf_cd_back
 import com.hopcape.odo.feature.profile.resources.pf_city_missing
@@ -131,6 +133,7 @@ internal fun ProfileScreen(
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
+    onGoals: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
@@ -178,6 +181,7 @@ internal fun ProfileScreen(
                 onNotifications = onNotifications,
                 onUnits = onUnits,
                 onAppearance = onAppearance,
+                onGoals = onGoals,
                 onExport = onExport,
                 onPrivacy = onPrivacy,
                 onHelp = onHelp,
@@ -206,6 +210,7 @@ private fun ProfileContentColumn(
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
+    onGoals: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
@@ -248,6 +253,15 @@ private fun ProfileContentColumn(
                 onClick = onAppearance,
                 value = content.theme.label(),
                 testTag = ProfileTestTags.APPEARANCE_ROW,
+            )
+            RowDivider()
+            // What the owner said they came for (#394). Whatever they picked during setup used
+            // to be permanent — there was no screen that could change it.
+            SettingsRow(
+                icon = IcTagFilled,
+                title = stringResource(Res.string.pf_goals),
+                onClick = onGoals,
+                testTag = ProfileTestTags.GOALS_ROW,
             )
             RowDivider()
             // #234: clears the coach marks' seen record. Each hook then fires again on its

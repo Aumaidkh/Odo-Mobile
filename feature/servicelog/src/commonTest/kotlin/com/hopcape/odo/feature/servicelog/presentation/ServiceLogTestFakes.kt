@@ -209,7 +209,6 @@ internal fun testCar(
 internal fun testOwner(name: String? = "Rahul Deshmukh"): OwnerProfile = OwnerProfile.reconstitute(
     id = TEST_OWNER,
     name = name,
-    goal = null,
     onboardingCompletedAt = null,
 )
 

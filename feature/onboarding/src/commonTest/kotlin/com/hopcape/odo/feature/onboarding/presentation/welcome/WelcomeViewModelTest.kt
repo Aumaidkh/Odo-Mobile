@@ -6,7 +6,6 @@ import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
-import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -70,7 +69,6 @@ class WelcomeViewModelTest {
         telemetry = OnboardingTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
-            tracer = APM.asTracer(),
             ids = IdGenerator { "trace-1" },
         ),
     )
