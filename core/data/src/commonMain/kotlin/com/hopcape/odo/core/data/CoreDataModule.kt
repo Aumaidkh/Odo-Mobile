@@ -53,6 +53,9 @@ import com.hopcape.odo.core.data.fairness.RepositoryFairnessAnalyzer
 import com.hopcape.odo.core.data.health.FakeHealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRepositoryImpl
+import com.hopcape.odo.core.data.challan.ChallanRemoteDataSource
+import com.hopcape.odo.core.data.challan.ChallanRepositoryImpl
+import com.hopcape.odo.core.data.challan.FakeChallanRemoteDataSource
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.data.odometer.CurrentOdometerProviderImpl
 import com.hopcape.odo.core.data.owner.FakeProfileRemoteDataSource
@@ -92,6 +95,7 @@ import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.fairness.analysis.FairnessAnalyzer
 import com.hopcape.odo.core.domain.fairness.repository.FairnessRepository
 import com.hopcape.odo.core.domain.fairness.repository.OverchargeReportRepository
+import com.hopcape.odo.core.domain.challan.repository.ChallanRepository
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
@@ -191,6 +195,11 @@ val coreDataModule = module {
     // this only keeps what the month delta is measured against.
     single { HealthScoreRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     single<HealthScoreRepository> { get<HealthScoreRepositoryImpl>() }
+    // A vehicle's challans: local cache for the owner's own car, the records source for
+    // one-off lookups. The source is the Fake below until Supabase (or, later, a real
+    // government API) overrides it.
+    single { ChallanRepositoryImpl(local = get(), remote = get(), telemetry = get()) }
+    single<ChallanRepository> { get<ChallanRepositoryImpl>() }
     single<FairnessRepository> { FairnessRepositoryImpl(remote = get(), telemetry = get()) }
     // The one way to get a verdict. Any feature injects the port and gets the same
     // benchmarks, so no screen carries a benchmark table of its own.
@@ -227,6 +236,7 @@ val coreDataModule = module {
     single<CitySubmissionRemoteDataSource> { FakeCitySubmissionRemoteDataSource() }
     single<ProfileRemoteDataSource> { FakeProfileRemoteDataSource() }
     single<HealthScoreRemoteDataSource> { FakeHealthScoreRemoteDataSource() }
+    single<ChallanRemoteDataSource> { FakeChallanRemoteDataSource() }
     single<TripRemoteDataSource> { FakeTripRemoteDataSource() }
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.

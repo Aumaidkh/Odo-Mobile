@@ -67,6 +67,7 @@ include(":feature:profile")
 include(":feature:refuel")
 include(":feature:support")
 include(":feature:timeline")
+include(":feature:challan")
 
 include(":observability:logging")
 include(":observability:analytics")

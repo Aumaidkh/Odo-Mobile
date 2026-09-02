@@ -111,6 +111,7 @@ internal fun GarageRoute(navigationManager: NavigationManager) {
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            GarageEffect.OpenChallans -> navigationManager.navigateTo(OdoDestination.Challan.List)
             GarageEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
             GarageEffect.OpenUpdateOdometer -> navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
             GarageEffect.OpenCarActions -> navigationManager.navigateTo(OdoDestination.Garage.CarActions)
