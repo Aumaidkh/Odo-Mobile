@@ -27,12 +27,27 @@ internal class SupabaseQuestionAnswerRemoteDataSource(
             order = "$COLUMN_UPDATED_AT.asc",
         )
 
+    /**
+     * Resolved on the unique triple, not on `id`.
+     *
+     * The same answer can exist on both sides under different ids — the backfill minted its
+     * own, and a device offline at the time minted another. Resolving on `id` makes that an
+     * INSERT, which violates the triple's index, and a 409 is permanent: the row parks in
+     * `CONFLICT` and never syncs again. Naming the triple makes the push update the row that
+     * is already there.
+     */
     override suspend fun push(answers: List<QuestionAnswerDto>): List<QuestionAnswerDto> =
-        postgrest.upsert(table = TABLE, serializer = QuestionAnswerDto.serializer(), rows = answers)
+        postgrest.upsert(
+            table = TABLE,
+            serializer = QuestionAnswerDto.serializer(),
+            rows = answers,
+            onConflict = CONFLICT_TARGET,
+        )
 
     private companion object {
         const val TABLE = "profile_answers"
         const val COLUMN_OWNER_ID = "owner_id"
         const val COLUMN_UPDATED_AT = "updated_at"
+        const val CONFLICT_TARGET = "owner_id,question_key,answer_value"
     }
 }
