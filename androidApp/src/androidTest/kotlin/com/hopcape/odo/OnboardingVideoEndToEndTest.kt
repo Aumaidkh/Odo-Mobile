@@ -35,7 +35,10 @@ class OnboardingVideoEndToEndTest {
     @get:Rule
     val chain: RuleChain = RuleChain
         .outerRule(PinnedConfig(VIDEO_ENABLED, value = "true", compiledDefault = "false"))
-        .around(DeviceState { clearTheOwnersRows() })
+        .around(DeviceState {
+            clearTheOwnersRows()
+            installStubVehicleRegistry()
+        })
         .around(rule)
 
     @Test

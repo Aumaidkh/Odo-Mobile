@@ -7,19 +7,21 @@ import com.hopcape.odo.core.domain.shared.DomainError
 /**
  * Port resolving a registration number to the vehicle behind it.
  *
- * The unstable dependency (an external registry, reached through an Edge Function) behind a
- * stable contract, so onboarding can be built and tested without it — a fake returns a
- * match, another returns [DomainError.RegistrationNotFound], and neither costs a network
- * call.
+ * The answer comes from cars Odo already holds, not from the RTO — the owner's own records
+ * first, and then, when it is switched on, another owner's record for the same plate. The
+ * suggestion says which (`RegisteredVehicle.source`).
+ *
+ * A port rather than a client call, so onboarding can be built and tested without a
+ * network: a fake returns a match, another returns [DomainError.RegistrationNotFound], and
+ * neither costs a round trip.
  *
  * Failure is deliberately three distinct errors rather than one: "we have no record of this
  * plate" is permanent and should send the owner to manual entry, while offline and
  * service-down are worth retrying. Collapsing them would make the app tell people to give
  * up on a problem that fixes itself.
  *
- * There is no implementation in the MVP. Manual entry is the real path; a lookup that
- * *guesses* would be worse than none, because a wrong car poisons every price benchmark
- * derived from it.
+ * A match is always a suggestion the owner confirms. A wrong car accepted silently poisons
+ * every price benchmark derived from it.
  */
 interface VehicleRegistryLookup {
     suspend fun lookup(registrationNumber: RegistrationNumber): Either<DomainError, RegisteredVehicle>

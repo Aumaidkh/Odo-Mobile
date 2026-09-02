@@ -1,9 +1,13 @@
 package com.hopcape.odo.infrastructure.database.car
 
 import com.hopcape.odo.infrastructure.database.db.Cars
+import com.hopcape.odo.infrastructure.database.db.SelectAttributesByRegistration
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.ModelYear
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -34,3 +38,20 @@ internal fun Cars.toDomain(zone: TimeZone = TimeZone.currentSystemDefault()): Ca
     isPrimary = is_primary == 1L,
     addedOn = Instant.parse(created_at).toLocalDateTime(zone).date,
 )
+
+/**
+ * Attributes row → the unconfirmed suggestion. Answers `null` when the stored year or fuel
+ * label is one the domain refuses, which a row written by an older build could be.
+ */
+internal fun SelectAttributesByRegistration.toRegisteredVehicle(): RegisteredVehicle? {
+    val modelYear = ModelYear.of(year.toInt()).getOrNull() ?: return null
+    val fuel = FuelType.entries.firstOrNull { it.name == fuel_type } ?: return null
+    return RegisteredVehicle(
+        make = make,
+        model = model,
+        variant = variant,
+        year = modelYear,
+        fuelType = fuel,
+        source = VehicleSource.OWN_RECORD,
+    )
+}

@@ -71,6 +71,7 @@ keystore/
 !/supabase/check-legal.sh
 !/supabase/check-blog.sh
 !/supabase/check-admin.sh
+!/supabase/check-plate-lookup.sh
 # Hand-authored, and a clone needs it: the blog is a nav over a black page until
 # somebody runs it.
 !/supabase/seed_blog.sql

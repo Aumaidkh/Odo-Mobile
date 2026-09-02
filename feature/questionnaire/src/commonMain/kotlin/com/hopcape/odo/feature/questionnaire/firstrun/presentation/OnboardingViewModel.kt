@@ -35,7 +35,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Onboard
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.ProfileState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.RtoMatch
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateMatch
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
@@ -187,10 +187,10 @@ internal class OnboardingViewModel(
     /**
      * Ask the registry who owns [plate].
      *
-     * No registry integration is in MVP scope, so today's adapter answers unavailable and the
-     * owner is sent to manual entry. That is the honest outcome, not a gap: a guessed match
-     * would silently become the car every fairness benchmark and health score is computed
-     * against.
+     * The answer comes from cars Odo already holds — this owner's first, then another
+     * owner's record for the same plate when that is switched on. It stays a suggestion
+     * either way: a match accepted without being read becomes the car every fairness
+     * benchmark and health score is computed against.
      */
     private suspend fun resolvePlate(plate: String) {
         showLookup(PlateLookup.Loading)
@@ -203,7 +203,7 @@ internal class OnboardingViewModel(
 
     /** A car came back: show it for confirmation, and seed the manual form from it. */
     private fun onCarFound(vehicle: RegisteredVehicle) {
-        val match = vehicle.toRtoMatch()
+        val match = vehicle.toPlateMatch()
         showLookup(PlateLookup.Found(match))
         prefillDetails(match)
     }
@@ -215,10 +215,10 @@ internal class OnboardingViewModel(
      * already describes that car — the owner corrects the one field that is wrong instead of
      * re-answering all four. (Rejecting a match is nearly always about a wrong trim.)
      *
-     * TODO(persistence): the plate route saves [RtoMatch] directly, so reconciling registry
-     *  naming against the catalog belongs with the save rather than only here.
+     * TODO(persistence): the plate route saves [PlateMatch] directly, so reconciling the
+     *  match's naming against the catalog belongs with the save rather than only here.
      */
-    private fun prefillDetails(match: RtoMatch) {
+    private fun prefillDetails(match: PlateMatch) {
         prefillYearAndFuel(match)
         val make = catalogMakeFor(match) ?: return
         selectMake(make)
@@ -227,7 +227,7 @@ internal class OnboardingViewModel(
 
     /** Always safe to seed: a year is a number and a fuel is an enum, so neither can disagree
      * with the catalog. */
-    private fun prefillYearAndFuel(match: RtoMatch) = updateDetails {
+    private fun prefillYearAndFuel(match: PlateMatch) = updateDetails {
         it.copy(year = it.year.update(match.year), fuel = it.fuel.update(match.fuelType))
     }
 
@@ -240,12 +240,12 @@ internal class OnboardingViewModel(
      * a bucket of its own. `null` also covers "the catalog hasn't loaded", where there is
      * nothing to check the name against and the field is better left to the owner.
      */
-    private fun catalogMakeFor(match: RtoMatch): String? = _state.value.details.options
+    private fun catalogMakeFor(match: PlateMatch): String? = _state.value.details.options
         ?.makes
         ?.firstOrNull { it.equals(match.make, ignoreCase = true) }
 
     /** The model can only be seeded from the list for [make], so it waits for that read. */
-    private fun prefillModelOnceListed(make: String, match: RtoMatch) = loadModelsFor(make) { models ->
+    private fun prefillModelOnceListed(make: String, match: PlateMatch) = loadModelsFor(make) { models ->
         showModels(models)
         selectModel(models.matching(match))
     }
@@ -580,11 +580,11 @@ private fun DomainError.toLookupError(): PlateLookupError = when (this) {
  * change with every facelift, so a seeded list is always incomplete — and a *wrong* trim is
  * worse than no trim, because it silently feeds ₹/km and every fairness benchmark.
  */
-private fun List<CarModel>.matching(match: RtoMatch): CarModel? =
+private fun List<CarModel>.matching(match: PlateMatch): CarModel? =
     firstOrNull { it.isSameModelAs(match) && it.variant.equals(match.variant, ignoreCase = true) }
         ?: firstOrNull { it.isSameModelAs(match) && it.variant == null }
 
-private fun CarModel.isSameModelAs(match: RtoMatch): Boolean = name.equals(match.model, ignoreCase = true)
+private fun CarModel.isSameModelAs(match: PlateMatch): Boolean = name.equals(match.model, ignoreCase = true)
 
 /**
  * The answered car step → the command that stores it.
@@ -609,13 +609,14 @@ private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
     )
 }
 
-/** The registry's claim → the confirmation card's content. */
-private fun RegisteredVehicle.toRtoMatch(): RtoMatch = RtoMatch(
+/** The lookup's claim → the confirmation card's content. */
+private fun RegisteredVehicle.toPlateMatch(): PlateMatch = PlateMatch(
     make = make,
     model = model,
     variant = variant,
     year = year.value,
     fuelType = fuelType,
+    source = source,
 )
 
 /**

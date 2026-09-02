@@ -80,4 +80,27 @@ interface FeatureConfig {
         why = "Support Challan check for a vehicle",
     )
     val challanEnabled: Boolean
+
+    /**
+     * Whether a typed-in plate is resolved against cars belonging to **other** owners.
+     *
+     * Only this last tier is gated. Answering from the owner's own cars, on the device or
+     * on the server, needs no switch — it shows them what they already told us.
+     *
+     * **On by default.** The `resolve_plate` RPC is reachable without a session by design
+     * (issue #392), so the daily counters in `plate_lookup_charge` are the whole of the
+     * defence — watch them after the first release rather than after the first complaint.
+     * Setting this key to false in the console is the kill switch, and it works: the tier
+     * is built at construction, so a flip lands on the next launch.
+     *
+     * Turning it on where the migration has not run answers nothing rather than failing —
+     * PostgREST 404s an absent function, which the adapter reads as `LookupUnavailable`.
+     */
+    @Flag(
+        key = "plate_lookup_enabled",
+        default = true,
+        owner = "platform",
+        why = "Gate on resolving a plate against other owners' cars, and the kill switch after",
+    )
+    val plateLookupEnabled: Boolean
 }

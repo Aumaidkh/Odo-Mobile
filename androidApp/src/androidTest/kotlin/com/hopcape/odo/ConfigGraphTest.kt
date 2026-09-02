@@ -58,6 +58,8 @@ class ConfigGraphTest {
                 "support_email",
                 "auto_odometer_enabled",
                 "refuel_detect_enabled",
+                "challan_check_enabled",
+                "plate_lookup_enabled",
                 // Declared in :feature:onboarding — a third module contributing keys.
                 "onboarding_video_enabled",
                 "onboarding_video_refuel_url",

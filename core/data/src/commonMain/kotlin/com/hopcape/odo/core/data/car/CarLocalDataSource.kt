@@ -1,7 +1,10 @@
 package com.hopcape.odo.core.data.car
 
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -39,4 +42,16 @@ interface CarLocalDataSource {
 
     /** The car with [id] as it changes; `null` while no live row has that id. */
     fun observeById(id: CarId): Flow<Car?>
+
+    /**
+     * The vehicle behind a plate [ownerId] has entered before, or `null` when they have not.
+     *
+     * Returns the five attributes rather than the [Car] on purpose: this answers the
+     * "is this your car?" suggestion, and an odometer, a nickname or a car id has no place
+     * in a suggestion the owner has not confirmed yet.
+     */
+    suspend fun vehicleByRegistration(
+        ownerId: OwnerId,
+        registrationNumber: RegistrationNumber,
+    ): RegisteredVehicle?
 }

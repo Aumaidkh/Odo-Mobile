@@ -157,9 +157,12 @@ internal class SetupTelemetry(
         }
 
     /**
-     * Times the registry lookup and records which way it went. Worth measuring even while the
-     * MVP's adapter always answers unavailable: this is the number that says whether a real
-     * integration would earn its keep.
+     * Times the plate lookup and records which way it went, and on a match which tier
+     * answered.
+     *
+     * [Key.SOURCE] is the number the cross-owner tier has to justify itself with: it is the
+     * only tier that reaches another owner's data, and its share of matches says whether
+     * that is buying anything. The plate itself is never recorded.
      */
     suspend fun plateLookup(
         read: suspend () -> Either<DomainError, RegisteredVehicle>,
@@ -169,9 +172,12 @@ internal class SetupTelemetry(
             ifLeft = { it::class.simpleName ?: Outcome.FAILED },
             ifRight = { Outcome.MATCHED },
         )
+        val source = result.getOrNull()?.source?.name ?: Outcome.NO_MATCH
+        val fields = mapOf(Key.OUTCOME to outcome, Key.SOURCE to source)
         span.setAttribute(Key.OUTCOME, outcome)
-        analytics.track(Event.PLATE_LOOKUP, mapOf(Key.OUTCOME to outcome))
-        logger.info(TAG, Event.PLATE_LOOKUP, tc = currentTraceContext().toLog(), fields = mapOf(Key.OUTCOME to outcome))
+        span.setAttribute(Key.SOURCE, source)
+        analytics.track(Event.PLATE_LOOKUP, fields)
+        logger.info(TAG, Event.PLATE_LOOKUP, tc = currentTraceContext().toLog(), fields = fields)
         result
     }
 
@@ -314,6 +320,7 @@ internal class SetupTelemetry(
         const val MAKE_COUNT = "make_count"
         const val COUNT = "count"
         const val OUTCOME = "outcome"
+        const val SOURCE = "source"
         const val ERRORS = "errors"
     }
 
@@ -321,6 +328,9 @@ internal class SetupTelemetry(
     object Outcome {
         const val MATCHED = "matched"
         const val FAILED = "failed"
+
+        /** [Key.SOURCE] when nothing matched — the tier names come from `VehicleSource`. */
+        const val NO_MATCH = "none"
     }
 }
 

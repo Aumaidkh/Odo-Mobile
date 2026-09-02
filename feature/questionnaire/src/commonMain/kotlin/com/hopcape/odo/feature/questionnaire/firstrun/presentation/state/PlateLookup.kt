@@ -1,20 +1,26 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.state
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
 
 /**
- * What the RTO lookup returned for a plate — the "is this your car?" confirmation card.
- * Held separately from [CarStepState]'s own fields because it is a *suggestion* the owner
+ * What the lookup returned for a plate — the "is this your car?" confirmation card. Held
+ * separately from [CarStepState]'s own fields because it is a *suggestion* the owner
  * confirms or rejects, not something they typed.
+ *
+ * [source] decides the line under the car's name. Their own earlier record and another
+ * owner's record for the same plate are different claims, and the second one is worth
+ * reading twice before accepting.
  */
 @Immutable
-internal data class RtoMatch(
+internal data class PlateMatch(
     val make: String,
     val model: String,
     val variant: String?,
     val year: Int,
     val fuelType: FuelType,
+    val source: VehicleSource,
 ) {
     /** "Maruti Swift VXI" — make, model, and trim as one line. */
     val title: String get() = listOfNotNull(make, model, variant).joinToString(" ")
@@ -22,8 +28,8 @@ internal data class RtoMatch(
 
 /**
  * Why a plate lookup came back empty. Each reason gets its own copy and its own next step,
- * because "we've never seen this plate" and "we couldn't reach the RTO" are different
- * problems to the owner — one is permanent, the others are worth retrying.
+ * because "we have no record of this plate" and "we couldn't reach the server" are
+ * different problems to the owner — one is permanent, the others are worth retrying.
  */
 internal enum class PlateLookupError {
     /** The service answered, and has no record for this plate. Retrying won't help. */
@@ -50,9 +56,9 @@ internal sealed interface PlateLookup {
     /** A lookup is in flight for the current plate. */
     data object Loading : PlateLookup
 
-    /** The service resolved the plate to a car, pending the owner's confirmation. */
+    /** The lookup resolved the plate to a car, pending the owner's confirmation. */
     @Immutable
-    data class Found(val match: RtoMatch) : PlateLookup
+    data class Found(val match: PlateMatch) : PlateLookup
 
     /** The lookup failed; [reason] decides the copy and whether retry is offered. */
     @Immutable

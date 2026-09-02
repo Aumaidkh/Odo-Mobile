@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
@@ -37,6 +38,7 @@ class LookupPlateUseCaseTest {
         variant = "VXI",
         year = ModelYear.of(2020).getOrNull()!!,
         fuelType = FuelType.PETROL,
+        source = VehicleSource.OWN_RECORD,
     )
 
     @Test

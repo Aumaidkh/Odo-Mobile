@@ -31,10 +31,12 @@
     <string name="onb_car_plate_placeholder">MH 12 AB 1234</string>
     <string name="onb_car_match_meta">%1$d · %2$s</string>
     <string name="onb_cd_car_matched">This is my car</string>
+    <string name="onb_car_match_source_own">From your earlier Odo record</string>
+    <string name="onb_car_match_source_other">From another Odo record for this plate — check it</string>
     <string name="onb_car_lookup_loading">Looking up your plate…</string>
-    <string name="onb_car_lookup_loading_note">Checking the registration records.</string>
+    <string name="onb_car_lookup_loading_note">Checking your Odo records.</string>
     <string name="onb_car_lookup_not_found_title">No record for this plate</string>
-    <string name="onb_car_lookup_not_found_body">The registry has nothing for %1$s. Add the details yourself — it takes four taps.</string>
+    <string name="onb_car_lookup_not_found_body">We have nothing on record for %1$s. Add the details yourself — it takes four taps.</string>
     <string name="onb_car_lookup_offline_title">You’re offline</string>
     <string name="onb_car_lookup_offline_body">Connect to the internet to look up this plate, or add the details yourself.</string>
     <string name="onb_car_lookup_service_title">Couldn’t check right now</string>

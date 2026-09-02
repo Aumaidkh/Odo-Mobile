@@ -52,7 +52,10 @@ class OnboardingEndToEndTest {
      */
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(DeviceState { clearTheOwnersRows() })
+        .outerRule(DeviceState {
+            clearTheOwnersRows()
+            installStubVehicleRegistry()
+        })
         .around(rule)
 
     /** Everything the owner has, and nothing that was seeded as reference data. */
@@ -128,6 +131,24 @@ class OnboardingEndToEndTest {
         // Sign-in, not the viewfinder.
         rule.waitForText(Copy.AUTH_TITLE)
         rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
+    }
+
+    /**
+     * The door for an owner who has done this before (issue #392).
+     *
+     * Signing out or reinstalling clears the local rows, so a returning owner lands on
+     * Welcome with an empty app and a full server. Without this they can only set the car
+     * up again, which makes a second one — sync then restores everything on its own.
+     */
+    @Test
+    fun welcome_offersSignInWithoutSettingUpACar() {
+        rule.waitForText(Copy.WELCOME_HEADLINE, START_DESTINATION_TIMEOUT_MILLIS)
+
+        rule.onNodeWithText(Copy.WELCOME_SIGN_IN).performClick()
+
+        // Straight to the number, with no car step in between.
+        rule.waitForText(Copy.AUTH_TITLE)
+        rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
     }
 
     @Test

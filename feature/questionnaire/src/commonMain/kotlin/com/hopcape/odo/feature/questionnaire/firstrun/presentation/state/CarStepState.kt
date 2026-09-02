@@ -15,7 +15,7 @@ internal data class CarStepState(
     val lookup: PlateLookup = PlateLookup.Idle,
 ) {
     /** The resolved car, if the lookup found one — the only place a match comes from. */
-    val match: RtoMatch? get() = (lookup as? PlateLookup.Found)?.match
+    val match: PlateMatch? get() = (lookup as? PlateLookup.Found)?.match
 
     /**
      * Whether the plate is a registration number rather than a half-typed one. Normalized

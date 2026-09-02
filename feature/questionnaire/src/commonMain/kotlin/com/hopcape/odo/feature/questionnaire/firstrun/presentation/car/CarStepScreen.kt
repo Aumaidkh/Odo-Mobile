@@ -54,7 +54,8 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.FormFie
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.RtoMatch
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateMatch
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleCarStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
@@ -69,6 +70,8 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_car_lookup_retry
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_lookup_service_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_lookup_service_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_match_meta
+import com.hopcape.odo.feature.questionnaire.resources.onb_car_match_source_other
+import com.hopcape.odo.feature.questionnaire.resources.onb_car_match_source_own
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_not_yours
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_odometer_helper
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_odometer_label
@@ -84,6 +87,7 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_subtit
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_unit_km
 import com.hopcape.odo.feature.questionnaire.resources.onb_unit_miles
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -195,11 +199,15 @@ internal fun CarStepScreen(
 }
 
 /**
- * The RTO's answer, as a card the owner confirms by reading rather than by tapping: it is
+ * The lookup's answer, as a card the owner confirms by reading rather than by tapping: it is
  * already selected (the check is state, not a control). Rejecting it is the link beneath.
+ *
+ * The third line says where the car came from. Somebody else's record for this plate is a
+ * guess about a car that may have changed hands, and the owner cannot weigh a suggestion
+ * they think came from their own history.
  */
 @Composable
-private fun MatchedCarCard(match: RtoMatch) {
+private fun MatchedCarCard(match: PlateMatch) {
     val accent = OdoTheme.colors.accent
     OdoCard(
         color = accent.copy(alpha = 0.08f),
@@ -219,6 +227,11 @@ private fun MatchedCarCard(match: RtoMatch) {
                     text = stringResource(Res.string.onb_car_match_meta, match.year, fuelLabel(match.fuelType)),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
+                )
+                OdoText(
+                    text = stringResource(match.source.label),
+                    style = OdoTheme.typography.caption,
+                    color = OdoTheme.colors.textMuted,
                 )
             }
             OdoIcon(
@@ -394,3 +407,10 @@ private fun CarStepPreview(car: CarStepState) {
 
 private fun lookupPreviewState(lookup: PlateLookup): CarStepState =
     CarStepState(plate = FormField("MH12AB1234"), lookup = lookup)
+
+/** Where the suggestion came from, in the owner's words. */
+private val VehicleSource.label: StringResource
+    get() = when (this) {
+        VehicleSource.OWN_RECORD -> Res.string.onb_car_match_source_own
+        VehicleSource.ANOTHER_RECORD -> Res.string.onb_car_match_source_other
+    }

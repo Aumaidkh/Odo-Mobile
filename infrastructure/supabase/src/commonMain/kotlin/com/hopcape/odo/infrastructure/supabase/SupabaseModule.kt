@@ -23,7 +23,12 @@ import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
+import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.data.car.vehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePlateRegistryLookup
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.UnavailableAuthGateway
@@ -177,6 +182,25 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
         single<OverchargeRemoteDataSource> { SupabaseOverchargeRemoteDataSource(postgrest = get()) }
         single<ReminderRemoteDataSource> { SupabaseReminderRemoteDataSource(postgrest = get()) }
+
+        // The plate lookup, replacing StubVehicleRegistryLookup from coreDataModule (#392).
+        //
+        // Cheapest tier first. The cross-owner tier is the only one behind a flag, and it is
+        // read at construction rather than per call: the chain is a `single`, and a flag flip
+        // is a next-launch change, which is what a launch gate needs to be.
+        single<VehicleRegistryLookup> {
+            vehicleRegistryLookup(
+                cars = get(),
+                owners = get(),
+                telemetry = get(),
+                laterTiers = buildList {
+                    add(SupabaseVehicleRegistryLookup(postgrest = get(), owners = get()))
+                    if (get<FeatureConfig>().plateLookupEnabled) {
+                        add(SupabasePlateRegistryLookup(postgrest = get()))
+                    }
+                },
+            )
+        }
         single<RemoteFileStorage> {
             SupabaseRemoteFileStorage(
                 client = get(),

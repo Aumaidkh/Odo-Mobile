@@ -55,6 +55,7 @@ class GarageViewModelTest {
         override val autoOdometerEnabled = true
         override val refuelDetectEnabled = true
         override val challanEnabled = challans
+        override val plateLookupEnabled = false
     }
 
     private fun viewModel(
