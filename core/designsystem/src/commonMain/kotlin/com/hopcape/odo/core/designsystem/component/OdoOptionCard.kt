@@ -5,12 +5,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.Composable
@@ -96,7 +94,7 @@ fun OdoOptionCard(
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OptionIconTile(icon = icon, tint = if (selected) colors.accent else colors.textDim)
+        OdoIconTile(icon = icon, tint = if (selected) colors.accent else colors.textDim)
         OdoText(
             text = label,
             style = OdoTheme.typography.heading,
@@ -114,28 +112,12 @@ fun OdoOptionCard(
     }
 }
 
-/** The tinted square behind an option's glyph. */
-@Composable
-private fun OptionIconTile(icon: ImageVector, tint: androidx.compose.ui.graphics.Color) {
-    Box(
-        modifier = Modifier
-            .size(OdoOptionCardDefaults.IconTileSize)
-            .clip(OdoTheme.shapes.small)
-            .background(tint.copy(alpha = ICON_TILE_WASH)),
-        contentAlignment = Alignment.Center,
-    ) {
-        OdoIcon(icon, contentDescription = null, tint = tint, size = OdoTheme.iconSizes.medium)
-    }
-}
-
 object OdoOptionCardDefaults {
     /** Comfortably past the 48dp touch-target floor, and tall enough for a two-line label. */
     val MinHeight: Dp = 72.dp
-    val IconTileSize: Dp = 44.dp
 }
 
 private const val SELECTED_WASH = 0.10f
-private const val ICON_TILE_WASH = 0.12f
 
 @OdoThemePreviews
 @Composable

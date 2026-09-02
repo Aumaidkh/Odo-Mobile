@@ -37,6 +37,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoProgressBar
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
+import com.hopcape.odo.core.designsystem.modifier.accentGlow
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.onboarding.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.onboarding.resources.Res
@@ -168,25 +169,6 @@ private fun StepHeader(
 }
 
 /**
- * The accent bloom under a primary CTA — the same treatment the paywall's CTA uses, so
- * "this is the way forward" reads identically across the app. Dropped when disabled,
- * where a glow would promise something the button won't do.
- */
-@Composable
-internal fun Modifier.accentGlow(enabled: Boolean = true, elevation: Dp = 18.dp): Modifier =
-    if (!enabled) {
-        this
-    } else {
-        shadow(
-            elevation = elevation,
-            shape = OdoTheme.shapes.pill,
-            clip = false,
-            ambientColor = OdoTheme.colors.accent,
-            spotColor = OdoTheme.colors.accent,
-        )
-    }
-
-/**
  * A step's title + subtitle block. Steps 2 and 3 left-align it under the header; the
  * first-scan step centres it, because there is no form beneath to anchor the eye.
  */
@@ -236,28 +218,6 @@ internal fun FieldLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * The rounded accent tile that heads a value row, a goal card, or the matched-car card.
- * One helper so every glyph in the flow sits in the same 44dp square with the same wash.
- */
-@Composable
-internal fun IconTile(
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    size: Dp = 44.dp,
-    tint: Color = OdoTheme.colors.accent,
-    contentDescription: String? = null,
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(OdoTheme.shapes.small)
-            .background(tint.copy(alpha = 0.12f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        OdoIcon(icon, contentDescription = contentDescription, tint = tint, size = OdoTheme.iconSizes.medium)
-    }
-}
 
 /**
  * An inline "prompt + action" line — the escape hatch each car step offers to the other

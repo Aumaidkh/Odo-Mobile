@@ -35,7 +35,7 @@ import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.onboarding.presentation.components.FieldLabel
-import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
@@ -348,7 +348,7 @@ private fun CatalogFailedCard(message: UiText, onRetry: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
             verticalAlignment = Alignment.Top,
         ) {
-            IconTile(icon = IcWarning, size = 48.dp, tint = tone)
+            OdoIconTile(icon = IcWarning, size = 48.dp, tint = tone)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),

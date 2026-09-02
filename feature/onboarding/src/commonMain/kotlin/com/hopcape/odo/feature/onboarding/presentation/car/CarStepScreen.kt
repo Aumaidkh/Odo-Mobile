@@ -44,7 +44,7 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingEvent
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
-import com.hopcape.odo.feature.onboarding.presentation.components.IconTile
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.feature.onboarding.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.onboarding.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.onboarding.presentation.components.StepHeadline
@@ -209,7 +209,7 @@ private fun MatchedCarCard(match: RtoMatch) {
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconTile(IcCar, size = 48.dp)
+            OdoIconTile(IcCar, size = 48.dp)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -256,7 +256,7 @@ private fun LookupSkeletonCard() {
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconTile(
+            OdoIconTile(
                 icon = IcCar,
                 size = 48.dp,
                 tint = colors.textMuted,
@@ -304,7 +304,7 @@ private fun LookupFailedCard(
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
             verticalAlignment = Alignment.Top,
         ) {
-            IconTile(icon = IcWarning, size = 48.dp, tint = tone)
+            OdoIconTile(icon = IcWarning, size = 48.dp, tint = tone)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
