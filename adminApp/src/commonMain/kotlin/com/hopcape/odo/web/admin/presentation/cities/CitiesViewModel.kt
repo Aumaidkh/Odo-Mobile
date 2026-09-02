@@ -8,7 +8,8 @@ import com.hopcape.odo.web.admin.domain.CitiesRepository
 import com.hopcape.odo.web.admin.domain.City
 import com.hopcape.odo.web.admin.domain.CitySubmission
 import com.hopcape.odo.web.admin.presentation.asUiText
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.admin.resources.ad_cities_approved_done
@@ -225,10 +226,11 @@ class CitiesViewModel(
         }
     }
 
-    private fun load() {
-        loadInto(catalog) { cities.cities() }
-        loadInto(submissions) { cities.submissions() }
-    }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(catalog) { cities.cities() } },
+        { readInto(submissions) { cities.submissions() } },
+    )
 
     private fun editEditor(block: CityEditor.() -> CityEditor) {
         _state.value = _state.value.copy(editor = _state.value.editor?.block())

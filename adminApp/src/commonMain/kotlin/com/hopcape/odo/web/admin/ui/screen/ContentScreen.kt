@@ -71,6 +71,7 @@ import com.hopcape.odo.web.admin.ui.component.RowPanel
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.RowAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.component.TableHead
@@ -130,6 +131,7 @@ fun ContentScreen(state: ContentUiState, onEvent: (ContentEvent) -> Unit, onOpen
                                 )
                             }
                             Pill(stringResource(Res.string.ad_content_count, state.matching.size))
+                            ReloadAction({ onEvent(ContentEvent.Refresh) }, state.busy)
                             PrimaryAction(
                                 stringResource(Res.string.ad_content_new),
                                 { onEvent(ContentEvent.CreateRequested) },

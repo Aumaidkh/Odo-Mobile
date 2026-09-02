@@ -8,7 +8,8 @@ import com.hopcape.odo.web.admin.domain.BlogCategory
 import com.hopcape.odo.web.admin.domain.BlogPost
 import com.hopcape.odo.web.admin.domain.ContentRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_content_created
 import com.hopcape.odo.web.admin.resources.ad_content_deleted
@@ -175,12 +176,11 @@ class ContentViewModel(
         }
     }
 
-    private fun load() {
-        loadInto(posts) { content.posts() }
-        viewModelScope.launch {
-            content.categories().onRight { _state.value = _state.value.copy(categories = it) }
-        }
-    }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(posts) { content.posts() } },
+        { content.categories().onRight { _state.value = _state.value.copy(categories = it) } },
+    )
 
     private fun editDraft(block: NewPostDraft.() -> NewPostDraft) {
         _state.value = _state.value.copy(draft = _state.value.draft?.block())

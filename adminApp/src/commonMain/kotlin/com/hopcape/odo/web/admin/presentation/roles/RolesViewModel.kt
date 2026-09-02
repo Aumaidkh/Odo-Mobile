@@ -8,7 +8,8 @@ import com.hopcape.odo.web.admin.domain.Permission
 import com.hopcape.odo.web.admin.domain.RolesRepository
 import com.hopcape.odo.web.admin.domain.StaffMember
 import com.hopcape.odo.web.admin.presentation.asUiText
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_staff_invited
 import com.hopcape.odo.web.core.presentation.state.Loadable
@@ -198,15 +199,12 @@ class RolesViewModel(
         }
     }
 
-    private fun load() {
-        loadInto(roles) { repository.roles() }
-        viewModelScope.launch {
-            repository.grants().onRight { _state.value = _state.value.copy(grants = it) }
-        }
-        viewModelScope.launch {
-            repository.staff().onRight { _state.value = _state.value.copy(staff = it) }
-        }
-    }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(roles) { repository.roles() } },
+        { repository.grants().onRight { _state.value = _state.value.copy(grants = it) } },
+        { repository.staff().onRight { _state.value = _state.value.copy(staff = it) } },
+    )
 
     private fun editRole(block: (NewRole) -> NewRole) {
         _state.value = _state.value.copy(newRole = _state.value.newRole?.let(block))

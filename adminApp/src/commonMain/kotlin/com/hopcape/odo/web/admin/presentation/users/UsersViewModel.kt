@@ -9,6 +9,7 @@ import com.hopcape.odo.web.admin.domain.ManagedUser
 import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
+import com.hopcape.odo.web.admin.presentation.readAll
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_users_cleared
 import com.hopcape.odo.web.admin.resources.ad_users_none
@@ -26,6 +27,15 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 
 sealed interface UsersEvent {
+    /**
+     * Re-read the directory.
+     *
+     * The opened account is deliberately left alone: its panel holds a restriction
+     * reason somebody may be halfway through typing, and a reload that overwrote
+     * that would be the reload nobody presses twice.
+     */
+    data object Refresh : UsersEvent
+
     /** Open one account from the directory. */
     data class Opened(val id: String) : UsersEvent
     data object Closed : UsersEvent
@@ -100,6 +110,8 @@ class UsersViewModel(
                 loadPage(0)
             }
 
+            UsersEvent.Refresh -> readAll(::setBusy, { fetchPage(_state.value.page) })
+
             UsersEvent.Search -> search()
 
             is UsersEvent.Opened -> open(event.id)
@@ -141,14 +153,20 @@ class UsersViewModel(
      * on page three has no page three.
      */
     private fun loadPage(page: Int) {
-        viewModelScope.launch {
-            users.list(_state.value.query.value.trim(), UsersUiState.PAGE_SIZE, page * UsersUiState.PAGE_SIZE).fold(
-                ifLeft = { error -> _state.value = _state.value.copy(message = error.asUiText()) },
-                ifRight = { result ->
-                    _state.value = _state.value.copy(directory = result.rows, total = result.total, page = page)
-                },
-            )
-        }
+        viewModelScope.launch { fetchPage(page) }
+    }
+
+    private suspend fun fetchPage(page: Int) {
+        users.list(_state.value.query.value.trim(), UsersUiState.PAGE_SIZE, page * UsersUiState.PAGE_SIZE).fold(
+            ifLeft = { error -> _state.value = _state.value.copy(message = error.asUiText()) },
+            ifRight = { result ->
+                _state.value = _state.value.copy(directory = result.rows, total = result.total, page = page)
+            },
+        )
+    }
+
+    private fun setBusy(busy: Boolean) {
+        _state.value = _state.value.copy(busy = busy)
     }
 
     /** Open one account, by id, from a directory row. */

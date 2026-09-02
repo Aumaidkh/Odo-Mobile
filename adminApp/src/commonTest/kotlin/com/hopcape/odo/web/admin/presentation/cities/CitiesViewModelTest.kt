@@ -6,6 +6,7 @@ import com.hopcape.odo.web.admin.domain.CitiesRepository
 import com.hopcape.odo.web.admin.domain.City
 import com.hopcape.odo.web.admin.domain.CitySubmission
 import com.hopcape.odo.web.core.domain.WebError
+import com.hopcape.odo.web.core.presentation.state.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.resetMain
@@ -15,6 +16,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -30,7 +32,13 @@ class CitiesViewModelTest {
         val calls = mutableListOf<String>()
         var nextResult: Either<WebError, Unit> = Unit.right()
 
-        override suspend fun cities() = cities.right()
+        /** Runs at the moment the read is asked for, so a test can look at the state then. */
+        var whileReading: (() -> Unit)? = null
+
+        override suspend fun cities(): Either<WebError, List<City>> {
+            whileReading?.invoke()
+            return cities.right()
+        }
         override suspend fun submissions() = submissions.right()
 
         override suspend fun add(name: String, state: String, tier: Int) =
@@ -189,6 +197,27 @@ class CitiesViewModelTest {
         assertEquals("Srinagar", editor.name.value)
         assertEquals("Jammu and Kashmir", editor.state.value)
         assertNotNull(vm.state.value.message)
+    }
+
+    /**
+     * The rows are already on screen. Swapping them for a skeleton to show the same
+     * rows again hides what somebody is reading, so a reload leaves them up and says
+     * it is working through the header's flag instead.
+     */
+    @Test
+    fun `a reload keeps the rows up and raises the flag instead`() = runTest {
+        val repo = FakeCities(cities = listOf(city("Pune")))
+        val vm = CitiesViewModel(repo)
+
+        val duringRead = mutableListOf<Pair<Boolean, Boolean>>()
+        repo.whileReading = {
+            duringRead += vm.state.value.busy to (vm.state.value.catalog is Loadable.Ready)
+        }
+        vm.onEvent(CitiesEvent.Refresh)
+
+        assertEquals(listOf(true to true), duringRead)
+        assertFalse(vm.state.value.busy, "the flag comes back down once the read lands")
+        assertEquals(listOf("Pune"), vm.state.value.visible.map { it.name })
     }
 
     /** The index got there first — say so on the field, not only in the banner. */

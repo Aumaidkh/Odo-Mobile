@@ -200,6 +200,7 @@
     <string name="ad_audit_empty">Nothing recorded yet.</string>
     <string name="ad_audit_system">system</string>
     <string name="ad_common_retry">Try again</string>
+    <string name="ad_common_reload">Reload this section</string>
     <string name="ad_staff_title">Staff</string>
     <string name="ad_staff_hint">Who may sign in to this panel, and what each of them holds. A role decides what somebody can do; the grid below decides what a role means.</string>
     <string name="ad_staff_empty">Nobody on the list.</string>

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.admin.domain.FeatureFlag
 import com.hopcape.odo.web.admin.domain.FlagsRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_flags_saved
 import com.hopcape.odo.web.core.domain.WebError
@@ -71,7 +73,10 @@ class FlagsViewModel(
     private val _state = MutableStateFlow(FlagsUiState())
     val state: StateFlow<FlagsUiState> = _state.asStateFlow()
 
+    private val rows = MutableStateFlow<Loadable<List<FeatureFlag>>>(Loadable.Loading)
+
     init {
+        viewModelScope.launch { rows.collect { v -> _state.value = _state.value.copy(flags = v) } }
         load()
     }
 
@@ -100,19 +105,10 @@ class FlagsViewModel(
         }
     }
 
-    private fun load() {
-        _state.value = _state.value.copy(flags = Loadable.Loading)
-        viewModelScope.launch {
-            flags.flags().fold(
-                ifLeft = { error ->
-                    _state.value = _state.value.copy(
-                        flags = Loadable.Failed(error.asUiText(), retryable = error != WebError.NotConfigured, reason = error),
-                    )
-                },
-                ifRight = { rows -> _state.value = _state.value.copy(flags = Loadable.Ready(rows)) },
-            )
-        }
-    }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(rows) { flags.flags() } },
+    )
 
     private fun save(key: String, value: String) = write { flags.set(key, value) }
 

@@ -70,6 +70,7 @@ import com.hopcape.odo.web.admin.ui.component.Pager
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.RowAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.component.TableHead
@@ -98,7 +99,13 @@ fun CitiesScreen(state: CitiesUiState, onEvent: (CitiesEvent) -> Unit) {
             item {
                 Panel {
                     PanelHeader(stringResource(Res.string.ad_cities_queue_title)) {
-                        Pill(stringResource(Res.string.ad_cities_queue_count, state.pending.size))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Pill(stringResource(Res.string.ad_cities_queue_count, state.pending.size))
+                            ReloadAction({ onEvent(CitiesEvent.Refresh) }, state.busy)
+                        }
                     }
                     if (state.pending.isEmpty()) {
                         Muted(stringResource(Res.string.ad_cities_queue_empty))

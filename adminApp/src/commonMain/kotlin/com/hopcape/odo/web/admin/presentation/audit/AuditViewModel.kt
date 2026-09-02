@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.admin.domain.AuditEntry
 import com.hopcape.odo.web.admin.domain.AuditRepository
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.valueOrNull
@@ -26,6 +27,8 @@ data class AuditUiState(
     val entries: Loadable<List<AuditEntry>> = Loadable.Loading,
     val filter: String = "",
     val page: Page = Page(0),
+    /** A read is in flight. Read-only screen, so this is only ever a reload. */
+    val busy: Boolean = false,
 ) {
     /**
      * Filtered here rather than in the query.
@@ -78,5 +81,8 @@ class AuditViewModel(
         }
     }
 
-    private fun load() = loadInto(entries) { audit.recent() }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(entries) { audit.recent() } },
+    )
 }

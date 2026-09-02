@@ -15,6 +15,7 @@ import com.hopcape.odo.web.admin.resources.ad_error_sign_in_unavailable
 import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.UiText
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -25,17 +26,36 @@ import kotlinx.coroutines.launch
  * mapping below is what makes it useful and the mapping is per-app: the same
  * [WebError.NotPermitted] reads as "you are not an author" there and "you are not
  * staff" here. Sharing the function would mean sharing the strings.
+ *
+ * The skeleton is only for a section holding nothing. A re-read leaves the rows
+ * that are already drawn up until the answer lands.
  */
-fun <T> ViewModel.loadInto(
+suspend fun <T> readInto(
     target: MutableStateFlow<Loadable<T>>,
     read: suspend () -> Either<WebError, T>,
 ) {
-    target.value = Loadable.Loading
+    if (target.value !is Loadable.Ready) target.value = Loadable.Loading
+    target.value = read().fold(
+        ifLeft = { error -> Loadable.Failed(error.asUiText(), error.isRetryable, error) },
+        ifRight = { Loadable.Ready(it) },
+    )
+}
+
+/**
+ * Every read a section makes, run together, with [busy] raised until the last of
+ * them answers. [busy] is what the header's reload control watches, since on a
+ * re-read the rows below it no longer change to say the button was pressed.
+ */
+fun ViewModel.readAll(busy: (Boolean) -> Unit, vararg reads: suspend () -> Unit) {
+    busy(true)
     viewModelScope.launch {
-        target.value = read().fold(
-            ifLeft = { error -> Loadable.Failed(error.asUiText(), error.isRetryable, error) },
-            ifRight = { Loadable.Ready(it) },
-        )
+        // `finally`, because a read that throws would otherwise leave the section's
+        // controls disabled with nothing left to turn them back on.
+        try {
+            coroutineScope { reads.forEach { read -> launch { read() } } }
+        } finally {
+            busy(false)
+        }
     }
 }
 

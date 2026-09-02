@@ -29,6 +29,7 @@ import com.hopcape.odo.web.admin.presentation.roles.NewStaff
 import com.hopcape.odo.web.admin.ui.component.AdminField
 import com.hopcape.odo.web.admin.ui.component.FieldLabel
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.RowAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.component.Pill
@@ -185,6 +186,7 @@ private fun StaffPanel(state: RolesUiState, onEvent: (RolesEvent) -> Unit) {
         PanelHeader(stringResource(Res.string.ad_staff_title)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Pill(state.staff.count { it.isActive }.toString())
+                ReloadAction({ onEvent(RolesEvent.Refresh) }, state.busy)
                 PrimaryAction(
                     stringResource(Res.string.ad_staff_add),
                     { onEvent(RolesEvent.NewStaffRequested) },

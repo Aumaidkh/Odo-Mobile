@@ -83,6 +83,7 @@ import com.hopcape.odo.web.admin.ui.component.RowPanel
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.RowAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.component.TableHead
@@ -118,7 +119,13 @@ fun UsersScreen(state: UsersUiState, onEvent: (UsersEvent) -> Unit) {
             item {
                 Panel {
                     PanelHeader(stringResource(Res.string.ad_users_directory)) {
-                        Pill(stringResource(Res.string.ad_users_masked_note), dot = AdminTokens.accent)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Pill(stringResource(Res.string.ad_users_masked_note), dot = AdminTokens.accent)
+                            ReloadAction({ onEvent(UsersEvent.Refresh) }, state.busy)
+                        }
                     }
                     TableHead(
                         listOf(
