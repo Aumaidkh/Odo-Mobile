@@ -167,3 +167,18 @@ grant execute on function public.resolve_plate(text) to anon, authenticated;
 create index if not exists idx_cars_registration
     on public.cars (registration_number)
     where registration_number is not null and deleted_at is null;
+
+
+-- ── The kill switch's row ───────────────────────────────────────────────────
+--
+-- `plate_lookup_enabled` is declared in Kotlin with a compiled default of true, so the app
+-- reads it correctly with no row at all. The row exists so the admin panel can *show* the
+-- key and turn it off — the panel lists app_config, and a switch nobody can reach is not a
+-- switch. Seeded with the compiled default, so inserting it changes nothing on its own.
+--
+-- `on conflict do nothing`, because re-running must never reset a value somebody changed.
+insert into public.app_config (key, value, value_type, description, owner) values
+    ('plate_lookup_enabled', 'true', 'BOOLEAN',
+     'Whether a typed-in plate is resolved against other owners'' cars. Off leaves the owner''s own records, on this device and on their account, still answering.',
+     'platform')
+on conflict (key) do nothing;
