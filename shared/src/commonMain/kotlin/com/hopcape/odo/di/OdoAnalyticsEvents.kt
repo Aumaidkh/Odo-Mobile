@@ -5,6 +5,7 @@ import com.hopcape.odo.core.data.appstatus.observability.appStatusAnalyticsEvent
 import com.hopcape.odo.core.data.showcase.observability.showcaseAnalyticsEvents
 import com.hopcape.odo.feature.autoodometer.autoOdometerAnalyticsEvents
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
+import com.hopcape.odo.feature.challan.challanAnalyticsEvents
 import com.hopcape.odo.feature.questionnaire.firstrun.setupAnalyticsEvents
 import com.hopcape.odo.feature.questionnaire.questionnaireAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
@@ -42,4 +43,4 @@ val odoAnalyticsEvents: List<EventSchema> =
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +
         billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents +
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
-        showcaseAnalyticsEvents
+        showcaseAnalyticsEvents + challanAnalyticsEvents

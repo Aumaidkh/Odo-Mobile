@@ -7,6 +7,7 @@ import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.core.data.cost.FuelFillLocalDataSource
 import com.hopcape.odo.core.data.document.DocumentLocalDataSource
 import com.hopcape.odo.core.data.fairness.OverchargeReportLocalDataSource
+import com.hopcape.odo.core.data.challan.ChallanLocalDataSource
 import com.hopcape.odo.core.data.health.HealthScoreLocalDataSource
 import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerLocalDataSource
@@ -70,6 +71,7 @@ import com.hopcape.odo.infrastructure.database.document.SqlDelightDocumentLocalD
 import com.hopcape.odo.infrastructure.database.fairness.OverchargeReportSyncTable
 import com.hopcape.odo.infrastructure.database.fairness.OverchargeReportSyncable
 import com.hopcape.odo.infrastructure.database.fairness.SqlDelightOverchargeReportLocalDataSource
+import com.hopcape.odo.infrastructure.database.challan.SqlDelightChallanLocalDataSource
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncTable
 import com.hopcape.odo.infrastructure.database.health.HealthScoreSyncable
 import com.hopcape.odo.infrastructure.database.health.SqlDelightHealthScoreLocalDataSource
@@ -223,6 +225,9 @@ val databaseInfrastructureModule = module {
     // Score history, not today's score: the number on screen is computed on read, and
     // this only keeps what the month delta is measured against.
     single<HealthScoreLocalDataSource> { SqlDelightHealthScoreLocalDataSource(database = get()) }
+    // The challans cache — external reference data, so no Syncable and no sync table:
+    // a refresh replaces the plate's rows from the records source wholesale.
+    single<ChallanLocalDataSource> { SqlDelightChallanLocalDataSource(database = get()) }
     single {
         HealthScoreSyncable(
             runner = SyncRunner(

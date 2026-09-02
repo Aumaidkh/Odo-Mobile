@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.feature.garage.domain.model.ServiceFacet
 import com.hopcape.odo.feature.garage.domain.usecase.FakeCarRepository
+import com.hopcape.odo.feature.garage.domain.usecase.FakeChallanRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeServiceLogRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeTripRepository
 import com.hopcape.odo.feature.garage.domain.usecase.FakeTripTracker
@@ -50,10 +51,17 @@ class GarageViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun featureConfig(challans: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = challans
+    }
+
     private fun viewModel(
         carId: CarId? = TEST_CAR,
         cars: CarRepository = FakeCarRepository(testCar()),
         logs: FakeServiceLogRepository = FakeServiceLogRepository(),
+        challansEnabled: Boolean = true,
     ) = GarageViewModel(
         activeCar = FakeActiveCar(carId),
         observeGarage = ObserveGarageUseCase(
@@ -72,13 +80,12 @@ class GarageViewModelTest {
             tracker = FakeTripTracker(enabled = false),
             trips = FakeTripRepository(),
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
-            config = object : FeatureConfig {
-                override val autoOdometerEnabled = true
-                override val refuelDetectEnabled = true
-            },
+            config = featureConfig(challans = challansEnabled),
             timeZone = TimeZone.UTC,
         ),
+        challans = FakeChallanRepository(),
         telemetry = testTelemetry(),
+        featureConfig = featureConfig(challans = challansEnabled),
     )
 
     @Test

@@ -457,6 +457,7 @@ class HomeViewModelTest {
     ) = object : FeatureConfig {
         override val autoOdometerEnabled = autoOdometer
         override val refuelDetectEnabled = refuelDetect
+        override val challanEnabled = false
     }
 
     private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
