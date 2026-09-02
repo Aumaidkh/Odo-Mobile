@@ -43,6 +43,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBarChart
 import com.hopcape.odo.core.designsystem.icons.IcCamera
@@ -59,6 +60,7 @@ import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal_privacy
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal_terms
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark
+import com.hopcape.odo.feature.onboarding.resources.onb_welcome_sign_in
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark_reading
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_subtitle
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_title
@@ -69,11 +71,11 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Step 1 — the value pitch and the only sign-in door: the odometer mark, what Odo is for
- * in one line, three concrete promises, and "Continue with mobile".
+ * Step 1 — the value pitch: the odometer mark, what Odo is for in one line, three concrete
+ * promises, "Get started", and a quieter "Already using Odo? Sign in".
  *
- * It asks for nothing. The mock deliberately shows no phone field here — the number is
- * collected by the auth flow this hands off to, so the first screen stays a pitch.
+ * It asks for nothing. There is no phone field here — the number is collected by the auth
+ * flow either route hands off to, so the first screen stays a pitch.
  *
  * Stateless: renders nothing but constants and forwards [WelcomeEvent]s.
  */
@@ -140,6 +142,14 @@ internal fun WelcomeScreen(
                         text = stringResource(Res.string.onb_welcome_cta),
                         onClick = { onEvent(WelcomeEvent.ContinueClicked) },
                         modifier = Modifier.fillMaxWidth().accentGlow(),
+                    )
+                    // Under the primary CTA and quieter than it: most installs are new
+                    // owners, and this is the door for the few who are not.
+                    OdoButton(
+                        text = stringResource(Res.string.onb_welcome_sign_in),
+                        onClick = { onEvent(WelcomeEvent.SignInClicked) },
+                        variant = OdoButtonVariant.Tertiary,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     LegalFooter(
                         onTerms = { onEvent(WelcomeEvent.TermsClicked) },

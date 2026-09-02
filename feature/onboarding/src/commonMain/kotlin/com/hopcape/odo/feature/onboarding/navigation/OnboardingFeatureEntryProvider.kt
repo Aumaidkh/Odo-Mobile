@@ -44,7 +44,10 @@ internal class OnboardingFeatureEntryProvider(
 /**
  * The Welcome route. Continue goes straight into car setup — no sign-in first. Odo is
  * offline-first, so first run has to reach a working car without an account; auth is
- * offered *after* setup, and only if there's no session (see [OnboardingEffect.Finish]).
+ * offered *after* setup, and only if there's no session (see `OnboardingEffect.Finish`).
+ *
+ * Sign in is the other door, for an owner who has done this before. Signing out or
+ * reinstalling clears the local rows, so they arrive at an empty app with a full server.
  *
  * The two legal taps open the hosted pages in the platform browser, the same hand-off the
  * privacy screen in `:feature:support` makes. They leave the app on purpose: an in-app
@@ -57,6 +60,13 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            // Home, not car setup: sync restores the returning owner's car, so setup would
+            // only make a second one. `popUpTo = Welcome` clears the pitch behind it, so
+            // back from Home leaves the app rather than returning to first run.
+            WelcomeEffect.OpenSignIn -> navigationManager.navigateTo(
+                OdoDestination.Auth.Phone(next = OdoDestination.Home),
+                popUpTo = OdoDestination.Welcome,
+            )
             // A build with no backend configured gets blank URLs, and the tap then does
             // nothing. The sentence around the links is a legal statement, so unlike the
             // support screen's rows it has to render either way — there is nothing to hide.
