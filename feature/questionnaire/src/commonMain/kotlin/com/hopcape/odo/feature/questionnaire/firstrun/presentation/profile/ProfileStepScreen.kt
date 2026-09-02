@@ -5,15 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoInputField
 import com.hopcape.odo.core.designsystem.component.OdoOptionCard
+import com.hopcape.odo.feature.questionnaire.Question
+import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.feature.questionnaire.SelectionMode
+import com.hopcape.odo.feature.questionnaire.odoQuestions
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
-import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
-import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
-import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -22,7 +22,6 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingEve
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.StepHeadline
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingGoalOption
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.ProfileState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleProfile
@@ -31,15 +30,11 @@ import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_goal_selected
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_name_valid
 import com.hopcape.odo.feature.questionnaire.resources.onb_continue
-import com.hopcape.odo.feature.questionnaire.resources.onb_goal_healthy
-import com.hopcape.odo.feature.questionnaire.resources.onb_goal_overpay
-import com.hopcape.odo.feature.questionnaire.resources.onb_goal_resale
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_goal_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_placeholder
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_title
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -58,6 +53,7 @@ internal fun ProfileStepScreen(
     canContinue: Boolean,
     onEvent: (OnboardingEvent) -> Unit,
     modifier: Modifier = Modifier,
+    goalQuestion: Question = odoQuestions().require(QuestionKeys.Goal),
 ) {
     OnboardingStepScaffold(
         step = OnboardingStep.PROFILE.position,
@@ -101,28 +97,19 @@ internal fun ProfileStepScreen(
                 style = OdoTheme.typography.label,
                 color = OdoTheme.colors.textDim,
             )
-            GOALS.forEach { goal ->
+            goalQuestion.options.forEach { option ->
                 OdoOptionCard(
-                    label = stringResource(goal.label),
-                    icon = goal.icon,
-                    selected = profile.goal.value == goal.option,
-                    onClick = { onEvent(OnboardingEvent.Profile.GoalSelected(goal.option)) },
+                    label = stringResource(option.label),
+                    icon = option.icon,
+                    selected = option.value in profile.goals,
+                    onClick = { onEvent(OnboardingEvent.Profile.GoalToggled(option.value)) },
+                    multiSelect = goalQuestion.selection == SelectionMode.MULTI,
                     selectedContentDescription = stringResource(Res.string.onb_cd_goal_selected),
                 )
             }
         }
     }
 }
-
-/* ------------------------------ Goals ------------------------------ */
-
-private data class Goal(val option: OnboardingGoalOption, val icon: ImageVector, val label: StringResource)
-
-private val GOALS = listOf(
-    Goal(OnboardingGoalOption.STOP_OVERPAYING, IcCurrencyDollar, Res.string.onb_goal_overpay),
-    Goal(OnboardingGoalOption.STAY_HEALTHY, IcSpeedometer, Res.string.onb_goal_healthy),
-    Goal(OnboardingGoalOption.SELL_FOR_MORE, IcTagFilled, Res.string.onb_goal_resale),
-)
 
 @OdoThemePreviews
 @Composable

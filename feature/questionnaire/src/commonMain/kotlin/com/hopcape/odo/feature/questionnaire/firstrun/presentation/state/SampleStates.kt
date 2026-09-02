@@ -33,7 +33,7 @@ internal fun sampleCarDetails(): CarDetailsState = CarDetailsState(
 
 internal fun sampleProfile(): ProfileState = ProfileState(
     name = FormField("Rahul"),
-    goal = FormField(OnboardingGoalOption.STOP_OVERPAYING),
+    goals = setOf("TRACK_COSTS"),
 )
 
 internal fun sampleCatalog(): CatalogOptions = CatalogOptions(

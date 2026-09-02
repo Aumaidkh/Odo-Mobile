@@ -24,7 +24,12 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CarStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.FormField
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingGoalOption
+import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.domain.owner.model.QuestionKey
+import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
+import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.feature.questionnaire.QuestionRegistry
+import com.hopcape.odo.feature.questionnaire.presentation.toggle
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
@@ -32,7 +37,6 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLo
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.ProfileState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.RtoMatch
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.toDomain
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_blank
@@ -74,6 +78,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * moves nothing until the write succeeds.
  */
 internal class OnboardingViewModel(
+    private val questions: QuestionRegistry,
+    private val answers: QuestionnaireRepository,
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
     private val lookupPlate: LookupPlateUseCase,
@@ -294,7 +300,7 @@ internal class OnboardingViewModel(
 
     private fun onProfileEvent(event: OnboardingEvent.Profile) = when (event) {
         is OnboardingEvent.Profile.NameChanged -> updateProfile { it.copy(name = it.name.update(event.name)) }
-        is OnboardingEvent.Profile.GoalSelected -> onGoalSelected(event.goal)
+        is OnboardingEvent.Profile.GoalToggled -> onGoalToggled(event.value)
     }
 
     /**
@@ -302,9 +308,22 @@ internal class OnboardingViewModel(
      * the surface the owner lands on, so which goals people pick is what says whether those
      * surfaces are the right three.
      */
-    private fun onGoalSelected(goal: OnboardingGoalOption) {
-        telemetry.goalSelected(goal.toDomain())
-        updateProfile { it.copy(goal = it.goal.update(goal)) }
+    /**
+     * The one goal that still fits `profiles.onboarding_goal`, which takes a single value and
+     * is written until it is dropped.
+     *
+     * Card order decides, not enum order: the two differ, and the owner can only reason about
+     * the order they saw. The same set always nominates the same goal either way.
+     */
+    private fun primaryGoal(goals: Set<String>): OnboardingGoal? =
+        questions.require(QuestionKeys.Goal).options
+            .firstOrNull { it.value in goals }
+            ?.let { picked -> OnboardingGoal.entries.firstOrNull { it.name == picked.value } }
+
+    private fun onGoalToggled(value: String) {
+        val mode = questions.require(QuestionKeys.Goal).selection
+        OnboardingGoal.entries.firstOrNull { it.name == value }?.let(telemetry::goalSelected)
+        updateProfile { it.copy(goals = it.goals.toggle(value, mode)) }
     }
 
     /* ------------------------------ Step 4 ------------------------------ */
@@ -406,12 +425,24 @@ internal class OnboardingViewModel(
         reportUnlisted(make, model, command.variant)
     }
 
-    /** Save the owner's answers and stamp setup as finished. */
+    /**
+     * Save the owner's answers and stamp setup as finished.
+     *
+     * The goals are written twice on purpose. `profile_answers` is where they live now and is
+     * the only place that can hold more than one; `profiles.onboarding_goal` keeps getting the
+     * first of them until that column is dropped, so a build from either side of the migration
+     * reads a profile that finished setup.
+     *
+     * The answers write is not allowed to fail the step. It is the newer of the two stores and
+     * a lost set is recoverable from the profile screen, whereas refusing to finish setup over
+     * it would strand the owner on the last step.
+     */
     private suspend fun saveProfile(state: OnboardingUiState): Boolean = telemetry.profileSave {
+        answers.save(QuestionKeys.Goal, state.profile.goals)
         completeOnboarding(
             CompleteOnboardingCommand(
                 name = state.profile.name.text,
-                goal = state.profile.goal.value?.toDomain(),
+                goal = primaryGoal(state.profile.goals),
             ),
         )
     }.fold(
@@ -484,7 +515,7 @@ internal class OnboardingViewModel(
     private fun finish(openScanner: Boolean = false) {
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
-            goal = _state.value.profile.goal.value?.toDomain(),
+            goal = primaryGoal(_state.value.profile.goals),
             signInOffered = signInFirst,
         )
         emit(OnboardingEffect.Finish(signInFirst = signInFirst, openScanner = openScanner))

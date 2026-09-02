@@ -3,7 +3,6 @@ package com.hopcape.odo.feature.questionnaire.firstrun.presentation
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.FuelType
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingGoalOption
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
 
 /**
@@ -46,7 +45,8 @@ internal sealed interface OnboardingEvent {
     /** Step 3. */
     sealed interface Profile : OnboardingEvent {
         data class NameChanged(val name: String) : Profile
-        data class GoalSelected(val goal: OnboardingGoalOption) : Profile
+        /** [value] is a stored constant name from the registry, e.g. `TRACK_COSTS`. */
+        data class GoalToggled(val value: String) : Profile
     }
 
     /** Step 4. Its primary action is the scan, so it does not use [ContinueClicked]. */

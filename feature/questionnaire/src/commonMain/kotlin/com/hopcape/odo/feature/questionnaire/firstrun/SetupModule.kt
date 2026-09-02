@@ -34,6 +34,8 @@ internal val setupModule = module {
 
     viewModel {
         OnboardingViewModel(
+            questions = get(),
+            answers = get(),
             loadCatalog = get(),
             loadModels = get(),
             lookupPlate = get(),

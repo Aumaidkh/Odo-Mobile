@@ -40,15 +40,20 @@ import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LookupPlate
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingGoalOption
+import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.domain.owner.model.QuestionAnswer
+import com.hopcape.odo.core.domain.owner.model.QuestionKey
+import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
+import com.hopcape.odo.feature.questionnaire.QuestionKeys
+import com.hopcape.odo.feature.questionnaire.odoQuestions
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -491,7 +496,7 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
 
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
-        viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
         assertEquals(OnboardingStep.FIRST_SCAN, viewModel.state.value.step)
@@ -509,11 +514,63 @@ class OnboardingViewModelTest {
         advanceUntilIdle()
 
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged(" "))
-        viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.SELL_FOR_MORE))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
         assertFalse(viewModel.state.value.canContinue)
 
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
         assertTrue(viewModel.state.value.canContinue)
+    }
+
+    /** Goals are multi-select now, so the whole set has to reach the answers table. */
+    @Test
+    fun theProfileStep_storesEveryGoalPicked() = runTest(dispatcher) {
+        val answers = FakeAnswers()
+        val viewModel = viewModel(answers = answers)
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(setOf("TRACK_COSTS", "SELL_SOON"), answers.saved[QuestionKeys.Goal])
+    }
+
+    /**
+     * `profiles.onboarding_goal` takes one value and is still written until it is dropped, so
+     * a set has to nominate one. Registry order decides, so the same set always nominates the
+     * same goal rather than whichever card was tapped first.
+     */
+    @Test
+    fun theProfileStep_stillFeedsTheOldColumnOneGoal() = runTest(dispatcher) {
+        val profiles = FakeProfileRepository()
+        val viewModel = viewModel(profiles = profiles)
+        viewModel.answerCarStep()
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingGoal.TRACK_COSTS, profiles.saved.last().goal)
+    }
+
+    @Test
+    fun tappingAPickedGoalAgainRemovesIt() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
+
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
+
+        assertFalse(viewModel.state.value.canContinue)
     }
 
     /* ------------------------------ Finishing ------------------------------ */
@@ -526,7 +583,7 @@ class OnboardingViewModelTest {
     @Test
     fun skippingTheScan_finishesRegardlessOfTheGoal() = runTest(dispatcher) {
         val viewModel = viewModel()
-        viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.SELL_FOR_MORE))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
 
         viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
 
@@ -774,7 +831,10 @@ class OnboardingViewModelTest {
         signedIn: Boolean = false,
         analytics: AnalyticsTracker = RecordingAnalytics(),
         unlistedReporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
+        answers: FakeAnswers = FakeAnswers(),
     ) = OnboardingViewModel(
+        questions = odoQuestions(),
+        answers = answers,
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
         lookupPlate = LookupPlateUseCase(registry),
@@ -811,7 +871,7 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.Profile.NameChanged(NAME))
-        viewModel.onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
+        viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
@@ -858,6 +918,21 @@ class OnboardingViewModelTest {
 
     private class FixedClock(private val instant: Instant) : Clock {
         override fun now(): Instant = instant
+    }
+
+    /** Records what the goal step stored, so a test can assert the whole set arrived. */
+    private class FakeAnswers : QuestionnaireRepository {
+        val saved = mutableMapOf<QuestionKey, Set<String>>()
+
+        override suspend fun save(key: QuestionKey, values: Set<String>): Either<DomainError, Unit> {
+            saved[key] = values
+            return Unit.right()
+        }
+
+        override fun observe(): Flow<List<QuestionAnswer>> = flowOf(emptyList())
+
+        override suspend fun answersFor(key: QuestionKey): Either<DomainError, List<QuestionAnswer>> =
+            emptyList<QuestionAnswer>().right()
     }
 
     /** Only the odometer timeline matters to this flow's tests, so the rest answers emptily. */
@@ -908,7 +983,7 @@ class OnboardingViewModelTest {
 
     private fun OnboardingViewModel.answerProfileStep() {
         onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
-        onEvent(OnboardingEvent.Profile.GoalSelected(OnboardingGoalOption.STOP_OVERPAYING))
+        onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
     }
 
     private fun <T> assertReady(loadable: Loadable<T>): T {
