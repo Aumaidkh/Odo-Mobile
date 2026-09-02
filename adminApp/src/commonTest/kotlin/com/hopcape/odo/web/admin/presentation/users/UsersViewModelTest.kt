@@ -131,6 +131,25 @@ class UsersViewModelTest {
         assertTrue(repo.calls.none { !it.startsWith("list:") && !it.startsWith("find:") })
     }
 
+    /**
+     * The account panel holds a restriction reason somebody may be halfway through
+     * typing. A reload that overwrote it would be the reload nobody presses twice.
+     */
+    @Test
+    fun `a reload re-reads the directory and leaves the opened account alone`() = runTest {
+        val repo = FakeUsers(user())
+        val vm = UsersViewModel(repo)
+        vm.onEvent(UsersEvent.Opened("owner-1"))
+        vm.onEvent(UsersEvent.ReasonChanged("half typed"))
+        repo.calls.clear()
+
+        vm.onEvent(UsersEvent.Refresh)
+
+        assertEquals(listOf("list:|25|0"), repo.calls)
+        assertEquals("half typed", vm.state.value.reason.value)
+        assertFalse(vm.state.value.busy, "the flag comes back down once the read lands")
+    }
+
     @Test
     fun `a search that finds nothing says so`() = runTest {
         val repo = FakeUsers(null)

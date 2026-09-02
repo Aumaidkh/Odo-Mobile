@@ -12,7 +12,8 @@ import com.hopcape.odo.web.admin.domain.Subscription
 import com.hopcape.odo.web.admin.domain.Ticket
 import com.hopcape.odo.web.admin.domain.TicketsRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_ops_saved
 import com.hopcape.odo.web.admin.ui.component.Page
@@ -140,7 +141,10 @@ class CatalogueViewModel(private val catalogue: CatalogueRepository) : ViewModel
     /** Digits only. Cheaper than validating a free-text number after the fact. */
     private fun String.digits(): String = filter { it.isDigit() }
 
-    private fun load() = loadInto(items) { catalogue.items() }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(items) { catalogue.items() } },
+    )
 
     private fun edit(block: ItemEditor.() -> ItemEditor) {
         _state.value = _state.value.copy(editor = _state.value.editor?.block())
@@ -253,7 +257,10 @@ class TicketsViewModel(private val tickets: TicketsRepository) : ViewModel() {
         }
     }
 
-    private fun load() = loadInto(rows) { tickets.tickets() }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(rows) { tickets.tickets() } },
+    )
 
     private fun write(action: suspend () -> Either<WebError, Unit>) {
         if (_state.value.busy) return
@@ -285,6 +292,8 @@ data class BillingUiState(
     val summary: BillingSummary? = null,
     val search: String = "",
     val page: Page = Page(0),
+    /** A read is in flight. Read-only screen, so this is only ever a reload. */
+    val busy: Boolean = false,
 ) {
     val matching: List<Subscription>
         get() {
@@ -328,10 +337,11 @@ class BillingViewModel(private val billing: BillingRepository) : ViewModel() {
         }
     }
 
-    private fun load() {
-        loadInto(rows) { billing.subscriptions() }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(rows) { billing.subscriptions() } },
         // Summed in the database, not over the page: adding up one screenful and
         // calling it the month's total is the classic dashboard lie.
-        viewModelScope.launch { billing.summary().onRight { _state.value = _state.value.copy(summary = it) } }
-    }
+        { billing.summary().onRight { _state.value = _state.value.copy(summary = it) } },
+    )
 }

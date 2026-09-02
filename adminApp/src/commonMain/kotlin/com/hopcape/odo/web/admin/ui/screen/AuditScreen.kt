@@ -2,11 +2,13 @@ package com.hopcape.odo.web.admin.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.presentation.audit.AuditEvent
@@ -31,6 +33,7 @@ import com.hopcape.odo.web.admin.ui.component.Panel
 import com.hopcape.odo.web.admin.ui.component.RowPanel
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.TableHead
 import com.hopcape.odo.web.admin.ui.component.TableRow
 import com.hopcape.odo.web.core.presentation.state.Loadable
@@ -74,7 +77,13 @@ fun AuditScreen(state: AuditUiState, onEvent: (AuditEvent) -> Unit) {
         item {
             Panel {
                 PanelHeader(stringResource(Res.string.ad_audit_title)) {
-                    Pill(stringResource(Res.string.ad_audit_count, state.matching.size))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Pill(stringResource(Res.string.ad_audit_count, state.matching.size))
+                        ReloadAction({ onEvent(AuditEvent.Refresh) }, state.busy)
+                    }
                 }
                 TableHead(
                     listOf(

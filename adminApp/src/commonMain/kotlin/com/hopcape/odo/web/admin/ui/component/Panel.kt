@@ -29,14 +29,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.resources.ad_common_reload
 import com.hopcape.odo.web.admin.resources.ad_dismiss
 import com.hopcape.odo.web.admin.resources.ad_users_next
 import com.hopcape.odo.web.admin.resources.ad_users_previous
+import com.hopcape.odo.web.admin.ui.icon.AdminIcons
+import com.hopcape.odo.web.admin.ui.icon.BootstrapIcon
 import com.hopcape.odo.web.admin.ui.theme.AdminElevation
 import com.hopcape.odo.web.admin.ui.theme.AdminTokens
 import com.hopcape.odo.web.admin.ui.theme.Elevation
@@ -119,6 +124,43 @@ fun PanelHeader(title: String, trailing: @Composable RowScope.() -> Unit = {}) {
         trailing()
     }
     Hairline(AdminTokens.railBorder)
+}
+
+/**
+ * A section's reload control, for a [PanelHeader]'s trailing slot.
+ *
+ * Re-reads that one section. Reloading the browser instead boots the Wasm bundle
+ * again, which is half a minute of boot screen to find out whether one row changed.
+ * While [busy] the dot takes the icon's place in the same box, so nothing reflows.
+ */
+@Composable
+fun ReloadAction(onClick: () -> Unit, busy: Boolean = false) {
+    val interactions = remember { MutableInteractionSource() }
+    val hovered by interactions.collectIsHoveredAsState()
+    val label = stringResource(Res.string.ad_common_reload)
+    Box(
+        modifier = Modifier
+            .size(26.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .border(
+                1.dp,
+                if (hovered && !busy) AdminTokens.borderHover else AdminTokens.border,
+                RoundedCornerShape(6.dp),
+            )
+            .clickable(interactionSource = interactions, indication = null, enabled = !busy, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (busy) {
+            BusyDot()
+        } else {
+            BootstrapIcon(
+                icon = AdminIcons.Reload,
+                tint = if (hovered) AdminTokens.text else AdminTokens.textFaint,
+                modifier = Modifier.size(13.dp),
+            )
+        }
+    }
 }
 
 /** A one-pixel rule. Depth in this design comes from these, never from a shadow. */

@@ -37,13 +37,25 @@ data class IconPath(
 data class BootstrapIcon(val paths: List<IconPath>)
 
 /**
- * The thirteen this panel draws, named for the job rather than for Bootstrap's file.
+ * The fourteen this panel draws, named for the job rather than for Bootstrap's file.
  *
  * Named for the job so a swap is one line here: `Catalogue` is currently
  * `wrench-adjustable`, and if that reads wrong next to `Vehicles` it becomes
  * `tools` without any screen knowing.
  */
 object AdminIcons {
+
+    /** Bootstrap `arrow-clockwise`. */
+    val Reload = BootstrapIcon(
+        listOf(
+            IconPath(
+                "M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z", evenOdd = true,
+            ),
+            IconPath(
+                "M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466",
+            ),
+        ),
+    )
 
     /** Bootstrap `box-arrow-right`. */
     val SignOut = BootstrapIcon(

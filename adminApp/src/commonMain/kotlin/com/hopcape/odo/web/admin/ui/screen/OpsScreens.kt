@@ -99,6 +99,7 @@ import com.hopcape.odo.web.admin.ui.component.RowPanel
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.RowAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.component.TableHead
@@ -143,7 +144,13 @@ fun CatalogueScreen(state: CatalogueUiState, onEvent: (CatalogueEvent) -> Unit) 
             item {
                 Panel {
                     PanelHeader(stringResource(Res.string.ad_cat_title)) {
-                        Pill(stringResource(Res.string.ad_cat_count, state.matching.size))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Pill(stringResource(Res.string.ad_cat_count, state.matching.size))
+                            ReloadAction({ onEvent(CatalogueEvent.Refresh) }, state.busy)
+                        }
                     }
                     TableHead(
                         listOf(
@@ -331,6 +338,7 @@ fun TicketsScreen(state: TicketsUiState, onEvent: (TicketsEvent) -> Unit, onOpen
                                 Pill(stringResource(Res.string.ad_tickets_open, state.openCount), dot = AdminTokens.accent)
                             }
                             Pill(stringResource(Res.string.ad_tickets_count, state.matching.size))
+                            ReloadAction({ onEvent(TicketsEvent.Refresh) }, state.busy)
                         }
                     }
                     Text(
@@ -461,7 +469,13 @@ fun BillingScreen(state: BillingUiState, onEvent: (BillingEvent) -> Unit) {
         item {
             Panel {
                 PanelHeader(stringResource(Res.string.ad_billing_title)) {
-                    Pill(stringResource(Res.string.ad_billing_count, state.matching.size))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Pill(stringResource(Res.string.ad_billing_count, state.matching.size))
+                        ReloadAction({ onEvent(BillingEvent.Refresh) }, state.busy)
+                    }
                 }
                 state.summary?.let { summary ->
                     Row(

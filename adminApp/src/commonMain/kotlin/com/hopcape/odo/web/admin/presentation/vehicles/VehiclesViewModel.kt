@@ -9,7 +9,8 @@ import com.hopcape.odo.web.admin.domain.VehicleModel
 import com.hopcape.odo.web.admin.domain.VehicleSubmission
 import com.hopcape.odo.web.admin.domain.VehiclesRepository
 import com.hopcape.odo.web.admin.presentation.asUiText
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.admin.resources.ad_vehicles_added
@@ -273,11 +274,12 @@ class VehiclesViewModel(
         }
     }
 
-    private fun load() {
-        loadInto(makes) { vehicles.makes() }
-        loadInto(models) { vehicles.models() }
-        loadInto(submissions) { vehicles.submissions() }
-    }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(makes) { vehicles.makes() } },
+        { readInto(models) { vehicles.models() } },
+        { readInto(submissions) { vehicles.submissions() } },
+    )
 
     private fun editEditor(block: VehicleEditor.() -> VehicleEditor) {
         _state.value = _state.value.copy(editor = _state.value.editor?.block())

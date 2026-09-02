@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.admin.domain.DashboardRepository
 import com.hopcape.odo.web.admin.domain.DashboardSnapshot
-import com.hopcape.odo.web.admin.presentation.loadInto
+import com.hopcape.odo.web.admin.presentation.readAll
+import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.valueOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,8 @@ sealed interface DashboardEvent {
 @Immutable
 data class DashboardUiState(
     val snapshot: Loadable<DashboardSnapshot> = Loadable.Loading,
+    /** The read is in flight. Read-only screen, so this is only ever a reload. */
+    val busy: Boolean = false,
 ) {
     val value: DashboardSnapshot? get() = snapshot.valueOrNull
 }
@@ -53,5 +56,8 @@ class DashboardViewModel(
         }
     }
 
-    private fun load() = loadInto(snapshot) { dashboard.snapshot() }
+    private fun load() = readAll(
+        { busy -> _state.value = _state.value.copy(busy = busy) },
+        { readInto(snapshot) { dashboard.snapshot() } },
+    )
 }

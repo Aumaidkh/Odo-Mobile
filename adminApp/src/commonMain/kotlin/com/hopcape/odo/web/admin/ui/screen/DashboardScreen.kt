@@ -63,6 +63,7 @@ import com.hopcape.odo.web.admin.ui.component.Muted
 import com.hopcape.odo.web.admin.ui.component.Panel
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
+import com.hopcape.odo.web.admin.ui.component.ReloadAction
 import com.hopcape.odo.web.admin.ui.component.StatusText
 import com.hopcape.odo.web.admin.ui.theme.AdminTokens
 import com.hopcape.odo.web.admin.ui.theme.AdminType
@@ -96,7 +97,7 @@ fun DashboardScreen(state: DashboardUiState, onEvent: (DashboardEvent) -> Unit) 
         modifier = Modifier.fillMaxSize().padding(26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { AttentionPanel(snapshot) }
+        item { AttentionPanel(snapshot, state.busy, onEvent) }
         item { MetricRow(snapshot) }
         item { SignupsPanel(snapshot.signups) }
         item { ActivityPanel(snapshot) }
@@ -104,14 +105,22 @@ fun DashboardScreen(state: DashboardUiState, onEvent: (DashboardEvent) -> Unit) 
 }
 
 @Composable
-private fun AttentionPanel(snapshot: DashboardSnapshot) {
+private fun AttentionPanel(snapshot: DashboardSnapshot, busy: Boolean, onEvent: (DashboardEvent) -> Unit) {
     val items = snapshot.attention
     Panel {
+        // The reload sits here rather than on every panel: the whole screen is one
+        // `admin_dashboard()` call, so one control re-reads all four of them.
         PanelHeader(stringResource(Res.string.ad_dash_attention)) {
-            Pill(
-                items.sumOf { it.count }.toString(),
-                dot = if (items.isEmpty()) null else AdminTokens.accent,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Pill(
+                    items.sumOf { it.count }.toString(),
+                    dot = if (items.isEmpty()) null else AdminTokens.accent,
+                )
+                ReloadAction({ onEvent(DashboardEvent.Refresh) }, busy)
+            }
         }
         if (items.isEmpty()) {
             Muted(stringResource(Res.string.ad_dash_attention_clear))
