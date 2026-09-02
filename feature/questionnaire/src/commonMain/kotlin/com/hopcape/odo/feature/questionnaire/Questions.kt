@@ -1,0 +1,45 @@
+package com.hopcape.odo.feature.questionnaire
+
+import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
+import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
+import com.hopcape.odo.core.domain.owner.model.QuestionKey
+import com.hopcape.odo.feature.questionnaire.resources.Res
+import com.hopcape.odo.feature.questionnaire.resources.qn_goal_healthy
+import com.hopcape.odo.feature.questionnaire.resources.qn_goal_overpay
+import com.hopcape.odo.feature.questionnaire.resources.qn_goal_resale
+import com.hopcape.odo.feature.questionnaire.resources.qn_goal_subtitle
+import com.hopcape.odo.feature.questionnaire.resources.qn_goal_title
+
+/**
+ * The declared questions.
+ *
+ * Keys carry a version. If a question changes enough that an old answer no longer means the
+ * same thing, add `.v2` rather than editing `.v1` — the old answers then stop being read
+ * instead of being counted as answers to a question nobody was asked.
+ */
+object QuestionKeys {
+    val Goal = QuestionKey("goal.v1")
+}
+
+/**
+ * Still SINGLE. Multi-select goals and the routing change that has to come with them are the
+ * next slice; making it MULTI here would store a set nothing downstream can read yet.
+ */
+private val GoalQuestion = Question(
+    key = QuestionKeys.Goal,
+    title = Res.string.qn_goal_title,
+    subtitle = Res.string.qn_goal_subtitle,
+    selection = SelectionMode.SINGLE,
+    options = listOf(
+        // The card and the stored value differ on purpose: the copy is goal-shaped while
+        // OnboardingGoal is storage-shaped. Re-wording a card must not touch stored data.
+        option(OnboardingGoal.TRACK_COSTS, Res.string.qn_goal_overpay, IcCurrencyDollar),
+        option(OnboardingGoal.NEVER_MISS_RENEWAL, Res.string.qn_goal_healthy, IcSpeedometer),
+        option(OnboardingGoal.SELL_SOON, Res.string.qn_goal_resale, IcTagFilled),
+    ),
+)
+
+/** The registry the app runs on. Onboarding asks these in order; Profile edits one. */
+fun odoQuestions() = QuestionRegistry(listOf(GoalQuestion))
