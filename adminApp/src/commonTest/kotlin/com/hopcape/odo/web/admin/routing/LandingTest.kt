@@ -49,7 +49,15 @@ class LandingTest {
     @Test
     fun `content sees the content and catalog sections, and not the users`() {
         assertEquals(
-            listOf(AdminRoute.Content, AdminRoute.Catalogue, AdminRoute.Vehicles, AdminRoute.Cities),
+            // Reference rides on fairness.write, the same permission the service
+            // catalogue uses: both are the numbers a fairness verdict reads.
+            listOf(
+                AdminRoute.Content,
+                AdminRoute.Catalogue,
+                AdminRoute.Reference,
+                AdminRoute.Vehicles,
+                AdminRoute.Cities,
+            ),
             sectionsFor(content),
         )
     }

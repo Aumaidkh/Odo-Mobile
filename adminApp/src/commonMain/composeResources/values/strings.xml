@@ -44,6 +44,7 @@
     <string name="ad_nav_roles">Roles &amp; permissions</string>
     <string name="ad_nav_content">Content</string>
     <string name="ad_nav_catalogue">Service catalogue</string>
+    <string name="ad_nav_reference">Reference data</string>
     <string name="ad_nav_vehicles">Vehicle database</string>
     <string name="ad_nav_cities">Cities</string>
     <string name="ad_nav_tickets">Support tickets</string>
@@ -56,6 +57,7 @@
     <string name="ad_sub_roles">Who holds which role, and what each role may do</string>
     <string name="ad_sub_content">Blog posts and publishing</string>
     <string name="ad_sub_catalogue">Items, intervals and cost benchmarks</string>
+    <string name="ad_sub_reference">Prices and schedules every advisory resolves against</string>
     <string name="ad_sub_vehicles">Makes, models and variants</string>
     <string name="ad_sub_cities">The shared city lookup, and what owners have reported</string>
     <string name="ad_sub_tickets">Queue sorted by SLA</string>
@@ -456,4 +458,78 @@
     <string name="ad_billing_readonly">Read-only. A subscription\'s truth lives with the store — editing a row here would produce a figure that disagrees with what the owner was charged. To grant access outside a subscription, use the entitlement override on the user.</string>
     <string name="ad_billing_no_contact">No number on file</string>
 
+
+    <!-- Reference data: the priced rows behind every fairness and advisory answer. -->
+    <string name="ad_ref_title">COVERAGE</string>
+    <string name="ad_ref_coverage">%1$s %2$d/%3$d</string>
+    <string name="ad_ref_labour_rates">LABOUR RATES</string>
+    <string name="ad_ref_job_prices">JOB PRICES</string>
+    <string name="ad_ref_part_prices">PART MRP</string>
+    <string name="ad_ref_schedule">SERVICE SCHEDULE</string>
+    <string name="ad_ref_schedule_default">default</string>
+    <string name="ad_ref_col_key">KEY</string>
+    <string name="ad_ref_col_value">VALUE</string>
+    <string name="ad_ref_col_source">SOURCE</string>
+    <string name="ad_ref_col_action">ACTION</string>
+    <string name="ad_ref_add">Add</string>
+    <string name="ad_ref_edit">Edit</string>
+    <string name="ad_ref_save">Save</string>
+    <string name="ad_ref_approve">Approve</string>
+    <string name="ad_ref_revert">Revert to draft</string>
+    <string name="ad_ref_empty">Nothing entered yet.</string>
+    <string name="ad_ref_no_source">no source</string>
+    <string name="ad_ref_per_hour">₹%1$d / hr</string>
+    <string name="ad_ref_hours">₹%1$d parts + %2$s hrs</string>
+    <string name="ad_ref_saved">Saved as draft. Approve it to serve it.</string>
+    <string name="ad_ref_status_done">Status changed.</string>
+    <string name="ad_ref_preview">RESOLVE PREVIEW</string>
+    <string name="ad_ref_preview_run">Resolve</string>
+    <string name="ad_ref_preview_hint">No band. The category has no approved job price, so the app would say nothing here too.</string>
+    <string name="ad_ref_no_band">No band for that combination.</string>
+    <string name="ad_ref_modelled">%1$s · modelled from the tables, midpoint ₹%2$d</string>
+    <string name="ad_ref_observed">%1$s · from %2$d real bills</string>
+    <string name="ad_ref_f_city_tier">city tier</string>
+    <string name="ad_ref_f_workshop_tier">workshop tier</string>
+    <string name="ad_ref_f_rate">₹ per hour</string>
+    <string name="ad_ref_f_category">category</string>
+    <string name="ad_ref_f_segment">segment</string>
+    <string name="ad_ref_f_segment_any">segment (blank = all)</string>
+    <string name="ad_ref_f_fuel">fuel (blank = any)</string>
+    <string name="ad_ref_f_parts">parts ₹</string>
+    <string name="ad_ref_f_hours">labour hours</string>
+    <string name="ad_ref_f_part_slug">part slug</string>
+    <string name="ad_ref_f_unit">unit</string>
+    <string name="ad_ref_f_mrp">MRP ₹</string>
+    <string name="ad_ref_f_brand">brand (blank = default)</string>
+    <string name="ad_ref_f_item_slug">item slug</string>
+    <string name="ad_ref_f_display_name">display name</string>
+    <string name="ad_ref_f_due_km">due km</string>
+    <string name="ad_ref_f_due_months">due months</string>
+    <string name="ad_ref_f_source_url">source url</string>
+    <string name="ad_ref_f_source_note">source note</string>
+    <string name="ad_ref_f_verified_on">verified on (YYYY-MM-DD)</string>
+    <string name="ad_ref_f_city">city</string>
+    <string name="ad_ref_f_workshop">workshop</string>
+    <string name="ad_ref_city_hint">Mumbai</string>
+    <string name="ad_ref_tier_1">Tier 1</string>
+    <string name="ad_ref_tier_2">Tier 2</string>
+    <string name="ad_ref_tier_3">Tier 3</string>
+    <string name="ad_ref_any">all</string>
+    <string name="ad_ref_unit_litre">litre</string>
+    <string name="ad_ref_unit_piece">piece</string>
+    <string name="ad_ref_unit_set">set</string>
+    <string name="ad_ref_seg_hatchback">Hatchback</string>
+    <string name="ad_ref_seg_sedan">Sedan</string>
+    <string name="ad_ref_seg_suv">SUV</string>
+    <string name="ad_ref_seg_muv">MUV</string>
+    <string name="ad_ref_wt_authorised">Authorised</string>
+    <string name="ad_ref_wt_multi_brand">Multi-brand</string>
+    <string name="ad_ref_wt_local">Local</string>
+    <string name="ad_ref_labour_key">T%1$d · %2$s</string>
+    <string name="ad_ref_pair">%1$s · %2$s</string>
+    <string name="ad_ref_mrp_value">₹%1$d / %2$s</string>
+    <string name="ad_ref_band">₹%1$d – ₹%2$d</string>
+    <string name="ad_ref_due_km_value">%1$d km</string>
+    <string name="ad_ref_due_months_value">%1$d mo</string>
+    <string name="ad_ref_due_join">%1$s / %2$s</string>
 </resources>

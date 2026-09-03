@@ -18,6 +18,7 @@ import com.hopcape.odo.web.admin.presentation.audit.AuditViewModel
 import com.hopcape.odo.web.admin.presentation.content.PostDetailViewModel
 import org.koin.core.parameter.parametersOf
 import com.hopcape.odo.web.admin.presentation.dashboard.DashboardViewModel
+import com.hopcape.odo.web.admin.presentation.reference.ReferenceDataViewModel
 import com.hopcape.odo.web.admin.presentation.cities.CitiesEvent
 import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
 import com.hopcape.odo.web.admin.presentation.catalogue.BillingEvent
@@ -45,6 +46,7 @@ import com.hopcape.odo.web.admin.routing.mayOpen
 import com.hopcape.odo.web.admin.ui.chrome.AdminShell
 import com.hopcape.odo.web.admin.ui.screen.AuditScreen
 import com.hopcape.odo.web.admin.ui.screen.CitiesScreen
+import com.hopcape.odo.web.admin.ui.screen.ReferenceDataScreen
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_shell_wordmark
 import com.hopcape.odo.web.admin.ui.screen.BootScreen
@@ -215,6 +217,7 @@ private fun SignedInArea(
                 !route.built -> NotBuiltScreen(route)
                 route is AdminRoute.Dashboard -> DashboardHost()
                 route is AdminRoute.Cities -> CitiesHost(search)
+                route is AdminRoute.Reference -> ReferenceHost()
                 route is AdminRoute.Vehicles -> VehiclesHost(search)
                 route is AdminRoute.Users -> UsersHost(search)
                 route is AdminRoute.Roles -> RolesHost(session)
@@ -247,6 +250,13 @@ private fun DashboardHost() {
     val viewModel: DashboardViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     DashboardScreen(state, viewModel::onEvent)
+}
+
+@Composable
+private fun ReferenceHost() {
+    val viewModel: ReferenceDataViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    ReferenceDataScreen(state, viewModel::onEvent)
 }
 
 @Composable
