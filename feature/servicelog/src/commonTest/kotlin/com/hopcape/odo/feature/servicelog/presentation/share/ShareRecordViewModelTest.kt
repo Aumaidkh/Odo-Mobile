@@ -489,13 +489,18 @@ class ShareRecordViewModelTest {
             "there is no record to print",
         )
     }
-    /** No credits bought, and nothing here spends one — the free-allowance path is what these test. */
+
+    /**
+     * The balance the share sheet reads. `grant` is not on the port any more — only honouring
+     * a purchase credits one — so it is a plain method here, standing in for that write.
+     */
     private class FakeExportCredits : ExportCredits {
         var granted = 0
+            private set
+
+        fun grant() { granted++ }
+
         override suspend fun available(): Int = granted
-        override suspend fun grant() {
-            granted++
-        }
 
         override suspend fun spend(): Boolean = if (granted > 0) { granted--; true } else false
     }

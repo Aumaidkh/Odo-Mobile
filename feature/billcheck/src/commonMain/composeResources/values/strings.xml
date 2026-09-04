@@ -1,0 +1,82 @@
+<resources>
+    <string name="bc_title">Bill check</string>
+    <string name="bc_cd_back">Back</string>
+    <string name="bc_cd_more">More</string>
+
+    <!-- Header. The car, the city and the kind of workshop, upper-cased by the style. -->
+    <string name="bc_context">%1$s · %2$s · %3$s</string>
+
+    <!--
+      The headline. Never "you were overcharged" — the app states what it can defend and
+      hands back the question (AI_ADVISORY_PLAN §2.8).
+    -->
+    <string name="bc_headline">%1$s worth asking about</string>
+    <string name="bc_subhead">of %1$s · %2$d flagged lines, all %3$d below</string>
+    <string name="bc_subhead_one">of %1$s · 1 flagged line, all %2$d below</string>
+    <string name="bc_subhead_none">of %1$s · nothing worth asking about, all %2$d below</string>
+
+    <!-- Shown until the owner has a record to compare against. -->
+    <string name="bc_add_last_bill">Add your last bill</string>
+    <string name="bc_add_last_bill_tail"> and I can flag repeats too.</string>
+
+    <!--
+      Reasons. One per kind of claim the app is willing to make. The values are emphasised
+      where they are substituted in — the sentence is the frame, the number is the finding.
+    -->
+    <string name="bc_reason_repeat">Done %1$s — %2$s, same centre.</string>
+    <string name="bc_reason_months">%1$d months ago</string>
+    <string name="bc_reason_month">1 month ago</string>
+    <string name="bc_reason_above">Normally %1$s here, at a %2$s.</string>
+    <string name="bc_reason_schedule">Schedule puts this at %1$s. You’re at %2$s.</string>
+
+    <!-- Evidence, in the owner's words rather than the ladder's. -->
+    <string name="bc_evidence_own">From your own record</string>
+    <string name="bc_evidence_bills">From %1$d real bills</string>
+    <string name="bc_evidence_rates">Estimated from city rates</string>
+
+    <!-- The question to put to the advisor. The whole feature exists to produce this. -->
+    <string name="bc_ask_label">ASK</string>
+    <string name="bc_ask_quote">“%1$s”</string>
+
+    <string name="bc_share">Share</string>
+    <string name="bc_how_we_know">How we know</string>
+    <string name="bc_cd_line_ok">Priced fine</string>
+
+    <!-- Locked. The line count sells; the rupee figure stays behind the wall. -->
+    <string name="bc_masked_amount">Rs. ● ● ● ●</string>
+    <string name="bc_masked_subhead">%1$d of %2$d lines flagged</string>
+
+    <!-- Nothing to show -->
+    <string name="bc_error">Couldn’t read this bill. Try again in a moment.</string>
+    <string name="bc_retry">Try again</string>
+
+    <!--
+      "How we know". Play requires a report action and a disclaimer wherever a model
+      contributed; both live here.
+    -->
+    <string name="bc_basis_title">Where %1$s came from</string>
+    <string name="bc_basis_subtitle">The %1$s band for this car, in this city.</string>
+    <string name="bc_basis_city">City</string>
+    <string name="bc_basis_city_value">%1$s · tier %2$d</string>
+    <string name="bc_basis_workshop">Workshop</string>
+    <string name="bc_basis_segment">Segment</string>
+    <string name="bc_basis_labour">Labour</string>
+    <string name="bc_basis_labour_value">%1$s/hr × %2$s hrs</string>
+
+    <string name="bc_rungs_title">WHICH RUNG ANSWERED</string>
+    <string name="bc_rung_own">This car, this centre</string>
+    <string name="bc_rung_city">City tier + segment</string>
+    <string name="bc_rung_national">National average</string>
+    <string name="bc_rung_no_data">no bills yet</string>
+    <string name="bc_rung_used">used</string>
+    <string name="bc_rung_not_needed">not needed</string>
+
+    <string name="bc_basis_note">The band comes from Odo’s reference table, not from a model. As real bills collect in this bucket, it tightens on its own.</string>
+    <string name="bc_report_price">Report a wrong price</string>
+    <string name="bc_ai_disclaimer">This answer was generated with AI and can be wrong. Always confirm at the service centre.</string>
+
+    <!-- Workshop kinds, worded for a sentence rather than as an enum name. -->
+    <string name="bc_workshop_authorised">company centre</string>
+    <string name="bc_workshop_multi_brand">multi-brand garage</string>
+    <string name="bc_workshop_local">local garage</string>
+</resources>
