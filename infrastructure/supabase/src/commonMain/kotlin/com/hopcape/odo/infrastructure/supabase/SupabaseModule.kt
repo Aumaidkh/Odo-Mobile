@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
@@ -39,6 +40,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseChallanRemoteDat
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCreditSpendRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePriceBandRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePurchaseClaimRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseQuestionAnswerRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -183,6 +185,7 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FuelFillRemoteDataSource> { SupabaseFuelFillRemoteDataSource(postgrest = get()) }
         single<QuestionAnswerRemoteDataSource> { SupabaseQuestionAnswerRemoteDataSource(postgrest = get()) }
+        single<PriceBandRemoteDataSource> { SupabasePriceBandRemoteDataSource(postgrest = get()) }
         single<PurchaseClaimRemoteDataSource> { SupabasePurchaseClaimRemoteDataSource(postgrest = get()) }
         single<CreditSpendRemoteDataSource> { SupabaseCreditSpendRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
