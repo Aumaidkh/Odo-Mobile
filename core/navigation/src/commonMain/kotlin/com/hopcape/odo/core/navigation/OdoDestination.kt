@@ -417,6 +417,17 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
+     * "My car's value" — what the car is worth, and what a proven service record would add
+     * to it. Owned by `:feature:advisory`.
+     *
+     * Reachable from two places, which is why it is a destination rather than a step: the
+     * end of first-run setup, where the gap between the two figures is the argument for
+     * scanning a bill, and the garage, where the owner goes back to check it.
+     */
+    @Serializable
+    data object CarValue : OdoDestination
+
+    /**
      * Cost tracker — the per-km "running cost" breakdown for the car. A sealed group: the
      * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
      * owner corrects the fuel rate the estimate is built on.

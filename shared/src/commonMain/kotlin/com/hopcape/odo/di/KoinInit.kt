@@ -16,6 +16,7 @@ import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
+import com.hopcape.odo.feature.advisory.advisoryModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
@@ -150,6 +151,9 @@ fun initKoin(
         // replaces that module's FreePlanEntitlementSource. Today it only configures the
         // RevenueCat SDK, which it does while Koin starts.
         billingInfrastructureModule,
+        // After coreDataModule, whose repositories its estimate reads. It registers one
+        // destination and nothing else replaces anything, so the position is not load-bearing.
+        advisoryModule,
         platformModule,
         challanModule
     )

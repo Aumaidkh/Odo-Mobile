@@ -23,12 +23,14 @@ internal data class CarSummary(
 /** What the owner did on the car-actions sheet (the ⋮ menu). */
 internal sealed interface CarActionsEvent {
     data object EditTapped : CarActionsEvent
+    data object ValueTapped : CarActionsEvent
     data object ExportTapped : CarActionsEvent
     data object RemoveTapped : CarActionsEvent
 }
 
 internal sealed interface CarActionsEffect {
     data object OpenEdit : CarActionsEffect
+    data object OpenCarValue : CarActionsEffect
     data object OpenExport : CarActionsEffect
     data object OpenRemove : CarActionsEffect
 }
