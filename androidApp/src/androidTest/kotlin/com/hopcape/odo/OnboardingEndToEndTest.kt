@@ -16,6 +16,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import org.koin.core.context.GlobalContext
+import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.servicelog.model.LogSource
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 
 /**
  * The whole of first-run setup, driven the way an owner drives it, against the real app: the
@@ -128,6 +136,40 @@ class OnboardingEndToEndTest {
         // Sign-in, not the viewfinder.
         rule.waitForText(Copy.AUTH_TITLE)
         rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
+    }
+
+    /**
+     * The point of the whole step: an owner who remembers their last service leaves setup
+     * with a real service log against their car.
+     *
+     * Asserted against the app's own repository rather than a fake, because everything
+     * between the ViewModel and SQLite is what this is checking — the use case, the mapper,
+     * and a `DECLARED` row surviving a column that has only ever held MANUAL or SCANNED.
+     * The unit tests already cover the decision to write; only this covers the write.
+     */
+    @Test
+    fun rememberingTheLastService_leavesARealServiceLogBehind() {
+        rule.reachTheLastServiceStep()
+
+        rule.pickFirstOfTheMonth()
+        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        // Setup is over either way; the row is what matters.
+        rule.waitForText(Copy.AUTH_TITLE)
+
+        val entry = runBlocking { theOwnersOnlyServiceLog() }
+        assertEquals(LogSource.DECLARED, entry.source)
+        assertEquals(3_000, entry.odometer.km)
+        // No bill behind it, so no money. Zero is the truth, not a placeholder.
+        assertEquals(0L, entry.totalAmount.paise)
+    }
+
+    /** The car setup just stored, and the single log now hanging off it. */
+    private suspend fun theOwnersOnlyServiceLog(): ServiceLogEntry {
+        val koin = GlobalContext.get()
+        val car = koin.get<CarRepository>().observePrimaryCar().filterNotNull().first()
+        return koin.get<ServiceLogRepository>().observe(car.id).first().single()
     }
 
     /**

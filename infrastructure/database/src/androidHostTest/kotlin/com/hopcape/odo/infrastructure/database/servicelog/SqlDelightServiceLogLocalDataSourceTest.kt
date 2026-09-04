@@ -100,6 +100,8 @@ class SqlDelightServiceLogLocalDataSourceTest {
         categories: Set<ServiceCategory> = setOf(ServiceCategory.BRAKES),
         fairness: FairnessSnapshot? = null,
         billPhotoRef: String? = null,
+        source: LogSource = LogSource.MANUAL,
+        workshopName: String? = "Sharma Motors",
     ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = carId,
@@ -107,9 +109,9 @@ class SqlDelightServiceLogLocalDataSourceTest {
         serviceDate = LocalDate(2026, 6, day),
         odometerKm = odometerKm,
         totalAmountPaise = totalPaise,
-        workshopName = "Sharma Motors",
+        workshopName = workshopName,
         notes = "front pads",
-        source = LogSource.MANUAL,
+        source = source,
         billId = null,
         categories = categories,
         billPhotoRef = billPhotoRef,
@@ -213,6 +215,37 @@ class SqlDelightServiceLogLocalDataSourceTest {
         val row = db.serviceLogQueries.selectById("log-1").executeAsOne()
         assertEquals(SyncStatus.PENDING.name, row.sync_status)
         assertEquals("2026-07-30T10:00:00Z", row.created_at)
+    }
+
+    /**
+     * The row setup writes when the owner remembers their last service.
+     *
+     * `source` is a plain TEXT column, so a third constant needs no migration locally — but
+     * nothing had ever stored one, and a service with no workshop, no categories and no money
+     * is a shape this table had not been asked to hold either. All three round-trip or the
+     * step silently stores nothing.
+     */
+    @Test
+    fun aDeclaredServiceWithNoMoneyRoundTrips() = runTest {
+        val db = newDb().apply { seedCar() }
+        local(db).insert(
+            entry(
+                totalPaise = 0,
+                categories = emptySet(),
+                workshopName = null,
+                source = LogSource.DECLARED,
+            ),
+        )
+
+        val stored = local(db).observeById(ServiceLogId("log-1")).first()
+
+        assertEquals(LogSource.DECLARED, stored?.source)
+        assertEquals(0L, stored?.totalAmount?.paise)
+        assertNull(stored?.workshopName)
+        assertEquals(50_000, stored?.odometer?.km)
+        // It has to reach the server like any other row, which is what makes the missing
+        // Supabase enum value a sync failure rather than a cosmetic gap.
+        assertEquals(SyncStatus.PENDING.name, db.serviceLogQueries.selectById("log-1").executeAsOne().sync_status)
     }
 
     @Test
