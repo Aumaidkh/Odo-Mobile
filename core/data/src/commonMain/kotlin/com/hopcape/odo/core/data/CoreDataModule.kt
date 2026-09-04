@@ -43,6 +43,10 @@ import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FakePriceBandRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRepositoryImpl
+import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
 import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.FakeCreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.FakePurchaseClaimRemoteDataSource
@@ -244,6 +248,11 @@ val coreDataModule = module {
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
     single<QuestionAnswerRemoteDataSource> { FakeQuestionAnswerRemoteDataSource() }
+    // Answers nothing without Supabase, which is the honest state: no band rather than an
+    // invented one in front of an owner at a counter.
+    single<PriceBandRemoteDataSource> { FakePriceBandRemoteDataSource() }
+    single<PriceBandRepository> { PriceBandRepositoryImpl(remote = get(), telemetry = get()) }
+
     single<PurchaseClaimRemoteDataSource> { FakePurchaseClaimRemoteDataSource() }
     single<CreditSpendRemoteDataSource> { FakeCreditSpendRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
