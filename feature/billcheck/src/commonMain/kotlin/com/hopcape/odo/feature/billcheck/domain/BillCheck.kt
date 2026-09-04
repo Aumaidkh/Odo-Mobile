@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.billcheck.domain
 
 import com.hopcape.odo.core.domain.shared.Amount
+import kotlinx.datetime.LocalDate
 import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.core.domain.shared.sum
 
@@ -83,7 +84,7 @@ internal data class PricedLine(val name: String, val amount: Amount)
 internal sealed interface Reason {
 
     /** The owner's own record shows this job recently. The strongest thing Odo can say. */
-    data class DoneRecently(val monthsAgo: Int, val on: String) : Reason
+    data class DoneRecently(val monthsAgo: Int, val on: LocalDate) : Reason
 
     /** Charged above what this car, in this city, at this kind of workshop normally is. */
     data class AboveBand(val low: Amount, val high: Amount) : Reason

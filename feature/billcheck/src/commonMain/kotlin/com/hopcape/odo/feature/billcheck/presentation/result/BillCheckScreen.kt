@@ -42,6 +42,7 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.shared.WorkshopTier
+import com.hopcape.odo.core.domain.shared.formatDate
 import com.hopcape.odo.core.domain.shared.formatRupeeRangeTo
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billcheck.domain.BillCheck
@@ -462,7 +463,7 @@ private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
 private fun Reason.sentence(workshop: WorkshopTier) = when (this) {
     is Reason.DoneRecently -> {
         val ago = monthsLabel(monthsAgo)
-        stringResource(Res.string.bc_reason_repeat, ago, on).emphasising(ago)
+        stringResource(Res.string.bc_reason_repeat, ago, formatDate(on)).emphasising(ago)
     }
 
     is Reason.AboveBand -> {

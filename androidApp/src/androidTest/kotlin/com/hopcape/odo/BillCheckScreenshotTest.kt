@@ -36,6 +36,8 @@ class BillCheckScreenshotTest {
                 setProEntitlement(isPro = false)
                 installNoStore()
                 installNoOneTimeProducts()
+                // The reader takes a real service-log entry now, so the screen needs one.
+                seedBillToCheck()
             },
         )
         .around(rule)
@@ -48,7 +50,7 @@ class BillCheckScreenshotTest {
         rule.awaitText(HOME_TAB)
 
         rule.push(OdoDestination.BillCheck.Result(billId = BILL))
-        rule.awaitText(RESULT_HEADLINE)
+        rule.awaitTextContaining(RESULT_HEADLINE)
         rule.captureScreen("billcheck-result")
 
         rule.push(OdoDestination.BillCheck.Basis(billId = BILL, lineName = "AC service"))
@@ -57,13 +59,14 @@ class BillCheckScreenshotTest {
     }
 
     private companion object {
-        const val BILL = "preview-bill"
+        const val BILL = BillCheckFixtures.BILL_ID
 
         /** The bottom bar, so the wait does not depend on seeded content. */
         const val HOME_TAB = "Home"
 
         /** The month-6 stub: three flagged lines out of a Rs. 18,400 bill. */
-        const val RESULT_HEADLINE = "Rs. 7,300 worth asking about"
+        /** Whatever the check finds — the point is that it read a real bill. */
+        const val RESULT_HEADLINE = "worth asking about"
         const val BASIS_RUNGS = "WHICH RUNG ANSWERED"
     }
 }

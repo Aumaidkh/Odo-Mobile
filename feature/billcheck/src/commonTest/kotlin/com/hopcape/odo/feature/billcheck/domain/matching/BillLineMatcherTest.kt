@@ -34,10 +34,23 @@ class BillLineMatcherTest {
         assertEquals(JobKind.OIL_FILTER, matcher.kindOf("OIL FLTR - genuine"))
     }
 
-    /** "Engine oil + filter" is one printed line and two priced jobs. It names one of them. */
+    /**
+     * The one the emulator found. "Engine oil + filter" is one price covering two jobs, and
+     * reading it as an oil filter priced Rs. 5,800 against a Rs. 680–920 band — a Rs. 5,000
+     * finding that is not true, shown to an owner at a counter.
+     */
     @Test
-    fun `engine oil and filter names the filter it mentions`() {
-        assertEquals(JobKind.OIL_FILTER, matcher.kindOf("Engine oil + filter"))
+    fun `one price for two jobs is checked against neither`() {
+        assertEquals(LineMatch.Unknown, matcher.match("Engine oil + filter"))
+        assertEquals(LineMatch.Unknown, matcher.match("Brake pads and brake fluid"))
+    }
+
+    /** One job written long is still one job. The tell is disagreement, not the joiner. */
+    @Test
+    fun `a joined line whose halves agree is one job`() {
+        assertEquals(JobKind.WHEEL_ALIGNMENT, matcher.kindOf("Wheel alignment & balancing"))
+        assertEquals(JobKind.BRAKE_PADS, matcher.kindOf("Brake pads, front"))
+        assertEquals(JobKind.AC_SERVICE, matcher.kindOf("AC service / gas refill"))
     }
 
     @Test
@@ -113,7 +126,6 @@ class BillLineMatcherTest {
 
         val CORPUS = listOf(
             "Engine oil 5W-30",
-            "Engine Oil + Filter",
             "Oil filter",
             "Air filter",
             "Air cleaner element",

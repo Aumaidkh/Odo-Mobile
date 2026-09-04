@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.WorkshopTier
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -75,7 +76,7 @@ class BillCheckTest {
     @Test
     fun `only a claim about money carries its figure`() {
         val overpriced = flagged("AC service", 2_400, Reason.AboveBand(rupees(1_400), rupees(1_800)))
-        val repeat = flagged("Throttle body", 1_800, Reason.DoneRecently(monthsAgo = 4, on = "12 April"))
+        val repeat = flagged("Throttle body", 1_800, Reason.DoneRecently(monthsAgo = 4, on = LocalDate(2026, 4, 12)))
         val schedule = flagged("Injector cleaning", 3_100, Reason.ScheduledLater(40_000, 12_000))
 
         assertTrue(overpriced.amountIsTheClaim)
