@@ -172,7 +172,7 @@ internal class CheckBillPriceUseCase(
     private fun BillLine.repeated(repeat: RepeatFinder.Repeat) = FlaggedLine(
         name = label,
         amount = amount,
-        reason = Reason.DoneRecently(monthsAgo = repeat.monthsAgo, on = repeat.on.toString()),
+        reason = Reason.DoneRecently(monthsAgo = repeat.monthsAgo, on = repeat.on),
         evidence = Evidence.OwnRecord,
     )
 

@@ -26,10 +26,34 @@ internal class BillLineMatcher {
         val text = line.normalise()
         if (text.isEmpty()) return LineMatch.Unknown
         NOT_A_JOB.firstOrNull { text.containsPhrase(it) }?.let { return LineMatch.NotAJob }
-        RULES.firstOrNull { rule -> rule.phrases.any { text.containsPhrase(it) } }
-            ?.let { return LineMatch.Job(it.kind) }
-        return LineMatch.Unknown
+        val whole = text.kind() ?: return LineMatch.Unknown
+        // One price covering two jobs cannot be checked against either of them. "Engine oil +
+        // filter" at Rs. 5,800 read as an oil filter is a Rs. 5,000 finding that is not true,
+        // put in front of an owner at a counter.
+        if (line.namesAnotherJobThan(whole)) return LineMatch.Unknown
+        return LineMatch.Job(whole)
     }
+
+    /**
+     * Whether a piece of the line names a *different* job than the line as a whole does.
+     *
+     * The tell is disagreement, not the joiner: "wheel alignment & balancing" splits in two
+     * and both halves say wheel alignment, so it is one job written long. "Engine oil +
+     * filter" reads as an oil filter whole and as engine oil in its first half, and that
+     * disagreement is the two jobs showing.
+     *
+     * Deliberately blunt. The cost of calling a combined line unchecked is one line the owner
+     * is told nothing about; the cost of getting it wrong is a rupee figure that is false.
+     */
+    private fun String.namesAnotherJobThan(whole: JobKind): Boolean =
+        split(*JOINERS)
+            .map { it.normalise() }
+            .filter { it.isNotEmpty() }
+            .any { part -> part.kind()?.let { it != whole } == true }
+
+    /** The most specific job this text names, or null. */
+    private fun String.kind(): JobKind? =
+        RULES.firstOrNull { rule -> rule.phrases.any { containsPhrase(it) } }?.kind
 
     private data class Rule(val kind: JobKind, val phrases: List<String>)
 
@@ -50,6 +74,9 @@ internal class BillLineMatcher {
         /** Whole-word containment, so "oil" does not match inside "boiler". */
         fun String.containsPhrase(phrase: String): Boolean =
             " $this ".contains(" $phrase ")
+
+        /** How a bill joins two jobs onto one priced line. */
+        val JOINERS = arrayOf("+", "&", " and ", ",", "/")
 
         /**
          * Lines that are not jobs. Checked first: "labour charges for ac service" is a labour

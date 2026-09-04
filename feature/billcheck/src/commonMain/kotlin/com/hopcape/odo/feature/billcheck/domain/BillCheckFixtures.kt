@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.WorkshopTier
+import kotlinx.datetime.LocalDate
 
 /**
  * The two scenes the bill check has to win — the previews' data and the stub's answers.
@@ -65,7 +66,7 @@ internal object BillCheckFixtures {
             FlaggedLine(
                 name = "Throttle body",
                 amount = rupees(1_800),
-                reason = Reason.DoneRecently(monthsAgo = 4, on = "12 April"),
+                reason = Reason.DoneRecently(monthsAgo = 4, on = LocalDate(2026, 4, 12)),
                 evidence = Evidence.OwnRecord,
             ),
             FlaggedLine(
