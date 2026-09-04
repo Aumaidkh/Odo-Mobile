@@ -5,12 +5,21 @@ import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionKeys
+import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_healthy
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_overpay
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_resale
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.qn_goal_title
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_authorised
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_authorised_desc
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_both
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_both_desc
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_local
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_local_desc
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_subtitle
+import com.hopcape.odo.feature.questionnaire.resources.qn_workshop_title
 
 /*
  * Keys carry a version. If a question changes enough that an old answer no longer means the
@@ -42,5 +51,39 @@ private val GoalQuestion = Question(
     ),
 )
 
+/**
+ * SINGLE, because a labour rate has to resolve to one number.
+ *
+ * The options carry a description rather than an icon: an owner places themselves by the
+ * example ("Maruti Arena, Hyundai, Tata") far more reliably than by the phrase, and three
+ * invented glyphs for three kinds of garage would be three shapes nobody can tell apart.
+ *
+ * `MULTI_BRAND` is what "both / not sure" stores. It is the middle rate, which is the
+ * honest quote for someone who uses both, and it is already the labour table's default.
+ */
+private val WorkshopQuestion = Question(
+    key = QuestionKeys.Workshop,
+    title = Res.string.qn_workshop_title,
+    subtitle = Res.string.qn_workshop_subtitle,
+    selection = SelectionMode.SINGLE,
+    options = listOf(
+        option(
+            WorkshopTier.AUTHORISED,
+            Res.string.qn_workshop_authorised,
+            description = Res.string.qn_workshop_authorised_desc,
+        ),
+        option(
+            WorkshopTier.LOCAL,
+            Res.string.qn_workshop_local,
+            description = Res.string.qn_workshop_local_desc,
+        ),
+        option(
+            WorkshopTier.MULTI_BRAND,
+            Res.string.qn_workshop_both,
+            description = Res.string.qn_workshop_both_desc,
+        ),
+    ),
+)
+
 /** The registry the app runs on. Onboarding asks these in order; Profile edits one. */
-fun odoQuestions() = QuestionRegistry(listOf(GoalQuestion))
+fun odoQuestions() = QuestionRegistry(listOf(GoalQuestion, WorkshopQuestion))

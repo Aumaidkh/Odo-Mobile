@@ -85,9 +85,16 @@ class OnboardingEndToEndTest {
         rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
 
-        // Skipping the first scan still finishes setup.
-        rule.waitForText(Copy.SCAN_TITLE)
-        rule.onNodeWithText(Copy.SCAN_SKIP).performClick()
+        // The workshop tier decides the labour rate every price comparison is quoted at,
+        // so its step will not pass without an answer.
+        rule.waitForText(Copy.WORKSHOP_TITLE)
+        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
+        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
+
+        // Skipping the last service still finishes setup.
+        rule.waitForText(Copy.LAST_SERVICE_TITLE)
+        rule.onNodeWithText(Copy.SKIP).performClick()
 
         // With no session yet, the sign-in offer comes first — the one place Odo asks,
         // because by now there is something concrete worth backing up.
@@ -104,7 +111,7 @@ class OnboardingEndToEndTest {
     }
 
     /**
-     * Regression for the first-scan step handing an owner straight to the scanner.
+     * Regression for the last step handing an owner straight to the scanner.
      *
      * The camera button used to open `BillScanner.Capture` with setup still running, so the
      * sign-in offer at the end of the flow was never reached. From the viewfinder the scan
@@ -113,25 +120,28 @@ class OnboardingEndToEndTest {
      * Scanning now finishes setup like Skip does, so the offer comes first either way.
      */
     @Test
-    fun scanningFromTheFirstScanStep_asksForSignInBeforeTheScanner() {
-        rule.startFromWelcome()
+    fun photographingTheOldBill_asksForSignInBeforeTheScanner() {
+        rule.reachTheLastServiceStep()
 
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-        rule.setOdometer()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.PROFILE_TITLE)
-        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.SCAN_TITLE)
         rule.onNodeWithText(Copy.SCAN_CTA).performClick()
 
         // Sign-in, not the viewfinder.
         rule.waitForText(Copy.AUTH_TITLE)
         rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
+    }
+
+    /**
+     * "Don't remember" is a first-class answer, and ticking it must not leave a half-row
+     * behind: a date typed before the box was ticked used to still be written on Done.
+     */
+    @Test
+    fun theLastServiceStepAcceptsNotRemembering() {
+        rule.reachTheLastServiceStep()
+
+        rule.onNodeWithText(Copy.LAST_SERVICE_FORGOT).performClick()
+        rule.onNodeWithText(Copy.DONE).assertIsEnabled().performClick()
+
+        rule.waitForText(Copy.AUTH_TITLE)
     }
 
     /**

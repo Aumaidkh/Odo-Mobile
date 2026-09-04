@@ -36,6 +36,10 @@ import kotlin.time.Instant
  * @param date the selected date, or null when nothing is set yet.
  * @param formatted how [date] should read; ignored when [date] is null.
  * @param placeholder what to show instead when no date is set.
+ * @param enabled false dims the field and stops it opening the picker — for a form where
+ *   another control has taken the answer over.
+ * @param trailingIcon drawn at the end of the row. Pass a chevron where the field sits
+ *   beside other tappable rows and has to read as one of them.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +51,8 @@ fun OdoDateField(
     cancelLabel: String,
     onDateChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     var showPicker by remember { mutableStateOf(false) }
     Box(modifier) {
@@ -54,10 +60,16 @@ fun OdoDateField(
             value = if (date != null) formatted else placeholder,
             onValueChange = {},
             readOnly = true,
+            enabled = enabled,
+            trailingIcon = trailingIcon,
             modifier = Modifier.fillMaxWidth(),
         )
         // A read-only field cannot take focus, so an overlay captures the tap.
-        Box(Modifier.matchParentSize().clip(OdoTheme.shapes.field).clickable { showPicker = true })
+        Box(
+            Modifier.matchParentSize()
+                .clip(OdoTheme.shapes.field)
+                .clickable(enabled = enabled) { showPicker = true },
+        )
     }
 
     if (!showPicker) return

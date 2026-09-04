@@ -1,16 +1,19 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.state
 
 /**
- * The steps of first-run setup, in order. Step 1 is the Welcome screen (its own
- * destination, no progress chrome), so the flow destination starts at [CAR].
+ * The steps of first-run setup, in order.
  *
- * [position] is what the header renders ("2 / 4") and what drives the progress bar,
+ * The Welcome pitch is not one of them. It asks the owner for nothing, and counting a screen
+ * that only has a button makes the flow look a step longer than it is.
+ *
+ * [position] is what the eyebrow renders ("STEP 3 OF 4") and what fills the segmented bar,
  * which is why it is stated once here rather than at each call site.
  */
 internal enum class OnboardingStep(val position: Int) {
-    CAR(2),
-    PROFILE(3),
-    FIRST_SCAN(4),
+    CAR(1),
+    PROFILE(2),
+    WORKSHOP(3),
+    LAST_SERVICE(4),
     ;
 
     /** The step before this one, or `null` at the first step (where back leaves the flow). */
@@ -22,7 +25,7 @@ internal enum class OnboardingStep(val position: Int) {
         get() = entries.getOrNull(ordinal + 1)
 
     companion object {
-        /** Total steps counted by the header, Welcome included. */
+        /** How many steps the bar draws. */
         const val TOTAL: Int = 4
     }
 }

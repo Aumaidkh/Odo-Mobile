@@ -22,4 +22,6 @@ object OnboardingTestTags {
     const val YEAR_FIELD = "onboarding:year"
     const val FUEL_FIELD = "onboarding:fuel"
     const val NAME_FIELD = "onboarding:name"
+    const val LAST_SERVICE_DATE_FIELD = "onboarding:lastServiceDate"
+    const val LAST_SERVICE_ODOMETER_FIELD = "onboarding:lastServiceOdometer"
 }

@@ -62,6 +62,10 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
                 // real. The goals are now stored by the questionnaire (#394) and read by
                 // whatever wants them.
                 val destination = OdoDestination.Home
+                // …with the value screen on top of it, unless the owner is on their way to
+                // the scanner already. Setup has just taken four answers and given nothing
+                // back; this is the one screen that can pay for them immediately, and the
+                // gap it shows is the argument for the first scan.
                 // The intro and the setup steps leave the back stack — first run doesn't
                 // repeat. finishFlow rather than popUpTo(Welcome), because the flow's root
                 // is whichever intro the remote flag chose, and popping up to the wrong
@@ -79,9 +83,13 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
                         if (effect.signInFirst) OdoDestination.Auth.Phone(scanner) else scanner,
                     )
                 } else {
-                    val next =
-                        if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination
-                    navigationManager.finishFlow(next, ::isFirstRunStep)
+                    // Same seed-then-push shape as the scanner branch above: the dashboard
+                    // goes under the value screen so leaving it lands somewhere.
+                    navigationManager.finishFlow(destination, ::isFirstRunStep)
+                    val value = OdoDestination.CarValue
+                    navigationManager.navigateTo(
+                        if (effect.signInFirst) OdoDestination.Auth.Phone(value) else value,
+                    )
                 }
             }
         }

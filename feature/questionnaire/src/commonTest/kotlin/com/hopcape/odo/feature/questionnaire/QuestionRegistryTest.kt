@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.questionnaire
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.model.QuestionKeys
+import com.hopcape.odo.core.domain.shared.WorkshopTier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -37,6 +38,32 @@ class QuestionRegistryTest {
         val mapped = goal.options.map { OnboardingGoal.valueOf(it.value) }
 
         assertEquals(OnboardingGoal.entries.toSet(), mapped.toSet(), "every goal must be offered")
+    }
+
+    @Test
+    fun `every workshop option maps back to a WorkshopTier`() {
+        val workshop = registry.require(QuestionKeys.Workshop)
+
+        val mapped = workshop.options.map { WorkshopTier.valueOf(it.value) }
+
+        assertEquals(WorkshopTier.entries.toSet(), mapped.toSet(), "every tier must be offered")
+    }
+
+    /** A labour rate has to resolve to one number, so the tier cannot be a set. */
+    @Test
+    fun `the workshop question takes one answer`() {
+        assertEquals(SelectionMode.SINGLE, registry.require(QuestionKeys.Workshop).selection)
+    }
+
+    /**
+     * The workshop options are placed by their example, not their phrase — an owner reads
+     * "Maruti Arena, Hyundai, Tata" and knows which one they are.
+     */
+    @Test
+    fun `every workshop option carries a description`() {
+        val bare = registry.require(QuestionKeys.Workshop).options.filter { it.description == null }
+
+        assertTrue(bare.isEmpty(), "options with no description: ${bare.map { it.value }}")
     }
 
     @Test

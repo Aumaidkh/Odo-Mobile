@@ -40,6 +40,59 @@ class RunningCostCalculatorTest {
         assertNull(cost.shortfall)
     }
 
+    /**
+     * A DECLARED entry is the owner remembering that a service happened, with no bill behind
+     * it. Its zero would not widen the rate, it would pull it down — the car would read
+     * cheaper to run than it is.
+     */
+    @Test
+    fun aDeclaredServiceIsLeftOutOfTheSpend() {
+        val cost = RunningCostCalculator.compute(
+            window = window,
+            entries = listOf(
+                entry("1", date = LocalDate(2026, 3, 10), km = 44_000, paise = 500_000),
+                entry(
+                    "2",
+                    date = LocalDate(2026, 4, 1),
+                    km = 45_000,
+                    paise = 0,
+                    source = LogSource.DECLARED,
+                ),
+            ),
+            readings = listOf(
+                reading(LocalDate(2025, 12, 20), km = 40_000),
+                reading(LocalDate(2026, 3, 10), km = 44_000),
+            ),
+        )
+
+        // The paid service alone, over the same 4,000 km — not halved by a costless row.
+        assertEquals(500_000L, cost.maintenanceSpend.paise)
+        assertEquals(125L, cost.perKm?.paise)
+    }
+
+    /** Its odometer is still a fact, and distance is read from the readings, not the logs. */
+    @Test
+    fun aDeclaredServicesReadingStillCountsTowardsDistance() {
+        val cost = RunningCostCalculator.compute(
+            window = window,
+            entries = listOf(
+                entry(
+                    "1",
+                    date = LocalDate(2026, 4, 1),
+                    km = 45_000,
+                    paise = 0,
+                    source = LogSource.DECLARED,
+                ),
+            ),
+            readings = listOf(
+                reading(LocalDate(2025, 12, 20), km = 40_000),
+                reading(LocalDate(2026, 4, 1), km = 45_000),
+            ),
+        )
+
+        assertEquals(5_000, cost.kmDriven.km)
+    }
+
     @Test
     fun withNoEarlierReading_theWindowsFirstReadingAnchorsIt() {
         val cost = RunningCostCalculator.compute(
@@ -350,6 +403,7 @@ class RunningCostCalculatorTest {
         paise: Long,
         categories: Set<ServiceCategory> = emptySet(),
         lineItems: List<ServiceLogLineItem> = emptyList(),
+        source: LogSource = LogSource.MANUAL,
     ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = CarId("car-1"),
@@ -359,7 +413,7 @@ class RunningCostCalculatorTest {
         totalAmountPaise = paise,
         workshopName = null,
         notes = null,
-        source = LogSource.MANUAL,
+        source = source,
         billId = null,
         categories = categories,
         lineItems = lineItems,

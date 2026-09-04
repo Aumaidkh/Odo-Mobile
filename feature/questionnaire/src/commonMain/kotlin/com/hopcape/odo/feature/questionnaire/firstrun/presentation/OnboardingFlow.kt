@@ -12,8 +12,9 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.car.CarDetailsStepScreen
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.car.CarStepScreen
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.lastservice.LastServiceStepScreen
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.profile.ProfileStepScreen
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.scan.FirstScanScreen
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.workshop.WorkshopStepScreen
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleCarStep
@@ -72,7 +73,16 @@ internal fun OnboardingFlow(
                 onEvent = onEvent,
             )
 
-            OnboardingStep.FIRST_SCAN -> FirstScanScreen(onEvent = onEvent)
+            OnboardingStep.WORKSHOP -> WorkshopStepScreen(
+                workshop = state.workshop,
+                canContinue = state.canContinue,
+                onEvent = onEvent,
+            )
+
+            OnboardingStep.LAST_SERVICE -> LastServiceStepScreen(
+                lastService = state.lastService,
+                onEvent = onEvent,
+            )
         }
     }
 }

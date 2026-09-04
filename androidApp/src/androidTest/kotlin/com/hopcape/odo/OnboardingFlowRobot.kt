@@ -56,12 +56,18 @@ internal object Copy {
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
-    const val SCAN_TITLE = "Find out if you overpaid last time"
-    const val SCAN_CTA = "Check my last bill"
-    const val SCAN_SKIP = "I’ll do this later"
+    const val WORKSHOP_TITLE = "Where do you get your car serviced?"
+    const val WORKSHOP_AUTHORISED = "Company service centre"
+    const val LAST_SERVICE_TITLE = "When was your last service?"
+    const val LAST_SERVICE_FORGOT = "Don’t remember"
+    const val SCAN_CTA = "Photograph the old bill"
+    const val SKIP = "Skip"
     const val CONTINUE = "Continue"
     const val DONE = "Done"
     const val BACK = "Back"
+
+    /** The payoff screen setup ends on — proof the flow finished somewhere new. */
+    const val CAR_VALUE_TITLE = "My car’s value"
     const val AUTH_TITLE = "What’s your number?"
 
     /** Home's own copy, not the flow's — proof the gate landed somewhere else entirely. */
@@ -159,6 +165,32 @@ internal fun OdoTestRule.startFromWelcome() {
     waitForText(Copy.WELCOME_HEADLINE, START_DESTINATION_TIMEOUT_MILLIS)
     onNodeWithText(Copy.WELCOME_CTA).performClick()
     waitForText(Copy.CAR_TITLE)
+}
+
+/**
+ * Answer the plate route, the profile and the workshop tier, ending on the last step.
+ *
+ * Three steps is enough boilerplate that a test about the *fourth* one should not carry it,
+ * and the steps before it are covered on their own by
+ * [OnboardingEndToEndTest.plateRoute_setsUpTheCarAndNeverAsksAgain].
+ */
+internal fun OdoTestRule.reachTheLastServiceStep() {
+    startFromWelcome()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+    waitForText(Fixtures.MATCHED_CAR)
+    setOdometer()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
 }
 
 /**

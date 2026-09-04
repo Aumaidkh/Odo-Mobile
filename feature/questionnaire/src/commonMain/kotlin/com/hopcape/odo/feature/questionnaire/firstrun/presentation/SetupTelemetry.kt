@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.questionnaire.firstrun.presentation
 import arrow.core.Either
 import arrow.core.EitherNel
 import arrow.core.NonEmptyList
+import arrow.core.nonEmptyListOf
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
@@ -11,6 +12,7 @@ import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
@@ -96,6 +98,41 @@ internal class SetupTelemetry(
     fun goalSelected(goal: OnboardingGoal) {
         analytics.track(Event.GOAL_SELECTED, mapOf(Key.GOAL to goal.name))
         logger.debug(TAG, Event.GOAL_SELECTED, tc = flowTrace.toLog(), fields = mapOf(Key.GOAL to goal.name))
+    }
+
+    /**
+     * [tier] is a `WorkshopTier` constant name. Safe to emit: it names a *kind* of workshop,
+     * not a place the owner goes to. The split between authorised and local is what says
+     * whether the labour-rate table is being asked the right question.
+     */
+    fun workshopTierSelected(tier: String) {
+        analytics.track(Event.WORKSHOP_TIER_SELECTED, mapOf(Key.WORKSHOP_TIER to tier))
+        logger.debug(
+            TAG,
+            Event.WORKSHOP_TIER_SELECTED,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.WORKSHOP_TIER to tier),
+        )
+    }
+
+    /**
+     * Whether the owner said they cannot remember the last service. The rate is what decides
+     * whether the step is worth its place: a flow where most people tick it is asking for
+     * something nobody has.
+     */
+    fun lastServiceForgotten(forgot: Boolean) {
+        analytics.track(Event.LAST_SERVICE_FORGOTTEN, mapOf(Key.FORGOT to forgot))
+        logger.debug(
+            TAG,
+            Event.LAST_SERVICE_FORGOTTEN,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.FORGOT to forgot),
+        )
+    }
+
+    fun lastServiceSkipped() {
+        analytics.track(Event.LAST_SERVICE_SKIPPED)
+        logger.info(TAG, Event.LAST_SERVICE_SKIPPED, tc = flowTrace.toLog())
     }
 
     fun firstScanClicked() {
@@ -223,6 +260,53 @@ internal class SetupTelemetry(
         result
     }
 
+    /** Times the workshop-tier write. The tier is a kind of workshop, so it is emitted. */
+    suspend fun workshopSave(
+        tier: String,
+        write: suspend () -> Either<DomainError, Unit>,
+    ): Either<DomainError, Unit> = traced(Trace.SAVE_WORKSHOP, Key.WORKSHOP_TIER to tier) { span ->
+        val result = write()
+        result.fold(
+            ifLeft = { error ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                logSaveFailure(OnboardingStep.WORKSHOP, nonEmptyListOf(error))
+            },
+            ifRight = {
+                analytics.track(Event.WORKSHOP_SAVED, mapOf(Key.WORKSHOP_TIER to tier))
+                logger.info(
+                    TAG,
+                    Event.WORKSHOP_SAVED,
+                    tc = currentTraceContext().toLog(),
+                    fields = mapOf(Key.WORKSHOP_TIER to tier),
+                )
+            },
+        )
+        result
+    }
+
+    /**
+     * Times the declared-service write.
+     *
+     * Neither the service date nor the reading is emitted: both are facts about the owner's
+     * own car, and an odometer is resale-relevant. Only that a row was written.
+     */
+    suspend fun lastServiceSave(
+        write: suspend () -> EitherNel<DomainError, ServiceLogEntry>,
+    ): EitherNel<DomainError, ServiceLogEntry> = traced(Trace.SAVE_LAST_SERVICE) { span ->
+        val result = write()
+        result.fold(
+            ifLeft = { errors ->
+                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                logSaveFailure(OnboardingStep.LAST_SERVICE, errors)
+            },
+            ifRight = {
+                analytics.track(Event.LAST_SERVICE_SAVED)
+                logger.info(TAG, Event.LAST_SERVICE_SAVED, tc = currentTraceContext().toLog())
+            },
+        )
+        result
+    }
+
     /* ------------------------------ Plumbing ------------------------------ */
 
     /**
@@ -287,6 +371,11 @@ internal class SetupTelemetry(
         const val CAR_SAVED = "onboarding_car_saved"
         const val PROFILE_SAVED = "onboarding_profile_saved"
         const val SAVE_FAILED = "onboarding_save_failed"
+        const val WORKSHOP_TIER_SELECTED = "onboarding_workshop_tier_selected"
+        const val WORKSHOP_SAVED = "onboarding_workshop_saved"
+        const val LAST_SERVICE_FORGOTTEN = "onboarding_last_service_forgotten"
+        const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
+        const val LAST_SERVICE_SAVED = "onboarding_last_service_saved"
         const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
         const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
         const val COMPLETED = "onboarding_completed"
@@ -305,6 +394,8 @@ internal class SetupTelemetry(
         const val PLATE_LOOKUP = "onboarding_plate_lookup"
         const val SAVE_CAR = "onboarding_save_car"
         const val SAVE_PROFILE = "onboarding_save_profile"
+        const val SAVE_WORKSHOP = "onboarding_save_workshop"
+        const val SAVE_LAST_SERVICE = "onboarding_save_last_service"
     }
 
     /** Structured field / property keys, shared across logs, events and spans. */
@@ -322,6 +413,8 @@ internal class SetupTelemetry(
         const val OUTCOME = "outcome"
         const val SOURCE = "source"
         const val ERRORS = "errors"
+        const val WORKSHOP_TIER = "workshop_tier"
+        const val FORGOT = "forgot"
     }
 
     /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */

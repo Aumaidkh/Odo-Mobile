@@ -121,8 +121,12 @@ class OnboardingVideoEndToEndTest {
         rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
         rule.onNodeWithText(Copy.CONTINUE).performClick()
 
-        rule.waitForText(Copy.SCAN_TITLE)
-        rule.onNodeWithText(Copy.SCAN_SKIP).performClick()
+        rule.waitForText(Copy.WORKSHOP_TITLE)
+        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_TITLE)
+        rule.onNodeWithText(Copy.SKIP).performClick()
         rule.waitForText(Copy.AUTH_TITLE)
 
         // The flag is still on, so this is the variant's own answer and not the usual flow's:

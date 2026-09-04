@@ -9,6 +9,17 @@
     <string name="qn_goal_healthy">Keep the car healthy</string>
     <string name="qn_goal_resale">Sell it for more</string>
 
+    <!-- Workshop question. The descriptions carry the weight: an owner places themselves by
+         the example far more reliably than by the phrase. -->
+    <string name="qn_workshop_title">Where do you get your car serviced?</string>
+    <string name="qn_workshop_subtitle">Company centres and local garages charge different rates. This is what makes the comparison honest.</string>
+    <string name="qn_workshop_authorised">Company service centre</string>
+    <string name="qn_workshop_authorised_desc">Maruti Arena, Hyundai, Tata — authorised</string>
+    <string name="qn_workshop_local">Local garage</string>
+    <string name="qn_workshop_local_desc">Neighbourhood mechanic or multi-brand</string>
+    <string name="qn_workshop_both">Both / not sure</string>
+    <string name="qn_workshop_both_desc">We’ll show the range between the two</string>
+
 
     <!-- Screen chrome. -->
     <string name="qn_screen_title">A few questions</string>
@@ -20,6 +31,9 @@
     <string name="onb_cd_back">Back</string>
     <string name="onb_cd_close">Close</string>
     <string name="onb_step_counter">%1$d / %2$d</string>
+    <!-- The position, stated in the body above the question rather than beside the bar. -->
+    <string name="onb_step_eyebrow">STEP %1$d OF %2$d</string>
+    <string name="onb_step_eyebrow_skippable">STEP %1$d OF %2$d · SKIPPABLE</string>
     <string name="onb_continue">Continue</string>
     <string name="onb_skip">Skip</string>
     <string name="onb_choose">Choose</string>
@@ -106,12 +120,30 @@
     <string name="onb_goal_healthy">Keep the car healthy</string>
     <string name="onb_goal_resale">Sell it for more</string>
     <string name="onb_cd_goal_selected">Selected</string>
-    <string name="onb_scan_title">Find out if you overpaid last time</string>
-    <string name="onb_scan_subtitle">Most bills have something worth checking — and it takes 10 seconds.</string>
-    <string name="onb_scan_permission">Camera access is only used for scanning bills.</string>
-    <string name="onb_scan_cta">Check my last bill</string>
     <string name="onb_save_error">Couldn’t save that on your phone. Please try again.</string>
-    <string name="onb_scan_later">I’ll do this later</string>
     <string name="onb_video_cd_page">Page %1$d of %2$d</string>
+
+    <!-- Step 3 — where the car is serviced. The question itself comes from the registry
+         (qn_workshop_*); only the step's own chrome is here. -->
+    <string name="onb_cd_workshop_selected">Selected</string>
+
+    <!-- Step 4 — the last service. Skippable, and "don't remember" is a real answer rather
+         than an empty form. -->
+    <string name="onb_last_title">When was your last service?</string>
+    <string name="onb_last_subtitle">Don’t remember? We’ll estimate from the year and odometer, and keep the range wider.</string>
+    <string name="onb_last_date_label">DATE</string>
+    <string name="onb_last_date_placeholder">Pick a month</string>
+    <string name="onb_last_odometer_label">ODOMETER THEN</string>
+    <string name="onb_last_odometer_hint">Tap to set</string>
+    <string name="onb_last_odometer_sheet_title">Odometer at that service</string>
+    <string name="onb_last_odometer_sheet_subtitle">Roughly is fine. It only has to be lower than today’s reading.</string>
+    <string name="onb_last_forgot">Don’t remember</string>
+    <!-- Two halves of one paragraph; the second is set bold, so it is its own resource
+         rather than markup a string resource cannot carry. -->
+    <string name="onb_last_bill_prompt">Got the last service bill? It’s usually in the glovebox or on WhatsApp. </string>
+    <string name="onb_last_bill_prompt_emphasis">One photo and your record starts today.</string>
+    <string name="onb_last_bill_cta">Photograph the old bill</string>
+    <string name="onb_last_odometer_error">That reading is higher than the car’s current one.</string>
+    <string name="onb_last_date_error">Pick a date in the past.</string>
 
 </resources>
