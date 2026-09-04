@@ -32,8 +32,9 @@ import kotlinx.coroutines.flow.first
  * 1. **It said something.** A read that could not name a single line is not a result, and
  *    takes nothing — which is what the offers sheet promises ("if a check fails the credit
  *    comes back"), delivered by never taking it rather than by refunding.
- * 2. **The owner can see it.** The screen masks a result the owner has not paid for, and
- *    charging for a masked screen takes money for nothing shown.
+ * 2. **The owner can see it.** A result the owner has not paid for is masked, and charging
+ *    for a masked screen takes money for nothing shown. A bill already paid for stays open
+ *    however the allowance stands later — they bought this reading of this bill.
  * 3. **This bill has not been paid for already.** The screen re-reads on every visit — a
  *    fresh ViewModel per navigation — so without the ledger a second look charged a second
  *    check and filed the same prices into the shared pool again.
@@ -54,7 +55,7 @@ internal class LoggedBillCheckReader(
     private val unlocked: suspend () -> Boolean,
 ) : BillCheckReader {
 
-    override suspend fun read(billId: String): Either<DomainError, BillCheck> {
+    override suspend fun read(billId: String): Either<DomainError, BillCheckResult> {
         val entry = entries.observe(ServiceLogId(billId)).first()
             ?: return DomainError.ServiceLogNotFound.left()
         // The bill's own car, not whichever is active. The active one is a flow that is null
@@ -84,17 +85,21 @@ internal class LoggedBillCheckReader(
                 .filter { it.id != entry.id && it.serviceDate < entry.serviceDate },
         )
 
-        // Charged here rather than by the screen: what the check found is what decides
-        // whether it was one, and only this layer knows. The ledger's insert is what makes a
-        // second visit free — it answers true exactly once per bill.
-        if (result.check.saidSomething && unlocked() && ledger.claim(billId)) {
+        // A bill already paid for stays open, whatever the allowance says today. Asked here
+        // and not by the screen, so the answer that decides the charge is the same one that
+        // decides the masking — they used to be two, and disagreed in both directions.
+        val locked = !(ledger.wasChecked(billId) || unlocked())
+
+        // The ledger's insert is what makes a second visit free: it answers true exactly once
+        // per bill, so a re-read charges nothing and files nothing twice.
+        if (result.check.saidSomething && !locked && ledger.claim(billId)) {
             charger.chargeOne()
             // After the answer, never before it. The owner is not waiting on this, and the
             // server refuses it outright unless they have agreed to share prices.
             contributor.contribute(result.observations)
         }
 
-        return result.check.right()
+        return BillCheckResult(check = result.check, locked = locked).right()
     }
 
     /**

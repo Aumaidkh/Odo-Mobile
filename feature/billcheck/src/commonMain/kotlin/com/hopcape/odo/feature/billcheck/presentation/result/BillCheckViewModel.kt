@@ -32,12 +32,6 @@ import kotlinx.coroutines.launch
 internal class BillCheckViewModel(
     private val billId: String,
     private val reader: BillCheckReader,
-    /**
-     * Whether the owner has a check to spend — free or bought. Suspend and asked per read,
-     * not held: a purchase made from the sheet this screen opens has to change the answer
-     * without the screen being rebuilt.
-     */
-    private val unlocked: suspend () -> Boolean,
     private val telemetry: BillCheckTelemetry,
 ) : ViewModel() {
 
@@ -82,7 +76,7 @@ internal class BillCheckViewModel(
 
             result.fold(
                 ifLeft = { failed(it) },
-                ifRight = { show(it, locked = !unlocked()) },
+                ifRight = { show(it.check, locked = it.locked) },
             )
         }
     }
@@ -100,24 +94,17 @@ internal class BillCheckViewModel(
     }
 
     /**
-     * Ask again whether the owner may see the findings, without re-reading the bill.
+     * Read again, because a check may have been bought on the sheet over this screen.
      *
-     * Only ever unmasks. A check spent elsewhere while this screen sat behind a sheet must
-     * not take back an answer already on screen — the owner paid for this reading of this
-     * bill, not for a subscription to it.
+     * A re-read rather than flipping the flag. Flipping it unmasked the findings without the
+     * reader ever running, so the check the owner had just paid for was never spent and its
+     * prices never reached the pool. Re-reading is free and safe: the ledger charges once per
+     * bill, and a bill already paid for stays unlocked.
      */
     private fun refreshLock() {
         val ready = _state.value.content as? BillCheckUiState.Content.Ready ?: return
         if (!ready.locked) return
-        viewModelScope.launch(telemetry.op(OP_LOCK)) {
-            if (!unlocked()) return@launch
-            telemetry.resultShown(
-                flagged = ready.check.flagged.size,
-                lines = ready.check.lineCount,
-                locked = false,
-            )
-            _state.update { it.copy(content = ready.copy(locked = false)) }
-        }
+        read()
     }
 
     private fun failed(error: DomainError) {
@@ -163,6 +150,5 @@ internal class BillCheckViewModel(
 
     private companion object {
         const val OP_READ = "read"
-        const val OP_LOCK = "lock"
     }
 }

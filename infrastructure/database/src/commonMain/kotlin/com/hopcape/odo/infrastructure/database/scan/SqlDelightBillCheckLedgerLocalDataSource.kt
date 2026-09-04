@@ -23,4 +23,7 @@ internal class SqlDelightBillCheckLedgerLocalDataSource(
             )
             database.checkedBillQueries.claimedRows().executeAsOne() == 1L
         }
+
+    override suspend fun wasChecked(billId: String): Boolean =
+        database.checkedBillQueries.wasChecked(billId).executeAsOne()
 }

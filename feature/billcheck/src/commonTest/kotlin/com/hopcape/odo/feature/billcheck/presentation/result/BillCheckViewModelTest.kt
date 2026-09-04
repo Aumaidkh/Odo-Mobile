@@ -12,6 +12,7 @@ import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.billcheck.domain.BillCheckFixtures
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
+import com.hopcape.odo.feature.billcheck.domain.BillCheckResult
 import com.hopcape.odo.feature.billcheck.presentation.BillCheckTelemetry
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
@@ -73,7 +74,7 @@ class BillCheckViewModelTest {
     @Test
     fun aCheckBoughtOnTheSheetUnmasksTheResult() = runTest(dispatcher) {
         var hasCheck = false
-        val viewModel = viewModel(unlocked = { hasCheck })
+        val viewModel = viewModel(reader = { result(locked = !hasCheck).right() })
         advanceUntilIdle()
         assertTrue((viewModel.state.value.content as BillCheckUiState.Content.Ready).locked)
 
@@ -85,16 +86,45 @@ class BillCheckViewModelTest {
     }
 
     /**
+     * Resuming re-reads rather than flipping a flag. Flipping it unmasked the findings
+     * without the reader running, so the check the owner had just bought was never spent.
+     */
+    @Test
+    fun resumingOnAMaskedResultReadsAgain() = runTest(dispatcher) {
+        var reads = 0
+        val viewModel = viewModel(reader = { reads++; result(locked = true).right() })
+        advanceUntilIdle()
+
+        viewModel.onEvent(BillCheckEvent.Resumed)
+        advanceUntilIdle()
+
+        assertEquals(2, reads)
+    }
+
+    /** An answer already on screen is not re-read, so it cannot be taken back. */
+    @Test
+    fun resumingOnAnUnmaskedResultDoesNothing() = runTest(dispatcher) {
+        var reads = 0
+        val viewModel = viewModel(reader = { reads++; result(locked = false).right() })
+        advanceUntilIdle()
+
+        viewModel.onEvent(BillCheckEvent.Resumed)
+        advanceUntilIdle()
+
+        assertEquals(1, reads)
+    }
+
+    /**
      * Only ever unmasks. A check spent elsewhere while this screen sat behind a sheet must not
      * take back an answer already on screen — the owner paid for this reading of this bill.
      */
     @Test
     fun anAnswerAlreadyGivenIsNeverTakenBack() = runTest(dispatcher) {
-        var hasCheck = true
-        val viewModel = viewModel(unlocked = { hasCheck })
+        var locked = false
+        val viewModel = viewModel(reader = { result(locked = locked).right() })
         advanceUntilIdle()
 
-        hasCheck = false
+        locked = true
         viewModel.onEvent(BillCheckEvent.Resumed)
         advanceUntilIdle()
 
@@ -129,20 +159,19 @@ class BillCheckViewModelTest {
 
     /* ------------------------------ Fixtures ------------------------------ */
 
-    private fun viewModel(
-        reader: BillCheckReader = BillCheckReader { BillCheckFixtures.monthSix.right() },
-        unlocked: Boolean,
-    ) = viewModel(reader = reader, unlocked = { unlocked })
+    private fun viewModel(unlocked: Boolean) =
+        viewModel(reader = { result(locked = !unlocked).right() })
 
     private fun viewModel(
-        reader: BillCheckReader = BillCheckReader { BillCheckFixtures.monthSix.right() },
-        unlocked: suspend () -> Boolean = { true },
+        reader: BillCheckReader = BillCheckReader { result(locked = false).right() },
     ) = BillCheckViewModel(
         billId = "bill-1",
         reader = reader,
-        unlocked = unlocked,
         telemetry = BillCheckTelemetry(NoopLogger, NoopAnalytics, NoopTracer, FixedIds),
     )
+
+    private fun result(locked: Boolean) =
+        BillCheckResult(check = BillCheckFixtures.monthSix, locked = locked)
 
     private object FixedIds : IdGenerator {
         override fun newId(): String = "id"

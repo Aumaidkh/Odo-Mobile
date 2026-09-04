@@ -14,8 +14,17 @@ import com.hopcape.odo.core.domain.shared.DomainError
 internal fun interface BillCheckReader {
 
     /** Read the bill behind [billId]. */
-    suspend fun read(billId: String): Either<DomainError, BillCheck>
+    suspend fun read(billId: String): Either<DomainError, BillCheckResult>
 }
+
+/**
+ * The check, and whether the owner may see it.
+ *
+ * Both come from the reader because they are one decision. They used to be two — the reader
+ * charged and the screen decided what to mask — and the two disagreed in both directions: a
+ * masked result was charged for, and a result unmasked after a purchase never was.
+ */
+internal data class BillCheckResult(val check: BillCheck, val locked: Boolean)
 
 /**
  * Where one line's band came from.
