@@ -164,6 +164,8 @@ class OdoDestinationSerializationTest {
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue,
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
+        OdoDestination.BillCheck.Result(billId = "bill-1"),
+        OdoDestination.BillCheck.Basis(billId = "bill-1", lineName = "AC service"),
     )
 
     @Test

@@ -465,6 +465,29 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
+     * The bill check. A sealed group: the [Result] screen plus the [Basis] sheet that
+     * explains where one line's band came from.
+     */
+    @Serializable
+    sealed interface BillCheck : OdoDestination {
+
+        /** What on this bill is worth asking about. [billId] is the scanned bill. */
+        @Serializable
+        data class Result(val billId: String) : BillCheck
+
+        /**
+         * "How we know" — the inputs behind one line's band, as a bottom sheet (its entry is
+         * tagged with [ModalBottomSheetSceneStrategy] metadata).
+         *
+         * A sheet rather than a screen because it is an aside from the finding: the owner is
+         * checking whether to trust one number and then going back to the bill they were
+         * reading. [lineName] is the bill's own wording, which is what the check keyed on.
+         */
+        @Serializable
+        data class Basis(val billId: String, val lineName: String) : BillCheck
+    }
+
+    /**
      * Pro paywall. A sealed group: the [Plans] screen plus the [OneTimeOffers] sheet, for
      * someone who wants one thing rather than a plan.
      */

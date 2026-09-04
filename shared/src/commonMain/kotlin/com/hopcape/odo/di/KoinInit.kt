@@ -18,6 +18,7 @@ import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
 import com.hopcape.odo.feature.advisory.advisoryModule
+import com.hopcape.odo.feature.billcheck.billCheckModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
@@ -155,6 +156,10 @@ fun initKoin(
         // After coreDataModule, whose repositories its estimate reads. It registers one
         // destination and nothing else replaces anything, so the position is not load-bearing.
         advisoryModule,
+        // After coreDataModule, whose ScanAllowance decides whether the answer is shown.
+        // It registers two destinations and replaces nothing, so the position is not
+        // load-bearing.
+        billCheckModule,
         platformModule,
         challanModule
     )
