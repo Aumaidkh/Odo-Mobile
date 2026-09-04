@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 
 /**
@@ -26,4 +27,8 @@ internal class UnconfiguredOneTimePurchaser : OneTimePurchaser {
      */
     override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
         emptyMap<String, String>().right()
+
+    /** No store, so nothing was ever bought — and nothing to claim on the next launch. */
+    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+        emptyList<CompletedPurchase>().right()
 }

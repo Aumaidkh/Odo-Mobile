@@ -38,7 +38,7 @@ val paywallModule = module {
         OneTimeOffersViewModel(
             context = context,
             purchaser = get(),
-            credits = get(),
+            reconciler = get(),
             telemetry = get(),
         )
     }

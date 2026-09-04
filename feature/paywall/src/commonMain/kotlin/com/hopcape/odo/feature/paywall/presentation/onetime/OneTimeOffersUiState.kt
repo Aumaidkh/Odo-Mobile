@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.paywall.presentation.onetime
 
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.subscription.OneTimeGrant
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import org.jetbrains.compose.resources.StringResource
@@ -26,36 +27,28 @@ internal enum class OneTimeOffer(
     val productId: String,
     val title: StringResource,
     val subtitle: StringResource,
-    /** Bill checks this grants once bought. Zero for anything that is not a check. */
-    val scanCredits: Int = 0,
+    /** What buying it awards. The mapping itself lives in the domain, stated once. */
+    val grant: OneTimeGrant,
 ) {
     BILL_CHECK_SINGLE(
         productId = OneTimeProducts.BILL_CHECK_SINGLE,
         title = Res.string.pw_ot_bill_check_single_title,
         subtitle = Res.string.pw_ot_bill_check_single_subtitle,
-        scanCredits = 1,
+        grant = OneTimeGrant.BILL_CHECK_SINGLE,
     ),
     BILL_CHECK_PACK(
         productId = OneTimeProducts.BILL_CHECK_PACK,
         title = Res.string.pw_ot_bill_check_pack_title,
         subtitle = Res.string.pw_ot_bill_check_pack_subtitle,
-        scanCredits = 3,
+        grant = OneTimeGrant.BILL_CHECK_PACK,
     ),
 
-    /**
-     * The record PDF. Its balance is credited where it is spent — the share sheet has sold
-     * and granted this since #246 — so buying it here is not wired yet, and the sheet says
-     * so rather than taking money it cannot honour.
-     */
     RECORD_EXPORT(
         productId = OneTimeProducts.RECORD_EXPORT,
         title = Res.string.pw_ot_export_title,
         subtitle = Res.string.pw_ot_export_subtitle,
+        grant = OneTimeGrant.RECORD_EXPORT,
     ),
-    ;
-
-    /** Whether this sheet can complete the purchase and grant what it sold. */
-    val purchasable: Boolean get() = scanCredits > 0
 }
 
 /**

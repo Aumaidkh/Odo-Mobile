@@ -65,12 +65,13 @@ internal enum class OneTimeContext(
         /**
          * The sheet framing that matches a paywall framing.
          *
-         * Only the scan wall maps to something narrower: every other trigger sends someone
-         * who was reading about the plan in general, and hiding two of three products from
-         * them would be guessing.
+         * Only the two walls map to something narrower — the scan one and the export one.
+         * Every other trigger sends someone who was reading about the plan in general, and
+         * hiding two of three products from them would be guessing.
          */
         fun forTrigger(trigger: PaywallTrigger): OneTimeContext = when (trigger) {
             PaywallTrigger.SCANS_EXHAUSTED -> BILL_CHECK
+            PaywallTrigger.RECORD_EXPORT -> EXPORT
             PaywallTrigger.GENERIC, PaywallTrigger.SAVINGS, PaywallTrigger.SMART_REFUEL -> GENERIC
         }
 

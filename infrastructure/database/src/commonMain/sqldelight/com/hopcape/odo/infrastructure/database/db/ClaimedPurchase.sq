@@ -1,0 +1,28 @@
+-- One-time purchases this device has already credited.
+--
+-- The store reports a completed purchase every time it is asked — every launch, every
+-- customer-info refresh — so without a record of what has been honoured, a pack of three
+-- would be granted again on each one. The transaction id is the store's own, which is what
+-- makes two purchases of the same pack two rows rather than one.
+--
+-- **Deliberately not a syncable table**, like the balances it guards. The balances are
+-- device-local, so the ledger has to be too: a row synced from another phone would say a
+-- purchase was honoured on a device where the credits never landed.
+--
+-- What that costs, stated plainly: a reinstall clears it, and the store's purchases are then
+-- claimed again onto an empty balance. That is the right way round — the owner gets back
+-- what they paid for rather than losing it.
+CREATE TABLE claimed_purchases (
+    transaction_id TEXT NOT NULL PRIMARY KEY,
+    claimed_at     TEXT NOT NULL
+);
+
+-- INSERT OR IGNORE, so the insert itself decides who claims it. Two callers racing both run
+-- this and `changes()` tells only one of them it won — no read-then-write in between.
+claimPurchase:
+INSERT OR IGNORE INTO claimed_purchases (transaction_id, claimed_at)
+VALUES (:transactionId, :claimedAt);
+
+-- Rows written by the statement above, in the same connection. 1 means this call claimed it.
+claimedRows:
+SELECT changes();

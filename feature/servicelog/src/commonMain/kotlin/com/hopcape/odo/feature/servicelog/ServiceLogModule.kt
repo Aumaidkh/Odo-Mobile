@@ -147,6 +147,7 @@ val serviceLogModule = module {
             exportUsage = get(),
             exportCredits = get(),
             oneTimePurchaser = get(),
+            reconciler = get(),
             documents = get(),
             bills = get(),
             files = get(),
