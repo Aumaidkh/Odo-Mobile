@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billcheck.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -17,6 +18,7 @@ import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisEffect
 import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisSheetContent
 import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisViewModel
 import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckEffect
+import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckEvent
 import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckScreen
 import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -68,6 +70,13 @@ private fun ResultRoute(
                 OdoDestination.BillScanner.Capture(),
             )
         }
+    }
+
+    // The offers sheet opens over this screen, so a check bought on it leaves the findings
+    // behind it masked until something asks again. Resuming is that ask.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onEvent(BillCheckEvent.Resumed)
+        onPauseOrDispose {}
     }
 
     BillCheckScreen(state = state, onEvent = viewModel::onEvent)
