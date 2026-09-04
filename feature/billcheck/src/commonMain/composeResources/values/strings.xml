@@ -40,6 +40,8 @@
     <!-- The question to put to the advisor. The whole feature exists to produce this. -->
     <string name="bc_ask_label">ASK</string>
     <string name="bc_ask_quote">“%1$s”</string>
+    <string name="bc_ask_repeat">This was done %1$s — why again?</string>
+    <string name="bc_ask_schedule">Why is this needed now?</string>
 
     <string name="bc_share">Share</string>
     <string name="bc_how_we_know">How we know</string>

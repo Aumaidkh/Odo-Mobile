@@ -81,6 +81,11 @@ class BillCheckTest {
         assertTrue(overpriced.amountIsTheClaim)
         assertTrue(repeat.amountIsTheClaim)
         assertFalse(schedule.amountIsTheClaim, "the app is not claiming this price is wrong")
+
+        // And the mirror of it: a rate claim needs no question, the other two are questions.
+        assertFalse(overpriced.isQuestion, "the band beside it is already the argument")
+        assertTrue(repeat.isQuestion)
+        assertTrue(schedule.isQuestion)
     }
 
     /** The dots are the ranking, so they have to be ordered and distinct. */
@@ -111,7 +116,6 @@ class BillCheckTest {
         amount = rupees(rupees),
         reason = reason,
         evidence = Evidence.CityRates,
-        ask = null,
     )
 
     private fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
