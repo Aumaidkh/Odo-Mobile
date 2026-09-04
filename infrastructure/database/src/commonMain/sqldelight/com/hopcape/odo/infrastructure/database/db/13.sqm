@@ -1,0 +1,8 @@
+-- Schema 13 -> 14: `scan_credits`, the bill checks bought one at a time.
+--
+-- A new table, so there is nothing to migrate. An install that has never bought one reads
+-- zero from the absent row, exactly as a fresh install does.
+CREATE TABLE scan_credits (
+    id        INTEGER NOT NULL PRIMARY KEY,
+    remaining INTEGER NOT NULL
+);

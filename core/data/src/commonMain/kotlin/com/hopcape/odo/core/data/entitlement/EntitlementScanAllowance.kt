@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.entitlement.ProFeature
 import com.hopcape.odo.core.domain.entitlement.Quota
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanLimit
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import kotlinx.coroutines.flow.first
 
@@ -21,12 +22,19 @@ import kotlinx.coroutines.flow.first
 internal class EntitlementScanAllowance(
     private val entitlements: EntitlementSource,
     private val usage: ScanUsage,
+    private val credits: ScanCredits,
 ) : ScanAllowance {
 
     override suspend fun current(): ScanLimit =
         when (val quota = entitlements.observe().first().quotaFor(ProFeature.BILL_SCANS)) {
             Quota.Unlimited -> ScanLimit.Unlimited
-            is Quota.UpTo -> ScanLimit.UpTo(max = quota.max, used = usage.used())
+            // Bought checks ride alongside the free cap rather than raising it: an owner who
+            // paid for three should see three they paid for, not a cap that quietly grew.
+            is Quota.UpTo -> ScanLimit.UpTo(
+                max = quota.max,
+                used = usage.used(),
+                bought = credits.available(),
+            )
             // No plan refuses scanning outright today. If one ever does, a cap of zero says so
             // through the same type the callers already read.
             Quota.None -> ScanLimit.UpTo(max = 0, used = 0)

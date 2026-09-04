@@ -13,6 +13,7 @@ import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
+import com.hopcape.odo.core.data.scan.ScanCreditsLocalDataSource
 import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
@@ -87,6 +88,7 @@ import com.hopcape.odo.infrastructure.database.reminder.SqlDelightReminderLocalD
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncTable
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncable
 import com.hopcape.odo.infrastructure.database.servicelog.SqlDelightServiceLogLocalDataSource
+import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanCreditsLocalDataSource
 import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.record.SqlDelightExportCreditsLocalDataSource
 import com.hopcape.odo.infrastructure.database.record.SqlDelightRecordExportUsageLocalDataSource
@@ -175,6 +177,7 @@ val databaseInfrastructureModule = module {
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
     single<RecordExportUsageLocalDataSource> { SqlDelightRecordExportUsageLocalDataSource(database = get()) }
     single<ExportCreditsLocalDataSource> { SqlDelightExportCreditsLocalDataSource(database = get()) }
+    single<ScanCreditsLocalDataSource> { SqlDelightScanCreditsLocalDataSource(database = get()) }
 
     // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
     // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no

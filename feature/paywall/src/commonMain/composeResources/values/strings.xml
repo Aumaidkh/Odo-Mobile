@@ -94,4 +94,6 @@
     <string name="pw_ot_empty">Nothing is on sale one at a time just yet.</string>
     <string name="pw_ot_error">Couldn’t reach the store. Check your connection and try again.</string>
     <string name="pw_ot_close">Close</string>
+    <string name="pw_ot_purchase_failed">That payment didn’t go through. You haven’t been charged.</string>
+    <string name="pw_ot_not_yet">Not on sale here yet — buy it from the share sheet.</string>
 </resources>

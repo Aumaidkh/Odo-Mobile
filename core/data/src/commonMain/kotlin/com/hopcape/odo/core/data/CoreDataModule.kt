@@ -23,6 +23,8 @@ import com.hopcape.odo.core.domain.entitlement.OverridableEntitlementSource
 import com.hopcape.odo.core.data.entitlement.FakeEntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
+import com.hopcape.odo.core.data.scan.AllowanceScanCharger
+import com.hopcape.odo.core.data.scan.LocalScanCredits
 import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
 import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
@@ -31,6 +33,8 @@ import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
@@ -278,13 +282,22 @@ val coreDataModule = module {
     single<SubscriptionIdentity> { NoopSubscriptionIdentity() }
 
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
-    single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
+    single<ScanAllowance> {
+        EntitlementScanAllowance(entitlements = get(), usage = get(), credits = get())
+    }
     single<RecordExportUsage> { LocalRecordExportUsage(local = get(), clock = get()) }
     // Bought-and-unspent one-off exports (#246), beside the tally they are spent against.
     single<ExportCredits> { LocalExportCredits(local = get()) }
     // The tally the cap is measured against. Device-local: nothing counts a scan but the
     // phone that ran it.
     single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }
+
+    single<ScanCredits> { LocalScanCredits(local = get()) }
+
+    // Free scans first, bought ones after — the one place that rule lives.
+    single<ScanCharger> {
+        AllowanceScanCharger(allowance = get(), usage = get(), credits = get())
+    }
 
     // Extraction has no implementation yet, so both ports refuse and say why. A stub that
     // invented a bill would put made-up amounts into someone's service history, which is the

@@ -85,7 +85,16 @@ internal fun OneTimeOffersSheetContent(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
                     offers.value.forEach { card ->
-                        OfferRow(card) { onEvent(OneTimeOffersEvent.OfferTapped(card.offer.productId)) }
+                        OfferRow(card, enabled = !state.purchasing) {
+                            onEvent(OneTimeOffersEvent.OfferTapped(card.offer.productId))
+                        }
+                    }
+                    state.notice?.let { notice ->
+                        OdoText(
+                            text = notice.asString(),
+                            style = OdoTheme.typography.bodySmall,
+                            color = OdoTheme.colors.danger,
+                        )
                     }
                     state.context.footer?.let { footer ->
                         OdoText(
@@ -117,11 +126,11 @@ internal fun OneTimeOffersSheetContent(
  * a radio or a checkbox, which is the wrong thing to say about a purchase.
  */
 @Composable
-private fun OfferRow(card: OneTimeOfferCard, onClick: () -> Unit) {
+private fun OfferRow(card: OneTimeOfferCard, enabled: Boolean, onClick: () -> Unit) {
     val colors = OdoTheme.colors
     val onCard = if (card.recommended) colors.onAccent else colors.text
     OdoCard(
-        onClick = onClick,
+        onClick = { if (enabled) onClick() },
         color = if (card.recommended) colors.accent else colors.surface,
         border = if (card.recommended) null else BorderStroke(1.dp, colors.border),
         modifier = Modifier.semantics { role = Role.Button },

@@ -92,4 +92,16 @@ val paywallAnalyticsEvents: List<EventSchema> = listOf(
         PaywallTelemetry.Event.ONE_TIME_TAPPED,
         mapOf(PaywallTelemetry.Key.PRODUCT to PropertyType.STRING),
     ),
+    EventSchema(
+        PaywallTelemetry.Event.ONE_TIME_PURCHASED,
+        mapOf(PaywallTelemetry.Key.PRODUCT to PropertyType.STRING),
+    ),
+    EventSchema(
+        PaywallTelemetry.Event.ONE_TIME_CANCELLED,
+        mapOf(PaywallTelemetry.Key.PRODUCT to PropertyType.STRING),
+    ),
+    EventSchema(
+        PaywallTelemetry.Event.ONE_TIME_FAILED,
+        mapOf(PaywallTelemetry.Key.PRODUCT to PropertyType.STRING),
+    ),
 )

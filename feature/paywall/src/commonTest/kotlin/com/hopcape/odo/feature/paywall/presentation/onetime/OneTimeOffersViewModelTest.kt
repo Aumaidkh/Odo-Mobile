@@ -10,6 +10,7 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
@@ -28,6 +29,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -180,13 +183,9 @@ class OneTimeOffersViewModelTest {
         assertEquals(3, viewModel.state.value.offers.valueOrNull?.size)
     }
 
-    /**
-     * Nothing is bought yet — the purchase path and the balances it would credit are the next
-     * slice. A tap is the only signal there is that anyone wants one of these, so it is
-     * reported and nothing else happens.
-     */
+    /** A pack of three buys three checks, and the balance is what says so. */
     @Test
-    fun tappingAnOffer_reportsItAndBuysNothing() = runTest(dispatcher) {
+    fun buyingAPack_creditsWhatItSold() = runTest(dispatcher) {
         val purchaser = FakePurchaser(ALL_PRICED)
         val viewModel = viewModel(purchaser)
         advanceUntilIdle()
@@ -194,11 +193,65 @@ class OneTimeOffersViewModelTest {
         viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
         advanceUntilIdle()
 
-        assertEquals(
-            OneTimeProducts.BILL_CHECK_PACK,
-            tracked.propertyOf(PaywallTelemetry.Event.ONE_TIME_TAPPED, PaywallTelemetry.Key.PRODUCT),
-        )
-        assertTrue(purchaser.purchased.isEmpty(), "nothing may be charged for until credits exist")
+        assertEquals(listOf(OneTimeProducts.BILL_CHECK_PACK), purchaser.purchased)
+        assertEquals(3, credits.granted)
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_PURCHASED))
+    }
+
+    @Test
+    fun buyingASingle_creditsOne() = runTest(dispatcher) {
+        val viewModel = viewModel(FakePurchaser(ALL_PRICED))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_SINGLE))
+        advanceUntilIdle()
+
+        assertEquals(1, credits.granted)
+    }
+
+    /**
+     * The export sells and credits itself from the share sheet. Charging for it here would
+     * take money for a balance this screen cannot raise.
+     */
+    @Test
+    fun theExportIsNotChargedForHere() = runTest(dispatcher) {
+        val purchaser = FakePurchaser(ALL_PRICED)
+        val viewModel = viewModel(purchaser)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.RECORD_EXPORT))
+        advanceUntilIdle()
+
+        assertTrue(purchaser.purchased.isEmpty())
+        assertEquals(0, credits.granted)
+        assertNotNull(viewModel.state.value.notice)
+    }
+
+    /** Backing out is a decision, not a fault. It must not put an error on screen. */
+    @Test
+    fun backingOutOfTheStore_saysNothingAndCreditsNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingPurchaser(DomainError.PaymentCancelled))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.notice)
+        assertEquals(0, credits.granted)
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_CANCELLED))
+    }
+
+    @Test
+    fun aRefusedPayment_saysSoAndCreditsNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingPurchaser(DomainError.PaymentFailed))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.state.value.notice)
+        assertEquals(0, credits.granted)
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_FAILED))
     }
 
     @Test
@@ -213,14 +266,26 @@ class OneTimeOffersViewModelTest {
 
     /* ------------------------------ Fixtures ------------------------------ */
 
+    private val credits = RecordingCredits()
+
     private fun viewModel(
         purchaser: OneTimePurchaser,
         context: OneTimeContext = OneTimeContext.GENERIC,
     ) = OneTimeOffersViewModel(
         context = context,
         purchaser = purchaser,
+        credits = credits,
         telemetry = PaywallTelemetry(logger = NoopLogger, analytics = tracked, ids = { "id" }),
     )
+
+    private class RecordingCredits : ScanCredits {
+        var granted = 0
+            private set
+
+        override suspend fun available(): Int = granted
+        override suspend fun grant(count: Int) { granted += count }
+        override suspend fun spend(): Boolean = if (granted > 0) { granted--; true } else false
+    }
 
     private open class FakePurchaser(private val prices: Map<String, String>) : OneTimePurchaser {
         val purchased = mutableListOf<String>()
@@ -250,6 +315,13 @@ class OneTimeOffersViewModelTest {
     }
 
     /** A purchaser that throws outright — the unconfigured-SDK case, not a store error. */
+    private class RefusingPurchaser(private val error: DomainError) : OneTimePurchaser {
+        override suspend fun purchase(productId: String): Either<DomainError, Unit> = error.left()
+
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            ALL_PRICED.filterKeys { it in productIds }.right()
+    }
+
     private object ThrowingPurchaser : OneTimePurchaser {
         override suspend fun purchase(productId: String): Either<DomainError, Unit> =
             error("not called")
