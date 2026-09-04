@@ -9,6 +9,7 @@ internal sealed interface OneTimeOffersEvent {
     /** The store could not be read and the owner asked again. */
     data object RetryTapped : OneTimeOffersEvent
 
+    /** The sheet's own text button. Only some contexts draw one — see [OneTimeContext.close]. */
     data object CloseTapped : OneTimeOffersEvent
 }
 

@@ -1,6 +1,8 @@
 package com.hopcape.odo
 
 import android.graphics.Bitmap
+import android.os.SystemClock
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 
@@ -25,10 +27,15 @@ internal object Screenshots {
         File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
     }
 
-    /** Capture the screen as `<name>.png`, replacing any earlier take. */
+    /**
+     * Capture the screen as `<name>.png`, replacing any earlier take.
+     *
+     * Prefer [captureScreen], which waits for Compose first. This one only waits for the main
+     * thread to go quiet, which a running sheet animation does not count as — a sheet caught
+     * mid-slide photographs the screen behind it.
+     */
     fun capture(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        // Let the frame settle: a sheet that is still animating photographs half-open.
         instrumentation.waitForIdleSync()
         val bitmap: Bitmap = instrumentation.uiAutomation.takeScreenshot()
             ?: error("the device returned no screenshot for '$name'")
@@ -41,3 +48,18 @@ internal object Screenshots {
     /** PNG is lossless, so this is ignored — passed because the API requires it. */
     private const val QUALITY = 100
 }
+
+/**
+ * Wait for the screen to stop moving, then capture it as `<name>.png`.
+ *
+ * `waitForIdle` covers the Compose animation — a bottom sheet's slide in particular, which
+ * finding its text does not mean has finished. The settle after it covers the window's own
+ * scrim fade, which Compose does not know about and no idling resource reports.
+ */
+internal fun ComposeTestRule.captureScreen(name: String) {
+    waitForIdle()
+    SystemClock.sleep(SETTLE_MILLIS)
+    Screenshots.capture(name)
+}
+
+private const val SETTLE_MILLIS = 400L

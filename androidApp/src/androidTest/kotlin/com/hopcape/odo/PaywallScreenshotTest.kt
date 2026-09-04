@@ -48,11 +48,11 @@ class PaywallScreenshotTest {
         rule.openProfile()
         rule.goPro()
         rule.awaitText(PaywallCopy.HEADLINE)
-        Screenshots.capture("paywall")
+        rule.captureScreen("paywall")
 
         rule.openOneTimeOffers()
         rule.awaitText(PaywallCopy.ONE_TIME_TITLE)
-        Screenshots.capture("one-time-offers-sheet")
+        rule.captureScreen("one-time-offers-sheet")
     }
 
     /**
@@ -75,7 +75,7 @@ class PaywallScreenshotTest {
                 .navigateTo(OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"))
         }
         rule.awaitText(PaywallCopy.ONE_TIME_BILL_TITLE)
-        Screenshots.capture("one-time-offers-bill-check")
+        rule.captureScreen("one-time-offers-bill-check")
     }
 
     /**
@@ -93,6 +93,6 @@ class PaywallScreenshotTest {
 
         rule.openOneTimeOffers()
         rule.awaitText(PaywallCopy.ONE_TIME_EMPTY)
-        Screenshots.capture("one-time-offers-empty")
+        rule.captureScreen("one-time-offers-empty")
     }
 }

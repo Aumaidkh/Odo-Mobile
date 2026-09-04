@@ -29,7 +29,6 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
-import com.hopcape.odo.feature.paywall.resources.pw_ot_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_empty
 import com.hopcape.odo.feature.paywall.resources.pw_retry
 import org.jetbrains.compose.resources.stringResource
@@ -107,14 +106,18 @@ internal fun OneTimeOffersSheetContent(
             }
         }
 
-        // The sheet's own way out, like every other sheet in the app. The scrim and the back
-        // gesture both close it too; a button is what makes that discoverable.
-        OdoButton(
-            text = stringResource(Res.string.pw_ot_close),
-            onClick = { onEvent(OneTimeOffersEvent.CloseTapped) },
-            modifier = Modifier.fillMaxWidth(),
-            variant = OdoButtonVariant.Secondary,
-        )
+        // Only where the context asks for one. Text, not a filled button: the scrim and the
+        // back gesture already close the sheet, so this is a way out made visible rather than
+        // an action competing with the offers above it.
+        state.context.close?.let { close ->
+            OdoButton(
+                text = stringResource(close),
+                onClick = { onEvent(OneTimeOffersEvent.CloseTapped) },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                variant = OdoButtonVariant.Tertiary,
+            )
+        }
+
     }
 }
 
@@ -131,7 +134,9 @@ private fun OfferRow(card: OneTimeOfferCard, enabled: Boolean, onClick: () -> Un
     val onCard = if (card.recommended) colors.onAccent else colors.text
     OdoCard(
         onClick = { if (enabled) onClick() },
-        color = if (card.recommended) colors.accent else colors.surface,
+        // surfaceRaised, not surface: the sheet's own container is already surface, and a
+        // card the same colour as what it sits on is a card nobody can see.
+        color = if (card.recommended) colors.accent else colors.surfaceRaised,
         border = if (card.recommended) null else BorderStroke(1.dp, colors.border),
         modifier = Modifier.semantics { role = Role.Button },
     ) {
