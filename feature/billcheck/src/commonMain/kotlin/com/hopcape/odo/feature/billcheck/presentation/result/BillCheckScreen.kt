@@ -60,7 +60,7 @@ import com.hopcape.odo.feature.billcheck.resources.bc_ask_repeat
 import com.hopcape.odo.feature.billcheck.resources.bc_ask_schedule
 import com.hopcape.odo.feature.billcheck.resources.bc_cd_back
 import com.hopcape.odo.feature.billcheck.resources.bc_cd_line_ok
-import com.hopcape.odo.feature.billcheck.resources.bc_context
+import com.hopcape.odo.feature.billcheck.resources.bc_context_separator
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_bills
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_own
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_rates
@@ -69,7 +69,9 @@ import com.hopcape.odo.feature.billcheck.resources.bc_how_we_know
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_amount
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_subhead
 import com.hopcape.odo.feature.billcheck.resources.bc_reason_above
+import com.hopcape.odo.feature.billcheck.resources.bc_reason_days
 import com.hopcape.odo.feature.billcheck.resources.bc_reason_month
+import com.hopcape.odo.feature.billcheck.resources.bc_reason_days
 import com.hopcape.odo.feature.billcheck.resources.bc_reason_months
 import com.hopcape.odo.feature.billcheck.resources.bc_reason_repeat
 import com.hopcape.odo.feature.billcheck.resources.bc_reason_schedule
@@ -201,12 +203,12 @@ private fun Result(
 private fun Header(check: BillCheck, locked: Boolean, onEvent: (BillCheckEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
         OdoText(
-            text = stringResource(
-                Res.string.bc_context,
-                check.car,
-                check.city,
-                check.workshop.label(),
-            ).uppercase(),
+            // Joined here rather than by a format string, so an owner who never set a city
+            // gets "SWIFT VXI · COMPANY CENTRE" instead of a stray separator.
+            text = listOf(check.car, check.city, check.workshop.label())
+                .filter { it.isNotBlank() }
+                .joinToString(stringResource(Res.string.bc_context_separator))
+                .uppercase(),
             style = OdoTheme.typography.label,
             color = OdoTheme.colors.textMuted,
         )
@@ -494,9 +496,13 @@ private fun Reason.ask(): String = when (this) {
 }
 
 @Composable
-private fun monthsLabel(months: Int): String =
-    if (months <= 1) stringResource(Res.string.bc_reason_month)
-    else stringResource(Res.string.bc_reason_months, months)
+private fun monthsLabel(months: Int): String = when {
+    // Whole months, floored — so a job done last week arrives here as zero, and calling that
+    // "1 month ago" is wrong to the owner's face while they hold the two bills.
+    months <= 0 -> stringResource(Res.string.bc_reason_days)
+    months == 1 -> stringResource(Res.string.bc_reason_month)
+    else -> stringResource(Res.string.bc_reason_months, months)
+}
 
 @Composable
 private fun Evidence.label(): String = when (this) {

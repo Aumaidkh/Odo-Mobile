@@ -24,6 +24,7 @@ import com.hopcape.odo.core.data.entitlement.FakeEntitlementOverrideRemoteDataSo
 import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.AllowanceScanCharger
+import com.hopcape.odo.core.data.scan.LocalBillCheckLedger
 import com.hopcape.odo.core.data.scan.LocalScanCredits
 import com.hopcape.odo.core.data.subscription.LocalPurchaseGrants
 import com.hopcape.odo.core.data.subscription.PurchaseWatcher
@@ -35,6 +36,7 @@ import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
+import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
@@ -344,6 +346,9 @@ val coreDataModule = module {
     // Started by the app bootstrap, and it owns the launch claim too — a purchase approved by
     // a bank while the app is open would otherwise wait for the next launch.
     single { PurchaseWatcher(updates = get(), reconciler = get()) }
+
+    // Which bills have already been paid for. The result screen re-reads on every visit.
+    single<BillCheckLedger> { LocalBillCheckLedger(local = get()) }
 
     // Free scans first, bought ones after — the one place that rule lives.
     single<ScanCharger> {

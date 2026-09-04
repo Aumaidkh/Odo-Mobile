@@ -64,6 +64,8 @@ internal class CheckBillPriceUseCase(
         lines: List<BillLine>,
         billTotal: Amount,
         billDate: LocalDate,
+        /** The reading on the bill, not on the car today. */
+        odometerKm: Int,
         history: List<ServiceLogEntry>,
     ): CheckedBill {
         // A schedule that could not be read is no schedule: repeats fall back to the stated
@@ -86,7 +88,7 @@ internal class CheckBillPriceUseCase(
 
                 is LineMatch.Job -> {
                     val repeat = repeats.previous(match.kind, history, billDate)
-                    val early = notDue.notDueYet(match.kind, car.odometer.km, history)
+                    val early = notDue.notDueYet(match.kind, odometerKm, history)
                     val band = bandFor(match, car, city, workshop)
                     // Every named line with a band is a real price somebody paid, whatever
                     // else was said about it — a repeat is still a price, and the pool is

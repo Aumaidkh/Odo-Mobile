@@ -13,6 +13,7 @@ import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
+import com.hopcape.odo.core.data.scan.BillCheckLedgerLocalDataSource
 import com.hopcape.odo.core.data.subscription.PurchaseCreditsLocalDataSource
 import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
@@ -93,6 +94,7 @@ import com.hopcape.odo.infrastructure.database.subscription.CreditSpendSyncable
 import com.hopcape.odo.infrastructure.database.subscription.PurchaseClaimSyncTable
 import com.hopcape.odo.infrastructure.database.subscription.PurchaseClaimSyncable
 import com.hopcape.odo.infrastructure.database.subscription.SqlDelightPurchaseCreditsLocalDataSource
+import com.hopcape.odo.infrastructure.database.scan.SqlDelightBillCheckLedgerLocalDataSource
 import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.record.SqlDelightRecordExportUsageLocalDataSource
 import com.hopcape.odo.core.data.record.RecordExportUsageLocalDataSource
@@ -177,6 +179,9 @@ val databaseInfrastructureModule = module {
     // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
     // `scan_usage` mirrors no server table, because extraction never leaves the device.
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
+    single<BillCheckLedgerLocalDataSource> {
+        SqlDelightBillCheckLedgerLocalDataSource(database = get(), clock = get())
+    }
     single<RecordExportUsageLocalDataSource> { SqlDelightRecordExportUsageLocalDataSource(database = get()) }
     // One store for both balances: what a purchase granted and what has been spent of it.
     single<PurchaseCreditsLocalDataSource> {

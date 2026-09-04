@@ -298,7 +298,7 @@ class CheckBillPriceUseCaseTest {
     @Test
     fun `the next due is counted from the last time it was done`() = runTest {
         val check = check(
-            car = car(odometerKm = 50_000),
+            odometerKm = 50_000,
             lines = listOf(line("Coolant top up", 1_600)),
             history = listOf(entry(LocalDate(2024, 1, 1), "Coolant", odometerKm = 45_000)),
             intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
@@ -306,6 +306,23 @@ class CheckBillPriceUseCaseTest {
 
         val reason = assertIs<Reason.ScheduledLater>(check.flagged.single().reason)
         assertEquals(85_000, reason.dueAtKm, "45,000 plus the interval")
+    }
+
+    /**
+     * A reading logged after the bill is not the bill's past. Counted, it would put the last
+     * service in the bill's future and compute a due point from there.
+     */
+    @Test
+    fun `a later reading is not treated as the bill's last service`() = runTest {
+        val check = check(
+            odometerKm = 12_000,
+            lines = listOf(line("Coolant top up", 1_600)),
+            history = listOf(entry(LocalDate(2026, 9, 1), "Coolant", odometerKm = 30_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+        )
+
+        val reason = assertIs<Reason.ScheduledLater>(check.flagged.single().reason)
+        assertEquals(40_000, reason.dueAtKm, "counted from zero, not from a future reading")
     }
 
     /** A job the schedule says nothing about produces no schedule claim. */
@@ -358,6 +375,7 @@ class CheckBillPriceUseCaseTest {
             lines = listOf(line("AC service", 2_400)),
             billTotal = rupees(18_400),
             billDate = BILL_DATE,
+            odometerKm = 12_000,
             history = emptyList(),
         )
 
@@ -381,6 +399,7 @@ class CheckBillPriceUseCaseTest {
         lines = lines,
         billTotal = rupees(18_400),
         billDate = BILL_DATE,
+        odometerKm = 12_000,
         history = emptyList(),
     )
 
@@ -393,6 +412,7 @@ class CheckBillPriceUseCaseTest {
         spy: MutableList<PriceBandQuery>? = null,
         history: List<ServiceLogEntry> = emptyList(),
         intervals: Map<String, ServiceInterval> = emptyMap(),
+        odometerKm: Int = 12_000,
     ) = CheckBillPriceUseCase(
         matcher = BillLineMatcher(),
         bands = FakeBands(band, bandsByCategory, failing, spy),
@@ -404,6 +424,7 @@ class CheckBillPriceUseCaseTest {
         lines = lines,
         billTotal = rupees(18_400),
         billDate = BILL_DATE,
+        odometerKm = odometerKm,
         history = history,
     ).check
 
@@ -457,7 +478,9 @@ class CheckBillPriceUseCaseTest {
         serviceDate = on,
         odometerKm = odometerKm,
         totalAmountPaise = 100_000,
-        today = BILL_DATE,
+        // Its own date: an entry logged after the bill is still a valid entry, and the
+        // domain refuses a service date in the future.
+        today = on,
         lineItems = labels.map {
             ServiceLogLineItemDraft(label = it, category = ServiceCategory.OTHER, amountPaise = 50_000)
         },

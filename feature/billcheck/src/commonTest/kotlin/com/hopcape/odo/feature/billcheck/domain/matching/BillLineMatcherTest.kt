@@ -43,6 +43,10 @@ class BillLineMatcherTest {
     fun `one price for two jobs is checked against neither`() {
         assertEquals(LineMatch.Unknown, matcher.match("Engine oil + filter"))
         assertEquals(LineMatch.Unknown, matcher.match("Brake pads and brake fluid"))
+        // The word "and" instead of "+", where the whole line no longer reads as the filter.
+        assertEquals(LineMatch.Unknown, matcher.match("Engine oil and filter"))
+        // And the same line SHOUTED, which is how half of them are printed.
+        assertEquals(LineMatch.Unknown, matcher.match("Brake pads AND brake fluid"))
     }
 
     /** One job written long is still one job. The tell is disagreement, not the joiner. */
