@@ -32,7 +32,21 @@ interface OneTimePurchaser {
     suspend fun priceOf(productId: String): String?
 }
 
-/** The one consumable Odo sells: a single record PDF export (#246). */
+/**
+ * The consumables Odo sells, for someone who wants one thing rather than a plan.
+ *
+ * Ids only. What each one grants is the buyer's business, not this object's — the export
+ * credits its balance in `ExportCredits`, and the scan packs have no balance to credit yet,
+ * which is why nothing offers them for sale.
+ */
 object OneTimeProducts {
+
+    /** A single record PDF export (#246). */
     const val RECORD_EXPORT = "odo_record_export"
+
+    /** One bill check. */
+    const val BILL_CHECK_SINGLE = "odo_bill_check_1"
+
+    /** Three bill checks. */
+    const val BILL_CHECK_PACK = "odo_bill_check_3"
 }

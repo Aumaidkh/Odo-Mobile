@@ -67,4 +67,19 @@
 
     <!-- Footer -->
     <string name="pw_footer">Cancel anytime in Google Play</string>
+
+    <!-- One-time offers: for someone who wants one thing rather than a plan. Prices are
+         never written here — the store states them. -->
+    <string name="pw_ot_open">Just want one thing?</string>
+    <string name="pw_ot_title">Buy it once</string>
+    <string name="pw_ot_subtitle">No plan, no renewal. Pay for the one thing you came for.</string>
+    <string name="pw_ot_bill_check_single_title">Bill Check × 1</string>
+    <string name="pw_ot_bill_check_single_subtitle">Check one bill against your city’s going rate.</string>
+    <string name="pw_ot_bill_check_pack_title">Bill Check × 3</string>
+    <string name="pw_ot_bill_check_pack_subtitle">Three checks, for a service and the two after it.</string>
+    <string name="pw_ot_export_title">Export Records</string>
+    <string name="pw_ot_export_subtitle">Your full service record as one PDF, ready to send a buyer.</string>
+    <string name="pw_ot_empty">Nothing is on sale one at a time just yet.</string>
+    <string name="pw_ot_error">Couldn’t reach the store. Check your connection and try again.</string>
+    <string name="pw_ot_cd_close">Close</string>
 </resources>

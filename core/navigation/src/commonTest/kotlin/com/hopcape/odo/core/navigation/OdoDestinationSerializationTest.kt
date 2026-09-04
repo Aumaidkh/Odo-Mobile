@@ -38,7 +38,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.WelcomeVideo,
         OdoDestination.Onboarding,
         OdoDestination.CarDetail(carId = "car-1"),
-        OdoDestination.Paywall(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
+        OdoDestination.Paywall.Plans(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
         OdoDestination.FilePreview(
             storageKey = "scans/bill-1.jpg",
             title = "March service",
@@ -163,6 +163,7 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue,
+        OdoDestination.Paywall.OneTimeOffers,
     )
 
     @Test

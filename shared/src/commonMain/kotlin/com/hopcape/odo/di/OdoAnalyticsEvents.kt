@@ -15,6 +15,7 @@ import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
 import com.hopcape.odo.feature.fairnesscheck.fairnessCheckAnalyticsEvents
 import com.hopcape.odo.feature.garage.garageAnalyticsEvents
 import com.hopcape.odo.feature.healthscore.healthScoreAnalyticsEvents
+import com.hopcape.odo.feature.paywall.paywallAnalyticsEvents
 import com.hopcape.odo.feature.profile.profileAnalyticsEvents
 import com.hopcape.odo.feature.refuel.refuelAnalyticsEvents
 import com.hopcape.odo.feature.reminders.remindersAnalyticsEvents
@@ -44,4 +45,5 @@ val odoAnalyticsEvents: List<EventSchema> =
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +
         billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents +
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
-        showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents
+        showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents +
+        paywallAnalyticsEvents

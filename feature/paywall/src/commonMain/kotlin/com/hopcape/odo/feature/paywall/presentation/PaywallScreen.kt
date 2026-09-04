@@ -96,6 +96,7 @@ import com.hopcape.odo.feature.paywall.resources.pw_plan_annual_badge
 import com.hopcape.odo.feature.paywall.resources.pw_plan_annual_period
 import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly
 import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly_period
+import com.hopcape.odo.feature.paywall.resources.pw_ot_open
 import com.hopcape.odo.feature.paywall.resources.pw_restore
 import com.hopcape.odo.feature.paywall.resources.pw_retry
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_generic
@@ -159,7 +160,8 @@ internal fun PaywallScreen(
                         }
                     }
                     Entrance(6, visible) { OfferBlock(state, onEvent) }
-                    Entrance(7, visible) { Footer() }
+                    Entrance(7, visible) { OneTimeLink(enabled = !state.busy, onEvent = onEvent) }
+                    Entrance(8, visible) { Footer() }
                 }
             }
         }
@@ -494,6 +496,28 @@ private fun StartProButton(plan: PaywallPlanCard, busy: Boolean, onStart: () -> 
                 ambientColor = OdoTheme.colors.accent,
                 spotColor = OdoTheme.colors.accent,
             ),
+    )
+}
+
+/**
+ * "Just want one thing?" — the way out of the plans, for someone who came for a single
+ * bill check or one PDF and does not want a subscription at all.
+ *
+ * Under the offer rather than beside it: the plans are still what this screen sells, and an
+ * alternative given equal weight would read as two prices for the same thing.
+ */
+@Composable
+private fun OneTimeLink(enabled: Boolean, onEvent: (PaywallEvent) -> Unit) {
+    OdoText(
+        stringResource(Res.string.pw_ot_open),
+        style = OdoTheme.typography.label,
+        color = OdoTheme.colors.accent,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(OdoTheme.shapes.pill)
+            .clickable(enabled = enabled) { onEvent(PaywallEvent.OneTimeOffersTapped) }
+            .padding(vertical = OdoTheme.spacing.sm),
     )
 }
 
