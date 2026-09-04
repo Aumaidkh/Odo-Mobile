@@ -66,6 +66,10 @@ keystore/
 /supabase/*
 !/supabase/functions/
 !/supabase/migrations/
+# The backlog owed to production, and the README that says why each file is held. Ignored,
+# it would reach no clone — and the whole point of the folder is that the reason travels
+# with the files.
+!/supabase/migrations_pending_prod/
 !/supabase/README.md
 !/supabase/config.toml
 !/supabase/check-legal.sh

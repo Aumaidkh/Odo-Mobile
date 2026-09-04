@@ -49,6 +49,20 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
             SetupTelemetry.Key.ERRORS to PropertyType.STRING,
         ),
     ),
+    EventSchema(
+        SetupTelemetry.Event.WORKSHOP_TIER_SELECTED,
+        mapOf(SetupTelemetry.Key.WORKSHOP_TIER to PropertyType.STRING),
+    ),
+    EventSchema(
+        SetupTelemetry.Event.WORKSHOP_SAVED,
+        mapOf(SetupTelemetry.Key.WORKSHOP_TIER to PropertyType.STRING),
+    ),
+    EventSchema(
+        SetupTelemetry.Event.LAST_SERVICE_FORGOTTEN,
+        mapOf(SetupTelemetry.Key.FORGOT to PropertyType.BOOLEAN),
+    ),
+    EventSchema(SetupTelemetry.Event.LAST_SERVICE_SKIPPED),
+    EventSchema(SetupTelemetry.Event.LAST_SERVICE_SAVED),
     EventSchema(SetupTelemetry.Event.FIRST_SCAN_CLICKED),
     EventSchema(SetupTelemetry.Event.FIRST_SCAN_SKIPPED),
     // `destination` was a property here until goal-based routing was deleted. It named one of

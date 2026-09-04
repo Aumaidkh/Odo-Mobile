@@ -162,6 +162,7 @@ private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             CarActionsEffect.OpenEdit -> replace(here, OdoDestination.Garage.EditCar)
+            CarActionsEffect.OpenCarValue -> replace(here, OdoDestination.CarValue)
             CarActionsEffect.OpenExport -> replace(here, OdoDestination.Garage.Export)
             CarActionsEffect.OpenRemove -> replace(here, OdoDestination.Garage.RemoveCar)
         }

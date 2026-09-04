@@ -16,6 +16,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import org.koin.core.context.GlobalContext
+import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.servicelog.model.LogSource
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 
 /**
  * The whole of first-run setup, driven the way an owner drives it, against the real app: the
@@ -85,9 +93,16 @@ class OnboardingEndToEndTest {
         rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
 
-        // Skipping the first scan still finishes setup.
-        rule.waitForText(Copy.SCAN_TITLE)
-        rule.onNodeWithText(Copy.SCAN_SKIP).performClick()
+        // The workshop tier decides the labour rate every price comparison is quoted at,
+        // so its step will not pass without an answer.
+        rule.waitForText(Copy.WORKSHOP_TITLE)
+        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
+        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
+
+        // Skipping the last service still finishes setup.
+        rule.waitForText(Copy.LAST_SERVICE_TITLE)
+        rule.onNodeWithText(Copy.SKIP).performClick()
 
         // With no session yet, the sign-in offer comes first — the one place Odo asks,
         // because by now there is something concrete worth backing up.
@@ -104,7 +119,7 @@ class OnboardingEndToEndTest {
     }
 
     /**
-     * Regression for the first-scan step handing an owner straight to the scanner.
+     * Regression for the last step handing an owner straight to the scanner.
      *
      * The camera button used to open `BillScanner.Capture` with setup still running, so the
      * sign-in offer at the end of the flow was never reached. From the viewfinder the scan
@@ -113,25 +128,62 @@ class OnboardingEndToEndTest {
      * Scanning now finishes setup like Skip does, so the offer comes first either way.
      */
     @Test
-    fun scanningFromTheFirstScanStep_asksForSignInBeforeTheScanner() {
-        rule.startFromWelcome()
+    fun photographingTheOldBill_asksForSignInBeforeTheScanner() {
+        rule.reachTheLastServiceStep()
 
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-        rule.setOdometer()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.PROFILE_TITLE)
-        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.SCAN_TITLE)
         rule.onNodeWithText(Copy.SCAN_CTA).performClick()
 
         // Sign-in, not the viewfinder.
         rule.waitForText(Copy.AUTH_TITLE)
         rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
+    }
+
+    /**
+     * The point of the whole step: an owner who remembers their last service leaves setup
+     * with a real service log against their car.
+     *
+     * Asserted against the app's own repository rather than a fake, because everything
+     * between the ViewModel and SQLite is what this is checking — the use case, the mapper,
+     * and a `DECLARED` row surviving a column that has only ever held MANUAL or SCANNED.
+     * The unit tests already cover the decision to write; only this covers the write.
+     */
+    @Test
+    fun rememberingTheLastService_leavesARealServiceLogBehind() {
+        rule.reachTheLastServiceStep()
+
+        rule.pickFirstOfTheMonth()
+        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        // Setup is over either way; the row is what matters.
+        rule.waitForText(Copy.AUTH_TITLE)
+
+        val entry = runBlocking { theOwnersOnlyServiceLog() }
+        assertEquals(LogSource.DECLARED, entry.source)
+        assertEquals(3_000, entry.odometer.km)
+        // No bill behind it, so no money. Zero is the truth, not a placeholder.
+        assertEquals(0L, entry.totalAmount.paise)
+    }
+
+    /** The car setup just stored, and the single log now hanging off it. */
+    private suspend fun theOwnersOnlyServiceLog(): ServiceLogEntry {
+        val koin = GlobalContext.get()
+        val car = koin.get<CarRepository>().observePrimaryCar().filterNotNull().first()
+        return koin.get<ServiceLogRepository>().observe(car.id).first().single()
+    }
+
+    /**
+     * "Don't remember" is a first-class answer, and ticking it must not leave a half-row
+     * behind: a date typed before the box was ticked used to still be written on Done.
+     */
+    @Test
+    fun theLastServiceStepAcceptsNotRemembering() {
+        rule.reachTheLastServiceStep()
+
+        rule.onNodeWithText(Copy.LAST_SERVICE_FORGOT).performClick()
+        rule.onNodeWithText(Copy.DONE).assertIsEnabled().performClick()
+
+        rule.waitForText(Copy.AUTH_TITLE)
     }
 
     /**

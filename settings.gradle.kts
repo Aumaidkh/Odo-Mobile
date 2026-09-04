@@ -50,6 +50,7 @@ include(":core:platform")
 include(":core:sync")
 include(":core:triptracker")
 
+include(":feature:advisory")
 include(":feature:auth")
 include(":feature:auto-odometer")
 include(":feature:billscanner")

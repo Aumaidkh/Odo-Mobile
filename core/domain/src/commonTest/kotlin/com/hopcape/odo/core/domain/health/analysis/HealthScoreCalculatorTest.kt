@@ -43,6 +43,7 @@ class HealthScoreCalculatorTest {
         paise: Long = 300_000,
         verified: Boolean = false,
         fairness: FairnessSnapshot? = null,
+        source: LogSource = LogSource.MANUAL,
     ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = CarId("car-1"),
@@ -52,7 +53,7 @@ class HealthScoreCalculatorTest {
         totalAmountPaise = paise,
         workshopName = null,
         notes = null,
-        source = LogSource.MANUAL,
+        source = source,
         billId = if (verified) BillId("bill-$id") else null,
         fairness = fairness,
     )
@@ -147,6 +148,45 @@ class HealthScoreCalculatorTest {
 
         assertEquals(100, score.total)
         assertEquals(HealthBand.EXCELLENT, score.band)
+    }
+
+    /**
+     * Answering setup's optional "when was your last service?" must not cost the owner
+     * points.
+     *
+     * A DECLARED entry has no bill and no fairness verdict, so it can never earn in either
+     * ratio — counting it in the denominator alone took a perfect 100 down to 92, and
+     * nothing the owner could do afterwards would win those points back.
+     */
+    @Test
+    fun aDeclaredServiceDoesNotDiluteAPerfectScore() {
+        val proven = listOf(
+            entry("1", LocalDate(2026, 2, 10), km = 38_000, verified = true, fairness = fairVerdict()),
+            entry("2", LocalDate(2026, 6, 20), km = 43_000, verified = true, fairness = fairVerdict()),
+            entry("3", LocalDate(2026, 7, 25), km = 44_500, verified = true, fairness = fairVerdict()),
+        )
+        val papers = listOf(
+            document(DocumentType.INSURANCE, LocalDate(2027, 3, 1)),
+            document(DocumentType.PUC, LocalDate(2026, 12, 1)),
+            document(DocumentType.RC, expiresOn = null),
+        )
+        val readings = listOf(
+            reading(LocalDate(2026, 1, 1), 36_000),
+            reading(LocalDate(2026, 7, 25), 44_500, logId = "3"),
+        )
+
+        val declared = entry(
+            "declared",
+            LocalDate(2025, 12, 1),
+            km = 34_000,
+            paise = 0,
+            source = LogSource.DECLARED,
+        )
+
+        assertEquals(
+            compute(entries = proven, documents = papers, readings = readings).total,
+            compute(entries = proven + declared, documents = papers, readings = readings).total,
+        )
     }
 
     @Test

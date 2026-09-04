@@ -55,19 +55,53 @@ fun OdoStepProgress(
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
+        OdoSegmentedProgress(
+            current = current,
+            total = total,
+            contentDescription = null,
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-        ) {
-            repeat(total) { index ->
-                Segment(filled = index < current, modifier = Modifier.weight(1f))
-            }
-        }
+        )
         OdoText(
             text = label,
             style = OdoTheme.typography.caption,
             color = OdoTheme.colors.textDim,
         )
+    }
+}
+
+/**
+ * The segments on their own, for a flow that states its position in the body rather than
+ * beside the bar.
+ *
+ * Setup does exactly that — the step reads "STEP 3 OF 4" above the question — so a count
+ * repeated in the header would be the same fact twice.
+ *
+ * @param contentDescription the position in words. Pass it when nothing else on the screen
+ *   announces the count, and `null` when the caller already reads it out.
+ */
+@Composable
+fun OdoSegmentedProgress(
+    current: Int,
+    total: Int,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
+    if (total <= 0) return
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (contentDescription == null) {
+                    Modifier
+                } else {
+                    Modifier.clearAndSetSemantics { this.contentDescription = contentDescription }
+                },
+            ),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+    ) {
+        repeat(total) { index ->
+            Segment(filled = index < current, modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -112,5 +146,13 @@ private val SEGMENT_HEIGHT = 3.dp
 private fun OdoStepProgressPreview() = OdoPreview {
     Box(modifier = Modifier.width(320.dp)) {
         OdoStepProgress(current = 2, total = 3, label = "2 of 3")
+    }
+}
+
+@OdoThemePreviews
+@Composable
+private fun OdoSegmentedProgressPreview() = OdoPreview {
+    Box(modifier = Modifier.width(320.dp)) {
+        OdoSegmentedProgress(current = 3, total = 4, contentDescription = "Step 3 of 4")
     }
 }

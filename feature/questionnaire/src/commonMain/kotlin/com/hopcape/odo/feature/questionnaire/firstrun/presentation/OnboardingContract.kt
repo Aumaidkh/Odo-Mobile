@@ -4,6 +4,7 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
+import kotlinx.datetime.LocalDate
 
 /**
  * What the owner did, as data. One hierarchy for the whole flow (it is one ViewModel), but
@@ -49,10 +50,25 @@ internal sealed interface OnboardingEvent {
         data class GoalToggled(val value: String) : Profile
     }
 
-    /** Step 4. Its primary action is the scan, so it does not use [ContinueClicked]. */
-    sealed interface Scan : OnboardingEvent {
-        data object ScanClicked : Scan
-        data object SkipClicked : Scan
+    /** Step 3. */
+    sealed interface Workshop : OnboardingEvent {
+        /** [value] is a stored constant name from the registry, e.g. `AUTHORISED`. */
+        data class TierSelected(val value: String) : Workshop
+    }
+
+    /** Step 4. */
+    sealed interface LastService : OnboardingEvent {
+        data class DateChanged(val date: LocalDate) : LastService
+        data class OdometerChanged(val km: Long) : LastService
+
+        /** "Don't remember" — an answer, not an empty form. Ticking it clears both fields. */
+        data class ForgotToggled(val forgot: Boolean) : LastService
+
+        /** "Photograph the old bill" — finish setup and open the scanner on top of it. */
+        data object ScanClicked : LastService
+
+        /** Skip: finish setup with no last service recorded. */
+        data object SkipClicked : LastService
     }
 
     /**

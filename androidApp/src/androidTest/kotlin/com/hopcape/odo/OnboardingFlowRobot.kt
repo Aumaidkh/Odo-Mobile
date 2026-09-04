@@ -56,12 +56,19 @@ internal object Copy {
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
-    const val SCAN_TITLE = "Find out if you overpaid last time"
-    const val SCAN_CTA = "Check my last bill"
-    const val SCAN_SKIP = "I’ll do this later"
+    const val WORKSHOP_TITLE = "Where do you get your car serviced?"
+    const val WORKSHOP_AUTHORISED = "Company service centre"
+    const val LAST_SERVICE_TITLE = "When was your last service?"
+    const val LAST_SERVICE_FORGOT = "Don’t remember"
+    const val SCAN_CTA = "Photograph the old bill"
+    const val SKIP = "Skip"
+    const val CHOOSE = "Choose"
     const val CONTINUE = "Continue"
     const val DONE = "Done"
     const val BACK = "Back"
+
+    /** The payoff screen setup ends on — proof the flow finished somewhere new. */
+    const val CAR_VALUE_TITLE = "My car’s value"
     const val AUTH_TITLE = "What’s your number?"
 
     /** Home's own copy, not the flow's — proof the gate landed somewhere else entirely. */
@@ -162,17 +169,67 @@ internal fun OdoTestRule.startFromWelcome() {
 }
 
 /**
+ * Answer the plate route, the profile and the workshop tier, ending on the last step.
+ *
+ * Three steps is enough boilerplate that a test about the *fourth* one should not carry it,
+ * and the steps before it are covered on their own by
+ * [OnboardingEndToEndTest.plateRoute_setsUpTheCarAndNeverAsksAgain].
+ */
+internal fun OdoTestRule.reachTheLastServiceStep() {
+    startFromWelcome()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+    waitForText(Fixtures.MATCHED_CAR)
+    setOdometer()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
+}
+
+/**
  * Open the odometer sheet and put a reading in it.
  *
  * The reading is entered with the sheet's own "+1,000" shortcut rather than by typing: it
  * needs no keyboard on screen, and the shortcut is what most owners will tap anyway.
  */
-internal fun OdoTestRule.setOdometer(thousands: Int = 5) {
-    onNodeWithTag(OnboardingTestTags.ODOMETER_FIELD).performClick()
+internal fun OdoTestRule.setOdometer(
+    thousands: Int = 5,
+    fieldTag: String = OnboardingTestTags.ODOMETER_FIELD,
+) {
+    onNodeWithTag(fieldTag).performClick()
     waitForText(Copy.ODOMETER_SAVE)
     repeat(thousands) { onNodeWithText(Copy.ODOMETER_BUMP).performClick() }
     onNodeWithText(Copy.ODOMETER_SAVE).performClick()
     waitUntil(DEFAULT_TIMEOUT_MILLIS) { onAllNodesWithTextCount(Copy.ODOMETER_SAVE) == 0 }
+}
+
+/**
+ * Pick the first day of the month the date picker opens on.
+ *
+ * A specific date would mean scrolling the picker, which is brittle and beside the point.
+ * The first of the current month is always in the past, which is what the entry's own
+ * validation cares about. Tapping a day matters: the dialog confirms nothing while its
+ * selection is empty, so "Choose" alone would close it having set no date at all.
+ */
+internal fun OdoTestRule.pickFirstOfTheMonth() {
+    onNodeWithTag(OnboardingTestTags.LAST_SERVICE_DATE_FIELD).performClick()
+    waitForText(Copy.CHOOSE)
+    // Unmerged: a day cell wraps its number in a node carrying the spoken date ("Tuesday,
+    // September 1, 2026"), and the merged tree hands back that description instead of "1".
+    // A day cell clears its children's semantics and states the whole date instead
+    // ("Tuesday, September 1, 2026"), so the digit alone matches nothing. " 1," picks the
+    // first without also matching the 11th or the 21st.
+    onAllNodesWithText(FIRST_OF_MONTH, substring = true).onFirst().performClick()
+    onNodeWithText(Copy.CHOOSE).performClick()
+    waitUntil(DEFAULT_TIMEOUT_MILLIS) { onAllNodesWithTextCount(Copy.CHOOSE) == 0 }
 }
 
 /** Open the picker behind [fieldTag] and choose [option] from the sheet it raises. */
@@ -216,6 +273,9 @@ internal fun OdoTestRule.typeInto(fieldTag: String, text: String) {
 /** Icon-only controls carry their label as a content description, not as text. */
 internal fun OdoTestRule.onNodeWithLabel(label: String): SemanticsNodeInteraction =
     onNodeWithContentDescription(label)
+
+/** The day-of-month fragment of a date picker cell's spoken description. */
+private const val FIRST_OF_MONTH = " 1,"
 
 /** Long enough for a debounced lookup or a sheet animation, short enough to fail fast. */
 private const val DEFAULT_TIMEOUT_MILLIS = 5_000L

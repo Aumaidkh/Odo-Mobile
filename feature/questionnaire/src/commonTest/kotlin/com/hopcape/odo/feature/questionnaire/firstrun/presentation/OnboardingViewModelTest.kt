@@ -28,16 +28,19 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
+import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.RecordDeclaredServiceUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
@@ -69,6 +72,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -500,7 +504,7 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
-        assertEquals(OnboardingStep.FIRST_SCAN, viewModel.state.value.step)
+        assertEquals(OnboardingStep.WORKSHOP, viewModel.state.value.step)
 
         viewModel.onEvent(OnboardingEvent.BackClicked)
         assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
@@ -563,7 +567,7 @@ class OnboardingViewModelTest {
         val viewModel = viewModel()
         viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("SELL_SOON"))
 
-        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
 
         assertEquals(OnboardingEffect.Finish(signInFirst = true), viewModel.effects.first())
     }
@@ -572,7 +576,7 @@ class OnboardingViewModelTest {
     fun finishing_withoutAGoal_stillLandsSomewhere() = runTest(dispatcher) {
         val viewModel = viewModel()
 
-        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
 
         // A missing goal is no reason to strand the owner at the end of setup.
         assertEquals(OnboardingEffect.Finish(signInFirst = true), viewModel.effects.first())
@@ -582,7 +586,7 @@ class OnboardingViewModelTest {
     fun finishing_withASession_doesNotAskForSignIn() = runTest(dispatcher) {
         val viewModel = viewModel(signedIn = true)
 
-        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
 
         val effect = viewModel.effects.first()
         assertEquals(OnboardingEffect.Finish(signInFirst = false), effect)
@@ -592,7 +596,7 @@ class OnboardingViewModelTest {
     fun scanning_finishesSetupAndAsksTheScannerToOpen() = runTest(dispatcher) {
         val viewModel = viewModel(signedIn = true)
 
-        viewModel.onEvent(OnboardingEvent.Scan.ScanClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.ScanClicked)
 
         // The camera button ends setup like Skip does. Handing off to the scanner with the
         // flow still open is what let an owner reach the fairness report, and the profile
@@ -607,7 +611,7 @@ class OnboardingViewModelTest {
     fun scanning_withoutASession_asksForSignInBeforeTheScanner() = runTest(dispatcher) {
         val viewModel = viewModel()
 
-        viewModel.onEvent(OnboardingEvent.Scan.ScanClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.ScanClicked)
 
         assertEquals(
             OnboardingEffect.Finish(signInFirst = true, openScanner = true),
@@ -619,7 +623,7 @@ class OnboardingViewModelTest {
     fun skipping_doesNotOpenTheScanner() = runTest(dispatcher) {
         val viewModel = viewModel(signedIn = true)
 
-        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
 
         assertEquals(false, (viewModel.effects.first() as OnboardingEffect.Finish).openScanner)
     }
@@ -720,12 +724,12 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
 
-        // Completion is stamped here rather than at the end, so a drop-off on the scan
-        // step still counts as onboarded — which is what stops the flow reappearing.
+        // Completion is stamped here rather than at the end, so a drop-off on either of the
+        // last two steps still counts as onboarded — which is what stops the flow reappearing.
         val profile = profiles.saved.single()
         assertEquals("Rahul", profile.name?.value)
         assertTrue(profile.hasCompletedOnboarding)
-        assertEquals(OnboardingStep.FIRST_SCAN, viewModel.state.value.step)
+        assertEquals(OnboardingStep.WORKSHOP, viewModel.state.value.step)
     }
 
     @Test
@@ -740,6 +744,214 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
         // No field owns a storage failure, so it is reported as a one-shot message.
         assertTrue(viewModel.effects.first() is OnboardingEffect.SaveFailed)
+    }
+
+    /* ------------------------------ Step 3 · workshop ------------------------------ */
+
+    @Test
+    fun theWorkshopStep_willNotContinueUntilATierIsPicked() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        reachWorkshopStep(viewModel)
+
+        assertEquals(OnboardingStep.WORKSHOP, viewModel.state.value.step)
+        assertFalse(viewModel.state.value.canContinue)
+
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.LOCAL.name))
+        assertTrue(viewModel.state.value.canContinue)
+    }
+
+    @Test
+    fun theWorkshopStep_storesTheTierUnderItsOwnKey() = runTest(dispatcher) {
+        val answers = FakeAnswers()
+        val viewModel = viewModel(answers = answers)
+        reachWorkshopStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.AUTHORISED.name))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(setOf(WorkshopTier.AUTHORISED.name), answers.saved[QuestionKeys.Workshop])
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+    }
+
+    /** Single-select: a second tap replaces the tier rather than adding to it. */
+    @Test
+    fun pickingASecondTier_replacesTheFirst() = runTest(dispatcher) {
+        val viewModel = viewModel()
+
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.AUTHORISED.name))
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.LOCAL.name))
+
+        assertEquals(WorkshopTier.LOCAL.name, viewModel.state.value.workshop.tier)
+    }
+
+    /**
+     * Unlike the goal set, a failed tier write stops the step. Moving on from it believing it
+     * was recorded gets every price comparison quoted at the wrong labour rate, silently.
+     */
+    @Test
+    fun aFailedWorkshopSave_keepsTheOwnerOnTheStepAndSaysWhy() = runTest(dispatcher) {
+        val viewModel = viewModel(answers = FakeAnswers(failing = true))
+        reachWorkshopStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.LOCAL.name))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.WORKSHOP, viewModel.state.value.step)
+        assertTrue(viewModel.effects.first() is OnboardingEffect.SaveFailed)
+    }
+
+    /* ------------------------------ Step 4 · last service ------------------------------ */
+
+    @Test
+    fun rememberingTheLastService_writesADeclaredLogRow() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // A row, because nothing else in the app stores a "last service" — the health score,
+        // the reminders and the checklist all read the newest entry.
+        val entry = logs.added.single()
+        assertEquals(LogSource.DECLARED, entry.source)
+        assertEquals(LocalDate(2026, 3, 1), entry.serviceDate)
+        assertEquals(42_000, entry.odometer.km)
+        // No bill behind it, so no money. Zero is the truth, not a placeholder.
+        assertEquals(0, entry.totalAmount.paise)
+    }
+
+    @Test
+    fun tickingDontRemember_clearsWhatWasTypedAndWritesNothing() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs)
+        reachLastServiceStep(viewModel)
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+
+        viewModel.onEvent(OnboardingEvent.LastService.ForgotToggled(true))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        // A date left behind an unticked box is how a half-row gets written on Done.
+        assertNull(viewModel.state.value.lastService.date.value)
+        assertNull(viewModel.state.value.lastService.odometer.value)
+        assertTrue(logs.added.isEmpty())
+    }
+
+    @Test
+    fun skippingTheLastService_writesNothingAndFinishes() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs, signedIn = true)
+        reachLastServiceStep(viewModel)
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
+        advanceUntilIdle()
+
+        assertTrue(logs.added.isEmpty())
+        assertEquals(OnboardingEffect.Finish(signInFirst = false), viewModel.effects.first())
+    }
+
+    /** Done is live from the moment the step opens: "nothing to say" is a valid answer. */
+    @Test
+    fun theLastServiceStep_canAlwaysBeFinished() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        reachLastServiceStep(viewModel)
+
+        assertTrue(viewModel.state.value.canContinue)
+    }
+
+    /**
+     * The one mistake this step can make. A remembered reading above a later known one would
+     * poison every distance the app computes afterwards, so it is refused on its own field
+     * rather than stored.
+     */
+    @Test
+    fun aRememberedReadingAheadOfALaterOne_isRefusedOnItsOwnField() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository(
+            readings = listOf(
+                OdometerReading(
+                    logId = null,
+                    date = LocalDate(2026, 7, 1),
+                    odometer = Distance.of(54_000).getOrElse { error("bad km") },
+                ),
+            ),
+        )
+        val viewModel = viewModel(logs = logs)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(80_000))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+        assertNotNull(viewModel.state.value.lastService.odometer.error)
+        assertTrue(logs.added.isEmpty())
+    }
+
+    /**
+     * Half an answer must not disappear.
+     *
+     * A date with no reading used to store nothing and return "fine, carry on", so the step
+     * finished, the owner believed they had told us, and the app later said it had no idea
+     * when the car was last serviced.
+     */
+    @Test
+    fun aDateWithNoReading_isRefusedOnTheFieldThatIsMissing() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+        assertNotNull(viewModel.state.value.lastService.odometer.error)
+        assertTrue(logs.added.isEmpty())
+    }
+
+    @Test
+    fun aReadingWithNoDate_isRefusedOnTheFieldThatIsMissing() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+        assertNotNull(viewModel.state.value.lastService.date.error)
+    }
+
+    /**
+     * The scan button stores what was already typed before handing off.
+     *
+     * The viewfinder can be abandoned, and discarding an answer the owner had already given
+     * — in order to offer them a better way to give it — is the wrong trade.
+     */
+    @Test
+    fun photographingTheBill_keepsWhatWasAlreadyTyped() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs, signedIn = true)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+        viewModel.onEvent(OnboardingEvent.LastService.ScanClicked)
+        advanceUntilIdle()
+
+        assertEquals(LogSource.DECLARED, logs.added.single().source)
+        assertEquals(
+            OnboardingEffect.Finish(signInFirst = false, openScanner = true),
+            viewModel.effects.first(),
+        )
     }
 
     /* ------------------------------ Telemetry ------------------------------ */
@@ -760,7 +972,10 @@ class OnboardingViewModelTest {
                 SetupTelemetry.Event.GOAL_SELECTED,
                 SetupTelemetry.Event.PROFILE_SAVED,
                 SetupTelemetry.Event.STEP_ADVANCED,
-                SetupTelemetry.Event.FIRST_SCAN_SKIPPED,
+                SetupTelemetry.Event.WORKSHOP_TIER_SELECTED,
+                SetupTelemetry.Event.WORKSHOP_SAVED,
+                SetupTelemetry.Event.STEP_ADVANCED,
+                SetupTelemetry.Event.LAST_SERVICE_SKIPPED,
                 SetupTelemetry.Event.COMPLETED,
             ),
             analytics.names.filterNot { it == SetupTelemetry.Event.PLATE_LOOKUP },
@@ -824,6 +1039,12 @@ class OnboardingViewModelTest {
             timeZone = TimeZone.UTC,
         ),
         reportUnlisted = ReportUnlistedVehicleUseCase(unlistedReporter),
+        recordDeclaredService = RecordDeclaredServiceUseCase(
+            logs = logs,
+            idGenerator = IdGenerator { "log-1" },
+            clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
+            timeZone = TimeZone.UTC,
+        ),
         completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
         currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
@@ -852,7 +1073,10 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
-        viewModel.onEvent(OnboardingEvent.Scan.SkipClicked)
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.AUTHORISED.name))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.LastService.SkipClicked)
         advanceUntilIdle()
     }
 
@@ -899,10 +1123,11 @@ class OnboardingViewModelTest {
     }
 
     /** Records what the goal step stored, so a test can assert the whole set arrived. */
-    private class FakeAnswers : QuestionnaireRepository {
+    private class FakeAnswers(private val failing: Boolean = false) : QuestionnaireRepository {
         val saved = mutableMapOf<QuestionKey, Set<String>>()
 
         override suspend fun save(key: QuestionKey, values: Set<String>): Either<DomainError, Unit> {
+            if (failing) return DomainError.PersistenceFailure("disk full").left()
             saved[key] = values
             return Unit.right()
         }
@@ -917,9 +1142,12 @@ class OnboardingViewModelTest {
     private class FakeServiceLogRepository(
         private val readings: List<OdometerReading>? = null,
     ) : ServiceLogRepository {
+        val added = mutableListOf<ServiceLogEntry>()
+
         override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> = flowOf(emptyList())
         override fun observe(id: ServiceLogId): Flow<ServiceLogEntry?> = flowOf(null)
-        override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
+        override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> =
+            entry.right().also { added += entry }
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
         override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
@@ -962,6 +1190,22 @@ class OnboardingViewModelTest {
     private fun OnboardingViewModel.answerProfileStep() {
         onEvent(OnboardingEvent.Profile.NameChanged("Rahul"))
         onEvent(OnboardingEvent.Profile.GoalToggled("TRACK_COSTS"))
+    }
+
+    /** Answer and leave the car and profile steps, so the flow sits on the workshop step. */
+    private fun TestScope.reachWorkshopStep(viewModel: OnboardingViewModel) {
+        reachProfileStep(viewModel)
+        viewModel.answerProfileStep()
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+    }
+
+    /** One step further, so the flow sits on the last-service step with a car behind it. */
+    private fun TestScope.reachLastServiceStep(viewModel: OnboardingViewModel) {
+        reachWorkshopStep(viewModel)
+        viewModel.onEvent(OnboardingEvent.Workshop.TierSelected(WorkshopTier.AUTHORISED.name))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
     }
 
     private fun <T> assertReady(loadable: Loadable<T>): T {

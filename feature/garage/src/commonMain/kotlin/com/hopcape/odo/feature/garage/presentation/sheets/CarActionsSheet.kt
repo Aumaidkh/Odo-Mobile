@@ -18,6 +18,7 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.component.formatRegistrationNumber
 import com.hopcape.odo.core.designsystem.icons.IcPencil
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.icons.IcShare
 import com.hopcape.odo.core.designsystem.icons.IcTrash
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -29,6 +30,7 @@ import com.hopcape.odo.feature.garage.resources.Res
 import com.hopcape.odo.feature.garage.resources.gr_ca_edit
 import com.hopcape.odo.feature.garage.resources.gr_ca_export
 import com.hopcape.odo.feature.garage.resources.gr_ca_remove
+import com.hopcape.odo.feature.garage.resources.gr_ca_value
 import com.hopcape.odo.feature.garage.resources.gr_no_plate
 import org.jetbrains.compose.resources.stringResource
 
@@ -48,6 +50,7 @@ internal fun CarActionsSheetContent(
     GarageSheet {
         CarHeader(state.car)
         ActionRow(IcPencil, stringResource(Res.string.gr_ca_edit)) { onEvent(CarActionsEvent.EditTapped) }
+        ActionRow(IcRupee, stringResource(Res.string.gr_ca_value)) { onEvent(CarActionsEvent.ValueTapped) }
         ActionRow(IcShare, stringResource(Res.string.gr_ca_export)) { onEvent(CarActionsEvent.ExportTapped) }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
         ActionRow(

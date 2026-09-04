@@ -12,4 +12,7 @@ package com.hopcape.odo.core.domain.owner.model
  */
 object QuestionKeys {
     val Goal = QuestionKey("goal.v1")
+
+    /** Where the car is serviced — the labour rate every price comparison is quoted at. */
+    val Workshop = QuestionKey("workshop.v1")
 }

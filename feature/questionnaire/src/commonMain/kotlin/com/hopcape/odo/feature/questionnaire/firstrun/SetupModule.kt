@@ -5,6 +5,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnb
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LookupPlateUseCase
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.RecordDeclaredServiceUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.navigation.SetupFeatureEntryProvider
@@ -27,6 +28,7 @@ internal val setupModule = module {
     factory { LoadCarModelsUseCase(catalog = get()) }
     factory { LookupPlateUseCase(registry = get()) }
     factory { ReportUnlistedVehicleUseCase(reporter = get()) }
+    factory { RecordDeclaredServiceUseCase(logs = get(), idGenerator = get(), clock = get()) }
     factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
 
     // A factory, so one instance covers one attempt at setup.
@@ -41,6 +43,7 @@ internal val setupModule = module {
             lookupPlate = get(),
             saveCar = get(),
             reportUnlisted = get(),
+            recordDeclaredService = get(),
             completeOnboarding = get(),
             currentOwner = get(),
             // Published by :feature:auth via the shared :core:domain port — setup asks whether

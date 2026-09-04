@@ -88,6 +88,7 @@
 
     <!-- Car actions sheet -->
     <string name="gr_ca_edit">Edit car details</string>
+    <string name="gr_ca_value">What is it worth?</string>
     <string name="gr_ca_export">Export car record</string>
     <string name="gr_ca_remove">Remove car</string>
 

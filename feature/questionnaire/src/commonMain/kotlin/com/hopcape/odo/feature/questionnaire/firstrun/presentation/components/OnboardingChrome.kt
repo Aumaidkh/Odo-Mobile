@@ -32,9 +32,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoProgressBar
+import com.hopcape.odo.core.designsystem.component.OdoSegmentedProgress
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.modifier.accentGlow
@@ -43,6 +44,8 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Onboard
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_back
 import com.hopcape.odo.feature.questionnaire.resources.onb_step_counter
+import com.hopcape.odo.feature.questionnaire.resources.onb_step_eyebrow
+import com.hopcape.odo.feature.questionnaire.resources.onb_step_eyebrow_skippable
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -52,9 +55,11 @@ import org.jetbrains.compose.resources.stringResource
  * Keeping it in one place is what makes the flow feel like one screen changing its mind
  * rather than four screens in a row — the header and CTA never move between steps.
  *
- * @param step 1-based position used for the counter and the progress fill.
- * @param onBack `null` hides the back button (the last step has no way back).
- * @param skipLabel when non-null (with [onSkip]), replaces the counter with a Skip action.
+ * @param step 1-based position used for the progress fill.
+ * @param onBack `null` hides the back button.
+ * @param skipLabel when non-null (with [onSkip]), puts a Skip action in the header.
+ * @param secondaryLabel when non-null (with [onSecondary]), sits beside the CTA as a second
+ *   button — the way out of a step that is answerable but optional.
  * @param footer optional tertiary action under the CTA ("I'll do this later").
  */
 @Composable
@@ -69,6 +74,8 @@ internal fun OnboardingStepScaffold(
     primaryLeadingIcon: (@Composable () -> Unit)? = null,
     skipLabel: String? = null,
     onSkip: (() -> Unit)? = null,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -105,19 +112,35 @@ internal fun OnboardingStepScaffold(
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            OdoButton(
-                text = primaryLabel,
-                onClick = onPrimary,
-                modifier = Modifier.fillMaxWidth().accentGlow(enabled = primaryEnabled),
-                enabled = primaryEnabled,
-                leadingIcon = primaryLeadingIcon,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                if (secondaryLabel != null && onSecondary != null) {
+                    OdoButton(
+                        text = secondaryLabel,
+                        onClick = onSecondary,
+                        modifier = Modifier.weight(SECONDARY_WEIGHT),
+                        variant = OdoButtonVariant.Secondary,
+                    )
+                }
+                OdoButton(
+                    text = primaryLabel,
+                    onClick = onPrimary,
+                    modifier = Modifier.weight(1f).accentGlow(enabled = primaryEnabled),
+                    enabled = primaryEnabled,
+                    leadingIcon = primaryLeadingIcon,
+                )
+            }
             footer?.invoke()
         }
     }
 }
 
-/** Back · progress · counter. The progress bar is the constant: it only ever grows. */
+/**
+ * Back · progress. One segment per step, and no count beside it — the step states its own
+ * position in the body, above the question, where the owner is already reading.
+ */
 @Composable
 private fun StepHeader(
     step: Int,
@@ -143,10 +166,11 @@ private fun StepHeader(
                 size = OdoTheme.spacing.minTouchTarget,
             )
         }
-        OdoProgressBar(
-            progress = step.toFloat() / totalSteps,
+        OdoSegmentedProgress(
+            current = step,
+            total = totalSteps,
             modifier = Modifier.weight(1f),
-            height = 5.dp,
+            contentDescription = stringResource(Res.string.onb_step_counter, step, totalSteps),
         )
         if (skipLabel != null && onSkip != null) {
             OdoText(
@@ -158,25 +182,22 @@ private fun StepHeader(
                     .clickable(role = Role.Button, onClick = onSkip)
                     .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
             )
-        } else {
-            OdoText(
-                text = stringResource(Res.string.onb_step_counter, step, totalSteps),
-                style = OdoTheme.typography.label,
-                color = OdoTheme.colors.textDim,
-            )
         }
     }
 }
 
 /**
- * A step's title + subtitle block. Steps 2 and 3 left-align it under the header; the
- * first-scan step centres it, because there is no form beneath to anchor the eye.
+ * A step's eyebrow + title + subtitle block. Left-aligned by default; [centered] is for a
+ * step with no form beneath it to anchor the eye.
+ *
+ * @param eyebrow the step's position ("STEP 3 OF 4"), or null on a screen outside the flow.
  */
 @Composable
 internal fun StepHeadline(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
+    eyebrow: String? = null,
     centered: Boolean = false,
 ) {
     Column(
@@ -184,6 +205,14 @@ internal fun StepHeadline(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
     ) {
+        if (eyebrow != null) {
+            OdoText(
+                text = eyebrow,
+                style = OdoTheme.typography.caption,
+                color = OdoTheme.colors.textMuted,
+                textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            )
+        }
         OdoText(
             text = title,
             style = OdoTheme.typography.title.copy(fontSize = 28.sp, lineHeight = 34.sp),
@@ -199,6 +228,15 @@ internal fun StepHeadline(
     }
 }
 
+/** The eyebrow for [step], marked skippable where the step can be passed over. */
+@Composable
+internal fun stepEyebrow(step: OnboardingStep, skippable: Boolean = false): String =
+    stringResource(
+        if (skippable) Res.string.onb_step_eyebrow_skippable else Res.string.onb_step_eyebrow,
+        step.position,
+        OnboardingStep.TOTAL,
+    )
+
 /**
  * Fills a `%1$d` count template outside composition. The design system's pickers take a
  * plain `(Int) -> String` for their match-count eyebrow — that lambda is called during
@@ -206,6 +244,12 @@ internal fun StepHeadline(
  * composition and formatted here.
  */
 internal fun String.withCount(count: Int): String = replace("%1\$d", count.toString())
+
+/**
+ * The optional action takes the narrower share of the row. Both are real buttons, but only
+ * one of them is what the step is asking for.
+ */
+private const val SECONDARY_WEIGHT = 0.66f
 
 /** A tracked-caps field eyebrow ("MAKE", "FUEL") for the manual-details grid. */
 @Composable
