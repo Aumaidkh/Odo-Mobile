@@ -79,6 +79,29 @@ class PaywallScreenshotTest {
     }
 
     /**
+     * The export wall's own framing. The service log already sent RECORD_EXPORT as its
+     * trigger and the paywall had no such case, so it fell through to the general copy.
+     */
+    @Test
+    fun capturesTheExportFraming() {
+        installOffer()
+        installOneTimePrices()
+
+        rule.openProfile()
+        rule.goPro()
+        rule.awaitText(PaywallCopy.HEADLINE)
+
+        // Pushed rather than walked to: the wall is reached from the record share sheet,
+        // which needs a seeded record and three taps to photograph one screen.
+        rule.runOnUiThread {
+            GlobalContext.get().get<NavigationManager>()
+                .navigateTo(OdoDestination.Paywall.Plans(trigger = "RECORD_EXPORT"))
+        }
+        rule.awaitText(PaywallCopy.EXPORT_HEADLINE)
+        rule.captureScreen("paywall-export")
+    }
+
+    /**
      * What the sheet looks like until the products exist in Play Console — which is what it
      * looks like today, and the state a reviewer should see rather than be told about.
      */

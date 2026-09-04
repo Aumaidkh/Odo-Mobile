@@ -29,6 +29,9 @@ import org.koin.dsl.module
 internal object PaywallCopy {
     const val HEADLINE = "Everything Odo can do, unlocked."
 
+    /** The paywall reached from the record export, rather than the general one. */
+    const val EXPORT_HEADLINE = "Hand the buyer the whole record."
+
     /** On the profile, not the paywall — the card that opens it. */
     const val GO_PRO = "Go Pro"
 
