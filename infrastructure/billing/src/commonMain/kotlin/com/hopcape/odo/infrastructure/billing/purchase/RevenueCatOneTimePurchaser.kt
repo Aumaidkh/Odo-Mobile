@@ -74,8 +74,12 @@ internal class RevenueCatOneTimePurchaser(
      * the app was closed was never seen by this process, and the store is the only thing
      * that knows about it.
      */
-    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
-        Purchases.sharedInstance.awaitCustomerInfoEither().fold(
+    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> {
+        // Asked at startup now, before any screen. `Purchases.sharedInstance` throws when
+        // configure() never ran, and a build with a key can still reach a device where it
+        // failed. The other methods here are only reached from the paywall.
+        if (!Purchases.isConfigured) return DomainError.StoreUnavailable.left()
+        return Purchases.sharedInstance.awaitCustomerInfoEither().fold(
             ifLeft = { error ->
                 telemetry.entitlementFailed(error.code.toString(), error.message)
                 DomainError.StoreUnavailable.left()
@@ -89,6 +93,7 @@ internal class RevenueCatOneTimePurchaser(
                 }.right()
             },
         )
+    }
 
     private suspend fun findProduct(productId: String): StoreProduct? =
         Purchases.sharedInstance.awaitGetProductsEither(listOf(productId)).getOrNull()

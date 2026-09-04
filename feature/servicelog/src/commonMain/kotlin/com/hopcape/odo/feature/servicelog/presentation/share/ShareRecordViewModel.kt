@@ -208,6 +208,15 @@ internal class ShareRecordViewModel(
                     // grant here would be credited again on the next launch, when the store
                     // still reports a purchase this device never wrote down.
                     reconciler.claimOutstanding()
+                    // Spent here rather than left on the balance: the owner bought one PDF
+                    // and is about to get it. The reconciler runs one pass at a time, so by
+                    // the time it returns the credit is on the balance — including when the
+                    // pass that awarded it was the watcher's rather than this one's.
+                    //
+                    // False only when the store went unreachable between the purchase and
+                    // the read that follows it, leaving the transaction to be claimed later.
+                    // The share still goes ahead: they paid, and a spare credit is the right
+                    // way to be wrong about money.
                     exportCredits.spend()
                     _state.update { state -> state.copy(exportOffer = null) }
                     startShare(target, record)

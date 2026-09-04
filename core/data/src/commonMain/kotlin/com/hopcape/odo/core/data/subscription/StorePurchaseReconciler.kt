@@ -2,6 +2,8 @@ package com.hopcape.odo.core.data.subscription
 
 import arrow.core.getOrElse
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.hopcape.odo.core.domain.subscription.OneTimeGrant
 import com.hopcape.odo.core.domain.subscription.OneTimeGrants
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
@@ -22,6 +24,10 @@ import com.hopcape.odo.core.data.observability.DataTelemetry
  * purchase claimed but not awarded if the process dies in between — one lost check against
  * the alternative of unlimited duplicated ones, which is the right way round.
  *
+ * **Nothing here throws at its caller.** Two of the three callers are `viewModelScope`
+ * launches with nothing catching them, and the moment they call this is the moment after the
+ * owner paid — a database failure there would be a crash on top of a charge.
+ *
  * A failure to reach the store is not put in front of the owner: there is nothing for them to
  * do about it and nothing on screen waiting for it. It is logged, because a store that never
  * answers means nobody's purchases are being claimed and no screen would ever say so.
@@ -33,7 +39,19 @@ internal class StorePurchaseReconciler(
     private val telemetry: DataTelemetry,
 ) : PurchaseReconciler {
 
-    override suspend fun claimOutstanding() = telemetry.span(SOURCE, OP_CLAIM) {
+    /**
+     * One pass at a time.
+     *
+     * Not for the ledger's sake — its insert already decides the winner. It is for the
+     * callers that claim and then immediately spend what the claim credited: without this,
+     * a pass running on the watcher could still be inside `award` when the screen's own call
+     * returns empty-handed, and the screen would spend a balance that arrives a moment later.
+     */
+    private val pass = Mutex()
+
+    override suspend fun claimOutstanding() = pass.withLock { claim() }
+
+    private suspend fun claim() = telemetry.span(SOURCE, OP_CLAIM) {
         val purchases = runCatchingCancellableSuspend { purchaser.completedPurchases() }
             .getOrElse { throwable ->
                 telemetry.crashed(SOURCE, OP_CLAIM, throwable)
@@ -53,9 +71,15 @@ internal class StorePurchaseReconciler(
                 telemetry.missing(SOURCE, OP_CLAIM, purchase.productId)
                 return@forEach
             }
-            if (!ledger.claim(purchase.transactionId)) return@forEach
-            // The id, so a support question about one purchase has something to match on.
-            telemetry.span(SOURCE, OP_AWARD, id = purchase.transactionId) { grants.award(grant) }
+            // Per purchase, so a database that fails on one does not stop the rest, and so a
+            // throw never reaches the caller. Two of the three callers are `viewModelScope`
+            // launches with nothing catching them, where it would be a crash moments after
+            // the owner's money was taken.
+            runCatchingCancellableSuspend {
+                if (!ledger.claim(purchase.transactionId)) return@runCatchingCancellableSuspend
+                // The id, so a support question about one purchase has something to match on.
+                telemetry.span(SOURCE, OP_AWARD, id = purchase.transactionId) { grants.award(grant) }
+            }.onFailure { telemetry.crashed(SOURCE, OP_AWARD, it, purchase.transactionId) }
         }
     }
 
