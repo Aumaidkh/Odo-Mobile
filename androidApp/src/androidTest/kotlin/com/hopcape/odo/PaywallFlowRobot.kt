@@ -11,6 +11,8 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.core.domain.subscription.Offer
+import com.hopcape.odo.core.domain.subscription.OneTimeProducts
+import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.PlanOption
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import org.koin.core.context.GlobalContext
@@ -37,6 +39,17 @@ internal object PaywallCopy {
     const val RETRY = "Try again"
     const val NOTHING_FOR_SALE = "Odo Pro isn’t available to buy right now. Please try again later."
     const val UNAVAILABLE = "Couldn’t reach the store. Check your connection and try again."
+
+    /* One-time offers sheet. */
+    const val ONE_TIME_OPEN = "Just want one thing?"
+    const val ONE_TIME_TITLE = "Buy it once"
+    const val BILL_CHECK_SINGLE = "Bill Check × 1"
+    const val BILL_CHECK_PACK = "Bill Check × 3"
+    const val EXPORT_RECORDS = "Export Records"
+    const val ONE_TIME_EMPTY = "Nothing is on sale one at a time just yet."
+    const val ONE_TIME_BILL_TITLE = "See the full answer"
+    const val ONE_TIME_BILL_FOOTER =
+        "If a check fails the credit comes back — that’s our bug, not your rupee."
 
     /** `"Start %1$d-day free trial"`. */
     fun trialCta(days: Int) = "Start $days-day free trial"
@@ -127,6 +140,72 @@ private object SwitchableCatalog : SubscriptionCatalog {
     override suspend fun current(): Either<DomainError, Offer> = answer()
 }
 
+/**
+ * What the store charges for each consumable, for the one-time offers sheet.
+ *
+ * Held behind one binding for the same reason [SwitchableCatalog] is: the sheet's ViewModel
+ * takes its purchaser as a constructor dependency, so rebinding later would change what the
+ * *next* one gets and nothing about the live one.
+ */
+private object SwitchablePurchaser : OneTimePurchaser {
+    @Volatile
+    var prices: Map<String, String> = emptyMap()
+
+    /**
+     * Refused, not thrown. `ShareRecordViewModel.buyExport` does not catch, so a throw here
+     * would crash whichever later suite reaches the paid-export path rather than failing an
+     * assertion — and this binding outlives the class that installed it.
+     */
+    override suspend fun purchase(productId: String): Either<DomainError, Unit> =
+        DomainError.NothingForSale.left()
+
+    override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+        if (unreachable) DomainError.StoreUnavailable.left() else prices.filterKeys { it in productIds }.right()
+
+    @Volatile
+    var unreachable: Boolean = false
+}
+
+private var purchaserBound = false
+
+/**
+ * Price the one-time products the store would return.
+ *
+ * The shipped build has no RevenueCat key and prices nothing, which is also what production
+ * looks like today — the products have not been created. Overriding is the only way to walk
+ * the half of the sheet that has rows on it.
+ */
+internal fun installOneTimePrices(
+    billCheckSingle: String? = "₹49",
+    billCheckPack: String? = "₹99",
+    recordExport: String? = "₹99",
+) {
+    SwitchablePurchaser.unreachable = false
+    SwitchablePurchaser.prices = buildMap {
+        billCheckSingle?.let { put(OneTimeProducts.BILL_CHECK_SINGLE, it) }
+        billCheckPack?.let { put(OneTimeProducts.BILL_CHECK_PACK, it) }
+        recordExport?.let { put(OneTimeProducts.RECORD_EXPORT, it) }
+    }
+    if (purchaserBound) return
+    GlobalContext.get().loadModules(
+        listOf(module { single<OneTimePurchaser> { SwitchablePurchaser } }),
+        allowOverride = true,
+    )
+    purchaserBound = true
+}
+
+/** Nothing on sale one at a time — today's real state, and the sheet's empty case. */
+internal fun installNoOneTimeProducts() {
+    SwitchablePurchaser.unreachable = false
+    installOneTimePrices(null, null, null)
+}
+
+/** A store that cannot be asked at all — which must not read as an empty catalogue. */
+internal fun installUnreachableOneTimeStore() {
+    installOneTimePrices(null, null, null)
+    SwitchablePurchaser.unreachable = true
+}
+
 private var catalogBound = false
 
 private fun installCatalog(answer: () -> Either<DomainError, Offer>) {
@@ -150,6 +229,10 @@ private fun installCatalog(answer: () -> Either<DomainError, Offer>) {
  * asked for it. The button is also below the four feature rows, so it needs scrolling to.
  */
 internal fun PaywallTestRule.goPro() {
+    // Waited for, not assumed. The upsell card is drawn from the entitlement stream, so on a
+    // cold start it can arrive after the profile screen itself — and `performScrollTo` on a
+    // node that is not there yet fails on the profile rather than on the paywall.
+    awaitText(PaywallCopy.SEE_PLANS)
     onNodeWithText(PaywallCopy.SEE_PLANS).performScrollTo().performClick()
     waitForIdle()
 }
@@ -165,6 +248,12 @@ internal fun PaywallTestRule.selectMonthly() {
 /** Choose the annual plan. */
 internal fun PaywallTestRule.selectAnnual() {
     onNodeWithText(PaywallCopy.ANNUAL).performClick()
+    waitForIdle()
+}
+
+/** Open the "buy it once" sheet from the link under the plans. */
+internal fun PaywallTestRule.openOneTimeOffers() {
+    onNodeWithText(PaywallCopy.ONE_TIME_OPEN).performScrollTo().performClick()
     waitForIdle()
 }
 

@@ -280,7 +280,7 @@ internal fun ShareRecordRoute(key: OdoDestination.ServiceLog.Share, navigationMa
             // they came from.
             ShareRecordEffect.OpenPaywall -> {
                 navigationManager.back()
-                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_EXPORT))
+                navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER_EXPORT))
             }
         }
     }

@@ -15,18 +15,29 @@ import com.hopcape.odo.feature.paywall.presentation.PaywallScreen
 import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import com.hopcape.odo.feature.paywall.presentation.PaywallViewModel
 import org.koin.core.parameter.parametersOf
+import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
+import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeContext
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersEffect
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersSheetContent
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Paywall's contribution to the navigation graph: the [OdoDestination.Paywall] screen, framed
- * by the trigger carried on the key. Collected by the `:app` host via
- * `getAll<FeatureEntryProvider>()`.
+ * Paywall's contribution to the navigation graph: the [OdoDestination.Paywall.Plans] screen,
+ * framed by the trigger carried on the key, plus the [OdoDestination.Paywall.OneTimeOffers]
+ * sheet it can open. Collected by the `:app` host via `getAll<FeatureEntryProvider>()`.
  */
 internal class PaywallFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.Paywall> { key -> PaywallRoute(key, navigationManager) }
+        entry<OdoDestination.Paywall.Plans> { key -> PaywallRoute(key, navigationManager) }
+        entry<OdoDestination.Paywall.OneTimeOffers>(
+            metadata = ModalBottomSheetSceneStrategy.bottomSheet(),
+        ) { key ->
+            OneTimeOffersRoute(key, navigationManager)
+        }
     }
 }
 
@@ -40,7 +51,7 @@ internal class PaywallFeatureEntryProvider(
  */
 @Composable
 internal fun PaywallRoute(
-    key: OdoDestination.Paywall,
+    key: OdoDestination.Paywall.Plans,
     navigationManager: NavigationManager,
 ) {
     val trigger = PaywallTrigger.entries.firstOrNull { it.name == key.trigger } ?: PaywallTrigger.GENERIC
@@ -55,8 +66,38 @@ internal fun PaywallRoute(
             // screen underneath through the entitlement stream, so the right thing to do with
             // the paywall is get it out of the way.
             PaywallEffect.GoBack -> navigationManager.back()
+            PaywallEffect.OpenOneTimeOffers ->
+                // The paywall's own framing carries through: an owner who arrived here
+                // because their bill checks ran out is not shopping for a PDF.
+                navigationManager.navigateTo(
+                    OdoDestination.Paywall.OneTimeOffers(context = OneTimeContext.forTrigger(trigger).name),
+                )
         }
     }
 
     PaywallScreen(state = state, onEvent = viewModel::onEvent)
+}
+
+/**
+ * The one-time offers sheet.
+ *
+ * A sheet rather than a screen, so closing it puts the owner back on the plans they were
+ * reading rather than out of the paywall entirely.
+ */
+@Composable
+internal fun OneTimeOffersRoute(
+    key: OdoDestination.Paywall.OneTimeOffers,
+    navigationManager: NavigationManager,
+) {
+    val context = OneTimeContext.of(key.context)
+    val viewModel = koinViewModel<OneTimeOffersViewModel> { parametersOf(context) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            OneTimeOffersEffect.Dismiss -> navigationManager.back()
+        }
+    }
+
+    OneTimeOffersSheetContent(state = state, onEvent = viewModel::onEvent)
 }
