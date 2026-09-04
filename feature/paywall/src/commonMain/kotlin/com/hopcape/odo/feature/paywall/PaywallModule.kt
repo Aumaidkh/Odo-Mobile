@@ -35,7 +35,12 @@ val paywallModule = module {
     // Takes the one-time purchaser rather than the subscription one: different products,
     // different lifetimes, and restoring a consumable would be wrong.
     viewModel { (context: OneTimeContext) ->
-        OneTimeOffersViewModel(context = context, purchaser = get(), telemetry = get())
+        OneTimeOffersViewModel(
+            context = context,
+            purchaser = get(),
+            credits = get(),
+            telemetry = get(),
+        )
     }
 
     viewModel { (trigger: PaywallTrigger, amountPaise: Long, freeScans: Int) ->

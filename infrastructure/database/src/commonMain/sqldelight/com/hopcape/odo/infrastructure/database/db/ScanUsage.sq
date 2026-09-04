@@ -43,3 +43,41 @@ incrementMonth:
 UPDATE scan_usage
 SET scan_count = scan_count + 1
 WHERE month = :month;
+
+-- Bill checks bought one at a time and not yet spent.
+--
+-- A balance, not a plan: it is bought, spent, and buyable again, which `Entitlements`
+-- cannot express — that answers what someone *is*, and this answers what they *have left*.
+-- The same shape as `record_export_credits` beside it, and unsynced for the same reason as
+-- the tally above.
+--
+-- One pinned row rather than a row per purchase: the only question ever asked is how many
+-- are left, and a ledger would be history nobody reads. A pack of three is one row moving
+-- by three, not three rows.
+CREATE TABLE scan_credits (
+    id        INTEGER NOT NULL PRIMARY KEY,
+    remaining INTEGER NOT NULL
+);
+
+scanCreditsRemaining:
+SELECT remaining
+FROM scan_credits
+WHERE id = 1;
+
+-- Insert-then-update, not UPSERT: minSdk 26 ships SQLite 3.18.
+startScanCredits:
+INSERT OR IGNORE INTO scan_credits (id, remaining)
+VALUES (1, 0);
+
+-- Takes a count, because the packs sell one and three.
+grantScanCredits:
+UPDATE scan_credits
+SET remaining = remaining + :count
+WHERE id = 1;
+
+-- Guarded so a balance can never go negative: two scans finishing together both call this
+-- and only the one that finds a credit takes it.
+spendScanCredit:
+UPDATE scan_credits
+SET remaining = remaining - 1
+WHERE id = 1 AND remaining > 0;

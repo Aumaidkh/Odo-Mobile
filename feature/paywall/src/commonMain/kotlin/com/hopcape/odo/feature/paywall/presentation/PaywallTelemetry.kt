@@ -124,6 +124,19 @@ internal class PaywallTelemetry(
         report(Event.ONE_TIME_TAPPED, mapOf(Key.PRODUCT to productId))
     }
 
+    fun oneTimePurchaseCompleted(productId: String) {
+        report(Event.ONE_TIME_PURCHASED, mapOf(Key.PRODUCT to productId))
+    }
+
+    /** Backing out. Counted apart from a failure — one is a decision, the other is a fault. */
+    fun oneTimePurchaseCancelled(productId: String) {
+        report(Event.ONE_TIME_CANCELLED, mapOf(Key.PRODUCT to productId))
+    }
+
+    fun oneTimePurchaseFailed(productId: String) {
+        report(Event.ONE_TIME_FAILED, mapOf(Key.PRODUCT to productId))
+    }
+
     private fun report(event: String, fields: Map<String, Any?>) {
         analytics.track(event, fields)
         logger.info(TAG, event, tc = flowTrace, fields = fields)
@@ -144,6 +157,9 @@ internal class PaywallTelemetry(
         const val ONE_TIME_SHOWN = "paywall_one_time_shown"
         const val ONE_TIME_UNAVAILABLE = "paywall_one_time_unavailable"
         const val ONE_TIME_TAPPED = "paywall_one_time_tapped"
+        const val ONE_TIME_PURCHASED = "paywall_one_time_purchased"
+        const val ONE_TIME_CANCELLED = "paywall_one_time_cancelled"
+        const val ONE_TIME_FAILED = "paywall_one_time_failed"
     }
 
     /** Field keys — kept here so a dashboard query never breaks on a renamed literal. */

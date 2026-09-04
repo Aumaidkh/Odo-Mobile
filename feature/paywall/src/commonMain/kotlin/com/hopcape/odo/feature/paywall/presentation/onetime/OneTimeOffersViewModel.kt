@@ -6,11 +6,14 @@ import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.designsystem.text.UiText
 import arrow.core.left
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
 import com.hopcape.odo.feature.paywall.resources.pw_ot_error
+import com.hopcape.odo.feature.paywall.resources.pw_ot_not_yet
+import com.hopcape.odo.feature.paywall.resources.pw_ot_purchase_failed
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -37,6 +40,7 @@ import kotlinx.coroutines.launch
 internal class OneTimeOffersViewModel(
     private val context: OneTimeContext,
     private val purchaser: OneTimePurchaser,
+    private val credits: ScanCredits,
     private val telemetry: PaywallTelemetry,
 ) : ViewModel() {
 
@@ -57,7 +61,7 @@ internal class OneTimeOffersViewModel(
     }
 
     fun onEvent(event: OneTimeOffersEvent) = when (event) {
-        is OneTimeOffersEvent.OfferTapped -> telemetry.oneTimeOfferTapped(event.productId)
+        is OneTimeOffersEvent.OfferTapped -> buy(event.productId)
         OneTimeOffersEvent.RetryTapped -> load()
         OneTimeOffersEvent.CloseTapped -> dismiss()
     }
@@ -105,6 +109,56 @@ internal class OneTimeOffersViewModel(
     private fun failed(error: DomainError) {
         telemetry.oneTimeOffersUnavailable(error::class.simpleName ?: UNKNOWN)
         _state.update { it.copy(offers = Loadable.Failed(UiText(Res.string.pw_ot_error))) }
+    }
+
+    /**
+     * Take the owner through the store, then credit what they bought.
+     *
+     * The grant follows the store's confirmation rather than the tap, and it is this
+     * screen's job rather than the purchaser's: two answers to "did a purchase happen"
+     * diverge the first time one completes somewhere else.
+     *
+     * A product this sheet cannot grant is never charged for. The export sells and credits
+     * itself from the share sheet, and taking money here for a balance nothing would raise
+     * is the one failure worth refusing outright.
+     */
+    private fun buy(productId: String) {
+        if (_state.value.purchasing) return
+        val offer = OneTimeOffer.entries.firstOrNull { it.productId == productId } ?: return
+        telemetry.oneTimeOfferTapped(productId)
+        if (!offer.purchasable) {
+            _state.update { it.copy(notice = UiText(Res.string.pw_ot_not_yet)) }
+            return
+        }
+        _state.update { it.copy(purchasing = true, notice = null) }
+        viewModelScope.launch {
+            runCatchingCancellableSuspend { purchaser.purchase(productId) }
+                .getOrElse { DomainError.PaymentFailed.left() }
+                .fold(ifLeft = { refused(productId, it) }, ifRight = { granted(offer) })
+        }
+    }
+
+    private suspend fun granted(offer: OneTimeOffer) {
+        credits.grant(offer.scanCredits)
+        telemetry.oneTimePurchaseCompleted(offer.productId)
+        _state.update { it.copy(purchasing = false) }
+        _effects.trySend(OneTimeOffersEffect.Dismiss)
+    }
+
+    /**
+     * Backing out is not a failure — it is the most common ending a store sheet has, and
+     * putting an error in front of someone who changed their mind is the wrong reply.
+     */
+    private fun refused(productId: String, error: DomainError) {
+        val cancelled = error == DomainError.PaymentCancelled
+        if (cancelled) telemetry.oneTimePurchaseCancelled(productId)
+        else telemetry.oneTimePurchaseFailed(productId)
+        _state.update {
+            it.copy(
+                purchasing = false,
+                notice = if (cancelled) null else UiText(Res.string.pw_ot_purchase_failed),
+            )
+        }
     }
 
     private fun dismiss() {
