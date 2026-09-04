@@ -41,8 +41,9 @@ val billCheckModule = module {
             charger = get(),
             contributor = get(),
             ledger = get(),
-            // The same question the screen asks to decide whether to mask. Asked here too,
-            // because charging for a masked result takes money for nothing shown.
+            // A bill check spends the same balance a scan does — the packs grant scan checks
+            // — so "may they see the answer" is the allowance's question, not a second one
+            // that could drift from it.
             unlocked = { get<ScanAllowance>().current().allowsAnother },
         )
     }
@@ -56,15 +57,7 @@ val billCheckModule = module {
     factory { BillCheckTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
     viewModel { (billId: String) ->
-        BillCheckViewModel(
-            billId = billId,
-            reader = get(),
-            // A bill check spends the same balance a scan does — the packs grant scan
-            // checks — so "can they see the answer" is the allowance's question, not a
-            // second one that could drift from it.
-            unlocked = { get<ScanAllowance>().current().allowsAnother },
-            telemetry = get(),
-        )
+        BillCheckViewModel(billId = billId, reader = get(), telemetry = get())
     }
 
     viewModel { (billId: String, lineName: String) ->

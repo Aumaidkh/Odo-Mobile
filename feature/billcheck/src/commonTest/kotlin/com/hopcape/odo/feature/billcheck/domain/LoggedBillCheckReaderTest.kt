@@ -55,7 +55,7 @@ class LoggedBillCheckReaderTest {
 
         val result = reader(charger = charger).read(BILL)
 
-        assertTrue(result.getOrNull()!!.flagged.isNotEmpty())
+        assertTrue(result.getOrNull()!!.check.flagged.isNotEmpty())
         assertEquals(1, charger.charges)
     }
 
@@ -72,7 +72,7 @@ class LoggedBillCheckReaderTest {
             lines = listOf("Throttle body cleaning" to 1_800, "Injector cleaning" to 3_100),
         ).read(BILL)
 
-        val check = result.getOrNull()!!
+        val check = result.getOrNull()!!.check
         assertEquals(2, check.unchecked.size)
         assertEquals(0, charger.charges, "nothing was checked, so nothing is owed")
     }
@@ -131,7 +131,7 @@ class LoggedBillCheckReaderTest {
 
         val result = reader(charger = charger, city = null).read(BILL)
 
-        assertEquals(1, result.getOrNull()!!.unchecked.size)
+        assertEquals(1, result.getOrNull()!!.check.unchecked.size)
         assertEquals(0, charger.charges)
     }
 
@@ -141,7 +141,7 @@ class LoggedBillCheckReaderTest {
         // The same job, on the same entry. Counted as history it would flag itself as a repeat.
         val result = reader(lines = listOf("AC service" to 2_400)).read(BILL)
 
-        assertIs<Reason.AboveBand>(result.getOrNull()!!.flagged.single().reason)
+        assertIs<Reason.AboveBand>(result.getOrNull()!!.check.flagged.single().reason)
     }
 
     /** The pool is fed at the same moment the check is charged, and not before. */
@@ -208,9 +208,35 @@ class LoggedBillCheckReaderTest {
         val ledger = OnceLedger()
         reader(charger = charger, ledger = ledger, unlocked = false).read(BILL)
 
-        reader(charger = charger, ledger = ledger, unlocked = true).read(BILL)
+        val result = reader(charger = charger, ledger = ledger, unlocked = true).read(BILL)
 
         assertEquals(1, charger.charges)
+        assertEquals(false, result.getOrNull()!!.locked)
+    }
+
+    /**
+     * A bill already paid for stays open however the allowance stands later. Without this the
+     * re-read after a purchase would ask the allowance again — now spent on that very bill —
+     * and mask an answer the owner had just bought.
+     */
+    @Test
+    fun `a bill already paid for stays unlocked when the allowance is gone`() = runTest {
+        val charger = CountingCharger()
+        val ledger = OnceLedger()
+        reader(charger = charger, ledger = ledger, unlocked = true).read(BILL)
+
+        val again = reader(charger = charger, ledger = ledger, unlocked = false).read(BILL)
+
+        assertEquals(false, again.getOrNull()!!.locked)
+        assertEquals(1, charger.charges, "and it is not charged for twice")
+    }
+
+    /** A masked result says so, and the screen has no second opinion to disagree with. */
+    @Test
+    fun `a result the owner cannot see comes back locked`() = runTest {
+        val result = reader(unlocked = false).read(BILL)
+
+        assertEquals(true, result.getOrNull()!!.locked)
     }
 
     /* ------------------------------ Fixtures ------------------------------ */
@@ -302,6 +328,7 @@ class LoggedBillCheckReaderTest {
     private class OnceLedger : BillCheckLedger {
         private val claimed = mutableSetOf<String>()
         override suspend fun claim(billId: String) = claimed.add(billId)
+        override suspend fun wasChecked(billId: String) = billId in claimed
     }
 
     private class FakeQuestionnaire(private val workshop: WorkshopTier?) : QuestionnaireRepository {

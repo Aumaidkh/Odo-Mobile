@@ -10,4 +10,7 @@ interface BillCheckLedgerLocalDataSource {
 
     /** Record [billId] as checked; true only for the call that actually recorded it. */
     suspend fun claim(billId: String): Boolean
+
+    /** Whether [billId] has already been checked and paid for. */
+    suspend fun wasChecked(billId: String): Boolean
 }

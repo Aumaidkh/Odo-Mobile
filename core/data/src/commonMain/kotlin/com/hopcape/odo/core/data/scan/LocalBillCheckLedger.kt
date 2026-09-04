@@ -11,4 +11,6 @@ internal class LocalBillCheckLedger(
 ) : BillCheckLedger {
 
     override suspend fun claim(billId: String): Boolean = local.claim(billId)
+
+    override suspend fun wasChecked(billId: String): Boolean = local.wasChecked(billId)
 }
