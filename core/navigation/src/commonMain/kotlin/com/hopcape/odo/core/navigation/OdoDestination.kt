@@ -491,9 +491,15 @@ sealed interface OdoDestination : NavKey {
          * A sheet rather than a screen because it is an aside from the plans, not a rival to
          * them: the owner should be able to look at what one thing costs and come back
          * without losing the paywall they were reading.
+         *
+         * [context] frames it the way [Plans.trigger] frames the paywall: it decides the
+         * heading, which products are worth showing, and which of them is put forward. An
+         * owner who ran out of bill checks is not shopping for a PDF. A primitive, so
+         * `:core:navigation` stays free of the feature's types; an unrecognised one falls
+         * back to the generic framing rather than crashing.
          */
         @Serializable
-        data object OneTimeOffers : Paywall
+        data class OneTimeOffers(val context: String = "GENERIC") : Paywall
     }
 
     /**

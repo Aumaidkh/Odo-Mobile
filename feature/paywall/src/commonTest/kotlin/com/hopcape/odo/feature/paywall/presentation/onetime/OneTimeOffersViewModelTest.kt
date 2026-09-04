@@ -42,6 +42,43 @@ class OneTimeOffersViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
+    /**
+     * The context decides what is worth showing. Someone who ran out of bill checks is not
+     * shopping for a PDF, and listing one is noise on the screen where they are deciding.
+     */
+    @Test
+    fun aContextShowsOnlyItsOwnProducts_andPutsOneForward() = runTest(dispatcher) {
+        val viewModel = viewModel(FakePurchaser(ALL_PRICED), OneTimeContext.BILL_CHECK)
+        advanceUntilIdle()
+
+        val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
+
+        assertEquals(
+            listOf(OneTimeOffer.BILL_CHECK_PACK, OneTimeOffer.BILL_CHECK_SINGLE),
+            cards.map { it.offer },
+        )
+        assertEquals(listOf(true, false), cards.map { it.recommended })
+    }
+
+    /** One product leaves nothing to recommend over anything. */
+    @Test
+    fun aSingleProductContextRecommendsNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(FakePurchaser(ALL_PRICED), OneTimeContext.EXPORT)
+        advanceUntilIdle()
+
+        val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
+
+        assertEquals(listOf(OneTimeOffer.RECORD_EXPORT), cards.map { it.offer })
+        assertTrue(cards.none { it.recommended })
+    }
+
+    /** A key written by an older build, or a bad deep link, sells the same things. */
+    @Test
+    fun anUnknownContextFallsBackToTheGenericOne() {
+        assertEquals(OneTimeContext.GENERIC, OneTimeContext.of("NOT_A_CONTEXT"))
+        assertEquals(OneTimeContext.BILL_CHECK, OneTimeContext.of("BILL_CHECK"))
+    }
+
     @Test
     fun everyPricedProductIsListed_inTheDeclaredOrder() = runTest(dispatcher) {
         val viewModel = viewModel(FakePurchaser(ALL_PRICED))
@@ -176,7 +213,11 @@ class OneTimeOffersViewModelTest {
 
     /* ------------------------------ Fixtures ------------------------------ */
 
-    private fun viewModel(purchaser: OneTimePurchaser) = OneTimeOffersViewModel(
+    private fun viewModel(
+        purchaser: OneTimePurchaser,
+        context: OneTimeContext = OneTimeContext.GENERIC,
+    ) = OneTimeOffersViewModel(
+        context = context,
         purchaser = purchaser,
         telemetry = PaywallTelemetry(logger = NoopLogger, analytics = tracked, ids = { "id" }),
     )

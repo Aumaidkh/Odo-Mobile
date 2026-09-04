@@ -5,7 +5,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
+import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.navigateTo
 import org.junit.runner.RunWith
+import org.koin.core.context.GlobalContext
 
 /**
  * Takes the screenshots the paywall's PR carries, rather than describing the change in words.
@@ -49,6 +53,29 @@ class PaywallScreenshotTest {
         rule.openOneTimeOffers()
         rule.awaitText(PaywallCopy.ONE_TIME_TITLE)
         Screenshots.capture("one-time-offers-sheet")
+    }
+
+    /**
+     * The bill-check framing: its own heading, only the two packs, the better one put
+     * forward, and the line about a failed check refunding its credit.
+     */
+    @Test
+    fun capturesTheBillCheckFraming() {
+        installOffer()
+        installOneTimePrices()
+
+        rule.openProfile()
+        rule.goPro()
+        rule.awaitText(PaywallCopy.HEADLINE)
+
+        // Pushed directly rather than walked to: this framing is reached by running out of
+        // bill checks, which would mean scanning five bills to photograph one sheet.
+        rule.runOnUiThread {
+            GlobalContext.get().get<NavigationManager>()
+                .navigateTo(OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"))
+        }
+        rule.awaitText(PaywallCopy.ONE_TIME_BILL_TITLE)
+        Screenshots.capture("one-time-offers-bill-check")
     }
 
     /**

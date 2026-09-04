@@ -35,11 +35,12 @@ import kotlinx.coroutines.launch
  * inventing a figure the store never gave.
  */
 internal class OneTimeOffersViewModel(
+    private val context: OneTimeContext,
     private val purchaser: OneTimePurchaser,
     private val telemetry: PaywallTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(OneTimeOffersUiState())
+    private val _state = MutableStateFlow(OneTimeOffersUiState(context = context))
     val state: StateFlow<OneTimeOffersUiState> = _state.asStateFlow()
 
     private val _effects = Channel<OneTimeOffersEffect>(Channel.BUFFERED, BufferOverflow.DROP_OLDEST)
@@ -76,7 +77,7 @@ internal class OneTimeOffersViewModel(
         _state.update { it.copy(offers = Loadable.Loading) }
         loadJob = viewModelScope.launch {
             val prices = runCatchingCancellableSuspend {
-                purchaser.pricesOf(OneTimeOffer.entries.map { it.productId })
+                purchaser.pricesOf(context.offers.map { it.productId })
             }.getOrElse { failure -> DomainError.StoreUnavailable.left() }
 
             prices.fold(
@@ -87,8 +88,10 @@ internal class OneTimeOffersViewModel(
     }
 
     private fun show(prices: Map<String, String>) {
-        val cards = OneTimeOffer.entries.mapNotNull { offer ->
-            prices[offer.productId]?.let { OneTimeOfferCard(offer, it) }
+        val cards = context.offers.mapNotNull { offer ->
+            prices[offer.productId]?.let {
+                OneTimeOfferCard(offer, it, recommended = offer == context.recommended)
+            }
         }
         // Once per sheet, not once per attempt: a retry is the same opening, and counting it
         // twice would make "how many were shown nothing" a number nobody can read.

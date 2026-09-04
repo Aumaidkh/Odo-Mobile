@@ -47,6 +47,9 @@ internal object PaywallCopy {
     const val BILL_CHECK_PACK = "Bill Check × 3"
     const val EXPORT_RECORDS = "Export Records"
     const val ONE_TIME_EMPTY = "Nothing is on sale one at a time just yet."
+    const val ONE_TIME_BILL_TITLE = "See the full answer"
+    const val ONE_TIME_BILL_FOOTER =
+        "If a check fails the credit comes back — that’s our bug, not your rupee."
 
     /** `"Start %1$d-day free trial"`. */
     fun trialCta(days: Int) = "Start $days-day free trial"

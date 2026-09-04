@@ -17,6 +17,7 @@ import com.hopcape.odo.feature.paywall.presentation.PaywallViewModel
 import org.koin.core.parameter.parametersOf
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.navigateTo
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeContext
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersEffect
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersSheetContent
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersViewModel
@@ -34,8 +35,8 @@ internal class PaywallFeatureEntryProvider(
         entry<OdoDestination.Paywall.Plans> { key -> PaywallRoute(key, navigationManager) }
         entry<OdoDestination.Paywall.OneTimeOffers>(
             metadata = ModalBottomSheetSceneStrategy.bottomSheet(),
-        ) {
-            OneTimeOffersRoute(navigationManager)
+        ) { key ->
+            OneTimeOffersRoute(key, navigationManager)
         }
     }
 }
@@ -66,7 +67,11 @@ internal fun PaywallRoute(
             // the paywall is get it out of the way.
             PaywallEffect.GoBack -> navigationManager.back()
             PaywallEffect.OpenOneTimeOffers ->
-                navigationManager.navigateTo(OdoDestination.Paywall.OneTimeOffers)
+                // The paywall's own framing carries through: an owner who arrived here
+                // because their bill checks ran out is not shopping for a PDF.
+                navigationManager.navigateTo(
+                    OdoDestination.Paywall.OneTimeOffers(context = OneTimeContext.forTrigger(trigger).name),
+                )
         }
     }
 
@@ -80,8 +85,12 @@ internal fun PaywallRoute(
  * reading rather than out of the paywall entirely.
  */
 @Composable
-internal fun OneTimeOffersRoute(navigationManager: NavigationManager) {
-    val viewModel = koinViewModel<OneTimeOffersViewModel>()
+internal fun OneTimeOffersRoute(
+    key: OdoDestination.Paywall.OneTimeOffers,
+    navigationManager: NavigationManager,
+) {
+    val context = OneTimeContext.of(key.context)
+    val viewModel = koinViewModel<OneTimeOffersViewModel> { parametersOf(context) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CollectEffects(viewModel.effects) { effect ->

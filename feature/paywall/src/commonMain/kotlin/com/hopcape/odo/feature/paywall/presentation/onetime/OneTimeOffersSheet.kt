@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.paywall.presentation.onetime
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +13,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -28,8 +31,6 @@ import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
 import com.hopcape.odo.feature.paywall.resources.pw_ot_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_empty
-import com.hopcape.odo.feature.paywall.resources.pw_ot_subtitle
-import com.hopcape.odo.feature.paywall.resources.pw_ot_title
 import com.hopcape.odo.feature.paywall.resources.pw_retry
 import org.jetbrains.compose.resources.stringResource
 
@@ -58,9 +59,9 @@ internal fun OneTimeOffersSheetContent(
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-            OdoText(stringResource(Res.string.pw_ot_title), style = OdoTheme.typography.title)
+            OdoText(stringResource(state.context.title), style = OdoTheme.typography.title)
             OdoText(
-                text = stringResource(Res.string.pw_ot_subtitle),
+                text = stringResource(state.context.subtitle),
                 style = OdoTheme.typography.body,
                 color = OdoTheme.colors.textDim,
             )
@@ -86,6 +87,13 @@ internal fun OneTimeOffersSheetContent(
                     offers.value.forEach { card ->
                         OfferRow(card) { onEvent(OneTimeOffersEvent.OfferTapped(card.offer.productId)) }
                     }
+                    state.context.footer?.let { footer ->
+                        OdoText(
+                            text = stringResource(footer),
+                            style = OdoTheme.typography.bodySmall,
+                            color = OdoTheme.colors.textMuted,
+                        )
+                    }
                 }
             }
         }
@@ -101,10 +109,23 @@ internal fun OneTimeOffersSheetContent(
     }
 }
 
-/** One product: what it is, what it does, and what the store charges for it. */
+/**
+ * One product: what it is, what it does, and what the store charges for it.
+ *
+ * A recommended row inverts, the way `OdoOptionCardStyle.Filled` does — but this is not that
+ * card. Tapping here buys, so the row announces itself as a button; the shared card announces
+ * a radio or a checkbox, which is the wrong thing to say about a purchase.
+ */
 @Composable
 private fun OfferRow(card: OneTimeOfferCard, onClick: () -> Unit) {
-    OdoCard(onClick = onClick) {
+    val colors = OdoTheme.colors
+    val onCard = if (card.recommended) colors.onAccent else colors.text
+    OdoCard(
+        onClick = onClick,
+        color = if (card.recommended) colors.accent else colors.surface,
+        border = if (card.recommended) null else BorderStroke(1.dp, colors.border),
+        modifier = Modifier.semantics { role = Role.Button },
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -117,22 +138,21 @@ private fun OfferRow(card: OneTimeOfferCard, onClick: () -> Unit) {
                 OdoText(
                     text = stringResource(card.offer.title),
                     style = OdoTheme.typography.heading,
-                    color = OdoTheme.colors.text,
+                    color = onCard,
                 )
                 OdoText(
                     text = stringResource(card.offer.subtitle),
                     style = OdoTheme.typography.bodySmall,
-                    color = OdoTheme.colors.textDim,
+                    color = if (card.recommended) colors.onAccent.copy(alpha = DIM) else colors.textDim,
                 )
             }
-            OdoText(
-                text = card.price,
-                style = OdoTheme.typography.heading,
-                color = OdoTheme.colors.text,
-            )
+            OdoText(text = card.price, style = OdoTheme.typography.heading, color = onCard)
         }
     }
 }
+
+/** The second line on an inverted card — readable, and clearly the lesser of the two. */
+private const val DIM = 0.7f
 
 @Composable
 private fun Message(text: String, action: (@Composable () -> Unit)? = null) = Centred {
@@ -169,11 +189,11 @@ private val MESSAGE_MIN_HEIGHT = 140.dp
 private fun OneTimeOffersPreview() = OdoPreview {
     OneTimeOffersSheetContent(
         state = OneTimeOffersUiState(
+            context = OneTimeContext.BILL_CHECK,
             offers = Loadable.Ready(
                 listOf(
+                    OneTimeOfferCard(OneTimeOffer.BILL_CHECK_PACK, "₹99", recommended = true),
                     OneTimeOfferCard(OneTimeOffer.BILL_CHECK_SINGLE, "₹49"),
-                    OneTimeOfferCard(OneTimeOffer.BILL_CHECK_PACK, "₹99"),
-                    OneTimeOfferCard(OneTimeOffer.RECORD_EXPORT, "₹99"),
                 ),
             ),
         ),

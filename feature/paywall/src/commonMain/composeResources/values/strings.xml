@@ -71,8 +71,20 @@
     <!-- One-time offers: for someone who wants one thing rather than a plan. Prices are
          never written here — the store states them. -->
     <string name="pw_ot_open">Just want one thing?</string>
+
+    <!-- Generic: reached from the paywall with no particular errand. -->
     <string name="pw_ot_title">Buy it once</string>
     <string name="pw_ot_subtitle">No plan, no renewal. Pay for the one thing you came for.</string>
+
+    <!-- Reached from a bill check the owner cannot run. -->
+    <string name="pw_ot_bill_title">See the full answer</string>
+    <string name="pw_ot_bill_subtitle">Every line’s rate, the maker’s schedule, and what to ask at the counter.</string>
+    <string name="pw_ot_bill_footer">If a check fails the credit comes back — that’s our bug, not your rupee.</string>
+
+    <!-- Reached from the record export. -->
+    <string name="pw_ot_export_sheet_title">Take the record with you</string>
+    <string name="pw_ot_export_sheet_subtitle">One PDF of everything the car has had done, ready to hand a buyer.</string>
+    <string name="pw_ot_export_footer">Spent when the PDF reaches the share sheet, not before.</string>
     <string name="pw_ot_bill_check_single_title">Bill Check × 1</string>
     <string name="pw_ot_bill_check_single_subtitle">Check one bill against your city’s going rate.</string>
     <string name="pw_ot_bill_check_pack_title">Bill Check × 3</string>

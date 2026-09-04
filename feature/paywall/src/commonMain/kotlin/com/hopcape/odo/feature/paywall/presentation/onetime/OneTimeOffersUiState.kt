@@ -54,6 +54,14 @@ internal enum class OneTimeOffer(
 internal data class OneTimeOfferCard(
     val offer: OneTimeOffer,
     val price: String,
+    /**
+     * Drawn as the answer rather than as one of the options.
+     *
+     * A judgement the context states, not a discount worked out from the prices — the store
+     * hands over formatted strings and no amounts, so any "each" or "you save" figure here
+     * would be arithmetic on `"₹99"`.
+     */
+    val recommended: Boolean = false,
 )
 
 /**
@@ -70,6 +78,7 @@ internal data class OneTimeOfferCard(
  */
 @Immutable
 internal data class OneTimeOffersUiState(
+    val context: OneTimeContext = OneTimeContext.GENERIC,
     val offers: Loadable<List<OneTimeOfferCard>> = Loadable.Loading,
 ) {
     /** Loaded, but the store returned none of them. */

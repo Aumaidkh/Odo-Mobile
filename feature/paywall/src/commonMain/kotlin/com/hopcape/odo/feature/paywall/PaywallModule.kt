@@ -5,6 +5,7 @@ import com.hopcape.odo.feature.paywall.navigation.PaywallFeatureEntryProvider
 import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
 import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import com.hopcape.odo.feature.paywall.presentation.PaywallViewModel
+import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeContext
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
@@ -33,7 +34,9 @@ val paywallModule = module {
 
     // Takes the one-time purchaser rather than the subscription one: different products,
     // different lifetimes, and restoring a consumable would be wrong.
-    viewModel { OneTimeOffersViewModel(purchaser = get(), telemetry = get()) }
+    viewModel { (context: OneTimeContext) ->
+        OneTimeOffersViewModel(context = context, purchaser = get(), telemetry = get())
+    }
 
     viewModel { (trigger: PaywallTrigger, amountPaise: Long, freeScans: Int) ->
         PaywallViewModel(

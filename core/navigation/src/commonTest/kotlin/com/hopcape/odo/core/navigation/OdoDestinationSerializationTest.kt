@@ -163,7 +163,7 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue,
-        OdoDestination.Paywall.OneTimeOffers,
+        OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
     )
 
     @Test
