@@ -40,6 +40,7 @@ val billCheckModule = module {
             questionnaire = get(),
             check = get(),
             charger = get(),
+            contributor = get(),
         )
     }
 
