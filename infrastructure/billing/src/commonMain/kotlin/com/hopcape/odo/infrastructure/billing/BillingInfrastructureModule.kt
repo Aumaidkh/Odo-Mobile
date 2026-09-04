@@ -5,6 +5,7 @@ import com.hopcape.odo.core.domain.entitlement.EntitlementSource
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
+import com.hopcape.odo.core.domain.subscription.PurchaseUpdates
 import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
 import com.hopcape.odo.core.domain.subscription.SubscriptionStatusSource
 import com.hopcape.odo.infrastructure.billing.catalog.RevenueCatCatalog
@@ -12,12 +13,14 @@ import com.hopcape.odo.infrastructure.billing.catalog.UnconfiguredCatalog
 import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource
 import com.hopcape.odo.infrastructure.billing.identity.RevenueCatIdentity
 import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatOneTimePurchaser
+import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatPurchaseUpdates
 import com.hopcape.odo.infrastructure.billing.purchase.RevenueCatPurchaser
 import com.hopcape.odo.infrastructure.billing.purchase.UnconfiguredOneTimePurchaser
 import com.hopcape.odo.infrastructure.billing.purchase.UnconfiguredPurchaser
 import com.hopcape.odo.infrastructure.billing.status.RevenueCatSubscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.qualifier.named
@@ -65,8 +68,8 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         single<SubscriptionCatalog> { RevenueCatCatalog(telemetry = get()) }
         single<SubscriptionPurchaser> { RevenueCatPurchaser(telemetry = get()) }
         single<OneTimePurchaser> { RevenueCatOneTimePurchaser(telemetry = get()) }
-        // The SDK allows one delegate, so one object owns customer info and both readers
-        // below share it.
+        // The SDK allows one delegate, so one object owns customer info and every reader
+        // below shares it.
         single { CustomerInfoStream(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get()) }
         // Replaces coreDataModule's FreePlanEntitlementSource — the swap every gate in the
         // app has been waiting for since S2, and it is this one line.
@@ -81,6 +84,9 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         // The same customer info, read for what the profile card says rather than for what
         // the owner may do.
         single<SubscriptionStatusSource> { RevenueCatSubscriptionStatus(stream = get()) }
+        // The third reader of the same customer info, this one for purchases the app has not
+        // credited yet — a pending UPI mandate approved after the sheet closed.
+        single<PurchaseUpdates> { RevenueCatPurchaseUpdates(stream = get()) }
         // Replaces coreDataModule's NoopSubscriptionIdentity, which :feature:auth calls
         // unconditionally.
         single<SubscriptionIdentity> {
@@ -96,6 +102,9 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
         single<OneTimePurchaser> { UnconfiguredOneTimePurchaser() }
         // Nobody has a subscription on a build that cannot sell one.
         single<SubscriptionStatusSource> { SubscriptionStatusSource { flowOf(null) } }
+        // No store to push an update, so nothing to claim. Bound rather than left out: the
+        // watcher is resolved at startup either way.
+        single<PurchaseUpdates> { PurchaseUpdates { emptyFlow() } }
     }
 }
 

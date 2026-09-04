@@ -67,6 +67,7 @@ import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
+import com.hopcape.odo.feature.paywall.resources.pw_badge_export
 import com.hopcape.odo.feature.paywall.resources.pw_badge_generic
 import com.hopcape.odo.feature.paywall.resources.pw_badge_savings
 import com.hopcape.odo.feature.paywall.resources.pw_badge_scans
@@ -83,6 +84,7 @@ import com.hopcape.odo.feature.paywall.resources.pw_feature_health_title
 import com.hopcape.odo.feature.paywall.resources.pw_feature_scans_sub
 import com.hopcape.odo.feature.paywall.resources.pw_feature_scans_title
 import com.hopcape.odo.feature.paywall.resources.pw_footer
+import com.hopcape.odo.feature.paywall.resources.pw_headline_export
 import com.hopcape.odo.feature.paywall.resources.pw_headline_generic
 import com.hopcape.odo.feature.paywall.resources.pw_headline_savings
 import com.hopcape.odo.feature.paywall.resources.pw_headline_scans
@@ -99,6 +101,7 @@ import com.hopcape.odo.feature.paywall.resources.pw_plan_monthly_period
 import com.hopcape.odo.feature.paywall.resources.pw_ot_open
 import com.hopcape.odo.feature.paywall.resources.pw_restore
 import com.hopcape.odo.feature.paywall.resources.pw_retry
+import com.hopcape.odo.feature.paywall.resources.pw_subtitle_export
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_generic
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_savings
 import com.hopcape.odo.feature.paywall.resources.pw_subtitle_scans
@@ -559,6 +562,7 @@ private fun badgeTone(trigger: PaywallTrigger): Color = when (trigger) {
     PaywallTrigger.SCANS_EXHAUSTED -> OdoTheme.colors.warning
     PaywallTrigger.SAVINGS -> OdoTheme.colors.success
     PaywallTrigger.SMART_REFUEL -> OdoTheme.colors.accent
+    PaywallTrigger.RECORD_EXPORT -> OdoTheme.colors.accent
 }
 
 @Composable
@@ -567,6 +571,7 @@ private fun badgeText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_badge_scans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_badge_savings, savingsText(state.amountPaise))
     PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_badge_refuel)
+    PaywallTrigger.RECORD_EXPORT -> stringResource(Res.string.pw_badge_export)
 }
 
 @Composable
@@ -575,6 +580,7 @@ private fun headlineText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_headline_scans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_headline_savings)
     PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_headline_refuel)
+    PaywallTrigger.RECORD_EXPORT -> stringResource(Res.string.pw_headline_export)
 }
 
 @Composable
@@ -583,6 +589,7 @@ private fun subtitleText(state: PaywallUiState): String = when (state.trigger) {
     PaywallTrigger.SCANS_EXHAUSTED -> stringResource(Res.string.pw_subtitle_scans, state.freeScans)
     PaywallTrigger.SAVINGS -> stringResource(Res.string.pw_subtitle_savings, savingsText(state.amountPaise))
     PaywallTrigger.SMART_REFUEL -> stringResource(Res.string.pw_subtitle_refuel)
+    PaywallTrigger.RECORD_EXPORT -> stringResource(Res.string.pw_subtitle_export)
 }
 
 @Composable

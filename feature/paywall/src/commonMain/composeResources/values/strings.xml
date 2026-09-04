@@ -14,6 +14,10 @@
     <string name="pw_headline_scans">Keep scanning, without limits.</string>
     <string name="pw_subtitle_scans">You’ve used all %1$d free scans this month. Go Pro for unlimited fairness checks.</string>
 
+    <string name="pw_badge_export">RECORD EXPORT</string>
+    <string name="pw_headline_export">Hand the buyer the whole record.</string>
+    <string name="pw_subtitle_export">One PDF of every service, bill and document — the proof that a car has been looked after. Pro exports as often as you like.</string>
+
     <string name="pw_badge_savings">YOU JUST SAVED %1$s</string>
     <string name="pw_headline_savings">Catch every overcharge, automatically.</string>
     <string name="pw_subtitle_savings">You found %1$s on one bill. Pro checks every bill you’ll ever pay — and pays for itself fast.</string>
@@ -95,5 +99,4 @@
     <string name="pw_ot_error">Couldn’t reach the store. Check your connection and try again.</string>
     <string name="pw_ot_close">Close</string>
     <string name="pw_ot_purchase_failed">That payment didn’t go through. You haven’t been charged.</string>
-    <string name="pw_ot_not_yet">Not on sale here yet — buy it from the share sheet.</string>
 </resources>

@@ -1,0 +1,202 @@
+package com.hopcape.odo.core.data.subscription
+
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import com.hopcape.crashreporting.api.CrashRecorder
+import com.hopcape.logging.api.LogLevel
+import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext
+import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
+import com.hopcape.odo.core.domain.subscription.OneTimeGrant
+import com.hopcape.odo.core.domain.subscription.OneTimeGrants
+import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
+import com.hopcape.odo.core.domain.subscription.OneTimeProducts
+import com.hopcape.odo.core.domain.subscription.PurchaseLedger
+import com.hopcape.performance.api.PerformanceTracer
+import com.hopcape.performance.api.Span
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * Money already taken, credited exactly once.
+ *
+ * Both halves matter and both are invisible from any screen: crediting nothing means an
+ * owner paid and got nothing, and crediting twice hands out checks nobody paid for.
+ */
+class StorePurchaseReconcilerTest {
+
+    @Test
+    fun `a purchase the device never saw is credited`() = runTest {
+        val grants = RecordingGrants()
+        val reconciler = reconciler(
+            purchases = listOf(CompletedPurchase("txn-1", OneTimeProducts.BILL_CHECK_PACK)),
+            grants = grants,
+        )
+
+        reconciler.claimOutstanding()
+
+        assertEquals(listOf(OneTimeGrant.BILL_CHECK_PACK), grants.awarded)
+    }
+
+    /**
+     * The store reports the same purchase on every launch. Without the ledger it would be
+     * credited on every one of them.
+     */
+    @Test
+    fun `the same purchase is never credited twice`() = runTest {
+        val grants = RecordingGrants()
+        val ledger = FakeLedger()
+        val reconciler = reconciler(
+            purchases = listOf(CompletedPurchase("txn-1", OneTimeProducts.BILL_CHECK_SINGLE)),
+            grants = grants,
+            ledger = ledger,
+        )
+
+        reconciler.claimOutstanding()
+        reconciler.claimOutstanding()
+        reconciler.claimOutstanding()
+
+        assertEquals(1, grants.awarded.size)
+    }
+
+    /** Two packs are two transactions, and the product id alone could not tell them apart. */
+    @Test
+    fun `two purchases of the same pack are both credited`() = runTest {
+        val grants = RecordingGrants()
+        val reconciler = reconciler(
+            purchases = listOf(
+                CompletedPurchase("txn-1", OneTimeProducts.BILL_CHECK_PACK),
+                CompletedPurchase("txn-2", OneTimeProducts.BILL_CHECK_PACK),
+            ),
+            grants = grants,
+        )
+
+        reconciler.claimOutstanding()
+
+        assertEquals(2, grants.awarded.size)
+    }
+
+    /**
+     * A product this build does not know is left unclaimed rather than claimed and dropped,
+     * so a release that understands it can still honour the purchase.
+     */
+    @Test
+    fun `a product this build does not know is left for one that does`() = runTest {
+        val grants = RecordingGrants()
+        val ledger = FakeLedger()
+        val reconciler = reconciler(
+            purchases = listOf(CompletedPurchase("txn-1", "odo_something_later")),
+            grants = grants,
+            ledger = ledger,
+        )
+
+        reconciler.claimOutstanding()
+
+        assertTrue(grants.awarded.isEmpty())
+        assertTrue(ledger.claimed.isEmpty(), "claiming it would lose the purchase for good")
+    }
+
+    /** Nothing on screen is waiting for this, so an unreachable store is simply next time. */
+    @Test
+    fun `a store that cannot be reached credits nothing and does not throw`() = runTest {
+        val grants = RecordingGrants()
+
+        reconciler(purchases = null, grants = grants).claimOutstanding()
+
+        assertTrue(grants.awarded.isEmpty())
+    }
+
+    @Test
+    fun `a purchaser that throws credits nothing and does not throw`() = runTest {
+        val grants = RecordingGrants()
+
+        reconciler(purchases = null, grants = grants, throwing = true).claimOutstanding()
+
+        assertTrue(grants.awarded.isEmpty())
+    }
+
+    /* ------------------------------ Fixtures ------------------------------ */
+
+    private fun reconciler(
+        purchases: List<CompletedPurchase>?,
+        grants: OneTimeGrants,
+        ledger: PurchaseLedger = FakeLedger(),
+        throwing: Boolean = false,
+    ) = StorePurchaseReconciler(
+        purchaser = FakePurchaser(purchases, throwing),
+        ledger = ledger,
+        grants = grants,
+        telemetry = DataTelemetry(NoopLogger, NoopTracer, NoopCrash),
+    )
+
+    private class FakePurchaser(
+        private val purchases: List<CompletedPurchase>?,
+        private val throwing: Boolean,
+    ) : OneTimePurchaser {
+        override suspend fun purchase(productId: String): Either<DomainError, Unit> =
+            error("not called")
+
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            error("not called")
+
+        override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> {
+            if (throwing) error("store exploded")
+            return purchases?.right() ?: DomainError.StoreUnavailable.left()
+        }
+    }
+
+    private class FakeLedger : PurchaseLedger {
+        val claimed = mutableSetOf<String>()
+
+        override suspend fun claim(transactionId: String): Boolean = claimed.add(transactionId)
+    }
+
+    private class RecordingGrants : OneTimeGrants {
+        val awarded = mutableListOf<OneTimeGrant>()
+
+        override suspend fun award(grant: OneTimeGrant) {
+            awarded += grant
+        }
+    }
+
+    private object NoopLogger : Logger {
+        override fun log(
+            level: LogLevel,
+            tag: String,
+            event: String,
+            traceContext: TraceContext?,
+            fields: Map<String, Any?>,
+        ) = Unit
+
+        override fun flush() = Unit
+    }
+
+    private class NoopSpan(
+        override val spanId: String,
+        override val traceId: String,
+        override val parentSpanId: String?,
+        override val name: String,
+    ) : Span {
+        override fun setAttribute(key: String, value: Any?): Span = this
+    }
+
+    private object NoopTracer : PerformanceTracer {
+        override fun startSpan(name: String, traceId: String, parentSpanId: String?): Span =
+            NoopSpan("span", traceId, parentSpanId, name)
+
+        override fun endSpan(span: Span) = Unit
+        override fun flush() = Unit
+    }
+
+    private object NoopCrash : CrashRecorder {
+        override fun recordNonFatal(throwable: Throwable, customKeys: Map<String, Any?>) = Unit
+        override fun leaveBreadcrumb(tag: String, message: String) = Unit
+        override fun setCustomKey(key: String, value: Any?) = Unit
+        override fun setUserId(userId: String?) = Unit
+    }
+}

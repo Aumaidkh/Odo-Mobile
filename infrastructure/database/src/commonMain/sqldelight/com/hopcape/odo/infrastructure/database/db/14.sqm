@@ -1,0 +1,14 @@
+-- Schema 14 -> 15: `claimed_purchases`, so a one-time purchase is credited exactly once.
+--
+-- A new table, so there is nothing to migrate.
+--
+-- One boundary worth naming: an install upgrading into this has claimed nothing, so the
+-- first reconcile credits every one-time purchase the store still reports — including any
+-- the buying screen already granted. That is a genuine double for a purchase made before
+-- this release. It is accepted rather than worked around because the consumables have only
+-- just gone on sale, so the set is empty or near it, and the alternative — marking
+-- everything claimed on upgrade — would swallow a purchase that really is outstanding.
+CREATE TABLE claimed_purchases (
+    transaction_id TEXT NOT NULL PRIMARY KEY,
+    claimed_at     TEXT NOT NULL
+);

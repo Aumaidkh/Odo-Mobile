@@ -36,7 +36,8 @@ internal class EntitlementScanAllowance(
                 bought = credits.available(),
             )
             // No plan refuses scanning outright today. If one ever does, a cap of zero says so
-            // through the same type the callers already read.
-            Quota.None -> ScanLimit.UpTo(max = 0, used = 0)
+            // through the same type the callers already read — but a check the owner paid for
+            // is still theirs, so bought ones are carried across even here.
+            Quota.None -> ScanLimit.UpTo(max = 0, used = 0, bought = credits.available())
         }
 }

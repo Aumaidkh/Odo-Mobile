@@ -25,6 +25,10 @@ import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.AllowanceScanCharger
 import com.hopcape.odo.core.data.scan.LocalScanCredits
+import com.hopcape.odo.core.data.subscription.BalanceOneTimeGrants
+import com.hopcape.odo.core.data.subscription.LocalPurchaseLedger
+import com.hopcape.odo.core.data.subscription.PurchaseWatcher
+import com.hopcape.odo.core.data.subscription.StorePurchaseReconciler
 import com.hopcape.odo.core.data.scan.LocalScanUsage
 import com.hopcape.odo.core.data.scan.UnconfiguredBillExtractor
 import com.hopcape.odo.core.data.scan.UnconfiguredDocumentExtractor
@@ -35,6 +39,9 @@ import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
+import com.hopcape.odo.core.domain.subscription.OneTimeGrants
+import com.hopcape.odo.core.domain.subscription.PurchaseLedger
+import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
@@ -293,6 +300,20 @@ val coreDataModule = module {
     single<ScanUsage> { LocalScanUsage(local = get(), clock = get()) }
 
     single<ScanCredits> { LocalScanCredits(local = get()) }
+
+    single<PurchaseLedger> { LocalPurchaseLedger(local = get()) }
+
+    single<OneTimeGrants> { BalanceOneTimeGrants(scans = get(), exports = get()) }
+
+    // The one thing that credits a one-time purchase, so a transaction cannot be honoured
+    // twice — once by the screen that bought it and again on the next launch.
+    single<PurchaseReconciler> {
+        StorePurchaseReconciler(purchaser = get(), ledger = get(), grants = get(), telemetry = get())
+    }
+
+    // Started by the app bootstrap, and it owns the launch claim too — a purchase approved by
+    // a bank while the app is open would otherwise wait for the next launch.
+    single { PurchaseWatcher(updates = get(), reconciler = get()) }
 
     // Free scans first, bought ones after — the one place that rule lives.
     single<ScanCharger> {
