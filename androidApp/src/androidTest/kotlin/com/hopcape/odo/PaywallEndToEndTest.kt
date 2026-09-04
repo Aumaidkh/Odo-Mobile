@@ -196,6 +196,28 @@ class PaywallEndToEndTest {
 
         Espresso.pressBack()
         rule.awaitText(PaywallCopy.HEADLINE)
+        // The plans stay composed *underneath* a sheet, so the headline alone would pass
+        // whether or not the back press closed anything. This is the half the name claims.
+        rule.onNodeWithText(PaywallCopy.ONE_TIME_TITLE).assertDoesNotExist()
+    }
+
+    /**
+     * A store that cannot be asked is not an empty catalogue.
+     *
+     * The distinction is invisible from the app otherwise: the shipped adapter used to
+     * swallow every store error into a null price, so an offline owner was told nothing was
+     * for sale and given no retry.
+     */
+    @Test
+    fun aStoreThatCannotBeReachedOffersARetryRatherThanSayingNothingIsOnSale() {
+        installOffer()
+        installUnreachableOneTimeStore()
+        openPaywall()
+
+        rule.openOneTimeOffers()
+
+        rule.awaitText(PaywallCopy.UNAVAILABLE)
+        rule.onNodeWithText(PaywallCopy.ONE_TIME_EMPTY).assertDoesNotExist()
     }
 
     @Test

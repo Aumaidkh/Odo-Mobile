@@ -48,7 +48,22 @@ internal class RevenueCatOneTimePurchaser(
         )
     }
 
-    override suspend fun priceOf(productId: String): String? = findProduct(productId)?.price?.formatted
+    /**
+     * One call for the lot, and a `Left` when the store itself could not be reached.
+     *
+     * The failure has to survive: `getOrNull()` here would turn an offline store into an
+     * empty catalogue, and the caller would tell the owner nothing is for sale.
+     */
+    override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+        Purchases.sharedInstance.awaitGetProductsEither(productIds).fold(
+            ifLeft = { failure ->
+                telemetry.offeringsFailed(failure.code.toString(), failure.message)
+                DomainError.StoreUnavailable.left()
+            },
+            ifRight = { products ->
+                products.associate { it.id to it.price.formatted }.right()
+            },
+        )
 
     private suspend fun findProduct(productId: String): StoreProduct? =
         Purchases.sharedInstance.awaitGetProductsEither(listOf(productId)).getOrNull()

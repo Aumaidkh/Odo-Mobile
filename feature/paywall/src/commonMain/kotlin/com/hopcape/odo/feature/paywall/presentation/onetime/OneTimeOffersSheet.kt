@@ -26,6 +26,7 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
+import com.hopcape.odo.feature.paywall.resources.pw_ot_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_empty
 import com.hopcape.odo.feature.paywall.resources.pw_ot_subtitle
 import com.hopcape.odo.feature.paywall.resources.pw_ot_title
@@ -88,6 +89,15 @@ internal fun OneTimeOffersSheetContent(
                 }
             }
         }
+
+        // The sheet's own way out, like every other sheet in the app. The scrim and the back
+        // gesture both close it too; a button is what makes that discoverable.
+        OdoButton(
+            text = stringResource(Res.string.pw_ot_close),
+            onClick = { onEvent(OneTimeOffersEvent.CloseTapped) },
+            modifier = Modifier.fillMaxWidth(),
+            variant = OdoButtonVariant.Secondary,
+        )
     }
 }
 

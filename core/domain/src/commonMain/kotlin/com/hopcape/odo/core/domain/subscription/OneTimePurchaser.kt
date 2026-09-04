@@ -28,8 +28,29 @@ interface OneTimePurchaser {
      */
     suspend fun purchase(productId: String): Either<DomainError, Unit>
 
-    /** The store's own formatted price for [productId], or null when it has no such product. */
-    suspend fun priceOf(productId: String): String?
+    /**
+     * The store's own formatted prices for [productIds], keyed by id.
+     *
+     * A `Left` means the store could not be asked at all. An id **absent from the map** means
+     * the store was asked and has no such product. Keeping those apart is the whole reason
+     * this exists: a caller listing several products otherwise cannot tell a short catalogue
+     * from a failed read, and would show two of three as though the third were never for
+     * sale.
+     *
+     * One call rather than one per id, because the store's API takes a list and three serial
+     * round trips is three chances for exactly that partial answer.
+     */
+    suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>>
+
+    /**
+     * The store's own formatted price for [productId], or null.
+     *
+     * Lossy on purpose, and only safe where the caller has nothing to say about the
+     * difference: null is both "no such product" and "could not ask". A screen that lists
+     * products wants [pricesOf].
+     */
+    suspend fun priceOf(productId: String): String? =
+        pricesOf(listOf(productId)).getOrNull()?.get(productId)
 }
 
 /**

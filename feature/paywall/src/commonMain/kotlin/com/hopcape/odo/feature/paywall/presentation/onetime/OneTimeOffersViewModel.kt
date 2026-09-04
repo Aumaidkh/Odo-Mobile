@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.designsystem.text.UiText
+import arrow.core.left
+import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
 import com.hopcape.odo.feature.paywall.resources.pw_ot_error
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +45,12 @@ internal class OneTimeOffersViewModel(
     private val _effects = Channel<OneTimeOffersEffect>(Channel.BUFFERED, BufferOverflow.DROP_OLDEST)
     val effects = _effects.receiveAsFlow()
 
+    /** The in-flight read, held so a retry cannot be overtaken by the attempt it replaced. */
+    private var loadJob: Job? = null
+
+    /** Whether the sheet has already been reported. Retrying is not a second opening. */
+    private var reported = false
+
     init {
         load()
     }
@@ -53,27 +62,46 @@ internal class OneTimeOffersViewModel(
     }
 
     /**
-     * Ask the store what each product costs, and keep the ones it answers for.
+     * Ask the store what the products cost, in one call, and keep the ones it answers for.
      *
-     * One failed read fails the whole sheet rather than quietly showing two of three: a
-     * missing row is indistinguishable from a product that was never created, and the owner
-     * would be choosing from a list that is short for a reason nobody told them.
+     * A store that could not be asked fails the whole sheet rather than quietly showing two
+     * of three: a missing row is indistinguishable from a product that was never created, and
+     * the owner would be choosing from a list that is short for a reason nobody told them.
+     * That is why this reads [OneTimePurchaser.pricesOf] and not `priceOf` — the latter
+     * collapses "no such product" and "could not ask" into the same null, which is exactly
+     * the distinction the sheet is built on.
      */
     private fun load() {
+        loadJob?.cancel()
         _state.update { it.copy(offers = Loadable.Loading) }
-        viewModelScope.launch {
-            val priced = runCatchingCancellableSuspend {
-                OneTimeOffer.entries.mapNotNull { offer ->
-                    purchaser.priceOf(offer.productId)?.let { OneTimeOfferCard(offer, it) }
-                }
-            }.getOrElse { failure ->
-                telemetry.oneTimeOffersUnavailable(failure::class.simpleName ?: UNKNOWN)
-                _state.update { it.copy(offers = Loadable.Failed(UiText(Res.string.pw_ot_error))) }
-                return@launch
-            }
-            telemetry.oneTimeOffersShown(count = priced.size)
-            _state.update { it.copy(offers = Loadable.Ready(priced)) }
+        loadJob = viewModelScope.launch {
+            val prices = runCatchingCancellableSuspend {
+                purchaser.pricesOf(OneTimeOffer.entries.map { it.productId })
+            }.getOrElse { failure -> DomainError.StoreUnavailable.left() }
+
+            prices.fold(
+                ifLeft = { failed(it) },
+                ifRight = { priced -> show(priced) },
+            )
         }
+    }
+
+    private fun show(prices: Map<String, String>) {
+        val cards = OneTimeOffer.entries.mapNotNull { offer ->
+            prices[offer.productId]?.let { OneTimeOfferCard(offer, it) }
+        }
+        // Once per sheet, not once per attempt: a retry is the same opening, and counting it
+        // twice would make "how many were shown nothing" a number nobody can read.
+        if (!reported) {
+            reported = true
+            telemetry.oneTimeOffersShown(count = cards.size)
+        }
+        _state.update { it.copy(offers = Loadable.Ready(cards)) }
+    }
+
+    private fun failed(error: DomainError) {
+        telemetry.oneTimeOffersUnavailable(error::class.simpleName ?: UNKNOWN)
+        _state.update { it.copy(offers = Loadable.Failed(UiText(Res.string.pw_ot_error))) }
     }
 
     private fun dismiss() {

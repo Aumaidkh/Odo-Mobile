@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.paywall.presentation.onetime
 
 import arrow.core.Either
+import arrow.core.left
 import arrow.core.right
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
@@ -95,11 +96,37 @@ class OneTimeOffersViewModelTest {
      */
     @Test
     fun aStoreThatCannotBeReached_failsTheWholeSheet() = runTest(dispatcher) {
-        val viewModel = viewModel(ThrowingPurchaser)
+        val viewModel = viewModel(UnreachablePurchaser)
         advanceUntilIdle()
 
         assertIs<Loadable.Failed>(viewModel.state.value.offers)
         assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_UNAVAILABLE))
+    }
+
+    /** A purchaser that throws is still a failure, not an empty catalogue. */
+    @Test
+    fun aPurchaserThatThrows_alsoFailsTheSheet() = runTest(dispatcher) {
+        val viewModel = viewModel(ThrowingPurchaser)
+        advanceUntilIdle()
+
+        assertIs<Loadable.Failed>(viewModel.state.value.offers)
+    }
+
+    /**
+     * One opening, one report. A retry is the same sheet, and counting it twice makes "how
+     * many owners were shown nothing" a number nobody can read.
+     */
+    @Test
+    fun retryingDoesNotReportTheSheetTwice() = runTest(dispatcher) {
+        val purchaser = FlakyPurchaser(ALL_PRICED)
+        val viewModel = viewModel(purchaser)
+        advanceUntilIdle()
+
+        purchaser.failing = false
+        viewModel.onEvent(OneTimeOffersEvent.RetryTapped)
+        advanceUntilIdle()
+
+        assertEquals(1, tracked.names.count { it == PaywallTelemetry.Event.ONE_TIME_SHOWN })
     }
 
     @Test
@@ -162,20 +189,32 @@ class OneTimeOffersViewModelTest {
             return Unit.right()
         }
 
-        override suspend fun priceOf(productId: String): String? = prices[productId]
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            prices.filterKeys { it in productIds }.right()
     }
 
     private class FlakyPurchaser(prices: Map<String, String>) : FakePurchaser(prices) {
         var failing = true
-        override suspend fun priceOf(productId: String): String? =
-            if (failing) error("store unreachable") else super.priceOf(productId)
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            if (failing) DomainError.StoreUnavailable.left() else super.pricesOf(productIds)
     }
 
+    /** The shape the real adapter reports: the store itself could not be asked. */
+    private object UnreachablePurchaser : OneTimePurchaser {
+        override suspend fun purchase(productId: String): Either<DomainError, Unit> =
+            error("not called")
+
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            DomainError.StoreUnavailable.left()
+    }
+
+    /** A purchaser that throws outright — the unconfigured-SDK case, not a store error. */
     private object ThrowingPurchaser : OneTimePurchaser {
         override suspend fun purchase(productId: String): Either<DomainError, Unit> =
             error("not called")
 
-        override suspend fun priceOf(productId: String): String? = error("store unreachable")
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            error("RevenueCat is not configured")
     }
 
     private class RecordingTracker : AnalyticsTracker {

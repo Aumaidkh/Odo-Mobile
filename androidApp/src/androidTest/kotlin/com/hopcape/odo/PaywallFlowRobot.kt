@@ -148,10 +148,19 @@ private object SwitchablePurchaser : OneTimePurchaser {
     @Volatile
     var prices: Map<String, String> = emptyMap()
 
+    /**
+     * Refused, not thrown. `ShareRecordViewModel.buyExport` does not catch, so a throw here
+     * would crash whichever later suite reaches the paid-export path rather than failing an
+     * assertion — and this binding outlives the class that installed it.
+     */
     override suspend fun purchase(productId: String): Either<DomainError, Unit> =
-        error("nothing is purchasable until credits exist")
+        DomainError.NothingForSale.left()
 
-    override suspend fun priceOf(productId: String): String? = prices[productId]
+    override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+        if (unreachable) DomainError.StoreUnavailable.left() else prices.filterKeys { it in productIds }.right()
+
+    @Volatile
+    var unreachable: Boolean = false
 }
 
 private var purchaserBound = false
@@ -168,6 +177,7 @@ internal fun installOneTimePrices(
     billCheckPack: String? = "₹99",
     recordExport: String? = "₹99",
 ) {
+    SwitchablePurchaser.unreachable = false
     SwitchablePurchaser.prices = buildMap {
         billCheckSingle?.let { put(OneTimeProducts.BILL_CHECK_SINGLE, it) }
         billCheckPack?.let { put(OneTimeProducts.BILL_CHECK_PACK, it) }
@@ -182,7 +192,16 @@ internal fun installOneTimePrices(
 }
 
 /** Nothing on sale one at a time — today's real state, and the sheet's empty case. */
-internal fun installNoOneTimeProducts() = installOneTimePrices(null, null, null)
+internal fun installNoOneTimeProducts() {
+    SwitchablePurchaser.unreachable = false
+    installOneTimePrices(null, null, null)
+}
+
+/** A store that cannot be asked at all — which must not read as an empty catalogue. */
+internal fun installUnreachableOneTimeStore() {
+    installOneTimePrices(null, null, null)
+    SwitchablePurchaser.unreachable = true
+}
 
 private var catalogBound = false
 
