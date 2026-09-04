@@ -77,6 +77,7 @@ import com.hopcape.odo.feature.billcheck.resources.bc_subhead_none
 import com.hopcape.odo.feature.billcheck.resources.bc_subhead_one
 import com.hopcape.odo.feature.billcheck.resources.bc_subhead_then
 import com.hopcape.odo.feature.billcheck.resources.bc_title
+import com.hopcape.odo.feature.billcheck.resources.bc_unchecked
 import com.hopcape.odo.feature.billcheck.resources.bc_workshop_authorised
 import com.hopcape.odo.feature.billcheck.resources.bc_workshop_local
 import com.hopcape.odo.feature.billcheck.resources.bc_workshop_multi_brand
@@ -181,6 +182,12 @@ private fun Result(
                 check.fine.forEach { line ->
                     OdoDivider()
                     FineRow(line)
+                }
+                // Last, and without a tick. These were not checked, and a tick would say
+                // they were.
+                check.unchecked.forEach { line ->
+                    OdoDivider()
+                    UncheckedRow(line)
                 }
             }
         }
@@ -348,6 +355,40 @@ private fun FineRow(line: PricedLine) {
             style = OdoTheme.typography.body,
             modifier = Modifier.weight(1f),
         )
+        OdoText(text = line.amount.formatRupees(), style = OdoTheme.typography.body)
+    }
+}
+
+/**
+ * A line the check could not read.
+ *
+ * No tick, and the reason said out loud. Drawn dimmer than a checked line because it carries
+ * less, not because it matters less — the owner still paid for it, and the amount stays in
+ * full ink.
+ */
+@Composable
+private fun UncheckedRow(line: PricedLine) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = OdoTheme.spacing.cardPadding,
+                vertical = OdoTheme.spacing.md,
+            ),
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+        ) {
+            OdoText(text = line.name, style = OdoTheme.typography.body)
+            OdoText(
+                text = stringResource(Res.string.bc_unchecked),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textMuted,
+            )
+        }
         OdoText(text = line.amount.formatRupees(), style = OdoTheme.typography.body)
     }
 }

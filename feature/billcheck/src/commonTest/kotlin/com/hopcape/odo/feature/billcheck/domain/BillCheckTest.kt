@@ -37,7 +37,7 @@ class BillCheckTest {
         assertEquals(Amount.ZERO, check.worthAsking)
     }
 
-    /** "all 6 below" counts the whole bill, not just the part that was flagged. */
+    /** "all 6 below" counts the whole bill — including what could not be checked. */
     @Test
     fun `the line count covers the whole bill`() {
         val check = check(
@@ -46,9 +46,25 @@ class BillCheckTest {
                 PricedLine("Engine oil + filter", rupees(5_800)),
                 PricedLine("Air filter", rupees(950)),
             ),
+            unchecked = listOf(PricedLine("Throttle body", rupees(1_800))),
         )
 
-        assertEquals(3, check.lineCount)
+        assertEquals(4, check.lineCount)
+    }
+
+    /**
+     * An unchecked line is not worth asking about — nothing was found. Counting it would put
+     * a rupee figure in the headline that no finding on the screen supports.
+     */
+    @Test
+    fun `an unchecked line adds nothing to the headline`() {
+        val check = check(
+            flagged = listOf(flagged("AC service", 2_400, Reason.AboveBand(rupees(1_400), rupees(1_800)))),
+            fine = emptyList(),
+            unchecked = listOf(PricedLine("Throttle body", rupees(1_800))),
+        )
+
+        assertEquals(rupees(2_400), check.worthAsking)
     }
 
     /**
@@ -75,13 +91,18 @@ class BillCheckTest {
         assertEquals(1, Evidence.CityRates.strength)
     }
 
-    private fun check(flagged: List<FlaggedLine>, fine: List<PricedLine>) = BillCheck(
+    private fun check(
+        flagged: List<FlaggedLine>,
+        fine: List<PricedLine>,
+        unchecked: List<PricedLine> = emptyList(),
+    ) = BillCheck(
         car = "Swift VXi",
         city = "Srinagar",
         workshop = WorkshopTier.AUTHORISED,
         billTotal = rupees(18_400),
         flagged = flagged,
         fine = fine,
+        unchecked = unchecked,
         canFlagRepeats = false,
     )
 

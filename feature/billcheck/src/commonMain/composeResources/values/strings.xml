@@ -44,6 +44,8 @@
     <string name="bc_share">Share</string>
     <string name="bc_how_we_know">How we know</string>
     <string name="bc_cd_line_ok">Priced fine</string>
+    <!-- Said out loud rather than implied: a tick here would claim a check that never ran. -->
+    <string name="bc_unchecked">Couldn’t check this one</string>
 
     <!-- Locked. The line count sells; the rupee figure stays behind the wall. -->
     <string name="bc_masked_amount">Rs. ● ● ● ●</string>

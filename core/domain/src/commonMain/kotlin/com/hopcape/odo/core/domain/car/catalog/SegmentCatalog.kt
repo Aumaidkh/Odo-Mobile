@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.advisory.domain
+package com.hopcape.odo.core.domain.car.catalog
 
 import com.hopcape.odo.core.domain.shared.VehicleSegment
 
@@ -6,19 +6,26 @@ import com.hopcape.odo.core.domain.shared.VehicleSegment
  * Which body class a model belongs to.
  *
  * Hand-entered, and deliberately short: it lists the models that actually sell in India in
- * volume, and answers [DEFAULT] for anything else. A wrong segment widens the estimate by
- * one band, which is a worse answer; a missing one would be no answer at all.
+ * volume. Matching is on the model name alone, lower-cased — the trim never changes the body
+ * class, and the make is redundant once the model is known, since no two makes ship a
+ * "Baleno".
  *
- * Matching is on the model name alone, lower-cased. The trim never changes the body class,
- * and the make is redundant once the model is known — no two makes ship a "Baleno".
+ * **A caller has to choose what an unknown model means**, which is why there are two reads.
+ * [segmentOrNull] says "not in the list", and [segmentOf] guesses [DEFAULT]. Guessing is the
+ * right answer where a rough figure beats none, and the wrong one where the segment feeds a
+ * price claim: a bill for an SUV priced against a hatchback's parts is a finding put in front
+ * of an owner at a counter, and it is wrong in the direction that costs them an argument.
  */
-internal object SegmentCatalog {
+object SegmentCatalog {
 
     /** Hatchbacks outnumber everything else in the target market, so they are the fallback. */
     val DEFAULT: VehicleSegment = VehicleSegment.HATCHBACK
 
-    fun segmentOf(model: String): VehicleSegment =
-        BY_MODEL[model.trim().lowercase()] ?: DEFAULT
+    /** The segment, guessing [DEFAULT] for a model the list does not carry. */
+    fun segmentOf(model: String): VehicleSegment = segmentOrNull(model) ?: DEFAULT
+
+    /** The segment, or null when the list does not carry the model. */
+    fun segmentOrNull(model: String): VehicleSegment? = BY_MODEL[model.trim().lowercase()]
 
     private val BY_MODEL: Map<String, VehicleSegment> = buildMap {
         listOf(
