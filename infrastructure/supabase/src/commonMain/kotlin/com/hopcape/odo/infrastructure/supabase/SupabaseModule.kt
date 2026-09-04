@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
 import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
@@ -41,6 +42,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseChallanRemoteDat
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCreditSpendRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessContributionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePriceBandRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceIntervalRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePurchaseClaimRemoteDataSource
@@ -188,6 +190,9 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<FuelFillRemoteDataSource> { SupabaseFuelFillRemoteDataSource(postgrest = get()) }
         single<QuestionAnswerRemoteDataSource> { SupabaseQuestionAnswerRemoteDataSource(postgrest = get()) }
         single<PriceBandRemoteDataSource> { SupabasePriceBandRemoteDataSource(postgrest = get()) }
+        single<FairnessContributionRemoteDataSource> {
+            SupabaseFairnessContributionRemoteDataSource(postgrest = get())
+        }
         single<ServiceIntervalRemoteDataSource> { SupabaseServiceIntervalRemoteDataSource(postgrest = get()) }
         single<PurchaseClaimRemoteDataSource> { SupabasePurchaseClaimRemoteDataSource(postgrest = get()) }
         single<CreditSpendRemoteDataSource> { SupabaseCreditSpendRemoteDataSource(postgrest = get()) }

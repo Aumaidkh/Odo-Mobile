@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.right
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
+import com.hopcape.odo.core.domain.benchmark.FairnessContributor
+import com.hopcape.odo.core.domain.benchmark.PriceObservation
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
@@ -144,6 +146,30 @@ class LoggedBillCheckReaderTest {
         assertIs<Reason.AboveBand>(result.getOrNull()!!.flagged.single().reason)
     }
 
+    /** The pool is fed at the same moment the check is charged, and not before. */
+    @Test
+    fun `a charged check gives its prices back`() = runTest {
+        val given = mutableListOf<PriceObservation>()
+
+        reader(contributor = { given += it }).read(BILL)
+
+        assertEquals(1, given.size)
+        assertEquals("ac_service", given.single().categorySlug)
+    }
+
+    /** Nothing was checked, so there is nothing true to file. */
+    @Test
+    fun `a check that named nothing gives nothing back`() = runTest {
+        val given = mutableListOf<PriceObservation>()
+
+        reader(
+            contributor = { given += it },
+            lines = listOf("Throttle body cleaning" to 1_800),
+        ).read(BILL)
+
+        assertTrue(given.isEmpty())
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reader(
@@ -154,6 +180,7 @@ class LoggedBillCheckReaderTest {
         city: String? = "Srinagar",
         workshop: WorkshopTier? = WorkshopTier.AUTHORISED,
         spy: MutableList<PriceBandQuery>? = null,
+        contributor: FairnessContributor = FairnessContributor {},
     ): LoggedBillCheckReader {
         val stored = if (missing) null else entryOf(lines)
         return LoggedBillCheckReader(
@@ -168,6 +195,7 @@ class LoggedBillCheckReaderTest {
                 intervals = { emptyMap<String, com.hopcape.odo.core.domain.schedule.ServiceInterval>().right() },
             ),
             charger = charger,
+            contributor = contributor,
         )
     }
 

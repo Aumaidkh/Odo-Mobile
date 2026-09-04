@@ -4,6 +4,7 @@ import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
+import com.hopcape.odo.core.domain.benchmark.PriceObservation
 import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.schedule.ServiceIntervalRepository
@@ -21,6 +22,17 @@ import kotlinx.datetime.LocalDate
 
 /** One line as it was printed on the bill. */
 internal data class BillLine(val label: String, val amount: Amount)
+
+/**
+ * The check, and the prices it is willing to give back to the pool.
+ *
+ * Only lines whose job was named and whose band was found: a price filed against the wrong
+ * job comes back to some other owner as a band, so a guess here is worse than a gap.
+ */
+internal data class CheckedBill(
+    val check: BillCheck,
+    val observations: List<PriceObservation>,
+)
 
 /**
  * Decides what each line of a bill is worth asking about.
@@ -53,7 +65,7 @@ internal class CheckBillPriceUseCase(
         billTotal: Amount,
         billDate: LocalDate,
         history: List<ServiceLogEntry>,
-    ): BillCheck {
+    ): CheckedBill {
         // A schedule that could not be read is no schedule: repeats fall back to the stated
         // default and schedule claims are simply not made, rather than the screen losing
         // every finding it had.
@@ -63,6 +75,7 @@ internal class CheckBillPriceUseCase(
         val flagged = mutableListOf<FlaggedLine>()
         val fine = mutableListOf<PricedLine>()
         val unchecked = mutableListOf<PricedLine>()
+        val observations = mutableListOf<PriceObservation>()
 
         lines.forEach { line ->
             val priced = PricedLine(line.label, line.amount)
@@ -75,6 +88,12 @@ internal class CheckBillPriceUseCase(
                     val repeat = repeats.previous(match.kind, history, billDate)
                     val early = notDue.notDueYet(match.kind, car.odometer.km, history)
                     val band = bandFor(match, car, city, workshop)
+                    // Every named line with a band is a real price somebody paid, whatever
+                    // else was said about it — a repeat is still a price, and the pool is
+                    // about what things cost rather than about who should have asked.
+                    if (band != null && city != null) {
+                        observations += line.observed(match, car, city, workshop)
+                    }
                     when {
                         // The record beats both tables. It is the owner's own data, and "you
                         // had this in April" is a harder question than anything else here.
@@ -90,7 +109,7 @@ internal class CheckBillPriceUseCase(
             }
         }
 
-        return BillCheck(
+        return CheckedBill(observations = observations, check = BillCheck(
             car = car.displayName(),
             city = city.orEmpty(),
             workshop = workshop,
@@ -107,8 +126,24 @@ internal class CheckBillPriceUseCase(
             unchecked = unchecked,
             // Nothing to compare against yet, so the screen says what adding a bill buys.
             canFlagRepeats = history.isNotEmpty(),
-        )
+        ))
     }
+
+    /** What this line says about what a job costs here. Never who paid it. */
+    private fun BillLine.observed(
+        match: LineMatch.Job,
+        car: Car,
+        city: String,
+        workshop: WorkshopTier,
+    ) = PriceObservation(
+        categorySlug = match.kind.slug,
+        city = city,
+        amount = amount,
+        segment = SegmentCatalog.segmentOrNull(car.model),
+        fuel = car.fuelType,
+        workshopTier = workshop,
+        carMake = car.make,
+    )
 
     /**
      * The band, or null when there is none.

@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.benchmark.FairnessContributor
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
@@ -25,7 +26,11 @@ import kotlinx.coroutines.flow.first
  * lines as the workshop printed them, the date, the odometer and the total. Nothing here
  * re-reads a photo.
  *
- * **The check is charged only once it has said something.** A read that could not name a
+ * **The check is charged only once it has said something**, and its prices go back to the
+ * shared pool at the same moment — which is what makes the "How we know" sheet's promise that
+ * a band tightens on its own true.
+ *
+ * **The charge, in full:** A read that could not name a
  * single line has cost the owner nothing and takes nothing — which is what the offers sheet
  * promises ("if a check fails the credit comes back"), delivered by never taking it rather
  * than by refunding.
@@ -38,6 +43,7 @@ internal class LoggedBillCheckReader(
     private val questionnaire: QuestionnaireRepository,
     private val check: CheckBillPriceUseCase,
     private val charger: ScanCharger,
+    private val contributor: FairnessContributor,
 ) : BillCheckReader {
 
     override suspend fun read(billId: String): Either<DomainError, BillCheck> {
@@ -63,9 +69,14 @@ internal class LoggedBillCheckReader(
 
         // Charged here rather than by the screen: what the check found is what decides
         // whether it was one, and only this layer knows.
-        if (result.saidSomething) charger.chargeOne()
+        if (result.check.saidSomething) {
+            charger.chargeOne()
+            // After the answer, never before it. The owner is not waiting on this, and the
+            // server refuses it outright unless they have agreed to share prices.
+            contributor.contribute(result.observations)
+        }
 
-        return result.right()
+        return result.check.right()
     }
 
     /**

@@ -43,9 +43,13 @@ import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributorImpl
+import com.hopcape.odo.core.data.benchmark.FakeFairnessContributionRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.FakePriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRepositoryImpl
+import com.hopcape.odo.core.domain.benchmark.FairnessContributor
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
 import com.hopcape.odo.core.data.schedule.FakeServiceIntervalRemoteDataSource
 import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
@@ -256,6 +260,10 @@ val coreDataModule = module {
     // invented one in front of an owner at a counter.
     single<PriceBandRemoteDataSource> { FakePriceBandRemoteDataSource() }
     single<PriceBandRepository> { PriceBandRepositoryImpl(remote = get(), telemetry = get()) }
+
+    // Giving a checked bill's prices back, so a modelled band tightens into a real one.
+    single<FairnessContributionRemoteDataSource> { FakeFairnessContributionRemoteDataSource() }
+    single<FairnessContributor> { FairnessContributorImpl(remote = get(), telemetry = get()) }
 
     // The maker's schedule. Public reference data, so a plain table read.
     single<ServiceIntervalRemoteDataSource> { FakeServiceIntervalRemoteDataSource() }

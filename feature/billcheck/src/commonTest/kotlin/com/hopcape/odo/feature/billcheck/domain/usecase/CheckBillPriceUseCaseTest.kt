@@ -317,7 +317,72 @@ class CheckBillPriceUseCaseTest {
         assertEquals(1, check.fine.size)
     }
 
+    /* ------------------------------ The pool ------------------------------ */
+
+    /**
+     * Every named, priced line goes back — including a repeat. The pool is about what a job
+     * costs here, not about who should have asked a question.
+     */
+    @Test
+    fun `a checked line is offered back to the pool`() = runTest {
+        val result = checked(
+            lines = listOf(line("AC service", 2_400), line("Engine oil 5W-30", 1_500)),
+        )
+
+        assertEquals(2, result.observations.size)
+        val ac = result.observations.first()
+        assertEquals("ac_service", ac.categorySlug)
+        assertEquals(rupees(2_400), ac.amount)
+        assertEquals("Maruti Suzuki", ac.carMake, "the make shapes a price and names nobody")
+    }
+
+    /** A line with no band is a line nobody priced. Filing it would be filing a guess. */
+    @Test
+    fun `an unpriced line is not offered back`() = runTest {
+        val result = checked(lines = listOf(line("Throttle body cleaning", 1_800)), band = null)
+
+        assertTrue(result.observations.isEmpty())
+    }
+
+    /** Without a city a price says nothing — the pool is keyed by where it was paid. */
+    @Test
+    fun `nothing is offered back without a city`() = runTest {
+        val result = CheckBillPriceUseCase(
+            matcher = BillLineMatcher(),
+            bands = FakeBands(band(), null, false, null),
+            intervals = { emptyMap<String, ServiceInterval>().right() },
+        ).invoke(
+            car = car(),
+            city = null,
+            workshop = WorkshopTier.AUTHORISED,
+            lines = listOf(line("AC service", 2_400)),
+            billTotal = rupees(18_400),
+            billDate = BILL_DATE,
+            history = emptyList(),
+        )
+
+        assertTrue(result.observations.isEmpty())
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
+
+    /** The whole result, for the tests that care what goes back to the pool. */
+    private suspend fun checked(
+        lines: List<BillLine>,
+        band: PriceBand? = band(),
+    ) = CheckBillPriceUseCase(
+        matcher = BillLineMatcher(),
+        bands = FakeBands(band, null, false, null),
+        intervals = { emptyMap<String, ServiceInterval>().right() },
+    ).invoke(
+        car = car(),
+        city = "Srinagar",
+        workshop = WorkshopTier.AUTHORISED,
+        lines = lines,
+        billTotal = rupees(18_400),
+        billDate = BILL_DATE,
+        history = emptyList(),
+    )
 
     private suspend fun check(
         lines: List<BillLine>,
@@ -340,7 +405,7 @@ class CheckBillPriceUseCaseTest {
         billTotal = rupees(18_400),
         billDate = BILL_DATE,
         history = history,
-    )
+    ).check
 
     private fun band(
         basis: BenchmarkBasis = BenchmarkBasis.MODELLED,
