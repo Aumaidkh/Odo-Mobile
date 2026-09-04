@@ -191,12 +191,9 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            // Where a scan lands: the bill check, on the entry the review just saved.
             is BillReviewEffect.OpenFairness -> navigationManager.navigateTo(
-                OdoDestination.Fairness(
-                    items = effect.items,
-                    logId = effect.logId,
-                    carId = effect.carId,
-                ),
+                OdoDestination.BillCheck.Result(billId = effect.logId),
             )
             BillReviewEffect.Retake -> navigationManager.back()
             // Same as the scanner's "Manual": the form takes this screen's place, so nothing

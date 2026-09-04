@@ -63,7 +63,10 @@ private fun insertBill(
             "total_amount_paise, workshop_name, notes, source, bill_id, bill_photo_path, " +
             "fairness_snapshot, line_items, created_at, updated_at, sync_status) VALUES " +
             "('$id', '${LogFixtures.CAR}', '${LogFixtures.OWNER}', '$date', $odometerKm, " +
-            "$totalPaise, '${BillCheckFixtures.WORKSHOP}', NULL, 'SCANNED', NULL, NULL, NULL, " +
+            "$totalPaise, '${BillCheckFixtures.WORKSHOP}', NULL, 'SCANNED', NULL, " +
+            // A bill photo, because the detail screen offers the check only on a verified
+            // entry — the PRD's trust rule, and the gate this action already had.
+            "'bills/test-car/$id.jpg', NULL, " +
             "'${lineItems.replace("'", "''")}', '$SEEDED_AT', '$SEEDED_AT', 'PENDING')",
         0,
     )
