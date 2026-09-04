@@ -1,22 +1,20 @@
-package com.hopcape.odo.feature.billcheck.presentation.result
+package com.hopcape.odo.feature.billcheck.domain
 
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.WorkshopTier
-import com.hopcape.odo.feature.billcheck.domain.BillCheck
-import com.hopcape.odo.feature.billcheck.domain.Evidence
-import com.hopcape.odo.feature.billcheck.domain.FlaggedLine
-import com.hopcape.odo.feature.billcheck.domain.PricedLine
-import com.hopcape.odo.feature.billcheck.domain.Reason
 
 /**
- * The two scenes this screen has to win, as previews and as the stub's answers.
+ * The two scenes the bill check has to win — the previews' data and the stub's answers.
+ *
+ * In `domain` rather than beside the previews: the stub reads them, and a reader reaching up
+ * into presentation would point the module's dependencies the wrong way.
  *
  * Both are the same ₹18,400 bill: the difference is what Odo knows about the car. Day 1 has
  * only reference data and what onboarding asked; month 6 also has the owner's own record, and
  * the record is what turns a two-line answer into a three-line one
  * (AI_ADVISORY_PLAN §2, Scene 1).
  */
-internal object BillCheckPreviewData {
+internal object BillCheckFixtures {
 
     /** Day 1 — nothing but Tier 0 and Tier 1, and still two findings. */
     val dayOne = BillCheck(
@@ -91,7 +89,25 @@ internal object BillCheckPreviewData {
         canFlagRepeats = true,
     )
 
-    /** The constructor is private — money is validated on the way in, even in a preview. */
+    /** The band behind the AC service line on the day-1 result. */
+    val acServiceBasis = BandBasis(
+        lineName = "AC service",
+        low = rupees(1_400),
+        high = rupees(1_800),
+        city = "Srinagar",
+        cityTier = 2,
+        workshop = WorkshopTier.AUTHORISED,
+        segment = "1.2L petrol hatchback",
+        labourRatePerHour = rupees(520),
+        labourHours = 1.5,
+        rungs = listOf(
+            Rung(BandScope.THIS_CAR_THIS_CENTRE, RungState.NO_DATA),
+            Rung(BandScope.CITY_TIER_SEGMENT, RungState.USED),
+            Rung(BandScope.NATIONAL, RungState.NOT_NEEDED),
+        ),
+    )
+
+    /** The constructor is private — money is validated on the way in, even in a fixture. */
     private fun rupees(whole: Int) =
         Amount.of(whole * PAISE_PER_RUPEE).getOrNull() ?: Amount.ZERO
 

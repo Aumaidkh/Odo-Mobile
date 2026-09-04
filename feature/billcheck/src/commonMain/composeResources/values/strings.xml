@@ -15,6 +15,9 @@
     <string name="bc_subhead_one">of %1$s · 1 flagged line, all %2$d below</string>
     <string name="bc_subhead_none">of %1$s · nothing worth asking about, all %2$d below</string>
 
+    <!-- Ends the count so the nudge below reads as its own sentence. -->
+    <string name="bc_subhead_then">%1$s. </string>
+
     <!-- Shown until the owner has a record to compare against. -->
     <string name="bc_add_last_bill">Add your last bill</string>
     <string name="bc_add_last_bill_tail"> and I can flag repeats too.</string>

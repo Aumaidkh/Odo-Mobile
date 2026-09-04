@@ -54,9 +54,18 @@ internal class BasisViewModel(
         readJob?.cancel()
         _state.update { it.copy(content = BasisUiState.Content.Loading) }
         readJob = viewModelScope.launch(telemetry.op(OP_BASIS)) {
-            runCatchingCancellableSuspend { reader.basisFor(billId, lineName) }
-                .getOrElse { DomainError.PersistenceFailure().left() }
-                .fold(
+            // Spanned like the bill read beside it: the real implementation routes this
+            // through an Edge Function, and a sheet whose one answer never arrives looks
+            // identical to a sheet that crashed. Closed in a `finally`, because dismissing
+            // the sheet mid-read cancels this coroutine.
+            val span = telemetry.readStarted()
+            val result = try {
+                runCatchingCancellableSuspend { reader.basisFor(billId, lineName) }
+                    .getOrElse { DomainError.PersistenceFailure().left() }
+            } finally {
+                telemetry.readEnded(span)
+            }
+            result.fold(
                     ifLeft = { error ->
                         telemetry.readFailed(error)
                         _state.update {

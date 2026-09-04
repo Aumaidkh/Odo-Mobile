@@ -3,8 +3,6 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisPreviewData
-import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckPreviewData
 
 /**
  * The two scenes, answered from the preview fixtures.
@@ -20,10 +18,10 @@ import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckPreviewDat
 internal class StubBillCheckReader : BillCheckReader, BandBasisReader {
 
     override suspend fun read(billId: String): Either<DomainError, BillCheck> =
-        BillCheckPreviewData.monthSix.right()
+        BillCheckFixtures.monthSix.right()
 
     override suspend fun basisFor(
         billId: String,
         lineName: String,
-    ): Either<DomainError, BandBasis> = BasisPreviewData.acService.right()
+    ): Either<DomainError, BandBasis> = BillCheckFixtures.acServiceBasis.right()
 }

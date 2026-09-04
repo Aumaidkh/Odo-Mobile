@@ -24,6 +24,14 @@ internal sealed interface BillCheckEvent {
     data object UnlockClicked : BillCheckEvent
 
     data object RetryClicked : BillCheckEvent
+
+    /**
+     * The screen came back to the front — the offers sheet over it was dismissed.
+     *
+     * The wall is the reason this exists: a check bought on that sheet has to unmask the
+     * findings behind it, and nothing else on this screen would ever ask again.
+     */
+    data object Resumed : BillCheckEvent
 }
 
 /**

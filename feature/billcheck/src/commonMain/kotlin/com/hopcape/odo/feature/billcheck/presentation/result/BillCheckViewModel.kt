@@ -61,6 +61,7 @@ internal class BillCheckViewModel(
         BillCheckEvent.AddLastBillClicked -> addLastBill()
         BillCheckEvent.UnlockClicked -> openOffers()
         BillCheckEvent.RetryClicked -> read()
+        BillCheckEvent.Resumed -> refreshLock()
     }
 
     private fun read() {
@@ -69,10 +70,15 @@ internal class BillCheckViewModel(
         readJob = viewModelScope.launch(telemetry.op(OP_READ)) {
             val span = telemetry.readStarted()
             // A throw is the same outcome as a refusal here: the screen has one failure
-            // state, and it is the read that failed either way.
-            val result = runCatchingCancellableSuspend { reader.read(billId) }
-                .getOrElse { DomainError.PersistenceFailure().left() }
-            telemetry.readEnded(span)
+            // state, and it is the read that failed either way. Closed in a `finally`
+            // because backing out mid-read cancels this coroutine, and a span left open
+            // reads as an operation that never finished.
+            val result = try {
+                runCatchingCancellableSuspend { reader.read(billId) }
+                    .getOrElse { DomainError.PersistenceFailure().left() }
+            } finally {
+                telemetry.readEnded(span)
+            }
 
             result.fold(
                 ifLeft = { failed(it) },
@@ -91,6 +97,27 @@ internal class BillCheckViewModel(
         // The offer is made where the pain is, with the estimate still in the owner's hand
         // (AI_ADVISORY_PLAN D3) — not in a settings screen an hour later.
         if (locked) openOffers()
+    }
+
+    /**
+     * Ask again whether the owner may see the findings, without re-reading the bill.
+     *
+     * Only ever unmasks. A check spent elsewhere while this screen sat behind a sheet must
+     * not take back an answer already on screen — the owner paid for this reading of this
+     * bill, not for a subscription to it.
+     */
+    private fun refreshLock() {
+        val ready = _state.value.content as? BillCheckUiState.Content.Ready ?: return
+        if (!ready.locked) return
+        viewModelScope.launch(telemetry.op(OP_LOCK)) {
+            if (!unlocked()) return@launch
+            telemetry.resultShown(
+                flagged = ready.check.flagged.size,
+                lines = ready.check.lineCount,
+                locked = false,
+            )
+            _state.update { it.copy(content = ready.copy(locked = false)) }
+        }
     }
 
     private fun failed(error: DomainError) {
@@ -136,5 +163,6 @@ internal class BillCheckViewModel(
 
     private companion object {
         const val OP_READ = "read"
+        const val OP_LOCK = "lock"
     }
 }

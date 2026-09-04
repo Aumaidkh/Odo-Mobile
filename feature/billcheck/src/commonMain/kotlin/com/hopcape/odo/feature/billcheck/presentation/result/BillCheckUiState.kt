@@ -27,6 +27,4 @@ internal data class BillCheckUiState(val content: Content = Content.Loading) {
     }
 
     val check: BillCheck? get() = (content as? Content.Ready)?.check
-
-    val isLocked: Boolean get() = (content as? Content.Ready)?.locked == true
 }

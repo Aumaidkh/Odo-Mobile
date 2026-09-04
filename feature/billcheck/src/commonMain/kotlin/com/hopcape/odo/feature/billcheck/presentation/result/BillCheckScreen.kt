@@ -45,6 +45,7 @@ import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.core.domain.shared.formatRupeeRangeTo
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billcheck.domain.BillCheck
+import com.hopcape.odo.feature.billcheck.domain.BillCheckFixtures
 import com.hopcape.odo.feature.billcheck.domain.Evidence
 import com.hopcape.odo.feature.billcheck.domain.FlaggedLine
 import com.hopcape.odo.feature.billcheck.domain.PricedLine
@@ -74,6 +75,7 @@ import com.hopcape.odo.feature.billcheck.resources.bc_share
 import com.hopcape.odo.feature.billcheck.resources.bc_subhead
 import com.hopcape.odo.feature.billcheck.resources.bc_subhead_none
 import com.hopcape.odo.feature.billcheck.resources.bc_subhead_one
+import com.hopcape.odo.feature.billcheck.resources.bc_subhead_then
 import com.hopcape.odo.feature.billcheck.resources.bc_title
 import com.hopcape.odo.feature.billcheck.resources.bc_workshop_authorised
 import com.hopcape.odo.feature.billcheck.resources.bc_workshop_local
@@ -108,8 +110,14 @@ internal fun BillCheckScreen(
         title = stringResource(Res.string.bc_title),
         onBack = { onEvent(BillCheckEvent.BackClicked) },
         backContentDescription = stringResource(Res.string.bc_cd_back),
-        // Nothing to share or explain while the answer is behind the wall.
-        bottomBar = { if (ready != null && !ready.locked) Actions(ready.check, onEvent) },
+        // Nothing to share or explain while the answer is behind the wall — and nothing to
+        // share on a bill where nothing was flagged, where the text would read "Rs. 0 worth
+        // asking about" and look like a check that failed rather than one that passed.
+        bottomBar = {
+            if (ready != null && !ready.locked && ready.check.flagged.isNotEmpty()) {
+                Actions(ready.check, onEvent)
+            }
+        },
     ) { padding ->
         when (content) {
             BillCheckUiState.Content.Loading -> Centred(padding) { OdoLoadingIndicator() }
@@ -150,7 +158,6 @@ private fun Result(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(padding)
-            .padding(horizontal = OdoTheme.spacing.screenEdge)
             .padding(bottom = OdoTheme.spacing.xl),
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
     ) {
@@ -242,7 +249,7 @@ private fun Subhead(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
     } else {
         OdoText(
             text = buildAnnotatedString {
-                append("$text ")
+                append(stringResource(Res.string.bc_subhead_then, text))
                 withBold { append(nudge) }
                 append(tail)
             },
@@ -374,6 +381,9 @@ private fun MaskedRow(name: String, onClick: () -> Unit) {
 @Composable
 private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
     val shareText = check.shareText()
+    // "How we know" explains a band, and only a rate claim has one. A repeat or a schedule
+    // question would open a sheet with nothing in it, so the button is not offered.
+    val hasBand = check.flagged.any { it.reason is Reason.AboveBand }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -385,12 +395,14 @@ private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
             onClick = { onEvent(BillCheckEvent.ShareClicked(shareText)) },
             modifier = Modifier.weight(1f),
         )
-        OdoButton(
-            text = stringResource(Res.string.bc_how_we_know),
-            onClick = { onEvent(BillCheckEvent.HowWeKnowClicked) },
-            modifier = Modifier.weight(1f),
-            variant = OdoButtonVariant.Secondary,
-        )
+        if (hasBand) {
+            OdoButton(
+                text = stringResource(Res.string.bc_how_we_know),
+                onClick = { onEvent(BillCheckEvent.HowWeKnowClicked) },
+                modifier = Modifier.weight(1f),
+                variant = OdoButtonVariant.Secondary,
+            )
+        }
     }
 }
 
@@ -439,16 +451,30 @@ internal fun WorkshopTier.label(): String = when (this) {
     WorkshopTier.LOCAL -> stringResource(Res.string.bc_workshop_local)
 }
 
-/** Bold every [values] occurrence, searching forward so a repeated value matches once each. */
+/**
+ * Bold each of [values] where it landed.
+ *
+ * Each is searched from the start and skipped past ranges already claimed, rather than only
+ * forward from the last match: a translation is free to reorder the placeholders, and a
+ * forward-only search silently drops the bolding on whichever value moved earlier.
+ */
 private fun String.emphasising(vararg values: String) = buildAnnotatedString {
     append(this@emphasising)
-    var from = 0
+    val claimed = mutableListOf<IntRange>()
     values.forEach { value ->
         if (value.isEmpty()) return@forEach
-        val start = indexOf(value, from)
-        if (start < 0) return@forEach
-        addStyle(SpanStyle(fontWeight = FontWeight.Bold), start, start + value.length)
-        from = start + value.length
+        var from = 0
+        while (true) {
+            val start = indexOf(value, from)
+            if (start < 0) return@forEach
+            val range = start until (start + value.length)
+            if (claimed.none { it.first < range.last + 1 && range.first < it.last + 1 }) {
+                addStyle(SpanStyle(fontWeight = FontWeight.Bold), range.first, range.last + 1)
+                claimed += range
+                return@forEach
+            }
+            from = start + 1
+        }
     }
 }
 
@@ -488,7 +514,7 @@ private fun Centred(padding: PaddingValues, content: @Composable () -> Unit) {
 private fun BillCheckPreview() = OdoPreview(padded = false) {
     BillCheckScreen(
         state = BillCheckUiState(
-            BillCheckUiState.Content.Ready(BillCheckPreviewData.monthSix, locked = false),
+            BillCheckUiState.Content.Ready(BillCheckFixtures.monthSix, locked = false),
         ),
         onEvent = {},
     )
@@ -500,7 +526,7 @@ private fun BillCheckPreview() = OdoPreview(padded = false) {
 private fun BillCheckDayOnePreview() = OdoPreview(padded = false) {
     BillCheckScreen(
         state = BillCheckUiState(
-            BillCheckUiState.Content.Ready(BillCheckPreviewData.dayOne, locked = false),
+            BillCheckUiState.Content.Ready(BillCheckFixtures.dayOne, locked = false),
         ),
         onEvent = {},
     )
@@ -511,7 +537,7 @@ private fun BillCheckDayOnePreview() = OdoPreview(padded = false) {
 private fun BillCheckLockedPreview() = OdoPreview(padded = false) {
     BillCheckScreen(
         state = BillCheckUiState(
-            BillCheckUiState.Content.Ready(BillCheckPreviewData.dayOne, locked = true),
+            BillCheckUiState.Content.Ready(BillCheckFixtures.dayOne, locked = true),
         ),
         onEvent = {},
     )

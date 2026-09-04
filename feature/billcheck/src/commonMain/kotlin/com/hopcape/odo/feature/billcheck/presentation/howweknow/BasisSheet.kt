@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.round
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
@@ -28,12 +29,11 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
-import com.hopcape.odo.core.domain.shared.Amount
-import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.core.domain.shared.formatRupeeRangeTo
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.feature.billcheck.domain.BandBasis
 import com.hopcape.odo.feature.billcheck.domain.BandScope
+import com.hopcape.odo.feature.billcheck.domain.BillCheckFixtures
 import com.hopcape.odo.feature.billcheck.domain.Rung
 import com.hopcape.odo.feature.billcheck.domain.RungState
 import com.hopcape.odo.feature.billcheck.presentation.result.label
@@ -48,7 +48,6 @@ import com.hopcape.odo.feature.billcheck.resources.bc_basis_segment
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_subtitle
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_title
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_workshop
-import com.hopcape.odo.feature.billcheck.resources.bc_error
 import com.hopcape.odo.feature.billcheck.resources.bc_report_price
 import com.hopcape.odo.feature.billcheck.resources.bc_retry
 import com.hopcape.odo.feature.billcheck.resources.bc_rung_city
@@ -257,9 +256,14 @@ private fun RungState.label(): String = when (this) {
     RungState.NOT_NEEDED -> stringResource(Res.string.bc_rung_not_needed)
 }
 
-/** "1.5" rather than "1.5000", and "2" rather than "2.0". */
+/**
+ * "1.5" rather than "1.5000", and "2" rather than "2.0".
+ *
+ * Rounded, not truncated: this figure is part of what justifies the band, and 2.28 hours shown
+ * as "2.2" understates the labour the price is built on.
+ */
 private fun Double.trimmed(): String =
-    if (this % 1.0 == 0.0) toInt().toString() else ((this * 10).toInt() / 10.0).toString()
+    if (this % 1.0 == 0.0) toInt().toString() else (round(this * 10) / 10.0).toString()
 
 @Composable
 private fun Centred(content: @Composable () -> Unit) {
@@ -279,30 +283,7 @@ private val MESSAGE_MIN_HEIGHT = 140.dp
 @Composable
 private fun BasisSheetPreview() = OdoPreview {
     BasisSheetContent(
-        state = BasisUiState(BasisUiState.Content.Ready(BasisPreviewData.acService)),
+        state = BasisUiState(BasisUiState.Content.Ready(BillCheckFixtures.acServiceBasis)),
         onEvent = {},
     )
-}
-
-/** The band behind the AC service line on the day-1 result. */
-internal object BasisPreviewData {
-
-    val acService = BandBasis(
-        lineName = "AC service",
-        low = rupees(1_400),
-        high = rupees(1_800),
-        city = "Srinagar",
-        cityTier = 2,
-        workshop = WorkshopTier.AUTHORISED,
-        segment = "1.2L petrol hatchback",
-        labourRatePerHour = rupees(520),
-        labourHours = 1.5,
-        rungs = listOf(
-            Rung(BandScope.THIS_CAR_THIS_CENTRE, RungState.NO_DATA),
-            Rung(BandScope.CITY_TIER_SEGMENT, RungState.USED),
-            Rung(BandScope.NATIONAL, RungState.NOT_NEEDED),
-        ),
-    )
-
-    private fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
 }
