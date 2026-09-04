@@ -32,6 +32,7 @@ internal data class CarValueDisplay(
     val withFullRecord: String,
     val recordWorth: String,
     val hasNoRecord: Boolean,
+    val isRecordComplete: Boolean,
 )
 
 internal fun CarValued.toDisplay(odometer: String, separator: String): CarValueDisplay =
@@ -45,6 +46,7 @@ internal fun CarValued.toDisplay(odometer: String, separator: String): CarValueD
         withFullRecord = value.withFullRecord.formatCompact(),
         recordWorth = "+${value.recordWorth.roundedToThousand().formatRupees()}",
         hasNoRecord = value.hasNoRecord,
+        isRecordComplete = value.isRecordComplete,
     )
 
 /**

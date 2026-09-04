@@ -895,6 +895,65 @@ class OnboardingViewModelTest {
         assertTrue(logs.added.isEmpty())
     }
 
+    /**
+     * Half an answer must not disappear.
+     *
+     * A date with no reading used to store nothing and return "fine, carry on", so the step
+     * finished, the owner believed they had told us, and the app later said it had no idea
+     * when the car was last serviced.
+     */
+    @Test
+    fun aDateWithNoReading_isRefusedOnTheFieldThatIsMissing() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+        assertNotNull(viewModel.state.value.lastService.odometer.error)
+        assertTrue(logs.added.isEmpty())
+    }
+
+    @Test
+    fun aReadingWithNoDate_isRefusedOnTheFieldThatIsMissing() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingStep.LAST_SERVICE, viewModel.state.value.step)
+        assertNotNull(viewModel.state.value.lastService.date.error)
+    }
+
+    /**
+     * The scan button stores what was already typed before handing off.
+     *
+     * The viewfinder can be abandoned, and discarding an answer the owner had already given
+     * — in order to offer them a better way to give it — is the wrong trade.
+     */
+    @Test
+    fun photographingTheBill_keepsWhatWasAlreadyTyped() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository()
+        val viewModel = viewModel(logs = logs, signedIn = true)
+        reachLastServiceStep(viewModel)
+
+        viewModel.onEvent(OnboardingEvent.LastService.DateChanged(LocalDate(2026, 3, 1)))
+        viewModel.onEvent(OnboardingEvent.LastService.OdometerChanged(42_000))
+        viewModel.onEvent(OnboardingEvent.LastService.ScanClicked)
+        advanceUntilIdle()
+
+        assertEquals(LogSource.DECLARED, logs.added.single().source)
+        assertEquals(
+            OnboardingEffect.Finish(signInFirst = false, openScanner = true),
+            viewModel.effects.first(),
+        )
+    }
+
     /* ------------------------------ Telemetry ------------------------------ */
 
     @Test

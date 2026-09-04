@@ -36,6 +36,7 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_cd_back
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_body
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_full_record_label
+import com.hopcape.odo.feature.advisory.resources.adv_value_pitch_complete
 import com.hopcape.odo.feature.advisory.resources.adv_value_pitch_empty
 import com.hopcape.odo.feature.advisory.resources.adv_value_pitch_partial
 import com.hopcape.odo.feature.advisory.resources.adv_value_scan
@@ -44,6 +45,7 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_separator
 import com.hopcape.odo.feature.advisory.resources.adv_value_share
 import com.hopcape.odo.feature.advisory.resources.adv_value_share_text
 import com.hopcape.odo.feature.advisory.resources.adv_value_title
+import com.hopcape.odo.feature.advisory.resources.adv_value_today_complete
 import com.hopcape.odo.feature.advisory.resources.adv_value_today_no_record
 import com.hopcape.odo.feature.advisory.resources.adv_value_today_with_record
 import com.hopcape.odo.feature.advisory.resources.adv_value_worth_label
@@ -127,10 +129,10 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
             )
             OdoText(
                 text = stringResource(
-                    if (display.hasNoRecord) {
-                        Res.string.adv_value_today_no_record
-                    } else {
-                        Res.string.adv_value_today_with_record
+                    when {
+                        display.hasNoRecord -> Res.string.adv_value_today_no_record
+                        display.isRecordComplete -> Res.string.adv_value_today_complete
+                        else -> Res.string.adv_value_today_with_record
                     },
                 ),
                 style = OdoTheme.typography.body,
@@ -153,33 +155,37 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
                 style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 44.sp),
                 color = OdoTheme.colors.text,
             )
-            OdoDivider()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-            ) {
-                OdoText(
-                    text = stringResource(Res.string.adv_value_worth_label),
-                    style = OdoTheme.typography.body,
-                    color = OdoTheme.colors.textDim,
-                    modifier = Modifier.weight(1f),
-                )
-                OdoText(
-                    text = display.recordWorth,
-                    style = OdoTheme.typography.heading.copy(fontSize = 22.sp),
-                    color = OdoTheme.colors.text,
-                    textAlign = TextAlign.End,
-                )
+            // Dropped once the record is complete: the gap is zero, and a "+Rs. 0" row
+            // reads as a bug rather than as an achievement.
+            if (!display.isRecordComplete) {
+                OdoDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                ) {
+                    OdoText(
+                        text = stringResource(Res.string.adv_value_worth_label),
+                        style = OdoTheme.typography.body,
+                        color = OdoTheme.colors.textDim,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OdoText(
+                        text = display.recordWorth,
+                        style = OdoTheme.typography.heading.copy(fontSize = 22.sp),
+                        color = OdoTheme.colors.text,
+                        textAlign = TextAlign.End,
+                    )
+                }
             }
         }
 
         OdoText(
             text = stringResource(
-                if (display.hasNoRecord) {
-                    Res.string.adv_value_pitch_empty
-                } else {
-                    Res.string.adv_value_pitch_partial
+                when {
+                    display.hasNoRecord -> Res.string.adv_value_pitch_empty
+                    display.isRecordComplete -> Res.string.adv_value_pitch_complete
+                    else -> Res.string.adv_value_pitch_partial
                 },
             ),
             style = OdoTheme.typography.body,
@@ -248,6 +254,7 @@ private fun CarValueNoRecordPreview() = OdoPreview(padded = false) {
             withFullRecord = "Rs. 6.4L–6.9L",
             recordWorth = "+Rs. 35,000",
             hasNoRecord = true,
+            isRecordComplete = false,
         ),
     )
 }
@@ -262,6 +269,7 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
             withFullRecord = "Rs. 9.9L–10.3L",
             recordWorth = "+Rs. 27,000",
             hasNoRecord = false,
+            isRecordComplete = false,
         ),
     )
 }

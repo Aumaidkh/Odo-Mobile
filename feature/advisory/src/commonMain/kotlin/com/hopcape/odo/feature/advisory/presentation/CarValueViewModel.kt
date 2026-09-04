@@ -2,6 +2,8 @@ package com.hopcape.odo.feature.advisory.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.feature.advisory.domain.CarValued
+import com.hopcape.odo.feature.advisory.domain.CityTier
 import com.hopcape.odo.feature.advisory.domain.ObserveCarValueUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -57,11 +59,9 @@ internal class CarValueViewModel(
 
     private fun observe() {
         viewModelScope.launch(telemetry.op(AdvisoryTelemetry.Trace.LOAD)) {
-            telemetry.valueLoad {
-                observeCarValue().collect { valued ->
-                    _state.update { it.copy(isLoading = false, valued = valued) }
-                    report(valued?.value?.hasNoRecord)
-                }
+            telemetry.timeToFirstValue(observeCarValue()).collect { valued ->
+                _state.update { it.copy(isLoading = false, valued = valued) }
+                report(valued)
             }
         }
     }
@@ -72,11 +72,23 @@ internal class CarValueViewModel(
      * The first emission is what the owner actually sees, so it is the one that counts —
      * and a car that never arrives is reported too, because a screen with nothing on it is
      * indistinguishable from a broken one otherwise.
+     *
+     * A city the estimate could not place is reported here rather than by the use case, so
+     * it lands on this screen's trace and is said once rather than on every emission.
      */
-    private fun report(hasNoRecord: Boolean?) {
+    private fun report(valued: CarValued?) {
         if (reported) return
         reported = true
-        if (hasNoRecord == null) telemetry.noCar() else telemetry.valueShown(hasRecord = !hasNoRecord)
+        if (valued == null) {
+            telemetry.noCar()
+            return
+        }
+        telemetry.valueShown(hasRecord = !valued.value.hasNoRecord)
+        when (val city = valued.cityTier) {
+            is CityTier.Unavailable -> telemetry.cityCatalogUnavailable(city.cause)
+            is CityTier.NotListed -> telemetry.cityNotListed(city.catalogSize)
+            CityTier.NotSet, is CityTier.Resolved -> Unit
+        }
     }
 
     private fun emit(effect: CarValueEffect) {

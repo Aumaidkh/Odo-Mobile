@@ -15,6 +15,7 @@ class ServiceRecordSummaryTest {
         paise: Long,
         verified: Boolean,
         date: LocalDate = LocalDate(2026, 1, 1),
+        source: LogSource = if (verified) LogSource.SCANNED else LogSource.MANUAL,
     ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = CarId("car-1"),
@@ -24,7 +25,7 @@ class ServiceRecordSummaryTest {
         totalAmountPaise = paise,
         workshopName = null,
         notes = null,
-        source = if (verified) LogSource.SCANNED else LogSource.MANUAL,
+        source = source,
         billId = if (verified) BillId("bill-$id") else null,
     )
 
@@ -52,6 +53,36 @@ class ServiceRecordSummaryTest {
         assertEquals(520_000L, summary.totalSpent.paise)
         assertEquals(54_000, summary.latestOdometer?.km) // same date → the higher reading wins
         assertEquals(0.5f, summary.verifiedRatio)
+    }
+
+    /**
+     * A declared service is the owner remembering that one happened, with no bill and no
+     * money behind it. Counting it here would lower the verified share and add a zero to
+     * the total against a higher count — the record would read as weaker for the owner
+     * having answered an optional setup question.
+     */
+    @Test
+    fun aDeclaredServiceIsLeftOutOfEveryFigureExceptTheReading() {
+        val summary = ServiceRecordSummary.of(
+            listOf(
+                entry("1", km = 40_000, paise = 200_000, verified = true),
+                entry("2", km = 54_000, paise = 320_000, verified = false),
+                entry(
+                    "declared",
+                    km = 60_000,
+                    paise = 0,
+                    verified = false,
+                    date = LocalDate(2026, 6, 1),
+                    source = LogSource.DECLARED,
+                ),
+            ),
+        )
+
+        assertEquals(2, summary.serviceCount)
+        assertEquals(520_000L, summary.totalSpent.paise)
+        assertEquals(0.5f, summary.verifiedRatio)
+        // Its odometer is still a real reading of this car, and the latest one at that.
+        assertEquals(60_000, summary.latestOdometer?.km)
     }
 
     @Test

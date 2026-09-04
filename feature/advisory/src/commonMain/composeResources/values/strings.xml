@@ -15,6 +15,9 @@
     <string name="adv_value_worth_label">Roughly what the record is worth</string>
     <string name="adv_value_pitch_empty">Start the record today. Scan the first bill — Odo adds the rest itself.</string>
     <string name="adv_value_pitch_partial">Keep going. Every bill you scan closes the gap.</string>
+    <!-- Nothing left to earn, so the screen stops asking. -->
+    <string name="adv_value_pitch_complete">Your record is complete. This is what it is already earning you.</string>
+    <string name="adv_value_today_complete">today, record complete</string>
     <string name="adv_value_basis">MODELLED · NO HISTORY NEEDED</string>
 
     <string name="adv_value_scan">Scan first bill</string>

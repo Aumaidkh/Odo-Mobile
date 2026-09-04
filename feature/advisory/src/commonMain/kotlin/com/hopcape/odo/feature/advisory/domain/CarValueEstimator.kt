@@ -47,16 +47,23 @@ internal object CarValueEstimator {
         // the behaviour it exists to encourage.
         val proven = logs.count { it.verification == VerificationStatus.VERIFIED }
         val completeness = recordCompleteness(proven, age)
-        // A partial record earns the low end of the premium in proportion, never the high
-        // end: a buyer pays the top of the band for a folder with nothing missing from it.
-        val today = bare * (1 + DepreciationCurve.RECORD_PREMIUM_LOW * completeness)
         val low = bare * (1 + DepreciationCurve.RECORD_PREMIUM_LOW)
         val high = bare * (1 + DepreciationCurve.RECORD_PREMIUM_HIGH)
+        val middle = (low + high) / 2
+
+        // Today's figure walks from "no record at all" up to the middle of the band, in
+        // proportion to how much of the history is proven. Scaling it to the band's *low*
+        // bound instead landed a complete record exactly on that bound, so the screen read
+        // "Rs. 6.4L today" above "with a full record: Rs. 6.4L–6.9L" and still claimed a gap
+        // that no further scanning could close.
+        val today = bare + (middle - bare) * completeness
 
         return CarValue(
             today = amount(today),
             withFullRecord = AmountRange(low = amount(low), high = amount(high)),
-            recordWorth = amount((low + high) / 2 - today),
+            // Never negative, and exactly zero once the record is complete — there is
+            // nothing left to earn, and the screen has to stop asking for it.
+            recordWorth = amount(middle - today),
             recordCompleteness = completeness,
             provenServices = proven,
         )

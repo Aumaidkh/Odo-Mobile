@@ -4,8 +4,8 @@ import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.performance.api.PerformanceTracer
-import com.hopcape.performance.api.Span
-import com.hopcape.performance.api.currentTraceContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlin.coroutines.CoroutineContext
 import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.performance.api.TraceContext as PerfTrace
@@ -57,13 +57,34 @@ internal class AdvisoryTelemetry(
     }
 
     /**
-     * Times the first estimate.
+     * Times how long [source] takes to produce its **first** value, then gets out of the way.
      *
-     * It is a table lookup and four multiplications, but it sits behind three repository
-     * reads and a synced city catalog — and a screen whose one number never arrives looks
-     * identical to a screen that crashed.
+     * The estimate is a table lookup and four multiplications, but it sits behind three
+     * repository reads and a synced city catalog — and a screen whose one number never
+     * arrives looks identical to a screen that crashed.
+     *
+     * The span closes on that first value rather than when collection ends, because
+     * collection never ends: the source is a live stream kept open for as long as the screen
+     * is. Timing the whole collection reported the owner's dwell time as the load time, so a
+     * healthy screen read as minutes slow.
      */
-    suspend fun <T> valueLoad(read: suspend () -> T): T = traced(Trace.LOAD) { read() }
+    fun <T> timeToFirstValue(source: Flow<T>): Flow<T> = flow {
+        val span = tracer.startSpan(Trace.LOAD, flowTraceId)
+        var open = true
+        try {
+            source.collect { value ->
+                if (open) {
+                    open = false
+                    tracer.endSpan(span)
+                }
+                emit(value)
+            }
+        } finally {
+            // The screen was left, or the read failed, before anything arrived. Closing it
+            // here is what stops an unclosed span reading as an op that never happened.
+            if (open) tracer.endSpan(span)
+        }
+    }
 
     /** The car read came back empty. Setup writes a car, so an empty answer is worth a line. */
     fun noCar() {
@@ -101,16 +122,6 @@ internal class AdvisoryTelemetry(
             tc = flowTrace.toLog(),
             fields = mapOf(Key.COUNT to size),
         )
-    }
-
-    private suspend fun <T> traced(name: String, block: suspend (Span) -> T): T {
-        val trace = currentTraceContext()
-        val span = tracer.startSpan(name, trace.traceId ?: flowTraceId)
-        return try {
-            block(span)
-        } finally {
-            tracer.endSpan(span)
-        }
     }
 
     private fun PerfTrace.toLog(): LogTrace =

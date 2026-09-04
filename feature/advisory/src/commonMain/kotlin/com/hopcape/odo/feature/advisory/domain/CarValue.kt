@@ -31,4 +31,13 @@ data class CarValue(
      * owner would credit them with a record they have never had.
      */
     val hasNoRecord: Boolean get() = provenServices == 0
+
+    /**
+     * Every service this car should have by now has a bill behind it.
+     *
+     * The screen has to stop asking at this point: [recordWorth] is zero, and telling an
+     * owner who has proved everything that "every bill you scan closes the gap" asks them
+     * for something that can no longer change the number.
+     */
+    val isRecordComplete: Boolean get() = recordCompleteness >= 1.0
 }

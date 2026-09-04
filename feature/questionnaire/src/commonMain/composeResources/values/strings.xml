@@ -144,6 +144,10 @@
     <string name="onb_last_bill_prompt_emphasis">One photo and your record starts today.</string>
     <string name="onb_last_bill_cta">Photograph the old bill</string>
     <string name="onb_last_odometer_error">That reading is higher than the car’s current one.</string>
+    <!-- Half an answer is not an answer. Said on the field that is missing, so the owner
+         does not have to guess which half. -->
+    <string name="onb_last_odometer_missing">Add the reading from that service, or tick “Don’t remember”.</string>
+    <string name="onb_last_date_missing">Add the month of that service, or tick “Don’t remember”.</string>
     <string name="onb_last_date_error">Pick a date in the past.</string>
 
 </resources>

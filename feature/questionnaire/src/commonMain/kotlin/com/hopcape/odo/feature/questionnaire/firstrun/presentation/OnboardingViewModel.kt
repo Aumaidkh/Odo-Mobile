@@ -44,7 +44,9 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_last_date_error
+import com.hopcape.odo.feature.questionnaire.resources.onb_last_date_missing
 import com.hopcape.odo.feature.questionnaire.resources.onb_last_odometer_error
+import com.hopcape.odo.feature.questionnaire.resources.onb_last_odometer_missing
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_blank
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_long
 import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_short
@@ -354,10 +356,14 @@ internal class OnboardingViewModel(
             // Bills scanned per month is the product's North Star, so where a scan was launched
             // from is worth knowing — this is the first one an owner is ever offered.
             telemetry.firstScanClicked()
+            // Anything already typed is stored before the hand-off. The scan can be abandoned
+            // at the viewfinder, and discarding an answer the owner has already given — in
+            // order to offer them a better way to give it — is the wrong trade.
+            //
             // Scanning ends setup like skipping does. Handing off with the flow still open is
             // what let an owner reach the fairness report, and the profile editor behind it,
             // without ever being asked to sign in.
-            finish(openScanner = true)
+            storeThenFinish(openScanner = true)
         }
 
         OnboardingEvent.LastService.SkipClicked -> {
@@ -487,8 +493,13 @@ internal class OnboardingViewModel(
      */
     private suspend fun saveLastService(state: OnboardingUiState): Boolean {
         val last = state.lastService
-        val date = last.date.value?.takeIf { last.isAnswered } ?: return true
-        val km = last.odometer.value?.toInt() ?: return true
+        // Nothing offered at all, or the owner said they cannot remember. Both are answers.
+        if (last.forgot || last.isUntouched) return true
+        // Half of one is not. Saying so on the field that is empty beats storing nothing and
+        // letting the owner leave believing they told us.
+        val date = last.date.value ?: return failLastServiceDate(Res.string.onb_last_date_missing)
+        val km = last.odometer.value?.toInt()
+            ?: return failLastServiceOdometer(Res.string.onb_last_odometer_missing)
         val carId = savedCarId ?: return true
         return telemetry.lastServiceSave {
             recordDeclaredService(
@@ -532,9 +543,9 @@ internal class OnboardingViewModel(
         // field to hang them on. On the car step the reading lives in a bottom sheet that is
         // already closed by now, so it stays unowned and is reported as a message — which is
         // what the owner would otherwise get in silence.
-        is DomainError.OdometerRegression -> failLastServiceOdometer()
-        is DomainError.OdometerAheadOfLaterEntry -> failLastServiceOdometer()
-        DomainError.ServiceDateInFuture -> failLastServiceDate()
+        is DomainError.OdometerRegression -> claimOnLastServiceStep { attachOdometerError(Res.string.onb_last_odometer_error) }
+        is DomainError.OdometerAheadOfLaterEntry -> claimOnLastServiceStep { attachOdometerError(Res.string.onb_last_odometer_error) }
+        DomainError.ServiceDateInFuture -> claimOnLastServiceStep { attachDateError(Res.string.onb_last_date_error) }
         else -> false
     }
 
@@ -543,22 +554,32 @@ internal class OnboardingViewModel(
         return true
     }
 
-    private fun failLastServiceOdometer(): Boolean = onLastServiceStep {
-        updateLastService { it.copy(odometer = it.odometer.fail(UiText(Res.string.onb_last_odometer_error))) }
+    private fun attachOdometerError(message: StringResource) =
+        updateLastService { it.copy(odometer = it.odometer.fail(UiText(message))) }
+
+    private fun attachDateError(message: StringResource) =
+        updateLastService { it.copy(date = it.date.fail(UiText(message))) }
+
+    /** Mark the odometer and refuse the step. Used where the form itself is incomplete. */
+    private fun failLastServiceOdometer(message: StringResource): Boolean {
+        attachOdometerError(message)
+        return false
     }
 
-    private fun failLastServiceDate(): Boolean = onLastServiceStep {
-        updateLastService { it.copy(date = it.date.fail(UiText(Res.string.onb_last_date_error))) }
+    /** Mark the date and refuse the step. Used where the form itself is incomplete. */
+    private fun failLastServiceDate(message: StringResource): Boolean {
+        attachDateError(message)
+        return false
     }
 
     /**
-     * Attach an error to a last-service field, but only while that step is showing.
+     * Claim a `DomainError` for a last-service field, but only while that step is showing.
      *
-     * Answers `false` anywhere else, which is what hands the failure back to be reported as
-     * a message. Without the guard the car step's own odometer check would write its error
+     * Answers `false` anywhere else, which hands the failure back to be reported as a
+     * message. Without the guard the car step's own odometer check would write its error
      * onto a field two steps away and look, from the owner's side, like nothing happened.
      */
-    private fun onLastServiceStep(attach: () -> Unit): Boolean {
+    private fun claimOnLastServiceStep(attach: () -> Unit): Boolean {
         if (_state.value.step != OnboardingStep.LAST_SERVICE) return false
         attach()
         return true
@@ -593,6 +614,25 @@ internal class OnboardingViewModel(
      * [openScanner] carries the one difference between the two ways out of the last step:
      * the camera button also wants the scanner opened once the owner has landed.
      */
+    /**
+     * Store whatever the last step holds, then finish either way.
+     *
+     * The write is not allowed to block the hand-off: the owner asked for the camera, and an
+     * incomplete form is exactly the case the scan is meant to replace. So a refused save
+     * leaves its field marked and the flow still ends — the answer is not lost, it is simply
+     * superseded by the photo they are about to take.
+     */
+    private fun storeThenFinish(openScanner: Boolean) {
+        if (saveJob?.isActive == true) return
+        saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
+            // This step's own write, not `persist` — the scan button belongs to the last
+            // step, and running whichever step happens to be current would try to re-save
+            // the car. An untouched form stores nothing and answers true.
+            saveLastService(_state.value)
+            finish(openScanner = openScanner)
+        }
+    }
+
     private fun finish(openScanner: Boolean = false) {
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(

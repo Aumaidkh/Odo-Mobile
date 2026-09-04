@@ -102,8 +102,8 @@ class CarValueEstimatorTest {
     }
 
     /**
-     * The point of the screen: proving the history closes the gap. An owner with a complete
-     * record is already worth the low end, so there is little left to earn.
+     * The point of the screen: proving the history closes the gap. Once the record is
+     * complete there is nothing left to earn, and the screen has to stop asking.
      */
     @Test
     fun aCompleteRecordClosesMostOfTheGap() {
@@ -113,6 +113,34 @@ class CarValueEstimatorTest {
         assertEquals(1.0, full.recordCompleteness)
         assertTrue(full.today.paise > none.today.paise)
         assertTrue(full.recordWorth.paise < none.recordWorth.paise)
+    }
+
+    /**
+     * A complete record leaves no gap, and today's figure sits inside the band rather than
+     * on its edge.
+     *
+     * Scaling today to the band's *low* bound put the two on top of each other, so the
+     * screen read "Rs. 6.4L today" above "with a full record: Rs. 6.4L–6.9L" while still
+     * claiming a gap that no further scanning could close.
+     */
+    @Test
+    fun aCompleteRecordLeavesNothingToEarn() {
+        val full = estimate(car(year = 2022), logs = List(4) { verifiedLog(it) })
+
+        assertTrue(full.isRecordComplete)
+        assertEquals(0L, full.recordWorth.paise)
+        assertTrue(full.today.paise > full.withFullRecord.low.paise)
+        assertTrue(full.today.paise < full.withFullRecord.high.paise)
+    }
+
+    /** With nothing proven, today sits below the band — that gap is the whole argument. */
+    @Test
+    fun noRecordSitsBelowTheBand() {
+        val none = estimate(car(year = 2022), logs = emptyList())
+
+        assertTrue(!none.isRecordComplete)
+        assertTrue(none.today.paise < none.withFullRecord.low.paise)
+        assertTrue(none.recordWorth.paise > 0)
     }
 
     /**

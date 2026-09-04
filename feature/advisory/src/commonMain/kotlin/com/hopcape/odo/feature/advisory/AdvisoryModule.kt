@@ -24,7 +24,6 @@ val advisoryModule = module {
             profiles = get(),
             cities = get(),
             clock = get(),
-            telemetry = get(),
         )
     }
 

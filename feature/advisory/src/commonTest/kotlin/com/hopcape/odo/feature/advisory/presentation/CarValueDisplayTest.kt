@@ -9,6 +9,7 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.feature.advisory.domain.CarValue
 import com.hopcape.odo.feature.advisory.domain.CarValued
+import com.hopcape.odo.feature.advisory.domain.CityTier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -58,6 +59,7 @@ class CarValueDisplayTest {
     ) = CarValued(
         car = car(),
         cityName = cityName,
+        cityTier = CityTier.Resolved(2),
         value = CarValue(
             today = amount(6_10_000_00L),
             withFullRecord = withFullRecord,
