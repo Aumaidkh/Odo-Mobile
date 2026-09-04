@@ -82,7 +82,6 @@ class AllowanceScanChargerTest {
 
     private class FakeCredits(var available: Int) : ScanCredits {
         override suspend fun available(): Int = available
-        override suspend fun grant(count: Int) { available += count }
         override suspend fun spend(): Boolean =
             if (available > 0) { available--; true } else false
     }

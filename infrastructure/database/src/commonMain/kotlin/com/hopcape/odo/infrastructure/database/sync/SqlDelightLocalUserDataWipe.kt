@@ -50,6 +50,11 @@ internal class SqlDelightLocalUserDataWipe(
                     database.documentQueries.deleteAllRows()
                     database.fuelFillQueries.deleteAllRows()
                     database.profileAnswerQueries.deleteAllRows()
+                    // Spends before claims, the only ordering that never looks like an
+                    // overdraft mid-transaction. Both go: they are the owner's purchases,
+                    // and the next account must not inherit them.
+                    database.purchaseCreditsQueries.deleteAllSpends()
+                    database.purchaseCreditsQueries.deleteAllClaims()
                     database.healthScoreQueries.deleteAllRows()
                     database.reminderQueries.deleteAllRows()
                     // Trips were missing here, so signing out left them behind for the next

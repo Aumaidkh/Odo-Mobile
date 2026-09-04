@@ -5,9 +5,8 @@ import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.hopcape.odo.core.domain.subscription.OneTimeGrant
-import com.hopcape.odo.core.domain.subscription.OneTimeGrants
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
-import com.hopcape.odo.core.domain.subscription.PurchaseLedger
+import com.hopcape.odo.core.domain.subscription.PurchaseGrants
 import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.data.observability.DataTelemetry
 
@@ -19,10 +18,13 @@ import com.hopcape.odo.core.data.observability.DataTelemetry
  * owner who paid and got nothing, because until now the only thing that credited a balance
  * was the screen that started the purchase.
  *
- * **Claim first, then award.** The ledger's insert is what decides who owns a transaction,
- * so two reconciles racing each other cannot both credit it. The cost of that order is a
- * purchase claimed but not awarded if the process dies in between — one lost check against
- * the alternative of unlimited duplicated ones, which is the right way round.
+ * **Claiming and crediting are one write.** The row that records a transaction as honoured
+ * is what the owner was given, so two reconciles racing each other cannot both credit it and
+ * a crash cannot leave a purchase marked honoured that credited nothing.
+ *
+ * The record is owner-scoped and synced, so a purchase honoured once stays honoured once for
+ * the owner rather than once per install — a reinstall used to clear it while the store went
+ * on reporting the purchase forever.
  *
  * **Nothing here throws at its caller.** Two of the three callers are `viewModelScope`
  * launches with nothing catching them, and the moment they call this is the moment after the
@@ -34,18 +36,17 @@ import com.hopcape.odo.core.data.observability.DataTelemetry
  */
 internal class StorePurchaseReconciler(
     private val purchaser: OneTimePurchaser,
-    private val ledger: PurchaseLedger,
-    private val grants: OneTimeGrants,
+    private val grants: PurchaseGrants,
     private val telemetry: DataTelemetry,
 ) : PurchaseReconciler {
 
     /**
      * One pass at a time.
      *
-     * Not for the ledger's sake — its insert already decides the winner. It is for the
+     * Not for the record's sake — its insert already decides the winner. It is for the
      * callers that claim and then immediately spend what the claim credited: without this,
-     * a pass running on the watcher could still be inside `award` when the screen's own call
-     * returns empty-handed, and the screen would spend a balance that arrives a moment later.
+     * a pass running on the watcher could still be inside its write when the screen's own
+     * call came back empty, and the screen would spend a balance that arrives a moment later.
      */
     private val pass = Mutex()
 
@@ -76,9 +77,10 @@ internal class StorePurchaseReconciler(
             // launches with nothing catching them, where it would be a crash moments after
             // the owner's money was taken.
             runCatchingCancellableSuspend {
-                if (!ledger.claim(purchase.transactionId)) return@runCatchingCancellableSuspend
                 // The id, so a support question about one purchase has something to match on.
-                telemetry.span(SOURCE, OP_AWARD, id = purchase.transactionId) { grants.award(grant) }
+                telemetry.span(SOURCE, OP_AWARD, id = purchase.transactionId) {
+                    grants.claim(purchase.transactionId, grant)
+                }
             }.onFailure { telemetry.crashed(SOURCE, OP_AWARD, it, purchase.transactionId) }
         }
     }

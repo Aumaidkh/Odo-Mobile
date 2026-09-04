@@ -1,21 +1,20 @@
 package com.hopcape.odo.core.data.record
 
+import com.hopcape.odo.core.data.subscription.PurchaseCreditsLocalDataSource
 import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
+import com.hopcape.odo.core.domain.subscription.CreditKind
 
 /**
- * [ExportCredits] on the device's own row.
+ * [ExportCredits] read off the owner's claims and spends.
  *
- * A thin pass-through: unlike the tally beside it, a credit has no period to decide, so
- * there is nothing here for this layer to own. It exists so the domain port stays free of
- * the data layer's storage interface, the same shape [LocalRecordExportUsage] has.
+ * There is no `grant` here: a balance is granted by honouring a purchase, which is the same
+ * write as the record that it was honoured.
  */
 internal class LocalExportCredits(
-    private val local: ExportCreditsLocalDataSource,
+    private val local: PurchaseCreditsLocalDataSource,
 ) : ExportCredits {
 
-    override suspend fun available(): Int = local.remaining()
+    override suspend fun available(): Int = local.available(CreditKind.RECORD_EXPORT)
 
-    override suspend fun grant() = local.grant()
-
-    override suspend fun spend(): Boolean = local.spend()
+    override suspend fun spend(): Boolean = local.spend(CreditKind.RECORD_EXPORT)
 }

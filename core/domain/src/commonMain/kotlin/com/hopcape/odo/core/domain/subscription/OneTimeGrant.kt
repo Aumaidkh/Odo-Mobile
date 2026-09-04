@@ -32,17 +32,29 @@ enum class OneTimeGrant(
     }
 }
 
-/**
- * Awards what a purchase bought.
- *
- * A port rather than the callers reaching for each balance, because there are two of them —
- * the sheet that sells, and the reconciler that catches up on a purchase completed while the
- * app was closed — and both must credit the same thing the same way.
- */
-fun interface OneTimeGrants {
+/** Which balance a credit belongs to. */
+enum class CreditKind { BILL_CHECK, RECORD_EXPORT }
 
-    /** Credit everything [grant] entitles the owner to. */
-    suspend fun award(grant: OneTimeGrant)
+/**
+ * Honours a purchase, exactly once per owner.
+ *
+ * One port rather than a ledger and a separate grant, because they are one write: the record
+ * that a transaction was honoured **is** what the owner was given. Two writes could disagree,
+ * and the way they would disagree is a purchase marked honoured that credited nothing.
+ *
+ * Exactly once **per owner**, not per install. The store reports a completed purchase
+ * forever, so a record that a reinstall clears lets the same purchase be honoured again on
+ * every install.
+ */
+fun interface PurchaseGrants {
+
+    /**
+     * Honour [transactionId], crediting what [grant] is worth.
+     *
+     * True only for the call that honoured it — false when this owner already had. Callers
+     * that spend what they just bought rely on that: a second true would be a second credit.
+     */
+    suspend fun claim(transactionId: String, grant: OneTimeGrant): Boolean
 }
 
 /** A consumable the store says was paid for. */
@@ -58,24 +70,7 @@ data class CompletedPurchase(
 )
 
 /**
- * Which purchases this device has already credited.
- *
- * A purchase can be reported to the app more than once — every launch, every customer-info
- * refresh — and crediting it twice hands out checks nobody paid for.
- */
-interface PurchaseLedger {
-
-    /**
-     * Record [transactionId] as credited, answering whether this call is the one that did it.
-     *
-     * True exactly once per id, however many callers race. That is the whole contract: the
-     * caller awards only when it gets true, so the award and the record cannot disagree.
-     */
-    suspend fun claim(transactionId: String): Boolean
-}
-
-/**
- * Credits any purchase the store has recorded and this device has not.
+ * Credits any purchase the store has recorded and this owner has not.
  *
  * The gap it closes: a purchase that completes while the app is closed — the store sheet
  * finishing after the app is killed, a card that needed a bank approval, a restore on a new
