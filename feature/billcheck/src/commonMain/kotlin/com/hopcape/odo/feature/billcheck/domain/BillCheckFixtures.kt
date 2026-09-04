@@ -41,6 +41,10 @@ internal object BillCheckFixtures {
         fine = listOf(
             PricedLine("Engine oil + filter", rupees(5_800)),
             PricedLine("Air filter", rupees(950)),
+        ),
+        // Both are on the mockups and neither is a category the server carries, which is
+        // exactly why this bucket exists.
+        unchecked = listOf(
             PricedLine("Throttle body", rupees(1_800)),
             PricedLine("Labour + consumables", rupees(4_350)),
         ),
@@ -84,8 +88,8 @@ internal object BillCheckFixtures {
         fine = listOf(
             PricedLine("Engine oil + filter", rupees(5_800)),
             PricedLine("Air filter", rupees(950)),
-            PricedLine("Labour + consumables", rupees(4_350)),
         ),
+        unchecked = listOf(PricedLine("Labour + consumables", rupees(4_350))),
         canFlagRepeats = true,
     )
 

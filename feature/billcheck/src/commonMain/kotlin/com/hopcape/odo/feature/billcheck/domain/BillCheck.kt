@@ -20,8 +20,17 @@ internal data class BillCheck(
     val billTotal: Amount,
     /** Sorted strongest first — the owner's own record before a city estimate. */
     val flagged: List<FlaggedLine>,
-    /** Everything the check had nothing to say about. Shown, never hidden. */
+    /** Checked against a band, and priced fine. Shown, never hidden. */
     val fine: List<PricedLine>,
+    /**
+     * Lines the check could not read.
+     *
+     * A third bucket, not a fold into [fine]. `fine` is drawn with a tick and says "we
+     * checked this and the price is fair" — a line Odo could not name, or one whose job the
+     * price tables do not carry, is not that, and ticking it would be the app claiming
+     * something it did not do. Saying so also shows the owner where the coverage ends.
+     */
+    val unchecked: List<PricedLine>,
     /**
      * Whether repeats could be looked for at all. False until the owner has a record, and
      * the screen then says what adding one would buy rather than showing nothing.
@@ -31,7 +40,7 @@ internal data class BillCheck(
     /** What the flagged lines add up to. Derived, so the headline can never disagree. */
     val worthAsking: Amount = flagged.map { it.amount }.sum()
 
-    val lineCount: Int = flagged.size + fine.size
+    val lineCount: Int = flagged.size + fine.size + unchecked.size
 }
 
 /** A line the check has something to say about. */
