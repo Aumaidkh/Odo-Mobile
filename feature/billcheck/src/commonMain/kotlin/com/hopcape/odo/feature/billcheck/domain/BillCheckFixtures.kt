@@ -33,7 +33,8 @@ internal object BillCheckFixtures {
                 name = "Injector cleaning",
                 amount = rupees(3_100),
                 reason = Reason.ScheduledLater(dueAtKm = 40_000, currentKm = 12_000),
-                evidence = Evidence.CityRates,
+                // No dots: this says nothing about the price.
+                evidence = null,
             ),
         ),
         fine = listOf(
@@ -77,7 +78,8 @@ internal object BillCheckFixtures {
                 name = "Injector cleaning",
                 amount = rupees(3_100),
                 reason = Reason.ScheduledLater(dueAtKm = 40_000, currentKm = 12_000),
-                evidence = Evidence.CityRates,
+                // No dots: this says nothing about the price.
+                evidence = null,
             ),
         ),
         fine = listOf(

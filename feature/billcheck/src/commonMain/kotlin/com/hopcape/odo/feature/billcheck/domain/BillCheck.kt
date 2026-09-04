@@ -48,7 +48,13 @@ internal data class FlaggedLine(
     val name: String,
     val amount: Amount,
     val reason: Reason,
-    val evidence: Evidence,
+    /**
+     * How much the finding rests on, or null where the question is not about price at all.
+     *
+     * A schedule claim has none: it is the maker's published interval against the odometer,
+     * and dots that rank price evidence would be answering a question nobody asked.
+     */
+    val evidence: Evidence?,
 ) {
     /**
      * Whether this finding hands the owner a question to put to the advisor.

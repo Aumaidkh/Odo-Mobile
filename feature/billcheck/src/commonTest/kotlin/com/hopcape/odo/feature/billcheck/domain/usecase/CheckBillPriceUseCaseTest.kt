@@ -28,6 +28,7 @@ import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -251,6 +252,71 @@ class CheckBillPriceUseCaseTest {
         )
     }
 
+    /* ------------------------------ The schedule rule ------------------------------ */
+
+    /**
+     * The day-1 scene. The car has never had the job, the maker puts it at 40,000 km, and the
+     * odometer says 12,000 — two facts and a question, never "you do not need this".
+     */
+    @Test
+    fun `a job the schedule puts further down the road is flagged`() = runTest {
+        val check = check(
+            lines = listOf(line("Coolant top up", 1_600)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+        )
+
+        val flagged = check.flagged.single()
+        val reason = assertIs<Reason.ScheduledLater>(flagged.reason)
+        assertEquals(40_000, reason.dueAtKm)
+        assertEquals(12_000, reason.currentKm)
+    }
+
+    /** It says nothing about the price, so it shows no price evidence. */
+    @Test
+    fun `a schedule claim carries no evidence dots`() = runTest {
+        val check = check(
+            lines = listOf(line("Coolant top up", 1_600)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+        )
+
+        assertEquals(null, check.flagged.single().evidence)
+        assertFalse(check.flagged.single().amountIsTheClaim, "the price is not the claim")
+    }
+
+    /** Nearly due is not early. The same halfway rule the repeat finder uses. */
+    @Test
+    fun `a job nearly due by distance is not flagged`() = runTest {
+        val check = check(
+            lines = listOf(line("Air filter", 900)),
+            intervals = mapOf("air_filter" to ServiceInterval("air_filter", km = 15_000)),
+        )
+
+        assertTrue(check.flagged.isEmpty(), "12,000 km into a 15,000 km interval")
+    }
+
+    /** Due is measured from the last time it was done, not from zero. */
+    @Test
+    fun `the next due is counted from the last time it was done`() = runTest {
+        val check = check(
+            car = car(odometerKm = 50_000),
+            lines = listOf(line("Coolant top up", 1_600)),
+            history = listOf(entry(LocalDate(2024, 1, 1), "Coolant", odometerKm = 45_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+        )
+
+        val reason = assertIs<Reason.ScheduledLater>(check.flagged.single().reason)
+        assertEquals(85_000, reason.dueAtKm, "45,000 plus the interval")
+    }
+
+    /** A job the schedule says nothing about produces no schedule claim. */
+    @Test
+    fun `no interval means no schedule claim`() = runTest {
+        val check = check(lines = listOf(line("Coolant top up", 1_600)))
+
+        assertTrue(check.flagged.isEmpty())
+        assertEquals(1, check.fine.size)
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private suspend fun check(
@@ -303,14 +369,14 @@ class CheckBillPriceUseCaseTest {
 
     private fun line(label: String, rupees: Int) = BillLine(label, rupees(rupees))
 
-    private fun car(model: String = "Swift") = Car.create(
+    private fun car(model: String = "Swift", odometerKm: Int = 12_000) = Car.create(
         id = CarId("car-1"),
         ownerId = OwnerId("owner-1"),
         make = "Maruti Suzuki",
         model = model,
         year = 2021,
         fuelType = FuelType.PETROL,
-        odometerKm = 12_000,
+        odometerKm = odometerKm,
         variant = "VXi",
         registrationNumber = "JK01AB1234",
     ).getOrNull()!!
@@ -318,12 +384,13 @@ class CheckBillPriceUseCaseTest {
     private fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
 
     /** An entry for [car], showing [labels], on [on]. */
-    private fun entry(on: LocalDate, vararg labels: String) = ServiceLogEntry.create(
+    private fun entry(on: LocalDate, vararg labels: String, odometerKm: Int = 10_000) =
+        ServiceLogEntry.create(
         id = ServiceLogId("entry-$on"),
         carId = CarId("car-1"),
         ownerId = OwnerId("owner-1"),
         serviceDate = on,
-        odometerKm = 10_000,
+        odometerKm = odometerKm,
         totalAmountPaise = 100_000,
         today = BILL_DATE,
         lineItems = labels.map {
