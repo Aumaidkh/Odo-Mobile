@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.paywall.presentation.onetime
 import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -35,7 +37,19 @@ class OneTimeContextTest {
         listOf(PaywallTrigger.GENERIC, PaywallTrigger.SAVINGS, PaywallTrigger.SMART_REFUEL)
             .forEach { assertEquals(OneTimeContext.GENERIC, OneTimeContext.forTrigger(it)) }
 
-        assertEquals(OneTimeOffer.entries, OneTimeContext.GENERIC.offers)
+        assertEquals(OneTimeOffer.entries.toSet(), OneTimeContext.GENERIC.offers.toSet())
+    }
+
+    /**
+     * A way out is drawn only where the owner arrived without an errand. On the two walls the
+     * scrim and the back gesture are the way out, and a decline button under the thing they
+     * came for competes with it.
+     */
+    @Test
+    fun `only the general sheet draws a way out`() {
+        assertNotNull(OneTimeContext.GENERIC.close)
+        assertNull(OneTimeContext.BILL_CHECK.close)
+        assertNull(OneTimeContext.EXPORT.close)
     }
 
     /**
@@ -48,11 +62,14 @@ class OneTimeContextTest {
         assertEquals(OneTimeContext.EXPORT, OneTimeContext.of("EXPORT"))
     }
 
-    /** A recommended offer that is not on the sheet would be drawn nowhere. */
+    /**
+     * The answer goes at the top. Drawn in the middle of a list it reads as one row among
+     * equals, which is the thing recommending an offer is meant to avoid.
+     */
     @Test
-    fun `a recommended offer is always one of the offers shown`() {
+    fun `every sheet puts its recommended offer first`() {
         OneTimeContext.entries.forEach { context ->
-            context.recommended?.let { assertTrue(it in context.offers, "${context.name}") }
+            assertEquals(context.recommended, context.offers.first(), context.name)
         }
     }
 }

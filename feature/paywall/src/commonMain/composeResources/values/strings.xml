@@ -95,8 +95,8 @@
     <string name="pw_ot_bill_check_pack_subtitle">Three checks, for a service and the two after it.</string>
     <string name="pw_ot_export_title">Export Records</string>
     <string name="pw_ot_export_subtitle">Your full service record as one PDF, ready to send a buyer.</string>
+    <string name="pw_ot_close">Close</string>
     <string name="pw_ot_empty">Nothing is on sale one at a time just yet.</string>
     <string name="pw_ot_error">Couldn’t reach the store. Check your connection and try again.</string>
-    <string name="pw_ot_close">Close</string>
     <string name="pw_ot_purchase_failed">That payment didn’t go through. You haven’t been charged.</string>
 </resources>

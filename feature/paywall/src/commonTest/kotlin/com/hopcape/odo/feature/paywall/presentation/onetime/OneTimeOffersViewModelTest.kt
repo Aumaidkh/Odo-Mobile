@@ -64,16 +64,16 @@ class OneTimeOffersViewModelTest {
         assertEquals(listOf(true, false), cards.map { it.recommended })
     }
 
-    /** One product leaves nothing to recommend over anything. */
+    /** One product, and it is the answer rather than one row among equals. */
     @Test
-    fun aSingleProductContextRecommendsNothing() = runTest(dispatcher) {
+    fun aSingleProductContextRecommendsThatProduct() = runTest(dispatcher) {
         val viewModel = viewModel(FakePurchaser(ALL_PRICED), OneTimeContext.EXPORT)
         advanceUntilIdle()
 
         val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
 
         assertEquals(listOf(OneTimeOffer.RECORD_EXPORT), cards.map { it.offer })
-        assertTrue(cards.none { it.recommended })
+        assertTrue(cards.single().recommended)
     }
 
     /** A key written by an older build, or a bad deep link, sells the same things. */
@@ -90,8 +90,8 @@ class OneTimeOffersViewModelTest {
 
         val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
 
-        assertEquals(OneTimeOffer.entries, cards.map { it.offer })
-        assertEquals(listOf("₹49", "₹99", "₹99"), cards.map { it.price })
+        assertEquals(OneTimeContext.GENERIC.offers, cards.map { it.offer })
+        assertEquals(listOf("₹99", "₹49", "₹99"), cards.map { it.price })
     }
 
     /**

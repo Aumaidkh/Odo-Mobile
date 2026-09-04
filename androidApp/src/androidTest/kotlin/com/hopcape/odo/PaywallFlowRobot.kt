@@ -11,6 +11,7 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.core.domain.subscription.Offer
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.PlanOption
@@ -161,6 +162,10 @@ private object SwitchablePurchaser : OneTimePurchaser {
 
     override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
         if (unreachable) DomainError.StoreUnavailable.left() else prices.filterKeys { it in productIds }.right()
+
+    /** Nothing outstanding: no purchase in a test ever completes at the store. */
+    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+        emptyList<CompletedPurchase>().right()
 
     @Volatile
     var unreachable: Boolean = false
