@@ -55,6 +55,8 @@ import com.hopcape.odo.feature.billcheck.resources.bc_add_last_bill
 import com.hopcape.odo.feature.billcheck.resources.bc_add_last_bill_tail
 import com.hopcape.odo.feature.billcheck.resources.bc_ask_label
 import com.hopcape.odo.feature.billcheck.resources.bc_ask_quote
+import com.hopcape.odo.feature.billcheck.resources.bc_ask_repeat
+import com.hopcape.odo.feature.billcheck.resources.bc_ask_schedule
 import com.hopcape.odo.feature.billcheck.resources.bc_cd_back
 import com.hopcape.odo.feature.billcheck.resources.bc_cd_line_ok
 import com.hopcape.odo.feature.billcheck.resources.bc_context
@@ -300,7 +302,7 @@ private fun FlaggedRow(line: FlaggedLine, workshop: WorkshopTier) {
         }
         OdoText(text = line.reason.sentence(workshop), style = OdoTheme.typography.body)
         OdoEvidenceDots(filled = line.evidence.strength, label = line.evidence.label())
-        line.ask?.let { AskCard(it) }
+        if (line.isQuestion) AskCard(line.reason.ask())
     }
 }
 
@@ -459,8 +461,7 @@ private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
 @Composable
 private fun Reason.sentence(workshop: WorkshopTier) = when (this) {
     is Reason.DoneRecently -> {
-        val ago = if (monthsAgo <= 1) stringResource(Res.string.bc_reason_month)
-        else stringResource(Res.string.bc_reason_months, monthsAgo)
+        val ago = monthsLabel(monthsAgo)
         stringResource(Res.string.bc_reason_repeat, ago, on).emphasising(ago)
     }
 
@@ -477,6 +478,24 @@ private fun Reason.sentence(workshop: WorkshopTier) = when (this) {
         stringResource(Res.string.bc_reason_schedule, due, now).emphasising(due, now)
     }
 }
+
+/**
+ * The question to put to the advisor.
+ *
+ * Composed here rather than carried on the finding: it is copy, and the figures in it are the
+ * same ones the row above already shows. A reason that is not a question has none.
+ */
+@Composable
+private fun Reason.ask(): String = when (this) {
+    is Reason.DoneRecently -> stringResource(Res.string.bc_ask_repeat, monthsLabel(monthsAgo))
+    is Reason.ScheduledLater -> stringResource(Res.string.bc_ask_schedule)
+    is Reason.AboveBand -> ""
+}
+
+@Composable
+private fun monthsLabel(months: Int): String =
+    if (months <= 1) stringResource(Res.string.bc_reason_month)
+    else stringResource(Res.string.bc_reason_months, months)
 
 @Composable
 private fun Evidence.label(): String = when (this) {

@@ -49,9 +49,17 @@ internal data class FlaggedLine(
     val amount: Amount,
     val reason: Reason,
     val evidence: Evidence,
-    /** What to say at the counter, or null where the reason is already the question. */
-    val ask: String?,
 ) {
+    /**
+     * Whether this finding hands the owner a question to put to the advisor.
+     *
+     * A rate claim does not: the band beside it is already the whole argument. A repeat and a
+     * schedule claim do — both are facts about the record or the maker, and the app cannot
+     * say whether they apply to this car (AI_ADVISORY_PLAN §2.8). The wording is the screen's,
+     * because it is copy.
+     */
+    val isQuestion: Boolean = reason !is Reason.AboveBand
+
     /**
      * Whether the rupee figure itself is part of the claim.
      *

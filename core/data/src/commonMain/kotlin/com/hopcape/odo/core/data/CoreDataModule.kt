@@ -47,6 +47,10 @@ import com.hopcape.odo.core.data.benchmark.FakePriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRepositoryImpl
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
+import com.hopcape.odo.core.data.schedule.FakeServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRepositoryImpl
+import com.hopcape.odo.core.domain.schedule.ServiceIntervalRepository
 import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.FakeCreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.FakePurchaseClaimRemoteDataSource
@@ -252,6 +256,12 @@ val coreDataModule = module {
     // invented one in front of an owner at a counter.
     single<PriceBandRemoteDataSource> { FakePriceBandRemoteDataSource() }
     single<PriceBandRepository> { PriceBandRepositoryImpl(remote = get(), telemetry = get()) }
+
+    // The maker's schedule. Public reference data, so a plain table read.
+    single<ServiceIntervalRemoteDataSource> { FakeServiceIntervalRemoteDataSource() }
+    single<ServiceIntervalRepository> {
+        ServiceIntervalRepositoryImpl(remote = get(), telemetry = get())
+    }
 
     single<PurchaseClaimRemoteDataSource> { FakePurchaseClaimRemoteDataSource() }
     single<CreditSpendRemoteDataSource> { FakeCreditSpendRemoteDataSource() }

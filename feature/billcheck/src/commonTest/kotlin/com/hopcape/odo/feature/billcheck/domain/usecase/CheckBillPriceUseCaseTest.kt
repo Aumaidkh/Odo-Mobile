@@ -9,6 +9,12 @@ import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
 import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.schedule.ServiceInterval
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
+import kotlinx.datetime.LocalDate
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -140,6 +146,111 @@ class CheckBillPriceUseCaseTest {
         assertEquals(VehicleSegment.SUV, asked.single().segment)
     }
 
+    /* ------------------------------ The repeat rule ------------------------------ */
+
+    /**
+     * The scene the feature was written for. The owner's own record shows the job in April;
+     * the bill in August charges for it again.
+     */
+    @Test
+    fun `a job the record already shows is flagged from the owner's own data`() = runTest {
+        val check = check(
+            lines = listOf(line("AC service", 1_600)),
+            history = listOf(entry(LocalDate(2026, 4, 12), "AC service")),
+        )
+
+        val flagged = check.flagged.single()
+        assertEquals(Evidence.OwnRecord, flagged.evidence)
+        val reason = assertIs<Reason.DoneRecently>(flagged.reason)
+        assertEquals(4, reason.monthsAgo)
+        assertTrue(check.fine.isEmpty(), "priced fine, and still worth asking about")
+    }
+
+    /**
+     * The rule, and the reason it is halfway rather than "before it was due". Engine oil comes
+     * round at twelve months; at eleven it is nearly due, and asking "why again?" would put a
+     * question in front of an owner that the advisor answers in one word.
+     */
+    @Test
+    fun `a job nearly due again is not a repeat`() = runTest {
+        val check = check(
+            lines = listOf(line("Engine oil 5W-30", 1_600)),
+            history = listOf(entry(LocalDate(2025, 9, 12), "Engine oil")),
+            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", months = 12)),
+        )
+
+        assertTrue(check.flagged.isEmpty(), "eleven months into a twelve-month interval")
+        assertEquals(1, check.fine.size)
+    }
+
+    @Test
+    fun `the same job well inside its interval is a repeat`() = runTest {
+        val check = check(
+            lines = listOf(line("Engine oil 5W-30", 1_600)),
+            history = listOf(entry(LocalDate(2026, 5, 12), "Engine oil")),
+            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", months = 12)),
+        )
+
+        assertIs<Reason.DoneRecently>(check.flagged.single().reason)
+    }
+
+    /**
+     * A job the schedule says nothing about — most of the catalogue. Due is taken as a year,
+     * so the window is six months, and that default is stated rather than inferred.
+     */
+    @Test
+    fun `a job with no interval falls back to a six month window`() = runTest {
+        val recent = check(
+            lines = listOf(line("AC service", 1_600)),
+            history = listOf(entry(LocalDate(2026, 4, 12), "AC service")),
+        )
+        val older = check(
+            lines = listOf(line("AC service", 1_600)),
+            history = listOf(entry(LocalDate(2025, 10, 12), "AC service")),
+        )
+
+        assertEquals(1, recent.flagged.size, "four months")
+        assertTrue(older.flagged.isEmpty(), "ten months")
+    }
+
+    /**
+     * The record beats the table. Both claims are true of this line, and the owner's own data
+     * is the harder question — one finding per line, and the better-evidenced one.
+     */
+    @Test
+    fun `a repeat wins over the rate claim on the same line`() = runTest {
+        val check = check(
+            lines = listOf(line("AC service", 9_999)),
+            history = listOf(entry(LocalDate(2026, 4, 12), "AC service")),
+        )
+
+        assertIs<Reason.DoneRecently>(check.flagged.single().reason)
+    }
+
+    /** An entry from the day of the bill, or after it, is not a repeat of that bill. */
+    @Test
+    fun `the bill's own entry is not a repeat of itself`() = runTest {
+        val check = check(
+            lines = listOf(line("AC service", 1_600)),
+            history = listOf(entry(BILL_DATE, "AC service")),
+        )
+
+        assertTrue(check.flagged.isEmpty())
+    }
+
+    /** Until there is a record, the screen says what adding one would buy. */
+    @Test
+    fun `no history means repeats cannot be flagged at all`() = runTest {
+        assertEquals(false, check(lines = listOf(line("AC service", 1_600))).canFlagRepeats)
+        assertEquals(
+            true,
+            check(
+                lines = listOf(line("AC service", 1_600)),
+                history = listOf(entry(LocalDate(2024, 1, 1), "Air filter")),
+            ).canFlagRepeats,
+        )
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private suspend fun check(
@@ -149,16 +260,20 @@ class CheckBillPriceUseCaseTest {
         bandsByCategory: Map<String, PriceBand>? = null,
         failing: Boolean = false,
         spy: MutableList<PriceBandQuery>? = null,
+        history: List<ServiceLogEntry> = emptyList(),
+        intervals: Map<String, ServiceInterval> = emptyMap(),
     ) = CheckBillPriceUseCase(
         matcher = BillLineMatcher(),
         bands = FakeBands(band, bandsByCategory, failing, spy),
+        intervals = { intervals.right() },
     ).invoke(
         car = car,
         city = "Srinagar",
         workshop = WorkshopTier.AUTHORISED,
         lines = lines,
         billTotal = rupees(18_400),
-        canFlagRepeats = false,
+        billDate = BILL_DATE,
+        history = history,
     )
 
     private fun band(
@@ -201,4 +316,22 @@ class CheckBillPriceUseCaseTest {
     ).getOrNull()!!
 
     private fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
+
+    /** An entry for [car], showing [labels], on [on]. */
+    private fun entry(on: LocalDate, vararg labels: String) = ServiceLogEntry.create(
+        id = ServiceLogId("entry-$on"),
+        carId = CarId("car-1"),
+        ownerId = OwnerId("owner-1"),
+        serviceDate = on,
+        odometerKm = 10_000,
+        totalAmountPaise = 100_000,
+        today = BILL_DATE,
+        lineItems = labels.map {
+            ServiceLogLineItemDraft(label = it, category = ServiceCategory.OTHER, amountPaise = 50_000)
+        },
+    ).getOrNull()!!
+
+    private companion object {
+        val BILL_DATE = LocalDate(2026, 8, 12)
+    }
 }
