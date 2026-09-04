@@ -4,7 +4,10 @@ import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
+import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.StubBillCheckReader
+import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
+import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.presentation.BillCheckTelemetry
 import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisViewModel
@@ -18,15 +21,31 @@ import org.koin.dsl.module
  *
  * The only public declaration in the module, per the minimal-surface rule: everything it
  * builds is `internal`, and Koin resolves by type regardless.
- *
- * Both readers are the stub today. Replacing them is these two lines — nothing above the
- * ports knows which one it got.
  */
 val billCheckModule = module {
 
-    single { StubBillCheckReader() }
-    single<BillCheckReader> { get<StubBillCheckReader>() }
-    single<BandBasisReader> { get<StubBillCheckReader>() }
+    factory { BillLineMatcher() }
+    factory {
+        CheckBillPriceUseCase(matcher = get(), bands = get(), intervals = get())
+    }
+
+    // The bill is a service-log entry — that is where a scan lands, and it carries the lines
+    // as the workshop printed them.
+    single<BillCheckReader> {
+        LoggedBillCheckReader(
+            entries = get(),
+            cars = get(),
+            activeCar = get(),
+            cities = get(),
+            questionnaire = get(),
+            check = get(),
+            charger = get(),
+        )
+    }
+
+    // Still the stub: the sheet's own reader is the next slice, and it needs the band the
+    // check already resolved rather than a second lookup.
+    single<BandBasisReader> { StubBillCheckReader() }
 
     // A factory, so one instance covers one visit to the screen.
     factory { BillCheckTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }

@@ -42,7 +42,12 @@ internal class CheckBillPriceUseCase(
 
     suspend operator fun invoke(
         car: Car,
-        city: String,
+        /**
+         * Where the owner is. Null when they never set one — no band can be asked for then,
+         * and the check falls back to what it knows without a city: their own record and the
+         * maker's schedule. A worse answer, and far better than no screen.
+         */
+        city: String?,
         workshop: WorkshopTier,
         lines: List<BillLine>,
         billTotal: Amount,
@@ -87,7 +92,7 @@ internal class CheckBillPriceUseCase(
 
         return BillCheck(
             car = car.displayName(),
-            city = city,
+            city = city.orEmpty(),
             workshop = workshop,
             billTotal = billTotal,
             // Strongest evidence first, then the biggest rupee figure — the owner reads from
@@ -116,12 +121,12 @@ internal class CheckBillPriceUseCase(
     private suspend fun bandFor(
         match: LineMatch.Job,
         car: Car,
-        city: String,
+        city: String?,
         workshop: WorkshopTier,
     ): PriceBand? = bands.bandFor(
         PriceBandQuery(
             categorySlug = match.kind.slug,
-            city = city,
+            city = city ?: return null,
             segment = SegmentCatalog.segmentOrNull(car.model),
             fuel = car.fuelType,
             workshopTier = workshop,
