@@ -150,19 +150,13 @@ internal fun ServiceLogDetailRoute(
                 ),
             )
 
+            // The bill check, not the older fairness report. It answers the same question
+            // about the same entry and more of it — repeats, the maker's schedule, and the
+            // lines it could not check — and it reads the entry itself, so the lines do not
+            // have to be carried on the key.
             is ServiceLogDetailEffect.OpenFairness ->
                 navigationManager.navigateTo(
-                    OdoDestination.Fairness(
-                        items = effect.lines.map {
-                            FairnessLineInput(
-                                label = it.label.orEmpty(),
-                                category = it.categoryName,
-                                amountPaise = it.amountPaise,
-                            )
-                        },
-                        logId = effect.id.value,
-                        carId = key.carId,
-                    ),
+                    OdoDestination.BillCheck.Result(billId = effect.id.value),
                 )
 
             // From an entry's detail the sheet shares that entry's bill, not the whole
