@@ -17,6 +17,9 @@ import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.PurchaseLedger
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -120,6 +123,27 @@ class StorePurchaseReconcilerTest {
         assertTrue(grants.awarded.isEmpty())
     }
 
+    /**
+     * Two passes at once — the watcher's and a screen's. The screen spends what the claim
+     * credited the moment this returns, so returning while another pass is still inside
+     * `award` would have it spend a balance that arrives a moment later.
+     */
+    @Test
+    fun `a claim returns only once the award it raced is finished`() = runTest {
+        val grants = SlowGrants()
+        val reconciler = reconciler(
+            purchases = listOf(CompletedPurchase("txn-1", OneTimeProducts.RECORD_EXPORT)),
+            grants = grants,
+        )
+
+        val watcher = launch { reconciler.claimOutstanding() }
+        val screen = launch { reconciler.claimOutstanding() }
+        listOf(watcher, screen).joinAll()
+
+        assertEquals(1, grants.awarded, "the ledger still lets exactly one through")
+        assertTrue(grants.finished, "both calls returned, so the award had run")
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reconciler(
@@ -154,6 +178,20 @@ class StorePurchaseReconcilerTest {
         val claimed = mutableSetOf<String>()
 
         override suspend fun claim(transactionId: String): Boolean = claimed.add(transactionId)
+    }
+
+    /** Awards slowly, so a second pass has time to overtake it if nothing stops it. */
+    private class SlowGrants : OneTimeGrants {
+        var awarded = 0
+            private set
+        var finished = false
+            private set
+
+        override suspend fun award(grant: OneTimeGrant) {
+            awarded++
+            delay(50)
+            finished = true
+        }
     }
 
     private class RecordingGrants : OneTimeGrants {
