@@ -301,7 +301,7 @@ private fun FlaggedRow(line: FlaggedLine, workshop: WorkshopTier) {
             )
         }
         OdoText(text = line.reason.sentence(workshop), style = OdoTheme.typography.body)
-        OdoEvidenceDots(filled = line.evidence.strength, label = line.evidence.label())
+        line.evidence?.let { OdoEvidenceDots(filled = it.strength, label = it.label()) }
         if (line.isQuestion) AskCard(line.reason.ask())
     }
 }

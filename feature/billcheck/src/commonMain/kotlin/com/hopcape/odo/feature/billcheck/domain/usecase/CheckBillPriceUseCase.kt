@@ -49,12 +49,12 @@ internal class CheckBillPriceUseCase(
         billDate: LocalDate,
         history: List<ServiceLogEntry>,
     ): BillCheck {
-        val repeats = RepeatFinder(
-            matcher = matcher,
-            // A schedule that could not be read is no schedule: every job falls back to the
-            // stated default rather than the screen losing its repeat findings entirely.
-            intervals = intervals.intervals().getOrNull().orEmpty(),
-        )
+        // A schedule that could not be read is no schedule: repeats fall back to the stated
+        // default and schedule claims are simply not made, rather than the screen losing
+        // every finding it had.
+        val schedule = intervals.intervals().getOrNull().orEmpty()
+        val repeats = RepeatFinder(matcher = matcher, intervals = schedule)
+        val notDue = ScheduleChecker(matcher = matcher, intervals = schedule)
         val flagged = mutableListOf<FlaggedLine>()
         val fine = mutableListOf<PricedLine>()
         val unchecked = mutableListOf<PricedLine>()
@@ -68,11 +68,15 @@ internal class CheckBillPriceUseCase(
 
                 is LineMatch.Job -> {
                     val repeat = repeats.previous(match.kind, history, billDate)
+                    val early = notDue.notDueYet(match.kind, car.odometer.km, history)
                     val band = bandFor(match, car, city, workshop)
                     when {
-                        // The record beats the table. It is the owner's own data, and "you had
-                        // this in April" is a harder question than "this looks dear".
+                        // The record beats both tables. It is the owner's own data, and "you
+                        // had this in April" is a harder question than anything else here.
                         repeat != null -> flagged += line.repeated(repeat)
+                        // Then the maker's schedule, which is a published fact, ahead of a
+                        // band that is often a calculation.
+                        early != null -> flagged += line.notDueYet(early)
                         band == null -> unchecked += priced
                         line.amount.paise > band.high.paise -> flagged += line.overpriced(band)
                         else -> fine += priced
@@ -89,7 +93,9 @@ internal class CheckBillPriceUseCase(
             // Strongest evidence first, then the biggest rupee figure — the owner reads from
             // the top and the top should be the line they can argue hardest.
             flagged = flagged.sortedWith(
-                compareByDescending<FlaggedLine> { it.evidence.strength }
+                // A schedule claim has no rung, and sits with the modelled bands rather than
+                // last: it is a published fact, not the weakest thing on the screen.
+                compareByDescending<FlaggedLine> { it.evidence?.strength ?: SCHEDULE_RANK }
                     .thenByDescending { it.amount.paise },
             ),
             fine = fine,
@@ -138,6 +144,18 @@ internal class CheckBillPriceUseCase(
      * distinction that answers that. Which SQL filter matched is on the "How we know" sheet,
      * where it is the point.
      */
+    /**
+     * Not due yet by the maker's schedule.
+     *
+     * No evidence rung: this says nothing about the price, and the dots rank price evidence.
+     */
+    private fun BillLine.notDueYet(notDue: ScheduleChecker.NotDue) = FlaggedLine(
+        name = label,
+        amount = amount,
+        reason = Reason.ScheduledLater(dueAtKm = notDue.dueAtKm, currentKm = notDue.currentKm),
+        evidence = null,
+    )
+
     private fun BillLine.overpriced(band: PriceBand) = FlaggedLine(
         name = label,
         amount = amount,
@@ -147,6 +165,11 @@ internal class CheckBillPriceUseCase(
             BenchmarkBasis.OBSERVED -> Evidence.RealBills(band.sampleSize)
         },
     )
+
+    private companion object {
+        /** Where a schedule claim sorts among the price rungs: above a city estimate. */
+        const val SCHEDULE_RANK = 2
+    }
 
     /** "Swift VXi" — what the header says, and never the plate. */
     private fun Car.displayName(): String = listOfNotNull(
