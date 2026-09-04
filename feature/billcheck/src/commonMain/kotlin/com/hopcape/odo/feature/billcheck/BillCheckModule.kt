@@ -5,7 +5,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
-import com.hopcape.odo.feature.billcheck.domain.StubBillCheckReader
+import com.hopcape.odo.feature.billcheck.domain.UnavailableBandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvider
@@ -35,18 +35,22 @@ val billCheckModule = module {
         LoggedBillCheckReader(
             entries = get(),
             cars = get(),
-            activeCar = get(),
             cities = get(),
             questionnaire = get(),
             check = get(),
             charger = get(),
             contributor = get(),
+            ledger = get(),
+            // The same question the screen asks to decide whether to mask. Asked here too,
+            // because charging for a masked result takes money for nothing shown.
+            unlocked = { get<ScanAllowance>().current().allowsAnother },
         )
     }
 
-    // Still the stub: the sheet's own reader is the next slice, and it needs the band the
-    // check already resolved rather than a second lookup.
-    single<BandBasisReader> { StubBillCheckReader() }
+    // Refuses, deliberately. Its own reader is the next slice — it needs the band the check
+    // already resolved rather than a second lookup — and until then the sheet says it could
+    // not read rather than showing a fixture's band beside a real finding.
+    single<BandBasisReader> { UnavailableBandBasisReader() }
 
     // A factory, so one instance covers one visit to the screen.
     factory { BillCheckTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }

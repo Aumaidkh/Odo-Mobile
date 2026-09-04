@@ -32,8 +32,10 @@ internal class ScheduleChecker(
      */
     fun notDueYet(kind: JobKind, currentKm: Int, history: List<ServiceLogEntry>): NotDue? {
         val intervalKm = intervals[kind.slug]?.km ?: return null
+        // Only readings at or below the bill's own. An entry logged after it would put the
+        // last service in the bill's future and compute a due point from it.
         val lastKm = history
-            .filter { it.covers(kind) }
+            .filter { it.covers(kind) && it.odometer.km <= currentKm }
             .maxOfOrNull { it.odometer.km }
             ?: 0
         val dueAtKm = lastKm + intervalKm

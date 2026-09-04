@@ -9,7 +9,6 @@ import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
-import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
@@ -19,6 +18,7 @@ import com.hopcape.odo.core.domain.owner.model.QuestionAnswer
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
+import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
@@ -31,8 +31,6 @@ import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
@@ -170,6 +168,51 @@ class LoggedBillCheckReaderTest {
         assertTrue(given.isEmpty())
     }
 
+    /**
+     * The screen re-reads on every visit — a fresh ViewModel per navigation. Without the
+     * ledger, three back-and-forths burn three checks and file the same prices three times.
+     */
+    @Test
+    fun `a second look at the same bill is free`() = runTest {
+        val charger = CountingCharger()
+        val given = mutableListOf<PriceObservation>()
+        val ledger = OnceLedger()
+        val reader = reader(charger = charger, contributor = { given += it }, ledger = ledger)
+
+        reader.read(BILL)
+        reader.read(BILL)
+        reader.read(BILL)
+
+        assertEquals(1, charger.charges)
+        assertEquals(1, given.size, "and the pool is not fed the same bill three times")
+    }
+
+    /**
+     * The screen masks a result the owner has not paid for. Charging for it takes money for
+     * nothing shown — and the tally moves even with no credit, because the charger counts a
+     * scan it could not take a credit for.
+     */
+    @Test
+    fun `a masked result is not charged for`() = runTest {
+        val charger = CountingCharger()
+
+        reader(charger = charger, unlocked = false).read(BILL)
+
+        assertEquals(0, charger.charges)
+    }
+
+    /** And once they have paid, the next read is the one that charges. */
+    @Test
+    fun `the read after unlocking is charged`() = runTest {
+        val charger = CountingCharger()
+        val ledger = OnceLedger()
+        reader(charger = charger, ledger = ledger, unlocked = false).read(BILL)
+
+        reader(charger = charger, ledger = ledger, unlocked = true).read(BILL)
+
+        assertEquals(1, charger.charges)
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reader(
@@ -181,12 +224,14 @@ class LoggedBillCheckReaderTest {
         workshop: WorkshopTier? = WorkshopTier.AUTHORISED,
         spy: MutableList<PriceBandQuery>? = null,
         contributor: FairnessContributor = FairnessContributor {},
+        ledger: BillCheckLedger = OnceLedger(),
+        /** Whether the owner may see the result. A masked one is never charged for. */
+        unlocked: Boolean = true,
     ): LoggedBillCheckReader {
         val stored = if (missing) null else entryOf(lines)
         return LoggedBillCheckReader(
             entries = FakeEntries(stored),
             cars = FakeCars(car()),
-            activeCar = FakeActiveCar(),
             cities = { city },
             questionnaire = FakeQuestionnaire(workshop),
             check = CheckBillPriceUseCase(
@@ -196,6 +241,8 @@ class LoggedBillCheckReaderTest {
             ),
             charger = charger,
             contributor = contributor,
+            ledger = ledger,
+            unlocked = { unlocked },
         )
     }
 
@@ -251,8 +298,10 @@ class LoggedBillCheckReaderTest {
         override suspend fun softDelete(id: CarId) = error("not called")
     }
 
-    private class FakeActiveCar : ActiveCarProvider {
-        override val activeCarId: StateFlow<CarId?> = MutableStateFlow(CarId("car-1"))
+    /** True the first time it is asked about a bill, exactly like the real table's index. */
+    private class OnceLedger : BillCheckLedger {
+        private val claimed = mutableSetOf<String>()
+        override suspend fun claim(billId: String) = claimed.add(billId)
     }
 
     private class FakeQuestionnaire(private val workshop: WorkshopTier?) : QuestionnaireRepository {

@@ -4,7 +4,7 @@
     <string name="bc_cd_more">More</string>
 
     <!-- Header. The car, the city and the kind of workshop, upper-cased by the style. -->
-    <string name="bc_context">%1$s · %2$s · %3$s</string>
+    <string name="bc_context_separator"> · </string>
 
     <!--
       The headline. Never "you were overcharged" — the app states what it can defend and
@@ -26,9 +26,13 @@
       Reasons. One per kind of claim the app is willing to make. The values are emphasised
       where they are substituted in — the sentence is the frame, the number is the finding.
     -->
-    <string name="bc_reason_repeat">Done %1$s — %2$s, same centre.</string>
+    <!-- No "same centre": the repeat is found by job and date, and the workshop is never
+         compared. Claiming it would be asserting something nothing checked. -->
+    <string name="bc_reason_repeat">Done %1$s — %2$s.</string>
     <string name="bc_reason_months">%1$d months ago</string>
     <string name="bc_reason_month">1 month ago</string>
+    <!-- Under a month. "1 month ago" for a job done last week is wrong in the owner's face. -->
+    <string name="bc_reason_days">this month</string>
     <string name="bc_reason_above">Normally %1$s here, at a %2$s.</string>
     <string name="bc_reason_schedule">Schedule puts this at %1$s. You’re at %2$s.</string>
 
