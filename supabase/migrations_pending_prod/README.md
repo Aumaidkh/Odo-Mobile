@@ -1,7 +1,8 @@
 # Migrations owed to production
 
-Everything here is written, reviewed and **already applied to dev**. None of it has been
-applied to production. It sits outside `supabase/migrations/` so that a `supabase db push`
+Everything here is written and reviewed. All of it is applied to dev **except
+`20260904160000_purchase_credits.sql`**, which is new and still owed to both. None of it has
+been applied to production. It sits outside `supabase/migrations/` so that a `supabase db push`
 against production cannot apply it by accident — the CLI pushes *every* pending file in
 timestamp order, and there is no way to push one.
 
@@ -18,6 +19,7 @@ backlog.
 | `20260902170000_drop_profiles_onboarding_goal.sql` | **Drops `profiles.onboarding_goal`** | **No — see below** |
 | `20260902180000_resolve_plate.sql` | Creates the `resolve_plate` RPC | Yes — additive |
 | `20260904120000_declared_log_source.sql` | Adds the `declared` label to `log_source` | Yes — additive |
+| `20260904160000_purchase_credits.sql` | Creates `purchase_claims` + `credit_spends` | Yes — additive |
 
 ## The one that is not safe yet
 

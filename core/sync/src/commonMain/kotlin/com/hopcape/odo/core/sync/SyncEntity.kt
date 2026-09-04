@@ -36,6 +36,19 @@ enum class SyncEntity {
     ENTITLEMENT_OVERRIDES,
 
     /**
+     * What the owner bought one at a time, and what they have spent of it. Two entities
+     * because they are two tables, and the claims go first: a spend read before the claim
+     * that paid for it would briefly look like an overdraft.
+     *
+     * Directly after [ENTITLEMENT_OVERRIDES], and for the same reason — what they decide is
+     * whether a bill check or an export can be run at all, which is asked as soon as a screen
+     * opens. Owner-scoped rather than device-local so a purchase honoured once stays honoured
+     * once for the owner; the free tally beside them is still device-local, deliberately.
+     */
+    PURCHASE_CLAIMS,
+    CREDIT_SPENDS,
+
+    /**
      * The shared city lookup (`docs/SUPABASE_BOOTSTRAP.md` §2). No `owner_id` — every account
      * reads the same rows — so this is pull-only, the mirror image of
      * [CITY_SUBMISSIONS]'s push-only. Placed here rather than after [CARS]: it is foundational

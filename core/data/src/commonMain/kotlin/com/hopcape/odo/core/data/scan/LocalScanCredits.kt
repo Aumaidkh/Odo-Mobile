@@ -1,21 +1,20 @@
 package com.hopcape.odo.core.data.scan
 
+import com.hopcape.odo.core.data.subscription.PurchaseCreditsLocalDataSource
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
+import com.hopcape.odo.core.domain.subscription.CreditKind
 
 /**
- * [ScanCredits] on the device's own row.
+ * [ScanCredits] read off the owner's claims and spends.
  *
- * A thin pass-through: unlike the tally beside it, a credit has no period to decide, so
- * there is nothing here for this layer to own. It exists so the domain port stays free of
- * the data layer's storage interface — the same shape [LocalScanUsage] has.
+ * There is no `grant` here: a balance is granted by honouring a purchase, which is the same
+ * write as the record that it was honoured.
  */
 internal class LocalScanCredits(
-    private val local: ScanCreditsLocalDataSource,
+    private val local: PurchaseCreditsLocalDataSource,
 ) : ScanCredits {
 
-    override suspend fun available(): Int = local.remaining()
+    override suspend fun available(): Int = local.available(CreditKind.BILL_CHECK)
 
-    override suspend fun grant(count: Int) = local.grant(count)
-
-    override suspend fun spend(): Boolean = local.spend()
+    override suspend fun spend(): Boolean = local.spend(CreditKind.BILL_CHECK)
 }

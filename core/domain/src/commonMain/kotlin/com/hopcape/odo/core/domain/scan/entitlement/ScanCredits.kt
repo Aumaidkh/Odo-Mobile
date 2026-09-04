@@ -11,6 +11,10 @@ package com.hopcape.odo.core.domain.scan.entitlement
  * same shape as
  * [ExportCredits][com.hopcape.odo.core.domain.record.entitlement.ExportCredits].
  *
+ * **Read, never written here.** A balance is granted by honouring a purchase — see
+ * [PurchaseGrants][com.hopcape.odo.core.domain.subscription.PurchaseGrants] — because the
+ * record that a transaction was honoured is the same write as the credit it is worth.
+ *
  * Spent only once the free allowance is gone — see
  * [ScanCharger][com.hopcape.odo.core.domain.scan.entitlement.ScanCharger]. Charging a
  * bought check while a free one is still available would sell the owner something they
@@ -20,14 +24,6 @@ interface ScanCredits {
 
     /** Bought and unspent. Zero for anyone who has never bought a pack. */
     suspend fun available(): Int
-
-    /**
-     * Record a completed purchase of [count] checks.
-     *
-     * A count rather than one call per check, because the packs sell one and three and the
-     * balance is a single number — three calls would be three chances to crash halfway.
-     */
-    suspend fun grant(count: Int)
 
     /**
      * Spend one, if there is one.

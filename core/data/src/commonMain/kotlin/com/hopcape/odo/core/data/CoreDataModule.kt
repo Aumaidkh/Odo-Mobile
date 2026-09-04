@@ -25,8 +25,7 @@ import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.AllowanceScanCharger
 import com.hopcape.odo.core.data.scan.LocalScanCredits
-import com.hopcape.odo.core.data.subscription.BalanceOneTimeGrants
-import com.hopcape.odo.core.data.subscription.LocalPurchaseLedger
+import com.hopcape.odo.core.data.subscription.LocalPurchaseGrants
 import com.hopcape.odo.core.data.subscription.PurchaseWatcher
 import com.hopcape.odo.core.data.subscription.StorePurchaseReconciler
 import com.hopcape.odo.core.data.scan.LocalScanUsage
@@ -39,12 +38,15 @@ import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
-import com.hopcape.odo.core.domain.subscription.OneTimeGrants
-import com.hopcape.odo.core.domain.subscription.PurchaseLedger
+import com.hopcape.odo.core.domain.subscription.PurchaseGrants
 import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.FakeCreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.FakePurchaseClaimRemoteDataSource
+import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionnaireRepositoryImpl
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
@@ -242,6 +244,8 @@ val coreDataModule = module {
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
     single<QuestionAnswerRemoteDataSource> { FakeQuestionAnswerRemoteDataSource() }
+    single<PurchaseClaimRemoteDataSource> { FakePurchaseClaimRemoteDataSource() }
+    single<CreditSpendRemoteDataSource> { FakeCreditSpendRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
@@ -301,14 +305,13 @@ val coreDataModule = module {
 
     single<ScanCredits> { LocalScanCredits(local = get()) }
 
-    single<PurchaseLedger> { LocalPurchaseLedger(local = get()) }
-
-    single<OneTimeGrants> { BalanceOneTimeGrants(scans = get(), exports = get()) }
+    // Honouring a purchase and crediting it are one write, so one binding.
+    single<PurchaseGrants> { LocalPurchaseGrants(local = get()) }
 
     // The one thing that credits a one-time purchase, so a transaction cannot be honoured
     // twice — once by the screen that bought it and again on the next launch.
     single<PurchaseReconciler> {
-        StorePurchaseReconciler(purchaser = get(), ledger = get(), grants = get(), telemetry = get())
+        StorePurchaseReconciler(purchaser = get(), grants = get(), telemetry = get())
     }
 
     // Started by the app bootstrap, and it owns the launch claim too — a purchase approved by

@@ -63,6 +63,11 @@ internal class SqlDelightOwnershipAdoption(
                     // Answers given during onboarding, before anyone signed in. Unadopted,
                     // this account can neither push them nor claim them.
                     database.profileAnswerQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    // Consumables bought before signing in, and anything spent of them.
+                    // Unadopted, this account can neither push them nor recognise the
+                    // purchase as already honoured — which is how one gets honoured twice.
+                    database.purchaseCreditsQueries.adoptClaims(realOwnerId, stamp, placeholderOwnerId)
+                    database.purchaseCreditsQueries.adoptSpends(realOwnerId, stamp, placeholderOwnerId)
 
                     // Last, and a re-key rather than a stamp. `UPDATE OR IGNORE` because the
                     // signed-in account may already have a profile row pulled from the
@@ -106,6 +111,10 @@ internal class SqlDelightOwnershipAdoption(
         database.tripQueries.deleteForeignOwned(realOwnerId)
         database.carQueries.deleteForeignOwned(realOwnerId)
         database.profileAnswerQueries.deleteForeignOwned(realOwnerId)
+        // Spends before claims: a spend read without the claim that paid for it is the only
+        // ordering that could ever look like an overdraft.
+        database.purchaseCreditsQueries.deleteForeignSpends(realOwnerId)
+        database.purchaseCreditsQueries.deleteForeignClaims(realOwnerId)
         database.profileQueries.deleteForeignOwned(realOwnerId)
 
         // The cursors described the evicted account's pull. Left in place, this account's

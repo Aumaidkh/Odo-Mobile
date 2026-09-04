@@ -60,6 +60,8 @@ class SyncableRegistrationTest {
                 SyncEntity.PROFILES,
                 SyncEntity.PROFILE_ANSWERS,
                 SyncEntity.ENTITLEMENT_OVERRIDES,
+                SyncEntity.PURCHASE_CLAIMS,
+                SyncEntity.CREDIT_SPENDS,
                 SyncEntity.CITIES,
                 SyncEntity.CITY_SUBMISSIONS,
                 SyncEntity.CARS,

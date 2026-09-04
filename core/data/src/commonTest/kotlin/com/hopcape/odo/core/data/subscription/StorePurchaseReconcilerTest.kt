@@ -11,10 +11,9 @@ import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimeGrant
-import com.hopcape.odo.core.domain.subscription.OneTimeGrants
+import com.hopcape.odo.core.domain.subscription.PurchaseGrants
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
-import com.hopcape.odo.core.domain.subscription.PurchaseLedger
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import kotlinx.coroutines.delay
@@ -53,11 +52,9 @@ class StorePurchaseReconcilerTest {
     @Test
     fun `the same purchase is never credited twice`() = runTest {
         val grants = RecordingGrants()
-        val ledger = FakeLedger()
         val reconciler = reconciler(
             purchases = listOf(CompletedPurchase("txn-1", OneTimeProducts.BILL_CHECK_SINGLE)),
             grants = grants,
-            ledger = ledger,
         )
 
         reconciler.claimOutstanding()
@@ -91,17 +88,15 @@ class StorePurchaseReconcilerTest {
     @Test
     fun `a product this build does not know is left for one that does`() = runTest {
         val grants = RecordingGrants()
-        val ledger = FakeLedger()
         val reconciler = reconciler(
             purchases = listOf(CompletedPurchase("txn-1", "odo_something_later")),
             grants = grants,
-            ledger = ledger,
         )
 
         reconciler.claimOutstanding()
 
         assertTrue(grants.awarded.isEmpty())
-        assertTrue(ledger.claimed.isEmpty(), "claiming it would lose the purchase for good")
+        assertTrue(grants.claimed.isEmpty(), "claiming it would lose the purchase for good")
     }
 
     /** Nothing on screen is waiting for this, so an unreachable store is simply next time. */
@@ -124,6 +119,25 @@ class StorePurchaseReconcilerTest {
     }
 
     /**
+     * What the record being owner-scoped buys: a fresh install pulls the claim back, so the
+     * store's report of the same purchase is recognised rather than honoured again. This used
+     * to be the reinstall loop — a ₹49 check re-credited on every install.
+     */
+    @Test
+    fun `a purchase honoured before a reinstall is not honoured again`() = runTest {
+        val grants = RecordingGrants()
+        val purchase = CompletedPurchase("txn-1", OneTimeProducts.BILL_CHECK_SINGLE)
+
+        // The claim as it came back from the server, then the reconciler on the new install.
+        grants.claim(purchase.transactionId, OneTimeGrant.BILL_CHECK_SINGLE)
+        grants.awarded.clear()
+
+        reconciler(purchases = listOf(purchase), grants = grants).claimOutstanding()
+
+        assertTrue(grants.awarded.isEmpty())
+    }
+
+    /**
      * Two passes at once — the watcher's and a screen's. The screen spends what the claim
      * credited the moment this returns, so returning while another pass is still inside
      * `award` would have it spend a balance that arrives a moment later.
@@ -140,7 +154,7 @@ class StorePurchaseReconcilerTest {
         val screen = launch { reconciler.claimOutstanding() }
         listOf(watcher, screen).joinAll()
 
-        assertEquals(1, grants.awarded, "the ledger still lets exactly one through")
+        assertEquals(1, grants.awarded, "the record still lets exactly one through")
         assertTrue(grants.finished, "both calls returned, so the award had run")
     }
 
@@ -148,12 +162,10 @@ class StorePurchaseReconcilerTest {
 
     private fun reconciler(
         purchases: List<CompletedPurchase>?,
-        grants: OneTimeGrants,
-        ledger: PurchaseLedger = FakeLedger(),
+        grants: PurchaseGrants,
         throwing: Boolean = false,
     ) = StorePurchaseReconciler(
         purchaser = FakePurchaser(purchases, throwing),
-        ledger = ledger,
         grants = grants,
         telemetry = DataTelemetry(NoopLogger, NoopTracer, NoopCrash),
     )
@@ -174,31 +186,35 @@ class StorePurchaseReconcilerTest {
         }
     }
 
-    private class FakeLedger : PurchaseLedger {
+    /**
+     * Honours each transaction once, the way real storage does — the unique index is what
+     * makes the second call false, and the reconciler is built on that answer.
+     */
+    private class RecordingGrants : PurchaseGrants {
         val claimed = mutableSetOf<String>()
+        val awarded = mutableListOf<OneTimeGrant>()
 
-        override suspend fun claim(transactionId: String): Boolean = claimed.add(transactionId)
+        override suspend fun claim(transactionId: String, grant: OneTimeGrant): Boolean {
+            if (!claimed.add(transactionId)) return false
+            awarded += grant
+            return true
+        }
     }
 
-    /** Awards slowly, so a second pass has time to overtake it if nothing stops it. */
-    private class SlowGrants : OneTimeGrants {
+    /** Writes slowly, so a second pass has time to overtake it if nothing stops it. */
+    private class SlowGrants : PurchaseGrants {
+        private val claimed = mutableSetOf<String>()
         var awarded = 0
             private set
         var finished = false
             private set
 
-        override suspend fun award(grant: OneTimeGrant) {
+        override suspend fun claim(transactionId: String, grant: OneTimeGrant): Boolean {
+            if (!claimed.add(transactionId)) return false
             awarded++
             delay(50)
             finished = true
-        }
-    }
-
-    private class RecordingGrants : OneTimeGrants {
-        val awarded = mutableListOf<OneTimeGrant>()
-
-        override suspend fun award(grant: OneTimeGrant) {
-            awarded += grant
+            return true
         }
     }
 
