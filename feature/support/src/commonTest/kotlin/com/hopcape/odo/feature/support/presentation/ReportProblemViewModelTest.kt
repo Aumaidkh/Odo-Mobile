@@ -135,7 +135,7 @@ class ReportProblemViewModelTest {
     @Test
     fun `attaching logs opens a diagnostics request and files its reference`() = runTest {
         val tickets = FakeTickets()
-        val viewModel = viewModel(email = "r@x.co", tickets = tickets, diagnostics = "ODO-AAAA-BBBB")
+        val viewModel = viewModel(email = "r@x.co", tickets = tickets, diagnostics = { "ODO-AAAA-BBBB" })
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
@@ -148,7 +148,7 @@ class ReportProblemViewModelTest {
     @Test
     fun `turning the switch off files no reference`() = runTest {
         val tickets = FakeTickets()
-        val viewModel = viewModel(email = "r@x.co", tickets = tickets, diagnostics = "ODO-AAAA-BBBB")
+        val viewModel = viewModel(email = "r@x.co", tickets = tickets, diagnostics = { "ODO-AAAA-BBBB" })
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
@@ -172,19 +172,110 @@ class ReportProblemViewModelTest {
         assertFalse(viewModel.state.value.sending)
     }
 
+    /**
+     * A file that would not copy is dropped by the use case. Saying it travelled tells the
+     * owner their screenshot is with support when it is nowhere.
+     */
+    @Test
+    fun `the confirmation counts what was stored, not what was picked`() = runTest {
+        val viewModel = viewModel(email = "r@x.co", files = FakeFiles(failing = true))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ReportEvent.AttachmentPicked("content://9", "bill.jpg"))
+        viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
+        viewModel.onEvent(ReportEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val sent = viewModel.effects.first() as ReportEffect.Sent
+        assertEquals(0, sent.photos)
+    }
+
+    /** Two taps before the button redraws are two tickets, two references, two log uploads. */
+    @Test
+    fun `a second tap while the first is in flight files nothing`() = runTest {
+        val tickets = FakeTickets()
+        val viewModel = viewModel(email = "r@x.co", tickets = tickets)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
+        viewModel.onEvent(ReportEvent.SendClicked)
+        viewModel.onEvent(ReportEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, tickets.submitted.size)
+    }
+
+    /** A save that failed and then succeeded must not leave the screen saying it did not. */
+    @Test
+    fun `a retry clears the failure it is retrying`() = runTest {
+        val viewModel = viewModel(email = "r@x.co", tickets = FakeTickets(failing = true))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
+        viewModel.onEvent(ReportEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.state.value.failed)
+
+        viewModel.onEvent(ReportEvent.SendClicked)
+        assertFalse(viewModel.state.value.failed, "cleared while the retry is in flight")
+    }
+
+    /**
+     * Opening a fresh request per attempt would file a new outbox row and a new upload nudge
+     * each time, for one report.
+     */
+    @Test
+    fun `a retry reuses the diagnostics request it already opened`() = runTest {
+        var opened = 0
+        val viewModel = viewModel(
+            email = "r@x.co",
+            tickets = FakeTickets(failing = true),
+            diagnostics = { opened++; "ODO-AAAA-BBBB" },
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
+        repeat(3) {
+            viewModel.onEvent(ReportEvent.SendClicked)
+            dispatcher.scheduler.advanceUntilIdle()
+        }
+
+        assertEquals(1, opened)
+    }
+
+    /** A log file is not worth losing a report over. */
+    @Test
+    fun `a diagnostics request that throws does not take the report with it`() = runTest {
+        val tickets = FakeTickets()
+        val viewModel = viewModel(
+            email = "r@x.co",
+            tickets = tickets,
+            diagnostics = { error("no database") },
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(ReportEvent.MessageChanged("It crashed."))
+        viewModel.onEvent(ReportEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, tickets.submitted.size)
+        assertEquals(null, tickets.submitted.single().diagnosticsReference)
+    }
+
     private fun viewModel(
         email: String?,
         tickets: FakeTickets = FakeTickets(),
-        diagnostics: String = "ODO-0000-0000",
+        files: FakeFiles = FakeFiles(),
+        diagnostics: suspend () -> String = { "ODO-0000-0000" },
     ) = ReportProblemViewModel(
         submit = SubmitTicketUseCase(
             tickets = tickets,
-            files = FakeFiles(),
+            files = files,
             ids = CountingIds(),
             clock = FixedClock,
         ),
         replyAddress = ReplyAddress(FakeProfiles(email)),
-        requestDiagnostics = { diagnostics },
+        requestDiagnostics = diagnostics,
         telemetry = telemetry(),
     )
 

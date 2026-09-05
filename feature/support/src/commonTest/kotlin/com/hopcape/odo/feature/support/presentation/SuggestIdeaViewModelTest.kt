@@ -121,6 +121,37 @@ class SuggestIdeaViewModelTest {
         assertEquals("Hindi interface", viewModel.state.value.text, "and the words are kept")
     }
 
+    /**
+     * A vote that was never written must not be counted, and the pill snapping back looks
+     * identical to a double tap — so the owner is told.
+     */
+    @Test
+    fun `a vote that could not be written is said rather than counted`() = runTest {
+        val ideas = FakeIdeas(listOf(idea("1", "Two cars", 412))).apply { voteFails = true }
+        val viewModel = viewModel(ideas = ideas)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(IdeaEvent.VoteToggled("1"))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(IdeaEffect.VoteFailed, viewModel.effects.first())
+        assertEquals(412, viewModel.state.value.ideas.single().votes, "the count did not move")
+    }
+
+    @Test
+    fun `a second send while the first is in flight files nothing`() = runTest {
+        val tickets = FakeTickets()
+        val viewModel = viewModel(tickets = tickets)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(IdeaEvent.TextChanged("Hindi interface"))
+        viewModel.onEvent(IdeaEvent.SendClicked)
+        viewModel.onEvent(IdeaEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, tickets.submitted.size)
+    }
+
     private fun viewModel(
         ideas: FakeIdeas = FakeIdeas(),
         tickets: FakeTickets = FakeTickets(),

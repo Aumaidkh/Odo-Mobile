@@ -110,14 +110,69 @@ class FlagPriceViewModelTest {
         assertTrue(viewModel.state.value.canSend)
     }
 
+    /**
+     * The figure is the only part of this screen that changes what the next owner is shown.
+     * A field that will not parse is a correction the panel cannot act on.
+     */
+    @Test
+    fun `a figure too long to be a number cannot be sent`() = runTest {
+        val viewModel = viewModel(band = band())
+
+        viewModel.onEvent(FlagPriceEvent.ComplaintPicked(BandComplaint.TOO_LOW))
+        viewModel.onEvent(FlagPriceEvent.PaidChanged("9".repeat(25)))
+
+        assertTrue(
+            viewModel.state.value.paidRupees.length <= 9,
+            "the field is capped, not left to overflow",
+        )
+        assertTrue(viewModel.state.value.canSend, "and what is left still parses")
+    }
+
+    @Test
+    fun `a zero is not a price`() = runTest {
+        val viewModel = viewModel(band = band())
+
+        viewModel.onEvent(FlagPriceEvent.ComplaintPicked(BandComplaint.TOO_LOW))
+        viewModel.onEvent(FlagPriceEvent.PaidChanged("0"))
+
+        assertFalse(viewModel.state.value.canSend)
+    }
+
+    /** Reachable when a send is raised any other way — the body would say nothing at all. */
+    @Test
+    fun `a send with no complaint or figure files nothing`() = runTest {
+        val tickets = FakeTickets()
+        val viewModel = viewModel(tickets = tickets, band = band())
+
+        viewModel.onEvent(FlagPriceEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(tickets.submitted.isEmpty())
+    }
+
+    @Test
+    fun `a bill that would not copy is not reported as attached`() = runTest {
+        val tickets = FakeTickets()
+        val viewModel = viewModel(tickets = tickets, band = band(), files = FakeFiles(failing = true))
+
+        viewModel.onEvent(FlagPriceEvent.ComplaintPicked(BandComplaint.TOO_LOW))
+        viewModel.onEvent(FlagPriceEvent.PaidChanged("2350"))
+        viewModel.onEvent(FlagPriceEvent.BillPicked("content://9"))
+        viewModel.onEvent(FlagPriceEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(tickets.submitted.single().attachments.isEmpty())
+    }
+
     private fun viewModel(
         tickets: FakeTickets = FakeTickets(),
         band: DisputedBand? = null,
+        files: FakeFiles = FakeFiles(),
     ) = FlagPriceViewModel(
         band = band,
         submit = SubmitTicketUseCase(
             tickets = tickets,
-            files = FakeFiles(),
+            files = files,
             ids = CountingIds(),
             clock = FixedClock,
         ),

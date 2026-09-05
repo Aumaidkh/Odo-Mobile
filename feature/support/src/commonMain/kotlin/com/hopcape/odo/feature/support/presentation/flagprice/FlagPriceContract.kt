@@ -45,10 +45,17 @@ internal data class FlagPriceUiState(
      */
     val canSend: Boolean
         get() = complaint != null &&
-            paidRupees.isNotBlank() &&
+            // Parsed, not merely typed. A figure the panel cannot read is a correction that
+            // changes nothing, and this screen exists for the figure.
+            paidPaise != null &&
             (band != null || jobName.isNotBlank()) &&
             !sending
+
+    /** What they paid, in paise, or null when the field does not hold a usable number. */
+    val paidPaise: Long? get() = paidRupees.toLongOrNull()?.takeIf { it > 0 }?.times(PAISE)
 }
+
+private const val PAISE = 100L
 
 internal sealed interface FlagPriceEvent {
 

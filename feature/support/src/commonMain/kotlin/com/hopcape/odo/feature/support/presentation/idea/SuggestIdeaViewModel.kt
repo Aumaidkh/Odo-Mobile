@@ -26,6 +26,9 @@ internal sealed interface IdeaEffect {
     data object Sent : IdeaEffect
 
     data object Failed : IdeaEffect
+
+    /** The vote was not written. The pill snaps back on its own; this is what says why. */
+    data object VoteFailed : IdeaEffect
 }
 
 /**
@@ -72,17 +75,29 @@ internal class SuggestIdeaViewModel(
     private fun vote(id: String) {
         val current = _state.value.ideas.firstOrNull { it.id == id } ?: return
         val wanted = !current.voted
-        telemetry.ideaVoted(wanted)
         // The flow is what redraws the pill. Writing locally and letting the read answer is
         // one source of truth; setting the state here too would make two, and they drift.
-        viewModelScope.launch { castVote(id, wanted) }
+        viewModelScope.launch {
+            castVote(id, wanted).fold(
+                // Counted after it is written, not before. A vote on the dashboard that was
+                // never saved is a number nobody can act on.
+                ifLeft = { error ->
+                    telemetry.voteFailed(error)
+                    emit(IdeaEffect.VoteFailed)
+                },
+                ifRight = { telemetry.ideaVoted(wanted) },
+            )
+        }
     }
 
     private fun send() {
-        val text = _state.value.text
+        val current = _state.value
+        // Two taps before the button redraws are two ideas in the queue.
+        if (!current.canSend) return
+        val text = current.text
         _state.update { it.copy(sending = true) }
         viewModelScope.launch {
-            submit(kind = TicketKind.IDEA, body = text).fold(
+            telemetry.timingSubmit { submit(kind = TicketKind.IDEA, body = text) }.fold(
                 ifLeft = { error ->
                     telemetry.submitFailed(TicketKind.IDEA, error)
                     _state.update { it.copy(sending = false) }

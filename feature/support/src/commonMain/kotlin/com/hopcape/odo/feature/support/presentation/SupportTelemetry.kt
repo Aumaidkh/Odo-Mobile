@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.support.presentation
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.domain.support.TicketKind
+import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.logging.api.TraceContext as LogTrace
 
 /**
@@ -16,7 +17,24 @@ import com.hopcape.logging.api.TraceContext as LogTrace
 internal class SupportTelemetry(
     private val logger: Logger,
     private val analytics: AnalyticsTracker,
+    private val tracer: PerformanceTracer,
 ) {
+
+    /**
+     * Time a send.
+     *
+     * Worth a span because it is the slowest thing this feature does and the one an owner
+     * waits on: copying every attachment into app storage, then a database write. A report
+     * that takes four seconds to save looks broken, and only the number tells us which half.
+     */
+    suspend fun <T> timingSubmit(block: suspend () -> T): T {
+        val span = tracer.startSpan(Trace.SUBMIT, FLOW)
+        return try {
+            block()
+        } finally {
+            tracer.endSpan(span)
+        }
+    }
 
     /**
      * A ticket was saved. [attachments] and [logsAttached] are counts and flags, never names.
@@ -59,6 +77,21 @@ internal class SupportTelemetry(
         logger.info(TAG, Event.IDEA_VOTED, tc = trace, fields = fields)
     }
 
+    /**
+     * The vote was not written.
+     *
+     * Worth a line of its own: the pill snapping back looks identical to a double tap, so
+     * without this a vote that never saved is indistinguishable from one the owner undid.
+     */
+    fun voteFailed(error: Any) {
+        logger.warn(
+            TAG,
+            Event.VOTE_FAILED,
+            tc = trace,
+            fields = mapOf(Key.ERROR to (error::class.simpleName ?: UNKNOWN)),
+        )
+    }
+
     /** The list could not be refreshed. Not shown to the owner — what is cached still is. */
     fun ideasRefreshFailed(error: Any) {
         logger.warn(
@@ -87,6 +120,11 @@ internal class SupportTelemetry(
         const val SUBMIT_FAILED = "support_submit_failed"
         const val IDEA_VOTED = "support_idea_voted"
         const val IDEAS_REFRESH_FAILED = "support_ideas_refresh_failed"
+        const val VOTE_FAILED = "support_vote_failed"
+    }
+
+    object Trace {
+        const val SUBMIT = "support_submit"
     }
 
     object Key {

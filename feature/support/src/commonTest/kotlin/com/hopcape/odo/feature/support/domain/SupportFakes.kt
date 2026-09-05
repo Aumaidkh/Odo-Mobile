@@ -17,6 +17,8 @@ import com.hopcape.odo.core.domain.support.SupportTicket
 import com.hopcape.odo.core.domain.support.SupportTicketRepository
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.feature.support.presentation.SupportTelemetry
+import com.hopcape.performance.api.PerformanceTracer
+import com.hopcape.performance.api.Span
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -38,6 +40,7 @@ internal class FakeTickets(private val failing: Boolean = false) : SupportTicket
 internal class FakeIdeas(initial: List<FeatureIdea> = emptyList()) : FeatureIdeaRepository {
     val votes = mutableListOf<Pair<String, Boolean>>()
     var refreshFails = false
+    var voteFails = false
     private val stored = MutableStateFlow(initial)
 
     override fun observe(): Flow<List<FeatureIdea>> = stored
@@ -46,6 +49,7 @@ internal class FakeIdeas(initial: List<FeatureIdea> = emptyList()) : FeatureIdea
         if (refreshFails) DomainError.LookupUnavailable.left() else Unit.right()
 
     override suspend fun vote(ideaId: String, voted: Boolean): Either<DomainError, Unit> {
+        if (voteFails) return DomainError.PersistenceFailure("no").left()
         votes += ideaId to voted
         stored.value = stored.value.map { idea ->
             if (idea.id != ideaId) idea else {
@@ -59,6 +63,7 @@ internal class FakeIdeas(initial: List<FeatureIdea> = emptyList()) : FeatureIdea
 /** Copies by naming the key it would have written, so a test can see what was asked for. */
 internal class FakeFiles(private val failing: Boolean = false) : PlatformFileStore {
     val saved = mutableListOf<String>()
+    val deleted = mutableListOf<String>()
 
     override suspend fun save(
         pickedRef: String,
@@ -71,7 +76,7 @@ internal class FakeFiles(private val failing: Boolean = false) : PlatformFileSto
         return key.right()
     }
 
-    override suspend fun delete(storageKey: String) = Unit
+    override suspend fun delete(storageKey: String) { deleted += storageKey }
     override suspend fun exists(storageKey: String) = true
     override suspend fun bytes(storageKey: String) = ByteArray(0).right()
     override suspend fun write(storageKey: String, bytes: ByteArray) = storageKey.right()
@@ -85,7 +90,26 @@ internal class CountingIds(private val prefix: String = "ticket") : IdGenerator 
 internal fun telemetry(): SupportTelemetry = SupportTelemetry(
     logger = NoLogger,
     analytics = NoAnalytics,
+    tracer = NoTracer,
 )
+
+private class NoSpan(
+    override val spanId: String,
+    override val traceId: String,
+    override val parentSpanId: String?,
+    override val name: String,
+) : Span {
+    override fun setAttribute(key: String, value: Any?): Span = this
+}
+
+private object NoTracer : PerformanceTracer {
+    override fun startSpan(name: String, traceId: String, parentSpanId: String?): Span =
+        NoSpan("span", traceId, parentSpanId, name)
+
+    override fun endSpan(span: Span) = Unit
+
+    override fun flush() = Unit
+}
 
 private object NoLogger : Logger {
     override fun log(
