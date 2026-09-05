@@ -84,7 +84,13 @@
 
     <string name="bc_basis_note">The band comes from Odo’s reference table, not from a model. As real bills collect in this bucket, it tightens on its own.</string>
     <string name="bc_report_price">Report a wrong price</string>
-    <string name="bc_ai_disclaimer">This answer was generated with AI and can be wrong. Always confirm at the service centre.</string>
+    <!--
+      Play requires this wherever a model contributed, and it ships with the first slice that
+      lets one. Nothing here calls a model today — the band comes from the reference tables and
+      the rules — so showing it beside "not from a model" said two opposite things on the one
+      screen whose job is to be believed. It comes back with the model fallback.
+    -->
+    <!-- <string name="bc_ai_disclaimer">This answer was generated with AI and can be wrong. Always confirm at the service centre.</string> -->
 
     <!-- Workshop kinds, worded for a sentence rather than as an enum name. -->
     <string name="bc_workshop_authorised">company centre</string>

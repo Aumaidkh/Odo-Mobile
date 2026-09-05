@@ -38,7 +38,6 @@ import com.hopcape.odo.feature.billcheck.domain.Rung
 import com.hopcape.odo.feature.billcheck.domain.RungState
 import com.hopcape.odo.feature.billcheck.presentation.result.label
 import com.hopcape.odo.feature.billcheck.resources.Res
-import com.hopcape.odo.feature.billcheck.resources.bc_ai_disclaimer
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_city
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_city_value
 import com.hopcape.odo.feature.billcheck.resources.bc_basis_labour
@@ -133,7 +132,11 @@ private fun Basis(basis: BandBasis, onEvent: (BasisEvent) -> Unit) {
     OdoCard(contentPadding = PaddingValues(0.dp)) {
         Fact(
             label = stringResource(Res.string.bc_basis_city),
-            value = stringResource(Res.string.bc_basis_city_value, basis.city, basis.cityTier),
+            // The tier only when it is known. Naming one the band was not built at would be
+            // the sheet inventing the very thing it exists to show.
+            value = basis.cityTier
+                ?.let { stringResource(Res.string.bc_basis_city_value, basis.city, it) }
+                ?: basis.city,
         )
         OdoDivider()
         Fact(
@@ -175,11 +178,6 @@ private fun Basis(basis: BandBasis, onEvent: (BasisEvent) -> Unit) {
         variant = OdoButtonVariant.Secondary,
     )
 
-    OdoText(
-        text = stringResource(Res.string.bc_ai_disclaimer),
-        style = OdoTheme.typography.bodySmall,
-        color = OdoTheme.colors.textMuted,
-    )
 }
 
 /** One input to the band: what it is on the left, what it was on the right. */

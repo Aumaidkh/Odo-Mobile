@@ -17,8 +17,16 @@ internal data class BandBasis(
     val low: Amount,
     val high: Amount,
     val city: String,
-    /** 1, 2 or 3 — the city tier the labour rate is keyed by. */
-    val cityTier: Int,
+    /**
+     * 1, 2 or 3 — the city tier the labour rate is keyed by. Null when the local city
+     * catalogue does not carry the city.
+     *
+     * Nullable rather than defaulted, and the difference matters here more than anywhere: the
+     * server resolves the tier itself, so a guessed one on this sheet is a *different* number
+     * from the one the band was actually built at. On the screen whose whole job is to show
+     * the true inputs, a plausible wrong one is worse than an absent one.
+     */
+    val cityTier: Int?,
     val workshop: WorkshopTier,
     /** The vehicle segment in the owner's words, e.g. "1.2L petrol hatchback". */
     val segment: String,
