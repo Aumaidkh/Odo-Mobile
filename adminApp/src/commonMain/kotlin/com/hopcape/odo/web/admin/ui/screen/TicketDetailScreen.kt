@@ -49,6 +49,31 @@ import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.resolve
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * A detail's name, as a person reads it.
+ *
+ * The `_paise` suffix is dropped along with the underscores: the value beside it is rendered
+ * in rupees, so the unit in the name would be the wrong one.
+ */
+private fun String.readableKey(): String =
+    removeSuffix(PAISE_SUFFIX).replace('_', ' ')
+
+/**
+ * A detail's value, in rupees where the app stored paise.
+ *
+ * Money is integer paise everywhere in this product, and printed raw a price correction reads
+ * "paid paise: 235000" — on the page whose whole purpose is working the queue without reading
+ * prose. Anything that will not parse is shown as it came: a value nobody expected is still
+ * worth seeing.
+ */
+private fun String.readableValue(key: String): String {
+    if (!key.endsWith(PAISE_SUFFIX)) return this
+    val paise = toLongOrNull() ?: return this
+    return "Rs. ${paise / 100}"
+}
+
+private const val PAISE_SUFFIX = "_paise"
+
 private val STATUSES = listOf("open", "pending", "resolved", "closed")
 private val PRIORITIES = listOf("low", "normal", "high", "urgent")
 
@@ -131,7 +156,7 @@ fun TicketDetailScreen(
                         PanelHeader(stringResource(Res.string.ad_ticket_details))
                         Column(modifier = Modifier.padding(16.dp)) {
                             ticket.details.entries.sortedBy { it.key }.forEach { (key, value) ->
-                                MetaLine(key.replace('_', ' '), value)
+                                MetaLine(key.readableKey(), value.readableValue(key))
                             }
                         }
                     }

@@ -6,6 +6,7 @@ import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.LoggedBandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
+import com.hopcape.odo.feature.billcheck.domain.matching.BillLineNamer
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.presentation.BillCheckTelemetry
@@ -23,6 +24,11 @@ import org.koin.dsl.module
  * builds is `internal`, and Koin resolves by type regardless.
  */
 val billCheckModule = module {
+
+    // One namer for the check and for anything else that has to know what a bill line is.
+    // Two of them disagreed once the model fallback arrived, and the sheet that explains a
+    // finding refused to explain one the check had just drawn.
+    factory { BillLineNamer(matcher = get(), classifier = get(), config = get()) }
 
     factory {
         CheckBillPriceUseCase(
@@ -59,7 +65,6 @@ val billCheckModule = module {
             cities = get(),
             cityCatalog = get(),
             questionnaire = get(),
-            namer = get(),
             bands = get(),
         )
     }
@@ -82,8 +87,14 @@ val billCheckModule = module {
         )
     }
 
-    viewModel { (billId: String, lineName: String) ->
-        BasisViewModel(billId = billId, lineName = lineName, reader = get(), telemetry = get())
+    viewModel { (billId: String, lineName: String, categorySlug: String) ->
+        BasisViewModel(
+            billId = billId,
+            lineName = lineName,
+            categorySlug = categorySlug,
+            reader = get(),
+            telemetry = get(),
+        )
     }
 
     single { BillCheckFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class

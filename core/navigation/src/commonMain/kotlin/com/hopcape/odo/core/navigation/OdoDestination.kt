@@ -499,7 +499,18 @@ sealed interface OdoDestination : NavKey {
          * reading. [lineName] is the bill's own wording, which is what the check keyed on.
          */
         @Serializable
-        data class Basis(val billId: String, val lineName: String) : BillCheck
+        data class Basis(
+            val billId: String,
+            val lineName: String,
+            /**
+             * The job the check named the line as, as `service_categories.slug`.
+             *
+             * Carried rather than worked out again by the sheet. With the model fallback on,
+             * re-deriving it means asking a second time — and a second answer that can differ
+             * from the one the band being explained was actually built from.
+             */
+            val categorySlug: String,
+        ) : BillCheck
 
         /**
          * The share card — a picture of the result, for the group chat it gets retold in.

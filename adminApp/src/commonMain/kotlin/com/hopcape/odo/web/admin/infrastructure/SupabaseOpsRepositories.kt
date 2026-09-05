@@ -82,12 +82,14 @@ internal class SupabaseTicketsRepository(
             serializer = TicketRow.serializer(),
             // Open first, then oldest: a queue is worked from the front, and the
             // person who wrote in three weeks ago has waited longest.
-            // The app's own columns come too. Without them a report from the app reads as a
-            // subject and a paragraph, and the area it was filed against — the thing that
-            // routes it — is invisible.
-            query = "select=id,contact,subject,body,status,priority,created_at," +
-                "kind,details,attachments,diagnostics_reference" +
-                "&order=status.asc,created_at.asc",
+            // Everything, rather than a named list.
+            //
+            // The app's own columns have to come too — without them a report reads as a
+            // subject and a paragraph, and the area that routes it is invisible. But naming
+            // them would tie this panel to a migration that is still owed to production, and
+            // PostgREST answers an unknown column with a 400 for the *whole* request: the
+            // queue would show an error rather than tickets without their extra fields.
+            query = "select=*&order=status.asc,created_at.asc",
         ).map { rows ->
             rows.map {
                 Ticket(
@@ -98,7 +100,10 @@ internal class SupabaseTicketsRepository(
                     status = it.status,
                     priority = it.priority,
                     createdAt = it.createdAt.substringBefore('T'),
-                    kind = it.kind.orEmpty(),
+                    // The app's own id is what says the app filed it. `kind` cannot: the
+                    // column is NOT NULL with a default, so Postgres backfilled 'PROBLEM'
+                    // onto every ticket that predates the app writing here.
+                    kind = if (it.clientId == null) "" else it.kind.orEmpty(),
                     details = it.details.readDetails(),
                     attachments = it.attachments.readAttachmentNames(),
                     diagnosticsReference = it.diagnosticsReference,
@@ -187,7 +192,8 @@ private data class TicketRow(
     val status: String,
     val priority: String,
     @SerialName("created_at") val createdAt: String,
-    /** Null on a ticket filed before the app could write here. */
+    /** Null on a ticket filed before the app could write here — a web form, or the panel. */
+    @SerialName("client_id") val clientId: String? = null,
     val kind: String? = null,
     val details: JsonElement? = null,
     val attachments: JsonElement? = null,

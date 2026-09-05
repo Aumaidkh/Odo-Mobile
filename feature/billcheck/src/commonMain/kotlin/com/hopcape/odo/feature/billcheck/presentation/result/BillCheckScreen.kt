@@ -35,9 +35,9 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoEvidenceDots
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoShimmerBlock
+import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
 import com.hopcape.odo.core.designsystem.component.ShimmerDefaults
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
@@ -70,6 +70,7 @@ import com.hopcape.odo.feature.billcheck.resources.bc_evidence_bills
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_own
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_rates
 import com.hopcape.odo.feature.billcheck.resources.bc_headline
+import com.hopcape.odo.feature.billcheck.resources.bc_loading
 import com.hopcape.odo.feature.billcheck.resources.bc_how_we_know
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_amount
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_subhead
@@ -442,11 +443,13 @@ private fun MaskedRow(name: String, onClick: () -> Unit) {
  */
 @Composable
 private fun LoadingSkeleton(padding: PaddingValues) {
+    val loadingLabel = stringResource(Res.string.bc_loading)
+    OdoShimmerHost {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
-            .semantics { contentDescription = LOADING_LABEL },
+            .semantics { contentDescription = loadingLabel },
         verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
     ) {
         Spacer(Modifier.height(OdoTheme.spacing.sm))
@@ -462,6 +465,7 @@ private fun LoadingSkeleton(padding: PaddingValues) {
                 OdoShimmerBlock(height = ShimmerDefaults.LineHeight)
             }
         }
+    }
     }
 }
 
@@ -598,9 +602,6 @@ private val SKELETON_SUBTITLE_WIDTH = 220.dp
 private val SKELETON_HEADLINE_TAIL = 200.dp
 private val SKELETON_ROW_TITLE = 160.dp
 private const val SKELETON_ROWS = 3
-
-/** Said once for the whole skeleton, not once per block. */
-private const val LOADING_LABEL = "Checking this bill"
 
 private val FLAG_DOT = 8.dp
 private val CHECK_SIZE = 18.dp

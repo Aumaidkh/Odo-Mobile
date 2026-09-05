@@ -6,17 +6,19 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -47,73 +49,48 @@ fun OdoShimmerBlock(
     // The highlight is the surface rather than white: on a light theme white would be
     // invisible against the block, and on a dark one it would flash.
     val highlight = OdoTheme.colors.surfaceRaised
-    val progress = shimmerProgress()
+    val progress = LocalShimmerProgress.current
 
     Box(
         modifier = modifier
             .then(if (width == null) Modifier.fillMaxWidth() else Modifier.width(width))
             .height(height)
-            .background(base, shape)
-            .drawWithCache {
+            // Clipped before it is filled, so the sweep cannot paint the corners the shape
+            // rounds off. Drawn as a plain rect over an unclipped block, the highlight gave
+            // the block square corners for as long as it was crossing them.
+            .clip(shape)
+            .background(base)
+            .drawBehind {
                 // Twice the width, swept from off one edge to off the other, so the highlight
                 // enters and leaves rather than appearing in the middle.
+                //
+                // Read here rather than in composition: reading an animated value while
+                // composing recomposes this block on every frame, which is the one thing a
+                // placeholder must not cost.
                 val travel = size.width * SWEEP_TRAVEL
-                val start = -size.width + travel * progress
-                val brush = Brush.linearGradient(
-                    colors = listOf(Color.Transparent, highlight, Color.Transparent),
-                    start = Offset(start, 0f),
-                    end = Offset(start + size.width, 0f),
+                val start = -size.width + travel * progress.value
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color.Transparent, highlight, Color.Transparent),
+                        start = Offset(start, 0f),
+                        end = Offset(start + size.width, 0f),
+                    ),
                 )
-                onDrawWithContent {
-                    drawContent()
-                    drawRect(brush = brush)
-                }
             },
     )
 }
 
 /**
- * The rows a list is about to show, as blocks.
+ * One clock for every block beneath it, so they sweep together.
  *
- * [lines] is how many the caller expects — a guess is fine and better than none, because the
- * screen not changing height when the content arrives is most of what this buys.
+ * Wrap a loading screen in this. Without it each block starts its own animation from its own
+ * composition time, so blocks that appear a moment apart sweep out of step — which reads as
+ * several things loading rather than one screen.
  */
 @Composable
-fun OdoShimmerList(
-    modifier: Modifier = Modifier,
-    lines: Int = ShimmerDefaults.Lines,
-    contentDescription: String? = null,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            // Announced once for the whole block. A screen reader reading six identical
-            // placeholders is worse than one that says the screen is loading.
-            .then(
-                if (contentDescription == null) {
-                    Modifier
-                } else {
-                    Modifier.semantics { this.contentDescription = contentDescription }
-                },
-            ),
-        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-    ) {
-        repeat(lines) { index ->
-            OdoShimmerBlock(
-                // Alternating widths, because a stack of identical bars reads as a pattern
-                // rather than as text about to arrive.
-                width = null,
-                height = if (index == 0) ShimmerDefaults.HeadlineHeight else ShimmerDefaults.LineHeight,
-            )
-        }
-    }
-}
-
-/** One clock for every block on screen, so they sweep together rather than independently. */
-@Composable
-private fun shimmerProgress(): Float {
+fun OdoShimmerHost(content: @Composable () -> Unit) {
     val transition = rememberInfiniteTransition(label = "shimmer")
-    val progress by transition.animateFloat(
+    val progress = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -124,8 +101,17 @@ private fun shimmerProgress(): Float {
         ),
         label = "shimmerProgress",
     )
-    return progress
+    CompositionLocalProvider(LocalShimmerProgress provides progress, content = content)
 }
+
+/**
+ * How far through the sweep every block is.
+ *
+ * A `State` rather than a `Float`, so a block reads it in its draw pass instead of being
+ * recomposed sixty times a second. Outside a host it is a constant, and a block drawn there
+ * is a plain grey placeholder rather than a crash.
+ */
+private val LocalShimmerProgress = compositionLocalOf<State<Float>> { mutableStateOf(0f) }
 
 /** How far the highlight travels, as a multiple of the block's width. */
 private const val SWEEP_TRAVEL = 2f
@@ -134,6 +120,5 @@ object ShimmerDefaults {
     val LineHeight: Dp = 16.dp
     val HeadlineHeight: Dp = 28.dp
     val Radius: Dp = 6.dp
-    const val Lines: Int = 4
     const val SweepMillis: Int = 1_200
 }

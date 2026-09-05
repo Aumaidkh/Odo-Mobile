@@ -15,6 +15,8 @@ import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.isBillScanFlowStep
+import com.hopcape.odo.core.navigation.leaveFlow
 import com.hopcape.odo.core.domain.shared.formatRupees
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.share.WHATSAPP_PACKAGE
@@ -64,7 +66,17 @@ private fun ResultRoute(
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            BillCheckEffect.NavigateBack -> navigationManager.back()
+            // The whole scan errand, not one step of it.
+            //
+            // A scan pushes the viewfinder, then the review; the review is popped when the
+            // bill is saved, which used to leave the *camera* directly under this screen —
+            // so backing out of the check reopened the viewfinder on a bill already filed.
+            // `popFlow` drops the errand's steps from the top and stops at whatever opened
+            // it, so this lands where the scan started.
+            //
+            // Reached from a service-log entry instead, nothing below is a scan step and this
+            // pops exactly this screen — which is what `back()` did, and what that path wants.
+            BillCheckEffect.NavigateBack -> navigationManager.leaveFlow(::isBillScanFlowStep)
 
             // The figures, not the bill id. The card is built from what this screen showed,
             // so the two cannot disagree — and the plate and the workshop never travel.
@@ -79,7 +91,11 @@ private fun ResultRoute(
             }
 
             is BillCheckEffect.OpenBasis -> navigationManager.navigateTo(
-                OdoDestination.BillCheck.Basis(billId = key.billId, lineName = effect.lineName),
+                OdoDestination.BillCheck.Basis(
+                    billId = key.billId,
+                    lineName = effect.lineName,
+                    categorySlug = effect.categorySlug,
+                ),
             )
 
             // The bill-check framing, not the general one: someone who has just run out of
@@ -111,7 +127,9 @@ private fun BasisRoute(
     key: OdoDestination.BillCheck.Basis,
     navigationManager: NavigationManager,
 ) {
-    val viewModel = koinViewModel<BasisViewModel> { parametersOf(key.billId, key.lineName) }
+    val viewModel = koinViewModel<BasisViewModel> {
+        parametersOf(key.billId, key.lineName, key.categorySlug)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     CollectEffects(viewModel.effects) { effect ->
