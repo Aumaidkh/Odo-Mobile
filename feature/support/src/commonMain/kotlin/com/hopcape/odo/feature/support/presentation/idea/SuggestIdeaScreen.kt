@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
@@ -165,7 +165,10 @@ private fun VotePill(idea: IdeaRow, onClick: () -> Unit) {
         ),
         verticalArrangement = Arrangement.Top,
         modifier = Modifier
-            .widthIn(min = PILL_MIN_WIDTH)
+            // A fixed width, not a minimum. `OdoCard` fills the width it is given, so a
+            // minimum let the pill take the whole row — which squeezed the title to one
+            // character per line and drew the pill over it.
+            .width(PILL_WIDTH)
             .semantics { contentDescription = action },
     ) {
         OdoText(
@@ -198,7 +201,7 @@ private fun IdeaStatus.label(): String = stringResource(
 )
 
 private val IDEA_MIN_HEIGHT = 132.dp
-private val PILL_MIN_WIDTH = 72.dp
+private val PILL_WIDTH = 84.dp
 
 @OdoThemePreviews
 @Composable

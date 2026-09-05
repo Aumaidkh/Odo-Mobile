@@ -2,7 +2,10 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import arrow.core.Either
 import arrow.core.right
+import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.feature.billcheck.domain.matching.BillLineNamer
 import com.hopcape.odo.core.domain.benchmark.BandWorking
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
@@ -171,6 +174,40 @@ class LoggedBandBasisReaderTest {
         assertEquals("Srinagar", basis.city, "the city itself is still known")
     }
 
+    /**
+     * The bug this sheet shipped with.
+     *
+     * With the model fallback on, the check can name a line the rules cannot, price it, and
+     * flag it against a band. This screen used the rules alone — so the owner tapped a finding
+     * the app had just drawn and was told it could not read the bill, on the one screen whose
+     * whole job is showing where a figure came from.
+     *
+     * Both now ask the same namer, which is the only way they cannot disagree again.
+     */
+    @Test
+    fun `a line only the model can name is still explained`() = runTest {
+        val basis = assertNotNull(
+            reader(
+                classifier = { labels -> labels.associateWith { "ac_service" } },
+                classifierOn = true,
+            ).basisFor(BILL, "Throttle body cleaning").getOrNull(),
+        )
+
+        assertEquals("Throttle body cleaning", basis.lineName)
+        assertEquals(rupees(1_428), basis.low, "and it is the band the check used")
+    }
+
+    /** Off, the sheet is the rules alone — and says so rather than inventing a working. */
+    @Test
+    fun `with the model off an unnamed line has no basis`() = runTest {
+        val result = reader(
+            classifier = { labels -> labels.associateWith { "ac_service" } },
+            classifierOn = false,
+        ).basisFor(BILL, "Throttle body cleaning")
+
+        assertIs<DomainError.LookupUnavailable>(result.leftOrNull())
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reader(
@@ -178,6 +215,8 @@ class LoggedBandBasisReaderTest {
         spy: MutableList<PriceBandQuery>? = null,
         missing: Boolean = false,
         catalog: List<City> = listOf(City(id = "c1", name = "Srinagar", state = "J&K", tier = 2)),
+        classifier: BillLineClassifier = BillLineClassifier { emptyMap() },
+        classifierOn: Boolean = false,
     ) = LoggedBandBasisReader(
         entries = FakeEntries(if (missing) null else entry()),
         cars = FakeCars(car()),
@@ -186,9 +225,25 @@ class LoggedBandBasisReaderTest {
             override suspend fun cities() = catalog
         },
         questionnaire = FakeQuestionnaire,
-        matcher = BillLineMatcher(),
+        namer = BillLineNamer(
+            matcher = BillLineMatcher(),
+            // The rules alone, which is what these tests are about. The model's own path is
+            // covered where it is decided — in the check's tests and the namer's.
+            classifier = classifier,
+            config = config(classifierOn),
+        ),
         bands = FakeBands(band, spy),
     )
+
+    private fun config(classifierOn: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = classifierOn
+        override val billCheckEnabled = true
+        override val serviceChecklistEnabled = true
+    }
 
     private fun band(
         scope: BenchmarkScope,

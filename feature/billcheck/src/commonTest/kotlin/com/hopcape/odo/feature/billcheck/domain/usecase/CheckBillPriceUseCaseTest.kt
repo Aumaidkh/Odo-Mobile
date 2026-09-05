@@ -6,6 +6,7 @@ import arrow.core.right
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.feature.billcheck.domain.matching.BillLineNamer
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
@@ -370,8 +371,11 @@ class CheckBillPriceUseCaseTest {
             matcher = BillLineMatcher(),
             bands = FakeBands(band(), null, false, null),
             intervals = { emptyMap<String, ServiceInterval>().right() },
-            classifier = namesNothing,
-            config = config(classifier = false),
+            namer = BillLineNamer(
+                matcher = BillLineMatcher(),
+                classifier = namesNothing,
+                config = config(classifier = false),
+            ),
         ).invoke(
             car = car(),
             city = null,
@@ -531,8 +535,11 @@ class CheckBillPriceUseCaseTest {
         matcher = BillLineMatcher(),
         bands = FakeBands(band, null, false, null),
         intervals = { emptyMap<String, ServiceInterval>().right() },
-        classifier = classifier,
-        config = config(classifier = modelEnabled),
+        namer = BillLineNamer(
+            matcher = BillLineMatcher(),
+            classifier = classifier,
+            config = config(classifier = modelEnabled),
+        ),
     ).invoke(
         car = car(),
         city = "Srinagar",
@@ -560,8 +567,11 @@ class CheckBillPriceUseCaseTest {
         matcher = BillLineMatcher(),
         bands = FakeBands(band, bandsByCategory, failing, spy),
         intervals = { intervals.right() },
-        classifier = classifier,
-        config = config(classifier = modelEnabled),
+        namer = BillLineNamer(
+            matcher = BillLineMatcher(),
+            classifier = classifier,
+            config = config(classifier = modelEnabled),
+        ),
     ).invoke(
         car = car,
         city = "Srinagar",

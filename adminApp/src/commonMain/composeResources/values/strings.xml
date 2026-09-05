@@ -264,6 +264,13 @@
     <string name="ad_ticket_meta_opened">Opened</string>
     <string name="ad_ticket_meta_status">Status</string>
     <string name="ad_ticket_meta_priority">Priority</string>
+    <!-- What a ticket filed from the app carries, and the panel needs to work it. -->
+    <string name="ad_ticket_meta_kind">Kind</string>
+    <string name="ad_ticket_details">What the form collected</string>
+    <string name="ad_ticket_attachments">Attached</string>
+    <string name="ad_ticket_attachments_none">Nothing</string>
+    <string name="ad_ticket_diagnostics">Diagnostics</string>
+    <string name="ad_ticket_diagnostics_hint">Quote this to find the uploaded logs.</string>
     <string name="ad_ticket_gone">Ticket #%1$d is not in the queue. It may have been deleted.</string>
     <string name="ad_ticket_detail_title">Ticket #%1$d</string>
     <string name="ad_sub_ticket_detail">The whole message, and what happens next</string>

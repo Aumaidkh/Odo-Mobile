@@ -52,8 +52,31 @@ data class Ticket(
     val status: String,
     val priority: String,
     val createdAt: String,
+    /**
+     * Which form it came from — `PROBLEM`, `IDEA`, `PRICE_CORRECTION` — or blank for a ticket
+     * that predates the app writing here.
+     */
+    val kind: String = "",
+    /**
+     * What the form collected in fields of its own: the area for a report, the job and the
+     * figure for a price correction. Named values rather than prose, which is what lets this
+     * queue be worked without reading every body.
+     */
+    val details: Map<String, String> = emptyMap(),
+    /** The file names attached. The files themselves are in storage. */
+    val attachments: List<String> = emptyList(),
+    /**
+     * The diagnostics upload that travelled with it.
+     *
+     * The single most useful thing on a bug report: it is the code the uploaded logs are filed
+     * under, so whoever works the ticket can find them without asking the owner for anything.
+     */
+    val diagnosticsReference: String? = null,
 ) {
     val isOpen: Boolean get() = status == "open" || status == "pending"
+
+    /** True for a ticket the app filed, which is the only kind carrying the fields above. */
+    val isFromApp: Boolean get() = kind.isNotBlank()
 }
 
 interface TicketsRepository {

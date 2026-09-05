@@ -3,8 +3,6 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
-import com.hopcape.odo.core.domain.advisory.matching.LineMatch
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
@@ -22,6 +20,7 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
+import com.hopcape.odo.feature.billcheck.domain.matching.BillLineNamer
 import kotlinx.coroutines.flow.first
 
 /**
@@ -45,7 +44,14 @@ internal class LoggedBandBasisReader(
     private val cities: CurrentCityProvider,
     private val cityCatalog: CityCatalog,
     private val questionnaire: QuestionnaireRepository,
-    private val matcher: BillLineMatcher,
+    /**
+     * The same namer the check used — rules, then the model.
+     *
+     * It used to be the matcher alone, and that is what broke this screen: with the model
+     * fallback on, the check could name a line the rules could not, flag it against a band,
+     * and then this sheet would refuse to explain the very finding beside it.
+     */
+    private val namer: BillLineNamer,
     private val bands: PriceBandRepository,
 ) : BandBasisReader {
 
@@ -57,12 +63,12 @@ internal class LoggedBandBasisReader(
             ?: return DomainError.ServiceLogNotFound.left()
         val car = cars.observe(entry.carId).first() ?: return DomainError.CarNotFound.left()
         val city = cities.currentCity() ?: return DomainError.LookupUnavailable.left()
-        val job = (matcher.match(lineName) as? LineMatch.Job) ?: return DomainError.LookupUnavailable.left()
+        val job = namer.name(lineName) ?: return DomainError.LookupUnavailable.left()
 
         val workshop = workshopTier()
         val band = bands.bandFor(
             PriceBandQuery(
-                categorySlug = job.kind.slug,
+                categorySlug = job.slug,
                 city = city,
                 segment = SegmentCatalog.segmentOrNull(car.model),
                 fuel = car.fuelType,
