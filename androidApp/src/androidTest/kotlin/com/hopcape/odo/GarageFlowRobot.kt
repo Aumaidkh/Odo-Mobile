@@ -198,7 +198,7 @@ internal object GarageFixtures {
     const val RC_ID = "garage-doc-rc"
 }
 
-private typealias GarageTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
+internal typealias GarageTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
 
 /* ------------------------------ Database ------------------------------ */
 

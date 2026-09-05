@@ -10,7 +10,9 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
+import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.feature.paywall.presentation.PaywallTelemetry
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
@@ -28,6 +30,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -60,16 +64,16 @@ class OneTimeOffersViewModelTest {
         assertEquals(listOf(true, false), cards.map { it.recommended })
     }
 
-    /** One product leaves nothing to recommend over anything. */
+    /** One product, and it is the answer rather than one row among equals. */
     @Test
-    fun aSingleProductContextRecommendsNothing() = runTest(dispatcher) {
+    fun aSingleProductContextRecommendsThatProduct() = runTest(dispatcher) {
         val viewModel = viewModel(FakePurchaser(ALL_PRICED), OneTimeContext.EXPORT)
         advanceUntilIdle()
 
         val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
 
         assertEquals(listOf(OneTimeOffer.RECORD_EXPORT), cards.map { it.offer })
-        assertTrue(cards.none { it.recommended })
+        assertTrue(cards.single().recommended)
     }
 
     /** A key written by an older build, or a bad deep link, sells the same things. */
@@ -86,8 +90,8 @@ class OneTimeOffersViewModelTest {
 
         val cards = viewModel.state.value.offers.valueOrNull.orEmpty()
 
-        assertEquals(OneTimeOffer.entries, cards.map { it.offer })
-        assertEquals(listOf("₹49", "₹99", "₹99"), cards.map { it.price })
+        assertEquals(OneTimeContext.GENERIC.offers, cards.map { it.offer })
+        assertEquals(listOf("₹99", "₹49", "₹99"), cards.map { it.price })
     }
 
     /**
@@ -180,13 +184,9 @@ class OneTimeOffersViewModelTest {
         assertEquals(3, viewModel.state.value.offers.valueOrNull?.size)
     }
 
-    /**
-     * Nothing is bought yet — the purchase path and the balances it would credit are the next
-     * slice. A tap is the only signal there is that anyone wants one of these, so it is
-     * reported and nothing else happens.
-     */
+    /** Bought, then claimed — the claim is what turns a payment into a balance. */
     @Test
-    fun tappingAnOffer_reportsItAndBuysNothing() = runTest(dispatcher) {
+    fun buyingAPack_creditsWhatItSold() = runTest(dispatcher) {
         val purchaser = FakePurchaser(ALL_PRICED)
         val viewModel = viewModel(purchaser)
         advanceUntilIdle()
@@ -194,11 +194,52 @@ class OneTimeOffersViewModelTest {
         viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
         advanceUntilIdle()
 
-        assertEquals(
-            OneTimeProducts.BILL_CHECK_PACK,
-            tracked.propertyOf(PaywallTelemetry.Event.ONE_TIME_TAPPED, PaywallTelemetry.Key.PRODUCT),
-        )
-        assertTrue(purchaser.purchased.isEmpty(), "nothing may be charged for until credits exist")
+        assertEquals(listOf(OneTimeProducts.BILL_CHECK_PACK), purchaser.purchased)
+        assertEquals(1, reconciler.claims, "the reconciler is what credits it")
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_PURCHASED))
+    }
+
+    /** Every product on the sheet is sellable now that each one has a grant behind it. */
+    @Test
+    fun everyOfferOnTheSheetCanBeBought() = runTest(dispatcher) {
+        val purchaser = FakePurchaser(ALL_PRICED)
+        val viewModel = viewModel(purchaser)
+        advanceUntilIdle()
+
+        OneTimeOffer.entries.forEach { offer ->
+            viewModel.onEvent(OneTimeOffersEvent.OfferTapped(offer.productId))
+            advanceUntilIdle()
+        }
+
+        assertEquals(OneTimeOffer.entries.map { it.productId }, purchaser.purchased)
+        assertNull(viewModel.state.value.notice)
+    }
+
+    /** Backing out is a decision, not a fault. It must not put an error on screen. */
+    @Test
+    fun backingOutOfTheStore_saysNothingAndCreditsNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingPurchaser(DomainError.PaymentCancelled))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.notice)
+        assertEquals(0, reconciler.claims, "nothing was paid for, so nothing may be claimed")
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_CANCELLED))
+    }
+
+    @Test
+    fun aRefusedPayment_saysSoAndCreditsNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingPurchaser(DomainError.PaymentFailed))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.OfferTapped(OneTimeProducts.BILL_CHECK_PACK))
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.state.value.notice)
+        assertEquals(0, reconciler.claims)
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_FAILED))
     }
 
     @Test
@@ -213,14 +254,28 @@ class OneTimeOffersViewModelTest {
 
     /* ------------------------------ Fixtures ------------------------------ */
 
+    private val reconciler = RecordingReconciler()
+
     private fun viewModel(
         purchaser: OneTimePurchaser,
         context: OneTimeContext = OneTimeContext.GENERIC,
     ) = OneTimeOffersViewModel(
         context = context,
         purchaser = purchaser,
+        reconciler = reconciler,
         telemetry = PaywallTelemetry(logger = NoopLogger, analytics = tracked, ids = { "id" }),
     )
+
+    /**
+     * The sheet does not credit anything itself, so what these tests can check is that it
+     * asks the one thing that does. What a claim awards is covered where the reconciler is.
+     */
+    private class RecordingReconciler : PurchaseReconciler {
+        var claims = 0
+            private set
+
+        override suspend fun claimOutstanding() { claims++ }
+    }
 
     private open class FakePurchaser(private val prices: Map<String, String>) : OneTimePurchaser {
         val purchased = mutableListOf<String>()
@@ -232,6 +287,10 @@ class OneTimeOffersViewModelTest {
 
         override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
             prices.filterKeys { it in productIds }.right()
+
+        /** One transaction per purchase, so claiming can tell two packs apart. */
+        override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+            purchased.mapIndexed { index, id -> CompletedPurchase("txn-$index", id) }.right()
     }
 
     private class FlakyPurchaser(prices: Map<String, String>) : FakePurchaser(prices) {
@@ -247,14 +306,30 @@ class OneTimeOffersViewModelTest {
 
         override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
             DomainError.StoreUnavailable.left()
+
+        override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+            DomainError.StoreUnavailable.left()
     }
 
     /** A purchaser that throws outright — the unconfigured-SDK case, not a store error. */
+    private class RefusingPurchaser(private val error: DomainError) : OneTimePurchaser {
+        override suspend fun purchase(productId: String): Either<DomainError, Unit> = error.left()
+
+        override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            ALL_PRICED.filterKeys { it in productIds }.right()
+
+        override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+            emptyList<CompletedPurchase>().right()
+    }
+
     private object ThrowingPurchaser : OneTimePurchaser {
         override suspend fun purchase(productId: String): Either<DomainError, Unit> =
             error("not called")
 
         override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
+            error("RevenueCat is not configured")
+
+        override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
             error("RevenueCat is not configured")
     }
 

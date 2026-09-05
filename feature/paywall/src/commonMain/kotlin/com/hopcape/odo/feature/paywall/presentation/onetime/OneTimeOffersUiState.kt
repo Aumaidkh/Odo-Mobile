@@ -1,6 +1,8 @@
 package com.hopcape.odo.feature.paywall.presentation.onetime
 
 import androidx.compose.runtime.Immutable
+import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.subscription.OneTimeGrant
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import org.jetbrains.compose.resources.StringResource
@@ -25,21 +27,27 @@ internal enum class OneTimeOffer(
     val productId: String,
     val title: StringResource,
     val subtitle: StringResource,
+    /** What buying it awards. The mapping itself lives in the domain, stated once. */
+    val grant: OneTimeGrant,
 ) {
     BILL_CHECK_SINGLE(
         productId = OneTimeProducts.BILL_CHECK_SINGLE,
         title = Res.string.pw_ot_bill_check_single_title,
         subtitle = Res.string.pw_ot_bill_check_single_subtitle,
+        grant = OneTimeGrant.BILL_CHECK_SINGLE,
     ),
     BILL_CHECK_PACK(
         productId = OneTimeProducts.BILL_CHECK_PACK,
         title = Res.string.pw_ot_bill_check_pack_title,
         subtitle = Res.string.pw_ot_bill_check_pack_subtitle,
+        grant = OneTimeGrant.BILL_CHECK_PACK,
     ),
+
     RECORD_EXPORT(
         productId = OneTimeProducts.RECORD_EXPORT,
         title = Res.string.pw_ot_export_title,
         subtitle = Res.string.pw_ot_export_subtitle,
+        grant = OneTimeGrant.RECORD_EXPORT,
     ),
 }
 
@@ -64,6 +72,7 @@ internal data class OneTimeOfferCard(
     val recommended: Boolean = false,
 )
 
+
 /**
  * Display state for the one-time offers sheet.
  *
@@ -80,6 +89,10 @@ internal data class OneTimeOfferCard(
 internal data class OneTimeOffersUiState(
     val context: OneTimeContext = OneTimeContext.GENERIC,
     val offers: Loadable<List<OneTimeOfferCard>> = Loadable.Loading,
+    /** The store's sheet is open, or the purchase is completing. Blocks a second tap. */
+    val purchasing: Boolean = false,
+    /** What the store just said — a refusal, or nothing. Cleared on the next tap. */
+    val notice: UiText? = null,
 ) {
     /** Loaded, but the store returned none of them. */
     val isEmpty: Boolean get() = (offers as? Loadable.Ready)?.value?.isEmpty() == true

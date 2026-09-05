@@ -2,9 +2,13 @@ package com.hopcape.odo.feature.advisory
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.advisory.domain.ObserveCarValueUseCase
+import com.hopcape.odo.feature.advisory.domain.checklist.PreServiceChecklistBuilder
+import com.hopcape.odo.feature.advisory.domain.checklist.ReadServiceChecklistUseCase
+import com.hopcape.odo.feature.advisory.domain.checklist.ServiceChecklistReader
 import com.hopcape.odo.feature.advisory.navigation.AdvisoryFeatureEntryProvider
 import com.hopcape.odo.feature.advisory.presentation.AdvisoryTelemetry
 import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
+import com.hopcape.odo.feature.advisory.presentation.checklist.ChecklistViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -27,10 +31,38 @@ val advisoryModule = module {
         )
     }
 
+    // No state — one instance for the process. The matcher it reads is declared once in
+    // :core:data, because the bill check reads the same table.
+    single { PreServiceChecklistBuilder(matcher = get()) }
+
+    factory<ServiceChecklistReader> {
+        ReadServiceChecklistUseCase(
+            cars = get(),
+            logs = get(),
+            odometers = get(),
+            schedule = get(),
+            bands = get(),
+            cities = get(),
+            questionnaire = get(),
+            builder = get(),
+            clock = get(),
+        )
+    }
+
     // A factory, so one instance covers one visit to the screen.
     factory { AdvisoryTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
     viewModel { CarValueViewModel(observeCarValue = get(), telemetry = get()) }
+
+    viewModel { (entry: String) ->
+        ChecklistViewModel(
+            entry = entry,
+            read = get(),
+            files = get(),
+            downloads = get(),
+            telemetry = get(),
+        )
+    }
 
     single { AdvisoryFeatureEntryProvider(navigationManager = get()) } bind FeatureEntryProvider::class
 }

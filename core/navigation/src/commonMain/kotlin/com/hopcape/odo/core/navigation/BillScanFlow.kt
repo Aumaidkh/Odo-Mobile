@@ -3,10 +3,9 @@ package com.hopcape.odo.core.navigation
 /**
  * True when [destination] is a step of the scan-a-bill errand.
  *
- * The errand runs from the viewfinder through the confirm step to the fairness report and
- * whatever the report leads to. It spans two features — the scanner takes and reads the
- * photo, the fairness check judges what it found — so the set is named here, where both can
- * reach it.
+ * The errand runs from the viewfinder through the confirm step to the bill check and
+ * whatever the check leads to. It spans two features — the scanner takes and reads the photo,
+ * the bill check judges what it found — so the set is named here, where both can reach it.
  *
  * Pass it to [NavigationCommand.LeaveFlow] when the errand is over. Every step comes off,
  * and the owner lands on whatever opened the scanner: the garage they started from, or the
@@ -18,7 +17,7 @@ package com.hopcape.odo.core.navigation
  * ([isAddDocumentFlowStep]).
  */
 fun isBillScanFlowStep(destination: OdoDestination): Boolean = when (destination) {
-    is OdoDestination.Fairness,
+    is OdoDestination.BillCheck,
     is OdoDestination.BillScanner.Review,
     is OdoDestination.BillScanner.SaveSuccess,
     is OdoDestination.BillScanner.ReportSuccess,

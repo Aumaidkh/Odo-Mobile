@@ -157,7 +157,7 @@ internal object SupportCopy {
     const val TICKETS = "My tickets"
 }
 
-private typealias ProfileTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
+internal typealias ProfileTestRule = AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
 
 /* ------------------------------ Database ------------------------------ */
 

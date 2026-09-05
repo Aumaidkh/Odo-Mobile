@@ -116,7 +116,10 @@ internal class BillScanViewModel(
                 .getOrNull()
                 ?: return@launch
             _state.update {
-                it.copy(freeRemaining = limit.remaining ?: 0, freeTotal = limit.cap ?: 0)
+                // freeRemaining, not remaining: the pill reads "N of M free", and `remaining`
+                // counts bought checks alongside the free ones — three bought would read
+                // "8 of 5 free".
+                it.copy(freeRemaining = limit.freeRemaining ?: 0, freeTotal = limit.cap ?: 0)
             }
         }
     }

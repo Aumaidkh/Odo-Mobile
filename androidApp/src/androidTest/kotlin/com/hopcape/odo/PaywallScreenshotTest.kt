@@ -48,11 +48,11 @@ class PaywallScreenshotTest {
         rule.openProfile()
         rule.goPro()
         rule.awaitText(PaywallCopy.HEADLINE)
-        Screenshots.capture("paywall")
+        rule.captureScreen("paywall")
 
         rule.openOneTimeOffers()
         rule.awaitText(PaywallCopy.ONE_TIME_TITLE)
-        Screenshots.capture("one-time-offers-sheet")
+        rule.captureScreen("one-time-offers-sheet")
     }
 
     /**
@@ -75,7 +75,30 @@ class PaywallScreenshotTest {
                 .navigateTo(OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"))
         }
         rule.awaitText(PaywallCopy.ONE_TIME_BILL_TITLE)
-        Screenshots.capture("one-time-offers-bill-check")
+        rule.captureScreen("one-time-offers-bill-check")
+    }
+
+    /**
+     * The export wall's own framing. The service log already sent RECORD_EXPORT as its
+     * trigger and the paywall had no such case, so it fell through to the general copy.
+     */
+    @Test
+    fun capturesTheExportFraming() {
+        installOffer()
+        installOneTimePrices()
+
+        rule.openProfile()
+        rule.goPro()
+        rule.awaitText(PaywallCopy.HEADLINE)
+
+        // Pushed rather than walked to: the wall is reached from the record share sheet,
+        // which needs a seeded record and three taps to photograph one screen.
+        rule.runOnUiThread {
+            GlobalContext.get().get<NavigationManager>()
+                .navigateTo(OdoDestination.Paywall.Plans(trigger = "RECORD_EXPORT"))
+        }
+        rule.awaitText(PaywallCopy.EXPORT_HEADLINE)
+        rule.captureScreen("paywall-export")
     }
 
     /**
@@ -93,6 +116,6 @@ class PaywallScreenshotTest {
 
         rule.openOneTimeOffers()
         rule.awaitText(PaywallCopy.ONE_TIME_EMPTY)
-        Screenshots.capture("one-time-offers-empty")
+        rule.captureScreen("one-time-offers-empty")
     }
 }

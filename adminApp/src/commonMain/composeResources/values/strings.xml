@@ -49,6 +49,8 @@
     <string name="ad_nav_tickets">Support tickets</string>
     <string name="ad_nav_billing">Billing</string>
     <string name="ad_nav_flags">Feature flags</string>
+    <string name="ad_nav_social">Social</string>
+    <string name="ad_sub_social">How the Instagram and Facebook pipeline posts, when, and who approves it.</string>
     <string name="ad_nav_audit">Audit log</string>
 
     <string name="ad_sub_dashboard">Ops overview</string>
@@ -378,6 +380,8 @@
 
 
     <!-- Feature flags -->
+    <string name="ad_social_saved">Saved</string>
+
     <string name="ad_flags_title">REMOTE CONFIG</string>
     <string name="ad_flags_count">%1$d parameters</string>
     <string name="ad_flags_empty">No parameter matches that.</string>

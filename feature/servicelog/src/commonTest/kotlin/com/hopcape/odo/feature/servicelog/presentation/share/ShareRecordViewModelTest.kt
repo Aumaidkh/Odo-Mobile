@@ -44,7 +44,9 @@ import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
+import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -105,6 +107,9 @@ class ShareRecordViewModelTest {
         logId: ServiceLogId? = null,
         isPro: Boolean = true,
         exportsUsed: Int = 0,
+        // One balance shared by the sheet and the reconciler that credits it, so a purchase
+        // lands where the sheet then spends it.
+        credits: FakeExportCredits = FakeExportCredits(),
     ) = ShareRecordViewModel(
         carId = TEST_CAR,
         logId = logId,
@@ -119,8 +124,9 @@ class ShareRecordViewModelTest {
         ),
         observeDetail = ObserveEntryDetailUseCase(observeFeed = ObserveServiceLogFeedUseCase(logs = logs)),
         entitlements = entitlementsOf(isPro),
-        exportCredits = FakeExportCredits(),
+        exportCredits = credits,
         oneTimePurchaser = FakeOneTimePurchaser(),
+        reconciler = FakeReconciler(credits),
         exportUsage = FakeRecordExportUsage(used = exportsUsed),
         documents = { record -> ServiceRecordDocument(html = "<!doctype html>${record.carName}", name = "${record.carName} service record") },
         bills = { record, entry -> ServiceRecordDocument(html = "<!doctype html>bill:${entry.id.value}", name = "${record.carName} service bill") },
@@ -483,13 +489,18 @@ class ShareRecordViewModelTest {
             "there is no record to print",
         )
     }
-    /** No credits bought, and nothing here spends one — the free-allowance path is what these test. */
+
+    /**
+     * The balance the share sheet reads. `grant` is not on the port any more — only honouring
+     * a purchase credits one — so it is a plain method here, standing in for that write.
+     */
     private class FakeExportCredits : ExportCredits {
         var granted = 0
+            private set
+
+        fun grant() { granted++ }
+
         override suspend fun available(): Int = granted
-        override suspend fun grant() {
-            granted++
-        }
 
         override suspend fun spend(): Boolean = if (granted > 0) { granted--; true } else false
     }
@@ -500,6 +511,18 @@ class ShareRecordViewModelTest {
         // `priceOf` is a default over this, so the share sheet still reads "Rs. 99".
         override suspend fun pricesOf(productIds: List<String>) =
             productIds.associateWith { "Rs. 99" }.right()
+
+        override suspend fun completedPurchases() = emptyList<CompletedPurchase>().right()
+    }
+
+    /**
+     * Stands in for the thing that credits a purchase.
+     *
+     * The share sheet no longer grants the export itself: a grant here and a claim on the
+     * next launch would credit the same transaction twice, so the reconciler owns it.
+     */
+    private class FakeReconciler(private val credits: FakeExportCredits) : PurchaseReconciler {
+        override suspend fun claimOutstanding() = credits.grant()
     }
 
 }

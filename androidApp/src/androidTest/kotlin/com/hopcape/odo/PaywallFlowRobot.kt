@@ -11,6 +11,7 @@ import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.core.domain.subscription.Offer
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.PlanOption
@@ -27,6 +28,9 @@ import org.koin.dsl.module
  */
 internal object PaywallCopy {
     const val HEADLINE = "Everything Odo can do, unlocked."
+
+    /** The paywall reached from the record export, rather than the general one. */
+    const val EXPORT_HEADLINE = "Hand the buyer the whole record."
 
     /** On the profile, not the paywall — the card that opens it. */
     const val GO_PRO = "Go Pro"
@@ -161,6 +165,10 @@ private object SwitchablePurchaser : OneTimePurchaser {
 
     override suspend fun pricesOf(productIds: List<String>): Either<DomainError, Map<String, String>> =
         if (unreachable) DomainError.StoreUnavailable.left() else prices.filterKeys { it in productIds }.right()
+
+    /** Nothing outstanding: no purchase in a test ever completes at the store. */
+    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> =
+        emptyList<CompletedPurchase>().right()
 
     @Volatile
     var unreachable: Boolean = false

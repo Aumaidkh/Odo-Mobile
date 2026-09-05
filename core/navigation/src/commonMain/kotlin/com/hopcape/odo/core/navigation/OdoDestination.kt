@@ -428,6 +428,21 @@ sealed interface OdoDestination : NavKey {
     data object CarValue : OdoDestination
 
     /**
+     * "Before you go in" — what this service should cover, what it should not, roughly what
+     * it should cost, and three questions to ask at the counter. Owned by `:feature:advisory`.
+     *
+     * Reachable from three places, because the moment it serves is the walk from the car park
+     * to the counter and no single surface catches every owner on the way there: Home's
+     * attention card, a conditional Home card, and the garage's actions sheet.
+     *
+     * [entry] is which door was used. Carried on the route because it is the only way the
+     * conditional card can be judged against the two permanent entries — without it they
+     * are one number on a dashboard.
+     */
+    @Serializable
+    data class ServiceChecklist(val entry: String = "MANUAL") : OdoDestination
+
+    /**
      * Cost tracker — the per-km "running cost" breakdown for the car. A sealed group: the
      * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
      * owner corrects the fuel rate the estimate is built on.
@@ -462,6 +477,44 @@ sealed interface OdoDestination : NavKey {
         /** "Show in timeline" filter sheet. */
         @Serializable
         data object Filter : Timeline
+    }
+
+    /**
+     * The bill check. A sealed group: the [Result] screen plus the [Basis] sheet that
+     * explains where one line's band came from.
+     */
+    @Serializable
+    sealed interface BillCheck : OdoDestination {
+
+        /** What on this bill is worth asking about. [billId] is the scanned bill. */
+        @Serializable
+        data class Result(val billId: String) : BillCheck
+
+        /**
+         * "How we know" — the inputs behind one line's band, as a bottom sheet (its entry is
+         * tagged with [ModalBottomSheetSceneStrategy] metadata).
+         *
+         * A sheet rather than a screen because it is an aside from the finding: the owner is
+         * checking whether to trust one number and then going back to the bill they were
+         * reading. [lineName] is the bill's own wording, which is what the check keyed on.
+         */
+        @Serializable
+        data class Basis(val billId: String, val lineName: String) : BillCheck
+
+        /**
+         * The share card — a picture of the result, for the group chat it gets retold in.
+         *
+         * It carries the figures rather than the bill id, and that is deliberate twice over.
+         * The card is built from exactly what the screen behind it showed, so the two cannot
+         * disagree about the number. And the plate and the workshop name have no route onto
+         * the card at all, because they were never in the key.
+         */
+        @Serializable
+        data class Share(
+            val amountPaise: Long,
+            val flagged: Int,
+            val lines: Int,
+        ) : BillCheck
     }
 
     /**
@@ -646,9 +699,41 @@ sealed interface OdoDestination : NavKey {
         /** "Request a feature" — an idea/suggestion form. */
         @Serializable
         data object SuggestIdea : Support
-        /** "A benchmark looks off" — dispute a fairness price data point. */
+        /**
+         * "A benchmark looks off" — dispute a price band.
+         *
+         * The other end of "How we know". Every argument is optional, because the row on the
+         * help sheet opens the same screen with nothing to dispute yet; opened from a band,
+         * they prefill the card that says what is being flagged. Primitives only, so
+         * `:core:navigation` stays free of the benchmark types.
+         */
         @Serializable
-        data object FlagPriceData : Support
+        data class FlagPriceData(
+            val lineName: String? = null,
+            val lowPaise: Long = 0L,
+            val highPaise: Long = 0L,
+            val city: String? = null,
+            /** The workshop *tier*, worded for a sentence — never a workshop's name. */
+            val workshop: String? = null,
+            val segment: String? = null,
+        ) : Support
+
+        /**
+         * The report went in — its number, and what actually travelled with it.
+         *
+         * [photos] and [logsAttached] are shown rather than implied, so nobody finds out
+         * later that a photograph went along.
+         */
+        @Serializable
+        data class ReportSent(
+            val ticket: String,
+            /** The area's own name, not its label — the screen resolves the wording. */
+            val area: String,
+            val photos: Int,
+            val logsAttached: Boolean,
+            /** Already masked. The full address is never a navigation argument. */
+            val maskedReplyTo: String,
+        ) : Support
         /**
          * Rate Odo — a bottom sheet that asks for stars, then offers both the store listing
          * and a private message. A key rather than a direct hand-off, unlike Email and
