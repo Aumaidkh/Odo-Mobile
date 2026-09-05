@@ -207,8 +207,11 @@ internal class SupabaseSocialRepository(
         postgrest.select(
             table = QUEUE_VIEW,
             serializer = QueueRow.serializer(),
+            // Everything but what already went out. `published` is history and the log below
+            // shows it; leaving it here made a queue that only ever grew.
             query = "select=id,status,variant,include_story,copy,post_image_url," +
-                "story_image_url,error,created_at&order=created_at.desc&limit=50",
+                "story_image_url,error,created_at&status=neq.published" +
+                "&order=created_at.desc&limit=50",
         ).map { rows -> rows.map(QueueRow::toItem) }
 
     override suspend fun setQueueStatus(id: Long, status: String): Either<WebError, Unit> =
@@ -270,6 +273,8 @@ internal class SupabaseSocialRepository(
         postgrest.call(name = "disarm_social_tick", body = "{}")
 
     override suspend fun postNow(): Either<WebError, Unit> = postNow.postNow().map { }
+
+    override suspend fun publishNow(id: Long): Either<WebError, Unit> = postNow.publishNow(id).map { }
 
     /* ------------------------------ credentials ------------------------------ */
 
