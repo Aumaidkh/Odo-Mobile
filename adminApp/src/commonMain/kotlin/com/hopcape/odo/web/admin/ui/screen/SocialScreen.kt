@@ -469,6 +469,18 @@ private fun TelegramTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
 @Composable
 private fun QueueTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
     Panel {
+        PanelHeader("MAKE ONE NOW") {
+            PrimaryAction("Make one now", onClick = { onEvent(SocialEvent.PostNowClicked) }, enabled = !state.busy)
+        }
+        Muted(
+            "Writes one post from the fact bank, asks the renderer to run, and ships it — no " +
+                "schedule, no approval. For proving the pipeline works end to end. It still " +
+                "stops if the pipeline is paused.",
+            Modifier.padding(18.dp),
+        )
+    }
+
+    Panel {
         PanelHeader("WAITING")
         Column(Modifier.fillMaxWidth()) {
             state.queue.forEach { item -> QueueRow(item, onEvent) }

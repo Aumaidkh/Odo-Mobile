@@ -25,6 +25,7 @@ import com.hopcape.odo.web.admin.infrastructure.SupabaseCatalogueRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseContentRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseTicketsRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseFlagsRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabasePostNow
 import com.hopcape.odo.web.admin.infrastructure.SupabaseSocialRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseInvites
 import com.hopcape.odo.web.admin.infrastructure.SupabaseRolesRepository
@@ -137,6 +138,12 @@ val adminModule: Module = module {
             postgrest = get(),
             projectUrl = BuildWebConfig.SUPABASE_URL,
             projectKey = BuildWebConfig.SUPABASE_ANON_KEY,
+            postNow = SupabasePostNow(
+                client = get(),
+                baseUrl = BuildWebConfig.SUPABASE_URL,
+                anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
+                session = get(),
+            ),
         )
     }
 
