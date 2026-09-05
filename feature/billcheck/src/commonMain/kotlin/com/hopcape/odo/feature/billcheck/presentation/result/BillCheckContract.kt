@@ -5,14 +5,8 @@ internal sealed interface BillCheckEvent {
 
     data object BackClicked : BillCheckEvent
 
-    /**
-     * "Share" — hand the findings to whatever the platform offers.
-     *
-     * [text] is assembled by the screen because it is copy with formatted figures in it, and
-     * both only exist in composition. The plate and the workshop name are deliberately absent
-     * from it: a share card never carries either.
-     */
-    data class ShareClicked(val text: String) : BillCheckEvent
+    /** "Share" — open the card. */
+    data object ShareClicked : BillCheckEvent
 
     /** "How we know" — open the band's basis for the line it was read from. */
     data object HowWeKnowClicked : BillCheckEvent
@@ -44,8 +38,14 @@ internal sealed interface BillCheckEffect {
 
     data object NavigateBack : BillCheckEffect
 
-    /** [text] is already assembled — the plate and the workshop are deliberately not in it. */
-    data class Share(val text: String) : BillCheckEffect
+    /**
+     * Open the share card on this result's own figures.
+     *
+     * The figures travel in the destination rather than being read again there, so the card
+     * cannot show a different number from the screen it was opened off. The plate and the
+     * workshop name are not among them, which is why the card can never carry either.
+     */
+    data object OpenShareCard : BillCheckEffect
 
     /** Open "How we know" for [lineName]. */
     data class OpenBasis(val lineName: String) : BillCheckEffect

@@ -56,6 +56,14 @@ class BillCheckScreenshotTest {
         rule.push(OdoDestination.BillCheck.Basis(billId = BILL, lineName = "AC service"))
         rule.awaitText(BASIS_RUNGS)
         rule.captureScreen("billcheck-how-we-know")
+
+        // The figures a real result would carry through, so the card is photographed on the
+        // same numbers the result screen above it shows.
+        rule.push(
+            OdoDestination.BillCheck.Share(amountPaise = 240_000L, flagged = 1, lines = 1),
+        )
+        rule.awaitText(CARD_LABEL)
+        rule.captureScreen("billcheck-share-card")
     }
 
     private companion object {
@@ -67,6 +75,7 @@ class BillCheckScreenshotTest {
         /** The month-6 stub: three flagged lines out of a Rs. 18,400 bill. */
         /** Whatever the check finds — the point is that it read a real bill. */
         const val RESULT_HEADLINE = "worth asking about"
+        const val CARD_LABEL = "SAVED ON TODAY’S SERVICE"
         const val BASIS_RUNGS = "WHICH RUNG ANSWERED"
     }
 }

@@ -50,7 +50,7 @@ internal class BillCheckViewModel(
 
     fun onEvent(event: BillCheckEvent) = when (event) {
         BillCheckEvent.BackClicked -> emit(BillCheckEffect.NavigateBack)
-        is BillCheckEvent.ShareClicked -> share(event.text)
+        BillCheckEvent.ShareClicked -> share()
         BillCheckEvent.HowWeKnowClicked -> openBasis()
         BillCheckEvent.AddLastBillClicked -> addLastBill()
         BillCheckEvent.UnlockClicked -> openOffers()
@@ -114,9 +114,9 @@ internal class BillCheckViewModel(
         }
     }
 
-    private fun share(text: String) {
+    private fun share() {
         telemetry.shareClicked()
-        emit(BillCheckEffect.Share(text))
+        emit(BillCheckEffect.OpenShareCard)
     }
 
     /**

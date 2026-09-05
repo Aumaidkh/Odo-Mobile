@@ -12,6 +12,7 @@ import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvide
 import com.hopcape.odo.feature.billcheck.presentation.BillCheckTelemetry
 import com.hopcape.odo.feature.billcheck.presentation.howweknow.BasisViewModel
 import com.hopcape.odo.feature.billcheck.presentation.result.BillCheckViewModel
+import com.hopcape.odo.feature.billcheck.presentation.share.ShareCardViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -74,6 +75,17 @@ val billCheckModule = module {
 
     viewModel { (billId: String) ->
         BillCheckViewModel(billId = billId, reader = get(), telemetry = get())
+    }
+
+    viewModel { (amountPaise: Long, flagged: Int, lines: Int) ->
+        ShareCardViewModel(
+            amountPaise = amountPaise,
+            flagged = flagged,
+            lines = lines,
+            files = get(),
+            downloads = get(),
+            telemetry = get(),
+        )
     }
 
     viewModel { (billId: String, lineName: String) ->

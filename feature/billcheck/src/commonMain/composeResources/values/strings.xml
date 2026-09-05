@@ -96,4 +96,24 @@
     <string name="bc_workshop_authorised">company centre</string>
     <string name="bc_workshop_multi_brand">multi-brand garage</string>
     <string name="bc_workshop_local">local garage</string>
+    <!--
+      The share card. It is a picture that leaves the app, so its wording has to stand on its
+      own in a group chat where nobody has the screen it came from.
+    -->
+    <string name="bc_share_title">Share</string>
+    <string name="bc_share_card_label">SAVED ON TODAY’S SERVICE</string>
+    <!--
+      A plural, because the card renders "1 of 6" as often as "3 of 6" and "lines were" is
+      wrong English on the one picture that leaves the app.
+    -->
+    <plurals name="bc_share_card_body">
+        <item quantity="one">Scanned the bill before signing.\n%1$d of %2$d lines was worth asking about.</item>
+        <item quantity="other">Scanned the bill before signing.\n%1$d of %2$d lines were worth asking about.</item>
+    </plurals>
+    <string name="bc_share_card_brand">ODO · odoapp.in</string>
+    <string name="bc_share_privacy">The card never carries your registration number or the garage’s name.</string>
+    <string name="bc_share_whatsapp">Send on WhatsApp</string>
+    <string name="bc_share_save">Save</string>
+    <string name="bc_share_saved">Saved to your downloads</string>
+    <string name="bc_share_failed">Could not make the card. Try again.</string>
 </resources>

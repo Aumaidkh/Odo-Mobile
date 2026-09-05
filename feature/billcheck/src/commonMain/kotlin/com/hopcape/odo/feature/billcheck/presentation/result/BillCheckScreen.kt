@@ -426,7 +426,6 @@ private fun MaskedRow(name: String, onClick: () -> Unit) {
 
 @Composable
 private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
-    val shareText = check.shareText()
     // "How we know" explains a band, and only a rate claim has one. A repeat or a schedule
     // question would open a sheet with nothing in it, so the button is not offered.
     val hasBand = check.flagged.any { it.reason is Reason.AboveBand }
@@ -438,7 +437,7 @@ private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
     ) {
         OdoButton(
             text = stringResource(Res.string.bc_share),
-            onClick = { onEvent(BillCheckEvent.ShareClicked(shareText)) },
+            onClick = { onEvent(BillCheckEvent.ShareClicked) },
             modifier = Modifier.weight(1f),
         )
         if (hasBand) {
@@ -550,13 +549,6 @@ private inline fun androidx.compose.ui.text.AnnotatedString.Builder.withBold(blo
     block()
     pop()
 }
-
-/** The share text. The plate and the workshop name are deliberately not in it. */
-@Composable
-private fun BillCheck.shareText(): String = stringResource(
-    Res.string.bc_headline,
-    worthAsking.formatRupees(),
-)
 
 /* ------------------------------ Layout tokens ------------------------------ */
 
