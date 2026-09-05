@@ -48,6 +48,7 @@ internal class SupabaseSocialRepository(
      */
     private val projectUrl: String,
     private val projectKey: String,
+    private val postNow: SupabasePostNow,
 ) : SocialRepository {
 
     /* ------------------------------ settings ------------------------------ */
@@ -267,6 +268,8 @@ internal class SupabaseSocialRepository(
 
     override suspend fun disarmTick(): Either<WebError, Unit> =
         postgrest.call(name = "disarm_social_tick", body = "{}")
+
+    override suspend fun postNow(): Either<WebError, Unit> = postNow.postNow().map { }
 
     /* ------------------------------ credentials ------------------------------ */
 

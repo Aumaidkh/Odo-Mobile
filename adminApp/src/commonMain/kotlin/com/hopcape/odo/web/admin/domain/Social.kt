@@ -204,6 +204,14 @@ interface SocialRepository {
 
     suspend fun disarmTick(): Either<WebError, Unit>
 
+    /**
+     * Make one post now and ship it, ignoring the schedule.
+     *
+     * For proving the pipeline end to end. Not a fourth mode: a person pressing this has
+     * already answered the question the modes settle. It still obeys the pause.
+     */
+    suspend fun postNow(): Either<WebError, Unit>
+
     suspend fun credentials(): Either<WebError, List<CredentialStatus>>
     suspend fun setCredential(key: String, value: String): Either<WebError, Unit>
     suspend fun clearCredential(key: String): Either<WebError, Unit>

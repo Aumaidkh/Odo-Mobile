@@ -80,6 +80,8 @@ sealed interface SocialEvent {
     data class QueueApproved(val id: Long) : SocialEvent
     data class QueueRejected(val id: Long) : SocialEvent
     data class QueueRetried(val id: Long) : SocialEvent
+    /** Make one now and ship it, ignoring the schedule. */
+    data object PostNowClicked : SocialEvent
 
     // Fact bank
     data class FactEditing(val fact: SocialFact?) : SocialEvent
@@ -261,6 +263,7 @@ class SocialViewModel(
             is SocialEvent.QueueRejected -> write { social.setQueueStatus(event.id, "rejected") }
             // Back to draft is what a retry is: the pipeline picks a draft up again.
             is SocialEvent.QueueRetried -> write { social.setQueueStatus(event.id, "draft") }
+            SocialEvent.PostNowClicked -> write { social.postNow() }
 
             is SocialEvent.FactEditing -> _state.update { it.copy(editingFact = event.fact) }
             is SocialEvent.FactDraftChanged -> _state.update { it.copy(editingFact = event.fact) }
