@@ -39,6 +39,8 @@ import com.hopcape.odo.feature.auth.resources.Res
 import com.hopcape.odo.feature.auth.resources.au_cd_back
 import com.hopcape.odo.feature.auth.resources.au_change
 import com.hopcape.odo.feature.auth.resources.au_get_help
+import com.hopcape.odo.feature.auth.resources.au_otp_number
+import com.hopcape.odo.feature.auth.resources.au_otp_sending
 import com.hopcape.odo.feature.auth.resources.au_otp_sent
 import com.hopcape.odo.feature.auth.resources.au_otp_title
 import com.hopcape.odo.feature.auth.resources.au_resend
@@ -72,7 +74,7 @@ internal fun OtpScreen(
     val phone = state.maskedPhone
     val isError = state.isError
     val code = state.code
-    val isVerifying = state.submission.isInFlight
+    val isVerifying = state.isVerifying
 
     OdoScreen {
         Column(
@@ -94,7 +96,16 @@ internal fun OtpScreen(
             Spacer(Modifier.height(OdoTheme.spacing.xs))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OdoText(
-                    stringResource(Res.string.au_otp_sent, phone),
+                    // "Sending" until the provider takes the request, and neither word once
+                    // it has refused — the error row below says what happened (#409).
+                    stringResource(
+                        when (state.request) {
+                            CodeRequest.SENDING -> Res.string.au_otp_sending
+                            CodeRequest.SENT -> Res.string.au_otp_sent
+                            CodeRequest.FAILED -> Res.string.au_otp_number
+                        },
+                        phone,
+                    ),
                     style = OdoTheme.typography.body,
                     color = OdoTheme.colors.textDim,
                 )
