@@ -22,7 +22,27 @@ const GITHUB_REPO = Deno.env.get("BLOG_DISPATCH_REPO") ?? "AumaidKh/Odo-Mobile";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+
+/**
+ * The panel is a browser app on another origin, so every answer needs these and the preflight
+ * needs its own reply. Without them the fetch throws before it is sent and the panel reports
+ * "could not reach the server" — which is true, and says nothing about why.
+ */
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
   // The caller's own token, not the service role: this asks the database who they are, and
   // `admin_has` answers against their session. A function that took the service role's word
   // for it would be a function anybody with the anon key could press.
@@ -33,7 +53,7 @@ Deno.serve(async (req) => {
 
   const { data: permitted } = await asCaller.rpc("admin_has", { p_permission: "blog.write" });
   if (permitted !== true) {
-    return Response.json({ error: "not permitted" }, { status: 403 });
+    return json(403, { error: "not permitted" });
   }
 
   const { data: settings } = await admin
@@ -42,7 +62,7 @@ Deno.serve(async (req) => {
     .limit(1)
     .single();
   if (settings?.paused) {
-    return Response.json({ error: "the pipeline is paused" }, { status: 409 });
+    return json(409, { error: "the pipeline is paused" });
   }
 
   // Auto, because the person pressing this is the approval. The renderer sees that on the row
@@ -54,7 +74,7 @@ Deno.serve(async (req) => {
   });
   const body = await generated.json();
   if (!generated.ok) {
-    return Response.json({ error: body?.error ?? "generate failed" }, { status: 502 });
+    return json(502, { error: body?.error ?? "generate failed" });
   }
 
   // Ask the renderer to run now. Its own cron is hours away, and a test that took hours to
@@ -76,5 +96,5 @@ Deno.serve(async (req) => {
     rendering = dispatch.ok ? "requested" : `dispatch ${dispatch.status}`;
   }
 
-  return Response.json({ ok: true, queue_id: body?.queue_id, rendering });
+  return json(200, { ok: true, queue_id: body?.queue_id, rendering });
 });
