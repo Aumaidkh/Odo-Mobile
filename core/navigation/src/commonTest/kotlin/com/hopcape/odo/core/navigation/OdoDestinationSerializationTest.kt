@@ -166,6 +166,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
         OdoDestination.BillCheck.Result(billId = "bill-1"),
         OdoDestination.BillCheck.Basis(billId = "bill-1", lineName = "AC service"),
+        OdoDestination.BillCheck.Share(amountPaise = 730_000L, flagged = 3, lines = 6),
     )
 
     @Test

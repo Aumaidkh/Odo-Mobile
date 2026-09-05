@@ -485,6 +485,21 @@ sealed interface OdoDestination : NavKey {
          */
         @Serializable
         data class Basis(val billId: String, val lineName: String) : BillCheck
+
+        /**
+         * The share card — a picture of the result, for the group chat it gets retold in.
+         *
+         * It carries the figures rather than the bill id, and that is deliberate twice over.
+         * The card is built from exactly what the screen behind it showed, so the two cannot
+         * disagree about the number. And the plate and the workshop name have no route onto
+         * the card at all, because they were never in the key.
+         */
+        @Serializable
+        data class Share(
+            val amountPaise: Long,
+            val flagged: Int,
+            val lines: Int,
+        ) : BillCheck
     }
 
     /**

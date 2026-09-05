@@ -88,6 +88,26 @@ internal class BillCheckTelemetry(
         logger.info(TAG, Event.ADD_LAST_BILL_CLICKED, tc = flowTrace.toLog())
     }
 
+    /**
+     * The card was saved rather than sent.
+     *
+     * Counted apart from a share: a save is an owner keeping the picture, a share is one
+     * leaving the app, and only the second is the loop the card exists for.
+     */
+    fun cardSaved() {
+        analytics.track(Event.CARD_SAVED)
+        logger.info(TAG, Event.CARD_SAVED, tc = flowTrace.toLog())
+    }
+
+    /**
+     * The card could not be made — a capture that produced nothing, a write that failed, or a
+     * copy that did. [reason] is a fixed phrase, never the card: it carries the owner's
+     * figures.
+     */
+    fun shareCardFailed(reason: String) {
+        logger.error(TAG, Event.CARD_FAILED, tc = flowTrace.toLog(), fields = mapOf(Key.ERROR to reason))
+    }
+
     /** Play requires the report action; whether anyone uses it is worth knowing. */
     fun wrongPriceReported() {
         analytics.track(Event.WRONG_PRICE_REPORTED)
@@ -119,6 +139,8 @@ internal class BillCheckTelemetry(
         const val OFFERS_OPENED = "billcheck_offers_opened"
         const val ADD_LAST_BILL_CLICKED = "billcheck_add_last_bill_clicked"
         const val WRONG_PRICE_REPORTED = "billcheck_wrong_price_reported"
+        const val CARD_SAVED = "billcheck_card_saved"
+        const val CARD_FAILED = "billcheck_card_failed"
     }
 
     object Trace {
