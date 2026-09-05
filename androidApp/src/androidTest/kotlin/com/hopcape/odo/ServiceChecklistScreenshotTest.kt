@@ -42,7 +42,10 @@ class ServiceChecklistScreenshotTest {
 
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(
+        // The runner pins every key to its compiled default, and this one is a launch gate
+        // that ships closed. A suite that drives the feature says so in its own file.
+        .outerRule(PinnedConfig("service_checklist_enabled", value = "true", compiledDefault = "false"))
+        .around(
             DeviceState {
                 resetHome()
                 seedHomeOwner()

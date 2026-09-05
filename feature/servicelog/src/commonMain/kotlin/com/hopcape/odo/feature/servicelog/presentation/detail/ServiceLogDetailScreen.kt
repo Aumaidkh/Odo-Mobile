@@ -504,7 +504,7 @@ private fun DetailActions(
         // Offered disabled, with the reason, when the entry has nothing comparable on it —
         // a bill of one total covering two jobs cannot be split, and an action that refuses
         // in silence reads as a broken button (issue #111).
-        if (entry.fairness is EntryFairnessUiState.NotAssessed) {
+        if (state.showBillCheck && entry.fairness is EntryFairnessUiState.NotAssessed) {
             OdoButton(
                 text = stringResource(Res.string.sl_detail_check_fairness),
                 onClick = { onEvent(ServiceLogDetailEvent.CheckFairnessClicked) },

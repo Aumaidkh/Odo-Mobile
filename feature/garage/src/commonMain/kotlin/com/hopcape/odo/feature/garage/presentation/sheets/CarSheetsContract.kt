@@ -47,7 +47,11 @@ internal sealed interface CarActionsEffect {
 }
 
 @Immutable
-internal data class CarActionsUiState(val car: Loadable<CarSummary> = Loadable.Loading)
+internal data class CarActionsUiState(
+    val car: Loadable<CarSummary> = Loadable.Loading,
+    /** Whether the pre-service checklist row is offered — `service_checklist_enabled`. */
+    val showChecklist: Boolean = false,
+)
 
 /* ------------------------------ Remove car ------------------------------ */
 

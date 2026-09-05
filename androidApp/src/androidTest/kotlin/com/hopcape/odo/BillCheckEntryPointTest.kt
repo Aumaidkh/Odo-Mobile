@@ -23,7 +23,10 @@ class BillCheckEntryPointTest {
 
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(
+        // The runner pins every key to its compiled default, and this one is a launch gate
+        // that ships closed. A suite that drives the feature says so in its own file.
+        .outerRule(PinnedConfig("bill_check_enabled", value = "true", compiledDefault = "false"))
+        .around(
             // Seeded after the launch, like the fairness suite: the bill goes in through
             // hand-written SQL and `notifyListeners` is what tells an already-collecting
             // screen about it.

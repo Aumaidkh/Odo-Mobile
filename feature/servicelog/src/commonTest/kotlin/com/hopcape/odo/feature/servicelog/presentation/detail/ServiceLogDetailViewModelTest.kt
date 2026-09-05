@@ -8,6 +8,7 @@ import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -31,6 +32,7 @@ import com.hopcape.odo.feature.servicelog.presentation.TEST_CLOCK
 import com.hopcape.odo.feature.servicelog.presentation.testEntry
 import com.hopcape.odo.feature.servicelog.presentation.testResolveFairness
 import com.hopcape.performance.api.APM
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -186,6 +188,36 @@ class ServiceLogDetailViewModelTest {
         categories = setOf(ServiceCategory.BRAKES),
     )
 
+    @Test
+    fun withTheBillCheckGatedOffTheButtonIsGoneAndTheActionRefuses() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository(listOf(verified()))
+        val viewModel = viewModel(logs, billCheckEnabled = false)
+        val effects = mutableListOf<ServiceLogDetailEffect>()
+        backgroundScope.launch { viewModel.effects.collect { effects += it } }
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.showBillCheck)
+
+        // The invariant behind the button, not a second copy of it: a caller that skipped
+        // the screen must not open a check the switch has closed.
+        viewModel.onEvent(ServiceLogDetailEvent.CheckFairnessClicked)
+        advanceUntilIdle()
+        assertTrue(effects.none { it is ServiceLogDetailEffect.OpenFairness })
+    }
+
+    /**
+     * The coach mark points at the button. With the gate closed the button never composes,
+     * so a granted hook is one nobody sees — and it holds the app-wide one-at-a-time grant.
+     */
+    @Test
+    fun withTheBillCheckGatedOffTheCoachMarkIsNeverAskedFor() = runTest(dispatcher) {
+        val logs = FakeServiceLogRepository(listOf(verified()))
+        val viewModel = viewModel(logs, billCheckEnabled = false)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.fairnessShowcase)
+    }
+
     private fun verified() = testEntry(
         id = "log-1",
         km = 40_000,
@@ -198,6 +230,7 @@ class ServiceLogDetailViewModelTest {
         logs: FakeServiceLogRepository,
         files: PlatformFileStore = CopyingFileStore,
         city: String? = "Pune",
+        billCheckEnabled: Boolean = true,
     ) = ServiceLogDetailViewModel(
         carId = TEST_CAR,
         logId = ServiceLogId("log-1"),
@@ -217,7 +250,19 @@ class ServiceLogDetailViewModelTest {
             tracer = APM.asTracer(),
             ids = FixedIdGenerator(),
         ),
+        config = billCheckConfig(enabled = billCheckEnabled),
     )
+
+    /** The bill check's launch gate. On for every test that is not about the gate itself. */
+    private fun billCheckConfig(enabled: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = false
+        override val billCheckEnabled = enabled
+        override val serviceChecklistEnabled = false
+    }
 
     private class FakeShowcaseSeenStore : ShowcaseSeenStore {
         val seen = mutableSetOf<ShowcaseHookId>()
