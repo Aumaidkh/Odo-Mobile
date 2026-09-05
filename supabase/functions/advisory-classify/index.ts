@@ -70,6 +70,12 @@ Rules — non-negotiable:
 - Answer with a slug from the list, or null. Never invent a slug.
 - Answer null whenever you are not sure. A wrong category puts a false rupee figure in front
   of an owner arguing with a mechanic; a null costs nothing but one silent line.
+- **A broad category is not a bucket for a job you cannot match.** general_service, brakes,
+  electrical and other name themselves and nothing else. "Throttle body cleaning" and
+  "injector decarbonisation" are specific jobs that are NOT in this list, so both are null —
+  answering general_service would price one job against the cost of a whole periodic service.
+  Use general_service only when the line itself says a general, periodic, paid or free
+  service.
 - Answer null for anything that is not a repair or service job: labour, consumables, tax,
   discounts, rounding, shop supplies.
 - Answer null when one line covers two different jobs ("engine oil + filter"). One price
