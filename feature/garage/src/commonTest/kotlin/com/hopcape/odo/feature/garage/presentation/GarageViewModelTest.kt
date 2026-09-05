@@ -57,6 +57,8 @@ class GarageViewModelTest {
         override val challanEnabled = challans
         override val plateLookupEnabled = false
         override val advisoryClassifierEnabled = false
+        override val billCheckEnabled = false
+        override val serviceChecklistEnabled = false
     }
 
     private fun viewModel(

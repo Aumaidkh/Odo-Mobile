@@ -33,7 +33,10 @@ class ChecklistEntriesScreenshotTest {
 
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(
+        // The runner pins every key to its compiled default, and this one is a launch gate
+        // that ships closed. A suite that drives the feature says so in its own file.
+        .outerRule(PinnedConfig("service_checklist_enabled", value = "true", compiledDefault = "false"))
+        .around(
             DeviceState {
                 resetHome()
                 seedHomeOwner()
@@ -69,14 +72,14 @@ class ChecklistEntriesScreenshotTest {
 }
 
 /** Tap a coach mark away if one is up. There may be none, and that is not a failure. */
-private fun ChecklistTestRule.dismissCoachMark() {
+private fun EntriesTestRule.dismissCoachMark() {
     waitForIdle()
     if (onAllNodesWithText(COACH_MARK_DISMISS).fetchSemanticsNodes().isEmpty()) return
     onNodeWithText(COACH_MARK_DISMISS).performClick()
     waitForIdle()
 }
 
-private typealias ChecklistTestRule =
+private typealias EntriesTestRule =
     AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
 
 private const val COACH_MARK_DISMISS = "Got it"

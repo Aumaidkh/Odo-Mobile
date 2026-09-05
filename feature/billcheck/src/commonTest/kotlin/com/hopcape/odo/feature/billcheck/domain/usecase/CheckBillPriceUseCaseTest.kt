@@ -649,6 +649,8 @@ class CheckBillPriceUseCaseTest {
         override val challanEnabled = false
         override val plateLookupEnabled = false
         override val advisoryClassifierEnabled = classifier
+        override val billCheckEnabled = false
+        override val serviceChecklistEnabled = false
     }
 
     private companion object {

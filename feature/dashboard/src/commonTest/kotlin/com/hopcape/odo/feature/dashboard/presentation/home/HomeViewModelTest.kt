@@ -188,6 +188,42 @@ class HomeViewModelTest {
         )
     }
 
+    /**
+     * With `service_checklist_enabled` off, Home offers no way in and the attention card
+     * goes back to the service log. A card that leads nowhere is worse than one that leads
+     * somewhere less useful.
+     */
+    @Test
+    fun withTheChecklistGatedOffTheAttentionCardGoesBackToTheLog() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = listOf(testDocument(DocumentType.PUC, expiresOn = LocalDate(2025, 6, 1))),
+            serviceChecklistEnabled = false,
+        )
+        viewModel.content()
+
+        assertFalse(viewModel.state.value.offerChecklist)
+
+        viewModel.onEvent(HomeEvent.AttentionTapped)
+        // The lapsed paper is what attention shows, so the tap opens the vault; the service
+        // route is proven by the sibling test with no document in the way.
+        assertEquals(HomeEffect.OpenVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun withTheChecklistGatedOffAServiceAttentionOpensTheLog() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = emptyList(),
+            serviceChecklistEnabled = false,
+        )
+        viewModel.content()
+
+        viewModel.onEvent(HomeEvent.AttentionTapped)
+
+        assertEquals(HomeEffect.OpenServiceLog(carId = TEST_CAR.value), viewModel.effects.first())
+    }
+
     /** When attention is already the service, Home does not say it twice. */
     @Test
     fun aServiceAttentionKeepsTheConditionalCardDown() = runTest(dispatcher) {
@@ -465,6 +501,7 @@ class HomeViewModelTest {
         trackingEnabled: Boolean = false,
         autoOdometerEnabled: Boolean = true,
         refuelDetectEnabled: Boolean = true,
+        serviceChecklistEnabled: Boolean = true,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
@@ -489,18 +526,21 @@ class HomeViewModelTest {
         telemetry = telemetry(analytics),
         // Both flags on, which is what they default to. A test that wants either offer
         // hidden can now say so, which was impossible while these were compile-time consts.
-        config = featureConfig(autoOdometerEnabled, refuelDetectEnabled),
+        config = featureConfig(autoOdometerEnabled, refuelDetectEnabled, serviceChecklistEnabled),
     )
 
     private fun featureConfig(
         autoOdometer: Boolean = true,
         refuelDetect: Boolean = true,
+        serviceChecklist: Boolean = true,
     ) = object : FeatureConfig {
         override val autoOdometerEnabled = autoOdometer
         override val refuelDetectEnabled = refuelDetect
         override val challanEnabled = false
         override val plateLookupEnabled = false
         override val advisoryClassifierEnabled = false
+        override val billCheckEnabled = false
+        override val serviceChecklistEnabled = serviceChecklist
     }
 
     private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {

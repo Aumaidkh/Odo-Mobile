@@ -53,7 +53,11 @@ internal fun CarActionsSheetContent(
         CarHeader(state.car)
         ActionRow(IcPencil, stringResource(Res.string.gr_ca_edit)) { onEvent(CarActionsEvent.EditTapped) }
         ActionRow(IcRupee, stringResource(Res.string.gr_ca_value)) { onEvent(CarActionsEvent.ValueTapped) }
-        ActionRow(IcList, stringResource(Res.string.gr_ca_checklist)) { onEvent(CarActionsEvent.ChecklistTapped) }
+        if (state.showChecklist) {
+            ActionRow(IcList, stringResource(Res.string.gr_ca_checklist)) {
+                onEvent(CarActionsEvent.ChecklistTapped)
+            }
+        }
         ActionRow(IcShare, stringResource(Res.string.gr_ca_export)) { onEvent(CarActionsEvent.ExportTapped) }
         OdoDivider(Modifier.padding(vertical = OdoTheme.spacing.xs))
         ActionRow(

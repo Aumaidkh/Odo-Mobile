@@ -79,6 +79,9 @@ class ConfigWiringTest {
                 "refuel_detect_enabled",
                 "challan_check_enabled",
                 "plate_lookup_enabled",
+                "advisory_classifier_enabled",
+                "bill_check_enabled",
+                "service_checklist_enabled",
             ),
             keys,
         )

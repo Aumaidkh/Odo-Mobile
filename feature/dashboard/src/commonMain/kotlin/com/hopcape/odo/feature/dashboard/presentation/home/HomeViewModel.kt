@@ -112,7 +112,9 @@ internal class HomeViewModel(
                         // Only when the attention card is about something else. When it is
                         // about the service, that card opens the checklist itself, and Home
                         // saying the same thing twice is how a dashboard stops being read.
-                        offerChecklist = snapshot.serviceDue && !snapshot.attention.isAboutService,
+                        offerChecklist = config.serviceChecklistEnabled &&
+                            snapshot.serviceDue &&
+                            !snapshot.attention.isAboutService,
                     )
                 }
             }
@@ -312,10 +314,16 @@ internal class HomeViewModel(
             // Not the service log. The owner tapping this has not had the service yet —
             // they are about to book one — and the log is where a service is recorded
             // afterwards. The checklist is what they need on the way in.
-            is CarAttention.ServiceOverdue, is CarAttention.ServiceDue -> {
-                telemetry.checklistOpened(entry = ENTRY_ATTENTION)
-                send(HomeEffect.OpenServiceChecklist(entry = ENTRY_ATTENTION))
-            }
+            //
+            // With the checklist gated off it goes back to the log: a card that leads
+            // nowhere is worse than one that leads somewhere less useful.
+            is CarAttention.ServiceOverdue, is CarAttention.ServiceDue ->
+                if (config.serviceChecklistEnabled) {
+                    telemetry.checklistOpened(entry = ENTRY_ATTENTION)
+                    send(HomeEffect.OpenServiceChecklist(entry = ENTRY_ATTENTION))
+                } else {
+                    carId?.let { send(HomeEffect.OpenServiceLog(carId = it.value)) }
+                }
         }
     }
 
