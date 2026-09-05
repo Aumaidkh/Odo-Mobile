@@ -271,7 +271,7 @@ class SocialViewModel(
                 write { social.saveRecipient(event.recipient.copy(canApprove = !event.recipient.canApprove)) }
             is SocialEvent.RecipientRemoved -> write { social.removeRecipient(event.chatId) }
 
-            is SocialEvent.QueueApproved -> write { social.setQueueStatus(event.id, "approved") }
+            is SocialEvent.QueueApproved -> write { social.publishNow(event.id) }
             is SocialEvent.QueueRejected -> write { social.setQueueStatus(event.id, "rejected") }
             // Back to draft is what a retry is: the pipeline picks a draft up again.
             is SocialEvent.QueueRetried -> write { social.setQueueStatus(event.id, "draft") }

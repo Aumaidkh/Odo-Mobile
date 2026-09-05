@@ -29,14 +29,20 @@ internal class SupabasePostNow(
     private val session: SupabaseSession,
 ) {
 
-    suspend fun postNow(): Either<WebError, String> {
+    suspend fun postNow(): Either<WebError, String> = call(FUNCTION, "{}")
+
+    /** Approve one queued post and publish it now. */
+    suspend fun publishNow(queueId: Long): Either<WebError, String> =
+        call(PUBLISH_FUNCTION, """{"queue_id":$queueId}""")
+
+    private suspend fun call(function: String, payload: String): Either<WebError, String> {
         val token = session.accessToken() ?: return WebError.NotSignedIn.left()
         val response = runCatching {
-            client.post("$baseUrl/functions/v1/$FUNCTION") {
+            client.post("$baseUrl/functions/v1/$function") {
                 header("apikey", anonKey)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 contentType(ContentType.Application.Json)
-                setBody("{}")
+                setBody(payload)
             }
         }.getOrNull() ?: return WebError.Offline.left()
 
@@ -45,10 +51,11 @@ internal class SupabasePostNow(
 
         // The function's own words. A paused pipeline and a missing Gemini key are both "it
         // did not work", and which one it was decides what to do next.
-        return WebError.Unexpected("post-now ${response.status.value}: ${body.take(160)}").left()
+        return WebError.Unexpected("$function ${response.status.value}: ${body.take(160)}").left()
     }
 
     private companion object {
         const val FUNCTION = "post-now"
+        const val PUBLISH_FUNCTION = "publish-post"
     }
 }

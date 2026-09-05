@@ -131,6 +131,14 @@ data class SocialQueueItem(
 ) {
     val isPending: Boolean get() = status == "rendered" || status == "draft"
     val hasFailed: Boolean get() = status == "failed" || !error.isNullOrBlank()
+
+    /**
+     * Whether there is anything to publish.
+     *
+     * A draft has no image until the renderer has been over it, and Instagram is not the place
+     * to discover that. Approving one used to be offered and could only ever fail.
+     */
+    val isRendered: Boolean get() = !postImageUrl.isNullOrBlank()
 }
 
 /** What went live, and where. */
@@ -185,6 +193,15 @@ interface SocialRepository {
 
     suspend fun queue(): Either<WebError, List<SocialQueueItem>>
     suspend fun setQueueStatus(id: Long, status: String): Either<WebError, Unit>
+
+    /**
+     * Approve and publish, in one go.
+     *
+     * Not `setQueueStatus(id, "approved")`: that leaves the post for the tick to sweep up, and
+     * the tick only runs once somebody has armed the scheduler. A button called Approve has to
+     * do the thing rather than depend on a cron that may not exist.
+     */
+    suspend fun publishNow(id: Long): Either<WebError, Unit>
 
     suspend fun postLog(): Either<WebError, List<SocialPostRecord>>
 

@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.web.admin.ui.icon.AdminIcons
+import com.hopcape.odo.web.admin.ui.icon.BootstrapIcon
 import com.hopcape.odo.web.admin.domain.PostingMode
 import com.hopcape.odo.web.admin.domain.SlotApproval
 import com.hopcape.odo.web.admin.domain.SocialAccount
@@ -107,8 +112,8 @@ private fun Header(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SocialTab.entries.forEach { tab ->
-                Toggle(
-                    label = tab.label,
+                TabChip(
+                    tab = tab,
                     selected = tab == state.tab,
                     onClick = { onEvent(SocialEvent.TabChanged(tab)) },
                 )
@@ -543,7 +548,7 @@ private fun QueueTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
         Column(Modifier.fillMaxWidth()) {
             state.queue.forEach { item -> QueueRow(item, onEvent) }
         }
-        if (state.queue.isEmpty()) Muted("Nothing in the queue.", Modifier.padding(18.dp))
+        if (state.queue.isEmpty()) Muted("Nothing waiting. Published posts are below.", Modifier.padding(18.dp))
     }
 
     Panel {
@@ -577,8 +582,15 @@ private fun QueueRow(item: SocialQueueItem, onEvent: (SocialEvent) -> Unit) {
         // The rendered image as a link rather than an <img>: it is a public storage URL and
         // the panel has no image loader, so a link is honest where a broken box is not.
         item.postImageUrl?.let { Muted(it) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RowAction("Approve", onClick = { onEvent(SocialEvent.QueueApproved(item.id)) })
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Approve publishes on the spot. Offered only once the renderer has been over the
+            // post, because there is no image to publish before that and the attempt could
+            // only ever fail against Instagram.
+            if (item.isRendered) {
+                RowAction("Approve & publish", onClick = { onEvent(SocialEvent.QueueApproved(item.id)) })
+            } else {
+                Muted("waiting for the renderer")
+            }
             RowAction("Reject", onClick = { onEvent(SocialEvent.QueueRejected(item.id)) }, color = AdminTokens.danger)
             if (item.hasFailed) RowAction("Retry", onClick = { onEvent(SocialEvent.QueueRetried(item.id)) })
         }
@@ -633,6 +645,39 @@ private fun FactEditor(fact: SocialFact, onEvent: (SocialEvent) -> Unit) {
 }
 
 /* ------------------------------ bits ------------------------------ */
+
+/**
+ * One tab, as an icon and a word.
+ *
+ * The icon is path data compiled in, not a font glyph — this panel deliberately carries no
+ * icon font, which is why the first version of these chips drew missing characters.
+ */
+@Composable
+private fun TabChip(tab: SocialTab, selected: Boolean, onClick: () -> Unit) {
+    val tint = if (selected) AdminTokens.textStrong else AdminTokens.textMuted
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) AdminTokens.accentWash else AdminTokens.field)
+            .border(1.dp, if (selected) AdminTokens.accent else AdminTokens.border, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 11.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        BootstrapIcon(tab.icon(), tint = tint, modifier = Modifier.size(13.dp))
+        Cell(tab.label, color = tint)
+    }
+}
+
+private fun SocialTab.icon() = when (this) {
+    SocialTab.SETTINGS -> AdminIcons.Settings
+    SocialTab.SCHEDULE -> AdminIcons.Schedule
+    SocialTab.ACCOUNTS -> AdminIcons.Accounts
+    SocialTab.TELEGRAM -> AdminIcons.Telegram
+    SocialTab.QUEUE -> AdminIcons.Queue
+    SocialTab.FACTS -> AdminIcons.FactBank
+}
 
 /**
  * A thing that is on or off, drawn rather than lettered.
