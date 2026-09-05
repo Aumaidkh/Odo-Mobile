@@ -1,9 +1,17 @@
 -- The social pipeline, made configurable from the admin panel.
 --
 -- Everything the panel touches is reached through `public`, because `webCore`'s Postgrest
--- sends no Accept-Profile header and can only see that schema. Exposing `social` to
--- PostgREST was the other option and is the wrong one: a browser could then select an
--- Instagram access token out of a table.
+-- sends no Accept-Profile header and can only see that schema.
+--
+-- Exposing `social` to PostgREST would not have been enough on its own, and the first draft
+-- of this comment said it would be dangerous, which was wrong: those tables have RLS on with
+-- no policies, so an exposed schema hands a browser nothing. The actual problem is the same
+-- fact — no policy means no rows, for the panel too. A `public` view carrying an explicit
+-- permission check is what makes them readable by an admin and by nobody else.
+--
+-- Exposure is still required for the *functions*, which reach `social` over PostgREST with
+-- the service role. That is a project setting rather than a migration: production has
+-- `public, graphql_public, social`, and any project running the pipeline needs to match it.
 --
 -- So: configuration lives in `public.social_*` with RLS on `admin_has('blog.write')`, the
 -- pipeline's own tables are read through views that carry the same check, writes into them
