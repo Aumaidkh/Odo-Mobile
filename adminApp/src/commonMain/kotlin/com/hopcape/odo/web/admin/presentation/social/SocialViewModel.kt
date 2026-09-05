@@ -58,6 +58,8 @@ sealed interface SocialEvent {
 
     // Schedule
     data class SlotEditing(val slot: SocialSlot?) : SocialEvent
+    /** Start a new slot with one weekday already ticked, from the week view. */
+    data class SlotEditingForDay(val isoDay: Int) : SocialEvent
     data class SlotDraftChanged(val slot: SocialSlot) : SocialEvent
     data object SlotSaved : SocialEvent
     data class SlotDeleted(val id: String) : SocialEvent
@@ -208,10 +210,20 @@ class SocialViewModel(
             is SocialEvent.CredentialCleared -> write { social.clearCredential(event.key) }
 
             is SocialEvent.SlotEditing -> _state.update { it.copy(editingSlot = event.slot) }
+            is SocialEvent.SlotEditingForDay -> _state.update {
+                it.copy(
+                    editingSlot = SocialSlot(
+                        id = "",
+                        label = DAY_NAMES.getOrElse(event.isoDay - 1) { "" } + " post",
+                        timeOfDay = "09:00",
+                        daysOfWeek = listOf(event.isoDay),
+                    ),
+                )
+            }
             is SocialEvent.SlotDraftChanged -> _state.update { it.copy(editingSlot = event.slot) }
             SocialEvent.SlotSaved -> _state.value.editingSlot?.let { slot ->
                 _state.update { it.copy(editingSlot = null) }
-                write { social.saveSlot(slot) }
+                write { saveEvery(slot) }
             }
             is SocialEvent.SlotDeleted -> write { social.deleteSlot(event.id) }
             is SocialEvent.SlotEnabledToggled ->
@@ -274,6 +286,31 @@ class SocialViewModel(
             }
             is SocialEvent.FactDeleted -> write { social.deleteFact(event.id) }
         }
+    }
+
+    /**
+     * Save the slot, or one slot per time when the field holds several.
+     *
+     * "Monday at 5 and at 10" is two rows in the schedule — the tick asks each row whether it
+     * is due, and a row is one time. Typing both into one field is how somebody says it, so
+     * the form accepts it and the split happens here rather than making them fill the form
+     * twice.
+     *
+     * Only when the slot is new. Editing an existing one edits that one time; a second time
+     * appearing in the field of a saved slot would silently create a row nobody asked for.
+     */
+    private suspend fun saveEvery(slot: SocialSlot): arrow.core.Either<com.hopcape.odo.web.core.domain.WebError, Unit> {
+        val times = slot.timeOfDay.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (slot.id.isNotBlank() || times.size <= 1) {
+            return social.saveSlot(slot.copy(timeOfDay = times.firstOrNull() ?: slot.timeOfDay))
+        }
+        // Stops at the first failure rather than carrying on: half a week's slots saved with
+        // no word about the rest is worse than one error the owner can act on.
+        times.forEach { time ->
+            val result = social.saveSlot(slot.copy(timeOfDay = time))
+            if (result.isLeft()) return result
+        }
+        return arrow.core.Either.Right(Unit)
     }
 
     private fun editSettings(change: (SocialSettings) -> SocialSettings) {
@@ -353,6 +390,9 @@ class SocialViewModel(
  * and rendered. The six lists beside it are independent: a fact bank that would not load is
  * no reason to hide a queue somebody is waiting to approve.
  */
+/** ISO order, so index 0 is Monday — the same order `days_of_week` uses. */
+internal val DAY_NAMES = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
 private suspend fun SocialRepository.slotsOrEmpty() = slots().getOrNull().orEmpty()
 private suspend fun SocialRepository.accountsOrEmpty() = accounts().getOrNull().orEmpty()
 private suspend fun SocialRepository.recipientsOrEmpty() = recipients().getOrNull().orEmpty()
