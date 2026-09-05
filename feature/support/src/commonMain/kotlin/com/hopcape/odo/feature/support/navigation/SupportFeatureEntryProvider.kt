@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.support.navigation
 
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -13,6 +14,7 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.odo.core.domain.support.SupportContacts
 import com.hopcape.odo.core.designsystem.component.ODO_MAX_STARS
+import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -20,6 +22,8 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.app.AppInfo
+import com.hopcape.odo.core.platform.file.FileTypes
+import com.hopcape.odo.core.platform.file.rememberFilePicker
 import com.hopcape.odo.core.platform.app.DeviceInfo
 import com.hopcape.odo.core.platform.mail.MailDraft
 import com.hopcape.odo.core.platform.mail.rememberMailComposer
@@ -41,7 +45,16 @@ import com.hopcape.odo.feature.support.presentation.idea.IdeaUiState
 import com.hopcape.odo.feature.support.presentation.idea.SuggestIdeaScreen
 import com.hopcape.odo.feature.support.presentation.report.ReportEvent
 import com.hopcape.odo.feature.support.presentation.report.ReportArea
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceEffect
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceViewModel
+import com.hopcape.odo.feature.support.presentation.idea.IdeaEffect
+import com.hopcape.odo.feature.support.presentation.idea.SuggestIdeaViewModel
+import com.hopcape.odo.feature.support.presentation.report.ReportEffect
 import com.hopcape.odo.feature.support.presentation.report.ReportProblemScreen
+import com.hopcape.odo.feature.support.presentation.report.ReportProblemViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import com.hopcape.odo.feature.support.presentation.report.labelResource
 import com.hopcape.odo.feature.support.presentation.report.ReportUiState
 import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsPrompt
@@ -52,6 +65,11 @@ import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
 import com.hopcape.odo.feature.support.presentation.licences.LicencesScreen
 import com.hopcape.odo.feature.support.presentation.rating.RateSheetContent
 import com.hopcape.odo.feature.support.resources.Res
+import com.hopcape.odo.feature.support.resources.sp_flag_failed
+import com.hopcape.odo.feature.support.resources.sp_flag_sent
+import com.hopcape.odo.feature.support.resources.sp_idea_failed
+import com.hopcape.odo.feature.support.resources.sp_idea_sent
+import com.hopcape.odo.feature.support.resources.sp_idea_vote_failed
 import com.hopcape.odo.feature.support.resources.sp_sent_attached_logs
 import com.hopcape.odo.feature.support.resources.sp_sent_attached_none
 import com.hopcape.odo.feature.support.resources.sp_sent_attached_photos
@@ -212,100 +230,108 @@ internal class SupportFeatureEntryProvider(
     }
 
     /*
-     * The four form routes.
+     * The three form routes.
      *
-     * Each holds its own state here rather than in a view model, because in this branch there
-     * is nothing behind them: the screens are built, and what a submission *is* — a row saved
-     * before it is sent, and synced like everything else — is the next branch. Sending still
-     * hands the message to the mail app exactly as it did before, so nothing an owner can do
-     * today stops working while the screens are replaced.
-     *
-     * The email is asked for rather than read off the account for the same reason: the profile
-     * is a repository call, and this branch has no domain to make it with.
+     * Each is a view model now, and each ends in a saved row rather than a mail draft. The
+     * mail composer is gone from all three; the one path that still uses it is the "Email us"
+     * row on the help sheet, which is the one that asks for email by name.
      */
 
     @Composable
     private fun ReportProblemRoute() {
-        // Saveable, not merely remembered. Losing three paragraphs of a bug report to a
-        // screen turn is what stops somebody reporting the bug at all — the form this
-        // replaced said exactly that, and it is still true.
-        var state by rememberSaveable(stateSaver = ReportStateSaver) {
-            mutableStateOf(ReportUiState())
+        val viewModel = koinViewModel<ReportProblemViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
+        // Screenshots, so images only — a PDF is not a picture of what went wrong. The name
+        // is taken from the reference's last segment, which is what the picker gives us.
+        val pickFile = rememberFilePicker(mimeTypes = FileTypes.PHOTOS) { ref ->
+            ref?.let { viewModel.onEvent(ReportEvent.AttachmentPicked(it, it.fileName())) }
         }
-        val send = mailSender(Res.string.sp_fb_report_subject)
 
-        ReportProblemScreen(
-            state = state,
-            onEvent = { event ->
-                when (event) {
-                    ReportEvent.BackClicked -> nm.back()
-                    is ReportEvent.AreaPicked -> state = state.copy(area = event.area)
-                    is ReportEvent.MessageChanged -> state = state.copy(message = event.message)
-                    is ReportEvent.AttachLogsToggled -> state = state.copy(attachLogs = event.on)
-                    is ReportEvent.EmailChanged ->
-                        state = state.copy(email = event.email, emailInvalid = false)
-                    // Picking a file is a platform seam the ticket needs and the mail
-                    // hand-off does not — the composer takes text, and an attachment it
-                    // cannot carry would be a control that does nothing.
-                    ReportEvent.AddAttachmentClicked -> Unit
-                    is ReportEvent.AttachmentPicked -> Unit
-                    is ReportEvent.AttachmentRemoved -> Unit
-                    // The switch is what it says: on, a diagnostics upload is opened and its
-                    // reference travels with the mail, which is what the older form did and
-                    // what its "helps us find it faster" caption promises.
-                    ReportEvent.SendClicked -> when {
-                        !state.emailLooksValid() -> state = state.copy(emailInvalid = true)
-                        else -> send(state.asMessage(), state.attachLogs)
-                    }
+        CollectEffects(viewModel.effects) { effect ->
+            when (effect) {
+                ReportEffect.NavigateBack -> nm.back()
+                ReportEffect.PickAttachment -> pickFile()
+                // The form comes off the stack on the way: coming back to a report that has
+                // already been sent, still holding its own text, is how somebody sends it twice.
+                is ReportEffect.Sent -> {
+                    nm.back()
+                    nm.navigateTo(
+                        OdoDestination.Support.ReportSent(
+                            ticket = effect.reference,
+                            area = effect.area,
+                            photos = effect.photos,
+                            logsAttached = effect.logsAttached,
+                            maskedReplyTo = effect.maskedReplyTo,
+                        ),
+                    )
                 }
-            },
-        )
+            }
+        }
+
+        ReportProblemScreen(state = state, onEvent = viewModel::onEvent)
     }
 
     @Composable
     private fun SuggestIdeaRoute() {
-        var state by rememberSaveable(stateSaver = IdeaStateSaver) {
-            mutableStateOf(IdeaUiState())
+        val viewModel = koinViewModel<SuggestIdeaViewModel>()
+        val state by viewModel.state.collectAsStateWithLifecycle()
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+        val sentMessage = stringResource(Res.string.sp_idea_sent)
+        val failedMessage = stringResource(Res.string.sp_idea_failed)
+        val voteFailedMessage = stringResource(Res.string.sp_idea_vote_failed)
+
+        CollectEffects(viewModel.effects) { effect ->
+            when (effect) {
+                IdeaEffect.NavigateBack -> nm.back()
+                // No confirmation screen: the list it joins is the answer, and the owner is
+                // left on it rather than sent somewhere to press Done.
+                IdeaEffect.Sent -> scope.launch { snackbarHostState.showSnackbar(sentMessage) }
+                IdeaEffect.Failed -> scope.launch { snackbarHostState.showSnackbar(failedMessage) }
+                IdeaEffect.VoteFailed ->
+                    scope.launch { snackbarHostState.showSnackbar(voteFailedMessage) }
+            }
         }
-        val send = mailSender(Res.string.sp_fb_idea_subject)
 
         SuggestIdeaScreen(
             state = state,
-            onEvent = { event ->
-                when (event) {
-                    IdeaEvent.BackClicked -> nm.back()
-                    is IdeaEvent.TextChanged -> state = state.copy(text = event.text)
-                    // The list is empty until something fills it, so nothing can be voted on
-                    // yet and the section is not drawn.
-                    is IdeaEvent.VoteToggled -> Unit
-                    IdeaEvent.SendClicked -> send(state.text, false)
-                }
-            },
+            onEvent = viewModel::onEvent,
+            snackbarHostState = snackbarHostState,
         )
     }
 
     @Composable
     private fun FlagPriceRoute(key: OdoDestination.Support.FlagPriceData) {
         val band = key.band()
-        var state by rememberSaveable(stateSaver = flagPriceStateSaver(band)) {
-            mutableStateOf(FlagPriceUiState(band = band))
+        val viewModel = koinViewModel<FlagPriceViewModel> { parametersOf(band) }
+        val state by viewModel.state.collectAsStateWithLifecycle()
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+        val pickFile = rememberFilePicker(mimeTypes = FileTypes.PAPERS) { ref ->
+            ref?.let { viewModel.onEvent(FlagPriceEvent.BillPicked(it)) }
         }
-        val send = mailSender(Res.string.sp_fb_flag_subject)
+        val sentMessage = stringResource(Res.string.sp_flag_sent)
+        val failedMessage = stringResource(Res.string.sp_flag_failed)
+
+        CollectEffects(viewModel.effects) { effect ->
+            when (effect) {
+                FlagPriceEffect.NavigateBack -> nm.back()
+                FlagPriceEffect.PickBill -> pickFile()
+                // Straight back, with the confirmation said in passing. The screen's own
+                // footer already promised no answer is coming, so a screen saying so again
+                // would be a step for nothing.
+                FlagPriceEffect.Sent -> {
+                    nm.back()
+                }
+                FlagPriceEffect.Failed ->
+                    scope.launch { snackbarHostState.showSnackbar(failedMessage) }
+            }
+        }
 
         FlagPriceScreen(
             state = state,
-            onEvent = { event ->
-                when (event) {
-                    FlagPriceEvent.BackClicked -> nm.back()
-                    is FlagPriceEvent.JobNameChanged -> state = state.copy(jobName = event.name)
-                    is FlagPriceEvent.ComplaintPicked ->
-                        state = state.copy(complaint = event.complaint)
-                    is FlagPriceEvent.PaidChanged -> state = state.copy(paidRupees = event.rupees)
-                    FlagPriceEvent.AttachBillClicked -> Unit
-                    is FlagPriceEvent.BillPicked -> Unit
-                    FlagPriceEvent.SendClicked -> send(state.asMessage(), false)
-                }
-            },
+            onEvent = viewModel::onEvent,
+            snackbarHostState = snackbarHostState,
         )
     }
 
@@ -354,6 +380,15 @@ internal class SupportFeatureEntryProvider(
         )
     }
 
+    /**
+     * A name for a picked file, from the reference's last segment.
+     *
+     * Only ever shown on the tile and carried to support as a label. A reference with nothing
+     * usable in it falls back to a generic name rather than an empty tile.
+     */
+    private fun String.fileName(): String =
+        substringAfterLast('/').substringBefore('?').ifBlank { FALLBACK_FILE_NAME }
+
     /** "1 photo · app logs" — what actually travelled, so nobody finds out later. */
     @Composable
     private fun attachedSummary(key: OdoDestination.Support.ReportSent): String {
@@ -381,44 +416,6 @@ internal class SupportFeatureEntryProvider(
 
     private fun OdoDestination.Support.ReportSent.isScan(): Boolean =
         reportArea() == ReportArea.BILL_SCAN
-
-    /**
-     * The mail hand-off, unchanged from what these three forms did before.
-     *
-     * Popping happens inside the lambda after the composer has been asked for: leaving
-     * composition first would take the form away before the draft was built.
-     */
-    @Composable
-    private fun mailSender(subject: StringResource): (String, Boolean) -> Unit {
-        val composeMail = rememberMailComposer()
-        val supportAddress = supportContacts.email
-        val subjectText = stringResource(subject)
-        val footer = mailFooter()
-        val scope = rememberCoroutineScope()
-        return { message, attachDiagnostics ->
-            // Popped inside the coroutine, after the draft is built: leaving composition
-            // cancels this scope, so popping first would cancel the request that produces the
-            // reference the draft carries.
-            scope.launch {
-                val diagnosticsLine = if (attachDiagnostics) {
-                    getString(Res.string.sp_fb_diagnostics_line, requestDiagnostics())
-                } else {
-                    null
-                }
-                // Under the build and device line, not into the owner's own words: it is one
-                // more fact about the phone, and support reads the footer as a block.
-                val fullFooter = if (diagnosticsLine == null) footer else "$footer\n$diagnosticsLine"
-                composeMail(
-                    MailDraft(
-                        to = supportAddress,
-                        subject = subjectText,
-                        body = "$message\n\n$fullFooter",
-                    ),
-                )
-                nm.back()
-            }
-        }
-    }
 
     /**
      * The build and device line every outbound message carries, under the owner's own words.
@@ -468,3 +465,6 @@ internal class SupportFeatureEntryProvider(
         )
     }
 }
+
+/** What a picked file is called when its reference names nothing. */
+private const val FALLBACK_FILE_NAME = "attachment"

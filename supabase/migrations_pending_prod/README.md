@@ -20,6 +20,7 @@ backlog.
 | `20260904120000_declared_log_source.sql` | Adds the `declared` label to `log_source` | Yes — additive |
 | `20260904160000_purchase_credits.sql` | Creates `purchase_claims` + `credit_spends` | Yes — additive |
 | `20260905100000_advisory_classifier.sql` | Creates `bill_line_classifications` + `advisory_call_meter` | Yes — additive, and both are deny-all |
+| `20260905120000_support_tickets_app.sql` | Adds `client_id` + 5 columns to `support_tickets`; creates `feature_ideas` + `idea_votes` | Yes — every column is added with a default or nullable, and the panel reads `id` as before |
 
 ## The one that is not safe yet
 

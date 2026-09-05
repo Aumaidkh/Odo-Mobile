@@ -1,0 +1,112 @@
+-- Something the owner sent support: a problem report, an idea, or a price correction.
+--
+-- One table for all three, because they are one queue item to the panel and three things only
+-- in what they collect. `details` carries what differs as JSON — the area, the disputed band,
+-- what was paid — so the panel can route and filter without reading prose.
+--
+-- Written the moment the owner presses send, before anything reaches the network. That is what
+-- makes the confirmation screen honest on a train, and it is why the id is generated here
+-- rather than by the server: the server's own key is a bigint it assigns on insert, so a row
+-- that named itself is the only kind that can exist offline. `client_id` on the server side is
+-- this id.
+--
+-- Push and pull. The panel writes `status` back, and an owner who reported something is owed
+-- the answer to whether it was looked at.
+CREATE TABLE support_tickets (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    kind           TEXT NOT NULL,
+    body           TEXT NOT NULL,
+    -- A JSON object of named values. Empty is '{}', never NULL, so nothing has to special-case
+    -- the difference between "no details" and "not read yet".
+    details        TEXT NOT NULL DEFAULT '{}',
+    -- A JSON array of {storage_key, name}. Files live in app storage until sync uploads them.
+    attachments    TEXT NOT NULL DEFAULT '[]',
+    reply_to       TEXT,
+    diagnostics_reference TEXT,
+    -- What the panel says has happened to it. The device never sets this to anything but the
+    -- opening value; every later value arrives on a pull.
+    status         TEXT NOT NULL DEFAULT 'OPEN',
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+-- Newest first: what the owner sent last is what they are wondering about.
+CREATE INDEX support_tickets_owner_created ON support_tickets(owner_id, created_at DESC);
+
+insertTicket:
+INSERT INTO support_tickets (
+    id, owner_id, kind, body, details, attachments, reply_to, diagnostics_reference,
+    status, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :kind, :body, :details, :attachments, :replyTo, :diagnosticsReference,
+    :status, :createdAt, :createdAt, NULL, NULL, 'PENDING'
+);
+
+selectAll:
+SELECT *
+FROM support_tickets
+WHERE owner_id = :ownerId AND deleted_at IS NULL
+ORDER BY created_at DESC;
+
+selectById:
+SELECT *
+FROM support_tickets
+WHERE id = :id;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectPending:
+SELECT *
+FROM support_tickets
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM support_tickets
+WHERE id = :id;
+
+markSynced:
+UPDATE support_tickets
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markConflict:
+UPDATE support_tickets
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- A row arriving from the server. The device is not the author of `status`, so a pull is the
+-- only thing that ever changes it.
+upsertFromRemote:
+INSERT OR REPLACE INTO support_tickets (
+    id, owner_id, kind, body, details, attachments, reply_to, diagnostics_reference,
+    status, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :kind, :body, :details, :attachments, :replyTo, :diagnosticsReference,
+    :status, :createdAt, :updatedAt, :deletedAt, :remoteVersion, 'SYNCED'
+);
+
+-- The stored path of an attachment changes when sync uploads it, and nothing else does.
+updateAttachments:
+UPDATE support_tickets
+SET attachments = :attachments
+WHERE id = :id;
+
+adoptOwnership:
+UPDATE support_tickets
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+deleteAllRows:
+DELETE FROM support_tickets;
+
+deleteForeignOwned:
+DELETE FROM support_tickets
+WHERE owner_id <> :ownerId;

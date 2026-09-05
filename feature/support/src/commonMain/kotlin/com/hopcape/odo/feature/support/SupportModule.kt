@@ -2,7 +2,16 @@ package com.hopcape.odo.feature.support
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.support.domain.RequestDiagnosticsUseCase
+import com.hopcape.odo.feature.support.domain.ReplyAddress
+import com.hopcape.odo.feature.support.domain.usecase.CastIdeaVoteUseCase
+import com.hopcape.odo.feature.support.domain.usecase.SubmitTicketUseCase
 import com.hopcape.odo.feature.support.navigation.SupportFeatureEntryProvider
+import com.hopcape.odo.feature.support.presentation.SupportTelemetry
+import com.hopcape.odo.feature.support.presentation.flagprice.DisputedBand
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceViewModel
+import com.hopcape.odo.feature.support.presentation.idea.SuggestIdeaViewModel
+import com.hopcape.odo.feature.support.presentation.report.ReportProblemViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -26,6 +35,44 @@ val supportModule = module {
             scheduler = get(),
             clock = get(),
         )
+    }
+
+    // The three forms. One use case behind all of them: what a submission does is identical
+    // the moment its fields are collected.
+    factory {
+        SubmitTicketUseCase(
+            tickets = get(),
+            // Attachments are copied into app storage before the row is written — a picker
+            // reference stops resolving after a restart.
+            files = get(),
+            ids = get(),
+            clock = get(),
+        )
+    }
+    factory { CastIdeaVoteUseCase(ideas = get()) }
+    factory { ReplyAddress(profiles = get()) }
+    factory { SupportTelemetry(logger = get(), analytics = get(), tracer = get()) }
+
+    viewModel {
+        ReportProblemViewModel(
+            submit = get(),
+            replyAddress = get(),
+            // The use case's one answer, not the class: what the view model needs is a
+            // reference, and naming the type here would make every test build four fakes.
+            requestDiagnostics = { get<RequestDiagnosticsUseCase>().invoke() },
+            telemetry = get(),
+        )
+    }
+    viewModel {
+        SuggestIdeaViewModel(
+            ideas = get(),
+            castVote = get(),
+            submit = get(),
+            telemetry = get(),
+        )
+    }
+    viewModel { (band: DisputedBand?) ->
+        FlagPriceViewModel(band = band, submit = get(), telemetry = get())
     }
 
     single {
