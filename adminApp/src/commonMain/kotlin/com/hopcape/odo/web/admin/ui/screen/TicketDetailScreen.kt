@@ -20,7 +20,13 @@ import com.hopcape.odo.web.admin.presentation.catalogue.TicketsEvent
 import com.hopcape.odo.web.admin.presentation.catalogue.TicketsUiState
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_ticket_back
+import com.hopcape.odo.web.admin.resources.ad_ticket_attachments
+import com.hopcape.odo.web.admin.resources.ad_ticket_attachments_none
 import com.hopcape.odo.web.admin.resources.ad_ticket_body
+import com.hopcape.odo.web.admin.resources.ad_ticket_details
+import com.hopcape.odo.web.admin.resources.ad_ticket_diagnostics
+import com.hopcape.odo.web.admin.resources.ad_ticket_diagnostics_hint
+import com.hopcape.odo.web.admin.resources.ad_ticket_meta_kind
 import com.hopcape.odo.web.admin.resources.ad_ticket_gone
 import com.hopcape.odo.web.admin.resources.ad_ticket_meta_contact
 import com.hopcape.odo.web.admin.resources.ad_ticket_meta_opened
@@ -104,6 +110,62 @@ fun TicketDetailScreen(
                         MetaLine(stringResource(Res.string.ad_ticket_meta_opened), ticket.createdAt)
                         MetaLine(stringResource(Res.string.ad_ticket_meta_status), ticket.status)
                         MetaLine(stringResource(Res.string.ad_ticket_meta_priority), ticket.priority)
+                        // Only for a ticket the app filed. A blank row on the eleven that
+                        // predate it would read as data that failed to load.
+                        if (ticket.isFromApp) {
+                            MetaLine(
+                                stringResource(Res.string.ad_ticket_meta_kind),
+                                ticket.kind.lowercase().replace('_', ' '),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // The fields the form collected, as fields. This is what lets the queue be worked
+            // without reading every body: the area a report was filed against, the job and
+            // the figure behind a price correction.
+            if (ticket.details.isNotEmpty()) {
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_details))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            ticket.details.entries.sortedBy { it.key }.forEach { (key, value) ->
+                                MetaLine(key.replace('_', ' '), value)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (ticket.isFromApp) {
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_attachments))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // Said even when there are none, so nobody wonders whether a
+                            // photograph failed to load or was never sent.
+                            Text(
+                                ticket.attachments.joinToString(", ")
+                                    .ifBlank { stringResource(Res.string.ad_ticket_attachments_none) },
+                                style = AdminType.body,
+                                color = AdminTokens.textStrong,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // The most useful line on a bug report: the code the uploaded logs are filed
+            // under, so whoever works this can find them without asking the owner.
+            ticket.diagnosticsReference?.let { reference ->
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_diagnostics))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(reference, style = AdminType.body, color = AdminTokens.textStrong)
+                            Muted(stringResource(Res.string.ad_ticket_diagnostics_hint))
+                        }
                     }
                 }
             }

@@ -197,12 +197,18 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
             // unless `bill_check_enabled` is still closed, in which case it lands on the
             // saved-success screen. The bill is saved and the record is complete either
             // way; only the second opinion waits for the price tables.
+            //
+            // **The review comes off the stack on the way.** It is a form for a bill that no
+            // longer needs reviewing: the entry exists, and going back to it offered a Save
+            // button that would have written the same bill a second time.
             is BillReviewEffect.OpenFairness -> navigationManager.navigateTo(
                 if (config.billCheckEnabled) {
                     OdoDestination.BillCheck.Result(billId = effect.logId)
                 } else {
                     OdoDestination.BillScanner.SaveSuccess
                 },
+                popUpTo = OdoDestination.BillScanner.Review(photoKey),
+                inclusive = true,
             )
             BillReviewEffect.Retake -> navigationManager.back()
             // Same as the scanner's "Manual": the form takes this screen's place, so nothing

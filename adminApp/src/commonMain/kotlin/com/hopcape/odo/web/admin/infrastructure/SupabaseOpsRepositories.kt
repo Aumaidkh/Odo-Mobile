@@ -12,6 +12,10 @@ import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
 import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.Serializable
 
 /** `service_categories` over PostgREST, behind `fairness.write`. */
@@ -78,7 +82,12 @@ internal class SupabaseTicketsRepository(
             serializer = TicketRow.serializer(),
             // Open first, then oldest: a queue is worked from the front, and the
             // person who wrote in three weeks ago has waited longest.
-            query = "select=id,contact,subject,body,status,priority,created_at&order=status.asc,created_at.asc",
+            // The app's own columns come too. Without them a report from the app reads as a
+            // subject and a paragraph, and the area it was filed against — the thing that
+            // routes it — is invisible.
+            query = "select=id,contact,subject,body,status,priority,created_at," +
+                "kind,details,attachments,diagnostics_reference" +
+                "&order=status.asc,created_at.asc",
         ).map { rows ->
             rows.map {
                 Ticket(
@@ -89,6 +98,10 @@ internal class SupabaseTicketsRepository(
                     status = it.status,
                     priority = it.priority,
                     createdAt = it.createdAt.substringBefore('T'),
+                    kind = it.kind.orEmpty(),
+                    details = it.details.readDetails(),
+                    attachments = it.attachments.readAttachmentNames(),
+                    diagnosticsReference = it.diagnosticsReference,
                 )
             }
         }
@@ -174,7 +187,29 @@ private data class TicketRow(
     val status: String,
     val priority: String,
     @SerialName("created_at") val createdAt: String,
+    /** Null on a ticket filed before the app could write here. */
+    val kind: String? = null,
+    val details: JsonElement? = null,
+    val attachments: JsonElement? = null,
+    @SerialName("diagnostics_reference") val diagnosticsReference: String? = null,
 )
+
+/**
+ * The named values the form collected.
+ *
+ * Read defensively: the column is written by an app that ships ahead of this panel, so a
+ * shape nobody here expected costs the extra fields on one ticket rather than the queue.
+ */
+private fun JsonElement?.readDetails(): Map<String, String> =
+    (this as? JsonObject)?.mapNotNull { (key, value) ->
+        (value as? JsonPrimitive)?.content?.let { key to it }
+    }?.toMap().orEmpty()
+
+/** The file names, for a list that says what came with a report. */
+private fun JsonElement?.readAttachmentNames(): List<String> =
+    (this as? JsonArray)?.mapNotNull { entry ->
+        ((entry as? JsonObject)?.get("name") as? JsonPrimitive)?.content
+    }.orEmpty()
 
 @Serializable
 private data class SubscriptionRow(

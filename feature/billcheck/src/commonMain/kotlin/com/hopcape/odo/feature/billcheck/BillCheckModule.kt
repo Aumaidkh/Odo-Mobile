@@ -29,11 +29,7 @@ val billCheckModule = module {
             matcher = get(),
             bands = get(),
             intervals = get(),
-            // The model, for lines the rules could not name. Bound to the offline classifier
-            // that names nothing on a build with no credentials, and gated by a flag that
-            // ships off — so this costs nothing until both are true.
-            classifier = get(),
-            config = get(),
+            namer = get(),
         )
     }
 
@@ -63,7 +59,7 @@ val billCheckModule = module {
             cities = get(),
             cityCatalog = get(),
             questionnaire = get(),
-            matcher = get(),
+            namer = get(),
             bands = get(),
         )
     }
