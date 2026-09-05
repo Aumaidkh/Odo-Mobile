@@ -26,7 +26,9 @@ CREATE TABLE support_tickets (
     diagnostics_reference TEXT,
     -- What the panel says has happened to it. The device never sets this to anything but the
     -- opening value; every later value arrives on a pull.
-    status         TEXT NOT NULL DEFAULT 'OPEN',
+    -- Lowercase, matching the server's own check constraint: open | pending | resolved |
+    -- closed. The device only ever writes the first; the rest arrive on a pull.
+    status         TEXT NOT NULL DEFAULT 'open',
     created_at     TEXT NOT NULL,
     updated_at     TEXT NOT NULL,
     deleted_at     TEXT,
@@ -60,6 +62,12 @@ WHERE id = :id;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Sync (SYNC_DESIGN §6)
 -- ─────────────────────────────────────────────────────────────────────────────
+
+-- Every ticket's attachment list, for the sign-out wipe: the files have to be removed before
+-- the rows that name them are.
+selectAllAttachments:
+SELECT attachments
+FROM support_tickets;
 
 selectPending:
 SELECT *

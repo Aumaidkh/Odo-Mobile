@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.support.presentation
 
 import arrow.core.Either
 import arrow.core.right
+import androidx.lifecycle.SavedStateHandle
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
@@ -173,6 +174,30 @@ class ReportProblemViewModelTest {
     }
 
     /**
+     * Picking a screenshot starts another app, which is a routine way for a low-memory device
+     * to kill this process. Losing three paragraphs of a bug report to that is what stops
+     * somebody reporting the bug at all.
+     */
+    @Test
+    fun `what was typed survives the process being killed`() = runTest {
+        val saved = SavedStateHandle()
+        viewModel(email = "r@x.co", saved = saved).also {
+            dispatcher.scheduler.advanceUntilIdle()
+            it.onEvent(ReportEvent.AreaPicked(ReportArea.CHALLAN))
+            it.onEvent(ReportEvent.MessageChanged("Three paragraphs of detail."))
+            it.onEvent(ReportEvent.EmailChanged("owner@example.com"))
+        }
+
+        // The same handle, a new view model: what the platform hands back after a restart.
+        val restored = viewModel(email = "r@x.co", saved = saved)
+
+        assertEquals("Three paragraphs of detail.", restored.state.value.message)
+        assertEquals(ReportArea.CHALLAN, restored.state.value.area)
+        assertEquals("owner@example.com", restored.state.value.email)
+        assertFalse(restored.state.value.sending, "an interrupted send did not happen")
+    }
+
+    /**
      * A file that would not copy is dropped by the use case. Saying it travelled tells the
      * owner their screenshot is with support when it is nowhere.
      */
@@ -267,7 +292,9 @@ class ReportProblemViewModelTest {
         tickets: FakeTickets = FakeTickets(),
         files: FakeFiles = FakeFiles(),
         diagnostics: suspend () -> String = { "ODO-0000-0000" },
+        saved: SavedStateHandle = SavedStateHandle(),
     ) = ReportProblemViewModel(
+        saved = saved,
         submit = SubmitTicketUseCase(
             tickets = tickets,
             files = files,

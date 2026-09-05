@@ -95,7 +95,16 @@ internal class FlagPriceViewModel(
                         attachments = ticket.attachments.size,
                         logsAttached = false,
                     )
-                    _state.update { it.copy(sending = false) }
+                    // Cleared, because the owner stays on the screen. What they just sent is
+                    // still on it otherwise, one tap from being sent again.
+                    _state.update {
+                        it.copy(
+                            sending = false,
+                            complaint = null,
+                            paidRupees = "",
+                            billRef = null,
+                        )
+                    }
                     emit(FlagPriceEffect.Sent)
                 },
             )

@@ -8,6 +8,11 @@ import com.hopcape.odo.core.data.support.SupportTicketDto
 import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.Serializable
 
 /**
@@ -40,6 +45,10 @@ internal class SupabaseSupportTicketRemoteDataSource(
             serializer = TicketRow.serializer(),
             filters = buildMap {
                 put(COLUMN_OWNER, "eq.$ownerId")
+                // Only rows this app named. The panel can create a ticket itself and the
+                // eleven that predate this feature have no client_id, and a row the local
+                // table has no key for is a row the sync cannot place.
+                put(CONFLICT_COLUMN, "not.is.null")
                 // The delta the sync cursor asks for. Absent on a first pull, which is what
                 // fetches everything this owner has ever filed.
                 since?.let { put(COLUMN_UPDATED_AT, "gt.$it") }
@@ -129,15 +138,35 @@ internal class SupabaseFeatureIdeaRemoteDataSource(
  */
 @Serializable
 private data class TicketRow(
-    @SerialName("client_id") val clientId: String,
+    /**
+     * Nullable, because rows filed before the app could write here have none — the eleven
+     * already in the table, and anything the panel creates itself. Decoding those into a
+     * non-null field threw, which failed the whole pull for any owner who had one.
+     */
+    @SerialName("client_id") val clientId: String? = null,
     @SerialName("owner_id") val ownerId: String,
     @SerialName("kind") val kind: String,
     @SerialName("body") val body: String,
-    @SerialName("details") val details: String,
-    @SerialName("attachments") val attachments: String,
-    @SerialName("reply_to") val replyTo: String? = null,
+    /**
+     * A real JSON object, not a string holding one.
+     *
+     * The column is `jsonb`. Sending the text `"{\"area\":\"REMINDERS\"}"` stores a jsonb
+     * *scalar string*, and the panel's `details->>'area'` then answers null — which is the
+     * whole reason the column exists.
+     */
+    @SerialName("details") val details: JsonElement,
+    @SerialName("attachments") val attachments: JsonElement,
     @SerialName("diagnostics_reference") val diagnosticsReference: String? = null,
     @SerialName("status") val status: String,
+    /**
+     * Where the answer goes — the queue's own column for it, which predates this feature.
+     *
+     * The local table calls the same thing `reply_to`. Only one of them travels: a second
+     * server column holding the same address is a second thing to keep in step, and the
+     * panel's reply already reads this one.
+     */
+    @SerialName("contact") val contact: String,
+    @SerialName("subject") val subject: String,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("deleted_at") val deletedAt: String? = null,
@@ -168,9 +197,13 @@ private fun SupportTicketDto.toRow() = TicketRow(
     ownerId = ownerId,
     kind = kind,
     body = body,
-    details = details,
-    attachments = attachments,
-    replyTo = replyTo,
+    details = details.asJson(EMPTY_OBJECT),
+    attachments = attachments.asJson(EMPTY_ARRAY),
+    // What the panel's list draws. Assembled here rather than stored twice: it is a label for
+    // a queue, and a column holding a copy of what `kind` and `details` already say is a
+    // column that can disagree with them.
+    contact = replyTo.orEmpty(),
+    subject = subject(),
     diagnosticsReference = diagnosticsReference,
     status = status,
     createdAt = createdAt,
@@ -179,19 +212,51 @@ private fun SupportTicketDto.toRow() = TicketRow(
 )
 
 private fun TicketRow.toDto() = SupportTicketDto(
-    clientId = clientId,
+    // Only rows the app named reach here — the fetch filters the rest out server-side.
+    clientId = clientId.orEmpty(),
     ownerId = ownerId,
     kind = kind,
     body = body,
-    details = details,
-    attachments = attachments,
-    replyTo = replyTo,
+    details = details.toString(),
+    attachments = attachments.toString(),
+    // The server's column for it. Blank means the ticket was filed with nowhere to reply.
+    replyTo = contact.takeIf { it.isNotBlank() },
     diagnosticsReference = diagnosticsReference,
     status = status,
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
 )
+
+/**
+ * The line the panel's queue shows.
+ *
+ * The kind, and the one detail that says what it is about — the area for a report, the job for
+ * a correction. An idea has neither and is named by its kind alone.
+ */
+private fun SupportTicketDto.subject(): String {
+    val about = details.asJson(EMPTY_OBJECT)
+        .let { it as? JsonObject }
+        ?.let { (it[DETAIL_AREA] ?: it[DETAIL_JOB]) as? JsonPrimitive }
+        ?.content
+    val label = kind.lowercase().replace('_', ' ')
+    return if (about.isNullOrBlank()) label else "$label: $about"
+}
+
+/**
+ * The column's text as JSON, or an empty value when it cannot be read.
+ *
+ * The local column holds a JSON string this never has to look into; parsing it here is only so
+ * the server stores an object rather than a string containing one. Unparseable text becomes
+ * empty rather than failing the push: the body is the report, and the details are a filter.
+ */
+private fun String.asJson(fallback: JsonElement): JsonElement =
+    runCatching { Json.parseToJsonElement(this) }.getOrDefault(fallback)
+
+private val EMPTY_OBJECT = JsonObject(emptyMap())
+private val EMPTY_ARRAY = JsonArray(emptyList())
+private const val DETAIL_AREA = "area"
+private const val DETAIL_JOB = "job"
 
 private fun IdeaVoteDto.toRow() = VoteRow(
     ideaId = ideaId,

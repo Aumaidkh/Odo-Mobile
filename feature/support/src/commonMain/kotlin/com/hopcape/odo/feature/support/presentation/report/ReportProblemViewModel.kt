@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.support.presentation.report
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
@@ -49,6 +50,18 @@ internal sealed interface ReportEffect {
  * be read is worse than a form that asks for an address it could have known.
  */
 internal class ReportProblemViewModel(
+    /**
+     * Where the typed report is kept across process death.
+     *
+     * A view model survives a rotation on its own, and nothing else. Picking a screenshot
+     * starts another app's activity, which is a routine way for a low-memory device to kill
+     * this process — and the form this replaced said, in a comment, that losing three
+     * paragraphs of a bug report is what stops somebody reporting the bug at all.
+     *
+     * Only what was typed or chosen is kept. `sending` is not: an interrupted send did not
+     * happen, and a form that comes back showing a spinner is one nobody can use.
+     */
+    private val saved: SavedStateHandle,
     private val submit: SubmitTicketUseCase,
     private val replyAddress: ReplyAddress,
     /**
@@ -62,7 +75,15 @@ internal class ReportProblemViewModel(
     private val telemetry: SupportTelemetry,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ReportUiState())
+    private val _state = MutableStateFlow(
+        ReportUiState(
+            area = ReportArea.entries.firstOrNull { it.name == saved[KEY_AREA] }
+                ?: ReportArea.BILL_SCAN,
+            message = saved[KEY_MESSAGE] ?: "",
+            attachLogs = saved[KEY_ATTACH_LOGS] ?: true,
+            email = saved[KEY_EMAIL] ?: "",
+        ),
+    )
     val state: StateFlow<ReportUiState> = _state.asStateFlow()
 
     private val _effects = Channel<ReportEffect>(Channel.BUFFERED, BufferOverflow.DROP_OLDEST)
@@ -84,12 +105,22 @@ internal class ReportProblemViewModel(
     fun onEvent(event: ReportEvent) {
         when (event) {
             ReportEvent.BackClicked -> emit(ReportEffect.NavigateBack)
-            is ReportEvent.AreaPicked -> _state.update { it.copy(area = event.area) }
-            is ReportEvent.MessageChanged ->
+            is ReportEvent.AreaPicked -> {
+                saved[KEY_AREA] = event.area.name
+                _state.update { it.copy(area = event.area) }
+            }
+            is ReportEvent.MessageChanged -> {
+                saved[KEY_MESSAGE] = event.message
                 _state.update { it.copy(message = event.message, failed = false) }
-            is ReportEvent.AttachLogsToggled -> _state.update { it.copy(attachLogs = event.on) }
-            is ReportEvent.EmailChanged ->
+            }
+            is ReportEvent.AttachLogsToggled -> {
+                saved[KEY_ATTACH_LOGS] = event.on
+                _state.update { it.copy(attachLogs = event.on) }
+            }
+            is ReportEvent.EmailChanged -> {
+                saved[KEY_EMAIL] = event.email
                 _state.update { it.copy(email = event.email, emailInvalid = false) }
+            }
             ReportEvent.AddAttachmentClicked -> emit(ReportEffect.PickAttachment)
             is ReportEvent.AttachmentPicked -> _state.update {
                 it.copy(attachments = it.attachments + ReportAttachment(event.ref, event.name))
@@ -180,6 +211,13 @@ internal class ReportProblemViewModel(
     }
 
     private var openedDiagnostics: String? = null
+
+    private companion object {
+        const val KEY_AREA = "support.report.area"
+        const val KEY_MESSAGE = "support.report.message"
+        const val KEY_ATTACH_LOGS = "support.report.attachLogs"
+        const val KEY_EMAIL = "support.report.email"
+    }
 
     private fun emit(effect: ReportEffect) {
         _effects.trySend(effect)

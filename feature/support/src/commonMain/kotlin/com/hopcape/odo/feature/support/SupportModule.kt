@@ -55,6 +55,9 @@ val supportModule = module {
 
     viewModel {
         ReportProblemViewModel(
+            // Resolved by Koin's own androidx integration, so a report survives the process
+            // being killed behind the screenshot picker rather than only a rotation.
+            saved = get(),
             submit = get(),
             replyAddress = get(),
             // The use case's one answer, not the class: what the view model needs is a

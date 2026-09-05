@@ -317,12 +317,12 @@ internal class SupportFeatureEntryProvider(
             when (effect) {
                 FlagPriceEffect.NavigateBack -> nm.back()
                 FlagPriceEffect.PickBill -> pickFile()
-                // Straight back, with the confirmation said in passing. The screen's own
-                // footer already promised no answer is coming, so a screen saying so again
-                // would be a step for nothing.
-                FlagPriceEffect.Sent -> {
-                    nm.back()
-                }
+                // Said here rather than on a screen of its own: the footer already promised
+                // no answer is coming, so a confirmation screen would be a step for nothing.
+                // The owner is left where they are, with the form cleared, and leaves when
+                // they are done — a snackbar on a screen being popped is a snackbar nobody
+                // sees.
+                FlagPriceEffect.Sent -> scope.launch { snackbarHostState.showSnackbar(sentMessage) }
                 FlagPriceEffect.Failed ->
                     scope.launch { snackbarHostState.showSnackbar(failedMessage) }
             }
