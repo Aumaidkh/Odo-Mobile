@@ -699,9 +699,65 @@ sealed interface OdoDestination : NavKey {
         /** "Request a feature" — an idea/suggestion form. */
         @Serializable
         data object SuggestIdea : Support
-        /** "A benchmark looks off" — dispute a fairness price data point. */
+        /**
+         * "A benchmark looks off" — dispute a price band.
+         *
+         * The other end of "How we know". Every argument is optional, because the row on the
+         * help sheet opens the same screen with nothing to dispute yet; opened from a band,
+         * they prefill the card that says what is being flagged. Primitives only, so
+         * `:core:navigation` stays free of the benchmark types.
+         */
         @Serializable
-        data object FlagPriceData : Support
+        data class FlagPriceData(
+            val lineName: String? = null,
+            val lowPaise: Long = 0L,
+            val highPaise: Long = 0L,
+            val city: String? = null,
+            /** The workshop *tier*, worded for a sentence — never a workshop's name. */
+            val workshop: String? = null,
+            val segment: String? = null,
+        ) : Support
+
+        /**
+         * "Send diagnostics" — every line that would go, and a switch on each.
+         *
+         * A screen rather than the yes/no sheet it replaces. What leaves the device is not a
+         * thing to summarise in one sentence, and a prompt that summarises it is asking for
+         * consent to something nobody was shown.
+         */
+        @Serializable
+        data object Diagnostics : Support
+
+        /**
+         * What was sent, the code to quote, and the way to take it back.
+         *
+         * [sizeBytes] and [deleteAfterDays] are carried rather than recomputed: they describe
+         * the upload that happened, and a second measurement taken later would describe a
+         * different one.
+         */
+        @Serializable
+        data class DiagnosticsSent(
+            val reference: String,
+            val sizeBytes: Long,
+            val deleteAfterDays: Int,
+        ) : Support
+
+        /**
+         * The report went in — its number, and what actually travelled with it.
+         *
+         * [photos] and [logsAttached] are shown rather than implied, so nobody finds out
+         * later that a photograph went along.
+         */
+        @Serializable
+        data class ReportSent(
+            val ticket: String,
+            /** The area's own name, not its label — the screen resolves the wording. */
+            val area: String,
+            val photos: Int,
+            val logsAttached: Boolean,
+            /** Already masked. The full address is never a navigation argument. */
+            val maskedReplyTo: String,
+        ) : Support
         /**
          * Rate Odo — a bottom sheet that asks for stars, then offers both the store listing
          * and a private message. A key rather than a direct hand-off, unlike Email and
