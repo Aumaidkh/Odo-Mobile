@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.billcheck.domain.matching
+package com.hopcape.odo.core.domain.advisory.matching
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -153,5 +153,44 @@ class BillLineMatcherTest {
             "Periodic service",
             "Paid service - 40000 km",
         )
+    }
+
+    /* ------------------------------- covers ------------------------------- */
+
+    @Test
+    fun aCombinedLineCoversBothJobsEvenThoughNeitherCanBePriced() {
+        // The line the checklist's whole headline case rests on. `match` calls it Unknown on
+        // purpose — no band covers what it charged for — and it still proves both were done.
+        assertEquals(LineMatch.Unknown, matcher.match("Engine oil + filter"))
+        assertEquals(
+            setOf(JobKind.OIL_FILTER, JobKind.ENGINE_OIL),
+            matcher.covers("Engine oil + filter"),
+        )
+    }
+
+    @Test
+    fun aPlainLineCoversTheOneJobItNames() {
+        assertEquals(setOf(JobKind.AIR_FILTER), matcher.covers("Air filter"))
+    }
+
+    @Test
+    fun aLineThatIsNotAJobCoversNothing() {
+        assertEquals(emptySet(), matcher.covers("Labour charges"))
+        assertEquals(emptySet(), matcher.covers("   "))
+    }
+
+    @Test
+    fun aSlashedAbbreviationSurvivesTheSplitItLooksLikeAJoinerFor() {
+        // "/" is a joiner, and `a/c` contains one. Split raw, the halves are "a" and
+        // "c gas" and the AC evidence is lost from the owner's history.
+        assertEquals(
+            setOf(JobKind.AC_SERVICE, JobKind.OIL_FILTER),
+            matcher.covers("A/C gas + oil filter"),
+        )
+    }
+
+    @Test
+    fun aLineNamingNoJobCoversNothingRatherThanGuessing() {
+        assertEquals(emptySet(), matcher.covers("Throttle body"))
     }
 }

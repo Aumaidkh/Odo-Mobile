@@ -2,6 +2,8 @@ package com.hopcape.odo.feature.advisory
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.advisory.domain.ObserveCarValueUseCase
+import com.hopcape.odo.feature.advisory.domain.checklist.PreServiceChecklistBuilder
+import com.hopcape.odo.feature.advisory.domain.checklist.ReadServiceChecklistUseCase
 import com.hopcape.odo.feature.advisory.navigation.AdvisoryFeatureEntryProvider
 import com.hopcape.odo.feature.advisory.presentation.AdvisoryTelemetry
 import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
@@ -23,6 +25,24 @@ val advisoryModule = module {
             logs = get(),
             profiles = get(),
             cities = get(),
+            clock = get(),
+        )
+    }
+
+    // No state — one instance for the process. The matcher it reads is declared once in
+    // :core:data, because the bill check reads the same table.
+    single { PreServiceChecklistBuilder(matcher = get()) }
+
+    factory {
+        ReadServiceChecklistUseCase(
+            cars = get(),
+            logs = get(),
+            odometers = get(),
+            schedule = get(),
+            bands = get(),
+            cities = get(),
+            questionnaire = get(),
+            builder = get(),
             clock = get(),
         )
     }

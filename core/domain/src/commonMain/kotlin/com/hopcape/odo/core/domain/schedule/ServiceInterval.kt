@@ -14,6 +14,8 @@ import com.hopcape.odo.core.domain.shared.DomainError
 data class ServiceInterval(
     /** The server's category slug, e.g. `engine_oil`. */
     val slug: String,
+    /** What a screen calls it — "Engine oil + filter", not the slug. */
+    val displayName: String,
     val km: Int? = null,
     val months: Int? = null,
 ) {
@@ -29,5 +31,13 @@ data class ServiceInterval(
  */
 fun interface ServiceIntervalRepository {
 
-    suspend fun intervals(): Either<DomainError, Map<String, ServiceInterval>>
+    /**
+     * The schedule for one make, keyed by slug.
+     *
+     * [brand] picks the exception rows: a make with a rule of its own overrides the default
+     * for that job, and every other job falls back to the default. Null, or a make the table
+     * has no exception for, gets the default set — which is most cars, and is the answer a
+     * five-minute-old install has to work from.
+     */
+    suspend fun intervals(brand: String?): Either<DomainError, Map<String, ServiceInterval>>
 }

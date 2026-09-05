@@ -1,11 +1,12 @@
-package com.hopcape.odo.feature.billcheck.domain.matching
+package com.hopcape.odo.core.domain.advisory.matching
 
 /**
  * Names what a bill line is, from the words a workshop actually prints.
  *
- * The whole feature rests on this. A band, a schedule interval and the owner's own record are
- * all keyed by the job, so a line nobody can name produces no finding at all — and the screen
- * has to say so rather than tick it as fine.
+ * A band, a schedule interval and the owner's own record are all keyed by the job, so a line
+ * nobody can name produces no finding at all — and the screen has to say so rather than tick
+ * it as fine. In the shared kernel because the bill check and the pre-service checklist both
+ * ask it the same question, and a feature may not import a feature.
  *
  * **Rules, not a model** (AI_ADVISORY_PLAN §1). A rule table is free, offline, instant, and —
  * more to the point — inspectable: when a bill is read wrongly, the fix is a phrase in this
@@ -20,7 +21,7 @@ package com.hopcape.odo.feature.billcheck.domain.matching
  * - **"AC service"** is priced; the bare "ac" category is a different, coarser row.
  * - **"wheel alignment and balancing"** is one job here, and contains "wheel".
  */
-internal class BillLineMatcher {
+class BillLineMatcher {
 
     fun match(line: String): LineMatch {
         val text = line.normalise()
@@ -32,6 +33,28 @@ internal class BillLineMatcher {
         // put in front of an owner at a counter.
         if (line.lowercase().coversMoreThan(whole)) return LineMatch.Unknown
         return LineMatch.Job(whole)
+    }
+
+    /**
+     * Every job this line names, the halves of a combined one included.
+     *
+     * A different question from [match], and a safe one where [match] cannot be. "Engine oil
+     * + filter" is deliberately unpriceable — neither job's band covers what that line
+     * charged for — but it is still proof that both were done, and "when was this last done"
+     * only ever needs the proof.
+     */
+    fun covers(line: String): Set<JobKind> {
+        val text = line.normalise()
+        if (text.isEmpty()) return emptySet()
+        if (NOT_A_JOB.any { text.containsPhrase(it) }) return emptySet()
+        // Abbreviations expanded before the split, never after: "/" is a joiner and `a/c`
+        // contains one, so splitting the raw line tears "A/C gas" into "a" and "c gas".
+        // Splitting the fully normalised text would not work either — normalising flattens
+        // the joiners themselves, leaving one half.
+        val halves = line.lowercase().expandAbbreviations()
+            .split(*JOINERS)
+            .mapNotNull { it.normalise().kind() }
+        return (listOfNotNull(text.kind()) + halves).toSet()
     }
 
     /**
@@ -84,10 +107,15 @@ internal class BillLineMatcher {
          */
         fun String.normalise(): String =
             lowercase()
-                .replace("a/c", "ac")
-                .replace("a.c.", "ac")
+                .expandAbbreviations()
                 .replace(Regex("[^a-z0-9]+"), " ")
                 .trim()
+
+        /**
+         * The abbreviations a bill actually uses, spelled out. Split out of [normalise] so
+         * [covers] can apply it before splitting on joiners — `a/c` carries one.
+         */
+        fun String.expandAbbreviations(): String = replace("a/c", "ac").replace("a.c.", "ac")
 
         /** Whole-word containment, so "oil" does not match inside "boiler". */
         fun String.containsPhrase(phrase: String): Boolean =

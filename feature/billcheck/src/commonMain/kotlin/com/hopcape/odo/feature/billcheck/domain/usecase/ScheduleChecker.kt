@@ -1,10 +1,9 @@
 package com.hopcape.odo.feature.billcheck.domain.usecase
 
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.advisory.matching.JobKind
 import com.hopcape.odo.core.domain.schedule.ServiceInterval
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import com.hopcape.odo.feature.billcheck.domain.matching.JobKind
-import com.hopcape.odo.feature.billcheck.domain.matching.LineMatch
 
 /**
  * When the maker's schedule puts a job further down the road.
@@ -50,10 +49,13 @@ internal class ScheduleChecker(
     /** Two facts: when the maker says it comes round, and where the car is. */
     data class NotDue(val dueAtKm: Int, val currentKm: Int)
 
-    /** Read through the same matcher the bill is, so history and the bill agree on names. */
+    /**
+     * Asks what a line *covers*, not what it is.
+     *
+     * "Engine oil + filter" is `Unknown` to `match` on purpose — no band covers what that one
+     * line charged for — and it is still proof that both jobs were done. Read through `match`,
+     * a car whose every oil change is billed that way looked like a car that had never had one.
+     */
     private fun ServiceLogEntry.covers(kind: JobKind): Boolean =
-        lineItems.any { item ->
-            val label = item.label ?: return@any false
-            (matcher.match(label) as? LineMatch.Job)?.kind == kind
-        }
+        lineItems.any { item -> kind in matcher.covers(item.label ?: return@any false) }
 }

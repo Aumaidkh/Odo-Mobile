@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.advisory.matching.LineMatch
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
@@ -20,8 +22,6 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import com.hopcape.odo.feature.billcheck.domain.matching.LineMatch
 import kotlinx.coroutines.flow.first
 
 /**

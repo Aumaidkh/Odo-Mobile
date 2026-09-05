@@ -2,6 +2,9 @@ package com.hopcape.odo.feature.billcheck.domain.usecase
 
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.advisory.BillLineClassifier
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.advisory.matching.JobKind
+import com.hopcape.odo.core.domain.advisory.matching.LineMatch
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
@@ -18,9 +21,6 @@ import com.hopcape.odo.feature.billcheck.domain.Evidence
 import com.hopcape.odo.feature.billcheck.domain.FlaggedLine
 import com.hopcape.odo.feature.billcheck.domain.PricedLine
 import com.hopcape.odo.feature.billcheck.domain.Reason
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import com.hopcape.odo.feature.billcheck.domain.matching.JobKind
-import com.hopcape.odo.feature.billcheck.domain.matching.LineMatch
 import kotlinx.datetime.LocalDate
 
 /** One line as it was printed on the bill. */
@@ -80,7 +80,7 @@ internal class CheckBillPriceUseCase(
         // A schedule that could not be read is no schedule: repeats fall back to the stated
         // default and schedule claims are simply not made, rather than the screen losing
         // every finding it had.
-        val schedule = intervals.intervals().getOrNull().orEmpty()
+        val schedule = intervals.intervals(car.make).getOrNull().orEmpty()
         val repeats = RepeatFinder(matcher = matcher, intervals = schedule)
         val notDue = ScheduleChecker(matcher = matcher, intervals = schedule)
         val flagged = mutableListOf<FlaggedLine>()

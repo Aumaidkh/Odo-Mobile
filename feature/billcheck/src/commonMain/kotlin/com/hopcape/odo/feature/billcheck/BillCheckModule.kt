@@ -4,9 +4,8 @@ import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
-import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.LoggedBandBasisReader
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
+import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.presentation.BillCheckTelemetry
@@ -25,7 +24,6 @@ import org.koin.dsl.module
  */
 val billCheckModule = module {
 
-    factory { BillLineMatcher() }
     factory {
         CheckBillPriceUseCase(
             matcher = get(),

@@ -2,14 +2,15 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import arrow.core.Either
 import arrow.core.right
-import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.config.FeatureConfig
-import com.hopcape.odo.core.domain.benchmark.FairnessContributor
-import com.hopcape.odo.core.domain.benchmark.PriceObservation
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
+import com.hopcape.odo.core.domain.benchmark.FairnessContributor
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
+import com.hopcape.odo.core.domain.benchmark.PriceObservation
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
@@ -29,17 +30,16 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 
 /**
  * When a check costs the owner something.
