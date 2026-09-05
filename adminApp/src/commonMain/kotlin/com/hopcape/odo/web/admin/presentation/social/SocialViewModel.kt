@@ -105,7 +105,13 @@ data class AccountDraft(
 data class RecipientDraft(
     val chatId: String = "",
     val name: String = "",
-    val canApprove: Boolean = false,
+    /**
+     * Defaults to true, and the database refuses the first row without it.
+     *
+     * A watcher added first ends the environment fallback and leaves nobody able to press the
+     * button — with the queue stuck behind them.
+     */
+    val canApprove: Boolean = true,
 ) {
     val parsedChatId: Long? get() = chatId.trim().toLongOrNull()
     val canSubmit: Boolean get() = name.isNotBlank() && parsedChatId != null
@@ -281,7 +287,23 @@ class SocialViewModel(
     private fun load() {
         viewModelScope.launch {
             _state.update { it.copy(busy = true) }
+
+            // Awaited first, then applied in one non-suspending update.
+            //
+            // `update` retries its lambda when the compare-and-set loses, and the lambda used
+            // to contain all eight reads — so a tab switch or a keystroke landing mid-load
+            // re-ran every request, against a stale snapshot that also discarded what the
+            // owner had just typed.
             val settings = social.settings()
+            val slots = social.slotsOrEmpty()
+            val accounts = social.accountsOrEmpty()
+            val recipients = social.recipientsOrEmpty()
+            val queue = social.queueOrEmpty()
+            val log = social.logOrEmpty()
+            val facts = social.factsOrEmpty()
+            val credentials = social.credentialsOrEmpty()
+            val tick = social.tickSchedule().getOrNull().orEmpty()
+
             _state.update { current ->
                 current.copy(
                     busy = false,
@@ -289,14 +311,14 @@ class SocialViewModel(
                         ifLeft = { Loadable.Failed(it.asUiText(), it.isRetryable, it) },
                         ifRight = { Loadable.Ready(it) },
                     ),
-                    slots = social.slotsOrEmpty(),
-                    accounts = social.accountsOrEmpty(),
-                    recipients = social.recipientsOrEmpty(),
-                    queue = social.queueOrEmpty(),
-                    log = social.logOrEmpty(),
-                    facts = social.factsOrEmpty(),
-                    credentials = social.credentialsOrEmpty(),
-                    tickSchedule = social.tickSchedule().getOrNull().orEmpty(),
+                    slots = slots,
+                    accounts = accounts,
+                    recipients = recipients,
+                    queue = queue,
+                    log = log,
+                    facts = facts,
+                    credentials = credentials,
+                    tickSchedule = tick,
                 )
             }
         }

@@ -209,16 +209,80 @@ async function editResult(
  * running, and the first row added takes over.
  */
 async function mayApprove(chatId: number): Promise<boolean> {
+  const fallback = Deno.env.get("TELEGRAM_CHAT_ID");
+  const isFallback = !!fallback && String(chatId) === fallback;
+
   const { data, error } = await config
     .from("social_telegram_recipients")
     .select("chat_id, can_approve");
-  if (error) return false;
 
-  if (!data || data.length === 0) {
-    const fallback = Deno.env.get("TELEGRAM_CHAT_ID");
-    return !!fallback && String(chatId) === fallback;
-  }
+  // A missing table is the case the fallback exists for — this function deployed ahead of its
+  // migration, which is the ordering a staged rollout produces. Failing closed here would
+  // lock the owner out at exactly the moment the safety net was supposed to hold.
+  if (error) return isFallback;
+  if (!data || data.length === 0) return isFallback;
+
   return data.some((r) => Number(r.chat_id) === chatId && r.can_approve);
+}
+
+/** Whether the whole pipeline is stopped. Checked before anything is published. */
+async function isPaused(): Promise<boolean> {
+  const { data } = await config.from("social_settings").select("paused").limit(1).maybeSingle();
+  return data?.paused === true;
+}
+
+/**
+ * Publish a post sitting at `approved`, and tell the recipients it went out.
+ *
+ * The same Instagram calls the button path makes. What differs is that nobody is watching a
+ * message, so the result is sent as a new one rather than edited into an old one.
+ */
+async function publishApproved(queueId: number): Promise<Response> {
+  if (await isPaused()) {
+    return Response.json({ ok: true, skipped: "paused" });
+  }
+
+  const { data: item } = await supabase.from("content_queue").select("*").eq("id", queueId).single();
+  if (!item || item.status !== "approved") {
+    return Response.json({ ok: true, skipped: "not approved" });
+  }
+
+  try {
+    const caption = `${item.copy.caption}\n\n${item.copy.hashtags}`;
+    const mediaId = item.format === "carousel"
+      ? await igPublishCarousel(item.carousel_urls, caption)
+      : await igPublishSingle(item.post_image_url, caption, false);
+    const storyId = item.story_image_url ? await igPublishSingle(item.story_image_url, null, true) : null;
+
+    await supabase.from("content_queue")
+      .update({ status: "published", updated_at: new Date().toISOString() })
+      .eq("id", queueId);
+    await supabase.from("post_log").insert({ queue_id: queueId, ig_media_id: mediaId, ig_story_id: storyId });
+    await announce(`✅ Published automatically (#${queueId})\nfeed: ${mediaId}${storyId ? `\nstory: ${storyId}` : ""}`);
+    return Response.json({ ok: true, published: mediaId });
+  } catch (e) {
+    await supabase.from("content_queue")
+      .update({ status: "failed", error: String(e), updated_at: new Date().toISOString() })
+      .eq("id", queueId);
+    await announce(`⚠️ Automatic publish FAILED (#${queueId})\n${String(e).slice(0, 300)}`);
+    return Response.json({ ok: false, error: String(e) }, { status: 500 });
+  }
+}
+
+/**
+ * Tell every recipient who asked to hear about it.
+ *
+ * A post that went out with nobody told is a post nobody can catch, which is the one thing
+ * auto mode must not become.
+ */
+async function announce(text: string): Promise<void> {
+  const { data } = await config.from("social_telegram_recipients").select("chat_id").eq("notify", true);
+  const chats = (data ?? []).map((r) => String(r.chat_id));
+  const fallback = Deno.env.get("TELEGRAM_CHAT_ID");
+  const targets = chats.length > 0 ? chats : (fallback ? [fallback] : []);
+  for (const chat of targets) {
+    await tg("sendMessage", { chat_id: chat, text });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -227,6 +291,20 @@ Deno.serve(async (req) => {
   }
 
   const update = await req.json();
+
+  // ── Publish one already-approved post ──
+  //
+  // Not a Telegram update at all: `tick` asks for this when it finds a row the panel's Approve
+  // button or an auto slot left at `approved`. It comes here rather than being copied into the
+  // tick because this file holds the Instagram calls and the token refresh, and two publishers
+  // would drift.
+  //
+  // The webhook secret above is the whole of the authorisation, which is the same guarantee
+  // the button path has: nothing outside this project knows it.
+  if (typeof update?.publish === "number") {
+    return await publishApproved(Number(update.publish));
+  }
+
   const cb = update.callback_query;
   if (!cb?.data) return Response.json({ ok: true }); // ignore non-button updates
 
@@ -321,6 +399,15 @@ Deno.serve(async (req) => {
       await editResult(item, chatId, messageId, `⚠️ FB publish FAILED (#${queueId})\n${String(e).slice(0, 300)}`, true, "fb_");
     }
     return Response.json({ ok: true });
+  }
+
+  if ((action === "approve" || action === "fb_approve") && await isPaused()) {
+    await tg("answerCallbackQuery", {
+      callback_query_id: cb.id,
+      text: "Pipeline paused hai. Admin panel se resume karo.",
+      show_alert: true,
+    });
+    return Response.json({ ok: true, skipped: "paused" });
   }
 
   if (item.status !== "rendered") {
