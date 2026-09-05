@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.support.presentation.report
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.domain.support.TicketDetail
 import com.hopcape.odo.core.domain.support.TicketKind
 import com.hopcape.odo.feature.support.domain.ReplyAddress
@@ -84,7 +85,8 @@ internal class ReportProblemViewModel(
         when (event) {
             ReportEvent.BackClicked -> emit(ReportEffect.NavigateBack)
             is ReportEvent.AreaPicked -> _state.update { it.copy(area = event.area) }
-            is ReportEvent.MessageChanged -> _state.update { it.copy(message = event.message) }
+            is ReportEvent.MessageChanged ->
+                _state.update { it.copy(message = event.message, failed = false) }
             is ReportEvent.AttachLogsToggled -> _state.update { it.copy(attachLogs = event.on) }
             is ReportEvent.EmailChanged ->
                 _state.update { it.copy(email = event.email, emailInvalid = false) }
@@ -101,6 +103,10 @@ internal class ReportProblemViewModel(
 
     private fun send() {
         val current = _state.value
+        // Two taps delivered before the button redraws are two tickets, two references and
+        // two diagnostics requests for one report. The button being disabled is what the
+        // owner sees; this is what makes it true.
+        if (current.sending) return
         // The button is disabled until then, so this only catches a send raised some other
         // way — but the address it would file is one nobody chose.
         if (!current.profileLoaded) return
@@ -108,20 +114,24 @@ internal class ReportProblemViewModel(
             _state.update { it.copy(emailInvalid = true) }
             return
         }
-        _state.update { it.copy(sending = true) }
+        // Cleared here, not left over: a save that failed and then succeeded must not leave
+        // the screen saying it did not.
+        _state.update { it.copy(sending = true, failed = false) }
 
         viewModelScope.launch {
             val replyTo = accountEmail ?: current.email
-            submit(
-                kind = TicketKind.PROBLEM,
-                body = current.message,
-                details = mapOf(TicketDetail.AREA to current.area.name),
-                picked = current.attachments.map { PickedFile(ref = it.ref, name = it.name) },
-                replyTo = replyTo,
-                // Opened before the ticket is built, because the ticket carries the code.
-                // The switch says "helps us find it faster"; this is what makes that true.
-                diagnosticsReference = if (current.attachLogs) requestDiagnostics() else null,
-            ).fold(
+            telemetry.timingSubmit {
+                submit(
+                    kind = TicketKind.PROBLEM,
+                    body = current.message,
+                    details = mapOf(TicketDetail.AREA to current.area.name),
+                    picked = current.attachments.map { PickedFile(ref = it.ref, name = it.name) },
+                    replyTo = replyTo,
+                    // Opened before the ticket is built, because the ticket carries the code.
+                    // The switch says "helps us find it faster"; this makes that true.
+                    diagnosticsReference = if (current.attachLogs) diagnosticsReference() else null,
+                )
+            }.fold(
                 ifLeft = { error ->
                     telemetry.submitFailed(TicketKind.PROBLEM, error)
                     _state.update { it.copy(sending = false, failed = true) }
@@ -129,16 +139,19 @@ internal class ReportProblemViewModel(
                 ifRight = { ticket ->
                     telemetry.ticketSubmitted(
                         kind = TicketKind.PROBLEM,
-                        attachments = current.attachments.size,
-                        logsAttached = current.attachLogs,
+                        // What was stored, never what was picked. A file that would not copy
+                        // is dropped, and saying it travelled is telling the owner their
+                        // screenshot is with support when it is nowhere.
+                        attachments = ticket.attachments.size,
+                        logsAttached = ticket.diagnosticsReference != null,
                     )
                     _state.update { it.copy(sending = false) }
                     emit(
                         ReportEffect.Sent(
                             reference = ticket.reference,
                             area = current.area.name,
-                            photos = current.attachments.size,
-                            logsAttached = current.attachLogs,
+                            photos = ticket.attachments.size,
+                            logsAttached = ticket.diagnosticsReference != null,
                             // Masked here, not on the confirmation: the address must not
                             // travel as a navigation argument, which is written to saved state.
                             maskedReplyTo = maskEmail(replyTo),
@@ -148,6 +161,25 @@ internal class ReportProblemViewModel(
             )
         }
     }
+
+    /**
+     * The diagnostics request for this screen, opened once.
+     *
+     * Held so a retry after a failed save reuses it. Opening a new one per attempt would file
+     * a fresh outbox row and a fresh upload nudge each time, for one report.
+     *
+     * Wrapped, because it writes to the database and schedules work — and a throw escaping
+     * here would take the send down with it, losing a report over a log file.
+     */
+    private suspend fun diagnosticsReference(): String? {
+        openedDiagnostics?.let { return it }
+        return runCatchingCancellableSuspend { requestDiagnostics() }
+            .onFailure { telemetry.submitFailed(TicketKind.PROBLEM, it) }
+            .getOrNull()
+            ?.also { openedDiagnostics = it }
+    }
+
+    private var openedDiagnostics: String? = null
 
     private fun emit(effect: ReportEffect) {
         _effects.trySend(effect)

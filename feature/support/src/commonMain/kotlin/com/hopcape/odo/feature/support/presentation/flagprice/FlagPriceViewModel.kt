@@ -53,7 +53,10 @@ internal class FlagPriceViewModel(
             is FlagPriceEvent.JobNameChanged -> _state.update { it.copy(jobName = event.name) }
             is FlagPriceEvent.ComplaintPicked ->
                 _state.update { it.copy(complaint = event.complaint) }
-            is FlagPriceEvent.PaidChanged -> _state.update { it.copy(paidRupees = event.rupees) }
+            // Capped as well as filtered to digits. Twenty digits overflow a Long, and a
+            // figure that will not parse is a correction the panel cannot act on.
+            is FlagPriceEvent.PaidChanged ->
+                _state.update { it.copy(paidRupees = event.rupees.take(MAX_PAID_DIGITS)) }
             FlagPriceEvent.AttachBillClicked -> emit(FlagPriceEffect.PickBill)
             is FlagPriceEvent.BillPicked -> _state.update { it.copy(billRef = event.ref) }
             FlagPriceEvent.SendClicked -> send()
@@ -62,25 +65,34 @@ internal class FlagPriceViewModel(
 
     private fun send() {
         val current = _state.value
+        // The complaint and the figure are what the screen requires, and this is what makes
+        // the button's own rule true for a send raised any other way — including two taps
+        // delivered before it redraws.
+        if (!current.canSend) return
         _state.update { it.copy(sending = true) }
         viewModelScope.launch {
-            submit(
-                kind = TicketKind.PRICE_CORRECTION,
-                // The figures are the correction; the body is what a person reads first.
-                body = current.body(),
-                details = current.details(),
-                picked = current.billRef?.let { listOf(PickedFile(ref = it, name = BILL_NAME)) }
-                    .orEmpty(),
-            ).fold(
+            telemetry.timingSubmit {
+                submit(
+                    kind = TicketKind.PRICE_CORRECTION,
+                    // The figures are the correction; the body is what a person reads first.
+                    body = current.body(),
+                    details = current.details(),
+                    picked = current.billRef
+                        ?.let { listOf(PickedFile(ref = it, name = BILL_NAME)) }
+                        .orEmpty(),
+                )
+            }.fold(
                 ifLeft = { error ->
                     telemetry.submitFailed(TicketKind.PRICE_CORRECTION, error)
                     _state.update { it.copy(sending = false) }
                     emit(FlagPriceEffect.Failed)
                 },
-                ifRight = {
+                ifRight = { ticket ->
                     telemetry.ticketSubmitted(
                         kind = TicketKind.PRICE_CORRECTION,
-                        attachments = if (current.billRef == null) 0 else 1,
+                        // What was stored, not what was picked: a bill that would not copy is
+                        // dropped, and counting it says a photograph reached support.
+                        attachments = ticket.attachments.size,
                         logsAttached = false,
                     )
                     _state.update { it.copy(sending = false) }
@@ -96,6 +108,9 @@ internal class FlagPriceViewModel(
 
     private companion object {
         const val BILL_NAME = "bill"
+
+        /** Rs. 99,99,99,999 is past any service bill, and short of a Long in paise. */
+        const val MAX_PAID_DIGITS = 9
     }
 }
 
@@ -115,8 +130,9 @@ private fun FlagPriceUiState.body(): String {
 private fun FlagPriceUiState.details(): Map<String, String> = buildMap {
     put(TicketDetail.JOB, band?.lineName ?: jobName)
     complaint?.let { put(TicketDetail.COMPLAINT, it.name) }
-    // Paise, like every other money column in the schema. The field takes whole rupees.
-    paidRupees.toLongOrNull()?.let { put(TicketDetail.PAID_PAISE, (it * PAISE).toString()) }
+    // Paise, like every other money column in the schema. The state parses it, so this and
+    // the button's own rule cannot disagree about whether there is a figure.
+    paidPaise?.let { put(TicketDetail.PAID_PAISE, it.toString()) }
     band?.let {
         put(TicketDetail.BAND_LOW_PAISE, it.lowPaise.toString())
         put(TicketDetail.BAND_HIGH_PAISE, it.highPaise.toString())
@@ -126,4 +142,3 @@ private fun FlagPriceUiState.details(): Map<String, String> = buildMap {
     }
 }
 
-private const val PAISE = 100L

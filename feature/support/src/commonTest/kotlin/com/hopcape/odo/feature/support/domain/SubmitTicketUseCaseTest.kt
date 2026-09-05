@@ -121,6 +121,40 @@ class SubmitTicketUseCaseTest {
         assertEquals(1, tickets.submitted.size, "the report was still saved")
     }
 
+    /**
+     * A body that will be refused should not leave a screenshot on disk that no row will
+     * ever point at.
+     */
+    @Test
+    fun `a refused body copies nothing`() = runTest {
+        val files = FakeFiles()
+
+        useCase(files = files)(
+            kind = TicketKind.PROBLEM,
+            body = "  ",
+            picked = listOf(PickedFile(ref = "content://picker/9", name = "bill.jpg")),
+        )
+
+        assertTrue(files.saved.isEmpty())
+    }
+
+    /**
+     * Every retry mints a fresh id, so without cleaning up, a save that fails three times
+     * leaves three copies of every screenshot in the owner's storage.
+     */
+    @Test
+    fun `a failed save takes its copies with it`() = runTest {
+        val files = FakeFiles()
+
+        useCase(FakeTickets(failing = true), files = files)(
+            kind = TicketKind.PROBLEM,
+            body = "Something broke.",
+            picked = listOf(PickedFile(ref = "content://picker/9", name = "bill.jpg")),
+        )
+
+        assertEquals(files.saved, files.deleted, "what was written was removed again")
+    }
+
     /* ------------------------------ The reference ------------------------------ */
 
     /** Derived from the id, so it exists with no signal and matches what the panel computes. */

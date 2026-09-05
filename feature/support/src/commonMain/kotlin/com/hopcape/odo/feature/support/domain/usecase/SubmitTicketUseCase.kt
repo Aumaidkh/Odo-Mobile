@@ -39,7 +39,9 @@ internal class SubmitTicketUseCase(
         diagnosticsReference: String? = null,
     ): Either<DomainError, SupportTicket> = either {
         val id = SupportTicketId(ids.newId())
-        val ticket = SupportTicket.create(
+        // Validated before anything is copied. A body that will be refused should not leave
+        // a screenshot on disk that no row will ever reference.
+        val draft = SupportTicket.create(
             id = id,
             kind = kind,
             body = body,
@@ -47,11 +49,19 @@ internal class SubmitTicketUseCase(
             // Blank values are dropped rather than stored: a detail column holding "" is a
             // fact nobody can filter on and one more thing for the panel to special-case.
             details = details.filterValues { it.isNotBlank() },
-            attachments = picked.copyInto(id),
             replyTo = replyTo,
             diagnosticsReference = diagnosticsReference,
         ).bind()
-        tickets.submit(ticket).bind()
+
+        val stored = picked.copyInto(id)
+        tickets.submit(draft.copy(attachments = stored))
+            .onLeft {
+                // Nothing will ever reference these now, and every retry mints a fresh id —
+                // so without this a save that fails three times leaves three copies of every
+                // screenshot in the owner's storage.
+                stored.forEach { files.delete(it.storageKey) }
+            }
+            .bind()
     }
 
     /**
