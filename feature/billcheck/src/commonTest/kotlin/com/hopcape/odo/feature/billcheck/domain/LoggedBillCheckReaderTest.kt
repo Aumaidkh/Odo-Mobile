@@ -239,6 +239,50 @@ class LoggedBillCheckReaderTest {
         assertEquals(true, result.getOrNull()!!.locked)
     }
 
+    /**
+     * A hand-logged entry: one total, one category, no breakdown. The older report checked
+     * these, and the check moving here must not take that answer away.
+     */
+    @Test
+    fun `an entry with one total and one category is still checked`() = runTest {
+        val check = reader(lines = emptyList(), category = ServiceCategory.OIL_CHANGE)
+            .read(BILL).getOrNull()!!.check
+
+        assertEquals(1, check.flagged.size + check.fine.size, "the whole total, as one job")
+    }
+
+    /** Two categories on one total cannot be split, and a guessed share is a made-up figure. */
+    @Test
+    fun `an entry with one total and two categories is not checked`() = runTest {
+        val charger = CountingCharger()
+
+        val check = reader(
+            charger = charger,
+            lines = emptyList(),
+            categories = setOf(ServiceCategory.OIL_CHANGE, ServiceCategory.BRAKES),
+        ).read(BILL).getOrNull()!!.check
+
+        assertTrue(check.flagged.isEmpty() && check.fine.isEmpty())
+        assertEquals(0, charger.charges)
+    }
+
+    /**
+     * The trust rule, where it belongs. A self-reported price answers the owner's own
+     * question and never becomes the band the next owner is shown.
+     */
+    @Test
+    fun `a self-reported entry is checked but never files its prices`() = runTest {
+        val given = mutableListOf<PriceObservation>()
+        val charger = CountingCharger()
+
+        val check = reader(charger = charger, contributor = { given += it }, verified = false)
+            .read(BILL).getOrNull()!!.check
+
+        assertTrue(check.flagged.isNotEmpty(), "the owner still gets their answer")
+        assertEquals(1, charger.charges, "and it is still a check they used")
+        assertTrue(given.isEmpty(), "but nobody else learns a price from it")
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reader(
@@ -246,6 +290,11 @@ class LoggedBillCheckReaderTest {
         lines: List<Pair<String, Int>> = listOf("AC service" to 2_400),
         /** No such entry — the id points at nothing. */
         missing: Boolean = false,
+        /** A hand-logged entry has no breakdown, only categories. */
+        category: ServiceCategory? = null,
+        categories: Set<ServiceCategory> = setOfNotNull(category),
+        /** A photographed bill. Only a verified entry's prices reach the pool. */
+        verified: Boolean = true,
         city: String? = "Srinagar",
         workshop: WorkshopTier? = WorkshopTier.AUTHORISED,
         spy: MutableList<PriceBandQuery>? = null,
@@ -254,7 +303,7 @@ class LoggedBillCheckReaderTest {
         /** Whether the owner may see the result. A masked one is never charged for. */
         unlocked: Boolean = true,
     ): LoggedBillCheckReader {
-        val stored = if (missing) null else entryOf(lines)
+        val stored = if (missing) null else entryOf(lines, categories, verified)
         return LoggedBillCheckReader(
             entries = FakeEntries(stored),
             cars = FakeCars(car()),
@@ -364,7 +413,11 @@ class LoggedBillCheckReaderTest {
             variant = "VXi",
         ).getOrNull()!!
 
-        fun entryOf(lines: List<Pair<String, Int>>) = ServiceLogEntry.create(
+        fun entryOf(
+            lines: List<Pair<String, Int>>,
+            categories: Set<ServiceCategory> = emptySet(),
+            verified: Boolean = true,
+        ) = ServiceLogEntry.create(
             id = ServiceLogId(BILL),
             carId = CarId("car-1"),
             ownerId = OwnerId("owner-1"),
@@ -372,6 +425,8 @@ class LoggedBillCheckReaderTest {
             odometerKm = 12_000,
             totalAmountPaise = 18_400 * 100L,
             today = LocalDate(2026, 8, 12),
+            categories = categories,
+            billPhotoRef = "bills/test.jpg".takeIf { verified },
             lineItems = lines.map { (label, rupees) ->
                 ServiceLogLineItemDraft(
                     label = label,
