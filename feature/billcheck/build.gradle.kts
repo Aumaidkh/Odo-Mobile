@@ -25,6 +25,9 @@ kotlin {
             // The shared kernel: Amount, Car, and DomainError. The check's own model
             // lives in this module, per the use-cases-in-the-feature rule.
             implementation(projects.core.domain)
+            // The kill switch on the model fallback, read at the moment a line comes back
+            // unnamed so a console flip lands on the next check.
+            implementation(projects.core.config)
             // Sharing the findings is a platform action, so the feature needs the port.
             implementation(projects.core.platform)
             implementation(projects.observability.logging)

@@ -57,3 +57,9 @@ verify_jwt = true
 # exactly the right gate — and the function then insists on the blog_author claim on top,
 # because any app account has a valid token and no business redeploying the website.
 verify_jwt = true
+
+[functions.advisory-classify]
+# The caller is a signed-in owner checking their own bill, so the platform's own JWT check is
+# the right gate — and it is also what identifies them, because the spend meter is per owner
+# and an unattributed call cannot be capped.
+verify_jwt = true

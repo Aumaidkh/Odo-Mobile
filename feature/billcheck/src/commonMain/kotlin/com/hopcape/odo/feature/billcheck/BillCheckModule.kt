@@ -26,7 +26,16 @@ val billCheckModule = module {
 
     factory { BillLineMatcher() }
     factory {
-        CheckBillPriceUseCase(matcher = get(), bands = get(), intervals = get())
+        CheckBillPriceUseCase(
+            matcher = get(),
+            bands = get(),
+            intervals = get(),
+            // The model, for lines the rules could not name. Bound to the offline classifier
+            // that names nothing on a build with no credentials, and gated by a flag that
+            // ships off — so this costs nothing until both are true.
+            classifier = get(),
+            config = get(),
+        )
     }
 
     // The bill is a service-log entry — that is where a scan lands, and it carries the lines

@@ -60,6 +60,7 @@ class ObserveAutoOdometerCardStateTest {
         override val refuelDetectEnabled = true
         override val challanEnabled = false
         override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = false
     }
 
     @Test

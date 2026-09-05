@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.billcheck.domain.usecase
 
+import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
@@ -17,6 +19,7 @@ import com.hopcape.odo.feature.billcheck.domain.FlaggedLine
 import com.hopcape.odo.feature.billcheck.domain.PricedLine
 import com.hopcape.odo.feature.billcheck.domain.Reason
 import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
+import com.hopcape.odo.feature.billcheck.domain.matching.JobKind
 import com.hopcape.odo.feature.billcheck.domain.matching.LineMatch
 import kotlinx.datetime.LocalDate
 
@@ -45,11 +48,17 @@ internal data class CheckedBill(
  * the tables carry no price for, comes back unchecked rather than fine: `fine` is drawn with
  * a tick and reads as "we checked this", and saying that about a line nobody priced would be
  * the app claiming work it did not do.
+ *
+ * The rules run first and the model only sees what they could not name. It names a job and
+ * never a price — the band comes from the tables either way — and what it names is kept out
+ * of the shared pool (see [namedByModel]).
  */
 internal class CheckBillPriceUseCase(
     private val matcher: BillLineMatcher,
     private val bands: PriceBandRepository,
     private val intervals: ServiceIntervalRepository,
+    private val classifier: BillLineClassifier,
+    private val config: FeatureConfig,
 ) {
 
     suspend operator fun invoke(
@@ -79,35 +88,47 @@ internal class CheckBillPriceUseCase(
         val unchecked = mutableListOf<PricedLine>()
         val observations = mutableListOf<PriceObservation>()
 
-        lines.forEach { line ->
+        val matched = lines.map { it to matcher.match(it.label) }
+        val byModel = namedByModel(matched)
+
+        matched.forEach { (line, match) ->
             val priced = PricedLine(line.label, line.amount)
-            when (val match = matcher.match(line.label)) {
+            val kind = when (match) {
                 // Labour, tax, a discount. There is nothing to check it against, and the
                 // modelled band already includes labour anyway.
-                LineMatch.NotAJob, LineMatch.Unknown -> unchecked += priced
+                LineMatch.NotAJob -> null
+                LineMatch.Unknown -> byModel[line.label]
+                is LineMatch.Job -> match.kind
+            }
+            if (kind == null) {
+                unchecked += priced
+                return@forEach
+            }
 
-                is LineMatch.Job -> {
-                    val repeat = repeats.previous(match.kind, history, billDate)
-                    val early = notDue.notDueYet(match.kind, odometerKm, history)
-                    val band = bandFor(match, car, city, workshop)
-                    // Every named line with a band is a real price somebody paid, whatever
-                    // else was said about it — a repeat is still a price, and the pool is
-                    // about what things cost rather than about who should have asked.
-                    if (band != null && city != null) {
-                        observations += line.observed(match, car, city, workshop)
-                    }
-                    when {
-                        // The record beats both tables. It is the owner's own data, and "you
-                        // had this in April" is a harder question than anything else here.
-                        repeat != null -> flagged += line.repeated(repeat)
-                        // Then the maker's schedule, which is a published fact, ahead of a
-                        // band that is often a calculation.
-                        early != null -> flagged += line.notDueYet(early)
-                        band == null -> unchecked += priced
-                        line.amount.paise > band.high.paise -> flagged += line.overpriced(band)
-                        else -> fine += priced
-                    }
-                }
+            val repeat = repeats.previous(kind, history, billDate)
+            val early = notDue.notDueYet(kind, odometerKm, history)
+            val band = bandFor(kind, car, city, workshop)
+            // Every named line with a band is a real price somebody paid, whatever else was
+            // said about it — a repeat is still a price, and the pool is about what things
+            // cost rather than about who should have asked.
+            //
+            // **Unless the model named it.** A price filed against the wrong job comes back to
+            // some other owner as their band, and the rules are the only naming this can
+            // defend to a stranger. The owner gets their answer either way; the pool takes
+            // only what a phrase in a table stands behind.
+            if (band != null && city != null && match is LineMatch.Job) {
+                observations += line.observed(kind, car, city, workshop)
+            }
+            when {
+                // The record beats both tables. It is the owner's own data, and "you had this
+                // in April" is a harder question than anything else here.
+                repeat != null -> flagged += line.repeated(repeat)
+                // Then the maker's schedule, which is a published fact, ahead of a band that
+                // is often a calculation.
+                early != null -> flagged += line.notDueYet(early)
+                band == null -> unchecked += priced
+                line.amount.paise > band.high.paise -> flagged += line.overpriced(band)
+                else -> fine += priced
             }
         }
 
@@ -131,14 +152,45 @@ internal class CheckBillPriceUseCase(
         ))
     }
 
+    /**
+     * The jobs the rules could not name, named by the model.
+     *
+     * Only [LineMatch.Unknown] is sent. A [LineMatch.NotAJob] line is one the rules were
+     * certain about, and a model that read "labour charges for AC service" as an AC service
+     * would price a whole job against a labour line.
+     *
+     * Off by default — see [FeatureConfig.advisoryClassifierEnabled]. Off, nothing leaves the
+     * device and those lines stay unchecked, which is what they do today. Asked here rather
+     * than at construction so a flip lands on the next check.
+     *
+     * A slug this app has no [JobKind] for is dropped. The server's catalogue is the longer
+     * list, and a slug nothing here can look up is not an answer.
+     */
+    private suspend fun namedByModel(
+        matched: List<Pair<BillLine, LineMatch>>,
+    ): Map<String, JobKind> {
+        if (!config.advisoryClassifierEnabled) return emptyMap()
+        val unknown = matched
+            .filter { (_, match) -> match == LineMatch.Unknown }
+            .map { (line, _) -> line.label }
+            .filterNot { it.looksPersonal() }
+            .distinct()
+        if (unknown.isEmpty()) return emptyMap()
+
+        val bySlug = JobKind.entries.associateBy { it.slug }
+        return classifier.classify(unknown)
+            .mapNotNull { (label, slug) -> bySlug[slug]?.let { label to it } }
+            .toMap()
+    }
+
     /** What this line says about what a job costs here. Never who paid it. */
     private fun BillLine.observed(
-        match: LineMatch.Job,
+        kind: JobKind,
         car: Car,
         city: String,
         workshop: WorkshopTier,
     ) = PriceObservation(
-        categorySlug = match.kind.slug,
+        categorySlug = kind.slug,
         city = city,
         amount = amount,
         segment = SegmentCatalog.segmentOrNull(car.model),
@@ -156,13 +208,13 @@ internal class CheckBillPriceUseCase(
      * in front of an owner that is wrong in the direction that costs them the argument.
      */
     private suspend fun bandFor(
-        match: LineMatch.Job,
+        kind: JobKind,
         car: Car,
         city: String?,
         workshop: WorkshopTier,
     ): PriceBand? = bands.bandFor(
         PriceBandQuery(
-            categorySlug = match.kind.slug,
+            categorySlug = kind.slug,
             city = city ?: return null,
             segment = SegmentCatalog.segmentOrNull(car.model),
             fuel = car.fuelType,
@@ -208,9 +260,26 @@ internal class CheckBillPriceUseCase(
         },
     )
 
+    /**
+     * Whether this line carries something about the owner rather than about a job.
+     *
+     * Line labels come from OCR, and a header the scanner read as a line item can carry the
+     * plate, a phone number or an email. A line like that names no job anyway, so the only
+     * thing sending it achieves is putting it in a server-side table that keeps it. Dropped
+     * before the request rather than redacted after it.
+     */
+    private fun String.looksPersonal(): Boolean = PERSONAL.any { it.containsMatchIn(this) }
+
     private companion object {
         /** Where a schedule claim sorts among the price rungs: above a city estimate. */
         const val SCHEDULE_RANK = 2
+
+        /** An Indian registration number, a ten-digit phone, an email. */
+        val PERSONAL = listOf(
+            Regex("""\b[A-Za-z]{2}[\s-]?\d{1,2}[\s-]?[A-Za-z]{0,3}[\s-]?\d{4}\b"""),
+            Regex("""\b\d{10}\b"""),
+            Regex("""[\w.+-]+@[\w-]+\.[\w.-]+"""),
+        )
     }
 
     /** "Swift VXi" — what the header says, and never the plate. */

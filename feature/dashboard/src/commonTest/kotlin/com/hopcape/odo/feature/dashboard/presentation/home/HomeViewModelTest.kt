@@ -459,6 +459,7 @@ class HomeViewModelTest {
         override val refuelDetectEnabled = refuelDetect
         override val challanEnabled = false
         override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = false
     }
 
     private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {

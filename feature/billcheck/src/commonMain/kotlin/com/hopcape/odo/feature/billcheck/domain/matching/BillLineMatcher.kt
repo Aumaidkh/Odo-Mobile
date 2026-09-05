@@ -77,6 +77,10 @@ internal class BillLineMatcher {
          * Lower-cased, punctuation flattened to spaces, and the abbreviations a bill actually
          * uses spelled out. `a/c` and `a.c.` are the same word as `ac`, and a workshop writes
          * all three.
+         *
+         * `advisory-classify`'s `labelKey` repeats this, because it is the key its cache is
+         * stored under. The two have to stay the same: drift, and a phrase promoted into
+         * [RULES] keeps being asked about there under a key nothing matches.
          */
         fun String.normalise(): String =
             lowercase()
