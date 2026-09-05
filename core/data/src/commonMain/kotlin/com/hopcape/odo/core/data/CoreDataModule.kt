@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.appstatus.MaintenanceAwareSyncGate
 import com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
+import com.hopcape.odo.core.data.advisory.OfflineBillLineClassifier
 import com.hopcape.odo.core.data.auth.OfflineAccountEraser
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.FakeVehicleCatalogRemoteDataSource
@@ -118,6 +119,7 @@ import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
@@ -291,6 +293,9 @@ val coreDataModule = module {
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.
     single<AccountEraser> { OfflineAccountEraser() }
+    // Same swap again: no credentials means no Edge Function to ask, so the bill check runs
+    // on its rule table alone.
+    single<BillLineClassifier> { OfflineBillLineClassifier() }
     // The plate lookup without a server: this device's own cars, then the hardcoded
     // plates so a checkout with no credentials can still walk the "is this your car?"
     // path. `supabaseModule` replaces the whole binding once a build has credentials,

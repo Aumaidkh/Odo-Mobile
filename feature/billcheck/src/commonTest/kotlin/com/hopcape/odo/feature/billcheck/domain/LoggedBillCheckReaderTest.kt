@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.right
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.benchmark.FairnessContributor
 import com.hopcape.odo.core.domain.benchmark.PriceObservation
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
@@ -313,6 +314,16 @@ class LoggedBillCheckReaderTest {
                 matcher = BillLineMatcher(),
                 bands = FakeBands(spy),
                 intervals = { emptyMap<String, com.hopcape.odo.core.domain.schedule.ServiceInterval>().right() },
+                // The reader's job is the charge, the ledger and the pool, none of which the
+                // model fallback touches. It stays off here, as it ships.
+                classifier = { emptyMap() },
+                config = object : FeatureConfig {
+                    override val autoOdometerEnabled = true
+                    override val refuelDetectEnabled = true
+                    override val challanEnabled = false
+                    override val plateLookupEnabled = false
+                    override val advisoryClassifierEnabled = false
+                },
             ),
             charger = charger,
             contributor = contributor,

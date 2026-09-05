@@ -5,6 +5,7 @@ import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.city.CityRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
@@ -28,6 +29,7 @@ import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseBillLineClassifier
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.data.car.vehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -128,6 +130,18 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         // reads DomainError.NoVerifiedAccount and does the local wipe alone.
         single<AccountEraser> {
             SupabaseAccountEraser(client = get(), environment = get(), telemetry = get())
+        }
+
+        // The model naming bill lines the rules could not. Inside the configured branch for
+        // the same reason as the eraser: it is a real HTTP call, and an unconfigured build
+        // falls through to the offline classifier that names nothing.
+        single<BillLineClassifier> {
+            SupabaseBillLineClassifier(
+                client = get(),
+                environment = get(),
+                tokens = get(),
+                telemetry = get(),
+            )
         }
 
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }

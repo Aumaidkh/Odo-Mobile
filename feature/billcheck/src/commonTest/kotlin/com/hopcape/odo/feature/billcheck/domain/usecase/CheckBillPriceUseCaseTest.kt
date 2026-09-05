@@ -3,6 +3,8 @@ package com.hopcape.odo.feature.billcheck.domain.usecase
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
@@ -368,6 +370,8 @@ class CheckBillPriceUseCaseTest {
             matcher = BillLineMatcher(),
             bands = FakeBands(band(), null, false, null),
             intervals = { emptyMap<String, ServiceInterval>().right() },
+            classifier = namesNothing,
+            config = config(classifier = false),
         ).invoke(
             car = car(),
             city = null,
@@ -382,16 +386,153 @@ class CheckBillPriceUseCaseTest {
         assertTrue(result.observations.isEmpty())
     }
 
+    /* ------------------------------ The model fallback ------------------------------ */
+
+    /**
+     * The line the mockups are built around. "Throttle body cleaning" is in no rule table
+     * here, and until the model names it the owner is told nothing about it at all.
+     */
+    @Test
+    fun `a line the rules cannot name is named by the model`() = runTest {
+        val check = check(
+            lines = listOf(line("Throttle body cleaning", 3_400)),
+            classifier = classifier(mapOf("Throttle body cleaning" to "general_service")),
+            modelEnabled = true,
+        )
+
+        assertTrue(check.unchecked.isEmpty(), "the model named it, so it was checked")
+        assertEquals(listOf("Throttle body cleaning"), check.flagged.map { it.name })
+    }
+
+    /** Off, and nothing leaves the device — which is how every build ships today. */
+    @Test
+    fun `the model is not asked while the flag is off`() = runTest {
+        val asked = mutableListOf<List<String>>()
+
+        val check = check(
+            lines = listOf(line("Throttle body cleaning", 3_400)),
+            classifier = classifier(mapOf("Throttle body cleaning" to "ac_service"), asked),
+        )
+
+        assertTrue(asked.isEmpty())
+        assertEquals(listOf("Throttle body cleaning"), check.unchecked.map { it.name })
+    }
+
+    /**
+     * Only what the rules could not name. A labour line is one they were *certain* about, and
+     * a model reading "labour charges for AC service" as an AC service would price a whole job
+     * against it.
+     */
+    @Test
+    fun `only the lines the rules could not name are sent`() = runTest {
+        val asked = mutableListOf<List<String>>()
+
+        check(
+            lines = listOf(
+                line("AC service", 2_400),
+                line("Labour charges", 800),
+                line("Injector cleaning", 1_900),
+            ),
+            classifier = classifier(emptyMap(), asked),
+            modelEnabled = true,
+        )
+
+        assertEquals(listOf(listOf("Injector cleaning")), asked)
+    }
+
+    /** Asked once for the whole bill, not once per line. */
+    @Test
+    fun `one call covers every unnamed line`() = runTest {
+        val asked = mutableListOf<List<String>>()
+
+        check(
+            lines = listOf(line("Injector cleaning", 1_900), line("Throttle body", 3_400)),
+            classifier = classifier(emptyMap(), asked),
+            modelEnabled = true,
+        )
+
+        assertEquals(1, asked.size)
+        assertEquals(listOf("Injector cleaning", "Throttle body"), asked.single())
+    }
+
+    /** The server's catalogue is the longer list. A slug nothing here can look up is no answer. */
+    @Test
+    fun `a slug this app cannot look up is ignored`() = runTest {
+        val check = check(
+            lines = listOf(line("Sunroof drain cleaning", 900)),
+            classifier = classifier(mapOf("Sunroof drain cleaning" to "sunroof")),
+            modelEnabled = true,
+        )
+
+        assertEquals(listOf("Sunroof drain cleaning"), check.unchecked.map { it.name })
+    }
+
+    /**
+     * A header the scanner read as a line item. It names no job, so the only thing sending it
+     * would achieve is putting a plate in a table on a server that keeps it.
+     */
+    @Test
+    fun `a line carrying the owner's own details is never sent`() = runTest {
+        val asked = mutableListOf<List<String>>()
+
+        val check = check(
+            lines = listOf(
+                line("Vehicle No JK01AB1234", 0),
+                line("Contact 9876543210", 0),
+                line("billing@workshop.co.in", 0),
+            ),
+            classifier = classifier(emptyMap(), asked),
+            modelEnabled = true,
+        )
+
+        assertTrue(asked.isEmpty())
+        assertEquals(3, check.unchecked.size)
+    }
+
+    /**
+     * The owner gets their answer; the pool does not get the price.
+     *
+     * A price filed against the wrong job comes back to some other owner as their band, and a
+     * phrase in a rule table is the only naming that can be defended to a stranger.
+     */
+    @Test
+    fun `what the model named is never offered back to the pool`() = runTest {
+        val result = checked(
+            lines = listOf(line("Throttle body cleaning", 3_400)),
+            classifier = classifier(mapOf("Throttle body cleaning" to "general_service")),
+            modelEnabled = true,
+        )
+
+        assertTrue(result.check.flagged.isNotEmpty(), "it was still checked for the owner")
+        assertTrue(result.observations.isEmpty())
+    }
+
+    /** And a line the rules named still is — the model changes nothing about those. */
+    @Test
+    fun `what the rules named is still offered back`() = runTest {
+        val result = checked(
+            lines = listOf(line("AC service", 2_400)),
+            classifier = classifier(mapOf("AC service" to "general_service")),
+            modelEnabled = true,
+        )
+
+        assertEquals(listOf("ac_service"), result.observations.map { it.categorySlug })
+    }
+
     /* ------------------------------ Fixtures ------------------------------ */
 
     /** The whole result, for the tests that care what goes back to the pool. */
     private suspend fun checked(
         lines: List<BillLine>,
         band: PriceBand? = band(),
+        classifier: BillLineClassifier = namesNothing,
+        modelEnabled: Boolean = false,
     ) = CheckBillPriceUseCase(
         matcher = BillLineMatcher(),
         bands = FakeBands(band, null, false, null),
         intervals = { emptyMap<String, ServiceInterval>().right() },
+        classifier = classifier,
+        config = config(classifier = modelEnabled),
     ).invoke(
         car = car(),
         city = "Srinagar",
@@ -413,10 +554,14 @@ class CheckBillPriceUseCaseTest {
         history: List<ServiceLogEntry> = emptyList(),
         intervals: Map<String, ServiceInterval> = emptyMap(),
         odometerKm: Int = 12_000,
+        classifier: BillLineClassifier = namesNothing,
+        modelEnabled: Boolean = false,
     ) = CheckBillPriceUseCase(
         matcher = BillLineMatcher(),
         bands = FakeBands(band, bandsByCategory, failing, spy),
         intervals = { intervals.right() },
+        classifier = classifier,
+        config = config(classifier = modelEnabled),
     ).invoke(
         car = car,
         city = "Srinagar",
@@ -485,6 +630,26 @@ class CheckBillPriceUseCaseTest {
             ServiceLogLineItemDraft(label = it, category = ServiceCategory.OTHER, amountPaise = 50_000)
         },
     ).getOrNull()!!
+
+    /** The model, off. What every test that is not about it gets. */
+    private val namesNothing = BillLineClassifier { emptyMap() }
+
+    /** The model, naming [named] and recording what it was asked. */
+    private fun classifier(
+        named: Map<String, String>,
+        asked: MutableList<List<String>>? = null,
+    ) = BillLineClassifier { labels ->
+        asked?.add(labels)
+        named.filterKeys { it in labels }
+    }
+
+    private fun config(classifier: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = classifier
+    }
 
     private companion object {
         val BILL_DATE = LocalDate(2026, 8, 12)

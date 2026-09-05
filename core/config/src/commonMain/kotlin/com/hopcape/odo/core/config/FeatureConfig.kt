@@ -103,4 +103,26 @@ interface FeatureConfig {
         why = "Gate on resolving a plate against other owners' cars, and the kill switch after",
     )
     val plateLookupEnabled: Boolean
+
+    /**
+     * Whether a bill line the app's rules could not name is sent to the model to be named.
+     *
+     * **Off by default, and this one has to be.** Off, nothing leaves the device: the check
+     * runs on the rule table alone and an unnamed line stays unchecked, exactly as it does
+     * today. On, the wording printed on a bill goes to an Edge Function and from there to
+     * Google — which is a sentence the privacy policy owes before any release carries it
+     * (AI_ADVISORY_PLAN, #261). The flag is what keeps those two facts in step.
+     *
+     * It is also the spend switch on the app's side. The Edge Function meters itself per owner
+     * and per day, but the cheapest call is the one nobody makes.
+     *
+     * Read at the moment a line comes back unnamed, so a flip lands on the next check.
+     */
+    @Flag(
+        key = "advisory_classifier_enabled",
+        default = false,
+        owner = "platform",
+        why = "Gate on sending unmatched bill lines to the model, and the kill switch after",
+    )
+    val advisoryClassifierEnabled: Boolean
 }

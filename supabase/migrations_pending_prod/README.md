@@ -19,6 +19,7 @@ backlog.
 | `20260902180000_resolve_plate.sql` | Creates the `resolve_plate` RPC | Yes — additive |
 | `20260904120000_declared_log_source.sql` | Adds the `declared` label to `log_source` | Yes — additive |
 | `20260904160000_purchase_credits.sql` | Creates `purchase_claims` + `credit_spends` | Yes — additive |
+| `20260905100000_advisory_classifier.sql` | Creates `bill_line_classifications` + `advisory_call_meter` | Yes — additive, and both are deny-all |
 
 ## The one that is not safe yet
 
