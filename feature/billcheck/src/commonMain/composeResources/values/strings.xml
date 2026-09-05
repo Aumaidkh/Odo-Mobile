@@ -58,6 +58,8 @@
     <string name="bc_masked_subhead">%1$d of %2$d lines flagged</string>
 
     <!-- Nothing to show -->
+    <!-- Said once for the whole skeleton, to a screen reader, while the check runs. -->
+    <string name="bc_loading">Checking this bill</string>
     <string name="bc_error">Couldn’t read this bill. Try again in a moment.</string>
     <string name="bc_retry">Try again</string>
 

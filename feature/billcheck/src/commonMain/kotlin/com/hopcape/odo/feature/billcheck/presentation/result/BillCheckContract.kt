@@ -48,7 +48,7 @@ internal sealed interface BillCheckEffect {
     data object OpenShareCard : BillCheckEffect
 
     /** Open "How we know" for [lineName]. */
-    data class OpenBasis(val lineName: String) : BillCheckEffect
+    data class OpenBasis(val lineName: String, val categorySlug: String) : BillCheckEffect
 
     /** Open the one-time offers, framed as the bill-check wall. */
     data object OpenOffers : BillCheckEffect

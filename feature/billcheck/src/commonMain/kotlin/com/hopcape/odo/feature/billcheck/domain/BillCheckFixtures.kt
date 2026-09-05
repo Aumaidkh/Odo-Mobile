@@ -29,6 +29,7 @@ internal object BillCheckFixtures {
                 amount = rupees(2_400),
                 reason = Reason.AboveBand(low = rupees(1_400), high = rupees(1_800)),
                 evidence = Evidence.CityRates,
+                categorySlug = "ac_service",
             ),
             FlaggedLine(
                 name = "Injector cleaning",
@@ -36,6 +37,7 @@ internal object BillCheckFixtures {
                 reason = Reason.ScheduledLater(dueAtKm = 40_000, currentKm = 12_000),
                 // No dots: this says nothing about the price.
                 evidence = null,
+                categorySlug = "general_service",
             ),
         ),
         fine = listOf(
@@ -68,12 +70,14 @@ internal object BillCheckFixtures {
                 amount = rupees(1_800),
                 reason = Reason.DoneRecently(monthsAgo = 4, on = LocalDate(2026, 4, 12)),
                 evidence = Evidence.OwnRecord,
+                categorySlug = "general_service",
             ),
             FlaggedLine(
                 name = "AC service",
                 amount = rupees(2_400),
                 reason = Reason.AboveBand(low = rupees(1_500), high = rupees(1_700)),
                 evidence = Evidence.RealBills(count = 14),
+                categorySlug = "ac_service",
             ),
             FlaggedLine(
                 name = "Injector cleaning",
@@ -81,6 +85,7 @@ internal object BillCheckFixtures {
                 reason = Reason.ScheduledLater(dueAtKm = 40_000, currentKm = 12_000),
                 // No dots: this says nothing about the price.
                 evidence = null,
+                categorySlug = "general_service",
             ),
         ),
         fine = listOf(

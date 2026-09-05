@@ -29,6 +29,8 @@ import kotlinx.coroutines.launch
 internal class BasisViewModel(
     private val billId: String,
     private val lineName: String,
+    /** The job the check resolved, carried so this cannot answer about a different one. */
+    private val categorySlug: String,
     private val reader: BandBasisReader,
     private val telemetry: BillCheckTelemetry,
 ) : ViewModel() {
@@ -60,7 +62,7 @@ internal class BasisViewModel(
             // the sheet mid-read cancels this coroutine.
             val span = telemetry.readStarted()
             val result = try {
-                runCatchingCancellableSuspend { reader.basisFor(billId, lineName) }
+                runCatchingCancellableSuspend { reader.basisFor(billId, lineName, categorySlug) }
                     .getOrElse { DomainError.PersistenceFailure().left() }
             } finally {
                 telemetry.readEnded(span)

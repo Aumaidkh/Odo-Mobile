@@ -56,7 +56,13 @@ class BillCheckScreenshotTest {
         rule.awaitTextContaining(RESULT_HEADLINE)
         rule.captureScreen("billcheck-result")
 
-        rule.push(OdoDestination.BillCheck.Basis(billId = BILL, lineName = "AC service"))
+        rule.push(OdoDestination.BillCheck.Basis(
+                billId = BILL,
+                lineName = "AC service",
+                // The job the check resolved. The sheet is told it rather than naming the
+                // line again, which is what used to make it disagree with the finding.
+                categorySlug = "ac_service",
+            ))
         rule.awaitText(BASIS_RUNGS)
         rule.captureScreen("billcheck-how-we-know")
 

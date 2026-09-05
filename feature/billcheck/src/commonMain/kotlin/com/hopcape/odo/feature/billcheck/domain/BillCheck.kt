@@ -56,6 +56,14 @@ internal data class FlaggedLine(
      * and dots that rank price evidence would be answering a question nobody asked.
      */
     val evidence: Evidence?,
+    /**
+     * The job the check named this line as, by the slug the price tables key on.
+     *
+     * Carried rather than worked out again. "How we know" used to re-derive it, and with the
+     * model fallback on that meant asking a second time — a second answer that could differ
+     * from the one the band beside it was actually built from.
+     */
+    val categorySlug: String,
 ) {
     /**
      * Whether this finding hands the owner a question to put to the advisor.

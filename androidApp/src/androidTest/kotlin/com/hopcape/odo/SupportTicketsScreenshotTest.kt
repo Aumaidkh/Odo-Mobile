@@ -68,8 +68,13 @@ class SupportTicketsScreenshotTest {
         rule.awaitText(REPORT_SENT)
         rule.captureScreen("support-report-sent")
 
+        seedFeatureIdeas()
         rule.push(OdoDestination.Support.SuggestIdea)
         rule.awaitText(IDEA_LABEL)
+        // The list is what this screen is for, and it is where the layout broke: the vote
+        // pill filled the row and squeezed every title to one character per line. Waiting on
+        // a real title is what makes the capture show the list rather than an empty section.
+        rule.awaitTextContaining(IDEA_TITLE)
         rule.captureScreen("support-suggest-idea")
 
         rule.push(
@@ -93,6 +98,7 @@ class SupportTicketsScreenshotTest {
         const val REPORT_TEXT = "The labour charge came out as Rs. 450 but the bill says Rs. 4,500."
         const val REPORT_SENT = "Report sent"
         const val IDEA_LABEL = "YOUR IDEA"
+        const val IDEA_TITLE = "Two cars"
         const val FLAG_BAND_LABEL = "THE BAND YOU’RE FLAGGING"
         const val FLAG_TOO_LOW = "Too low for my city"
         const val HOME_TAB = "Home"

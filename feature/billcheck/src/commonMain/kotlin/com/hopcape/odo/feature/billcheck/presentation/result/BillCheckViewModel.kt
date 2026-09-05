@@ -131,7 +131,7 @@ internal class BillCheckViewModel(
             ?.firstOrNull { it.reason is Reason.AboveBand }
             ?: return
         telemetry.basisOpened()
-        emit(BillCheckEffect.OpenBasis(line.name))
+        emit(BillCheckEffect.OpenBasis(line.name, line.categorySlug))
     }
 
     private fun openOffers() {

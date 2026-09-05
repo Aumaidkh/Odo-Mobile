@@ -34,5 +34,10 @@ internal data class BillCheckResult(val check: BillCheck, val locked: Boolean)
  */
 internal fun interface BandBasisReader {
 
-    suspend fun basisFor(billId: String, lineName: String): Either<DomainError, BandBasis>
+    suspend fun basisFor(
+        billId: String,
+        lineName: String,
+        /** The job the check resolved, so this cannot answer about a different one. */
+        categorySlug: String,
+    ): Either<DomainError, BandBasis>
 }

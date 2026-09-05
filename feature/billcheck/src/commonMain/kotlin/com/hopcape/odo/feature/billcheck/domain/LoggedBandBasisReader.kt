@@ -3,8 +3,6 @@ package com.hopcape.odo.feature.billcheck.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
-import com.hopcape.odo.core.domain.advisory.matching.LineMatch
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
@@ -45,24 +43,31 @@ internal class LoggedBandBasisReader(
     private val cities: CurrentCityProvider,
     private val cityCatalog: CityCatalog,
     private val questionnaire: QuestionnaireRepository,
-    private val matcher: BillLineMatcher,
     private val bands: PriceBandRepository,
 ) : BandBasisReader {
 
+    /**
+     * The band behind one finding.
+     *
+     * [categorySlug] is the job the check already resolved, passed in rather than worked out
+     * again. This screen used to name the line itself — with the rules alone, so a line the
+     * *model* had named came back unnamed and the sheet refused to explain a finding the app
+     * had just drawn. Re-deriving it with the model instead would only have moved the fault:
+     * a second answer can differ from the one the band was built from.
+     */
     override suspend fun basisFor(
         billId: String,
         lineName: String,
+        categorySlug: String,
     ): Either<DomainError, BandBasis> {
         val entry = entries.observe(ServiceLogId(billId)).first()
             ?: return DomainError.ServiceLogNotFound.left()
         val car = cars.observe(entry.carId).first() ?: return DomainError.CarNotFound.left()
         val city = cities.currentCity() ?: return DomainError.LookupUnavailable.left()
-        val job = (matcher.match(lineName) as? LineMatch.Job) ?: return DomainError.LookupUnavailable.left()
-
         val workshop = workshopTier()
         val band = bands.bandFor(
             PriceBandQuery(
-                categorySlug = job.kind.slug,
+                categorySlug = categorySlug,
                 city = city,
                 segment = SegmentCatalog.segmentOrNull(car.model),
                 fuel = car.fuelType,
