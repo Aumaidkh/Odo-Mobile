@@ -5,7 +5,7 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
 import com.hopcape.odo.feature.billcheck.domain.LoggedBillCheckReader
-import com.hopcape.odo.feature.billcheck.domain.UnavailableBandBasisReader
+import com.hopcape.odo.feature.billcheck.domain.LoggedBandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
 import com.hopcape.odo.feature.billcheck.domain.usecase.CheckBillPriceUseCase
 import com.hopcape.odo.feature.billcheck.navigation.BillCheckFeatureEntryProvider
@@ -48,10 +48,17 @@ val billCheckModule = module {
         )
     }
 
-    // Refuses, deliberately. Its own reader is the next slice — it needs the band the check
-    // already resolved rather than a second lookup — and until then the sheet says it could
-    // not read rather than showing a fixture's band beside a real finding.
-    single<BandBasisReader> { UnavailableBandBasisReader() }
+    single<BandBasisReader> {
+        LoggedBandBasisReader(
+            entries = get(),
+            cars = get(),
+            cities = get(),
+            cityCatalog = get(),
+            questionnaire = get(),
+            matcher = get(),
+            bands = get(),
+        )
+    }
 
     // A factory, so one instance covers one visit to the screen.
     factory { BillCheckTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }

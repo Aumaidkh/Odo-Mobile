@@ -53,11 +53,8 @@ class BillCheckScreenshotTest {
         rule.awaitTextContaining(RESULT_HEADLINE)
         rule.captureScreen("billcheck-result")
 
-        // The sheet refuses until its own reader lands. Photographed as it is rather than
-        // skipped: a fixture's band beside a real finding was the alternative, and that is
-        // the unsourced number this feature argues against.
         rule.push(OdoDestination.BillCheck.Basis(billId = BILL, lineName = "AC service"))
-        rule.awaitText(BASIS_UNAVAILABLE)
+        rule.awaitText(BASIS_RUNGS)
         rule.captureScreen("billcheck-how-we-know")
     }
 
@@ -70,8 +67,7 @@ class BillCheckScreenshotTest {
         /** The month-6 stub: three flagged lines out of a Rs. 18,400 bill. */
         /** Whatever the check finds — the point is that it read a real bill. */
         const val RESULT_HEADLINE = "worth asking about"
-        /** What the sheet says while its reader is still owed. */
-        const val BASIS_UNAVAILABLE = "Couldn’t read this bill. Try again in a moment."
+        const val BASIS_RUNGS = "WHICH RUNG ANSWERED"
     }
 }
 
