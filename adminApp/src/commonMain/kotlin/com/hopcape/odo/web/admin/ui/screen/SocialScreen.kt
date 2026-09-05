@@ -31,6 +31,7 @@ import com.hopcape.odo.web.admin.presentation.social.AccountDraft
 import com.hopcape.odo.web.admin.presentation.social.RecipientDraft
 import com.hopcape.odo.web.admin.presentation.social.SocialEvent
 import com.hopcape.odo.web.admin.presentation.social.SocialTab
+import com.hopcape.odo.web.admin.presentation.social.DAY_NAMES
 import com.hopcape.odo.web.admin.presentation.social.SocialUiState
 import com.hopcape.odo.web.admin.ui.component.AdminField
 import com.hopcape.odo.web.admin.ui.component.Banner
@@ -240,8 +241,56 @@ private fun SecretField(
 
 /* ------------------------------ schedule ------------------------------ */
 
+/**
+ * The week, as a week.
+ *
+ * The rows below are the truth — one row is one time on some set of days — but nobody plans a
+ * week by reading a list sorted by clock. This groups the same rows by weekday so "Monday at
+ * 5 and at 10, Tuesday at 1" can be read off the screen, and adds a time to a day without
+ * making somebody find the ticks for it.
+ */
+@Composable
+private fun WeekView(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
+    Panel {
+        PanelHeader("THE WEEK")
+        Column(Modifier.fillMaxWidth()) {
+            DAY_NAMES.forEachIndexed { index, day ->
+                val iso = index + 1
+                // A slot with no days ticked fires every day, so it belongs under all of them.
+                val times = state.slots
+                    .filter { it.enabled && (it.daysOfWeek.isEmpty() || iso in it.daysOfWeek) }
+                    .sortedBy { it.timeOfDay }
+                TableRow {
+                    Cell(day, Modifier.weight(1.4f))
+                    Row(
+                        modifier = Modifier.weight(4f),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (times.isEmpty()) {
+                            Muted("nothing")
+                        } else {
+                            times.forEach { slot ->
+                                Toggle(
+                                    label = slot.timeOfDay + if (slot.daysOfWeek.isEmpty()) " (daily)" else "",
+                                    selected = false,
+                                    onClick = { onEvent(SocialEvent.SlotEditing(slot)) },
+                                )
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f)) {
+                        RowAction("+ time", onClick = { onEvent(SocialEvent.SlotEditingForDay(iso)) })
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ScheduleTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
+    WeekView(state, onEvent)
+
     Panel {
         PanelHeader("SCHEDULE") {
             RowAction("+ Slot", onClick = { onEvent(SocialEvent.SlotEditing(blankSlot())) })
@@ -285,7 +334,16 @@ private fun ScheduleTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
 private fun SlotEditor(slot: SocialSlot, onEvent: (SocialEvent) -> Unit) {
     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         AdminField(slot.label, { onEvent(SocialEvent.SlotDraftChanged(slot.copy(label = it))) }, "Morning post")
-        AdminField(slot.timeOfDay, { onEvent(SocialEvent.SlotDraftChanged(slot.copy(timeOfDay = it))) }, "09:00")
+        AdminField(
+            value = slot.timeOfDay,
+            onValueChange = { onEvent(SocialEvent.SlotDraftChanged(slot.copy(timeOfDay = it))) },
+            // Several at once on a new slot: "Monday at 5 and at 10" is two rows, and typing
+            // both here is how somebody says it.
+            placeholder = if (slot.id.isBlank()) "09:00 — or 17:00, 22:00 for two" else "09:00",
+        )
+        if (slot.id.isBlank()) {
+            Muted("Commas make one slot per time, on the same days.")
+        }
 
         FieldLabel("DAYS — none picked means every day")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
