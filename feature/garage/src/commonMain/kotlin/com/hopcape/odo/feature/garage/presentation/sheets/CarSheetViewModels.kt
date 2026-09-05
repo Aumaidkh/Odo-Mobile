@@ -83,6 +83,7 @@ internal class CarActionsViewModel(
         val effect = when (event) {
             CarActionsEvent.EditTapped -> CarActionsEffect.OpenEdit
             CarActionsEvent.ValueTapped -> CarActionsEffect.OpenCarValue
+            CarActionsEvent.ChecklistTapped -> CarActionsEffect.OpenServiceChecklist
             CarActionsEvent.ExportTapped -> CarActionsEffect.OpenExport
             CarActionsEvent.RemoveTapped -> CarActionsEffect.OpenRemove
         }

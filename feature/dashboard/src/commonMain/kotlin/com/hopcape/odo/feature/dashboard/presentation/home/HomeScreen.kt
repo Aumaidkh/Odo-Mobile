@@ -41,6 +41,7 @@ import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
+import com.hopcape.odo.core.designsystem.icons.IcList
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
@@ -65,6 +66,8 @@ import com.hopcape.odo.feature.dashboard.resources.db_score_none
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
+import com.hopcape.odo.feature.dashboard.resources.hm_checklist_body
+import com.hopcape.odo.feature.dashboard.resources.hm_checklist_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_showcase
 import com.hopcape.odo.feature.dashboard.resources.hm_showcase_dismiss
@@ -177,7 +180,14 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, onEvent)
+                is Loadable.Ready -> HomeBody(
+                    content = state.content.value,
+                    offerAutoDetect = state.offerAutoDetect,
+                    offerAutoOdometer = state.offerAutoOdometer,
+                    offerChecklist = state.offerChecklist,
+                    healthAnchor = healthAnchor,
+                    onEvent = onEvent,
+                )
             }
         }
     }
@@ -219,6 +229,7 @@ private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
+    offerChecklist: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -226,7 +237,14 @@ private fun HomeBody(
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, offerAutoOdometer, healthAnchor, onEvent)
+        else -> ScoredContent(
+            content = content,
+            offerAutoDetect = offerAutoDetect,
+            offerAutoOdometer = offerAutoOdometer,
+            offerChecklist = offerChecklist,
+            healthAnchor = healthAnchor,
+            onEvent = onEvent,
+        )
     }
 }
 
@@ -331,6 +349,7 @@ private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
+    offerChecklist: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -340,6 +359,7 @@ private fun ScoredContent(
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
+    if (offerChecklist) ChecklistCard(onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
 }
@@ -433,6 +453,57 @@ private fun AutoOdometerOffer(onEvent: (HomeEvent) -> Unit) {
                 )
                 OdoText(
                     stringResource(Res.string.hm_auto_odometer_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
+        }
+    }
+}
+
+/**
+ * The pre-service checklist, as its own card.
+ *
+ * It exists for one case: a lapsed paper outranks a due service in the attention picker, so
+ * without this the checklist would be unreachable from Home exactly when the owner is about
+ * to book the service. When attention *is* the service, that card opens the checklist and
+ * this one stays down — Home never says the same thing twice.
+ *
+ * It goes as soon as the next service is logged, because the interval resets with it.
+ */
+@Composable
+private fun ChecklistCard(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.CHECKLIST_OFFER),
+        onClick = { onEvent(HomeEvent.ChecklistTapped) },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoIcon(
+                IcList,
+                contentDescription = null,
+                tint = OdoTheme.colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
+                OdoText(
+                    stringResource(Res.string.hm_checklist_title),
+                    style = OdoTheme.typography.label,
+                )
+                OdoText(
+                    stringResource(Res.string.hm_checklist_body),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )

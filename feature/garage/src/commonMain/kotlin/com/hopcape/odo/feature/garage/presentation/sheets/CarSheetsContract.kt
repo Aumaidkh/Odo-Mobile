@@ -24,6 +24,14 @@ internal data class CarSummary(
 internal sealed interface CarActionsEvent {
     data object EditTapped : CarActionsEvent
     data object ValueTapped : CarActionsEvent
+
+    /**
+     * "Before you go in" — the pre-service checklist.
+     *
+     * Here as well as on Home because Home's two entries both depend on a service being
+     * close. An owner walking into a workshop off-schedule has no other way in.
+     */
+    data object ChecklistTapped : CarActionsEvent
     data object ExportTapped : CarActionsEvent
     data object RemoveTapped : CarActionsEvent
 }
@@ -31,6 +39,9 @@ internal sealed interface CarActionsEvent {
 internal sealed interface CarActionsEffect {
     data object OpenEdit : CarActionsEffect
     data object OpenCarValue : CarActionsEffect
+
+    /** Open the pre-service checklist. */
+    data object OpenServiceChecklist : CarActionsEffect
     data object OpenExport : CarActionsEffect
     data object OpenRemove : CarActionsEffect
 }

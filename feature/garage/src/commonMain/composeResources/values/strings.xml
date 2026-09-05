@@ -89,6 +89,9 @@
     <!-- Car actions sheet -->
     <string name="gr_ca_edit">Edit car details</string>
     <string name="gr_ca_value">What is it worth?</string>
+    <!-- The always-available door to the pre-service checklist. Home's two entries are
+         conditional, so this is the one an owner can find when neither of them fired. -->
+    <string name="gr_ca_checklist">Before you go in</string>
     <string name="gr_ca_export">Export car record</string>
     <string name="gr_ca_remove">Remove car</string>
 

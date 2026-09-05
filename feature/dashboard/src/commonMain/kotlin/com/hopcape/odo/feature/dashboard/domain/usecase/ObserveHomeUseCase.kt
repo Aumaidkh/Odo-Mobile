@@ -2,6 +2,8 @@ package com.hopcape.odo.feature.dashboard.domain.usecase
 
 import com.hopcape.odo.core.domain.activity.analysis.ActivityFeedBuilder
 import com.hopcape.odo.core.domain.alerts.analysis.AttentionPicker
+import com.hopcape.odo.core.domain.servicelog.policy.ServiceDueStatus
+import com.hopcape.odo.core.domain.servicelog.policy.ServiceIntervalPolicy
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.repository.CarRepository
@@ -158,6 +160,19 @@ internal class ObserveHomeUseCase(
                 currentOdometer = record.currentOdometer,
                 today = today,
             ),
+            // Worked out from the same three inputs AttentionPicker uses, so the card and
+            // the attention row can never disagree about whether a service is close.
+            serviceDue = record.entries
+                .maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
+                .let { last ->
+                    ServiceIntervalPolicy.statusFor(
+                        lastServiceDate = last?.serviceDate,
+                        lastServiceOdometer = last?.odometer,
+                        currentOdometer = record.currentOdometer,
+                        today = today,
+                    )
+                }
+                .let { it is ServiceDueStatus.DueSoon || it is ServiceDueStatus.Overdue },
             insight = InsightPicker.pick(
                 entries = record.entries,
                 documents = record.documents,
