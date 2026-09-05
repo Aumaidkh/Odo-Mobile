@@ -5,34 +5,34 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.advisory.BillLineClassifier
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
 import com.hopcape.odo.core.domain.benchmark.PriceBand
 import com.hopcape.odo.core.domain.benchmark.PriceBandQuery
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
 import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.schedule.ServiceInterval
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
-import kotlinx.datetime.LocalDate
-import com.hopcape.odo.core.domain.car.model.FuelType
-import com.hopcape.odo.core.domain.car.model.CarId
-import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.VehicleSegment
 import com.hopcape.odo.core.domain.shared.WorkshopTier
 import com.hopcape.odo.feature.billcheck.domain.Evidence
 import com.hopcape.odo.feature.billcheck.domain.Reason
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 
 /**
  * Which bucket each line of a bill lands in.
@@ -179,7 +179,7 @@ class CheckBillPriceUseCaseTest {
         val check = check(
             lines = listOf(line("Engine oil 5W-30", 1_600)),
             history = listOf(entry(LocalDate(2025, 9, 12), "Engine oil")),
-            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", months = 12)),
+            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", "Engine oil", months = 12)),
         )
 
         assertTrue(check.flagged.isEmpty(), "eleven months into a twelve-month interval")
@@ -191,7 +191,7 @@ class CheckBillPriceUseCaseTest {
         val check = check(
             lines = listOf(line("Engine oil 5W-30", 1_600)),
             history = listOf(entry(LocalDate(2026, 5, 12), "Engine oil")),
-            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", months = 12)),
+            intervals = mapOf("engine_oil" to ServiceInterval("engine_oil", "Engine oil", months = 12)),
         )
 
         assertIs<Reason.DoneRecently>(check.flagged.single().reason)
@@ -264,7 +264,7 @@ class CheckBillPriceUseCaseTest {
     fun `a job the schedule puts further down the road is flagged`() = runTest {
         val check = check(
             lines = listOf(line("Coolant top up", 1_600)),
-            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", "Coolant", km = 40_000)),
         )
 
         val flagged = check.flagged.single()
@@ -278,7 +278,7 @@ class CheckBillPriceUseCaseTest {
     fun `a schedule claim carries no evidence dots`() = runTest {
         val check = check(
             lines = listOf(line("Coolant top up", 1_600)),
-            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", "Coolant", km = 40_000)),
         )
 
         assertEquals(null, check.flagged.single().evidence)
@@ -290,7 +290,7 @@ class CheckBillPriceUseCaseTest {
     fun `a job nearly due by distance is not flagged`() = runTest {
         val check = check(
             lines = listOf(line("Air filter", 900)),
-            intervals = mapOf("air_filter" to ServiceInterval("air_filter", km = 15_000)),
+            intervals = mapOf("air_filter" to ServiceInterval("air_filter", "Air filter", km = 15_000)),
         )
 
         assertTrue(check.flagged.isEmpty(), "12,000 km into a 15,000 km interval")
@@ -303,7 +303,7 @@ class CheckBillPriceUseCaseTest {
             odometerKm = 50_000,
             lines = listOf(line("Coolant top up", 1_600)),
             history = listOf(entry(LocalDate(2024, 1, 1), "Coolant", odometerKm = 45_000)),
-            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", "Coolant", km = 40_000)),
         )
 
         val reason = assertIs<Reason.ScheduledLater>(check.flagged.single().reason)
@@ -320,7 +320,7 @@ class CheckBillPriceUseCaseTest {
             odometerKm = 12_000,
             lines = listOf(line("Coolant top up", 1_600)),
             history = listOf(entry(LocalDate(2026, 9, 1), "Coolant", odometerKm = 30_000)),
-            intervals = mapOf("coolant" to ServiceInterval("coolant", km = 40_000)),
+            intervals = mapOf("coolant" to ServiceInterval("coolant", "Coolant", km = 40_000)),
         )
 
         val reason = assertIs<Reason.ScheduledLater>(check.flagged.single().reason)

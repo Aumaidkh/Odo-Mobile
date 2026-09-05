@@ -52,6 +52,7 @@ import com.hopcape.odo.core.data.benchmark.FakeFairnessContributionRemoteDataSou
 import com.hopcape.odo.core.data.benchmark.FakePriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRepositoryImpl
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
 import com.hopcape.odo.core.domain.benchmark.FairnessContributor
 import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
 import com.hopcape.odo.core.data.schedule.FakeServiceIntervalRemoteDataSource
@@ -268,6 +269,10 @@ val coreDataModule = module {
     // Giving a checked bill's prices back, so a modelled band tightens into a real one.
     single<FairnessContributionRemoteDataSource> { FakeFairnessContributionRemoteDataSource() }
     single<FairnessContributor> { FairnessContributorImpl(remote = get(), telemetry = get()) }
+
+    // The bill-line rule table. One definition for the whole graph: two features read it,
+    // and a copy in each meant the later-loaded module silently won.
+    single { BillLineMatcher() }
 
     // The maker's schedule. Public reference data, so a plain table read.
     single<ServiceIntervalRemoteDataSource> { FakeServiceIntervalRemoteDataSource() }

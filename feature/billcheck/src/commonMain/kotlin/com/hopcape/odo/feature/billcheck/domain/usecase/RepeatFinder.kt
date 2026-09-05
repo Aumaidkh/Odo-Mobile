@@ -1,10 +1,9 @@
 package com.hopcape.odo.feature.billcheck.domain.usecase
 
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.advisory.matching.JobKind
 import com.hopcape.odo.core.domain.schedule.ServiceInterval
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import com.hopcape.odo.feature.billcheck.domain.matching.JobKind
-import com.hopcape.odo.feature.billcheck.domain.matching.LineMatch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 
@@ -70,12 +69,14 @@ internal class RepeatFinder(
      * the bill in hand are named the same way. An entry logged by hand with no lines cannot
      * answer, and says so by not matching rather than by guessing from its categories — the
      * nine coarse `ServiceCategory` tags cannot tell an oil filter from an air filter.
+     *
+     * It asks what a line *covers*, not what it is. "Engine oil + filter" is `Unknown` to
+     * `match` on purpose — no band covers what that one line charged for — and it is still
+     * proof the job was done. Asked the other way, a car whose oil change is always billed
+     * on one line never had a repeat flagged against it.
      */
     private fun ServiceLogEntry.covers(kind: JobKind): Boolean =
-        lineItems.any { item ->
-            val label = item.label ?: return@any false
-            (matcher.match(label) as? LineMatch.Job)?.kind == kind
-        }
+        lineItems.any { item -> kind in matcher.covers(item.label ?: return@any false) }
 
     /** Whole months between two dates, rounded down. */
     private fun LocalDate.monthsUntil(other: LocalDate): Int =

@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import arrow.core.Either
 import arrow.core.right
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
 import com.hopcape.odo.core.domain.benchmark.BandWorking
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
@@ -27,17 +28,16 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineMatcher
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 
 /**
  * The sheet that says a band is defensible.

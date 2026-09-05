@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.billcheck.domain.matching
+package com.hopcape.odo.core.domain.advisory.matching
 
 /**
  * A job the price tables can be asked about, by the slug they key on.
@@ -12,7 +12,7 @@ package com.hopcape.odo.feature.billcheck.domain.matching
  * no `job_prices` row today and that changes as reference data is entered, so the band lookup
  * discovers it and the line becomes unchecked. A flag here would be stale within a week.
  */
-internal enum class JobKind(val slug: String) {
+enum class JobKind(val slug: String) {
     ENGINE_OIL("engine_oil"),
     OIL_FILTER("oil_filter"),
     OIL_CHANGE("oil_change"),
@@ -36,7 +36,7 @@ internal enum class JobKind(val slug: String) {
 }
 
 /** What a bill line turned out to be. */
-internal sealed interface LineMatch {
+sealed interface LineMatch {
 
     /** A job the tables can price. */
     data class Job(val kind: JobKind) : LineMatch
