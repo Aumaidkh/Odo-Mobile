@@ -39,16 +39,27 @@ internal data class ReportUiState(
      * owner's time twice — once writing it, once wondering.
      */
     val maskedEmail: String = "",
+    /**
+     * Whether the account has been read yet.
+     *
+     * Until it has, "no masked address" and "this account has none" look identical, and the
+     * form must not act on the difference: a Send pressed a moment after the screen opened
+     * would otherwise be refused for an address the owner was never asked for.
+     */
+    val profileLoaded: Boolean = false,
     val email: String = "",
     val emailInvalid: Boolean = false,
     val sending: Boolean = false,
+    /** The save itself failed, which means the report is nowhere. Said, not swallowed. */
+    val failed: Boolean = false,
 ) {
-    /** True when the account has no address and the owner has to give one. */
-    val asksForEmail: Boolean get() = maskedEmail.isBlank()
+    /** True when the account has been read, and has no address to reply to. */
+    val asksForEmail: Boolean get() = profileLoaded && maskedEmail.isBlank()
 
     val canSend: Boolean
         get() = message.isNotBlank() &&
             !sending &&
+            profileLoaded &&
             (!asksForEmail || email.isNotBlank())
 
     /**
