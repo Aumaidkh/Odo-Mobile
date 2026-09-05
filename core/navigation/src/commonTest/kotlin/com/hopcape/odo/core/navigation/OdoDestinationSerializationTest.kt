@@ -155,15 +155,11 @@ class OdoDestinationSerializationTest {
             workshop = "company centre",
             segment = "1.2L petrol hatchback",
         ),
-        OdoDestination.Support.Diagnostics,
-        OdoDestination.Support.DiagnosticsSent(
-            reference = "DX-8F42-19",
-            sizeBytes = 245_760L,
-            deleteAfterDays = 30,
-        ),
         OdoDestination.Support.ReportSent(
             ticket = "ODO-4821",
-            area = "Bill scan",
+            // The area's own name, which is what the screen matches on. A label here would
+            // resolve to "something else" and the round trip would still pass.
+            area = "BILL_SCAN",
             photos = 1,
             logsAttached = true,
             maskedReplyTo = "r•••@gmail.com",

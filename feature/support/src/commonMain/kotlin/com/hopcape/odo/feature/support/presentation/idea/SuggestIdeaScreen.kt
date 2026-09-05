@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -146,6 +148,9 @@ private fun IdeaRowItem(idea: IdeaRow, onEvent: (IdeaEvent) -> Unit) {
  */
 @Composable
 private fun VotePill(idea: IdeaRow, onClick: () -> Unit) {
+    // Which idea it votes for. The pill draws a number and a word, and neither says what
+    // pressing it does — the title is in the row beside it, which a screen reader reads apart.
+    val action = stringResource(Res.string.sp_idea_vote_action, idea.title)
     OdoCard(
         onClick = onClick,
         color = if (idea.voted) OdoTheme.colors.text else OdoTheme.colors.surface,
@@ -155,7 +160,9 @@ private fun VotePill(idea: IdeaRow, onClick: () -> Unit) {
             vertical = OdoTheme.spacing.sm,
         ),
         verticalArrangement = Arrangement.Top,
-        modifier = Modifier.widthIn(min = PILL_MIN_WIDTH),
+        modifier = Modifier
+            .widthIn(min = PILL_MIN_WIDTH)
+            .semantics { contentDescription = action },
     ) {
         OdoText(
             text = idea.votes.toString(),
