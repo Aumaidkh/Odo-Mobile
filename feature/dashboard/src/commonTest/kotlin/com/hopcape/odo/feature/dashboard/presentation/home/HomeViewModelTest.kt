@@ -145,9 +145,13 @@ class HomeViewModelTest {
         assertEquals(HomeEffect.OpenVault, viewModel.effects.first())
     }
 
-    /** A service is dealt with in the log, which is where the next entry gets added. */
+    /**
+     * An owner tapping an overdue service has not had it yet — they are about to book one —
+     * so the tap leads to the checklist they need walking in, not the log a finished service
+     * is recorded in.
+     */
     @Test
-    fun aServiceAttentionLeadsToTheServiceLog() = runTest(dispatcher) {
+    fun aServiceAttentionLeadsToTheChecklist() = runTest(dispatcher) {
         val viewModel = viewModel(
             entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
             documents = emptyList(),
@@ -156,7 +160,44 @@ class HomeViewModelTest {
 
         viewModel.onEvent(HomeEvent.AttentionTapped)
 
-        assertEquals(HomeEffect.OpenServiceLog(carId = TEST_CAR.value), viewModel.effects.first())
+        assertEquals(
+            HomeEffect.OpenServiceChecklist(entry = "HOME_ATTENTION"),
+            viewModel.effects.first(),
+        )
+    }
+
+    /**
+     * The conditional card's whole reason to exist: a lapsed paper outranks a due service in
+     * the attention picker, so without it the checklist would be unreachable from Home
+     * exactly when the owner is about to book the service.
+     */
+    @Test
+    fun aLapsedPaperOverAServiceDueStillOffersTheChecklistOnItsOwnCard() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = listOf(testDocument(DocumentType.PUC, expiresOn = LocalDate(2025, 6, 1))),
+        )
+        viewModel.content()
+
+        assertTrue(viewModel.state.value.offerChecklist)
+
+        viewModel.onEvent(HomeEvent.ChecklistTapped)
+        assertEquals(
+            HomeEffect.OpenServiceChecklist(entry = "HOME_CARD"),
+            viewModel.effects.first(),
+        )
+    }
+
+    /** When attention is already the service, Home does not say it twice. */
+    @Test
+    fun aServiceAttentionKeepsTheConditionalCardDown() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = emptyList(),
+        )
+        viewModel.content()
+
+        assertFalse(viewModel.state.value.offerChecklist)
     }
 
     @Test

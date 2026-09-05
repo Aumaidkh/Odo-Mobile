@@ -22,6 +22,7 @@ object HomeTestTags {
     const val LOG_FILL_BUTTON = "home_log_fill_button"
     const val AUTO_DETECT_OFFER = "home_auto_detect_offer"
     const val AUTO_ODOMETER_OFFER = "home_auto_odometer_offer"
+    const val CHECKLIST_OFFER = "home_checklist_offer"
     const val SCORE = "home_score"
     const val BREAKDOWN_LINK = "home_breakdown_link"
 

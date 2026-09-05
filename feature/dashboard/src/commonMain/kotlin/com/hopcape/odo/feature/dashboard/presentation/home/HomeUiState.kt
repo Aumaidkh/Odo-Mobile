@@ -66,6 +66,17 @@ internal data class HomeUiState(
      */
     val offerAutoOdometer: Boolean = false,
 
+    /**
+     * Whether to offer the pre-service checklist as its own card.
+     *
+     * True when a service is close and the attention card is about something else. When
+     * attention *is* the service, that card opens the checklist itself and this stays down:
+     * Home saying the same thing twice is how a dashboard stops being read.
+     *
+     * It goes as soon as the next service is logged, because the interval resets with it.
+     */
+    val offerChecklist: Boolean = false,
+
 )
 
 /** A loaded dashboard. */
