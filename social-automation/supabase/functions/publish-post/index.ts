@@ -16,7 +16,27 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 const pipeline = createClient(SUPABASE_URL, SERVICE_ROLE, { db: { schema: "social" } });
 
+
+/**
+ * The panel is a browser app on another origin, so every answer needs these and the preflight
+ * needs its own reply. Without them the fetch throws before it is sent and the panel reports
+ * "could not reach the server" — which is true, and says nothing about why.
+ */
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
   // The caller's own token: this asks the database who they are, rather than taking the
   // service role's word for it.
   const asCaller = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
@@ -24,18 +44,18 @@ Deno.serve(async (req) => {
   });
   const { data: permitted } = await asCaller.rpc("admin_has", { p_permission: "blog.write" });
   if (permitted !== true) {
-    return Response.json({ error: "not permitted" }, { status: 403 });
+    return json(403, { error: "not permitted" });
   }
 
   const body = await req.json().catch(() => ({}));
   const queueId = Number(body?.queue_id);
   if (!Number.isFinite(queueId)) {
-    return Response.json({ error: "queue_id is required" }, { status: 400 });
+    return json(400, { error: "queue_id is required" });
   }
 
   const { data: settings } = await admin.from("social_settings").select("paused").limit(1).single();
   if (settings?.paused) {
-    return Response.json({ error: "the pipeline is paused" }, { status: 409 });
+    return json(409, { error: "the pipeline is paused" });
   }
 
   const { data: item } = await pipeline
@@ -44,17 +64,14 @@ Deno.serve(async (req) => {
     .eq("id", queueId)
     .single();
   if (!item) {
-    return Response.json({ error: "no such post" }, { status: 404 });
+    return json(404, { error: "no such post" });
   }
 
   // Nothing to publish without the rendered image, and Instagram is not the place to find
   // that out. A post is only ready once the renderer has been over it, and saying so here is
   // the difference between "not rendered yet" and an opaque failure against the IG API.
   if (!item.post_image_url) {
-    return Response.json(
-      { error: "this post has not been rendered yet — there is no image to publish" },
-      { status: 409 },
-    );
+    return json(409, { error: "this post has not been rendered yet — there is no image to publish" });
   }
 
   await pipeline
@@ -75,7 +92,7 @@ Deno.serve(async (req) => {
 
   const result = await published.json().catch(() => ({}));
   if (!published.ok) {
-    return Response.json({ error: result?.error ?? "publish failed" }, { status: 502 });
+    return json(502, { error: result?.error ?? "publish failed" });
   }
-  return Response.json({ ok: true, ...result });
+  return json(200, { ok: true, ...result });
 });
