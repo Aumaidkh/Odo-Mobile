@@ -14,6 +14,73 @@
 
 create schema if not exists social;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 0. The pipeline's own tables, if this project has never had them.
+--
+-- They are created by social-automation/supabase/schema.sql, which is deployed by hand and
+-- has only ever been run where the pipeline runs. The views further down read them, and a
+-- view over a missing table fails the whole migration — so this file stands on its own
+-- rather than on somebody having remembered.
+--
+-- Bodies match that file exactly. Where they already exist, every statement here is a no-op.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists social.content_bank (
+  id            bigint generated always as identity primary key,
+  category      text not null,
+  fact          text not null,
+  stats         jsonb,
+  screenshot    text,
+  cta           text not null default 'Odo — free to start',
+  last_used_at  timestamptz,
+  created_at    timestamptz not null default now()
+);
+
+create table if not exists social.content_queue (
+  id             bigint generated always as identity primary key,
+  bank_id        bigint references social.content_bank(id),
+  status         text not null default 'draft',
+  variant        text not null default 'stat',
+  include_story  boolean not null default true,
+  copy           jsonb not null,
+  post_image_url text,
+  story_image_url text,
+  telegram_message_id bigint,
+  error          text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+
+create table if not exists social.post_log (
+  id            bigint generated always as identity primary key,
+  queue_id      bigint references social.content_queue(id),
+  ig_media_id   text,
+  ig_story_id   text,
+  published_at  timestamptz not null default now()
+);
+
+create table if not exists social.app_config (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table social.content_bank  enable row level security;
+alter table social.content_queue enable row level security;
+alter table social.post_log      enable row level security;
+alter table social.app_config    enable row level security;
+
+-- What a queued post carries now that a schedule can produce it.
+--
+-- `approval` is stamped when the post is made rather than read when it is published: the
+-- mode can be changed between those two moments, and a post that already asked a person
+-- must not silently become one that did not.
+alter table social.content_queue
+    add column if not exists approval  text   not null default 'manual'
+                             check (approval in ('manual', 'auto')),
+    add column if not exists slot_id   uuid,
+    add column if not exists platforms text[] not null default '{}';
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. How the pipeline behaves.
@@ -257,6 +324,7 @@ create or replace view public.social_queue as
            q.bank_id,
            q.status,
            q.variant,
+           q.approval,
            q.include_story,
            q.copy,
            q.post_image_url,
