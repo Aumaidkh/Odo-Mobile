@@ -54,7 +54,7 @@ class ReadServiceChecklistUseCaseTest {
 
     @Test
     fun theCostCoversOnlyTheDueJobsAPriceWasFoundForAndSaysHowMany() = runTest {
-        val result = useCase(bands = { query -> if (query.categorySlug == "engine_oil") BAND else null })()
+        val result = useCase(bands = { query -> if (query.categorySlug == "engine_oil") BAND else null }).read()
 
         val cost = result.getOrNull()?.cost
         assertEquals(2, result.getOrNull()?.checklist?.due?.size)
@@ -66,14 +66,14 @@ class ReadServiceChecklistUseCaseTest {
 
     @Test
     fun noPricedJobLeavesNoCostLineRatherThanAZeroOne() = runTest {
-        val cost = useCase(bands = { null })().getOrNull()?.cost
+        val cost = useCase(bands = { null }).read().getOrNull()?.cost
 
         assertNull(cost)
     }
 
     @Test
     fun noCityMeansNoBandCanBeAskedForAndTheChecklistSurvivesAnyway() = runTest {
-        val result = useCase(city = null)().getOrNull()
+        val result = useCase(city = null).read().getOrNull()
 
         assertNull(result?.cost)
         assertEquals(2, result?.checklist?.due?.size)
@@ -81,7 +81,7 @@ class ReadServiceChecklistUseCaseTest {
 
     @Test
     fun aScheduleThatCouldNotBeReadLeavesTheChecklistEmptyRatherThanWrong() = runTest {
-        val result = useCase(intervals = DomainError.LookupUnavailable.left())().getOrNull()
+        val result = useCase(intervals = DomainError.LookupUnavailable.left()).read().getOrNull()
 
         // The upsells are all that is left, and every one of them says "not in the schedule".
         assertNull(result?.checklist?.due?.firstOrNull())
@@ -90,7 +90,7 @@ class ReadServiceChecklistUseCaseTest {
 
     @Test
     fun withNoCarThereIsNoServiceToPrepareFor() = runTest {
-        val result = useCase(car = null)()
+        val result = useCase(car = null).read()
 
         assertIs<DomainError.CarNotFound>(result.leftOrNull())
     }

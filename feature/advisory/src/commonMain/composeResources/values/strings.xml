@@ -30,4 +30,62 @@
     <string name="adv_value_empty_title">No car yet</string>
     <string name="adv_value_empty_body">Add your car and Odo can tell you what it is worth, and what proving its history would add.</string>
 
+    <!-- ─── "Before you go in": the pre-service checklist ─────────────────────────────── -->
+    <!-- Every subtitle here states a number the domain worked out. None of them says a job
+         is unnecessary: the screen gives the owner questions, never a diagnosis. -->
+    <string name="adv_check_title">Before you go in</string>
+    <string name="adv_check_cd_back">Back</string>
+    <string name="adv_check_separator"> · </string>
+    <string name="adv_check_headline">This service should cover</string>
+    <!-- Nothing is due, and the screen still has the half that matters at a counter: what
+         to refuse, and the three questions. -->
+    <string name="adv_check_headline_clear">Nothing is due yet</string>
+    <string name="adv_check_not_needed">NOT NEEDED YET</string>
+
+    <plurals name="adv_check_years">
+        <item quantity="one">%1$d year</item>
+        <item quantity="other">%1$d years</item>
+    </plurals>
+    <string name="adv_check_last_done_km">last done %1$s ago</string>
+    <plurals name="adv_check_last_done_months">
+        <item quantity="one">%1$d month on — it’s time</item>
+        <item quantity="other">%1$d months on — it’s time</item>
+    </plurals>
+    <plurals name="adv_check_services_on">
+        <item quantity="one">%1$d service on, it’s time</item>
+        <item quantity="other">%1$d services on, it’s time</item>
+    </plurals>
+    <string name="adv_check_never_recorded">nothing in your record shows it done</string>
+    <string name="adv_check_km_to_go">%1$s to go</string>
+    <plurals name="adv_check_months_to_go">
+        <item quantity="one">%1$d month to go</item>
+        <item quantity="other">%1$d months to go</item>
+    </plurals>
+    <string name="adv_check_not_in_schedule">not in the schedule</string>
+
+    <string name="adv_check_upsell_injector_cleaning">Injector cleaning</string>
+    <string name="adv_check_upsell_engine_flush">Engine flush</string>
+    <string name="adv_check_upsell_ac_disinfectant">AC disinfectant</string>
+    <string name="adv_check_upsell_underbody_coating">Underbody coating</string>
+
+    <string name="adv_check_cost_label">What it should cost</string>
+    <!-- Said out loud whenever the tables could not price every due job. A total that
+         covered three of five jobs would otherwise be read at a counter as covering five. -->
+    <string name="adv_check_cost_partial">covers %1$d of %2$d jobs</string>
+
+    <string name="adv_check_questions">ASK AT THE COUNTER</string>
+    <string name="adv_check_question_1">"Show me the air filter first."</string>
+    <string name="adv_check_question_2">"Is this needed now, or can it wait?"</string>
+    <string name="adv_check_question_3">"Write down what the final bill will be."</string>
+
+    <string name="adv_check_save">Save to phone</string>
+    <string name="adv_check_saved">Saved to your phone</string>
+    <string name="adv_check_save_failed">Could not save the card</string>
+
+    <string name="adv_check_empty_title">Nothing to prepare for yet</string>
+    <!-- The schedule could not be read. Said apart from "nothing is due", because during a
+         reference-data outage the second one is a lie. -->
+    <string name="adv_check_unavailable_body">Odo could not read your car’s service schedule just now. Try again when you are back online.</string>
+    <string name="adv_check_empty_body">Odo builds this list from your car’s service schedule. Add your car, or check back when a service is closer.</string>
+
 </resources>

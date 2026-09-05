@@ -27,6 +27,17 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
 /**
+ * The checklist, however it is worked out.
+ *
+ * A port rather than the class itself so the screen can be tested without eight repositories,
+ * the same split the bill check makes between `BillCheckReader` and its logged implementation.
+ */
+internal fun interface ServiceChecklistReader {
+
+    suspend fun read(): Either<DomainError, ServiceChecklist>
+}
+
+/**
  * Everything the "Before you go in" screen renders, read once.
  *
  * A one-shot read rather than a stream: the bands come off the network, and a flow that
@@ -48,9 +59,9 @@ internal class ReadServiceChecklistUseCase(
     private val builder: PreServiceChecklistBuilder,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
-) {
+) : ServiceChecklistReader {
 
-    suspend operator fun invoke(): Either<DomainError, ServiceChecklist> {
+    override suspend fun read(): Either<DomainError, ServiceChecklist> {
         val car = cars.observePrimaryCar().first() ?: return DomainError.CarNotFound.left()
         val today = clock.now().toLocalDateTime(timeZone).date
         val currentKm = odometers.observeCurrent(car.id).first()?.km ?: car.odometer.km
