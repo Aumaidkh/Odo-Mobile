@@ -16,20 +16,5 @@ internal fun formatBytes(bytes: Long): String = when {
     }
 }
 
-/**
- * "r•••@gmail.com" — enough of an address for the owner to recognise, and not enough for a
- * screenshot of this screen to hand it to anyone.
- *
- * The first character and the whole domain survive: those are what tell somebody *which* of
- * their addresses this is. Anything that is not an address is masked whole rather than
- * printed, because the only way that happens is data arriving in a shape nobody expected.
- */
-internal fun maskEmail(email: String): String {
-    val at = email.indexOf('@')
-    if (at < 1 || at == email.lastIndex) return MASK
-    return "${email.first()}$MASK${email.substring(at)}"
-}
-
 private const val KILOBYTE = 1024L
 private const val MEGABYTE = KILOBYTE * KILOBYTE
-private const val MASK = "•••"

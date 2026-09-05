@@ -50,6 +50,24 @@ internal data class ReportUiState(
         get() = message.isNotBlank() &&
             !sending &&
             (!asksForEmail || email.isNotBlank())
+
+    /**
+     * Whether the typed address could reach anybody.
+     *
+     * Deliberately shallow — one `@`, something either side, and a dot in the domain. The
+     * only thing worth catching here is a field filled in to get past the button, because
+     * decision 3 asks for the address *so support can reply*, and "asdf" cannot be replied to.
+     * Anything stricter rejects real addresses, and the real check is a mail that bounces.
+     */
+    fun emailLooksValid(): Boolean {
+        if (!asksForEmail) return true
+        val at = email.indexOf('@')
+        return at > 0 &&
+            at < email.lastIndex &&
+            email.indexOf('@', at + 1) < 0 &&
+            email.substring(at + 1).contains('.') &&
+            !email.any { it.isWhitespace() }
+    }
 }
 
 internal sealed interface ReportEvent {

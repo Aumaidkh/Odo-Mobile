@@ -17,12 +17,15 @@ import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 
 /**
- * The six screens, photographed as they ship.
+ * The four wired screens, photographed as they ship.
  *
- * Four of them are pushed rather than walked to. Two — the confirmations — cannot be reached
- * from anywhere yet: a ticket number and an upload reference are the things they exist to
- * show, and neither exists until the branch that creates one. Pushing them with the figures a
- * real submission would carry is the honest way to photograph them meanwhile.
+ * The confirmation is pushed rather than walked to: a ticket number is the thing it exists to
+ * show, and there is none until reports become tickets. Pushing it with the figures a real
+ * submission would carry is the honest way to photograph it meanwhile.
+ *
+ * The two diagnostics screens are not here. They have no destination in this branch — the
+ * upload is one indivisible bundle today, so a screen offering a switch per line cannot
+ * honour any of them, and the answer to that is not to wire it up yet.
  */
 @RunWith(AndroidJUnit4::class)
 class SupportTicketsScreenshotTest {
@@ -41,24 +44,10 @@ class SupportTicketsScreenshotTest {
         .around(rule)
 
     @Test
-    fun capturesEveryTicketScreen() {
+    fun capturesEveryWiredTicketScreen() {
         // The dashboard first: a push before the nav host is collecting lands nowhere, and
         // the screen it should have replaced is what gets photographed.
         rule.awaitText(HOME_TAB)
-
-        rule.push(OdoDestination.Support.Diagnostics)
-        rule.awaitText(DIAGNOSTICS_HEADLINE)
-        rule.captureScreen("support-send-diagnostics")
-
-        rule.push(
-            OdoDestination.Support.DiagnosticsSent(
-                reference = "DX-8F42-19",
-                sizeBytes = 245_760L,
-                deleteAfterDays = 30,
-            ),
-        )
-        rule.awaitText(DIAGNOSTICS_SENT)
-        rule.captureScreen("support-diagnostics-sent")
 
         rule.push(OdoDestination.Support.ReportProblem)
         rule.awaitText(REPORT_WHERE)
@@ -99,8 +88,6 @@ class SupportTicketsScreenshotTest {
     }
 
     private companion object {
-        const val DIAGNOSTICS_HEADLINE = "This is what gets sent"
-        const val DIAGNOSTICS_SENT = "Diagnostics sent"
         const val REPORT_WHERE = "WHERE DID IT HAPPEN"
         const val REPORT_HINT = "What were you doing, and what happened instead?"
         const val REPORT_TEXT = "The labour charge came out as Rs. 450 but the bill says Rs. 4,500."

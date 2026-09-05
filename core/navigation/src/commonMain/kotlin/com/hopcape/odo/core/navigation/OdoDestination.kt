@@ -719,30 +719,6 @@ sealed interface OdoDestination : NavKey {
         ) : Support
 
         /**
-         * "Send diagnostics" — every line that would go, and a switch on each.
-         *
-         * A screen rather than the yes/no sheet it replaces. What leaves the device is not a
-         * thing to summarise in one sentence, and a prompt that summarises it is asking for
-         * consent to something nobody was shown.
-         */
-        @Serializable
-        data object Diagnostics : Support
-
-        /**
-         * What was sent, the code to quote, and the way to take it back.
-         *
-         * [sizeBytes] and [deleteAfterDays] are carried rather than recomputed: they describe
-         * the upload that happened, and a second measurement taken later would describe a
-         * different one.
-         */
-        @Serializable
-        data class DiagnosticsSent(
-            val reference: String,
-            val sizeBytes: Long,
-            val deleteAfterDays: Int,
-        ) : Support
-
-        /**
          * The report went in — its number, and what actually travelled with it.
          *
          * [photos] and [logsAttached] are shown rather than implied, so nobody finds out
