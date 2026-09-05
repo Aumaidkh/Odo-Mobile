@@ -12,6 +12,7 @@ import com.hopcape.odo.web.admin.domain.CatalogueRepository
 import com.hopcape.odo.web.admin.domain.ContentRepository
 import com.hopcape.odo.web.admin.domain.TicketsRepository
 import com.hopcape.odo.web.admin.domain.FlagsRepository
+import com.hopcape.odo.web.admin.domain.SocialRepository
 import com.hopcape.odo.web.admin.domain.RolesRepository
 import com.hopcape.odo.web.admin.domain.DashboardRepository
 import com.hopcape.odo.web.admin.domain.UsersRepository
@@ -24,6 +25,7 @@ import com.hopcape.odo.web.admin.infrastructure.SupabaseCatalogueRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseContentRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseTicketsRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseFlagsRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabaseSocialRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseInvites
 import com.hopcape.odo.web.admin.infrastructure.SupabaseRolesRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseDashboardRepository
@@ -129,6 +131,7 @@ val adminModule: Module = module {
     single<TicketsRepository> { SupabaseTicketsRepository(postgrest = get()) }
     single<BillingRepository> { SupabaseBillingRepository(postgrest = get()) }
     single<FlagsRepository> { SupabaseFlagsRepository(postgrest = get()) }
+    single<SocialRepository> { SupabaseSocialRepository(postgrest = get()) }
 
     viewModel { DashboardViewModel(dashboard = get()) }
     viewModel { SessionViewModel(auth = get()) }
