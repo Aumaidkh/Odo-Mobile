@@ -20,7 +20,6 @@ import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
-import com.hopcape.odo.feature.billcheck.domain.matching.BillLineNamer
 import kotlinx.coroutines.flow.first
 
 /**
@@ -44,31 +43,31 @@ internal class LoggedBandBasisReader(
     private val cities: CurrentCityProvider,
     private val cityCatalog: CityCatalog,
     private val questionnaire: QuestionnaireRepository,
-    /**
-     * The same namer the check used — rules, then the model.
-     *
-     * It used to be the matcher alone, and that is what broke this screen: with the model
-     * fallback on, the check could name a line the rules could not, flag it against a band,
-     * and then this sheet would refuse to explain the very finding beside it.
-     */
-    private val namer: BillLineNamer,
     private val bands: PriceBandRepository,
 ) : BandBasisReader {
 
+    /**
+     * The band behind one finding.
+     *
+     * [categorySlug] is the job the check already resolved, passed in rather than worked out
+     * again. This screen used to name the line itself — with the rules alone, so a line the
+     * *model* had named came back unnamed and the sheet refused to explain a finding the app
+     * had just drawn. Re-deriving it with the model instead would only have moved the fault:
+     * a second answer can differ from the one the band was built from.
+     */
     override suspend fun basisFor(
         billId: String,
         lineName: String,
+        categorySlug: String,
     ): Either<DomainError, BandBasis> {
         val entry = entries.observe(ServiceLogId(billId)).first()
             ?: return DomainError.ServiceLogNotFound.left()
         val car = cars.observe(entry.carId).first() ?: return DomainError.CarNotFound.left()
         val city = cities.currentCity() ?: return DomainError.LookupUnavailable.left()
-        val job = namer.name(lineName) ?: return DomainError.LookupUnavailable.left()
-
         val workshop = workshopTier()
         val band = bands.bandFor(
             PriceBandQuery(
-                categorySlug = job.slug,
+                categorySlug = categorySlug,
                 city = city,
                 segment = SegmentCatalog.segmentOrNull(car.model),
                 fuel = car.fuelType,

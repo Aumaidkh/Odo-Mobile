@@ -49,8 +49,8 @@ internal data class CheckedBill(
  * the app claiming work it did not do.
  *
  * The rules run first and the model only sees what they could not name. It names a job and
- * never a price — the band comes from the tables either way — and what it names is kept out
- * of the shared pool (see [namedByModel]).
+ * never a price — the band comes from the tables either way — and what it named is kept out
+ * of the shared pool: only a line the rules themselves matched is offered back.
  */
 internal class CheckBillPriceUseCase(
     private val matcher: BillLineMatcher,
@@ -123,12 +123,12 @@ internal class CheckBillPriceUseCase(
             when {
                 // The record beats both tables. It is the owner's own data, and "you had this
                 // in April" is a harder question than anything else here.
-                repeat != null -> flagged += line.repeated(repeat)
+                repeat != null -> flagged += line.repeated(repeat, kind)
                 // Then the maker's schedule, which is a published fact, ahead of a band that
                 // is often a calculation.
-                early != null -> flagged += line.notDueYet(early)
+                early != null -> flagged += line.notDueYet(early, kind)
                 band == null -> unchecked += priced
-                line.amount.paise > band.high.paise -> flagged += line.overpriced(band)
+                line.amount.paise > band.high.paise -> flagged += line.overpriced(band, kind)
                 else -> fine += priced
             }
         }
@@ -193,11 +193,12 @@ internal class CheckBillPriceUseCase(
     ).getOrNull()
 
     /** Done again, sooner than it comes round. */
-    private fun BillLine.repeated(repeat: RepeatFinder.Repeat) = FlaggedLine(
+    private fun BillLine.repeated(repeat: RepeatFinder.Repeat, kind: JobKind) = FlaggedLine(
         name = label,
         amount = amount,
         reason = Reason.DoneRecently(monthsAgo = repeat.monthsAgo, on = repeat.on),
         evidence = Evidence.OwnRecord,
+        categorySlug = kind.slug,
     )
 
     /**
@@ -213,16 +214,18 @@ internal class CheckBillPriceUseCase(
      *
      * No evidence rung: this says nothing about the price, and the dots rank price evidence.
      */
-    private fun BillLine.notDueYet(notDue: ScheduleChecker.NotDue) = FlaggedLine(
+    private fun BillLine.notDueYet(notDue: ScheduleChecker.NotDue, kind: JobKind) = FlaggedLine(
         name = label,
         amount = amount,
         reason = Reason.ScheduledLater(dueAtKm = notDue.dueAtKm, currentKm = notDue.currentKm),
         evidence = null,
+        categorySlug = kind.slug,
     )
 
-    private fun BillLine.overpriced(band: PriceBand) = FlaggedLine(
+    private fun BillLine.overpriced(band: PriceBand, kind: JobKind) = FlaggedLine(
         name = label,
         amount = amount,
+        categorySlug = kind.slug,
         reason = Reason.AboveBand(low = band.low, high = band.high),
         evidence = when (band.basis) {
             BenchmarkBasis.MODELLED -> Evidence.CityRates
