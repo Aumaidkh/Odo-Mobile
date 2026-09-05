@@ -6,6 +6,20 @@
 # `project_id` is the local Docker stack's name, not the hosted project ref.
 project_id = "odo"
 
+# The schemas PostgREST answers for.
+#
+# `social` is not decoration: the pipeline's edge functions reach social.content_queue and
+# friends over REST with the service role, and without it they answer `Invalid schema: social`
+# — which is exactly what dev did while production, configured by hand, worked.
+#
+# Exposing it hands a browser nothing. Those tables have RLS on with no policies, so an
+# anonymous or signed-in read returns no rows; the admin panel reads them through `public`
+# views that carry their own permission check.
+#
+# Here rather than in the dashboard so the two projects cannot drift again.
+[api]
+schemas = ["public", "graphql_public", "social"]
+
 [functions.legal]
 # The Terms, the Privacy Policy and the account-deletion page. All three have to be readable
 # by anyone with the link — a Play reviewer, or somebody who has already uninstalled the app —
