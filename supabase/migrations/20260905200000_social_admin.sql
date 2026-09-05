@@ -110,9 +110,9 @@ create table if not exists public.social_settings (
     id            boolean     primary key default true check (id),
     posting_mode  text        not null default 'scheduled'
                               check (posting_mode in ('auto', 'custom', 'scheduled')),
-    -- Checked by generate, by the renderer's dispatch and by every publish. One switch that
-    -- stops the whole pipeline is the first thing wanted when something is going wrong, and
-    -- it must not mean deleting the schedule.
+    -- Checked by the tick, by generate, by the renderer and before every publish. It has to
+    -- be all four: a pause that only stopped new drafts would leave already-queued ones
+    -- rendering and going out, which is not what anybody reaching for this switch means.
     paused        boolean     not null default false,
     -- Slots are written in this zone, which is not the server's.
     timezone      text        not null default 'Asia/Kolkata',

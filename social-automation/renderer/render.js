@@ -88,7 +88,31 @@ async function tg(method, body) {
   return json.result;
 }
 
+/**
+ * What the admin panel has set. Read once per run.
+ *
+ * The pause has to be honoured here as well as in `generate`: stopping new drafts while the
+ * renderer keeps pushing already-queued ones to Telegram is not a pause, and this is the
+ * switch somebody reaches for when something is going wrong.
+ */
+async function settings() {
+  // `public`, not `social`: the panel's tables live there, and dbHeaders() pins this
+  // renderer's requests to the pipeline's own schema.
+  const res = await fetch(rest("social_settings?select=paused&limit=1"), {
+    headers: { ...dbHeaders(), "Accept-Profile": "public" },
+  });
+  if (!res.ok) return { paused: false };
+  const rows = await res.json();
+  return rows[0] ?? { paused: false };
+}
+
 async function main() {
+  const { paused } = await settings();
+  if (paused) {
+    console.log("Pipeline is paused — rendering nothing.");
+    return;
+  }
+
   const draftsRes = await fetch(rest("content_queue?status=eq.draft&select=*,content_bank(screenshot)"), { headers: dbHeaders() });
   if (!draftsRes.ok) throw new Error(`fetch drafts: ${draftsRes.status} ${await draftsRes.text()}`);
   const drafts = await draftsRes.json();
@@ -133,16 +157,25 @@ async function main() {
     }
     const postUrl = await upload(`${draft.id}-post.png`, postPng);
 
+    // Auto posts are not offered to anybody — that is the whole of the mode. They still go
+    // to Telegram, because a post that went out with nobody told is a post nobody can catch,
+    // but without the buttons and marked `approved`, which is what the tick publishes from.
+    const auto = draft.approval === "auto";
+
     const preview = await tg("sendPhoto", {
       chat_id: CHAT_ID,
       photo: postUrl,
-      caption: `#${draft.id} · ${useShotVariant ? "screenshot" : "stat"} card\n\n${c.caption}\n\n${c.hashtags}`,
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "✅ Approve", callback_data: `approve:${draft.id}` },
-          { text: "❌ Reject", callback_data: `reject:${draft.id}` },
-        ]],
-      },
+      caption: auto
+        ? `#${draft.id} · going out automatically\n\n${c.caption}\n\n${c.hashtags}`
+        : `#${draft.id} · ${useShotVariant ? "screenshot" : "stat"} card\n\n${c.caption}\n\n${c.hashtags}`,
+      ...(auto ? {} : {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "✅ Approve", callback_data: `approve:${draft.id}` },
+            { text: "❌ Reject", callback_data: `reject:${draft.id}` },
+          ]],
+        },
+      }),
     });
     if (storyUrl) {
       await tg("sendPhoto", { chat_id: CHAT_ID, photo: storyUrl, caption: `#${draft.id} · IG story` });
@@ -152,7 +185,7 @@ async function main() {
       method: "PATCH",
       headers: dbHeaders(true),
       body: JSON.stringify({
-        status: "rendered",
+        status: auto ? "approved" : "rendered",
         post_image_url: postUrl,
         story_image_url: storyUrl,
         telegram_message_id: preview.message_id,
@@ -160,7 +193,7 @@ async function main() {
       }),
     });
     if (!patch.ok) throw new Error(`patch #${draft.id}: ${patch.status} ${await patch.text()}`);
-    console.log(`#${draft.id} rendered → Telegram preview sent.`);
+    console.log(`#${draft.id} rendered → ${auto ? "queued to publish automatically" : "Telegram preview sent"}.`);
   }
 
   await browser.close();

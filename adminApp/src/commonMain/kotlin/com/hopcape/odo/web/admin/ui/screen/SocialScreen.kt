@@ -8,11 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,8 +61,11 @@ import com.hopcape.odo.web.core.presentation.state.resolve
 @Composable
 fun SocialScreen(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
     Box(Modifier.fillMaxSize()) {
+        // Scrolled, because the shell's content slot is a bare Box and every other section
+        // brings its own. Without it the Settings tab's KEYS panel sits below the fold with no
+        // way to reach it — which is the one step setting this feature up requires.
         Column(
-            modifier = Modifier.fillMaxSize().padding(26.dp),
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(26.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Header(state, onEvent)
@@ -255,8 +258,8 @@ private fun ScheduleTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             weights = listOf(2f, 2f, 2f, 1.2f, 1.6f, 1.4f),
         )
         state.editingSlot?.let { SlotEditor(it, onEvent) }
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.slots, key = { it.id }) { slot ->
+        Column(Modifier.fillMaxWidth()) {
+            state.slots.forEach { slot ->
                 TableRow {
                     Cell(slot.label, Modifier.weight(2f), if (slot.enabled) AdminTokens.textStrong else AdminTokens.textMuted)
                     Cell("${slot.timeOfDay} · ${slot.whenLabel()}", Modifier.weight(2f))
@@ -377,8 +380,8 @@ private fun AccountsTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             columns = listOf("PLATFORM", "NAME", "ID", "TOKEN", "STATE", ""),
             weights = listOf(1.4f, 2f, 2f, 2f, 1f, 1.6f),
         )
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.accounts, key = { it.id }) { account ->
+        Column(Modifier.fillMaxWidth()) {
+            state.accounts.forEach { account ->
                 TableRow {
                     Cell(account.platform.label, Modifier.weight(1.4f))
                     Cell(account.displayName, Modifier.weight(2f))
@@ -442,8 +445,8 @@ private fun TelegramTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
         )
         TableHead(columns = listOf("NAME", "CHAT ID", "NOTIFY", "APPROVE", ""), weights = listOf(2f, 2f, 1f, 1f, 1.6f))
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.recipients, key = { it.chatId }) { recipient ->
+        Column(Modifier.fillMaxWidth()) {
+            state.recipients.forEach { recipient ->
                 TableRow {
                     Cell(recipient.name, Modifier.weight(2f))
                     CellSecondary(recipient.chatId.toString(), Modifier.weight(2f))
@@ -467,8 +470,8 @@ private fun TelegramTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
 private fun QueueTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
     Panel {
         PanelHeader("WAITING")
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.queue, key = { it.id }) { item -> QueueRow(item, onEvent) }
+        Column(Modifier.fillMaxWidth()) {
+            state.queue.forEach { item -> QueueRow(item, onEvent) }
         }
         if (state.queue.isEmpty()) Muted("Nothing in the queue.", Modifier.padding(18.dp))
     }
@@ -476,8 +479,8 @@ private fun QueueTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
     Panel {
         PanelHeader("PUBLISHED")
         TableHead(columns = listOf("WHEN", "QUEUE", "MEDIA", "STORY"), weights = listOf(2f, 1f, 2f, 2f))
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.log, key = { it.id }) { record ->
+        Column(Modifier.fillMaxWidth()) {
+            state.log.forEach { record ->
                 TableRow {
                     Cell(record.publishedAt, Modifier.weight(2f))
                     CellSecondary(record.queueId?.toString() ?: "—", Modifier.weight(1f))
@@ -527,8 +530,8 @@ private fun FactsTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
         )
         state.editingFact?.let { FactEditor(it, onEvent) }
         TableHead(columns = listOf("CATEGORY", "FACT", "LAST USED", ""), weights = listOf(1.4f, 4f, 1.6f, 1.4f))
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(state.facts, key = { it.id ?: 0L }) { fact ->
+        Column(Modifier.fillMaxWidth()) {
+            state.facts.forEach { fact ->
                 TableRow {
                     Cell(fact.category, Modifier.weight(1.4f))
                     Cell(fact.fact, Modifier.weight(4f))

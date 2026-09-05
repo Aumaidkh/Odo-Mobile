@@ -154,7 +154,12 @@ internal class SupabaseSocialRepository(
             // account with a new token, not a second row for it.
             onConflict = "platform,external_id",
         ).flatMap { rows ->
-            val id = rows.firstOrNull()?.id ?: return@flatMap Either.Right(Unit)
+            // An empty representation means the row did not come back, so there is no id to
+            // file the token against. Reported rather than swallowed: the previous version
+            // answered success and left an account with no token, which reads on screen as a
+            // UI glitch rather than a write that did not happen.
+            val id = rows.firstOrNull()?.id
+                ?: return@flatMap Either.Left(WebError.Unexpected("the account was not stored"))
             setCredential(CredentialStatus.forAccount(id), token)
         }
 

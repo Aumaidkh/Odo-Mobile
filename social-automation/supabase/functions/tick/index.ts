@@ -10,8 +10,12 @@
 // hard-coded cron.schedule calls. This wakes up every 15 minutes, asks public.social_schedule
 // what is due, and calls `generate` for each slot that is.
 //
-// It decides nothing about approval. That belongs to `generate`, which reads the mode and the
-// slot together — two places deciding one thing is how they end up disagreeing.
+// It resolves approval once, here, and hands the answer to `generate` — which trusts it rather
+// than re-deriving it. The mode and the slot are both needed to answer, and only this function
+// has read both.
+//
+// It also publishes: a row left at `approved` is one the panel's button or auto mode put
+// there, and nothing else picks those up. The Telegram button still publishes on the spot.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -23,6 +27,8 @@ const supabase = createClient(
 /** How wide a window counts as "now". The cron interval, so no slot is skipped or doubled. */
 const WINDOW_MINUTES = 15;
 
+const MINUTES_IN_DAY = 24 * 60;
+
 type Slot = {
   id: string;
   label: string;
@@ -30,7 +36,6 @@ type Slot = {
   days_of_week: number[];
   day_of_month: number | null;
   platforms: string[];
-  variant: string;
   include_story: boolean;
   approval: string;
   enabled: boolean;
@@ -67,8 +72,10 @@ function isDue(slot: Slot, now: ReturnType<typeof localNow>): boolean {
 
   const [h, m] = slot.time_of_day.split(":").map(Number);
   const slotMinutes = h * 60 + m;
-  const delta = now.minutes - slotMinutes;
-  if (delta < 0 || delta >= WINDOW_MINUTES) return false;
+  // Wrapped, because the day does. Without the modulo a 23:50 slot is dead: the 23:45 tick
+  // gives -5 and the 00:00 tick gives -1430, and no tick in the day is ever inside the window.
+  const delta = (now.minutes - slotMinutes + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+  if (delta >= WINDOW_MINUTES) return false;
 
   // Empty means every day; both set means both must match.
   if (slot.days_of_week.length > 0 && !slot.days_of_week.includes(now.isoDay)) return false;
@@ -79,6 +86,40 @@ function isDue(slot: Slot, now: ReturnType<typeof localNow>): boolean {
     if (sinceMinutes < WINDOW_MINUTES) return false;
   }
   return true;
+}
+
+/**
+ * Publish everything sitting at `approved`.
+ *
+ * That state has two producers and had no consumer: the panel's Approve button, and a slot
+ * whose approval is `auto`, whose post the renderer marks approved rather than offering it to
+ * anybody. Without this, both were a post that could never go out — and the Telegram button
+ * then refused it as already handled.
+ *
+ * The publishing itself stays in `telegram-webhook`, which holds the Instagram calls and the
+ * token refresh. Asking it over HTTP rather than copying that code keeps one publisher; two
+ * would drift, and the one that drifted would be the one nobody watched.
+ */
+async function publishApproved(): Promise<string[]> {
+  const { data: rows } = await supabase
+    .from("content_queue")
+    .select("id")
+    .eq("status", "approved")
+    .limit(10);
+
+  const done: string[] = [];
+  for (const row of rows ?? []) {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/telegram-webhook`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-telegram-bot-api-secret-token": Deno.env.get("TELEGRAM_WEBHOOK_SECRET") ?? "",
+      },
+      body: JSON.stringify({ publish: row.id }),
+    });
+    done.push(`${row.id}:${res.status}`);
+  }
+  return done;
 }
 
 Deno.serve(async () => {
@@ -110,6 +151,7 @@ Deno.serve(async () => {
   for (const slot of due) {
     // Stamped before the call, not after. A generate that takes longer than the next tick
     // would otherwise be started twice, and two posts is worse than none.
+    const previouslyFiredAt = slot.last_fired_at;
     await supabase
       .from("social_schedule")
       .update({ last_fired_at: new Date().toISOString() })
@@ -123,15 +165,25 @@ Deno.serve(async () => {
       },
       body: JSON.stringify({
         story: slot.include_story,
-        variant: slot.variant,
         platforms: slot.platforms,
         slot_id: slot.id,
         // Under `auto` the mode has already answered; otherwise the slot does.
         approval: settings.posting_mode === "auto" ? "auto" : slot.approval,
       }),
     });
+    // Rolled back when generate refused. Leaving the stamp marks the slot as having fired and
+    // skips it until tomorrow, with a healthy timestamp on the panel and nothing to say why
+    // nothing was posted — the failure nobody would go looking for.
+    if (!res.ok) {
+      await supabase
+        .from("social_schedule")
+        .update({ last_fired_at: previouslyFiredAt })
+        .eq("id", slot.id);
+    }
     fired.push(`${slot.label}:${res.status}`);
   }
 
-  return Response.json({ ok: true, checked: (slots ?? []).length, fired });
+  const published = await publishApproved();
+
+  return Response.json({ ok: true, checked: (slots ?? []).length, fired, published });
 });
