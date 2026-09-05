@@ -18,6 +18,7 @@ import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
 import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -38,6 +39,15 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 internal class SupabaseSocialRepository(
     private val postgrest: Postgrest,
+    /**
+     * This project's own address and publishable key.
+     *
+     * Passed to `arm_social_tick` rather than read from Vault inside it: the panel is already
+     * talking to exactly the project the schedule should point at, so the button cannot arm
+     * the wrong one — which is the mistake a URL typed by hand makes.
+     */
+    private val projectUrl: String,
+    private val projectKey: String,
 ) : SocialRepository {
 
     /* ------------------------------ settings ------------------------------ */
@@ -237,6 +247,21 @@ internal class SupabaseSocialRepository(
 
     override suspend fun deleteFact(id: Long): Either<WebError, Unit> =
         postgrest.call(name = "delete_social_fact", body = """{"p_id":$id}""")
+
+    /* ------------------------------ the scheduler ------------------------------ */
+
+    override suspend fun tickSchedule(): Either<WebError, String> =
+        postgrest.rpcOne(name = "social_tick_status", serializer = String.serializer(), body = "{}")
+            .map { it.orEmpty() }
+
+    override suspend fun armTick(): Either<WebError, Unit> =
+        postgrest.call(
+            name = "arm_social_tick",
+            body = """{"p_url":"${projectUrl.jsonEscaped()}","p_key":"${projectKey.jsonEscaped()}"}""",
+        )
+
+    override suspend fun disarmTick(): Either<WebError, Unit> =
+        postgrest.call(name = "disarm_social_tick", body = "{}")
 
     /* ------------------------------ credentials ------------------------------ */
 

@@ -48,6 +48,8 @@ sealed interface SocialEvent {
     data object PauseToggled : SocialEvent
     data class TimezoneChanged(val value: String) : SocialEvent
     data object SettingsSaved : SocialEvent
+    data object TickArmed : SocialEvent
+    data object TickDisarmed : SocialEvent
 
     // Credentials — set only. Nothing here can read one back.
     data class CredentialDraftChanged(val key: String, val value: String) : SocialEvent
@@ -121,6 +123,8 @@ data class SocialUiState(
     val facts: List<SocialFact> = emptyList(),
     /** Which secrets exist and when they changed. Never their values. */
     val credentials: List<CredentialStatus> = emptyList(),
+    /** The cron expression `social-tick` runs on, or blank when it is not scheduled. */
+    val tickSchedule: String = "",
     /** What is typed into a secret field, before it is sent and forgotten. */
     val credentialDrafts: Map<String, String> = emptyMap(),
     val editingSlot: SocialSlot? = null,
@@ -179,6 +183,8 @@ class SocialViewModel(
             }
             is SocialEvent.TimezoneChanged -> editSettings { it.copy(timezone = event.value) }
             SocialEvent.SettingsSaved -> write { social.saveSettings(_state.value.current) }
+            SocialEvent.TickArmed -> write { social.armTick() }
+            SocialEvent.TickDisarmed -> write { social.disarmTick() }
 
             is SocialEvent.CredentialDraftChanged -> _state.update {
                 it.copy(credentialDrafts = it.credentialDrafts + (event.key to event.value))
@@ -290,6 +296,7 @@ class SocialViewModel(
                     log = social.logOrEmpty(),
                     facts = social.factsOrEmpty(),
                     credentials = social.credentialsOrEmpty(),
+                    tickSchedule = social.tickSchedule().getOrNull().orEmpty(),
                 )
             }
         }

@@ -12,7 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.admin.domain.PostingMode
@@ -100,10 +103,10 @@ private fun Header(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SocialTab.entries.forEach { tab ->
-                RowAction(
-                    label = if (tab == state.tab) "▸ ${tab.label}" else tab.label,
+                Toggle(
+                    label = tab.label,
+                    selected = tab == state.tab,
                     onClick = { onEvent(SocialEvent.TabChanged(tab)) },
-                    color = if (tab == state.tab) AdminTokens.textStrong else AdminTokens.text,
                 )
             }
         }
@@ -118,21 +121,21 @@ private fun SettingsTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
     Panel {
         PanelHeader("HOW IT POSTS")
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FieldLabel("MODE")
+            FieldLabel("MODE — pick one, then Save")
             PostingMode.entries.forEach { mode ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    RowAction(
-                        label = if (settings.mode == mode) "●" else "○",
-                        onClick = { onEvent(SocialEvent.ModeChanged(mode)) },
-                    )
+                val selected = settings.mode == mode
+                // The whole row is the target, not a glyph beside it: a one-character radio
+                // is a hit area nobody finds, and the panel draws no font icons at all.
+                TableRow(onClick = { onEvent(SocialEvent.ModeChanged(mode)) }) {
                     Column(Modifier.weight(1f)) {
-                        CellPrimary(mode.title())
+                        CellPrimary(mode.title(), color = if (selected) AdminTokens.textStrong else AdminTokens.text)
                         CellSecondary(mode.explanation())
                     }
+                    Pill(
+                        text = if (selected) "SELECTED" else "PICK",
+                        dot = if (selected) AdminTokens.accent else null,
+                        textColor = if (selected) AdminTokens.textStrong else AdminTokens.textMuted,
+                    )
                 }
             }
 
@@ -145,13 +148,37 @@ private fun SettingsTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             Muted("Schedule slots are written in this zone, not the server's.")
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryAction("Save", onClick = { onEvent(SocialEvent.SettingsSaved) }, enabled = !state.busy)
+                PrimaryAction("Save mode & timezone", onClick = { onEvent(SocialEvent.SettingsSaved) }, enabled = !state.busy)
                 RowAction(
                     label = if (settings.paused) "Resume pipeline" else "Pause everything",
                     onClick = { onEvent(SocialEvent.PauseToggled) },
                     color = if (settings.paused) AdminTokens.textStrong else AdminTokens.danger,
                 )
             }
+        }
+    }
+
+    Panel {
+        PanelHeader("SCHEDULER")
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val armed = state.tickSchedule.isNotBlank()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Pill(
+                    text = if (armed) "RUNNING · ${state.tickSchedule}" else "NOT RUNNING",
+                    dot = if (armed) AdminTokens.accent else AdminTokens.danger,
+                )
+                if (armed) {
+                    RowAction("Stop", onClick = { onEvent(SocialEvent.TickDisarmed) }, color = AdminTokens.danger)
+                    RowAction("Re-arm", onClick = { onEvent(SocialEvent.TickArmed) })
+                } else {
+                    PrimaryAction("Start the scheduler", onClick = { onEvent(SocialEvent.TickArmed) }, enabled = !state.busy)
+                }
+            }
+            Muted(
+                "A cron job that wakes every 15 minutes and asks the schedule what is due. It " +
+                    "is armed against this panel's own project, so it cannot be pointed at the " +
+                    "wrong one. Nothing happens under Custom, or while paused.",
+            )
         }
     }
 
@@ -262,8 +289,9 @@ private fun SlotEditor(slot: SocialSlot, onEvent: (SocialEvent) -> Unit) {
             DAY_LABELS.forEachIndexed { index, label ->
                 val iso = index + 1
                 val on = iso in slot.daysOfWeek
-                RowAction(
-                    label = if (on) "[$label]" else label,
+                Toggle(
+                    label = label,
+                    selected = on,
                     onClick = {
                         val next = if (on) slot.daysOfWeek - iso else slot.daysOfWeek + iso
                         onEvent(SocialEvent.SlotDraftChanged(slot.copy(daysOfWeek = next.sorted())))
@@ -284,8 +312,9 @@ private fun SlotEditor(slot: SocialSlot, onEvent: (SocialEvent) -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SocialPlatform.entries.forEach { platform ->
                 val on = platform in slot.platforms
-                RowAction(
-                    label = if (on) "[${platform.label}]" else platform.label,
+                Toggle(
+                    label = platform.label,
+                    selected = on,
                     onClick = {
                         val next = if (on) slot.platforms - platform else slot.platforms + platform
                         onEvent(SocialEvent.SlotDraftChanged(slot.copy(platforms = next)))
@@ -322,8 +351,9 @@ private fun AccountsTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             val draft = state.accountDraft
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SocialPlatform.entries.forEach { platform ->
-                    RowAction(
-                        label = if (draft.platform == platform) "[${platform.label}]" else platform.label,
+                    Toggle(
+                        label = platform.label,
+                        selected = draft.platform == platform,
                         onClick = { onEvent(SocialEvent.AccountDraftChanged(draft.copy(platform = platform))) },
                     )
                 }
@@ -395,8 +425,9 @@ private fun TelegramTab(state: SocialUiState, onEvent: (SocialEvent) -> Unit) {
             val draft = state.recipientDraft
             AdminField(draft.name, { onEvent(SocialEvent.RecipientDraftChanged(draft.copy(name = it))) }, "Who it is")
             AdminField(draft.chatId, { onEvent(SocialEvent.RecipientDraftChanged(draft.copy(chatId = it))) }, "Chat id")
-            RowAction(
-                label = if (draft.canApprove) "[Can approve]" else "Can approve",
+            Toggle(
+                label = "Can approve",
+                selected = draft.canApprove,
                 onClick = { onEvent(SocialEvent.RecipientDraftChanged(draft.copy(canApprove = !draft.canApprove))) },
             )
             PrimaryAction("Add", onClick = { onEvent(SocialEvent.RecipientAdded) }, enabled = draft.canSubmit && !state.busy)
@@ -529,6 +560,24 @@ private fun FactEditor(fact: SocialFact, onEvent: (SocialEvent) -> Unit) {
 }
 
 /* ------------------------------ bits ------------------------------ */
+
+/**
+ * A thing that is on or off, drawn rather than lettered.
+ *
+ * The panel carries no icon font on purpose — its icons are compiled path data — so a `●`,
+ * a `○` or a `▸` in a label renders as a missing glyph. Selection is a [Pill] with a drawn
+ * dot, which is the same thing every other state in this panel is shown with.
+ */
+@Composable
+private fun Toggle(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(Modifier.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick)) {
+        if (selected) {
+            Pill(label, dot = AdminTokens.accent)
+        } else {
+            Pill(label, textColor = AdminTokens.textMuted)
+        }
+    }
+}
 
 @Composable
 private fun Warning(text: String, modifier: Modifier = Modifier) {

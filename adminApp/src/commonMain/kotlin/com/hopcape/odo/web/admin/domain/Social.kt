@@ -192,6 +192,18 @@ interface SocialRepository {
     suspend fun saveFact(fact: SocialFact): Either<WebError, Unit>
     suspend fun deleteFact(id: Long): Either<WebError, Unit>
 
+    /**
+     * Whether pg_cron is running `social-tick`, as its cron expression, or blank.
+     *
+     * Never the command itself — that string carries the key it was armed with.
+     */
+    suspend fun tickSchedule(): Either<WebError, String>
+
+    /** Start the 15-minute scheduler against this project. */
+    suspend fun armTick(): Either<WebError, Unit>
+
+    suspend fun disarmTick(): Either<WebError, Unit>
+
     suspend fun credentials(): Either<WebError, List<CredentialStatus>>
     suspend fun setCredential(key: String, value: String): Either<WebError, Unit>
     suspend fun clearCredential(key: String): Either<WebError, Unit>
