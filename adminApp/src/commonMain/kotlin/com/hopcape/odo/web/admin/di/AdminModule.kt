@@ -132,7 +132,13 @@ val adminModule: Module = module {
     single<TicketsRepository> { SupabaseTicketsRepository(postgrest = get()) }
     single<BillingRepository> { SupabaseBillingRepository(postgrest = get()) }
     single<FlagsRepository> { SupabaseFlagsRepository(postgrest = get()) }
-    single<SocialRepository> { SupabaseSocialRepository(postgrest = get()) }
+    single<SocialRepository> {
+        SupabaseSocialRepository(
+            postgrest = get(),
+            projectUrl = BuildWebConfig.SUPABASE_URL,
+            projectKey = BuildWebConfig.SUPABASE_ANON_KEY,
+        )
+    }
 
     viewModel { DashboardViewModel(dashboard = get()) }
     viewModel { SessionViewModel(auth = get()) }
