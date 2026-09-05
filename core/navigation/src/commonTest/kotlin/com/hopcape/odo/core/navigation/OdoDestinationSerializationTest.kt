@@ -163,6 +163,7 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue,
+        OdoDestination.ServiceChecklist(entry = "HOME_CARD"),
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
         OdoDestination.BillCheck.Result(billId = "bill-1"),
         OdoDestination.BillCheck.Basis(billId = "bill-1", lineName = "AC service"),

@@ -428,6 +428,21 @@ sealed interface OdoDestination : NavKey {
     data object CarValue : OdoDestination
 
     /**
+     * "Before you go in" — what this service should cover, what it should not, roughly what
+     * it should cost, and three questions to ask at the counter. Owned by `:feature:advisory`.
+     *
+     * Reachable from three places, because the moment it serves is the walk from the car park
+     * to the counter and no single surface catches every owner on the way there: Home's
+     * attention card, a conditional Home card, and the garage's actions sheet.
+     *
+     * [entry] is which door was used. Carried on the route because it is the only way the
+     * conditional card can be judged against the two permanent entries — without it they
+     * are one number on a dashboard.
+     */
+    @Serializable
+    data class ServiceChecklist(val entry: String = "MANUAL") : OdoDestination
+
+    /**
      * Cost tracker — the per-km "running cost" breakdown for the car. A sealed group: the
      * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
      * owner corrects the fuel rate the estimate is built on.
