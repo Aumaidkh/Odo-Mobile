@@ -25,41 +25,73 @@ import com.hopcape.odo.core.platform.mail.rememberMailComposer
 import com.hopcape.odo.core.platform.store.rememberStoreRater
 import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.domain.RequestDiagnosticsUseCase
+import com.hopcape.odo.feature.support.presentation.DiagnosticsSentScreen
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
+import com.hopcape.odo.feature.support.presentation.ReportSentScreen
+import com.hopcape.odo.feature.support.presentation.asMessage
+import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsEvent
+import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsScreen
+import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsUiState
+import com.hopcape.odo.feature.support.presentation.flagprice.DisputedBand
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceEvent
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceScreen
+import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceUiState
+import com.hopcape.odo.feature.support.presentation.formatBytes
+import com.hopcape.odo.feature.support.presentation.idea.IdeaEvent
+import com.hopcape.odo.feature.support.presentation.idea.IdeaUiState
+import com.hopcape.odo.feature.support.presentation.idea.SuggestIdeaScreen
+import com.hopcape.odo.feature.support.presentation.report.ReportEvent
+import com.hopcape.odo.feature.support.presentation.report.ReportArea
+import com.hopcape.odo.feature.support.presentation.report.ReportProblemScreen
+import com.hopcape.odo.feature.support.presentation.report.labelResource
+import com.hopcape.odo.feature.support.presentation.report.ReportUiState
 import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsPrompt
 import com.hopcape.odo.feature.support.presentation.diagnostics.DiagnosticsPromptSheets
 import com.hopcape.odo.feature.support.presentation.PrivacyPolicyScreen
 import com.hopcape.odo.feature.support.presentation.faq.FaqsScreen
 import com.hopcape.odo.feature.support.presentation.faq.SupportSearchScreen
-import com.hopcape.odo.feature.support.presentation.feedback.FeedbackScreen
 import com.hopcape.odo.feature.support.presentation.licences.LicencesScreen
 import com.hopcape.odo.feature.support.presentation.rating.RateSheetContent
 import com.hopcape.odo.feature.support.resources.Res
+import com.hopcape.odo.feature.support.resources.sp_diag_retention
 import com.hopcape.odo.feature.support.resources.sp_email
+import com.hopcape.odo.feature.support.resources.sp_sent_attached_logs
+import com.hopcape.odo.feature.support.resources.sp_sent_attached_none
+import com.hopcape.odo.feature.support.resources.sp_sent_attached_photos
+import com.hopcape.odo.feature.support.resources.sp_sent_copy
+import com.hopcape.odo.feature.support.resources.sp_sent_delete
+import com.hopcape.odo.feature.support.resources.sp_sent_diag_intro
+import com.hopcape.odo.feature.support.resources.sp_sent_diag_title
+import com.hopcape.odo.feature.support.resources.sp_sent_done
+import com.hopcape.odo.feature.support.resources.sp_sent_reference_label
+import com.hopcape.odo.feature.support.resources.sp_sent_row_area
+import com.hopcape.odo.feature.support.resources.sp_sent_row_attached
+import com.hopcape.odo.feature.support.resources.sp_sent_row_deleted_by
+import com.hopcape.odo.feature.support.resources.sp_sent_row_just_now
+import com.hopcape.odo.feature.support.resources.sp_sent_row_sent
+import com.hopcape.odo.feature.support.resources.sp_sent_row_size
+import com.hopcape.odo.feature.support.resources.sp_sent_row_ticket
+import com.hopcape.odo.feature.support.resources.sp_sent_rp_intro
+import com.hopcape.odo.feature.support.resources.sp_sent_rp_title
+import com.hopcape.odo.feature.support.resources.sp_sent_wait_action
+import com.hopcape.odo.feature.support.resources.sp_sent_wait_body
+import com.hopcape.odo.feature.support.resources.sp_sent_wait_label
 import com.hopcape.odo.feature.support.resources.sp_email_body
 import com.hopcape.odo.feature.support.resources.sp_email_subject
 import com.hopcape.odo.feature.support.resources.sp_fb_diagnostics_line
-import com.hopcape.odo.feature.support.resources.sp_fb_flag_body
-import com.hopcape.odo.feature.support.resources.sp_fb_flag_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_flag_subject
-import com.hopcape.odo.feature.support.resources.sp_fb_idea_body
-import com.hopcape.odo.feature.support.resources.sp_fb_idea_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_idea_subject
 import com.hopcape.odo.feature.support.resources.sp_fb_mail_footer
-import com.hopcape.odo.feature.support.resources.sp_fb_report_body
-import com.hopcape.odo.feature.support.resources.sp_fb_report_intro
 import com.hopcape.odo.feature.support.resources.sp_fb_report_subject
-import com.hopcape.odo.feature.support.resources.sp_flag
-import com.hopcape.odo.feature.support.resources.sp_idea
 import com.hopcape.odo.feature.support.resources.sp_licences
 import com.hopcape.odo.feature.support.resources.sp_privacy
 import com.hopcape.odo.feature.support.resources.sp_rate
 import com.hopcape.odo.feature.support.resources.sp_rate_subject
-import com.hopcape.odo.feature.support.resources.sp_report
 import com.hopcape.odo.feature.support.resources.sp_terms
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -124,7 +156,7 @@ internal class SupportFeatureEntryProvider(
                 },
                 onReportProblem = { nm.navigateTo(OdoDestination.Support.ReportProblem) },
                 onSuggestIdea = { nm.navigateTo(OdoDestination.Support.SuggestIdea) },
-                onFlagPriceData = { nm.navigateTo(OdoDestination.Support.FlagPriceData) },
+                onFlagPriceData = { nm.navigateTo(OdoDestination.Support.FlagPriceData()) },
                 // Always offered: the sheet behind it works with or without a store listing,
                 // since sending feedback is the half that never depended on one.
                 onRate = { nm.navigateTo(OdoDestination.Support.Rate) },
@@ -151,33 +183,20 @@ internal class SupportFeatureEntryProvider(
         }
 
         entry<OdoDestination.Support.Search> { SupportSearchScreen(onBack = { nm.back() }) }
-        entry<OdoDestination.Support.ReportProblem> {
-            FeedbackRoute(
-                title = Res.string.sp_report,
-                intro = Res.string.sp_fb_report_intro,
-                subject = Res.string.sp_fb_report_subject,
-                body = Res.string.sp_fb_report_body,
-                // The only form that offers logs. An idea and a wrong benchmark have nothing
-                // in a log file worth reading.
-                attachDiagnostics = true,
-            )
-        }
-        entry<OdoDestination.Support.SuggestIdea> {
-            FeedbackRoute(
-                title = Res.string.sp_idea,
-                intro = Res.string.sp_fb_idea_intro,
-                subject = Res.string.sp_fb_idea_subject,
-                body = Res.string.sp_fb_idea_body,
-            )
-        }
-        entry<OdoDestination.Support.FlagPriceData> {
-            FeedbackRoute(
-                title = Res.string.sp_flag,
-                intro = Res.string.sp_fb_flag_intro,
-                subject = Res.string.sp_fb_flag_subject,
-                body = Res.string.sp_fb_flag_body,
-            )
-        }
+        entry<OdoDestination.Support.ReportProblem> { ReportProblemRoute() }
+        entry<OdoDestination.Support.SuggestIdea> { SuggestIdeaRoute() }
+        entry<OdoDestination.Support.FlagPriceData> { key -> FlagPriceRoute(key) }
+
+        // Registered, and not yet reached from the help sheet. The screen itemises what an
+        // upload contains and puts a switch on each line; until the branch that makes those
+        // switches decide what is actually uploaded, the sheet keeps the older prompt. A
+        // screen that lists what gets sent while sending something else is the one failure
+        // this screen exists to prevent.
+        entry<OdoDestination.Support.Diagnostics> { DiagnosticsRoute() }
+        entry<OdoDestination.Support.DiagnosticsSent> { key -> DiagnosticsSentRoute(key) }
+        // Reached once a report becomes a ticket. A ticket number is the one thing on it that
+        // cannot be invented, so nothing navigates here while reports still go out as mail.
+        entry<OdoDestination.Support.ReportSent> { key -> ReportSentRoute(key) }
         entry<OdoDestination.Support.Rate>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
             val composeMail = rememberMailComposer()
             val openStoreListing = rememberStoreRater()
@@ -215,61 +234,234 @@ internal class SupportFeatureEntryProvider(
         }
     }
 
+    /*
+     * The four form routes.
+     *
+     * Each holds its own state here rather than in a view model, because in this branch there
+     * is nothing behind them: the screens are built, and what a submission *is* — a row saved
+     * before it is sent, and synced like everything else — is the next branch. Sending still
+     * hands the message to the mail app exactly as it did before, so nothing an owner can do
+     * today stops working while the screens are replaced.
+     *
+     * The email is asked for rather than read off the account for the same reason: the profile
+     * is a repository call, and this branch has no domain to make it with.
+     */
+
+    @Composable
+    private fun ReportProblemRoute() {
+        var state by remember { mutableStateOf(ReportUiState()) }
+        val send = mailSender(Res.string.sp_fb_report_subject)
+
+        ReportProblemScreen(
+            state = state,
+            onEvent = { event ->
+                when (event) {
+                    ReportEvent.BackClicked -> nm.back()
+                    is ReportEvent.AreaPicked -> state = state.copy(area = event.area)
+                    is ReportEvent.MessageChanged -> state = state.copy(message = event.message)
+                    is ReportEvent.AttachLogsToggled -> state = state.copy(attachLogs = event.on)
+                    is ReportEvent.EmailChanged ->
+                        state = state.copy(email = event.email, emailInvalid = false)
+                    // Picking a file is a platform seam the ticket needs and the mail
+                    // hand-off does not — the composer takes text, and an attachment it
+                    // cannot carry would be a control that does nothing.
+                    ReportEvent.AddAttachmentClicked -> Unit
+                    is ReportEvent.AttachmentPicked -> Unit
+                    is ReportEvent.AttachmentRemoved -> Unit
+                    ReportEvent.SendClicked -> send(state.asMessage())
+                }
+            },
+        )
+    }
+
+    @Composable
+    private fun SuggestIdeaRoute() {
+        var state by remember { mutableStateOf(IdeaUiState()) }
+        val send = mailSender(Res.string.sp_fb_idea_subject)
+
+        SuggestIdeaScreen(
+            state = state,
+            onEvent = { event ->
+                when (event) {
+                    IdeaEvent.BackClicked -> nm.back()
+                    is IdeaEvent.TextChanged -> state = state.copy(text = event.text)
+                    // The list is empty until something fills it, so nothing can be voted on
+                    // yet and the section is not drawn.
+                    is IdeaEvent.VoteToggled -> Unit
+                    IdeaEvent.SendClicked -> send(state.text)
+                }
+            },
+        )
+    }
+
+    @Composable
+    private fun FlagPriceRoute(key: OdoDestination.Support.FlagPriceData) {
+        val band = key.band()
+        var state by remember { mutableStateOf(FlagPriceUiState(band = band)) }
+        val send = mailSender(Res.string.sp_fb_flag_subject)
+
+        FlagPriceScreen(
+            state = state,
+            onEvent = { event ->
+                when (event) {
+                    FlagPriceEvent.BackClicked -> nm.back()
+                    is FlagPriceEvent.JobNameChanged -> state = state.copy(jobName = event.name)
+                    is FlagPriceEvent.ComplaintPicked ->
+                        state = state.copy(complaint = event.complaint)
+                    is FlagPriceEvent.PaidChanged -> state = state.copy(paidRupees = event.rupees)
+                    FlagPriceEvent.AttachBillClicked -> Unit
+                    is FlagPriceEvent.BillPicked -> Unit
+                    FlagPriceEvent.SendClicked -> send(state.asMessage())
+                }
+            },
+        )
+    }
+
+    /** The band the key carries, or null when the screen was opened from the help sheet. */
+    private fun OdoDestination.Support.FlagPriceData.band(): DisputedBand? =
+        lineName?.let {
+            DisputedBand(
+                lineName = it,
+                lowPaise = lowPaise,
+                highPaise = highPaise,
+                city = city,
+                workshop = workshop,
+                segment = segment,
+            )
+        }
+
+    @Composable
+    private fun DiagnosticsRoute() {
+        val scope = rememberCoroutineScope()
+        var state by remember {
+            mutableStateOf(
+                DiagnosticsUiState(
+                    appLine = "${appInfo.versionName} · ${deviceInfo.model} · ${deviceInfo.osVersion}",
+                ),
+            )
+        }
+
+        DiagnosticsScreen(
+            state = state,
+            onEvent = { event ->
+                when (event) {
+                    DiagnosticsEvent.BackClicked -> nm.back()
+                    is DiagnosticsEvent.PartToggled -> state = state.with(event.part, event.on)
+                    DiagnosticsEvent.SendClicked -> scope.launch {
+                        state = state.copy(sending = true)
+                        val reference = requestDiagnostics()
+                        nm.back()
+                        nm.navigateTo(
+                            OdoDestination.Support.DiagnosticsSent(
+                                reference = reference,
+                                sizeBytes = state.sizeBytes,
+                                deleteAfterDays = state.retentionDays,
+                            ),
+                        )
+                    }
+                }
+            },
+        )
+    }
+
+    @Composable
+    private fun DiagnosticsSentRoute(key: OdoDestination.Support.DiagnosticsSent) {
+        val copy = rememberTextSharer()
+        DiagnosticsSentScreen(
+            reference = key.reference,
+            referenceLabel = stringResource(Res.string.sp_sent_reference_label),
+            headline = stringResource(Res.string.sp_sent_diag_title),
+            intro = stringResource(Res.string.sp_sent_diag_intro),
+            facts = listOf(
+                stringResource(Res.string.sp_sent_row_sent) to
+                    stringResource(Res.string.sp_sent_row_just_now),
+                stringResource(Res.string.sp_sent_row_size) to formatBytes(key.sizeBytes),
+                stringResource(Res.string.sp_sent_row_deleted_by) to
+                    stringResource(Res.string.sp_diag_retention, key.deleteAfterDays),
+            ),
+            copyLabel = stringResource(Res.string.sp_sent_copy),
+            deleteLabel = stringResource(Res.string.sp_sent_delete),
+            // The share sheet, until there is a clipboard seam. Handing the code somewhere is
+            // the errand; which app takes it is the owner's business.
+            onCopy = { copy(key.reference) },
+            // Deleting an upload is a call to the server, and this branch has none to make it
+            // with. The button is drawn because the screen is what the next branch wires.
+            onDelete = { nm.back() },
+        )
+    }
+
+    @Composable
+    private fun ReportSentRoute(key: OdoDestination.Support.ReportSent) {
+        ReportSentScreen(
+            headline = stringResource(Res.string.sp_sent_rp_title),
+            intro = stringResource(Res.string.sp_sent_rp_intro, key.maskedReplyTo),
+            facts = listOf(
+                stringResource(Res.string.sp_sent_row_ticket) to key.ticket,
+                stringResource(Res.string.sp_sent_row_area) to key.areaLabel(),
+                stringResource(Res.string.sp_sent_row_attached) to attachedSummary(key),
+            ),
+            // Only where the report is about a scan. "Enter it manually" is the way round a
+            // broken scanner; on a reminders bug it is an instruction to do nothing useful.
+            waitLabel = stringResource(Res.string.sp_sent_wait_label).takeIf { key.isScan() },
+            waitBody = stringResource(Res.string.sp_sent_wait_body).takeIf { key.isScan() },
+            waitAction = stringResource(Res.string.sp_sent_wait_action).takeIf { key.isScan() },
+            doneLabel = stringResource(Res.string.sp_sent_done),
+            // The sheet that offers manual entry for the car in hand. A direct jump to the
+            // form would need a car id, and this screen has no car — it has a ticket.
+            onWaitAction = {
+                nm.back()
+                nm.navigateTo(OdoDestination.Garage.AddToHistory)
+            },
+            onDone = { nm.back() },
+        )
+    }
+
+    /** "1 photo · app logs" — what actually travelled, so nobody finds out later. */
+    @Composable
+    private fun attachedSummary(key: OdoDestination.Support.ReportSent): String {
+        val parts = buildList {
+            if (key.photos > 0) {
+                add(pluralStringResource(Res.plurals.sp_sent_attached_photos, key.photos, key.photos))
+            }
+            if (key.logsAttached) add(stringResource(Res.string.sp_sent_attached_logs))
+        }
+        return if (parts.isEmpty()) {
+            stringResource(Res.string.sp_sent_attached_none)
+        } else {
+            parts.joinToString(" · ")
+        }
+    }
+
+    /** The area, as the report screen words it. */
+    @Composable
+    private fun OdoDestination.Support.ReportSent.areaLabel(): String =
+        stringResource(reportArea().labelResource())
+
+    /** An area the key does not name reads as "something else" rather than as an error. */
+    private fun OdoDestination.Support.ReportSent.reportArea(): ReportArea =
+        ReportArea.entries.firstOrNull { it.name == area } ?: ReportArea.OTHER
+
+    private fun OdoDestination.Support.ReportSent.isScan(): Boolean =
+        reportArea() == ReportArea.BILL_SCAN
+
     /**
-     * One of the three feedback forms, wired to the mail app.
+     * The mail hand-off, unchanged from what these three forms did before.
      *
-     * The build and device footer is resolved once, not per keystroke: it does not depend on
-     * what is being typed, and rebuilding it on every character would be work for nothing.
-     *
-     * Sending pops the form first, then opens the composer. The other order leaves somebody
-     * returning from their mail app to a form still holding the message they just sent, with
-     * no way to tell whether it went.
+     * Popping happens inside the lambda after the composer has been asked for: leaving
+     * composition first would take the form away before the draft was built.
      */
     @Composable
-    private fun FeedbackRoute(
-        title: StringResource,
-        intro: StringResource,
-        subject: StringResource,
-        body: StringResource,
-        attachDiagnostics: Boolean = false,
-    ) {
+    private fun mailSender(subject: StringResource): (String) -> Unit {
         val composeMail = rememberMailComposer()
         val supportAddress = supportContacts.email
         val subjectText = stringResource(subject)
         val footer = mailFooter()
-        val scope = rememberCoroutineScope()
-
-        FeedbackScreen(
-            title = stringResource(title),
-            intro = stringResource(intro),
-            template = stringResource(body),
-            onBack = { nm.back() },
-            showAttachDiagnostics = attachDiagnostics,
-            onSend = { message, attach ->
-                // The form is popped inside the coroutine, after the composer has been asked
-                // for: leaving composition cancels this scope, so popping first would cancel
-                // the request that produces the reference in the draft.
-                scope.launch {
-                    val diagnosticsLine = if (attach) {
-                        getString(Res.string.sp_fb_diagnostics_line, requestDiagnostics())
-                    } else {
-                        null
-                    }
-                    // The reference goes under the build and device line, not into the
-                    // owner's own words: it is one more fact about the phone, and support
-                    // reads the whole footer as a block.
-                    val fullFooter = if (diagnosticsLine == null) footer else "$footer\n$diagnosticsLine"
-                    composeMail(
-                        MailDraft(
-                            to = supportAddress,
-                            subject = subjectText,
-                            body = "$message\n\n$fullFooter",
-                        ),
-                    )
-                    nm.back()
-                }
-            },
-        )
+        return { message ->
+            composeMail(
+                MailDraft(to = supportAddress, subject = subjectText, body = "$message\n\n$footer"),
+            )
+            nm.back()
+        }
     }
 
     /**
