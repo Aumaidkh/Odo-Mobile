@@ -10,8 +10,11 @@ import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
+import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
+import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.shared.WorkshopTier
@@ -39,8 +42,10 @@ import kotlinx.coroutines.flow.first
  *    fresh ViewModel per navigation — so without the ledger a second look charged a second
  *    check and filed the same prices into the shared pool again.
  *
- * The prices go back to the pool at the same moment and under the same three conditions,
- * which is what makes the "How we know" sheet's promise that a band tightens on its own true.
+ * The prices go back to the pool at the same moment and under the same three conditions —
+ * **and one more**: only a verified entry's prices are filed. A price nobody photographed may
+ * answer the owner's own question and may not become the band the next owner is shown. That is
+ * the PRD's trust rule, and it belongs here rather than on the button that opens the screen.
  */
 internal class LoggedBillCheckReader(
     private val entries: ServiceLogRepository,
@@ -71,9 +76,7 @@ internal class LoggedBillCheckReader(
             car = car,
             city = cities.currentCity(),
             workshop = workshopTier(),
-            lines = entry.lineItems.mapNotNull { item ->
-                item.label?.let { BillLine(label = it, amount = item.amount) }
-            },
+            lines = entry.billLines(),
             billTotal = entry.totalAmount,
             billDate = entry.serviceDate,
             // The odometer as it was on the bill, not as it is today. Checking a six-month-old
@@ -96,11 +99,47 @@ internal class LoggedBillCheckReader(
             charger.chargeOne()
             // After the answer, never before it. The owner is not waiting on this, and the
             // server refuses it outright unless they have agreed to share prices.
-            contributor.contribute(result.observations)
+            //
+            // Only a verified entry teaches anyone else. A price nobody photographed is the
+            // owner's memory of what they paid, and the PRD's trust rule is about exactly
+            // this: it may answer their own question, and it may not become the band the next
+            // owner is shown.
+            if (entry.verification == VerificationStatus.VERIFIED) {
+                contributor.contribute(result.observations)
+            }
         }
 
         return BillCheckResult(check = result.check, locked = locked).right()
     }
+
+    /**
+     * The bill's lines, as the check reads them.
+     *
+     * An entry with no breakdown but a single category is still checkable: the whole total
+     * was that one job. The older fairness report did exactly this, and dropping it when the
+     * check moved here would have taken an answer away from every hand-logged entry.
+     *
+     * A single category is the limit. Two categories on one total cannot be split, and
+     * guessing a share would put a made-up figure against a real band.
+     */
+    private fun ServiceLogEntry.billLines(): List<BillLine> = when {
+        lineItems.isNotEmpty() -> lineItems.mapNotNull { item ->
+            item.label?.let { BillLine(label = it, amount = item.amount) }
+        }
+
+        else -> categories.singleOrNull()
+            ?.let { listOf(BillLine(label = it.label(), amount = totalAmount)) }
+            .orEmpty()
+    }
+
+    /**
+     * The category as a bill would word it, so the matcher can name it.
+     *
+     * `OIL_CHANGE` reads as "oil change", which is a phrase the rules already carry — the
+     * same table that reads a workshop's printing, rather than a second mapping to keep in
+     * step with it.
+     */
+    private fun ServiceCategory.label(): String = name.lowercase().replace('_', ' ')
 
     /**
      * Where the owner said they get the car serviced.

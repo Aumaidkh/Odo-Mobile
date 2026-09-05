@@ -20,6 +20,9 @@ internal object BillCheckFixtures {
     const val EARLIER_ID = "billcheck-entry-0"
 
     const val WORKSHOP = "Company Centre"
+
+    /** Hand-logged, no photograph — the entry the action used to hide from. */
+    const val SELF_REPORTED_ID = "billcheck-entry-2"
 }
 
 /** The bill in Scene 1: Rs. 18,400 across six lines. */
@@ -50,13 +53,28 @@ internal fun seedBillToCheck() {
     billCheckDriver().notifyListeners("cars", "profiles", "service_logs", "service_log_categories")
 }
 
+/** One entry with no bill photo, so the screen calls it self-reported. */
+internal fun seedSelfReportedBill() {
+    insertBill(
+        id = BillCheckFixtures.SELF_REPORTED_ID,
+        date = "2026-08-12",
+        odometerKm = 12_000,
+        totalPaise = 2_40_000,
+        lineItems = """[{"label":"AC service","category":"AC","amount_paise":240000}]""",
+        verified = false,
+    )
+    billCheckDriver().notifyListeners("cars", "profiles", "service_logs", "service_log_categories")
+}
+
 private fun insertBill(
     id: String,
     date: String,
     odometerKm: Int,
     totalPaise: Long,
     lineItems: String,
+    verified: Boolean = true,
 ) = with(billCheckDriver()) {
+    val photo = if (verified) "'bills/test-car/$id.jpg'" else "NULL"
     execute(
         null,
         "INSERT INTO service_logs (id, car_id, owner_id, service_date, odometer_km, " +
@@ -64,9 +82,7 @@ private fun insertBill(
             "fairness_snapshot, line_items, created_at, updated_at, sync_status) VALUES " +
             "('$id', '${LogFixtures.CAR}', '${LogFixtures.OWNER}', '$date', $odometerKm, " +
             "$totalPaise, '${BillCheckFixtures.WORKSHOP}', NULL, 'SCANNED', NULL, " +
-            // A bill photo, because the detail screen offers the check only on a verified
-            // entry — the PRD's trust rule, and the gate this action already had.
-            "'bills/test-car/$id.jpg', NULL, " +
+            "$photo, NULL, " +
             "'${lineItems.replace("'", "''")}', '$SEEDED_AT', '$SEEDED_AT', 'PENDING')",
         0,
     )

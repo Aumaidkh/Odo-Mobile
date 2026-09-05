@@ -495,11 +495,16 @@ private fun DetailActions(
                 color = OdoTheme.colors.danger,
             )
         }
-        // Verified but never judged: the check is worth offering rather than waiting for the
-        // next write to trigger it. Offered disabled, with the reason, when the entry has
-        // nothing comparable on it — a bill of one total covering two jobs cannot be split,
-        // and an action that refuses in silence reads as a broken button (issue #111).
-        if (entry.verification == VerificationStatus.VERIFIED && entry.fairness is EntryFairnessUiState.NotAssessed) {
+        // Offered on any entry, not only a photographed one. The check answers three
+        // questions and two of them — has this job come round again, does the maker's
+        // schedule put it later — read the owner's own record and need no bill at all. The
+        // trust rule that used to live here still holds where it matters: a price nobody
+        // photographed never reaches the pool other owners are measured against.
+        //
+        // Offered disabled, with the reason, when the entry has nothing comparable on it —
+        // a bill of one total covering two jobs cannot be split, and an action that refuses
+        // in silence reads as a broken button (issue #111).
+        if (entry.fairness is EntryFairnessUiState.NotAssessed) {
             OdoButton(
                 text = stringResource(Res.string.sl_detail_check_fairness),
                 onClick = { onEvent(ServiceLogDetailEvent.CheckFairnessClicked) },

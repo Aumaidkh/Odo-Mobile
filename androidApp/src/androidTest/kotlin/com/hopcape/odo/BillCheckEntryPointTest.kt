@@ -46,6 +46,21 @@ class BillCheckEntryPointTest {
         rule.awaitTextContaining(RESULT_HEADLINE)
     }
 
+    /**
+     * A hand-logged entry with no photograph. The action used to be hidden here entirely,
+     * though two of the check's three questions read the owner's own record and need no bill.
+     */
+    @Test
+    fun aSelfReportedEntryCanBeCheckedToo() {
+        seedSelfReportedBill()
+        rule.openServiceLog()
+        rule.openEntryDetail(BillCheckFixtures.SELF_REPORTED_ID, BillCheckFixtures.WORKSHOP)
+
+        rule.onNodeWithText(CHECK_ACTION).performClick()
+
+        rule.awaitTextContaining(RESULT_HEADLINE)
+    }
+
     private companion object {
         /** The detail screen's own wording, unchanged — only where it leads has moved. */
         const val CHECK_ACTION = "Check fairness"
