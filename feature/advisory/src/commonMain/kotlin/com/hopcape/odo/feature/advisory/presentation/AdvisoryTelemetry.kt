@@ -4,6 +4,7 @@ import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.performance.api.PerformanceTracer
+import com.hopcape.performance.api.Span
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlin.coroutines.CoroutineContext
@@ -124,6 +125,66 @@ internal class AdvisoryTelemetry(
         )
     }
 
+    /**
+     * The checklist opened, and how much of it Odo could actually answer.
+     *
+     * [priced] beside [due] is the point: the reference tables are being filled by hand, and
+     * the gap between "five jobs due" and "three of them priced" is what says whether the
+     * cost line is carrying its weight. [entry] is which of the three doors was used — the
+     * conditional Home card cannot be judged against the two permanent entries otherwise.
+     */
+    fun checklistShown(due: Int, priced: Int, entry: String) {
+        val fields = mapOf(Key.DUE to due, Key.PRICED to priced, Key.ENTRY to entry)
+        analytics.track(Event.CHECKLIST_SHOWN, fields)
+        logger.info(TAG, Event.CHECKLIST_SHOWN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /**
+     * The schedule could not be read, so the list is missing rather than short.
+     *
+     * The two look identical on screen. Without this line a reference-data outage reads as
+     * a car with nothing due, which is the answer nobody would investigate.
+     */
+    fun scheduleUnavailable() {
+        logger.warn(TAG, Event.CHECKLIST_NO_SCHEDULE, tc = flowTrace.toLog())
+    }
+
+    /** The read failed outright — usually no car, which setup is supposed to have written. */
+    fun checklistUnavailable(error: String?) {
+        logger.warn(
+            TAG,
+            Event.CHECKLIST_UNAVAILABLE,
+            tc = flowTrace.toLog(),
+            // The error's type name, never the input that produced it.
+            fields = mapOf(Key.CAUSE to (error ?: UNKNOWN)),
+        )
+    }
+
+    fun checklistSaveClicked() {
+        analytics.track(Event.CHECKLIST_SAVE_CLICKED)
+        logger.info(TAG, Event.CHECKLIST_SAVE_CLICKED, tc = flowTrace.toLog())
+    }
+
+    fun checklistSaveFailed(reason: String) {
+        logger.warn(
+            TAG,
+            Event.CHECKLIST_SAVE_FAILED,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.CAUSE to reason),
+        )
+    }
+
+    /**
+     * The load, which is a schedule read plus one band lookup per due job.
+     *
+     * Timed because it is the slowest thing on the screen and the owner is standing at a
+     * counter waiting for it. Started and ended by the caller rather than wrapped, so the
+     * span covers the whole read including the bands.
+     */
+    fun checklistLoadStarted(): Span = tracer.startSpan(Trace.CHECKLIST_LOAD, flowTraceId)
+
+    fun checklistLoadEnded(span: Span) = tracer.endSpan(span)
+
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
@@ -148,15 +209,24 @@ internal class AdvisoryTelemetry(
         const val NO_CAR = "advisory_value_no_car"
         const val CITY_CATALOG_UNAVAILABLE = "advisory_city_catalog_unavailable"
         const val CITY_NOT_LISTED = "advisory_city_not_listed"
+        const val CHECKLIST_SHOWN = "advisory_checklist_shown"
+        const val CHECKLIST_NO_SCHEDULE = "advisory_checklist_no_schedule"
+        const val CHECKLIST_UNAVAILABLE = "advisory_checklist_unavailable"
+        const val CHECKLIST_SAVE_CLICKED = "advisory_checklist_save_clicked"
+        const val CHECKLIST_SAVE_FAILED = "advisory_checklist_save_failed"
     }
 
     object Trace {
         const val LOAD = "advisory_value_load"
+        const val CHECKLIST_LOAD = "advisory_checklist_load"
     }
 
     object Key {
         const val HAS_RECORD = "has_record"
         const val COUNT = "count"
         const val CAUSE = "cause"
+        const val DUE = "due"
+        const val PRICED = "priced"
+        const val ENTRY = "entry"
     }
 }

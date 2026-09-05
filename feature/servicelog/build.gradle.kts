@@ -28,6 +28,9 @@ kotlin {
             // Feature-specific use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
+            // FeatureConfig — the launch gate on the bill check, read when the detail
+            // screen is built so a console flip lands on the next entry opened.
+            implementation(projects.core.config)
             // The file picker + the store that copies a picked bill into app storage.
             implementation(projects.core.platform)
             // Observability: structured logging + product analytics, instrumented at

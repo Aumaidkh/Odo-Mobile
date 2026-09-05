@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.owner.SignOut
 import com.hopcape.odo.feature.auth.domain.LateBoundAuthGateway
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.feature.auth.domain.OtpRequestBroker
 import com.hopcape.odo.feature.auth.domain.SignOutUseCase
 import com.hopcape.odo.feature.auth.presentation.OtpViewModel
 import com.hopcape.odo.feature.auth.presentation.PhoneViewModel
@@ -55,10 +56,16 @@ val authModule = module {
     // Published so :feature:profile can offer sign-out without depending on :feature:auth.
     single<SignOut> { SignOutUseCase(sessions = get(), wipe = get()) }
 
-    viewModel { PhoneViewModel(sessions = get(), telemetry = get()) }
+    // Process-lifetime: the request is started on one screen and read on the next, and the
+    // screen that starts it is gone before it finishes (#409).
+    single { OtpRequestBroker(sessions = get()) }
+
+    // No session manager: the number screen validates, hands the request to the broker and
+    // moves on. It cannot wait on a network because it has nothing to wait on.
+    viewModel { PhoneViewModel(requests = get(), telemetry = get()) }
     // The number is a route argument, so it is a parameter rather than something the
     // ViewModel goes looking for.
-    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, sessions = get(), telemetry = get(), smsCodes = get(), smsSignature = get()) }
+    viewModel { (phone: PhoneNumber) -> OtpViewModel(phone = phone, requests = get(), sessions = get(), telemetry = get(), smsCodes = get(), smsSignature = get()) }
 
     single {
         AuthFeatureEntryProvider(navigationManager = get())

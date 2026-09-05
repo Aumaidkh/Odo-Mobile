@@ -239,6 +239,20 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
+        // A real database at version 5 has this too — 4.sqm created it — and the migration
+        // that folds the old balances into `purchase_claims` reads it. Without it here the
+        // chain below fails on a table the fixture forgot rather than on anything real.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE record_export_credits (
+                    id        INTEGER NOT NULL PRIMARY KEY,
+                    remaining INTEGER NOT NULL
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
         // All the way to current, not just to 6. The generated queries select every column
         // the schema has, so stopping at the migration under test leaves them asking for
         // columns a later one adds — which is a failure about the newest column rather

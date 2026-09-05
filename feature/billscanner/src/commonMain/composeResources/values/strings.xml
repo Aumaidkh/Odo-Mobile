@@ -84,6 +84,10 @@
     <!-- Save-to-log success screen -->
     <string name="bs_save_title">Saved to your log</string>
     <string name="bs_save_body">%1$s · %2$s is now part of your verified service history.</string>
+    <!-- The same confirmation with nothing to name. Reached when a scan lands here rather
+         than on the bill check, which is what `bill_check_enabled` off does — and the
+         workshop and the date are the review screen's, not this route's. -->
+    <string name="bs_save_body_plain">This bill is now part of your verified service history.</string>
     <string name="bs_save_card_title">Health Score +3</string>
     <string name="bs_save_card_body">A verified bill boosts your record</string>
     <string name="bs_save_view">View in Service Log</string>

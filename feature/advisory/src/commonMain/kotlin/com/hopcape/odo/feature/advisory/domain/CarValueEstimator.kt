@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.advisory.domain
 
+import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus

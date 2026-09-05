@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.appstatus.MaintenanceAwareSyncGate
 import com.hopcape.odo.core.data.appstatus.observability.AppStatusTelemetry
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.CarRepositoryImpl
+import com.hopcape.odo.core.data.advisory.OfflineBillLineClassifier
 import com.hopcape.odo.core.data.auth.OfflineAccountEraser
 import com.hopcape.odo.core.data.car.FakeCarRemoteDataSource
 import com.hopcape.odo.core.data.car.FakeVehicleCatalogRemoteDataSource
@@ -24,9 +25,9 @@ import com.hopcape.odo.core.data.entitlement.FakeEntitlementOverrideRemoteDataSo
 import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
 import com.hopcape.odo.core.data.scan.AllowanceScanCharger
+import com.hopcape.odo.core.data.scan.LocalBillCheckLedger
 import com.hopcape.odo.core.data.scan.LocalScanCredits
-import com.hopcape.odo.core.data.subscription.BalanceOneTimeGrants
-import com.hopcape.odo.core.data.subscription.LocalPurchaseLedger
+import com.hopcape.odo.core.data.subscription.LocalPurchaseGrants
 import com.hopcape.odo.core.data.subscription.PurchaseWatcher
 import com.hopcape.odo.core.data.subscription.StorePurchaseReconciler
 import com.hopcape.odo.core.data.scan.LocalScanUsage
@@ -36,15 +37,32 @@ import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
+import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
-import com.hopcape.odo.core.domain.subscription.OneTimeGrants
-import com.hopcape.odo.core.domain.subscription.PurchaseLedger
+import com.hopcape.odo.core.domain.subscription.PurchaseGrants
 import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
 import com.hopcape.odo.core.data.cost.FakeFuelFillRemoteDataSource
 import com.hopcape.odo.core.data.owner.FakeQuestionAnswerRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributorImpl
+import com.hopcape.odo.core.data.benchmark.FakeFairnessContributionRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FakePriceBandRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRepositoryImpl
+import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.domain.benchmark.FairnessContributor
+import com.hopcape.odo.core.domain.benchmark.PriceBandRepository
+import com.hopcape.odo.core.data.schedule.FakeServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRepositoryImpl
+import com.hopcape.odo.core.domain.schedule.ServiceIntervalRepository
+import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.FakeCreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.FakePurchaseClaimRemoteDataSource
+import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionnaireRepositoryImpl
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
@@ -102,7 +120,18 @@ import com.hopcape.odo.core.data.owner.OwnerProfileRepositoryImpl
 import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
+import com.hopcape.odo.core.data.support.FakeFeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.FakeIdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.FakeSupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRepositoryImpl
+import com.hopcape.odo.core.data.support.IdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRepositoryImpl
 import com.hopcape.odo.core.domain.auth.AccountEraser
+import com.hopcape.odo.core.domain.support.FeatureIdeaRepository
+import com.hopcape.odo.core.domain.support.SupportTicketRepository
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
@@ -242,6 +271,27 @@ val coreDataModule = module {
     single<DocumentRemoteDataSource> { FakeDocumentRemoteDataSource() }
     single<FuelFillRemoteDataSource> { FakeFuelFillRemoteDataSource() }
     single<QuestionAnswerRemoteDataSource> { FakeQuestionAnswerRemoteDataSource() }
+    // Answers nothing without Supabase, which is the honest state: no band rather than an
+    // invented one in front of an owner at a counter.
+    single<PriceBandRemoteDataSource> { FakePriceBandRemoteDataSource() }
+    single<PriceBandRepository> { PriceBandRepositoryImpl(remote = get(), telemetry = get()) }
+
+    // Giving a checked bill's prices back, so a modelled band tightens into a real one.
+    single<FairnessContributionRemoteDataSource> { FakeFairnessContributionRemoteDataSource() }
+    single<FairnessContributor> { FairnessContributorImpl(remote = get(), telemetry = get()) }
+
+    // The bill-line rule table. One definition for the whole graph: two features read it,
+    // and a copy in each meant the later-loaded module silently won.
+    single { BillLineMatcher() }
+
+    // The maker's schedule. Public reference data, so a plain table read.
+    single<ServiceIntervalRemoteDataSource> { FakeServiceIntervalRemoteDataSource() }
+    single<ServiceIntervalRepository> {
+        ServiceIntervalRepositoryImpl(remote = get(), telemetry = get())
+    }
+
+    single<PurchaseClaimRemoteDataSource> { FakePurchaseClaimRemoteDataSource() }
+    single<CreditSpendRemoteDataSource> { FakeCreditSpendRemoteDataSource() }
     single<FairnessRemoteDataSource> { FakeFairnessRemoteDataSource() }
     single<OverchargeRemoteDataSource> { FakeOverchargeRemoteDataSource() }
     single<ReminderRemoteDataSource> { FakeReminderRemoteDataSource() }
@@ -258,6 +308,32 @@ val coreDataModule = module {
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.
     single<AccountEraser> { OfflineAccountEraser() }
+
+    // Help & support. The repositories are always bound; their remote halves swap the same
+    // way every other data source does once a build has credentials.
+    single<SupportTicketRepository> {
+        SupportTicketRepositoryImpl(
+            local = get(),
+            currentOwner = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
+    single<FeatureIdeaRepository> {
+        FeatureIdeaRepositoryImpl(
+            local = get(),
+            remote = get(),
+            currentOwner = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
+    single<SupportTicketRemoteDataSource> { FakeSupportTicketRemoteDataSource() }
+    single<IdeaVoteRemoteDataSource> { FakeIdeaVoteRemoteDataSource() }
+    single<FeatureIdeaRemoteDataSource> { FakeFeatureIdeaRemoteDataSource() }
+    // Same swap again: no credentials means no Edge Function to ask, so the bill check runs
+    // on its rule table alone.
+    single<BillLineClassifier> { OfflineBillLineClassifier() }
     // The plate lookup without a server: this device's own cars, then the hardcoded
     // plates so a checkout with no credentials can still walk the "is this your car?"
     // path. `supabaseModule` replaces the whole binding once a build has credentials,
@@ -301,19 +377,21 @@ val coreDataModule = module {
 
     single<ScanCredits> { LocalScanCredits(local = get()) }
 
-    single<PurchaseLedger> { LocalPurchaseLedger(local = get()) }
-
-    single<OneTimeGrants> { BalanceOneTimeGrants(scans = get(), exports = get()) }
+    // Honouring a purchase and crediting it are one write, so one binding.
+    single<PurchaseGrants> { LocalPurchaseGrants(local = get()) }
 
     // The one thing that credits a one-time purchase, so a transaction cannot be honoured
     // twice — once by the screen that bought it and again on the next launch.
     single<PurchaseReconciler> {
-        StorePurchaseReconciler(purchaser = get(), ledger = get(), grants = get(), telemetry = get())
+        StorePurchaseReconciler(purchaser = get(), grants = get(), telemetry = get())
     }
 
     // Started by the app bootstrap, and it owns the launch claim too — a purchase approved by
     // a bank while the app is open would otherwise wait for the next launch.
     single { PurchaseWatcher(updates = get(), reconciler = get()) }
+
+    // Which bills have already been paid for. The result screen re-reads on every visit.
+    single<BillCheckLedger> { LocalBillCheckLedger(local = get()) }
 
     // Free scans first, bought ones after — the one place that rule lives.
     single<ScanCharger> {

@@ -18,6 +18,10 @@ backlog.
 | `20260902170000_drop_profiles_onboarding_goal.sql` | **Drops `profiles.onboarding_goal`** | **No — see below** |
 | `20260902180000_resolve_plate.sql` | Creates the `resolve_plate` RPC | Yes — additive |
 | `20260904120000_declared_log_source.sql` | Adds the `declared` label to `log_source` | Yes — additive |
+| `20260904160000_purchase_credits.sql` | Creates `purchase_claims` + `credit_spends` | Yes — additive |
+| `20260905100000_advisory_classifier.sql` | Creates `bill_line_classifications` + `advisory_call_meter` | Yes — additive, and both are deny-all |
+| `20260905120000_support_tickets_app.sql` | Adds `client_id` + 5 columns to `support_tickets`; creates `feature_ideas` + `idea_votes` | Yes — every column is added with a default or nullable, and the panel reads `id` as before |
+| `20260905130000_support_tickets_app_writes.sql` | Adds the INSERT/UPDATE policies an owner needs, defaults `contact`/`subject`, makes the `client_id` index unconditional | Yes — and required: without it every ticket push is refused `42501`, which the sync treats as permanent |
 
 ## The one that is not safe yet
 
@@ -73,3 +77,27 @@ they never did, and the next push would try to run them again.
 
 Dev's ledger and this tree have drifted, and reconciling it is its own piece of work. Nothing
 here depends on it: dev already has every schema change this folder describes.
+
+## Applying one of these to dev
+
+`db push` cannot do it — the drift above stops it, and the CLI does not look in this folder
+anyway. There is no `supabase db execute`. What works is the Management API's query endpoint,
+with the CLI's own token:
+
+```sh
+TOKEN=$(security find-generic-password -s "Supabase CLI" -w)   # macOS keychain
+curl -sS -X POST "https://api.supabase.com/v1/projects/$(cat ../.temp/project-ref)/database/query" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'User-Agent: SupabaseCLI' \
+  --data "$(jq -Rs '{query: .}' < <file>.sql)"
+```
+
+Two things that will otherwise waste an hour. **Check the project ref first** — this endpoint
+runs whatever you send it, and the ref is the only thing standing between dev and production.
+And **send a User-Agent**: without one Cloudflare answers `403 error code: 1010`, which reads
+like an auth failure and is not one.
+
+Verify afterwards by asking PostgREST for the table, and ask it for a name you know is absent
+in the same run. A 404 alone does not distinguish "missing table" from "broken probe". An anon
+read returning `200 []` is **not** evidence that RLS works — a signed-out read gives an empty
+array, not a 401 — so read `pg_class.relrowsecurity` if that is the question.

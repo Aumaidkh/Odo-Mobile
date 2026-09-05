@@ -131,7 +131,9 @@ val garageModule = module {
             telemetry = get(),
         )
     }
-    viewModel { CarActionsViewModel(activeCar = get(), observeGarage = get(), telemetry = get()) }
+    viewModel {
+        CarActionsViewModel(activeCar = get(), observeGarage = get(), telemetry = get(), config = get())
+    }
     viewModel {
         RemoveCarViewModel(
             activeCar = get(),

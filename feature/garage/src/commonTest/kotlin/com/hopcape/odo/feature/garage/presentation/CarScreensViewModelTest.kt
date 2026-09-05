@@ -30,6 +30,7 @@ import com.hopcape.odo.feature.garage.domain.usecase.FixedClock
 import com.hopcape.odo.feature.garage.domain.usecase.FixedIdGenerator
 import com.hopcape.odo.feature.garage.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.LoadVehicleCatalogUseCase
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.feature.garage.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.RemoveCarUseCase
@@ -69,6 +70,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -276,9 +278,11 @@ class CarScreensViewModelTest {
             activeCar = FakeActiveCar(TEST_CAR),
             observeGarage = garage(FakeCarRepository(testCar())),
             telemetry = testTelemetry(),
+            config = checklistConfig(enabled = true),
         )
 
         assertEquals("Maruti Suzuki Swift VXI", viewModel.state.value.car.valueOrNull?.displayName)
+        assertTrue(viewModel.state.value.showChecklist)
     }
 
     @Test
@@ -287,11 +291,35 @@ class CarScreensViewModelTest {
             activeCar = FakeActiveCar(TEST_CAR),
             observeGarage = garage(FakeCarRepository(testCar())),
             telemetry = testTelemetry(),
+            config = checklistConfig(enabled = true),
         )
 
         viewModel.onEvent(CarActionsEvent.RemoveTapped)
 
         assertIs<CarActionsEffect.OpenRemove>(viewModel.effects.first())
+    }
+
+    /** `service_checklist_enabled` off drops the row rather than opening a dead end. */
+    @Test
+    fun theActionsSheetHidesTheChecklistRowWhileItIsGatedOff() = runTest {
+        val viewModel = CarActionsViewModel(
+            activeCar = FakeActiveCar(TEST_CAR),
+            observeGarage = garage(FakeCarRepository(testCar())),
+            telemetry = testTelemetry(),
+            config = checklistConfig(enabled = false),
+        )
+
+        assertFalse(viewModel.state.value.showChecklist)
+    }
+
+    private fun checklistConfig(enabled: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = false
+        override val billCheckEnabled = false
+        override val serviceChecklistEnabled = enabled
     }
 
     @Test

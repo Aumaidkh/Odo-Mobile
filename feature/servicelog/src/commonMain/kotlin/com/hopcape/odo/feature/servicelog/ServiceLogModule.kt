@@ -109,6 +109,7 @@ val serviceLogModule = module {
             recordFairness = get(),
             showcase = get(),
             telemetry = get(),
+            config = get(),
         )
     }
 

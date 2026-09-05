@@ -46,6 +46,7 @@ kotlin {
             // coreConfigModule, listed in initKoin.
             implementation(projects.core.config)
             implementation(projects.feature.advisory)
+            implementation(projects.feature.billcheck)
             implementation(projects.feature.auth)
             implementation(projects.feature.autoOdometer)
             implementation(projects.feature.onboarding)

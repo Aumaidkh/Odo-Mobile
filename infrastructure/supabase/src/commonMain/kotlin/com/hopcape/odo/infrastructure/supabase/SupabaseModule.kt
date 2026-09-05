@@ -5,9 +5,18 @@ import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.city.CityRemoteDataSource
 import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.IdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
 import com.hopcape.odo.core.data.challan.ChallanRemoteDataSource
@@ -23,6 +32,7 @@ import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseBillLineClassifier
 import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.data.car.vehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
@@ -36,6 +46,14 @@ import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseChallanRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCreditSpendRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessContributionRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePriceBandRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFeatureIdeaRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseIdeaVoteRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceIntervalRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseSupportTicketRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePurchaseClaimRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseQuestionAnswerRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLogUploader
@@ -120,6 +138,18 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
             SupabaseAccountEraser(client = get(), environment = get(), telemetry = get())
         }
 
+        // The model naming bill lines the rules could not. Inside the configured branch for
+        // the same reason as the eraser: it is a real HTTP call, and an unconfigured build
+        // falls through to the offline classifier that names nothing.
+        single<BillLineClassifier> {
+            SupabaseBillLineClassifier(
+                client = get(),
+                environment = get(),
+                tokens = get(),
+                telemetry = get(),
+            )
+        }
+
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
     }
 
@@ -179,6 +209,16 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FuelFillRemoteDataSource> { SupabaseFuelFillRemoteDataSource(postgrest = get()) }
         single<QuestionAnswerRemoteDataSource> { SupabaseQuestionAnswerRemoteDataSource(postgrest = get()) }
+        single<PriceBandRemoteDataSource> { SupabasePriceBandRemoteDataSource(postgrest = get()) }
+        single<FairnessContributionRemoteDataSource> {
+            SupabaseFairnessContributionRemoteDataSource(postgrest = get())
+        }
+        single<ServiceIntervalRemoteDataSource> { SupabaseServiceIntervalRemoteDataSource(postgrest = get()) }
+        single<SupportTicketRemoteDataSource> { SupabaseSupportTicketRemoteDataSource(postgrest = get()) }
+        single<IdeaVoteRemoteDataSource> { SupabaseIdeaVoteRemoteDataSource(postgrest = get()) }
+        single<FeatureIdeaRemoteDataSource> { SupabaseFeatureIdeaRemoteDataSource(postgrest = get()) }
+        single<PurchaseClaimRemoteDataSource> { SupabasePurchaseClaimRemoteDataSource(postgrest = get()) }
+        single<CreditSpendRemoteDataSource> { SupabaseCreditSpendRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
         single<OverchargeRemoteDataSource> { SupabaseOverchargeRemoteDataSource(postgrest = get()) }
         single<ReminderRemoteDataSource> { SupabaseReminderRemoteDataSource(postgrest = get()) }

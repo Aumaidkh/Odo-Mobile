@@ -36,6 +36,19 @@ enum class SyncEntity {
     ENTITLEMENT_OVERRIDES,
 
     /**
+     * What the owner bought one at a time, and what they have spent of it. Two entities
+     * because they are two tables, and the claims go first: a spend read before the claim
+     * that paid for it would briefly look like an overdraft.
+     *
+     * Directly after [ENTITLEMENT_OVERRIDES], and for the same reason — what they decide is
+     * whether a bill check or an export can be run at all, which is asked as soon as a screen
+     * opens. Owner-scoped rather than device-local so a purchase honoured once stays honoured
+     * once for the owner; the free tally beside them is still device-local, deliberately.
+     */
+    PURCHASE_CLAIMS,
+    CREDIT_SPENDS,
+
+    /**
      * The shared city lookup (`docs/SUPABASE_BOOTSTRAP.md` §2). No `owner_id` — every account
      * reads the same rows — so this is pull-only, the mirror image of
      * [CITY_SUBMISSIONS]'s push-only. Placed here rather than after [CARS]: it is foundational
@@ -97,4 +110,18 @@ enum class SyncEntity {
      */
     HEALTH_SCORES,
     REMINDERS,
+
+    /**
+     * What the owner sent support, and their votes on the curated ideas.
+     *
+     * Last, and deliberately so: nothing references either, and neither is on a path the app
+     * draws at startup. A run that dies before reaching them costs a report its trip to the
+     * server for one more pass — the row is already durable on the device, which is the whole
+     * point of writing it there first.
+     *
+     * Two entities because they are two tables with two lifecycles: a ticket is filed once and
+     * comes back with a status, a vote is toggled and re-toggled.
+     */
+    SUPPORT_TICKETS,
+    IDEA_VOTES,
 }

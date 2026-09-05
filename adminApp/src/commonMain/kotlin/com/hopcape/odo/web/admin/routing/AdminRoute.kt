@@ -102,6 +102,18 @@ sealed interface AdminRoute {
         override val permission = Permission.FlagsWrite
     }
 
+    /**
+     * `/admin/social` — the Instagram/Facebook pipeline: how it posts, when, to what, and
+     * who may approve.
+     *
+     * On the content permission rather than one of its own. Publishing to the company's
+     * social accounts is content work, and somebody who may write the blog is somebody who
+     * may write a post.
+     */
+    data object Social : AdminRoute {
+        override val permission = Permission.BlogWrite
+    }
+
     /** `/admin/audit` — who changed what, and when. */
     data object Audit : AdminRoute {
         override val permission = Permission.AuditRead
@@ -158,5 +170,6 @@ val ADMIN_SECTIONS: List<AdminRoute> = listOf(
     AdminRoute.Tickets,
     AdminRoute.Billing,
     AdminRoute.Flags,
+    AdminRoute.Social,
     AdminRoute.Audit,
 )

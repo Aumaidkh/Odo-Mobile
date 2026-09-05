@@ -1,0 +1,85 @@
+-- Purchase credits become owner-scoped and synced (finding 6).
+--
+-- The three tables this replaces were device-local, so a reinstall cleared them while the
+-- store went on reporting the purchase forever — the same ₹49 check could be claimed again
+-- on every install. Claims and spends are rows now, owner-scoped and synced, so the balance
+-- is derived rather than stored and survives a reinstall without being handed out twice.
+--
+-- The two balances that already exist on a phone are carried across as one `legacy-` claim
+-- per kind. They were paid for; losing them here would be the same bug pointing the other
+-- way.
+
+CREATE TABLE purchase_claims (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    transaction_id TEXT NOT NULL,
+    scan_checks    INTEGER NOT NULL,
+    record_exports INTEGER NOT NULL,
+    claimed_at     TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING',
+    UNIQUE (owner_id, transaction_id)
+);
+
+CREATE INDEX idx_purchase_claims_owner ON purchase_claims (owner_id)
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE credit_spends (
+    id       TEXT NOT NULL PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    kind     TEXT NOT NULL,
+    spent_at TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX idx_credit_spends_owner_kind ON credit_spends (owner_id, kind)
+    WHERE deleted_at IS NULL;
+
+-- The balances as they stand, one row each, and only when there is something to carry.
+-- `local-owner` is the placeholder every pre-sign-in row already uses; adoption re-stamps it
+-- on the first sign-in like any other row.
+--
+-- No `claimed_at` from the old rows: the counters never recorded when a credit was bought.
+-- The migration's own timestamp is the honest answer, and nothing reads it but support.
+INSERT INTO purchase_claims (
+    id, owner_id, transaction_id, scan_checks, record_exports, claimed_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+)
+SELECT 'legacy-record-export', 'local-owner', 'legacy-record-export', 0, remaining,
+       '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z',
+       NULL, NULL, 'PENDING'
+FROM record_export_credits
+WHERE id = 1 AND remaining > 0;
+
+INSERT INTO purchase_claims (
+    id, owner_id, transaction_id, scan_checks, record_exports, claimed_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+)
+SELECT 'legacy-bill-check', 'local-owner', 'legacy-bill-check', remaining, 0,
+       '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z', '1970-01-01T00:00:00Z',
+       NULL, NULL, 'PENDING'
+FROM scan_credits
+WHERE id = 1 AND remaining > 0;
+
+-- The transactions already honoured, so a purchase credited before this release is not
+-- credited a second time by the first pass after it. What each one granted is gone with the
+-- counters, and it does not matter: the balance came across above, and these rows exist only
+-- to be recognised.
+INSERT INTO purchase_claims (
+    id, owner_id, transaction_id, scan_checks, record_exports, claimed_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+)
+SELECT transaction_id, 'local-owner', transaction_id, 0, 0, claimed_at,
+       claimed_at, claimed_at, NULL, NULL, 'PENDING'
+FROM claimed_purchases;
+
+DROP TABLE claimed_purchases;
+DROP TABLE record_export_credits;
+DROP TABLE scan_credits;

@@ -72,6 +72,19 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.ATTENTION_TAPPED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /**
+     * The pre-service checklist was opened from Home.
+     *
+     * [entry] names which door — the attention card or the conditional one. They are counted
+     * apart because the conditional card exists only to catch the owner a lapsed paper would
+     * otherwise have hidden the checklist from, and merging them would hide whether it does.
+     */
+    fun checklistOpened(entry: String) {
+        val fields = mapOf(Key.ENTRY to entry)
+        analytics.track(Event.CHECKLIST_OPENED, fields)
+        logger.info(TAG, Event.CHECKLIST_OPENED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /** The recent-activity row was opened. */
     fun recentOpened() {
         analytics.track(Event.RECENT_OPENED, emptyMap())
@@ -165,6 +178,7 @@ internal class HomeTelemetry(
         const val ADD_CAR_TAPPED = "home_add_car_tapped"
         const val AUTO_DETECT_PAYWALLED = "home_auto_detect_paywalled"
         const val AUTO_ODOMETER_TAPPED = "home_auto_odometer_tapped"
+        const val CHECKLIST_OPENED = "home_checklist_opened"
         const val READ_FAILED = "home_read_failed"
     }
 
@@ -177,5 +191,6 @@ internal class HomeTelemetry(
         const val KIND = "kind"
         const val FROM_CHECKLIST = "from_checklist"
         const val REASON = "reason"
+        const val ENTRY = "entry"
     }
 }

@@ -10,6 +10,8 @@ on:
     - cron: "45 8 * * *"
     - cron: "45 13 * * *"
   workflow_dispatch: {}
+  repository_dispatch:
+    types: [social-render]
 
 jobs:
   render:
