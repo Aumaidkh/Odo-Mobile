@@ -19,10 +19,18 @@ const IG_USER_ID = Deno.env.get("IG_USER_ID") ?? "YOUR_INSTAGRAM_BUSINESS_USER_I
 const TG = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const IG = "https://graph.instagram.com/v23.0";
 
+// The pipeline's own schema.
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { db: { schema: "social" } },
+);
+
+// The same project addressed at `public`, where the panel's tables live. A second client
+// rather than schema-qualified queries: supabase-js pins one schema per client.
+const config = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
 async function igToken(): Promise<string> {
@@ -189,6 +197,30 @@ async function editResult(
   }
 }
 
+/**
+ * Whether this chat may act on a post.
+ *
+ * The webhook secret proves the request came from Telegram. It says nothing about who pressed
+ * the button — and before this, nothing did: anyone who found the bot could publish to the
+ * company's Instagram.
+ *
+ * While `social_telegram_recipients` is empty the env's own chat id is the answer. That is
+ * deliberate: an empty table must not lock the owner out of a pipeline that is already
+ * running, and the first row added takes over.
+ */
+async function mayApprove(chatId: number): Promise<boolean> {
+  const { data, error } = await config
+    .from("social_telegram_recipients")
+    .select("chat_id, can_approve");
+  if (error) return false;
+
+  if (!data || data.length === 0) {
+    const fallback = Deno.env.get("TELEGRAM_CHAT_ID");
+    return !!fallback && String(chatId) === fallback;
+  }
+  return data.some((r) => Number(r.chat_id) === chatId && r.can_approve);
+}
+
 Deno.serve(async (req) => {
   if (req.headers.get("x-telegram-bot-api-secret-token") !== WEBHOOK_SECRET) {
     return new Response("forbidden", { status: 403 });
@@ -202,6 +234,19 @@ Deno.serve(async (req) => {
   const queueId = Number(idRaw);
   const chatId = cb.message.chat.id;
   const messageId = cb.message.message_id;
+
+  // Checked before anything is read or written, and before the growth-plan branch below:
+  // ticking somebody else's checklist is a smaller thing than publishing, and neither is
+  // this chat's to do. Answered out loud rather than ignored, so a person who should have
+  // access learns that they do not have it yet.
+  if (!(await mayApprove(chatId))) {
+    await tg("answerCallbackQuery", {
+      callback_query_id: cb.id,
+      text: "Aap is pipeline pe action nahi le sakte. Admin panel se access add karwao.",
+      show_alert: true,
+    });
+    return Response.json({ ok: true, skipped: "not permitted" });
+  }
 
   // ── Growth-plan task ticks (gp:<n>) ──
   // The 30-day-plan notifier (social-automation/growth-plan) sends task lists

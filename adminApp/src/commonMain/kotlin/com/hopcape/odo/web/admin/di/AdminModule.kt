@@ -41,6 +41,7 @@ import com.hopcape.odo.web.admin.presentation.catalogue.TicketsViewModel
 import com.hopcape.odo.web.admin.presentation.content.ContentViewModel
 import com.hopcape.odo.web.admin.presentation.content.PostDetailViewModel
 import com.hopcape.odo.web.admin.presentation.flags.FlagsViewModel
+import com.hopcape.odo.web.admin.presentation.social.SocialViewModel
 import com.hopcape.odo.web.admin.presentation.roles.RolesViewModel
 import com.hopcape.odo.web.admin.presentation.users.UsersViewModel
 import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesViewModel
@@ -149,6 +150,7 @@ val adminModule: Module = module {
     viewModel { TicketsViewModel(tickets = get()) }
     viewModel { BillingViewModel(billing = get()) }
     viewModel { FlagsViewModel(flags = get()) }
+    viewModel { SocialViewModel(social = get()) }
 }
 
 /**

@@ -5,15 +5,36 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "YOUR_GEMINI_API_KEY_HERE";
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   { db: { schema: "social" } },
 );
+
+// The same project, addressed at `public`, where the admin panel's settings live. A second
+// client rather than schema-qualified queries: supabase-js pins one schema per client.
+const config = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+/**
+ * A secret set from the panel, falling back to this function's env.
+ *
+ * The panel writes into `social_credentials`, which nothing but the service role can read.
+ * The env fallback is what keeps a pipeline that predates the panel running: it stops
+ * applying the moment somebody sets the key on the screen.
+ */
+async function credential(key: string, envName: string): Promise<string> {
+  const { data } = await config
+    .from("social_credentials")
+    .select("value")
+    .eq("key", key)
+    .maybeSingle();
+  return data?.value ?? Deno.env.get(envName) ?? "";
+}
 
 const PROMPT = (fact: string, stats: string, cta: string) => `
 Tum Odo (car service record + reminders + auto odometer Android app, India) ka
@@ -45,11 +66,39 @@ Return ONLY JSON with exactly these keys:
 
 Deno.serve(async (req) => {
   // {"story": false} = post-only slot; default true (morning slot carries the story).
+  // The tick sends the rest: which slot asked, and whether its post needs approving.
   let includeStory = true;
+  let approval = "manual";
+  let slotId: string | null = null;
+  let platforms: string[] = [];
   try {
     const body = await req.json();
     if (typeof body?.story === "boolean") includeStory = body.story;
+    if (typeof body?.approval === "string") approval = body.approval;
+    if (typeof body?.slot_id === "string") slotId = body.slot_id;
+    if (Array.isArray(body?.platforms)) platforms = body.platforms;
   } catch (_) { /* empty body = default */ }
+
+  // The pause answers for the whole pipeline, and it is checked here as well as in the tick:
+  // this function is also called by hand, and a pause that only the scheduler honoured would
+  // be a pause somebody could walk straight past.
+  const { data: settings } = await config
+    .from("social_settings")
+    .select("posting_mode, paused")
+    .limit(1)
+    .single();
+  if (settings?.paused) {
+    return Response.json({ ok: true, skipped: "paused" });
+  }
+  // Under `auto` the mode has already decided; a slot cannot ask for approval it will not get.
+  if (settings?.posting_mode === "auto") approval = "auto";
+
+  const geminiKey = await credential("gemini_api_key", "GEMINI_API_KEY");
+  if (!geminiKey) {
+    return Response.json({ error: "no gemini key set" }, { status: 500 });
+  }
+  const GEMINI_URL =
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`;
 
   // 1. Least-recently-used fact.
   const { data: fact, error: pickErr } = await supabase
@@ -80,6 +129,10 @@ Deno.serve(async (req) => {
   copy.cta = fact.cta;
 
   // 3. Queue as draft; renderer (GitHub Actions) picks it up.
+  //
+  // `approval` rides along on the row so the step that publishes does not have to re-derive
+  // it from a mode that may have been changed in between. A post decides once whether it
+  // needs a person, at the moment it is made.
   const { data: draft, error: insErr } = await supabase
     .from("content_queue")
     .insert({
@@ -87,6 +140,9 @@ Deno.serve(async (req) => {
       variant: fact.screenshot ? "screenshot" : "stat",
       include_story: includeStory,
       copy,
+      approval,
+      slot_id: slotId,
+      platforms,
     })
     .select("id")
     .single();
