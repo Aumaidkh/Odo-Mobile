@@ -165,7 +165,6 @@
          mail app on a draft, and they send it. Saying otherwise would be a lie the first time
          somebody backs out of the composer and assumes it went. -->
     <string name="sp_fb_hint">Your message</string>
-    <string name="sp_fb_send">Continue in email</string>
     <!-- Stated on the form, not just in the draft: somebody deciding whether to write at all
          should know what rides along before they start typing. -->
     <!-- The attach-diagnostics choice, on the problem report only. An idea or a wrong price
@@ -237,6 +236,10 @@
          one screen whose job is to state true ones. -->
     <string name="sp_diag_send_unsized">Send</string>
 
+    <!--
+      Diagnostics sent. Kept, not deleted: the screen is built and previewed, and only its
+      route is absent until the upload can be split into the lines the switches name.
+    -->
     <!-- ============ Diagnostics sent ============ -->
     <string name="sp_sent_diag_title">Diagnostics sent</string>
     <string name="sp_sent_diag_intro">Quote this reference if you write in about the same problem.</string>

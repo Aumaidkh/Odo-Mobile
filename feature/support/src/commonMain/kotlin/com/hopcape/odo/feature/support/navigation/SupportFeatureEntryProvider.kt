@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation3.runtime.EntryProviderScope
@@ -32,10 +31,6 @@ import com.hopcape.odo.core.platform.share.rememberTextSharer
 import com.hopcape.odo.feature.support.domain.RequestDiagnosticsUseCase
 import com.hopcape.odo.feature.support.presentation.HelpSupportSheetContent
 import com.hopcape.odo.feature.support.presentation.ReportSentScreen
-import com.hopcape.odo.feature.support.presentation.IdeaStateSaver
-import com.hopcape.odo.feature.support.presentation.ReportStateSaver
-import com.hopcape.odo.feature.support.presentation.asMessage
-import com.hopcape.odo.feature.support.presentation.flagPriceStateSaver
 import com.hopcape.odo.feature.support.presentation.flagprice.DisputedBand
 import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceEvent
 import com.hopcape.odo.feature.support.presentation.flagprice.FlagPriceScreen
@@ -189,8 +184,8 @@ internal class SupportFeatureEntryProvider(
         entry<OdoDestination.Support.SuggestIdea> { SuggestIdeaRoute() }
         entry<OdoDestination.Support.FlagPriceData> { key -> FlagPriceRoute(key) }
 
-        // Reached once a report becomes a ticket. A ticket number is the one thing on it that
-        // cannot be invented, so nothing navigates here while reports still go out as mail.
+        // Where a saved report lands. Its ticket number is derived from the row's own id, so
+        // it exists with no signal.
         entry<OdoDestination.Support.ReportSent> { key -> ReportSentRoute(key) }
         entry<OdoDestination.Support.Rate>(metadata = ModalBottomSheetSceneStrategy.bottomSheet()) {
             val composeMail = rememberMailComposer()
