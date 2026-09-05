@@ -302,6 +302,9 @@
     <string name="sp_idea_vote_action">Vote for %1$s</string>
     <string name="sp_idea_no_dates">We don’t promise dates. We do read every one.</string>
     <string name="sp_idea_send">Send idea</string>
+    <string name="sp_idea_sent">Idea sent. We read every one.</string>
+    <string name="sp_idea_failed">Could not save your idea. Try again.</string>
+    <string name="sp_idea_vote_failed">Could not add your vote. Try again.</string>
     <string name="sp_idea_status_under_review">Under review</string>
     <string name="sp_idea_status_in_progress">In progress</string>
     <string name="sp_idea_status_shipping">Shipping this month</string>
@@ -319,6 +322,8 @@
     <string name="sp_flag_attach_bill">Attach the bill</string>
     <string name="sp_flag_attach_optional">Optional</string>
     <string name="sp_flag_send">Send correction</string>
+    <string name="sp_flag_sent">Correction sent. Bands update weekly.</string>
+    <string name="sp_flag_failed">Could not save your correction. Try again.</string>
     <string name="sp_flag_footer">Bands update weekly. We won’t email you about this one.</string>
     <!-- Opened from the help sheet rather than from a band, so there is none to show. -->
     <string name="sp_flag_no_band">Tell us which price looked wrong and what you paid for it.</string>

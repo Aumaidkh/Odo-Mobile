@@ -30,7 +30,15 @@ import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.triptracker.port.TripSessionStore
+import com.hopcape.odo.core.data.support.FeatureIdeaLocalDataSource
+import com.hopcape.odo.core.data.support.SupportTicketLocalDataSource
 import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncTable
+import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncable
+import com.hopcape.odo.infrastructure.database.support.SqlDelightFeatureIdeaLocalDataSource
+import com.hopcape.odo.infrastructure.database.support.SqlDelightSupportTicketLocalDataSource
+import com.hopcape.odo.infrastructure.database.support.SupportTicketSyncTable
+import com.hopcape.odo.infrastructure.database.support.SupportTicketSyncable
 import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
@@ -135,6 +143,39 @@ val databaseInfrastructureModule = module {
             .also(::seedVehicleReferenceData)
             .also(::seedFuelPrices)
     }
+
+    // Help & support. Tickets push and pull — the panel writes a status back, and an owner
+    // who reported something is owed the answer to whether it was looked at.
+    single<SupportTicketLocalDataSource> { SqlDelightSupportTicketLocalDataSource(database = get()) }
+    single<FeatureIdeaLocalDataSource> { SqlDelightFeatureIdeaLocalDataSource(database = get()) }
+    single {
+        SupportTicketSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.SUPPORT_TICKETS,
+                table = SupportTicketSyncTable(
+                    database = get(),
+                    remote = get(),
+                    currentOwner = get(),
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+    single {
+        IdeaVoteSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.IDEA_VOTES,
+                table = IdeaVoteSyncTable(
+                    database = get(),
+                    remote = get(),
+                    currentOwner = get(),
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
 
     single<CarLocalDataSource> { SqlDelightCarLocalDataSource(database = get()) }
     single {

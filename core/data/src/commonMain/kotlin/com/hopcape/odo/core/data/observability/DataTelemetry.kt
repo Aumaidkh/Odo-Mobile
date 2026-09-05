@@ -137,6 +137,10 @@ class DataTelemetry(
         /** Custom reminders + dismissals — the stored half; the derived feed has no rows. */
         const val REMINDER = "reminder"
         const val TRIP = "trip"
+
+        /** Tickets the owner sent support, and their votes on the curated ideas. */
+        const val SUPPORT_TICKET = "supportticket"
+        const val FEATURE_IDEA = "featureidea"
         const val SYNC = "sync"
 
         /** The durable analytics event queue — SqlDelightAnalyticsEventStore. */

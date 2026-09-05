@@ -110,4 +110,18 @@ enum class SyncEntity {
      */
     HEALTH_SCORES,
     REMINDERS,
+
+    /**
+     * What the owner sent support, and their votes on the curated ideas.
+     *
+     * Last, and deliberately so: nothing references either, and neither is on a path the app
+     * draws at startup. A run that dies before reaching them costs a report its trip to the
+     * server for one more pass — the row is already durable on the device, which is the whole
+     * point of writing it there first.
+     *
+     * Two entities because they are two tables with two lifecycles: a ticket is filed once and
+     * comes back with a status, a vote is toggled and re-toggled.
+     */
+    SUPPORT_TICKETS,
+    IDEA_VOTES,
 }

@@ -1,0 +1,46 @@
+-- Help & support, kept on the device and synced like everything else.
+--
+-- Every path in the app used to end in the mail app, so nothing was ever recorded: no row for
+-- the panel to work, nothing the owner could quote back, and no way to write a report with no
+-- signal. These three tables are that record.
+CREATE TABLE support_tickets (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    kind           TEXT NOT NULL,
+    body           TEXT NOT NULL,
+    details        TEXT NOT NULL DEFAULT '{}',
+    attachments    TEXT NOT NULL DEFAULT '[]',
+    reply_to       TEXT,
+    diagnostics_reference TEXT,
+    status         TEXT NOT NULL DEFAULT 'OPEN',
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX support_tickets_owner_created ON support_tickets(owner_id, created_at DESC);
+
+-- The curated list. No owner_id: it is the same list for everybody.
+CREATE TABLE feature_ideas (
+    id          TEXT NOT NULL PRIMARY KEY,
+    title       TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    votes       INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+
+-- Keyed on the pair, so pressing the pill twice cannot leave two rows racing to the server.
+CREATE TABLE idea_votes (
+    idea_id        TEXT NOT NULL,
+    owner_id       TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING',
+    PRIMARY KEY (idea_id, owner_id)
+);

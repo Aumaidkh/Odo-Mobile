@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +60,14 @@ internal fun SuggestIdeaScreen(
     state: IdeaUiState,
     onEvent: (IdeaEvent) -> Unit,
     modifier: Modifier = Modifier,
+    /** Where a save that did not happen is said. */
+    snackbarHostState: SnackbarHostState? = null,
 ) {
     OdoScreen(
         modifier = modifier,
         title = stringResource(Res.string.sp_idea_title),
         onBack = { onEvent(IdeaEvent.BackClicked) },
+        snackbarHostState = snackbarHostState,
         bottomBar = {
             OdoButton(
                 text = stringResource(Res.string.sp_idea_send),

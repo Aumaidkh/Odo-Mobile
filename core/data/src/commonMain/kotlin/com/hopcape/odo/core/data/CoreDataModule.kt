@@ -121,7 +121,17 @@ import com.hopcape.odo.core.data.settings.AppSettingsRepositoryImpl
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.advisory.BillLineClassifier
+import com.hopcape.odo.core.data.support.FakeFeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.FakeIdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.FakeSupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRepositoryImpl
+import com.hopcape.odo.core.data.support.IdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRepositoryImpl
 import com.hopcape.odo.core.domain.auth.AccountEraser
+import com.hopcape.odo.core.domain.support.FeatureIdeaRepository
+import com.hopcape.odo.core.domain.support.SupportTicketRepository
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.document.entitlement.DocumentAllowance
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
@@ -298,6 +308,29 @@ val coreDataModule = module {
     // Not a data source, but the same swap and the same reason: a build with no credentials
     // has no server account, so erasing one is a no-op rather than a failure.
     single<AccountEraser> { OfflineAccountEraser() }
+
+    // Help & support. The repositories are always bound; their remote halves swap the same
+    // way every other data source does once a build has credentials.
+    single<SupportTicketRepository> {
+        SupportTicketRepositoryImpl(
+            local = get(),
+            currentOwner = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
+    single<FeatureIdeaRepository> {
+        FeatureIdeaRepositoryImpl(
+            local = get(),
+            remote = get(),
+            currentOwner = get(),
+            telemetry = get(),
+            scheduler = get(),
+        )
+    }
+    single<SupportTicketRemoteDataSource> { FakeSupportTicketRemoteDataSource() }
+    single<IdeaVoteRemoteDataSource> { FakeIdeaVoteRemoteDataSource() }
+    single<FeatureIdeaRemoteDataSource> { FakeFeatureIdeaRemoteDataSource() }
     // Same swap again: no credentials means no Edge Function to ask, so the bill check runs
     // on its rule table alone.
     single<BillLineClassifier> { OfflineBillLineClassifier() }

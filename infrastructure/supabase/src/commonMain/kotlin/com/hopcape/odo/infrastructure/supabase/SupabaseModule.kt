@@ -12,6 +12,9 @@ import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
 import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.IdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
 import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
 import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
@@ -46,7 +49,10 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDa
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCreditSpendRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessContributionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePriceBandRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFeatureIdeaRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseIdeaVoteRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceIntervalRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseSupportTicketRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePurchaseClaimRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseQuestionAnswerRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
@@ -208,6 +214,9 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
             SupabaseFairnessContributionRemoteDataSource(postgrest = get())
         }
         single<ServiceIntervalRemoteDataSource> { SupabaseServiceIntervalRemoteDataSource(postgrest = get()) }
+        single<SupportTicketRemoteDataSource> { SupabaseSupportTicketRemoteDataSource(postgrest = get()) }
+        single<IdeaVoteRemoteDataSource> { SupabaseIdeaVoteRemoteDataSource(postgrest = get()) }
+        single<FeatureIdeaRemoteDataSource> { SupabaseFeatureIdeaRemoteDataSource(postgrest = get()) }
         single<PurchaseClaimRemoteDataSource> { SupabasePurchaseClaimRemoteDataSource(postgrest = get()) }
         single<CreditSpendRemoteDataSource> { SupabaseCreditSpendRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
