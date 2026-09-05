@@ -56,6 +56,12 @@ internal class SqlDelightOwnershipAdoption(
                     database.overchargeReportQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.vehicleCatalogSubmissionQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.reminderQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    // A ticket filed before sign-in. Without this it vanishes from the
+                    // owner's own list the moment they sign in — `selectAll` filters on
+                    // owner_id — and is pushed under an id that is not `auth.uid()`, which
+                    // RLS refuses permanently.
+                    database.supportTicketQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
+                    database.ideaVoteQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     // Trips were missing here. They are stamped with an owner like every
                     // other table and, since the pull became owner-scoped, an unadopted trip
                     // is one this account can neither push nor recognise as its own.

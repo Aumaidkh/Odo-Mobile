@@ -12,7 +12,7 @@ CREATE TABLE support_tickets (
     attachments    TEXT NOT NULL DEFAULT '[]',
     reply_to       TEXT,
     diagnostics_reference TEXT,
-    status         TEXT NOT NULL DEFAULT 'OPEN',
+    status         TEXT NOT NULL DEFAULT 'open',
     created_at     TEXT NOT NULL,
     updated_at     TEXT NOT NULL,
     deleted_at     TEXT,

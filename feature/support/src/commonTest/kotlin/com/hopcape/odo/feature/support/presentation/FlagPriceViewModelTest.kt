@@ -164,6 +164,20 @@ class FlagPriceViewModelTest {
         assertTrue(tickets.submitted.single().attachments.isEmpty())
     }
 
+    /** The owner stays on the screen, so what they just sent must not still be on it. */
+    @Test
+    fun `a sent correction clears the form`() = runTest {
+        val viewModel = viewModel(band = band())
+
+        viewModel.onEvent(FlagPriceEvent.ComplaintPicked(BandComplaint.TOO_LOW))
+        viewModel.onEvent(FlagPriceEvent.PaidChanged("2350"))
+        viewModel.onEvent(FlagPriceEvent.SendClicked)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.canSend, "one tap from sending it again otherwise")
+        assertEquals("", viewModel.state.value.paidRupees)
+    }
+
     private fun viewModel(
         tickets: FakeTickets = FakeTickets(),
         band: DisputedBand? = null,

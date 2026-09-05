@@ -46,7 +46,12 @@ internal class FeatureIdeaRepositoryImpl(
     override suspend fun refresh(): Either<DomainError, Unit> =
         telemetry.span(DataTelemetry.FEATURE_IDEA, OP_REFRESH) {
             try {
-                local.replaceCatalogue(remote.ideas())
+                val fetched = remote.ideas()
+                // An empty answer is not an empty catalogue. A signed-out read falls back to
+                // the anon key and PostgREST answers `200 []` rather than a 401, so replacing
+                // on empty would quietly delete the list — and orphan the owner's votes —
+                // every time this screen was opened without a session.
+                if (fetched.isNotEmpty()) local.replaceCatalogue(fetched)
                 Unit.right()
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.FEATURE_IDEA, OP_REFRESH, e)

@@ -19,8 +19,11 @@ import kotlin.time.Clock
  * The curated catalogue and this owner's votes on it.
  *
  * The vote count shown is the server's, not a local tally: a count assembled from one device
- * is not a count. The owner's own vote moves it by one in the read, so the pill answers the
- * tap that made it without waiting for a round trip.
+ * is not a count, and the trigger that keeps it runs in the same transaction as the vote.
+ *
+ * So the number moves on the next pull, not on the tap. What answers the tap is `voted` — the
+ * pill turns solid and its caption changes — which is feedback the owner can see without the
+ * app inventing a figure it would then have to correct.
  */
 internal class SqlDelightFeatureIdeaLocalDataSource(
     private val database: OdoDatabase,

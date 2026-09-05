@@ -76,7 +76,12 @@ internal class SqlDelightSupportTicketLocalDataSource(
         runCatching { block(raw) }.getOrNull()
 
     private companion object {
-        const val STATUS_OPEN = "OPEN"
+        /**
+         * Lowercase, matching the server's own check constraint and the value its column
+         * already defaults to. Sending "OPEN" would be a `23514` on every push — and a 400 is
+         * permanent, so the row would park in CONFLICT and never retry.
+         */
+        const val STATUS_OPEN = "open"
 
         val json = Json { ignoreUnknownKeys = true }
     }

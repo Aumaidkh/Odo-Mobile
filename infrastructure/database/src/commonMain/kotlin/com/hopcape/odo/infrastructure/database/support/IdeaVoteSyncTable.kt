@@ -88,10 +88,15 @@ internal class IdeaVoteSyncTable(
 
         fun key(ideaId: String, ownerId: String) = "$ideaId$SEPARATOR$ownerId"
 
-        fun String.split(): Pair<String, String> {
-            val at = indexOf(SEPARATOR)
-            return substring(0, at) to substring(at + 1)
-        }
+        /**
+         * Split back into the pair.
+         *
+         * `substringBefore`/`After` rather than an index: a string with no separator would
+         * make `indexOf` answer -1 and `substring(0, -1)` throw, inside a sync transaction,
+         * for an id nothing should ever have produced.
+         */
+        fun String.split(): Pair<String, String> =
+            substringBefore(SEPARATOR) to substringAfter(SEPARATOR, missingDelimiterValue = "")
     }
 }
 

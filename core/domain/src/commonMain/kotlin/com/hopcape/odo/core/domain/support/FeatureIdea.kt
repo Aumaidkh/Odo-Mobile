@@ -15,9 +15,9 @@ enum class IdeaStatus {
 /**
  * An idea somebody already asked for, and whether this owner has added their name to it.
  *
- * [votes] is the server's count. It is shown rather than computed locally because a count
- * from one device is not a count — but a vote cast here moves it by one straight away, so the
- * number the owner sees answers the tap they just made.
+ * [votes] is the server's count, shown rather than computed locally because a count from one
+ * device is not a count. It moves on the next pull; what answers the tap is [voted], which
+ * changes at once.
  */
 data class FeatureIdea(
     val id: String,
