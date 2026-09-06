@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.admin.presentation.reference
+package com.hopcape.odo.web.admin.presentation.pricebook
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
@@ -9,7 +9,7 @@ import com.hopcape.odo.web.admin.domain.JobPrice
 import com.hopcape.odo.web.admin.domain.LabourRate
 import com.hopcape.odo.web.admin.domain.PartPrice
 import com.hopcape.odo.web.admin.domain.Provenance
-import com.hopcape.odo.web.admin.domain.ReferenceDataRepository
+import com.hopcape.odo.web.admin.domain.PriceBookRepository
 import com.hopcape.odo.web.admin.domain.ResolvedBand
 import com.hopcape.odo.web.admin.domain.ScheduleItem
 import com.hopcape.odo.web.admin.domain.ServiceItem
@@ -19,6 +19,15 @@ import com.hopcape.odo.web.admin.presentation.asUiText
 import com.hopcape.odo.web.admin.presentation.readAll
 import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
+import com.hopcape.odo.web.admin.domain.DataTable
+import com.hopcape.odo.web.admin.domain.PriceBookTables
+import com.hopcape.odo.web.admin.domain.TableDocument
+import com.hopcape.odo.web.admin.domain.TableFormat
+import com.hopcape.odo.web.admin.resources.ad_pb_deleted
+import com.hopcape.odo.web.admin.resources.ad_pb_imported
+import com.hopcape.odo.web.admin.resources.ad_pb_imported_with_skips
+import com.hopcape.odo.web.admin.resources.ad_pb_unreadable_file
+import com.hopcape.odo.web.admin.ui.DownloadFile
 import com.hopcape.odo.web.admin.resources.ad_ref_no_band
 import com.hopcape.odo.web.admin.resources.ad_ref_saved
 import com.hopcape.odo.web.admin.resources.ad_ref_status_done
@@ -49,8 +58,38 @@ sealed interface ReferenceEvent {
     data class PreviewFieldChanged(val field: PreviewField, val value: String) : ReferenceEvent
     data object PreviewRequested : ReferenceEvent
 
+    /** Offer the three formats for one section. Null closes the menu. */
+    data class ExportMenuRequested(val section: PriceBookSection?) : ReferenceEvent
+    data class ExportRequested(val section: PriceBookSection, val format: TableFormat) : ReferenceEvent
+    data object DownloadHandled : ReferenceEvent
+
+    /** The text of a file somebody chose. Not yet known to be one of ours. */
+    data class ImportPicked(val section: PriceBookSection, val document: String) : ReferenceEvent
+
+    /** Both steps of a delete: ask, then do. Nothing here removes a row on one click. */
+    data class DeleteRequested(val target: PendingDelete) : ReferenceEvent
+    data object DeleteDismissed : ReferenceEvent
+    data object DeleteConfirmed : ReferenceEvent
+
     data object MessageDismissed : ReferenceEvent
 }
+
+/**
+ * The four tables, as one thing the screen can name.
+ *
+ * Labour rates are exportable like the rest but not deletable: they are a fixed three-by-three
+ * grid, and a missing cell is a hole every lookup in that city tier falls through.
+ */
+enum class PriceBookSection(val table: String, val fileName: String, val deletable: Boolean) {
+    Labour(PriceBookTables.LABOUR, "odo-labour-rates", deletable = false),
+    Jobs(PriceBookTables.JOBS, "odo-job-prices", deletable = true),
+    Parts(PriceBookTables.PARTS, "odo-part-prices", deletable = true),
+    Schedule(PriceBookTables.SCHEDULE, "odo-service-schedule", deletable = true),
+}
+
+/** A row a delete would remove, carrying the words the confirmation shows. */
+@Immutable
+data class PendingDelete(val table: String, val id: String, val label: String)
 
 /** The editor's inputs, named so one event carries any of them. */
 enum class EditorField {
@@ -123,6 +162,10 @@ data class ReferenceUiState(
     val preview: PreviewState = PreviewState(),
     val busy: Boolean = false,
     val message: UiText? = null,
+    /** The section whose format menu is open, or null. */
+    val exportMenu: PriceBookSection? = null,
+    val download: DownloadFile? = null,
+    val pendingDelete: PendingDelete? = null,
 )
 
 /**
@@ -133,8 +176,8 @@ data class ReferenceUiState(
  * tables draw, so a local patch would leave the meter disagreeing with the table
  * above it.
  */
-class ReferenceDataViewModel(
-    private val repository: ReferenceDataRepository,
+class PriceBookViewModel(
+    private val repository: PriceBookRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ReferenceUiState())
@@ -193,8 +236,91 @@ class ReferenceDataViewModel(
 
             ReferenceEvent.PreviewRequested -> runPreview()
 
+            is ReferenceEvent.ExportMenuRequested ->
+                _state.value = _state.value.copy(exportMenu = event.section)
+
+            is ReferenceEvent.ExportRequested -> export(event.section, event.format)
+            ReferenceEvent.DownloadHandled -> _state.value = _state.value.copy(download = null)
+            is ReferenceEvent.ImportPicked -> import(event.section, event.document)
+
+            is ReferenceEvent.DeleteRequested -> _state.value = _state.value.copy(pendingDelete = event.target)
+            ReferenceEvent.DeleteDismissed -> _state.value = _state.value.copy(pendingDelete = null)
+            ReferenceEvent.DeleteConfirmed -> confirmDelete()
+
             ReferenceEvent.MessageDismissed -> _state.value = _state.value.copy(message = null)
         }
+    }
+
+    /** The section as it stands right now, in the shape every format is written from. */
+    private fun tableOf(section: PriceBookSection): DataTable = when (section) {
+        PriceBookSection.Labour -> PriceBookTables.labourTable(_state.value.labour.valueOrNull.orEmpty())
+        PriceBookSection.Jobs -> PriceBookTables.jobsTable(_state.value.jobs.valueOrNull.orEmpty())
+        PriceBookSection.Parts -> PriceBookTables.partsTable(_state.value.parts.valueOrNull.orEmpty())
+        PriceBookSection.Schedule -> PriceBookTables.scheduleTable(_state.value.schedule.valueOrNull.orEmpty())
+    }
+
+    private fun export(section: PriceBookSection, format: TableFormat) {
+        _state.value = _state.value.copy(
+            exportMenu = null,
+            download = DownloadFile(
+                fileName = "${section.fileName}.${format.extension}",
+                mimeType = format.mime,
+                text = TableDocument.write(tableOf(section), format),
+            ),
+        )
+    }
+
+    /**
+     * Reads a file and writes what it holds.
+     *
+     * A row that will not parse is set aside rather than failing the file: a hundred-row
+     * paste with one typo should land ninety-nine rows and say which one it could not.
+     */
+    private fun import(section: PriceBookSection, document: String) {
+        val table = TableDocument.read(document)
+        if (table == null) {
+            _state.value = _state.value.copy(message = UiText.Resource(Res.string.ad_pb_unreadable_file))
+            return
+        }
+
+        val rejected: List<PriceBookTables.Rejected>
+        val action: suspend () -> Either<WebError, Int>
+        when (section) {
+            PriceBookSection.Labour -> PriceBookTables.readLabour(table).let {
+                rejected = it.rejected; action = { repository.importLabour(it.rows) }
+            }
+            PriceBookSection.Jobs -> PriceBookTables.readJobs(table).let {
+                rejected = it.rejected; action = { repository.importJobs(it.rows) }
+            }
+            PriceBookSection.Parts -> PriceBookTables.readParts(table).let {
+                rejected = it.rejected; action = { repository.importParts(it.rows) }
+            }
+            PriceBookSection.Schedule -> PriceBookTables.readSchedule(table).let {
+                rejected = it.rejected; action = { repository.importSchedule(it.rows) }
+            }
+        }
+
+        writeCounting(
+            done = { written ->
+                if (rejected.isEmpty()) {
+                    UiText.Resource(Res.string.ad_pb_imported, listOf(written))
+                } else {
+                    // The first bad row by name. Listing all of them turns a banner into a
+                    // wall, and the first one is usually the mistake repeated.
+                    UiText.Resource(
+                        Res.string.ad_pb_imported_with_skips,
+                        listOf(written, rejected.size, rejected.first().rowNumber, rejected.first().reason),
+                    )
+                }
+            },
+            action = action,
+        )
+    }
+
+    private fun confirmDelete() {
+        val target = _state.value.pendingDelete ?: return
+        _state.value = _state.value.copy(pendingDelete = null)
+        write(Res.string.ad_pb_deleted) { repository.delete(target.table, target.id) }
     }
 
     private fun load() {
@@ -364,6 +490,24 @@ class ReferenceDataViewModel(
                         preview = _state.value.preview.copy(running = false, band = band, answered = true),
                         message = if (band == null) UiText.Resource(Res.string.ad_ref_no_band) else null,
                     )
+                },
+            )
+        }
+    }
+
+    /**
+     * A write whose message needs the write's own result — how many rows an import landed.
+     * Everything else has nothing to say beyond which write it was.
+     */
+    private fun writeCounting(done: (Int) -> UiText, action: suspend () -> Either<WebError, Int>) {
+        if (_state.value.busy) return
+        _state.value = _state.value.copy(busy = true, message = null)
+        viewModelScope.launch {
+            action().fold(
+                ifLeft = { error -> _state.value = _state.value.copy(busy = false, message = error.asUiText()) },
+                ifRight = { written ->
+                    _state.value = _state.value.copy(busy = false, message = done(written))
+                    load()
                 },
             )
         }

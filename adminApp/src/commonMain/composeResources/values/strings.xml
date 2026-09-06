@@ -44,7 +44,7 @@
     <string name="ad_nav_roles">Roles &amp; permissions</string>
     <string name="ad_nav_content">Content</string>
     <string name="ad_nav_catalogue">Service catalogue</string>
-    <string name="ad_nav_reference">Reference data</string>
+    <string name="ad_nav_pricebook">Price book</string>
     <string name="ad_nav_vehicles">Vehicle database</string>
     <string name="ad_nav_cities">Cities</string>
     <string name="ad_nav_tickets">Support tickets</string>
@@ -59,7 +59,7 @@
     <string name="ad_sub_roles">Who holds which role, and what each role may do</string>
     <string name="ad_sub_content">Blog posts and publishing</string>
     <string name="ad_sub_catalogue">Items, intervals and cost benchmarks</string>
-    <string name="ad_sub_reference">Prices and schedules every advisory resolves against</string>
+    <string name="ad_sub_pricebook">Prices and schedules every advisory resolves against</string>
     <string name="ad_sub_vehicles">Makes, models and variants</string>
     <string name="ad_sub_cities">The shared city lookup, and what owners have reported</string>
     <string name="ad_sub_tickets">Queue sorted by SLA</string>
@@ -205,6 +205,18 @@
     <string name="ad_audit_system">system</string>
     <string name="ad_common_retry">Try again</string>
     <string name="ad_common_reload">Reload this section</string>
+    <string name="ad_pb_export_as">Export as</string>
+    <string name="ad_pb_format_json">JSON — exact, and imports back</string>
+    <string name="ad_pb_format_csv">CSV — opens anywhere, and imports back</string>
+    <string name="ad_pb_format_excel">Excel — to read and edit; save as CSV to bring it back</string>
+    <string name="ad_pb_imported">Imported %1$d rows.</string>
+    <string name="ad_pb_imported_with_skips">Imported %1$d rows. Skipped %2$d — row %3$d: %4$s</string>
+    <string name="ad_pb_unreadable_file">That file is neither JSON nor CSV this panel can read.</string>
+    <string name="ad_pb_delete">Delete</string>
+    <string name="ad_pb_delete_title">Delete this row?</string>
+    <string name="ad_pb_delete_body">%1$s will be removed for good. To stop it being served without losing the figure, set it back to draft instead.</string>
+    <string name="ad_pb_delete_confirm">Delete</string>
+    <string name="ad_pb_deleted">Row deleted.</string>
     <string name="ad_transfer_export">Export</string>
     <string name="ad_transfer_import">Import</string>
     <string name="ad_transfer_imported">Imported %1$d rows.</string>

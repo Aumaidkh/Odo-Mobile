@@ -56,7 +56,7 @@ class LandingTest {
             listOf(
                 AdminRoute.Content,
                 AdminRoute.Catalogue,
-                AdminRoute.Reference,
+                AdminRoute.PriceBook,
                 AdminRoute.Vehicles,
                 AdminRoute.Cities,
                 AdminRoute.Social,

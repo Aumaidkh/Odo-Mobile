@@ -9,7 +9,7 @@ import com.hopcape.odo.web.admin.resources.ad_nav_cities
 import com.hopcape.odo.web.admin.resources.ad_nav_content
 import com.hopcape.odo.web.admin.resources.ad_nav_dashboard
 import com.hopcape.odo.web.admin.resources.ad_nav_flags
-import com.hopcape.odo.web.admin.resources.ad_nav_reference
+import com.hopcape.odo.web.admin.resources.ad_nav_pricebook
 import com.hopcape.odo.web.admin.resources.ad_nav_social
 import com.hopcape.odo.web.admin.resources.ad_nav_roles
 import com.hopcape.odo.web.admin.resources.ad_nav_tickets
@@ -30,7 +30,7 @@ import com.hopcape.odo.web.admin.resources.ad_sub_cities
 import com.hopcape.odo.web.admin.resources.ad_sub_content
 import com.hopcape.odo.web.admin.resources.ad_sub_dashboard
 import com.hopcape.odo.web.admin.resources.ad_sub_flags
-import com.hopcape.odo.web.admin.resources.ad_sub_reference
+import com.hopcape.odo.web.admin.resources.ad_sub_pricebook
 import com.hopcape.odo.web.admin.resources.ad_sub_social
 import com.hopcape.odo.web.admin.resources.ad_sub_roles
 import com.hopcape.odo.web.admin.resources.ad_sub_tickets
@@ -70,7 +70,7 @@ fun AdminRoute.labelResource(): StringResource = when (this) {
     AdminRoute.Roles -> Res.string.ad_nav_roles
     AdminRoute.Content -> Res.string.ad_nav_content
     AdminRoute.Catalogue -> Res.string.ad_nav_catalogue
-    AdminRoute.Reference -> Res.string.ad_nav_reference
+    AdminRoute.PriceBook -> Res.string.ad_nav_pricebook
     AdminRoute.Vehicles -> Res.string.ad_nav_vehicles
     AdminRoute.Cities -> Res.string.ad_nav_cities
     AdminRoute.Tickets -> Res.string.ad_nav_tickets
@@ -91,7 +91,7 @@ fun AdminRoute.label(): String = when (this) {
     AdminRoute.Roles -> stringResource(Res.string.ad_nav_roles)
     AdminRoute.Content -> stringResource(Res.string.ad_nav_content)
     AdminRoute.Catalogue -> stringResource(Res.string.ad_nav_catalogue)
-    AdminRoute.Reference -> stringResource(Res.string.ad_nav_reference)
+    AdminRoute.PriceBook -> stringResource(Res.string.ad_nav_pricebook)
     AdminRoute.Vehicles -> stringResource(Res.string.ad_nav_vehicles)
     AdminRoute.Cities -> stringResource(Res.string.ad_nav_cities)
     AdminRoute.Tickets -> stringResource(Res.string.ad_nav_tickets)
@@ -121,7 +121,7 @@ fun AdminRoute.icon(): BootstrapIcon = when (this) {
     AdminRoute.Roles -> AdminIcons.Roles
     AdminRoute.Content -> AdminIcons.Content
     AdminRoute.Catalogue -> AdminIcons.Catalogue
-    AdminRoute.Reference -> AdminIcons.Catalogue
+    AdminRoute.PriceBook -> AdminIcons.Catalogue
     AdminRoute.Vehicles -> AdminIcons.Vehicles
     AdminRoute.Cities -> AdminIcons.Cities
     AdminRoute.Tickets -> AdminIcons.Tickets
@@ -142,7 +142,7 @@ fun AdminRoute.subtitle(): String = when (this) {
     AdminRoute.Roles -> stringResource(Res.string.ad_sub_roles)
     AdminRoute.Content -> stringResource(Res.string.ad_sub_content)
     AdminRoute.Catalogue -> stringResource(Res.string.ad_sub_catalogue)
-    AdminRoute.Reference -> stringResource(Res.string.ad_sub_reference)
+    AdminRoute.PriceBook -> stringResource(Res.string.ad_sub_pricebook)
     AdminRoute.Vehicles -> stringResource(Res.string.ad_sub_vehicles)
     AdminRoute.Cities -> stringResource(Res.string.ad_sub_cities)
     AdminRoute.Tickets -> stringResource(Res.string.ad_sub_tickets)

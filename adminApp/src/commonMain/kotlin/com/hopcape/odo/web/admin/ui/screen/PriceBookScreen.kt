@@ -23,13 +23,13 @@ import com.hopcape.odo.web.admin.domain.Provenance
 import com.hopcape.odo.web.admin.domain.ScheduleItem
 import com.hopcape.odo.web.admin.domain.VehicleSegment
 import com.hopcape.odo.web.admin.domain.WorkshopTier
-import com.hopcape.odo.web.admin.presentation.reference.EditorField
-import com.hopcape.odo.web.admin.presentation.reference.EditorKind
-import com.hopcape.odo.web.admin.presentation.reference.PreviewField
-import com.hopcape.odo.web.admin.presentation.reference.ReferenceEditor
-import com.hopcape.odo.web.admin.presentation.reference.ReferenceEvent
-import com.hopcape.odo.web.admin.presentation.reference.ReferenceUiState
-import com.hopcape.odo.web.admin.presentation.reference.coverageOf
+import com.hopcape.odo.web.admin.presentation.pricebook.EditorField
+import com.hopcape.odo.web.admin.presentation.pricebook.EditorKind
+import com.hopcape.odo.web.admin.presentation.pricebook.PreviewField
+import com.hopcape.odo.web.admin.presentation.pricebook.ReferenceEditor
+import com.hopcape.odo.web.admin.presentation.pricebook.ReferenceEvent
+import com.hopcape.odo.web.admin.presentation.pricebook.ReferenceUiState
+import com.hopcape.odo.web.admin.presentation.pricebook.coverageOf
 import com.hopcape.odo.web.core.presentation.state.resolve
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_cities_cancel
@@ -111,6 +111,23 @@ import com.hopcape.odo.web.admin.ui.component.FieldLabel
 import com.hopcape.odo.web.admin.ui.component.LoadingPanel
 import com.hopcape.odo.web.admin.ui.component.Muted
 import com.hopcape.odo.web.admin.ui.component.Panel
+import androidx.compose.runtime.remember
+import com.hopcape.odo.web.admin.domain.TableDocument
+import com.hopcape.odo.web.admin.domain.TableFormat
+import com.hopcape.odo.web.admin.presentation.pricebook.PendingDelete
+import com.hopcape.odo.web.admin.presentation.pricebook.PriceBookSection
+import com.hopcape.odo.web.admin.resources.ad_pb_delete
+import com.hopcape.odo.web.admin.resources.ad_pb_delete_body
+import com.hopcape.odo.web.admin.resources.ad_pb_delete_confirm
+import com.hopcape.odo.web.admin.resources.ad_pb_delete_title
+import com.hopcape.odo.web.admin.resources.ad_pb_export_as
+import com.hopcape.odo.web.admin.resources.ad_pb_format_csv
+import com.hopcape.odo.web.admin.resources.ad_pb_format_excel
+import com.hopcape.odo.web.admin.resources.ad_pb_format_json
+import com.hopcape.odo.web.admin.resources.ad_transfer_export
+import com.hopcape.odo.web.admin.resources.ad_transfer_import
+import com.hopcape.odo.web.admin.ui.browserFiles
+import com.hopcape.odo.web.admin.ui.component.HandleDownload
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
@@ -135,7 +152,7 @@ private val COLUMNS = listOf(2.2f, 1.6f, 2f, 1.4f)
  * it resolves through.
  */
 @Composable
-fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Unit) {
+fun PriceBookScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Unit) {
     if (state.labour is Loadable.Loading) {
         LoadingPanel()
         return
@@ -160,7 +177,10 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                 TablePanel(
                     title = stringResource(Res.string.ad_ref_labour_rates),
                     coverage = state.coverageOf(TABLE_LABOUR),
+                    section = PriceBookSection.Labour,
+                    busy = state.busy,
                     onAdd = { onEvent(ReferenceEvent.LabourEditRequested(null)) },
+                    onEvent = onEvent,
                 )
             }
             val rates = state.labour.valueOrNull.orEmpty()
@@ -195,7 +215,10 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                 TablePanel(
                     title = stringResource(Res.string.ad_ref_job_prices),
                     coverage = state.coverageOf(TABLE_JOB),
+                    section = PriceBookSection.Jobs,
+                    busy = state.busy,
                     onAdd = { onEvent(ReferenceEvent.JobEditRequested(null)) },
+                    onEvent = onEvent,
                 )
             }
             val jobs = state.jobs.valueOrNull.orEmpty()
@@ -222,6 +245,13 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                                 ReferenceEvent.StatusToggled(TABLE_JOB, price.id, !price.provenance.isApproved),
                             )
                         },
+                        onDelete = {
+                            onEvent(
+                                ReferenceEvent.DeleteRequested(
+                                    PendingDelete(TABLE_JOB, price.id, price.categoryName),
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -230,7 +260,10 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                 TablePanel(
                     title = stringResource(Res.string.ad_ref_part_prices),
                     coverage = state.coverageOf(TABLE_PART),
+                    section = PriceBookSection.Parts,
+                    busy = state.busy,
                     onAdd = { onEvent(ReferenceEvent.PartEditRequested(null)) },
+                    onEvent = onEvent,
                 )
             }
             val parts = state.parts.valueOrNull.orEmpty()
@@ -254,6 +287,13 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                                 ReferenceEvent.StatusToggled(TABLE_PART, price.id, !price.provenance.isApproved),
                             )
                         },
+                        onDelete = {
+                            onEvent(
+                                ReferenceEvent.DeleteRequested(
+                                    PendingDelete(TABLE_PART, price.id, price.partSlug),
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -262,7 +302,10 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                 TablePanel(
                     title = stringResource(Res.string.ad_ref_schedule),
                     coverage = state.coverageOf(TABLE_SCHEDULE),
+                    section = PriceBookSection.Schedule,
+                    busy = state.busy,
                     onAdd = { onEvent(ReferenceEvent.ScheduleEditRequested(null)) },
+                    onEvent = onEvent,
                 )
             }
             val schedule = state.schedule.valueOrNull.orEmpty()
@@ -289,6 +332,13 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
                                 ),
                             )
                         },
+                        onDelete = {
+                            onEvent(
+                                ReferenceEvent.DeleteRequested(
+                                    PendingDelete(TABLE_SCHEDULE, entry.id, entry.displayName),
+                                ),
+                            )
+                        },
                     )
                 }
             }
@@ -297,7 +347,71 @@ fun ReferenceDataScreen(state: ReferenceUiState, onEvent: (ReferenceEvent) -> Un
         state.message?.let { Banner(it.resolve()) { onEvent(ReferenceEvent.MessageDismissed) } }
     }
 
+    HandleDownload(state.download) { onEvent(ReferenceEvent.DownloadHandled) }
     state.editor?.let { EditorDialog(it, state, onEvent) }
+    state.exportMenu?.let { ExportFormatDialog(it, onEvent) }
+    state.pendingDelete?.let { DeleteDialog(it, state.busy, onEvent) }
+}
+
+/**
+ * Which of the three formats to write.
+ *
+ * A menu rather than three buttons per section: four sections would put twelve controls in
+ * the headers, and the choice is made once in a while, not every visit.
+ */
+@Composable
+private fun ExportFormatDialog(section: PriceBookSection, onEvent: (ReferenceEvent) -> Unit) {
+    Dialog(onDismissRequest = { onEvent(ReferenceEvent.ExportMenuRequested(null)) }) {
+        Panel(Modifier.width(420.dp)) {
+            PanelHeader(stringResource(Res.string.ad_pb_export_as))
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                TableFormat.entries.forEach { format ->
+                    RowAction(
+                        label = stringResource(format.labelResource()),
+                        onClick = { onEvent(ReferenceEvent.ExportRequested(section, format)) },
+                    )
+                }
+                RowAction(
+                    label = stringResource(Res.string.ad_cities_cancel),
+                    onClick = { onEvent(ReferenceEvent.ExportMenuRequested(null)) },
+                    color = AdminTokens.textDim,
+                )
+            }
+        }
+    }
+}
+
+private fun TableFormat.labelResource() = when (this) {
+    TableFormat.Json -> Res.string.ad_pb_format_json
+    TableFormat.Csv -> Res.string.ad_pb_format_csv
+    TableFormat.Excel -> Res.string.ad_pb_format_excel
+}
+
+@Composable
+private fun DeleteDialog(target: PendingDelete, busy: Boolean, onEvent: (ReferenceEvent) -> Unit) {
+    Dialog(onDismissRequest = { onEvent(ReferenceEvent.DeleteDismissed) }) {
+        Panel(Modifier.width(420.dp)) {
+            PanelHeader(stringResource(Res.string.ad_pb_delete_title))
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Says what the alternative is. A figure that is merely wrong should go back
+                // to draft, which stops it being served without losing what somebody read.
+                Muted(stringResource(Res.string.ad_pb_delete_body, target.label))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RowAction(
+                        label = stringResource(Res.string.ad_pb_delete_confirm),
+                        onClick = { onEvent(ReferenceEvent.DeleteConfirmed) },
+                        enabled = !busy,
+                        color = AdminTokens.danger,
+                    )
+                    RowAction(
+                        label = stringResource(Res.string.ad_cities_cancel),
+                        onClick = { onEvent(ReferenceEvent.DeleteDismissed) },
+                        enabled = !busy,
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -402,7 +516,15 @@ private fun ResolvePreview(state: ReferenceUiState, onEvent: (ReferenceEvent) ->
 }
 
 @Composable
-private fun TablePanel(title: String, coverage: Coverage?, onAdd: () -> Unit) {
+private fun TablePanel(
+    title: String,
+    coverage: Coverage?,
+    section: PriceBookSection,
+    busy: Boolean,
+    onAdd: () -> Unit,
+    onEvent: (ReferenceEvent) -> Unit,
+) {
+    val files = remember { browserFiles() }
     Panel {
         PanelHeader(title) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -412,6 +534,19 @@ private fun TablePanel(title: String, coverage: Coverage?, onAdd: () -> Unit) {
                         dot = if (it.isComplete) AdminTokens.accent else null,
                     )
                 }
+                // Export offers three formats, so it opens a menu rather than acting.
+                RowAction(
+                    label = stringResource(Res.string.ad_transfer_export),
+                    onClick = { onEvent(ReferenceEvent.ExportMenuRequested(section)) },
+                    enabled = !busy,
+                )
+                RowAction(
+                    label = stringResource(Res.string.ad_transfer_import),
+                    onClick = {
+                        files.pickText(TableDocument.ACCEPT) { onEvent(ReferenceEvent.ImportPicked(section, it)) }
+                    },
+                    enabled = !busy,
+                )
                 RowAction(stringResource(Res.string.ad_ref_add), onAdd)
             }
         }
@@ -441,6 +576,7 @@ private fun ReferenceRow(
     busy: Boolean,
     onEdit: () -> Unit,
     onStatus: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     RowPanel {
         TableRow {
@@ -469,6 +605,9 @@ private fun ReferenceRow(
                     !busy,
                     color = if (provenance.isApproved) AdminTokens.textDim else AdminTokens.accent,
                 )
+                onDelete?.let {
+                    RowAction(stringResource(Res.string.ad_pb_delete), it, !busy, color = AdminTokens.danger)
+                }
             }
         }
     }
