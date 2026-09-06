@@ -73,6 +73,8 @@ import com.hopcape.odo.web.admin.ui.component.Panel
 import com.hopcape.odo.web.admin.resources.ad_vehicles_showing_makes
 import com.hopcape.odo.web.admin.ui.component.Pager
 import com.hopcape.odo.web.admin.ui.component.PanelHeader
+import com.hopcape.odo.web.admin.ui.component.HandleDownload
+import com.hopcape.odo.web.admin.ui.component.TransferActions
 import com.hopcape.odo.web.admin.ui.component.Pill
 import com.hopcape.odo.web.admin.ui.component.PrimaryAction
 import com.hopcape.odo.web.admin.ui.component.ReloadAction
@@ -129,6 +131,11 @@ fun VehiclesScreen(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Pill(stringResource(Res.string.ad_vehicles_catalog_count, state.modelCount))
+                            TransferActions(
+                                onExport = { onEvent(VehiclesEvent.ExportRequested) },
+                                onImport = { onEvent(VehiclesEvent.ImportPicked(it)) },
+                                enabled = !state.busy,
+                            )
                             PrimaryAction(
                                 stringResource(Res.string.ad_vehicles_add),
                                 { onEvent(VehiclesEvent.AddRequested) },
@@ -197,6 +204,7 @@ fun VehiclesScreen(state: VehiclesUiState, onEvent: (VehiclesEvent) -> Unit) {
         }
     }
 
+    HandleDownload(state.download) { onEvent(VehiclesEvent.DownloadHandled) }
     state.editor?.let { EditorDialog(it, state.busy, onEvent) }
     state.pendingDelete?.let { DeleteDialog(it, state.busy, onEvent) }
 }

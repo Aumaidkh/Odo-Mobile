@@ -1,6 +1,7 @@
 package com.hopcape.odo.web.admin.infrastructure
 
 import arrow.core.Either
+import com.hopcape.odo.web.admin.domain.VehicleCatalogue
 import com.hopcape.odo.web.admin.domain.VehicleMake
 import com.hopcape.odo.web.admin.domain.VehicleModel
 import com.hopcape.odo.web.admin.domain.VehicleSubmission
@@ -11,6 +12,8 @@ import com.hopcape.odo.web.core.infrastructure.supabase.encoded
 import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 /**
  * `vehicle_makes`, `vehicle_models` and `vehicle_catalog_submissions` over PostgREST.
@@ -104,12 +107,50 @@ internal class SupabaseVehiclesRepository(
     override suspend fun deleteSubmission(id: String): Either<WebError, Unit> =
         postgrest.delete(table = TABLE_SUBMISSIONS, query = "id=eq.$id")
 
+    override suspend fun importCatalog(catalogue: VehicleCatalogue): Either<WebError, Int> {
+        // Makes first, and only then models: `vehicle_models.make_id` is a foreign
+        // key, so a model whose make has not landed yet is rejected for the whole
+        // batch.
+        val makes = if (catalogue.makes.isEmpty()) {
+            Either.Right(0)
+        } else {
+            postgrest.upsert(
+                table = TABLE_MAKES,
+                body = IMPORT.encodeToString(ListSerializer(MakeRow.serializer()), catalogue.makes.map {
+                    MakeRow(it.id, it.name, it.displayOrder)
+                }),
+                serializer = MakeRow.serializer(),
+            ).map { it.size }
+        }
+
+        return makes.flatMap { madeMakes ->
+            if (catalogue.models.isEmpty()) {
+                Either.Right(madeMakes)
+            } else {
+                postgrest.upsert(
+                    table = TABLE_MODELS,
+                    body = IMPORT.encodeToString(ListSerializer(ModelRow.serializer()), catalogue.models.map {
+                        ModelRow(it.id, it.makeId, it.name, it.variant, it.displayOrder)
+                    }),
+                    serializer = ModelRow.serializer(),
+                ).map { madeMakes + it.size }
+            }
+        }
+    }
+
     private companion object {
         const val TABLE_MAKES = "vehicle_makes"
         const val TABLE_MODELS = "vehicle_models"
         const val TABLE_SUBMISSIONS = "vehicle_catalog_submissions"
+
+        /** Nulls written rather than omitted — a trim cleared in dev has to clear here. */
+        val IMPORT = Json { encodeDefaults = true; explicitNulls = true }
     }
 }
+
+/** `flatMap` for the shape above; Arrow's needs an import this file does not otherwise want. */
+private inline fun <A, B> Either<WebError, A>.flatMap(block: (A) -> Either<WebError, B>): Either<WebError, B> =
+    fold({ Either.Left(it) }, block)
 
 @Serializable
 private data class MakeRow(
