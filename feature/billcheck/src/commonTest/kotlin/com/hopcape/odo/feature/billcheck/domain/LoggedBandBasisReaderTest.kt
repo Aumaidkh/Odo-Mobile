@@ -2,7 +2,7 @@ package com.hopcape.odo.feature.billcheck.domain
 
 import arrow.core.Either
 import arrow.core.right
-import com.hopcape.odo.core.domain.advisory.matching.BillLineMatcher
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.benchmark.BandWorking
 import com.hopcape.odo.core.domain.benchmark.BenchmarkBasis
 import com.hopcape.odo.core.domain.benchmark.BenchmarkScope
@@ -50,7 +50,7 @@ class LoggedBandBasisReaderTest {
 
     @Test
     fun `the working behind a modelled band is shown in full`() = runTest {
-        val basis = assertNotNull(reader().basisFor(BILL, "AC service").getOrNull())
+        val basis = assertNotNull(reader().basisFor(BILL, "AC service", AC_SLUG).getOrNull())
 
         assertEquals("AC service", basis.lineName)
         assertEquals(rupees(1_428), basis.low)
@@ -68,10 +68,10 @@ class LoggedBandBasisReaderTest {
     fun `the band is asked for exactly as the check asked for it`() = runTest {
         val asked = mutableListOf<PriceBandQuery>()
 
-        reader(spy = asked).basisFor(BILL, "AC service")
+        reader(spy = asked).basisFor(BILL, "AC service", AC_SLUG)
 
         val query = asked.single()
-        assertEquals("ac_service", query.categorySlug)
+        assertEquals(AC_SLUG, query.categorySlug)
         assertEquals("Srinagar", query.city)
         assertEquals(WorkshopTier.AUTHORISED, query.workshopTier)
         assertEquals(FuelType.PETROL, query.fuel)
@@ -85,7 +85,7 @@ class LoggedBandBasisReaderTest {
      */
     @Test
     fun `a modelled band answered at the middle rung`() = runTest {
-        val basis = assertNotNull(reader().basisFor(BILL, "AC service").getOrNull())
+        val basis = assertNotNull(reader().basisFor(BILL, "AC service", AC_SLUG).getOrNull())
 
         assertEquals(
             listOf(RungState.NO_DATA, RungState.USED, RungState.NOT_NEEDED),
@@ -99,7 +99,7 @@ class LoggedBandBasisReaderTest {
     fun `observed bills at the narrowest filter answer at the top rung`() = runTest {
         val basis = assertNotNull(
             reader(band = band(BenchmarkScope.CITY_TIER_SEGMENT, BenchmarkBasis.OBSERVED))
-                .basisFor(BILL, "AC service").getOrNull(),
+                .basisFor(BILL, "AC service", AC_SLUG).getOrNull(),
         )
 
         assertEquals(BandScope.THIS_CAR_THIS_CENTRE, basis.rungs.first().scope)
@@ -112,7 +112,7 @@ class LoggedBandBasisReaderTest {
     fun `a national band leaves both narrower rungs empty`() = runTest {
         val basis = assertNotNull(
             reader(band = band(BenchmarkScope.NATIONAL_TIER, BenchmarkBasis.OBSERVED))
-                .basisFor(BILL, "AC service").getOrNull(),
+                .basisFor(BILL, "AC service", AC_SLUG).getOrNull(),
         )
 
         assertEquals(
@@ -126,7 +126,7 @@ class LoggedBandBasisReaderTest {
     fun `an observed band shows no labour working`() = runTest {
         val basis = assertNotNull(
             reader(band = band(BenchmarkScope.CITY_TIER, BenchmarkBasis.OBSERVED, working = null))
-                .basisFor(BILL, "AC service").getOrNull(),
+                .basisFor(BILL, "AC service", AC_SLUG).getOrNull(),
         )
 
         assertEquals(Amount.ZERO, basis.labourRatePerHour)
@@ -135,23 +135,14 @@ class LoggedBandBasisReaderTest {
 
     /* ------------------------------ Nothing to show ------------------------------ */
 
-    /** A line the rules cannot name has no band, and a sheet about it would be invented. */
-    @Test
-    fun `a line the rules cannot name has no basis`() = runTest {
-        val result = reader().basisFor(BILL, "Throttle body cleaning")
-
-        assertNull(result.getOrNull())
-        assertIs<DomainError.LookupUnavailable>(result.leftOrNull())
-    }
-
     @Test
     fun `a job the tables cannot price has no basis`() = runTest {
-        assertNull(reader(band = null).basisFor(BILL, "AC service").getOrNull())
+        assertNull(reader(band = null).basisFor(BILL, "AC service", AC_SLUG).getOrNull())
     }
 
     @Test
     fun `a bill that is not there has no basis`() = runTest {
-        val result = reader(missing = true).basisFor(BILL, "AC service")
+        val result = reader(missing = true).basisFor(BILL, "AC service", AC_SLUG)
 
         assertIs<DomainError.ServiceLogNotFound>(result.leftOrNull())
     }
@@ -164,11 +155,40 @@ class LoggedBandBasisReaderTest {
     @Test
     fun `an unlisted city names no tier rather than a plausible one`() = runTest {
         val basis = assertNotNull(
-            reader(catalog = emptyList()).basisFor(BILL, "AC service").getOrNull(),
+            reader(catalog = emptyList()).basisFor(BILL, "AC service", AC_SLUG).getOrNull(),
         )
 
         assertNull(basis.cityTier)
         assertEquals("Srinagar", basis.city, "the city itself is still known")
+    }
+
+    /**
+     * The bug this sheet shipped with, closed by construction.
+     *
+     * With the model fallback on, the check can name a line the rules cannot, price it and
+     * flag it. This screen used to name the line again — with the rules alone — so a
+     * model-named line came back unnamed and the sheet refused to explain a finding the app
+     * had just drawn. It is now handed the job the check resolved, so there is nothing left
+     * here that could reach a different answer.
+     */
+    @Test
+    fun `a line the rules cannot name is still explained`() = runTest {
+        val basis = assertNotNull(
+            reader().basisFor(BILL, "Throttle body cleaning", AC_SLUG).getOrNull(),
+        )
+
+        assertEquals("Throttle body cleaning", basis.lineName)
+        assertEquals(rupees(1_428), basis.low, "and it is the band the check used")
+    }
+
+    /** The slug it was given, never one it worked out. */
+    @Test
+    fun `the band is asked for with the job the check resolved`() = runTest {
+        val asked = mutableListOf<PriceBandQuery>()
+
+        reader(spy = asked).basisFor(BILL, "Anything at all", "brake_pads")
+
+        assertEquals("brake_pads", asked.single().categorySlug)
     }
 
     /* ------------------------------ Fixtures ------------------------------ */
@@ -186,9 +206,18 @@ class LoggedBandBasisReaderTest {
             override suspend fun cities() = catalog
         },
         questionnaire = FakeQuestionnaire,
-        matcher = BillLineMatcher(),
         bands = FakeBands(band, spy),
     )
+
+    private fun config(classifierOn: Boolean) = object : FeatureConfig {
+        override val autoOdometerEnabled = true
+        override val refuelDetectEnabled = true
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = classifierOn
+        override val billCheckEnabled = true
+        override val serviceChecklistEnabled = true
+    }
 
     private fun band(
         scope: BenchmarkScope,
@@ -250,6 +279,9 @@ class LoggedBandBasisReaderTest {
 
     private companion object {
         const val BILL = "entry-1"
+
+        /** The job the check resolved. The sheet is told it rather than working it out. */
+        const val AC_SLUG = "ac_service"
 
         fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
 

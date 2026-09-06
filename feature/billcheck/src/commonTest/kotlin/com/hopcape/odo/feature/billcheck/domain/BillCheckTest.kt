@@ -117,6 +117,7 @@ class BillCheckTest {
         amount = rupees(rupees),
         reason = reason,
         evidence = Evidence.CityRates,
+        categorySlug = "ac_service",
     )
 
     private fun rupees(whole: Int) = Amount.of(whole * 100L).getOrNull() ?: Amount.ZERO
