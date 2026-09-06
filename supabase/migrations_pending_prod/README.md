@@ -28,6 +28,14 @@ profile push fail with `PGRST204`, and a failed push is silent — the row simpl
 release is live and adopted, not before. The backfill it depends on
 (`20260902160000_backfill_profile_answers_goal.sql`) has already run, so the data is safe.
 
+Until then `20260906120000_profiles_goal_compat.sql` holds the seam: the column stays, and a
+trigger forwards a goal changed through it into `profile_answers`. Without that an old
+client's change lands in a column nothing reads any more. Dropping the column also drops the
+trigger, which this file now does — so the two stay in step.
+
+Development has **already** dropped the column, which is why the compatibility migration
+checks for it and does nothing when it is absent.
+
 ## What was applied, and when
 
 2026-09-06, through the Management API query endpoint, in this order:
