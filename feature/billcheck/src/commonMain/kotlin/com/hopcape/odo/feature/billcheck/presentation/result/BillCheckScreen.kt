@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -32,8 +35,10 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoDivider
 import com.hopcape.odo.core.designsystem.component.OdoEvidenceDots
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoScreen
+import com.hopcape.odo.core.designsystem.component.OdoShimmerBlock
+import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
+import com.hopcape.odo.core.designsystem.component.ShimmerDefaults
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
@@ -65,6 +70,7 @@ import com.hopcape.odo.feature.billcheck.resources.bc_evidence_bills
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_own
 import com.hopcape.odo.feature.billcheck.resources.bc_evidence_rates
 import com.hopcape.odo.feature.billcheck.resources.bc_headline
+import com.hopcape.odo.feature.billcheck.resources.bc_loading
 import com.hopcape.odo.feature.billcheck.resources.bc_how_we_know
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_amount
 import com.hopcape.odo.feature.billcheck.resources.bc_masked_subhead
@@ -126,7 +132,7 @@ internal fun BillCheckScreen(
         },
     ) { padding ->
         when (content) {
-            BillCheckUiState.Content.Loading -> Centred(padding) { OdoLoadingIndicator() }
+            BillCheckUiState.Content.Loading -> LoadingSkeleton(padding)
 
             is BillCheckUiState.Content.Failed -> Centred(padding) {
                 Column(
@@ -424,6 +430,45 @@ private fun MaskedRow(name: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * The shape of the answer, while it is being worked out.
+ *
+ * A skeleton rather than a spinner, because the check is slow for a reason worth showing: it
+ * reads the owner's history, asks the server for a band per line, and may ask the model to
+ * name what the rules could not. A spinner says only "wait"; this says what is coming, and the
+ * screen does not jump when it lands.
+ *
+ * It mirrors the real layout — the car line, the headline, then a row per bill line — so the
+ * blocks are replaced in place rather than by a different page.
+ */
+@Composable
+private fun LoadingSkeleton(padding: PaddingValues) {
+    val loadingLabel = stringResource(Res.string.bc_loading)
+    OdoShimmerHost {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .semantics { contentDescription = loadingLabel },
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+    ) {
+        Spacer(Modifier.height(OdoTheme.spacing.sm))
+        // The car and city line: short, and above the headline like the real one.
+        OdoShimmerBlock(width = SKELETON_SUBTITLE_WIDTH, height = ShimmerDefaults.LineHeight)
+        // The headline, which is two lines of display type on a real result.
+        OdoShimmerBlock(height = ShimmerDefaults.HeadlineHeight)
+        OdoShimmerBlock(width = SKELETON_HEADLINE_TAIL, height = ShimmerDefaults.HeadlineHeight)
+        Spacer(Modifier.height(OdoTheme.spacing.sm))
+        repeat(SKELETON_ROWS) {
+            OdoCard {
+                OdoShimmerBlock(width = SKELETON_ROW_TITLE, height = ShimmerDefaults.LineHeight)
+                OdoShimmerBlock(height = ShimmerDefaults.LineHeight)
+            }
+        }
+    }
+    }
+}
+
 @Composable
 private fun Actions(check: BillCheck, onEvent: (BillCheckEvent) -> Unit) {
     // "How we know" explains a band, and only a rate claim has one. A repeat or a schedule
@@ -551,6 +596,12 @@ private inline fun androidx.compose.ui.text.AnnotatedString.Builder.withBold(blo
 }
 
 /* ------------------------------ Layout tokens ------------------------------ */
+
+/** The skeleton's proportions, matching the real screen's first three elements. */
+private val SKELETON_SUBTITLE_WIDTH = 220.dp
+private val SKELETON_HEADLINE_TAIL = 200.dp
+private val SKELETON_ROW_TITLE = 160.dp
+private const val SKELETON_ROWS = 3
 
 private val FLAG_DOT = 8.dp
 private val CHECK_SIZE = 18.dp

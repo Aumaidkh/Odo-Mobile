@@ -20,7 +20,13 @@ import com.hopcape.odo.web.admin.presentation.catalogue.TicketsEvent
 import com.hopcape.odo.web.admin.presentation.catalogue.TicketsUiState
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_ticket_back
+import com.hopcape.odo.web.admin.resources.ad_ticket_attachments
+import com.hopcape.odo.web.admin.resources.ad_ticket_attachments_none
 import com.hopcape.odo.web.admin.resources.ad_ticket_body
+import com.hopcape.odo.web.admin.resources.ad_ticket_details
+import com.hopcape.odo.web.admin.resources.ad_ticket_diagnostics
+import com.hopcape.odo.web.admin.resources.ad_ticket_diagnostics_hint
+import com.hopcape.odo.web.admin.resources.ad_ticket_meta_kind
 import com.hopcape.odo.web.admin.resources.ad_ticket_gone
 import com.hopcape.odo.web.admin.resources.ad_ticket_meta_contact
 import com.hopcape.odo.web.admin.resources.ad_ticket_meta_opened
@@ -42,6 +48,31 @@ import com.hopcape.odo.web.admin.ui.theme.AdminType
 import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.core.presentation.state.resolve
 import org.jetbrains.compose.resources.stringResource
+
+/**
+ * A detail's name, as a person reads it.
+ *
+ * The `_paise` suffix is dropped along with the underscores: the value beside it is rendered
+ * in rupees, so the unit in the name would be the wrong one.
+ */
+private fun String.readableKey(): String =
+    removeSuffix(PAISE_SUFFIX).replace('_', ' ')
+
+/**
+ * A detail's value, in rupees where the app stored paise.
+ *
+ * Money is integer paise everywhere in this product, and printed raw a price correction reads
+ * "paid paise: 235000" — on the page whose whole purpose is working the queue without reading
+ * prose. Anything that will not parse is shown as it came: a value nobody expected is still
+ * worth seeing.
+ */
+private fun String.readableValue(key: String): String {
+    if (!key.endsWith(PAISE_SUFFIX)) return this
+    val paise = toLongOrNull() ?: return this
+    return "Rs. ${paise / 100}"
+}
+
+private const val PAISE_SUFFIX = "_paise"
 
 private val STATUSES = listOf("open", "pending", "resolved", "closed")
 private val PRIORITIES = listOf("low", "normal", "high", "urgent")
@@ -104,6 +135,62 @@ fun TicketDetailScreen(
                         MetaLine(stringResource(Res.string.ad_ticket_meta_opened), ticket.createdAt)
                         MetaLine(stringResource(Res.string.ad_ticket_meta_status), ticket.status)
                         MetaLine(stringResource(Res.string.ad_ticket_meta_priority), ticket.priority)
+                        // Only for a ticket the app filed. A blank row on the eleven that
+                        // predate it would read as data that failed to load.
+                        if (ticket.isFromApp) {
+                            MetaLine(
+                                stringResource(Res.string.ad_ticket_meta_kind),
+                                ticket.kind.lowercase().replace('_', ' '),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // The fields the form collected, as fields. This is what lets the queue be worked
+            // without reading every body: the area a report was filed against, the job and
+            // the figure behind a price correction.
+            if (ticket.details.isNotEmpty()) {
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_details))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            ticket.details.entries.sortedBy { it.key }.forEach { (key, value) ->
+                                MetaLine(key.readableKey(), value.readableValue(key))
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (ticket.isFromApp) {
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_attachments))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // Said even when there are none, so nobody wonders whether a
+                            // photograph failed to load or was never sent.
+                            Text(
+                                ticket.attachments.joinToString(", ")
+                                    .ifBlank { stringResource(Res.string.ad_ticket_attachments_none) },
+                                style = AdminType.body,
+                                color = AdminTokens.textStrong,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // The most useful line on a bug report: the code the uploaded logs are filed
+            // under, so whoever works this can find them without asking the owner.
+            ticket.diagnosticsReference?.let { reference ->
+                item {
+                    Panel {
+                        PanelHeader(stringResource(Res.string.ad_ticket_diagnostics))
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(reference, style = AdminType.body, color = AdminTokens.textStrong)
+                            Muted(stringResource(Res.string.ad_ticket_diagnostics_hint))
+                        }
                     }
                 }
             }
