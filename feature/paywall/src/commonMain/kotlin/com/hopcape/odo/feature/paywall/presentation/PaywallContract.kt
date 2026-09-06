@@ -17,6 +17,9 @@ internal sealed interface PaywallEvent {
 
     /** Retry, after the offer failed to load. */
     data object RetryTapped : PaywallEvent
+
+    /** "Just want one thing?" — open the one-time offers sheet over the plans. */
+    data object OneTimeOffersTapped : PaywallEvent
 }
 
 /** One-shot handoffs the route host performs. */
@@ -30,4 +33,7 @@ internal sealed interface PaywallEffect {
      * already unlocked the screen underneath, so the right ending is to get out of the way.
      */
     data object GoBack : PaywallEffect
+
+    /** Open the one-time offers sheet, leaving the paywall underneath it. */
+    data object OpenOneTimeOffers : PaywallEffect
 }

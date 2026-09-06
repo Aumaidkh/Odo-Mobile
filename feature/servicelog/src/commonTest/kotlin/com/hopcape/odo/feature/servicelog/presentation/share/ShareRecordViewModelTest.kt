@@ -496,7 +496,10 @@ class ShareRecordViewModelTest {
 
     private class FakeOneTimePurchaser : OneTimePurchaser {
         override suspend fun purchase(productId: String) = Unit.right()
-        override suspend fun priceOf(productId: String): String = "Rs. 99"
+
+        // `priceOf` is a default over this, so the share sheet still reads "Rs. 99".
+        override suspend fun pricesOf(productIds: List<String>) =
+            productIds.associateWith { "Rs. 99" }.right()
     }
 
 }

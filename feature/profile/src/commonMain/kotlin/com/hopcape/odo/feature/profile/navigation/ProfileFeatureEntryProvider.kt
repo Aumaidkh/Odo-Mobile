@@ -53,7 +53,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Profile's contribution to the navigation graph — the [OdoDestination.Profile] group:
  * the account home, its full-screen editors (edit / notifications), and its bottom-sheet
  * destinations (units / appearance / export / sign-out). "Go Pro" / "Manage plan" and the
- * export both reuse the shared [OdoDestination.Paywall] route, and "Privacy & permissions"
+ * export both reuse the shared [OdoDestination.Paywall.Plans] route, and "Privacy & permissions"
  * reuses support's own key — profile never imports another feature.
  */
 internal class ProfileFeatureEntryProvider(
@@ -94,7 +94,7 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         state = state,
         onBack = { navigationManager.back() },
         onEdit = { navigationManager.navigateTo(OdoDestination.Profile.Edit) },
-        onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall()) },
+        onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall.Plans()) },
         // The store's own subscription page. Cancelling, changing plan and fixing a card all
         // happen there — Play requires it, and an in-app cancel that did not cancel would be
         // the worst version of this screen.

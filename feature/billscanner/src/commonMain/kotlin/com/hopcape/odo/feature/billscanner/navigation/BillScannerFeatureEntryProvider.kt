@@ -141,7 +141,7 @@ internal fun BillScanRoute(
             }
             is BillScanEffect.OpenPaywall ->
                 navigationManager.navigateTo(
-                    OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_SCANS, freeScans = effect.freeScans),
+                    OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER_SCANS, freeScans = effect.freeScans),
                 )
 
             BillScanEffect.NavigateBack -> navigationManager.back()

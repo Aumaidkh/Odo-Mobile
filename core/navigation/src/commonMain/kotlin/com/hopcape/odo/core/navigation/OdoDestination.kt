@@ -465,17 +465,42 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
-     * Pro paywall — one screen, context-framed by [trigger] (why it was shown). Reached from
-     * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
-     * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
-     * "0 scans left" variant.
+     * Pro paywall. A sealed group: the [Plans] screen plus the [OneTimeOffers] sheet, for
+     * someone who wants one thing rather than a plan.
      */
     @Serializable
-    data class Paywall(
-        val trigger: String = "GENERIC",
-        val amountPaise: Long = 0L,
-        val freeScans: Int = 0,
-    ) : OdoDestination
+    sealed interface Paywall : OdoDestination {
+
+        /**
+         * The plans screen, context-framed by [trigger] (why it was shown). Reached from
+         * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
+         * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
+         * "0 scans left" variant.
+         */
+        @Serializable
+        data class Plans(
+            val trigger: String = "GENERIC",
+            val amountPaise: Long = 0L,
+            val freeScans: Int = 0,
+        ) : Paywall
+
+        /**
+         * "Buy just this instead" — the one-time products, as a bottom sheet (its entry is
+         * tagged with [ModalBottomSheetSceneStrategy] metadata).
+         *
+         * A sheet rather than a screen because it is an aside from the plans, not a rival to
+         * them: the owner should be able to look at what one thing costs and come back
+         * without losing the paywall they were reading.
+         *
+         * [context] frames it the way [Plans.trigger] frames the paywall: it decides the
+         * heading, which products are worth showing, and which of them is put forward. An
+         * owner who ran out of bill checks is not shopping for a PDF. A primitive, so
+         * `:core:navigation` stays free of the feature's types; an unrecognised one falls
+         * back to the generic framing rather than crashing.
+         */
+        @Serializable
+        data class OneTimeOffers(val context: String = "GENERIC") : Paywall
+    }
 
     /**
      * Health Score — the 0–100 rule-based score + its factor breakdown. Its own feature.
