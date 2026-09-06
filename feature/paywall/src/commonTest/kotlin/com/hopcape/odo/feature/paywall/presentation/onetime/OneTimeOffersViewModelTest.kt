@@ -242,14 +242,32 @@ class OneTimeOffersViewModelTest {
         assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_FAILED))
     }
 
+    /**
+     * Tapping the way out leaves the errand, not just the sheet.
+     *
+     * On the bill check, dismissing the sheet alone landed back on the masked check — which
+     * re-read and offered the same wall. Declining is a decision, and it has to end
+     * somewhere the owner can use.
+     */
     @Test
-    fun closing_dismissesTheSheet() = runTest(dispatcher) {
+    fun closing_leavesTheErrandNotJustTheSheet() = runTest(dispatcher) {
         val viewModel = viewModel(FakePurchaser(ALL_PRICED))
         advanceUntilIdle()
 
         viewModel.onEvent(OneTimeOffersEvent.CloseTapped)
 
-        assertEquals(OneTimeOffersEffect.Dismiss, viewModel.effects.first())
+        assertEquals(OneTimeOffersEffect.DismissErrand, viewModel.effects.first())
+    }
+
+    /** And it is counted, because a tap is an answer where a gesture is not. */
+    @Test
+    fun closing_isCountedAsADecline() = runTest(dispatcher) {
+        val viewModel = viewModel(FakePurchaser(ALL_PRICED))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OneTimeOffersEvent.CloseTapped)
+
+        assertTrue(tracked.names.contains(PaywallTelemetry.Event.ONE_TIME_DECLINED))
     }
 
     /* ------------------------------ Fixtures ------------------------------ */

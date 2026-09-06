@@ -12,6 +12,8 @@ import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
 import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -27,7 +29,7 @@ internal class SupabaseCatalogueRepository(
         postgrest.select(
             table = TABLE,
             serializer = ItemRow.serializer(),
-            query = "select=id,slug,display_name,interval_km,interval_months,benchmark_paise,notes,is_active" +
+            query = "select=id,slug,display_name,interval_km,interval_months,benchmark_paise,notes,is_active,applies_to" +
                 "&order=display_name.asc",
         ).map { rows ->
             rows.map {
@@ -40,6 +42,7 @@ internal class SupabaseCatalogueRepository(
                     benchmarkPaise = it.benchmarkPaise,
                     notes = it.notes,
                     isActive = it.isActive,
+                    appliesTo = it.appliesTo,
                 )
             }
         }
@@ -68,7 +71,43 @@ internal class SupabaseCatalogueRepository(
     override suspend fun setActive(id: String, active: Boolean): Either<WebError, Unit> =
         postgrest.patch(table = TABLE, query = "id=eq.$id", body = """{"is_active":$active}""")
 
-    private companion object { const val TABLE = "service_categories" }
+    override suspend fun importItems(items: List<ServiceItem>): Either<WebError, Int> {
+        if (items.isEmpty()) return Either.Right(0)
+        val body = IMPORT.encodeToString(
+            ListSerializer(ItemImportRow.serializer()),
+            items.map {
+                ItemImportRow(
+                    slug = it.slug,
+                    displayName = it.name,
+                    appliesTo = it.appliesTo,
+                    isActive = it.isActive,
+                    intervalKm = it.intervalKm,
+                    intervalMonths = it.intervalMonths,
+                    benchmarkPaise = it.benchmarkPaise,
+                    notes = it.notes,
+                )
+            },
+        )
+        // One request for the whole list. The rows come back so the count is what
+        // the database wrote rather than what was sent.
+        return postgrest.upsert(
+            table = TABLE,
+            body = body,
+            serializer = ItemRow.serializer(),
+            onConflict = "slug",
+        ).map { it.size }
+    }
+
+    private companion object {
+        const val TABLE = "service_categories"
+
+        /**
+         * Nulls written, not omitted. PostgREST reads an absent key as "leave this
+         * column alone", so an item whose interval was cleared in dev would keep
+         * the old one here.
+         */
+        val IMPORT = Json { encodeDefaults = true; explicitNulls = true }
+    }
 }
 
 /** `support_tickets` over PostgREST, behind `users.read`. */
@@ -181,6 +220,23 @@ private data class ItemRow(
     @SerialName("benchmark_paise") val benchmarkPaise: Long? = null,
     val notes: String? = null,
     @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("applies_to") val appliesTo: List<String>? = null,
+)
+
+/**
+ * An item on its way in. No `id`: it is a `gen_random_uuid()`, so the one in the
+ * file belongs to the project the file came from, and the upsert matches on `slug`.
+ */
+@Serializable
+private data class ItemImportRow(
+    val slug: String,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("applies_to") val appliesTo: List<String>? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("interval_km") val intervalKm: Int? = null,
+    @SerialName("interval_months") val intervalMonths: Int? = null,
+    @SerialName("benchmark_paise") val benchmarkPaise: Long? = null,
+    val notes: String? = null,
 )
 
 @Serializable

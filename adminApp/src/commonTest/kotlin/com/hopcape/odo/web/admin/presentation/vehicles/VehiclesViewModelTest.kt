@@ -2,6 +2,8 @@ package com.hopcape.odo.web.admin.presentation.vehicles
 
 import arrow.core.Either
 import arrow.core.right
+import com.hopcape.odo.web.admin.domain.CatalogueDocument
+import com.hopcape.odo.web.admin.domain.VehicleCatalogue
 import com.hopcape.odo.web.admin.domain.VehicleMake
 import com.hopcape.odo.web.admin.domain.VehicleModel
 import com.hopcape.odo.web.admin.domain.VehicleSubmission
@@ -42,6 +44,12 @@ class VehiclesViewModelTest {
         override suspend fun deleteModel(id: String) = record("deleteModel:$id")
         override suspend fun decideSubmission(id: String, accepted: Boolean) = record("decide:$id|$accepted")
         override suspend fun deleteSubmission(id: String) = record("deleteSub:$id")
+
+        /** Reports what the file held, which is what an import's message says. */
+        override suspend fun importCatalog(catalogue: VehicleCatalogue): Either<WebError, Int> {
+            calls += "import:${catalogue.makes.size}|${catalogue.models.size}"
+            return nextResult.map { catalogue.makes.size + catalogue.models.size }
+        }
 
         private fun record(call: String): Either<WebError, Unit> {
             calls += call

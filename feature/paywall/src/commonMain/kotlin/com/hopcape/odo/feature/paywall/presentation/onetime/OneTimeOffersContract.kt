@@ -18,4 +18,14 @@ internal sealed interface OneTimeOffersEffect {
 
     /** Close the sheet and go back to the plans underneath. */
     data object Dismiss : OneTimeOffersEffect
+
+    /**
+     * Close the sheet **and** the errand under it.
+     *
+     * Only for a context whose screen underneath cannot be usefully returned to. The bill
+     * check is the one: masked, it offers the same wall the owner has just declined, and
+     * re-reads every time the sheet closes over it. Their bill is logged either way, so the
+     * place to leave them is the record, not a screen with nothing left to show.
+     */
+    data object DismissErrand : OneTimeOffersEffect
 }

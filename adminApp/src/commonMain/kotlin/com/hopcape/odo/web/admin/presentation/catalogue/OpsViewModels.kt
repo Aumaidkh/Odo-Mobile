@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import arrow.core.Either
 import com.hopcape.odo.web.admin.domain.BillingRepository
 import com.hopcape.odo.web.admin.domain.BillingSummary
+import com.hopcape.odo.web.admin.domain.CatalogueDocument
 import com.hopcape.odo.web.admin.domain.CatalogueRepository
 import com.hopcape.odo.web.admin.domain.ServiceItem
 import com.hopcape.odo.web.admin.domain.Subscription
@@ -16,6 +17,9 @@ import com.hopcape.odo.web.admin.presentation.readAll
 import com.hopcape.odo.web.admin.presentation.readInto
 import com.hopcape.odo.web.admin.resources.Res
 import com.hopcape.odo.web.admin.resources.ad_ops_saved
+import com.hopcape.odo.web.admin.resources.ad_transfer_imported
+import com.hopcape.odo.web.admin.resources.ad_transfer_wrong_file
+import com.hopcape.odo.web.admin.ui.DownloadFile
 import com.hopcape.odo.web.admin.ui.component.Page
 import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.presentation.state.FormField
@@ -45,6 +49,15 @@ sealed interface CatalogueEvent {
     data object NextPage : CatalogueEvent
     data object PreviousPage : CatalogueEvent
     data object MessageDismissed : CatalogueEvent
+
+    /** Write every item to a file the admin can carry to another project. */
+    data object ExportRequested : CatalogueEvent
+
+    /** The screen has handed the file over; stop offering it. */
+    data object DownloadHandled : CatalogueEvent
+
+    /** The text of a file the admin chose. Not yet known to be one of ours. */
+    data class ImportPicked(val document: String) : CatalogueEvent
 }
 
 /**
@@ -74,6 +87,7 @@ data class CatalogueUiState(
     val editor: ItemEditor? = null,
     val busy: Boolean = false,
     val message: UiText? = null,
+    val download: DownloadFile? = null,
 ) {
     val matching: List<ServiceItem>
         get() {
@@ -135,6 +149,33 @@ class CatalogueViewModel(private val catalogue: CatalogueRepository) : ViewModel
                 _state.value = _state.value.copy(page = _state.value.page.copy(index = _state.value.page.index - 1))
             }
             CatalogueEvent.MessageDismissed -> _state.value = _state.value.copy(message = null)
+
+            // Every item, not the page or the search: an export is the catalog, and
+            // one filtered by whatever was typed at the time is a trap.
+            CatalogueEvent.ExportRequested -> _state.value = _state.value.copy(
+                download = DownloadFile(
+                    fileName = EXPORT_FILE,
+                    mimeType = CatalogueDocument.MIME,
+                    text = CatalogueDocument.writeServiceItems(_state.value.items.valueOrNull.orEmpty()),
+                ),
+            )
+
+            CatalogueEvent.DownloadHandled -> _state.value = _state.value.copy(download = null)
+            is CatalogueEvent.ImportPicked -> import(event.document)
+        }
+    }
+
+    private fun import(document: String) {
+        when (val read = CatalogueDocument.readServiceItems(document)) {
+            CatalogueDocument.Read.WrongFile ->
+                _state.value = _state.value.copy(message = UiText.Resource(Res.string.ad_transfer_wrong_file))
+
+            // The count comes back from the database rather than off the file: it is
+            // the number of rows actually written, which is the only figure worth
+            // reporting after a transfer.
+            is CatalogueDocument.Read.Rows -> write(
+                done = { count -> UiText.Resource(Res.string.ad_transfer_imported, listOf(count)) },
+            ) { catalogue.importItems(read.value) }
         }
     }
 
@@ -166,22 +207,36 @@ class CatalogueViewModel(private val catalogue: CatalogueRepository) : ViewModel
         }
     }
 
-    private fun write(closeEditor: Boolean = false, action: suspend () -> Either<WebError, Unit>) {
+    /**
+     * Runs a write, reports it, and re-reads.
+     *
+     * [done] is given the write's own result so a message can say how much it did.
+     * Most writes have nothing to say beyond "saved", which is the default.
+     */
+    private fun <T> write(
+        closeEditor: Boolean = false,
+        done: (T) -> UiText = { UiText.Resource(Res.string.ad_ops_saved) },
+        action: suspend () -> Either<WebError, T>,
+    ) {
         if (_state.value.busy) return
         _state.value = _state.value.copy(busy = true, message = null)
         viewModelScope.launch {
             action().fold(
                 ifLeft = { e -> _state.value = _state.value.copy(busy = false, message = e.asUiText()) },
-                ifRight = {
+                ifRight = { result ->
                     _state.value = _state.value.copy(
                         busy = false,
-                        message = UiText.Resource(Res.string.ad_ops_saved),
+                        message = done(result),
                         editor = if (closeEditor) null else _state.value.editor,
                     )
                     load()
                 },
             )
         }
+    }
+
+    private companion object {
+        const val EXPORT_FILE = "odo-service-catalogue.json"
     }
 }
 

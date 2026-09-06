@@ -60,7 +60,9 @@ internal class OneTimeOffersViewModel(
     fun onEvent(event: OneTimeOffersEvent) = when (event) {
         is OneTimeOffersEvent.OfferTapped -> buy(event.productId)
         OneTimeOffersEvent.RetryTapped -> load()
-        OneTimeOffersEvent.CloseTapped -> dismiss()
+        // Tapping the way out is a decision; the back gesture is not. Only the first leaves
+        // the errand — a gesture that undoes the sheet should undo exactly the sheet.
+        OneTimeOffersEvent.CloseTapped -> leaveErrand()
     }
 
     /**
@@ -159,6 +161,17 @@ internal class OneTimeOffersViewModel(
 
     private fun dismiss() {
         _effects.trySend(OneTimeOffersEffect.Dismiss)
+    }
+
+    /**
+     * The owner said no, in as many words.
+     *
+     * Tapping the way out is a decision; the back gesture is not. Only the first leaves the
+     * errand — a gesture that undoes the sheet should undo exactly the sheet.
+     */
+    private fun leaveErrand() {
+        telemetry.offersDeclined(context.name)
+        _effects.trySend(OneTimeOffersEffect.DismissErrand)
     }
 
     private companion object {

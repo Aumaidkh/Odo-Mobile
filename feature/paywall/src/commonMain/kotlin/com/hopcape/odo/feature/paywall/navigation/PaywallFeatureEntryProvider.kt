@@ -16,6 +16,8 @@ import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import com.hopcape.odo.feature.paywall.presentation.PaywallViewModel
 import org.koin.core.parameter.parametersOf
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
+import com.hopcape.odo.core.navigation.isBillScanFlowStep
+import com.hopcape.odo.core.navigation.leaveFlow
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeContext
 import com.hopcape.odo.feature.paywall.presentation.onetime.OneTimeOffersEffect
@@ -96,6 +98,18 @@ internal fun OneTimeOffersRoute(
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             OneTimeOffersEffect.Dismiss -> navigationManager.back()
+
+            // The sheet, and then the errand it was covering. `popFlow` drops the scan
+            // steps from the top and stops at whatever opened them, so the owner lands on
+            // the record their bill is already in — not back on a masked check that would
+            // re-read and offer the same wall.
+            //
+            // Reached from a service-log entry instead, nothing below is a scan step and
+            // this pops the check alone, back to the entry it was opened from.
+            OneTimeOffersEffect.DismissErrand -> {
+                navigationManager.back()
+                navigationManager.leaveFlow(::isBillScanFlowStep)
+            }
         }
     }
 

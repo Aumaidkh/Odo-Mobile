@@ -111,6 +111,16 @@ internal class PaywallTelemetry(
         report(Event.ONE_TIME_SHOWN, mapOf(Key.COUNT to count))
     }
 
+    /**
+     * The owner declined, by tapping the way out rather than gesturing the sheet away.
+     *
+     * Worth its own event: a dismissal is ambiguous — a scrim tap, a back gesture, a phone
+     * call — and this one is not. It is the closest thing this sheet produces to an answer.
+     */
+    fun offersDeclined(context: String) {
+        report(Event.ONE_TIME_DECLINED, mapOf(Key.CONTEXT to context))
+    }
+
     /** The store could not be read at all. */
     fun oneTimeOffersUnavailable(reason: String) {
         report(Event.ONE_TIME_UNAVAILABLE, mapOf(Key.REASON to reason))
@@ -156,6 +166,7 @@ internal class PaywallTelemetry(
         const val DISMISSED = "paywall_dismissed"
         const val ONE_TIME_SHOWN = "paywall_one_time_shown"
         const val ONE_TIME_UNAVAILABLE = "paywall_one_time_unavailable"
+        const val ONE_TIME_DECLINED = "paywall_one_time_declined"
         const val ONE_TIME_TAPPED = "paywall_one_time_tapped"
         const val ONE_TIME_PURCHASED = "paywall_one_time_purchased"
         const val ONE_TIME_CANCELLED = "paywall_one_time_cancelled"
@@ -171,6 +182,9 @@ internal class PaywallTelemetry(
         const val RESTORED = "restored"
         const val COUNT = "count"
         const val PRODUCT = "product"
+
+        /** Which sheet it was — the errand the owner arrived with. */
+        const val CONTEXT = "context"
     }
 
     private companion object {

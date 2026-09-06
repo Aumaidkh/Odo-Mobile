@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.paywall.presentation.onetime
 
 import com.hopcape.odo.feature.paywall.presentation.PaywallTrigger
 import com.hopcape.odo.feature.paywall.resources.Res
+import com.hopcape.odo.feature.paywall.resources.pw_ot_bill_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_bill_footer
 import com.hopcape.odo.feature.paywall.resources.pw_ot_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_bill_subtitle
@@ -40,6 +41,10 @@ internal enum class OneTimeContext(
      *
      * Null where the owner arrived with an errand: they came for one thing, and a way to
      * decline it under the thing they came for is a row competing with the offers.
+     *
+     * [BILL_CHECK] is the exception, because there declining is a real decision with a place
+     * to go: the bill is already logged, and the owner is taken out of the check rather than
+     * back onto a masked one.
      */
     val close: StringResource? = null,
 ) {
@@ -50,6 +55,10 @@ internal enum class OneTimeContext(
         offers = listOf(OneTimeOffer.BILL_CHECK_PACK, OneTimeOffer.BILL_CHECK_SINGLE),
         recommended = OneTimeOffer.BILL_CHECK_PACK,
         footer = Res.string.pw_ot_bill_footer,
+        // The one context that needs one. Dismissing this sheet used to land back on the
+        // masked check, which re-read and offered the same wall — a loop with no way out
+        // that was not the back gesture used twice.
+        close = Res.string.pw_ot_bill_close,
     ),
 
     /** Reached from the record export. One product, and it is the answer. */

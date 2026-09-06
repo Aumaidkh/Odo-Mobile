@@ -87,6 +87,8 @@ import com.hopcape.odo.web.admin.resources.ad_tickets_title
 import com.hopcape.odo.web.admin.resources.ad_users_showing
 import com.hopcape.odo.web.admin.ui.component.AdminField
 import com.hopcape.odo.web.admin.ui.component.Banner
+import com.hopcape.odo.web.admin.ui.component.HandleDownload
+import com.hopcape.odo.web.admin.ui.component.TransferActions
 import com.hopcape.odo.web.admin.ui.component.Cell
 import com.hopcape.odo.web.admin.ui.component.CellPrimary
 import com.hopcape.odo.web.admin.ui.component.CellSecondary
@@ -149,6 +151,11 @@ fun CatalogueScreen(state: CatalogueUiState, onEvent: (CatalogueEvent) -> Unit) 
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Pill(stringResource(Res.string.ad_cat_count, state.matching.size))
+                            TransferActions(
+                                onExport = { onEvent(CatalogueEvent.ExportRequested) },
+                                onImport = { onEvent(CatalogueEvent.ImportPicked(it)) },
+                                enabled = !state.busy,
+                            )
                             ReloadAction({ onEvent(CatalogueEvent.Refresh) }, state.busy)
                         }
                     }
@@ -187,6 +194,7 @@ fun CatalogueScreen(state: CatalogueUiState, onEvent: (CatalogueEvent) -> Unit) 
         state.message?.let { Banner(it.resolve()) { onEvent(CatalogueEvent.MessageDismissed) } }
     }
 
+    HandleDownload(state.download) { onEvent(CatalogueEvent.DownloadHandled) }
     state.editor?.let { EditItemDialog(it, state.busy, onEvent) }
 }
 

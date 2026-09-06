@@ -77,4 +77,23 @@ interface VehiclesRepository {
     suspend fun decideSubmission(id: String, accepted: Boolean): Either<WebError, Unit>
 
     suspend fun deleteSubmission(id: String): Either<WebError, Unit>
+
+    /**
+     * Writes a whole catalog in, matched on id.
+     *
+     * Not [add], which is one round trip per entry — a catalog is thousands of rows
+     * and a browser doing that one at a time takes minutes and fails halfway. Two
+     * requests instead, makes before models, because a model without its make
+     * breaks the foreign key.
+     *
+     * Ids are carried from the file rather than rebuilt. They are slugs the
+     * database made from the name, so the same name is already the same id in both
+     * projects, and a client that rebuilt that algorithm would eventually disagree
+     * with it.
+     *
+     * Nothing is removed — see [CatalogueRepository.importItems].
+     *
+     * @return how many rows the database wrote, makes and models together.
+     */
+    suspend fun importCatalog(catalogue: VehicleCatalogue): Either<WebError, Int>
 }

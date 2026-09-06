@@ -183,7 +183,15 @@ class SocialViewModel(
             is SocialEvent.TabChanged -> _state.update { it.copy(tab = event.tab) }
             SocialEvent.MessageDismissed -> _state.update { it.copy(message = null) }
 
-            is SocialEvent.ModeChanged -> editSettings { it.copy(mode = event.mode) }
+            // Applied at once, like the pause beside it. It was held behind Save, so any
+            // reload — and every other write ends in one — read the stored value back over
+            // the owner's unsaved choice and the radio snapped to Scheduled. A picker that
+            // looks applied and is not is worse than one that takes a moment.
+            is SocialEvent.ModeChanged -> {
+                val next = _state.value.current.copy(mode = event.mode)
+                _state.update { it.copy(settings = Loadable.Ready(next)) }
+                write { social.saveSettings(next) }
+            }
             SocialEvent.PauseToggled -> {
                 // Applied at once rather than behind Save: a pause that needed a second
                 // click is a pause that arrives after whatever it was meant to stop.

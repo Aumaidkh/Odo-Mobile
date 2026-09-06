@@ -22,6 +22,13 @@ data class ServiceItem(
     val benchmarkPaise: Long?,
     val notes: String?,
     val isActive: Boolean,
+    /**
+     * Fuel types the item applies to, or null for one that applies to all of them.
+     *
+     * Nothing in the panel edits it. It is here so an export carries it — a row
+     * copied into another project without it would apply to every car.
+     */
+    val appliesTo: List<String>? = null,
 ) {
     /** Rupees, for display. Paise everywhere else, because a divided float drifts. */
     val benchmarkRupees: Long? get() = benchmarkPaise?.let { it / 100 }
@@ -41,6 +48,18 @@ interface CatalogueRepository {
 
     /** Retire or restore. The app's picker reads `is_active`. */
     suspend fun setActive(id: String, active: Boolean): Either<WebError, Unit>
+
+    /**
+     * Writes every item in, matched on slug: an item this project has is updated,
+     * one it does not have is created.
+     *
+     * Nothing is removed. An import is "make sure these exist here", not "make this
+     * project look like that one" — a file exported before somebody added an item
+     * would otherwise delete it.
+     *
+     * @return how many rows the database wrote.
+     */
+    suspend fun importItems(items: List<ServiceItem>): Either<WebError, Int>
 }
 
 /** One support ticket. */
