@@ -1,4 +1,4 @@
-package com.hopcape.odo.web.admin.presentation.reference
+package com.hopcape.odo.web.admin.presentation.pricebook
 
 import arrow.core.Either
 import arrow.core.right
@@ -7,7 +7,7 @@ import com.hopcape.odo.web.admin.domain.JobPrice
 import com.hopcape.odo.web.admin.domain.LabourRate
 import com.hopcape.odo.web.admin.domain.PartPrice
 import com.hopcape.odo.web.admin.domain.Provenance
-import com.hopcape.odo.web.admin.domain.ReferenceDataRepository
+import com.hopcape.odo.web.admin.domain.PriceBookRepository
 import com.hopcape.odo.web.admin.domain.ResolvedBand
 import com.hopcape.odo.web.admin.domain.ScheduleItem
 import com.hopcape.odo.web.admin.domain.ServiceItem
@@ -29,7 +29,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ReferenceDataViewModelTest {
+class PriceBookViewModelTest {
 
     /** Records what was written, and answers reads from lists the test controls. */
     private class FakeReference(
@@ -37,7 +37,7 @@ class ReferenceDataViewModelTest {
         var coverage: List<Coverage> = emptyList(),
         var categories: List<ServiceItem> = emptyList(),
         var band: ResolvedBand? = null,
-    ) : ReferenceDataRepository {
+    ) : PriceBookRepository {
         val writes = mutableListOf<String>()
 
         override suspend fun labourRates() = labour.right()
@@ -72,6 +72,25 @@ class ReferenceDataViewModelTest {
             return Unit.right()
         }
 
+        override suspend fun delete(table: String, id: String): Either<WebError, Unit> {
+            writes += "delete:$table|$id"
+            return Unit.right()
+        }
+
+        /** Each reports how many rows it was handed, which is what an import's message says. */
+        override suspend fun importLabour(rates: List<LabourRate>) = count("importLabour", rates.size)
+
+        override suspend fun importJobs(prices: List<JobPrice>) = count("importJobs", prices.size)
+
+        override suspend fun importParts(prices: List<PartPrice>) = count("importParts", prices.size)
+
+        override suspend fun importSchedule(items: List<ScheduleItem>) = count("importSchedule", items.size)
+
+        private fun count(name: String, rows: Int): Either<WebError, Int> {
+            writes += "$name:$rows"
+            return rows.right()
+        }
+
         override suspend fun resolve(
             categorySlug: String,
             city: String,
@@ -99,7 +118,7 @@ class ReferenceDataViewModelTest {
     @Test
     fun `rupees typed into the form reach the repository as paise`() = runTest {
         val repo = FakeReference()
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.LabourEditRequested(null))
         viewModel.onEvent(ReferenceEvent.EditorFieldChanged(EditorField.RatePerHour, "450"))
@@ -112,7 +131,7 @@ class ReferenceDataViewModelTest {
     @Test
     fun `a new row is saved as a draft rather than served straight away`() = runTest {
         val repo = FakeReference()
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.LabourEditRequested(null))
         viewModel.onEvent(ReferenceEvent.EditorFieldChanged(EditorField.RatePerHour, "500"))
@@ -123,7 +142,7 @@ class ReferenceDataViewModelTest {
 
     @Test
     fun `a rate with nothing typed cannot be submitted`() = runTest {
-        val viewModel = ReferenceDataViewModel(FakeReference())
+        val viewModel = PriceBookViewModel(FakeReference())
 
         viewModel.onEvent(ReferenceEvent.LabourEditRequested(null))
         assertFalse(assertNotNull(viewModel.state.value.editor).canSubmit)
@@ -131,7 +150,7 @@ class ReferenceDataViewModelTest {
 
     @Test
     fun `a schedule row needs at least one of the two intervals`() = runTest {
-        val viewModel = ReferenceDataViewModel(FakeReference())
+        val viewModel = PriceBookViewModel(FakeReference())
 
         viewModel.onEvent(ReferenceEvent.ScheduleEditRequested(null))
         viewModel.onEvent(ReferenceEvent.EditorFieldChanged(EditorField.ItemSlug, "brake_fluid"))
@@ -145,7 +164,7 @@ class ReferenceDataViewModelTest {
     @Test
     fun `the labour key carries both halves of the composite primary key`() = runTest {
         val repo = FakeReference(labour = listOf(rate(approved = true)))
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.StatusToggled("labour_rates", "1:local", false))
 
@@ -156,7 +175,7 @@ class ReferenceDataViewModelTest {
     @Test
     fun `a resolve that finds no band is reported rather than treated as a failure`() = runTest {
         val repo = FakeReference(band = null)
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.Category, "clutch"))
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.City, "Pune"))
@@ -180,7 +199,7 @@ class ReferenceDataViewModelTest {
                 basis = "modelled",
             ),
         )
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.Category, "ac_service"))
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.City, "Mumbai"))
@@ -195,7 +214,7 @@ class ReferenceDataViewModelTest {
         val repo = FakeReference(
             band = ResolvedBand(200000, 170000, 230000, 0, "MODELLED", "modelled"),
         )
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.Category, "ac_service"))
         viewModel.onEvent(ReferenceEvent.PreviewFieldChanged(PreviewField.City, "Mumbai"))
@@ -216,7 +235,7 @@ class ReferenceDataViewModelTest {
                 Coverage("job_prices", approvedRows = 4, expectedRows = 30),
             ),
         )
-        val viewModel = ReferenceDataViewModel(repo)
+        val viewModel = PriceBookViewModel(repo)
 
         val state = viewModel.state.value
         assertTrue(assertNotNull(state.coverageOf("labour_rates")).isComplete)

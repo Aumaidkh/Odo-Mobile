@@ -83,13 +83,13 @@ sealed interface AdminRoute {
     }
 
     /**
-     * `/admin/reference` — the price and schedule tables every advisory resolves against.
+     * `/admin/price-book` — the price and schedule tables every advisory resolves against.
      *
      * Separate from [Catalogue], which edits the category lookup itself. These are
      * the priced rows keyed by segment, city tier and workshop tier, and putting
      * them on that screen would be two unrelated jobs on one page.
      */
-    data object Reference : AdminRoute {
+    data object PriceBook : AdminRoute {
         override val permission = Permission.FairnessWrite
     }
 
@@ -176,7 +176,7 @@ val ADMIN_SECTIONS: List<AdminRoute> = listOf(
     AdminRoute.Roles,
     AdminRoute.Content,
     AdminRoute.Catalogue,
-    AdminRoute.Reference,
+    AdminRoute.PriceBook,
     AdminRoute.Vehicles,
     AdminRoute.Cities,
     AdminRoute.Tickets,

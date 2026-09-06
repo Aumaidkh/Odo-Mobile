@@ -6,7 +6,7 @@ import com.hopcape.odo.web.admin.domain.JobPrice
 import com.hopcape.odo.web.admin.domain.LabourRate
 import com.hopcape.odo.web.admin.domain.PartPrice
 import com.hopcape.odo.web.admin.domain.Provenance
-import com.hopcape.odo.web.admin.domain.ReferenceDataRepository
+import com.hopcape.odo.web.admin.domain.PriceBookRepository
 import com.hopcape.odo.web.admin.domain.ResolvedBand
 import com.hopcape.odo.web.admin.domain.ScheduleItem
 import com.hopcape.odo.web.admin.domain.ServiceItem
@@ -25,9 +25,9 @@ import kotlinx.serialization.Serializable
  * to see drafts, because approving one is impossible if it cannot be listed. The
  * app's own reads filter to approved.
  */
-internal class SupabaseReferenceDataRepository(
+internal class SupabasePriceBookRepository(
     private val postgrest: Postgrest,
-) : ReferenceDataRepository {
+) : PriceBookRepository {
 
     override suspend fun labourRates(): Either<WebError, List<LabourRate>> =
         postgrest.select(
@@ -159,6 +159,86 @@ internal class SupabaseReferenceDataRepository(
             query = if (table == TABLE_LABOUR) labourKeyQuery(id) else "id=eq.$id",
             body = """{"status":"${if (approved) Provenance.APPROVED else Provenance.DRAFT}"}""",
         )
+
+    override suspend fun delete(table: String, id: String): Either<WebError, Unit> =
+        postgrest.delete(
+            table = table,
+            query = if (table == TABLE_LABOUR) labourKeyQuery(id) else "id=eq.$id",
+        )
+
+    // One request per table rather than one per row: a pasted spreadsheet is hundreds of
+    // rows, and a browser doing them one at a time takes minutes and fails half-way.
+
+    override suspend fun importLabour(rates: List<LabourRate>): Either<WebError, Int> =
+        importRows(TABLE_LABOUR, "city_tier,workshop_tier", rates) { rate ->
+            """{"city_tier":${rate.cityTier},""" +
+                """"workshop_tier":"${rate.workshopTier.id}",""" +
+                """"paise_per_hour":${rate.paisePerHour}${rate.provenance.fields()}}"""
+        }
+
+    override suspend fun importJobs(prices: List<JobPrice>): Either<WebError, Int> =
+        // Keyed on what makes a job price unique rather than on the id, so a row typed into
+        // a spreadsheet with no id updates the matching one instead of adding a twin.
+        //
+        // The id is not sent at all. It is in the file for reference, but a file from another
+        // project carries that project's ids, and writing one here would either move an
+        // existing row's primary key or collide with a different row that already holds it.
+        importRows(TABLE_JOB, "service_category_id,segment,fuel_type", prices) { price ->
+            buildString {
+                append("{")
+                append(""""service_category_id":"${price.categoryId}",""")
+                append(""""segment":"${price.segment.id}",""")
+                append(""""fuel_type":${price.fuelType.jsonOrNull()},""")
+                append(""""parts_paise":${price.partsPaise},""")
+                append(""""labour_hours":${price.labourHours}""")
+                append(price.provenance.fields())
+                append("}")
+            }
+        }
+
+    override suspend fun importParts(prices: List<PartPrice>): Either<WebError, Int> =
+        importRows(TABLE_PART, "part_slug,segment,fuel_type", prices) { price ->
+            buildString {
+                append("{")
+                append(""""part_slug":"${price.partSlug.jsonEscaped()}",""")
+                append(""""segment":${price.segment?.id.jsonOrNull()},""")
+                append(""""fuel_type":${price.fuelType.jsonOrNull()},""")
+                append(""""unit":"${price.unit.jsonEscaped()}",""")
+                append(""""mrp_paise":${price.mrpPaise}""")
+                append(price.provenance.fields())
+                append("}")
+            }
+        }
+
+    override suspend fun importSchedule(items: List<ScheduleItem>): Either<WebError, Int> =
+        importRows(TABLE_SCHEDULE, "brand,item_slug", items) { item ->
+            buildString {
+                append("{")
+                append(""""brand":${item.brand.jsonOrNull()},""")
+                append(""""item_slug":"${item.itemSlug.jsonEscaped()}",""")
+                append(""""display_name":"${item.displayName.jsonEscaped()}",""")
+                append(""""due_km":${item.dueKm ?: "null"},""")
+                append(""""due_months":${item.dueMonths ?: "null"}""")
+                append(item.provenance.fields())
+                append("}")
+            }
+        }
+
+    /** The rows come back so the count is what the database wrote, not what was sent. */
+    private suspend fun <T> importRows(
+        table: String,
+        onConflict: String,
+        rows: List<T>,
+        body: (T) -> String,
+    ): Either<WebError, Int> {
+        if (rows.isEmpty()) return Either.Right(0)
+        return postgrest.upsert(
+            table = table,
+            onConflict = onConflict,
+            serializer = IdOnly.serializer(),
+            body = rows.joinToString(",", prefix = "[", postfix = "]", transform = body),
+        ).map { it.size }
+    }
 
     override suspend fun resolve(
         categorySlug: String,

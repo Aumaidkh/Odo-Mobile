@@ -6,7 +6,7 @@ import arrow.core.right
 import com.hopcape.odo.web.admin.domain.AdminAuthRepository
 import com.hopcape.odo.web.admin.domain.AdminSession
 import com.hopcape.odo.web.admin.domain.CitiesRepository
-import com.hopcape.odo.web.admin.domain.ReferenceDataRepository
+import com.hopcape.odo.web.admin.domain.PriceBookRepository
 import com.hopcape.odo.web.admin.domain.AuditRepository
 import com.hopcape.odo.web.admin.domain.BillingRepository
 import com.hopcape.odo.web.admin.domain.CatalogueRepository
@@ -20,7 +20,7 @@ import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.admin.domain.VehiclesRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseAdminAuthRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseCitiesRepository
-import com.hopcape.odo.web.admin.infrastructure.SupabaseReferenceDataRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabasePriceBookRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseAuditRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseBillingRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseCatalogueRepository
@@ -36,7 +36,7 @@ import com.hopcape.odo.web.admin.infrastructure.SupabaseUsersRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseVehiclesRepository
 import com.hopcape.odo.web.admin.presentation.SessionViewModel
 import com.hopcape.odo.web.admin.presentation.cities.CitiesViewModel
-import com.hopcape.odo.web.admin.presentation.reference.ReferenceDataViewModel
+import com.hopcape.odo.web.admin.presentation.pricebook.PriceBookViewModel
 import com.hopcape.odo.web.admin.presentation.audit.AuditViewModel
 import com.hopcape.odo.web.admin.presentation.dashboard.DashboardViewModel
 import com.hopcape.odo.web.admin.presentation.catalogue.BillingViewModel
@@ -118,7 +118,7 @@ val adminModule: Module = module {
     // so nothing ever resolves this — and a sample catalog would only make an
     // unconfigured build look like it was working.
     single<CitiesRepository> { SupabaseCitiesRepository(postgrest = get()) }
-    single<ReferenceDataRepository> { SupabaseReferenceDataRepository(postgrest = get()) }
+    single<PriceBookRepository> { SupabasePriceBookRepository(postgrest = get()) }
     single<VehiclesRepository> { SupabaseVehiclesRepository(postgrest = get()) }
     single<DashboardRepository> { SupabaseDashboardRepository(postgrest = get()) }
     single<UsersRepository> { SupabaseUsersRepository(postgrest = get()) }
@@ -155,7 +155,7 @@ val adminModule: Module = module {
     viewModel { SessionViewModel(auth = get()) }
     viewModel { SignInViewModel(auth = get()) }
     viewModel { CitiesViewModel(cities = get()) }
-    viewModel { ReferenceDataViewModel(repository = get()) }
+    viewModel { PriceBookViewModel(repository = get()) }
     viewModel { VehiclesViewModel(vehicles = get()) }
     viewModel { UsersViewModel(users = get()) }
     viewModel { AuditViewModel(audit = get()) }

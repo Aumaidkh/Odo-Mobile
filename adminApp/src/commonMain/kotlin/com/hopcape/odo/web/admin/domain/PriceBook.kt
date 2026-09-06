@@ -139,7 +139,7 @@ data class ResolvedBand(
  * here checks that: a client that decided for itself could be patched to decide
  * differently.
  */
-interface ReferenceDataRepository {
+interface PriceBookRepository {
 
     suspend fun labourRates(): Either<WebError, List<LabourRate>>
 
@@ -169,6 +169,36 @@ interface ReferenceDataRepository {
      * a single method takes the name rather than four near-identical ones.
      */
     suspend fun setStatus(table: String, id: String, approved: Boolean): Either<WebError, Unit>
+
+    /**
+     * Remove a row for good.
+     *
+     * Not a soft delete: nothing outside this panel reads these tables by id, so a
+     * tombstone would only be a row somebody has to keep scrolling past. Retiring a figure
+     * that is merely wrong is [setStatus] — an unapproved row is already unserved.
+     *
+     * [table] is the physical table name, as in [setStatus]. Labour rates are not deletable
+     * — they are a fixed three-by-three grid, and a missing cell is a hole every lookup in
+     * that city tier falls through.
+     */
+    suspend fun delete(table: String, id: String): Either<WebError, Unit>
+
+    /**
+     * Write a whole table in, matched on the key the table is keyed by.
+     *
+     * Nothing is removed: an import means "these should exist here", not "make this table
+     * look like that file". A file exported before somebody added a row would otherwise
+     * delete it.
+     *
+     * @return how many rows the database wrote.
+     */
+    suspend fun importLabour(rates: List<LabourRate>): Either<WebError, Int>
+
+    suspend fun importJobs(prices: List<JobPrice>): Either<WebError, Int>
+
+    suspend fun importParts(prices: List<PartPrice>): Either<WebError, Int>
+
+    suspend fun importSchedule(items: List<ScheduleItem>): Either<WebError, Int>
 
     /**
      * Run the same lookup the app runs.
