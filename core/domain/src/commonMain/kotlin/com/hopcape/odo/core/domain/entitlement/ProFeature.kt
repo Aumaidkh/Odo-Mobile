@@ -20,6 +20,16 @@ enum class ProFeature {
     /** Bill and document scans. Counted for the lifetime of the install, not per month. */
     BILL_SCANS,
 
+    /**
+     * Bills checked against the city's going rate. Counted, and counted apart from
+     * [BILL_SCANS].
+     *
+     * One balance served both until #419's follow-up, so five scanned bills closed the check
+     * — the owner had spent nothing on it, and the wall arrived because they had used the app
+     * as intended.
+     */
+    BILL_CHECKS,
+
     /** The factor breakdown behind the health score. On/off. */
     HEALTH_BREAKDOWN,
 

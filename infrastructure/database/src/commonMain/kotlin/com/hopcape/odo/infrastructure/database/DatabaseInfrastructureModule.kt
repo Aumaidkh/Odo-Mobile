@@ -32,7 +32,9 @@ import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.triptracker.port.TripSessionStore
 import com.hopcape.odo.core.data.support.FeatureIdeaLocalDataSource
 import com.hopcape.odo.core.data.support.SupportTicketLocalDataSource
+import com.hopcape.odo.core.domain.scan.entitlement.CheckUsage
 import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.infrastructure.database.scan.SqlDelightCheckUsage
 import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncTable
 import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncable
 import com.hopcape.odo.infrastructure.database.support.SqlDelightFeatureIdeaLocalDataSource
@@ -220,6 +222,8 @@ val databaseInfrastructureModule = module {
     // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
     // `scan_usage` mirrors no server table, because extraction never leaves the device.
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
+    // The bill check's tally, in its own table for its own balance.
+    single<CheckUsage> { SqlDelightCheckUsage(database = get()) }
     single<BillCheckLedgerLocalDataSource> {
         SqlDelightBillCheckLedgerLocalDataSource(database = get(), clock = get())
     }

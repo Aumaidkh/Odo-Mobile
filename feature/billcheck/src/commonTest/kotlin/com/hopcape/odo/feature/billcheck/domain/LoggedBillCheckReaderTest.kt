@@ -22,7 +22,7 @@ import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
-import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
+import com.hopcape.odo.core.domain.scan.entitlement.CheckCharger
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -288,7 +288,7 @@ class LoggedBillCheckReaderTest {
     /* ------------------------------ Fixtures ------------------------------ */
 
     private fun reader(
-        charger: ScanCharger = CountingCharger(),
+        charger: CheckCharger = CountingCharger(),
         lines: List<Pair<String, Int>> = listOf("AC service" to 2_400),
         /** No such entry — the id points at nothing. */
         missing: Boolean = false,
@@ -338,7 +338,7 @@ class LoggedBillCheckReaderTest {
         )
     }
 
-    private class CountingCharger : ScanCharger {
+    private class CountingCharger : CheckCharger {
         var charges = 0
             private set
 

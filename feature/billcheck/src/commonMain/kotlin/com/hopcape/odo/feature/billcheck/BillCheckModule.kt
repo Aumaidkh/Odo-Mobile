@@ -1,6 +1,6 @@
 package com.hopcape.odo.feature.billcheck
 
-import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.CheckAllowance
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.billcheck.domain.BandBasisReader
 import com.hopcape.odo.feature.billcheck.domain.BillCheckReader
@@ -51,10 +51,10 @@ val billCheckModule = module {
             charger = get(),
             contributor = get(),
             ledger = get(),
-            // A bill check spends the same balance a scan does — the packs grant scan checks
-            // — so "may they see the answer" is the allowance's question, not a second one
-            // that could drift from it.
-            unlocked = { get<ScanAllowance>().current().allowsAnother },
+            // Its own balance. It shared the scanner's, so five scanned bills closed this
+            // screen — the owner had photographed five bills, which is the thing the app most
+            // wants them to do, and it cost them the feature that makes doing it worthwhile.
+            unlocked = { get<CheckAllowance>().current().allowsAnother },
         )
     }
 
