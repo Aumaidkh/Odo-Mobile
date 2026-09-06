@@ -29,7 +29,6 @@ import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 import com.hopcape.odo.feature.paywall.resources.Res
-import com.hopcape.odo.feature.paywall.resources.pw_ot_close
 import com.hopcape.odo.feature.paywall.resources.pw_ot_empty
 import com.hopcape.odo.feature.paywall.resources.pw_retry
 import org.jetbrains.compose.resources.stringResource
@@ -85,7 +84,16 @@ internal fun OneTimeOffersSheetContent(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
                     offers.value.forEach { card ->
-                        OfferRow(card) { onEvent(OneTimeOffersEvent.OfferTapped(card.offer.productId)) }
+                        OfferRow(card, enabled = !state.purchasing) {
+                            onEvent(OneTimeOffersEvent.OfferTapped(card.offer.productId))
+                        }
+                    }
+                    state.notice?.let { notice ->
+                        OdoText(
+                            text = notice.asString(),
+                            style = OdoTheme.typography.bodySmall,
+                            color = OdoTheme.colors.danger,
+                        )
                     }
                     state.context.footer?.let { footer ->
                         OdoText(
@@ -98,14 +106,18 @@ internal fun OneTimeOffersSheetContent(
             }
         }
 
-        // The sheet's own way out, like every other sheet in the app. The scrim and the back
-        // gesture both close it too; a button is what makes that discoverable.
-        OdoButton(
-            text = stringResource(Res.string.pw_ot_close),
-            onClick = { onEvent(OneTimeOffersEvent.CloseTapped) },
-            modifier = Modifier.fillMaxWidth(),
-            variant = OdoButtonVariant.Secondary,
-        )
+        // Only where the context asks for one. Text, not a filled button: the scrim and the
+        // back gesture already close the sheet, so this is a way out made visible rather than
+        // an action competing with the offers above it.
+        state.context.close?.let { close ->
+            OdoButton(
+                text = stringResource(close),
+                onClick = { onEvent(OneTimeOffersEvent.CloseTapped) },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+                variant = OdoButtonVariant.Tertiary,
+            )
+        }
+
     }
 }
 
@@ -117,12 +129,14 @@ internal fun OneTimeOffersSheetContent(
  * a radio or a checkbox, which is the wrong thing to say about a purchase.
  */
 @Composable
-private fun OfferRow(card: OneTimeOfferCard, onClick: () -> Unit) {
+private fun OfferRow(card: OneTimeOfferCard, enabled: Boolean, onClick: () -> Unit) {
     val colors = OdoTheme.colors
     val onCard = if (card.recommended) colors.onAccent else colors.text
     OdoCard(
-        onClick = onClick,
-        color = if (card.recommended) colors.accent else colors.surface,
+        onClick = { if (enabled) onClick() },
+        // surfaceRaised, not surface: the sheet's own container is already surface, and a
+        // card the same colour as what it sits on is a card nobody can see.
+        color = if (card.recommended) colors.accent else colors.surfaceRaised,
         border = if (card.recommended) null else BorderStroke(1.dp, colors.border),
         modifier = Modifier.semantics { role = Role.Button },
     ) {

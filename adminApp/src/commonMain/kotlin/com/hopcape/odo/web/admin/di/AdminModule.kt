@@ -12,6 +12,7 @@ import com.hopcape.odo.web.admin.domain.CatalogueRepository
 import com.hopcape.odo.web.admin.domain.ContentRepository
 import com.hopcape.odo.web.admin.domain.TicketsRepository
 import com.hopcape.odo.web.admin.domain.FlagsRepository
+import com.hopcape.odo.web.admin.domain.SocialRepository
 import com.hopcape.odo.web.admin.domain.RolesRepository
 import com.hopcape.odo.web.admin.domain.DashboardRepository
 import com.hopcape.odo.web.admin.domain.UsersRepository
@@ -24,6 +25,8 @@ import com.hopcape.odo.web.admin.infrastructure.SupabaseCatalogueRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseContentRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseTicketsRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseFlagsRepository
+import com.hopcape.odo.web.admin.infrastructure.SupabasePostNow
+import com.hopcape.odo.web.admin.infrastructure.SupabaseSocialRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseInvites
 import com.hopcape.odo.web.admin.infrastructure.SupabaseRolesRepository
 import com.hopcape.odo.web.admin.infrastructure.SupabaseDashboardRepository
@@ -39,6 +42,7 @@ import com.hopcape.odo.web.admin.presentation.catalogue.TicketsViewModel
 import com.hopcape.odo.web.admin.presentation.content.ContentViewModel
 import com.hopcape.odo.web.admin.presentation.content.PostDetailViewModel
 import com.hopcape.odo.web.admin.presentation.flags.FlagsViewModel
+import com.hopcape.odo.web.admin.presentation.social.SocialViewModel
 import com.hopcape.odo.web.admin.presentation.roles.RolesViewModel
 import com.hopcape.odo.web.admin.presentation.users.UsersViewModel
 import com.hopcape.odo.web.admin.presentation.vehicles.VehiclesViewModel
@@ -129,6 +133,19 @@ val adminModule: Module = module {
     single<TicketsRepository> { SupabaseTicketsRepository(postgrest = get()) }
     single<BillingRepository> { SupabaseBillingRepository(postgrest = get()) }
     single<FlagsRepository> { SupabaseFlagsRepository(postgrest = get()) }
+    single<SocialRepository> {
+        SupabaseSocialRepository(
+            postgrest = get(),
+            projectUrl = BuildWebConfig.SUPABASE_URL,
+            projectKey = BuildWebConfig.SUPABASE_ANON_KEY,
+            postNow = SupabasePostNow(
+                client = get(),
+                baseUrl = BuildWebConfig.SUPABASE_URL,
+                anonKey = BuildWebConfig.SUPABASE_ANON_KEY,
+                session = get(),
+            ),
+        )
+    }
 
     viewModel { DashboardViewModel(dashboard = get()) }
     viewModel { SessionViewModel(auth = get()) }
@@ -146,6 +163,7 @@ val adminModule: Module = module {
     viewModel { TicketsViewModel(tickets = get()) }
     viewModel { BillingViewModel(billing = get()) }
     viewModel { FlagsViewModel(flags = get()) }
+    viewModel { SocialViewModel(social = get()) }
 }
 
 /**

@@ -107,6 +107,12 @@ sealed interface DomainError {
     /** No live service log has this id — it was never written, or has been deleted. */
     data object ServiceLogNotFound : DomainError
 
+    /** A submission with nothing written in it. An area on its own is not a report. */
+    data object EmptyTicketBody : DomainError
+
+    /** A paste, not a report. [max] is what the domain will take. */
+    data class TicketBodyTooLong(val max: Int) : DomainError
+
     /**
      * A document was submitted without a stored file. Every vault entry keeps the paper
      * itself (DB `documents.storage_path` is `NOT NULL`) — an entry with only dates is a

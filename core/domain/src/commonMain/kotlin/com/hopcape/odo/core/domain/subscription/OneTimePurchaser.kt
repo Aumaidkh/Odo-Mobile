@@ -51,6 +51,15 @@ interface OneTimePurchaser {
      */
     suspend fun priceOf(productId: String): String? =
         pricesOf(listOf(productId)).getOrNull()?.get(productId)
+
+    /**
+     * Every one-time purchase the store has recorded for this owner.
+     *
+     * Not the same question as "did the purchase I just started succeed": this is what the
+     * store believes, which includes anything that completed while the app was closed. What
+     * has already been credited is [PurchaseLedger]'s business, not this one's.
+     */
+    suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>>
 }
 
 /**

@@ -9,6 +9,7 @@ import com.hopcape.odo.web.admin.resources.ad_nav_cities
 import com.hopcape.odo.web.admin.resources.ad_nav_content
 import com.hopcape.odo.web.admin.resources.ad_nav_dashboard
 import com.hopcape.odo.web.admin.resources.ad_nav_flags
+import com.hopcape.odo.web.admin.resources.ad_nav_social
 import com.hopcape.odo.web.admin.resources.ad_nav_roles
 import com.hopcape.odo.web.admin.resources.ad_nav_tickets
 import com.hopcape.odo.web.admin.resources.ad_nav_users
@@ -28,6 +29,7 @@ import com.hopcape.odo.web.admin.resources.ad_sub_cities
 import com.hopcape.odo.web.admin.resources.ad_sub_content
 import com.hopcape.odo.web.admin.resources.ad_sub_dashboard
 import com.hopcape.odo.web.admin.resources.ad_sub_flags
+import com.hopcape.odo.web.admin.resources.ad_sub_social
 import com.hopcape.odo.web.admin.resources.ad_sub_roles
 import com.hopcape.odo.web.admin.resources.ad_sub_tickets
 import com.hopcape.odo.web.admin.resources.ad_sub_users
@@ -71,6 +73,7 @@ fun AdminRoute.labelResource(): StringResource = when (this) {
     AdminRoute.Tickets -> Res.string.ad_nav_tickets
     AdminRoute.Billing -> Res.string.ad_nav_billing
     AdminRoute.Flags -> Res.string.ad_nav_flags
+    AdminRoute.Social -> Res.string.ad_nav_social
     AdminRoute.Audit -> Res.string.ad_nav_audit
     AdminRoute.SignIn -> Res.string.ad_signin_title
     is AdminRoute.TicketDetail -> Res.string.ad_ticket_detail_title
@@ -90,6 +93,7 @@ fun AdminRoute.label(): String = when (this) {
     AdminRoute.Tickets -> stringResource(Res.string.ad_nav_tickets)
     AdminRoute.Billing -> stringResource(Res.string.ad_nav_billing)
     AdminRoute.Flags -> stringResource(Res.string.ad_nav_flags)
+    AdminRoute.Social -> stringResource(Res.string.ad_nav_social)
     AdminRoute.Audit -> stringResource(Res.string.ad_nav_audit)
     AdminRoute.SignIn -> stringResource(Res.string.ad_signin_title)
     // A detail page is titled for the thing, not the section — the section's name
@@ -118,6 +122,7 @@ fun AdminRoute.icon(): BootstrapIcon = when (this) {
     AdminRoute.Tickets -> AdminIcons.Tickets
     AdminRoute.Billing -> AdminIcons.Billing
     AdminRoute.Flags -> AdminIcons.Flags
+    AdminRoute.Social -> AdminIcons.Content
     AdminRoute.Audit -> AdminIcons.Audit
     is AdminRoute.TicketDetail -> AdminIcons.Tickets
     is AdminRoute.PostDetail -> AdminIcons.Content
@@ -137,6 +142,7 @@ fun AdminRoute.subtitle(): String = when (this) {
     AdminRoute.Tickets -> stringResource(Res.string.ad_sub_tickets)
     AdminRoute.Billing -> stringResource(Res.string.ad_sub_billing)
     AdminRoute.Flags -> stringResource(Res.string.ad_sub_flags)
+    AdminRoute.Social -> stringResource(Res.string.ad_sub_social)
     AdminRoute.Audit -> stringResource(Res.string.ad_sub_audit)
     is AdminRoute.TicketDetail -> stringResource(Res.string.ad_sub_ticket_detail)
     is AdminRoute.PostDetail -> stringResource(Res.string.ad_sub_post_detail)

@@ -41,6 +41,7 @@ import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEffect
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanEvent
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanScreen
 import com.hopcape.odo.feature.billscanner.presentation.scan.BillScanViewModel
+import com.hopcape.odo.core.config.FeatureConfig
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -188,15 +189,20 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
     val viewModel: BillReviewViewModel = koinViewModel { parametersOf(photoKey) }
     val state by viewModel.state.collectAsState()
     val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
+    val config = koinInject<FeatureConfig>()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            // Where a scan lands: the bill check, on the entry the review just saved —
+            // unless `bill_check_enabled` is still closed, in which case it lands on the
+            // saved-success screen. The bill is saved and the record is complete either
+            // way; only the second opinion waits for the price tables.
             is BillReviewEffect.OpenFairness -> navigationManager.navigateTo(
-                OdoDestination.Fairness(
-                    items = effect.items,
-                    logId = effect.logId,
-                    carId = effect.carId,
-                ),
+                if (config.billCheckEnabled) {
+                    OdoDestination.BillCheck.Result(billId = effect.logId)
+                } else {
+                    OdoDestination.BillScanner.SaveSuccess
+                },
             )
             BillReviewEffect.Retake -> navigationManager.back()
             // Same as the scanner's "Manual": the form takes this screen's place, so nothing
@@ -286,9 +292,9 @@ internal fun DocumentReviewRoute(
  */
 @Composable
 internal fun SaveSuccessRoute(navigationManager: NavigationManager) {
-    // Nothing routes here today: a saved scan goes straight to the fairness report, which is
-    // the more useful confirmation. The key stays registered because the screen is what the
-    // "save without a fairness check" path will land on.
+    // Where a saved scan lands while `bill_check_enabled` is closed. The workshop and the
+    // date belong to the review screen and are not on this key, so the body names neither —
+    // an empty name either side of a separator is worse than a sentence without one.
     val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
 
     SaveSuccessScreen(

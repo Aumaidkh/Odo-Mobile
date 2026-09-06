@@ -60,6 +60,8 @@ class SyncableRegistrationTest {
                 SyncEntity.PROFILES,
                 SyncEntity.PROFILE_ANSWERS,
                 SyncEntity.ENTITLEMENT_OVERRIDES,
+                SyncEntity.PURCHASE_CLAIMS,
+                SyncEntity.CREDIT_SPENDS,
                 SyncEntity.CITIES,
                 SyncEntity.CITY_SUBMISSIONS,
                 SyncEntity.CARS,
@@ -71,6 +73,11 @@ class SyncableRegistrationTest {
                 SyncEntity.DOCUMENTS,
                 SyncEntity.HEALTH_SCORES,
                 SyncEntity.REMINDERS,
+                // Help & support. Two entities because they are two tables with two
+                // lifecycles: a ticket is filed once and comes back with a status, a vote is
+                // toggled and re-toggled.
+                SyncEntity.SUPPORT_TICKETS,
+                SyncEntity.IDEA_VOTES,
             ),
             entities,
             "a missing entity here means that table silently stops syncing",

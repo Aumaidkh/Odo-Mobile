@@ -30,6 +30,7 @@ import com.hopcape.odo.web.admin.presentation.content.ContentEvent
 import com.hopcape.odo.web.admin.presentation.content.ContentViewModel
 import com.hopcape.odo.web.admin.presentation.flags.FlagsEvent
 import com.hopcape.odo.web.admin.presentation.flags.FlagsViewModel
+import com.hopcape.odo.web.admin.presentation.social.SocialViewModel
 import com.hopcape.odo.web.admin.presentation.roles.RolesEvent
 import com.hopcape.odo.web.admin.presentation.roles.RolesViewModel
 import com.hopcape.odo.web.admin.presentation.signin.SignInEffect
@@ -56,6 +57,7 @@ import com.hopcape.odo.web.admin.ui.screen.CatalogueScreen
 import com.hopcape.odo.web.admin.ui.screen.ContentScreen
 import com.hopcape.odo.web.admin.ui.screen.TicketsScreen
 import com.hopcape.odo.web.admin.ui.screen.FlagsScreen
+import com.hopcape.odo.web.admin.ui.screen.SocialScreen
 import com.hopcape.odo.web.admin.ui.screen.NoAccessScreen
 import com.hopcape.odo.web.admin.ui.screen.NoRolesScreen
 import com.hopcape.odo.web.admin.ui.screen.NotBuiltScreen
@@ -225,6 +227,7 @@ private fun SignedInArea(
                 route is AdminRoute.TicketDetail -> TicketDetailHost(route.id) { router.go(AdminRoute.Tickets) }
                 route is AdminRoute.Billing -> BillingHost(search)
                 route is AdminRoute.Flags -> FlagsHost(search)
+                route is AdminRoute.Social -> SocialHost()
                 route is AdminRoute.Audit -> AuditHost(search)
                 else -> NotBuiltScreen(route)
             }
@@ -319,6 +322,16 @@ private fun FlagsHost(search: String) {
     val state by viewModel.state.collectAsState()
     LaunchedEffect(search) { viewModel.onEvent(FlagsEvent.SearchChanged(search)) }
     FlagsScreen(state, viewModel::onEvent)
+}
+
+/** The social pipeline: posting mode, schedule, accounts, approvals, fact bank. */
+@Composable
+private fun SocialHost() {
+    val viewModel: SocialViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+    // No search wiring: the section is tabs over six short lists, and a search box that
+    // filtered one of them would be a control whose meaning changed with the tab.
+    SocialScreen(state, viewModel::onEvent)
 }
 
 /** Service items: intervals and cost benchmarks. */

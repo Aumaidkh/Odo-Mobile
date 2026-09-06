@@ -13,6 +13,8 @@ import com.hopcape.odo.core.data.owner.ProfileLocalDataSource
 import com.hopcape.odo.core.data.owner.QuestionAnswerLocalDataSource
 import com.hopcape.odo.core.data.reminder.ReminderLocalDataSource
 import com.hopcape.odo.core.data.servicelog.ServiceLogLocalDataSource
+import com.hopcape.odo.core.data.scan.BillCheckLedgerLocalDataSource
+import com.hopcape.odo.core.data.subscription.PurchaseCreditsLocalDataSource
 import com.hopcape.odo.core.data.scan.ScanUsageLocalDataSource
 import com.hopcape.odo.core.data.settings.AppSettingsLocalDataSource
 import com.hopcape.odo.core.data.sync.OwnershipAdoption
@@ -28,7 +30,15 @@ import com.hopcape.odo.core.domain.owner.LocalUserDataWipe
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.sync.SyncStatusProvider
 import com.hopcape.odo.core.triptracker.port.TripSessionStore
+import com.hopcape.odo.core.data.support.FeatureIdeaLocalDataSource
+import com.hopcape.odo.core.data.support.SupportTicketLocalDataSource
 import com.hopcape.odo.core.sync.SyncEntity
+import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncTable
+import com.hopcape.odo.infrastructure.database.support.IdeaVoteSyncable
+import com.hopcape.odo.infrastructure.database.support.SqlDelightFeatureIdeaLocalDataSource
+import com.hopcape.odo.infrastructure.database.support.SqlDelightSupportTicketLocalDataSource
+import com.hopcape.odo.infrastructure.database.support.SupportTicketSyncTable
+import com.hopcape.odo.infrastructure.database.support.SupportTicketSyncable
 import com.hopcape.odo.core.sync.SyncRunObserver
 import com.hopcape.odo.core.sync.Syncable
 import com.hopcape.odo.core.sync.Synchronizer
@@ -87,10 +97,14 @@ import com.hopcape.odo.infrastructure.database.reminder.SqlDelightReminderLocalD
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncTable
 import com.hopcape.odo.infrastructure.database.servicelog.ServiceLogSyncable
 import com.hopcape.odo.infrastructure.database.servicelog.SqlDelightServiceLogLocalDataSource
+import com.hopcape.odo.infrastructure.database.subscription.CreditSpendSyncTable
+import com.hopcape.odo.infrastructure.database.subscription.CreditSpendSyncable
+import com.hopcape.odo.infrastructure.database.subscription.PurchaseClaimSyncTable
+import com.hopcape.odo.infrastructure.database.subscription.PurchaseClaimSyncable
+import com.hopcape.odo.infrastructure.database.subscription.SqlDelightPurchaseCreditsLocalDataSource
+import com.hopcape.odo.infrastructure.database.scan.SqlDelightBillCheckLedgerLocalDataSource
 import com.hopcape.odo.infrastructure.database.scan.SqlDelightScanUsageLocalDataSource
-import com.hopcape.odo.infrastructure.database.record.SqlDelightExportCreditsLocalDataSource
 import com.hopcape.odo.infrastructure.database.record.SqlDelightRecordExportUsageLocalDataSource
-import com.hopcape.odo.core.data.record.ExportCreditsLocalDataSource
 import com.hopcape.odo.core.data.record.RecordExportUsageLocalDataSource
 import com.hopcape.odo.infrastructure.database.settings.SqlDelightAppSettingsLocalDataSource
 import com.hopcape.odo.infrastructure.database.sync.SqlDelightLocalUserDataWipe
@@ -129,6 +143,39 @@ val databaseInfrastructureModule = module {
             .also(::seedVehicleReferenceData)
             .also(::seedFuelPrices)
     }
+
+    // Help & support. Tickets push and pull — the panel writes a status back, and an owner
+    // who reported something is owed the answer to whether it was looked at.
+    single<SupportTicketLocalDataSource> { SqlDelightSupportTicketLocalDataSource(database = get()) }
+    single<FeatureIdeaLocalDataSource> { SqlDelightFeatureIdeaLocalDataSource(database = get()) }
+    single {
+        SupportTicketSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.SUPPORT_TICKETS,
+                table = SupportTicketSyncTable(
+                    database = get(),
+                    remote = get(),
+                    currentOwner = get(),
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+    single {
+        IdeaVoteSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.IDEA_VOTES,
+                table = IdeaVoteSyncTable(
+                    database = get(),
+                    remote = get(),
+                    currentOwner = get(),
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
 
     single<CarLocalDataSource> { SqlDelightCarLocalDataSource(database = get()) }
     single {
@@ -173,8 +220,47 @@ val databaseInfrastructureModule = module {
     // The monthly scan tally. No Syncable adapter for the same reason as app_settings:
     // `scan_usage` mirrors no server table, because extraction never leaves the device.
     single<ScanUsageLocalDataSource> { SqlDelightScanUsageLocalDataSource(database = get()) }
+    single<BillCheckLedgerLocalDataSource> {
+        SqlDelightBillCheckLedgerLocalDataSource(database = get(), clock = get())
+    }
     single<RecordExportUsageLocalDataSource> { SqlDelightRecordExportUsageLocalDataSource(database = get()) }
-    single<ExportCreditsLocalDataSource> { SqlDelightExportCreditsLocalDataSource(database = get()) }
+    // One store for both balances: what a purchase granted and what has been spent of it.
+    single<PurchaseCreditsLocalDataSource> {
+        SqlDelightPurchaseCreditsLocalDataSource(
+            database = get(),
+            ids = get(),
+            owners = get(),
+            clock = get(),
+        )
+    }
+    single {
+        PurchaseClaimSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.PURCHASE_CLAIMS,
+                table = PurchaseClaimSyncTable(
+                    database = get(),
+                    remote = get(),
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
+    single {
+        CreditSpendSyncable(
+            runner = SyncRunner(
+                entity = SyncEntity.CREDIT_SPENDS,
+                table = CreditSpendSyncTable(
+                    database = get(),
+                    remote = get(),
+                    ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                ),
+                database = get(),
+                telemetry = get(),
+            ),
+        )
+    } bind Syncable::class
 
     // The durable analytics event queue behind :observability:analytics's AnalyticsConfig
     // .eventStore. Same reason as app_settings: no Syncable adapter, because there is no

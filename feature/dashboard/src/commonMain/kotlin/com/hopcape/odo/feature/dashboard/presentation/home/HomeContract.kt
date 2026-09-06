@@ -38,6 +38,9 @@ internal sealed interface HomeEvent {
     /** The auto-odometer offer card — opens the education screen, not the permission. */
     data object AutoOdometerTapped : HomeEvent
 
+    /** The "Before you go in" card — the conditional entry to the pre-service checklist. */
+    data object ChecklistTapped : HomeEvent
+
     /** The checklist's documents row. */
     data object AddDocumentsTapped : HomeEvent
 
@@ -107,4 +110,10 @@ internal sealed interface HomeEffect {
 
     /** Open onboarding's add-car flow. */
     data object OpenAddCar : HomeEffect
+
+    /**
+     * Open the pre-service checklist. [entry] says which of Home's two doors was used, so the
+     * conditional card can be judged against the attention card rather than merged with it.
+     */
+    data class OpenServiceChecklist(val entry: String) : HomeEffect
 }

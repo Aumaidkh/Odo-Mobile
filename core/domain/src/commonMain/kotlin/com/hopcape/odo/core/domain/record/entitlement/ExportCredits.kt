@@ -13,6 +13,9 @@ package com.hopcape.odo.core.domain.record.entitlement
  * every other gate does — that answers what someone *is*, and this answers what they *have
  * left*. It is closer to how `ScanUsage` counts than to how `Entitlements` answers.
  *
+ * **Read, never written here.** A balance is granted by honouring a purchase — see
+ * [PurchaseGrants][com.hopcape.odo.core.domain.subscription.PurchaseGrants].
+ *
  * A credit is spent at the same moment the free allowance is: when the rendered PDF reaches
  * the share sheet. That is stated in the purchase copy so nothing is discovered afterwards —
  * one PDF, not the record as it stands that day.
@@ -21,9 +24,6 @@ interface ExportCredits {
 
     /** Bought and unspent. Zero for anyone who has never bought one. */
     suspend fun available(): Int
-
-    /** Record a completed purchase. Called once the store confirms it. */
-    suspend fun grant()
 
     /**
      * Spend one, if there is one.

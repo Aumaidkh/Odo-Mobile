@@ -11,6 +11,15 @@ package com.hopcape.odo.core.domain.shared
 fun Amount.formatRupees(): String = "Rs. ${groupIndianDigits(paise / 100)}"
 
 /**
+ * "Rs. 1,400–1,800" — a band, with the unit stated once.
+ *
+ * Formatting both ends separately reads as two prices rather than one range, which is what a
+ * band is. The dash is an en dash because that is what a range takes.
+ */
+fun Amount.formatRupeeRangeTo(high: Amount): String =
+    "${formatRupees()}\u2013${groupIndianDigits(high.paise / 100)}"
+
+/**
  * "Rs. 4.6" / "Rs. 2.97" — rupees to their natural precision (drops a trailing zero,
  * keeps two places otherwise). For per-unit rates like cost/km. Integer math only.
  */

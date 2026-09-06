@@ -4,9 +4,11 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.infrastructure.billing.observability.BillingTelemetry
 import com.revenuecat.purchases.kmp.Purchases
+import com.revenuecat.purchases.kmp.either.awaitCustomerInfoEither
 import com.revenuecat.purchases.kmp.either.awaitGetProductsEither
 import com.revenuecat.purchases.kmp.either.awaitPurchaseEither
 import com.revenuecat.purchases.kmp.models.StoreProduct
@@ -64,6 +66,34 @@ internal class RevenueCatOneTimePurchaser(
                 products.associate { it.id to it.price.formatted }.right()
             },
         )
+
+    /**
+     * What the store still says this owner has bought.
+     *
+     * Read from customer info rather than remembered here: a purchase that completed while
+     * the app was closed was never seen by this process, and the store is the only thing
+     * that knows about it.
+     */
+    override suspend fun completedPurchases(): Either<DomainError, List<CompletedPurchase>> {
+        // Asked at startup now, before any screen. `Purchases.sharedInstance` throws when
+        // configure() never ran, and a build with a key can still reach a device where it
+        // failed. The other methods here are only reached from the paywall.
+        if (!Purchases.isConfigured) return DomainError.StoreUnavailable.left()
+        return Purchases.sharedInstance.awaitCustomerInfoEither().fold(
+            ifLeft = { error ->
+                telemetry.entitlementFailed(error.code.toString(), error.message)
+                DomainError.StoreUnavailable.left()
+            },
+            ifRight = { info ->
+                info.nonSubscriptionTransactions.map {
+                    CompletedPurchase(
+                        transactionId = it.transactionIdentifier,
+                        productId = it.productIdentifier,
+                    )
+                }.right()
+            },
+        )
+    }
 
     private suspend fun findProduct(productId: String): StoreProduct? =
         Purchases.sharedInstance.awaitGetProductsEither(listOf(productId)).getOrNull()

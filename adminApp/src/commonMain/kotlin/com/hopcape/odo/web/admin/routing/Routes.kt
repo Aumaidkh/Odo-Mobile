@@ -104,5 +104,6 @@ private val SECTIONS_BY_SEGMENT: Map<String, AdminRoute> = mapOf(
     "tickets" to AdminRoute.Tickets,
     "billing" to AdminRoute.Billing,
     "flags" to AdminRoute.Flags,
+    "social" to AdminRoute.Social,
     "audit" to AdminRoute.Audit,
 )

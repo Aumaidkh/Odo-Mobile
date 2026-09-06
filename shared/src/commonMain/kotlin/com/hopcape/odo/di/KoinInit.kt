@@ -13,10 +13,12 @@ import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
+import com.hopcape.odo.core.data.subscription.PurchaseWatcher
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
 import com.hopcape.odo.feature.advisory.advisoryModule
+import com.hopcape.odo.feature.billcheck.billCheckModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
@@ -154,6 +156,10 @@ fun initKoin(
         // After coreDataModule, whose repositories its estimate reads. It registers one
         // destination and nothing else replaces anything, so the position is not load-bearing.
         advisoryModule,
+        // After coreDataModule, whose ScanAllowance decides whether the answer is shown.
+        // It registers two destinations and replaces nothing, so the position is not
+        // load-bearing.
+        billCheckModule,
         platformModule,
         challanModule
     )
@@ -170,6 +176,12 @@ fun initKoin(
     // it is a subscription, not a step, and it must not sit between the session restore and
     // the first sync. While SMART_REFUEL_DETECT_ENABLED is false this returns immediately.
     application.koin.get<RefuelDetectionWorker>().start(startupScope)
+    // Also a subscription rather than a step, and for the same reason: a UPI mandate approved
+    // by a bank minutes after the purchase sheet closed arrives while the app is open, and
+    // nothing else would credit it. Its first pass is this launch's claim, so there is no
+    // one-shot beside it — anything the store took money for while the app was closed is
+    // caught by the same collector.
+    application.koin.get<PurchaseWatcher>().start(startupScope)
     startupScope.launch {
         // Restoring is allowed to fail — a session that will not decrypt is reported as no
         // session, which sends the owner to sign in again. What must not happen is losing

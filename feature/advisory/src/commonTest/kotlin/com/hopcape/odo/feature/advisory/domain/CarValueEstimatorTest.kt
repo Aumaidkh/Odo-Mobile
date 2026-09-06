@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
+import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.core.domain.shared.VehicleSegment
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test

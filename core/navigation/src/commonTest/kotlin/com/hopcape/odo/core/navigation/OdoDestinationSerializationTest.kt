@@ -147,7 +147,23 @@ class OdoDestinationSerializationTest {
         OdoDestination.Support.Search,
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
-        OdoDestination.Support.FlagPriceData,
+        OdoDestination.Support.FlagPriceData(
+            lineName = "AC service",
+            lowPaise = 140_000L,
+            highPaise = 180_000L,
+            city = "Srinagar",
+            workshop = "company centre",
+            segment = "1.2L petrol hatchback",
+        ),
+        OdoDestination.Support.ReportSent(
+            ticket = "ODO-4821",
+            // The area's own name, which is what the screen matches on. A label here would
+            // resolve to "something else" and the round trip would still pass.
+            area = "BILL_SCAN",
+            photos = 1,
+            logsAttached = true,
+            maskedReplyTo = "r•••@gmail.com",
+        ),
         OdoDestination.Support.Rate,
         OdoDestination.Support.Faqs,
         OdoDestination.Support.Privacy,
@@ -163,7 +179,11 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue,
+        OdoDestination.ServiceChecklist(entry = "HOME_CARD"),
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
+        OdoDestination.BillCheck.Result(billId = "bill-1"),
+        OdoDestination.BillCheck.Basis(billId = "bill-1", lineName = "AC service"),
+        OdoDestination.BillCheck.Share(amountPaise = 730_000L, flagged = 3, lines = 6),
     )
 
     @Test

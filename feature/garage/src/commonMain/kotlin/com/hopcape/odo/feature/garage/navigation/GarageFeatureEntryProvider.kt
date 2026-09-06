@@ -163,6 +163,9 @@ private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
         when (effect) {
             CarActionsEffect.OpenEdit -> replace(here, OdoDestination.Garage.EditCar)
             CarActionsEffect.OpenCarValue -> replace(here, OdoDestination.CarValue)
+
+            CarActionsEffect.OpenServiceChecklist ->
+                replace(here, OdoDestination.ServiceChecklist(entry = ENTRY_GARAGE))
             CarActionsEffect.OpenExport -> replace(here, OdoDestination.Garage.Export)
             CarActionsEffect.OpenRemove -> replace(here, OdoDestination.Garage.RemoveCar)
         }
@@ -257,3 +260,9 @@ private fun AddCarRoute(navigationManager: NavigationManager) {
 
     AddCarScreen(state = state, onEvent = viewModel::onEvent)
 }
+
+/**
+ * Which door opened the checklist. A shipped name — the dashboard splits the garage's
+ * always-available entry from Home's two conditional ones.
+ */
+private const val ENTRY_GARAGE = "GARAGE"

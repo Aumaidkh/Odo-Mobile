@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.activity.model.ActivityEvent
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StorageKey
@@ -63,9 +64,12 @@ internal class CarActionsViewModel(
     private val activeCar: ActiveCarProvider,
     private val observeGarage: ObserveGarageUseCase,
     private val telemetry: GarageTelemetry,
+    config: FeatureConfig,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CarActionsUiState())
+    // Read once, when the sheet is built. A flip lands on the next time it is opened, which
+    // is what a launch gate needs — the sheet is a router and has nothing to re-read.
+    private val _state = MutableStateFlow(CarActionsUiState(showChecklist = config.serviceChecklistEnabled))
     val state: StateFlow<CarActionsUiState> = _state.asStateFlow()
 
     private val _effects = Channel<CarActionsEffect>(Channel.BUFFERED)
@@ -83,6 +87,7 @@ internal class CarActionsViewModel(
         val effect = when (event) {
             CarActionsEvent.EditTapped -> CarActionsEffect.OpenEdit
             CarActionsEvent.ValueTapped -> CarActionsEffect.OpenCarValue
+            CarActionsEvent.ChecklistTapped -> CarActionsEffect.OpenServiceChecklist
             CarActionsEvent.ExportTapped -> CarActionsEffect.OpenExport
             CarActionsEvent.RemoveTapped -> CarActionsEffect.OpenRemove
         }
