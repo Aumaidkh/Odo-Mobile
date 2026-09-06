@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
@@ -58,6 +59,7 @@ import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.entitlement.Plan
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.assertFalse
 
@@ -503,6 +505,7 @@ class HomeViewModelTest {
         refuelDetectEnabled: Boolean = true,
         serviceChecklistEnabled: Boolean = true,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
+        entitlements: EntitlementSource = FakeEntitlementSource(isPro = isPro),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -522,7 +525,7 @@ class HomeViewModelTest {
         bonds = FakeVehicleBondStore(bond),
         tracker = FakeTripTracker(enabled = trackingEnabled),
         showcase = ShowcaseArbiter(seenStore),
-        entitlements = FakeEntitlementSource(isPro = isPro),
+        entitlements = entitlements,
         telemetry = telemetry(analytics),
         // Both flags on, which is what they default to. A test that wants either offer
         // hidden can now say so, which was impossible while these were compile-time consts.
@@ -550,12 +553,59 @@ class HomeViewModelTest {
         override suspend fun refresh() = Unit
     }
 
+    /**
+     * A store that never answers.
+     *
+     * Which is what the real one does with no connection: `CustomerInfoStream.resolved` is
+     * `filterNotNull()` over a value that stays null until RevenueCat replies, so the flow
+     * emits nothing at all until then.
+     */
+    private class SilentEntitlementSource : EntitlementSource {
+        override fun observe(): Flow<Entitlements> = emptyFlow()
+        override suspend fun refresh() = Unit
+    }
+
     private fun telemetry(analytics: RecordingAnalytics) = HomeTelemetry(
         logger = HLogger.asLogger(),
         analytics = analytics,
         tracer = APM.asTracer(),
         ids = FixedIdGenerator(),
     )
+
+    /* ------------------------------ Not waiting on the store ------------------------------ */
+
+    /**
+     * The dashboard is built from local rows, and must not wait on the network for any of them.
+     *
+     * `combine` holds its result until every source has emitted once, and the entitlement
+     * stream emits nothing until RevenueCat answers — so the whole screen sat on its skeleton
+     * behind a store round trip, and behind its timeout with no connection. On an offline-first
+     * app that is the wrong thing to make an owner wait for.
+     */
+    @Test
+    fun theDashboardDrawsBeforeTheStoreAnswers() = runTest(dispatcher) {
+        val viewModel = viewModel(entitlements = SilentEntitlementSource())
+
+        // Subscribed, because the state is `WhileSubscribed` — reading `.value` without a
+        // collector measures a flow that was never started.
+        val job = launch { viewModel.state.collect { } }
+        advanceUntilIdle()
+
+        assertIs<Loadable.Ready<HomeContent>>(viewModel.state.value.content)
+        job.cancel()
+    }
+
+    /** And until it does, nothing Pro is shown on the strength of not knowing. */
+    @Test
+    fun beforeTheStoreAnswersNothingIsTreatedAsPaidFor() = runTest(dispatcher) {
+        val viewModel = viewModel(entitlements = SilentEntitlementSource())
+
+        val job = launch { viewModel.state.collect { } }
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.proPlan)
+        job.cancel()
+    }
 
     private suspend fun HomeViewModel.content(): HomeContent =
         assertIs<Loadable.Ready<HomeContent>>(state.first { it.content is Loadable.Ready }.content).value

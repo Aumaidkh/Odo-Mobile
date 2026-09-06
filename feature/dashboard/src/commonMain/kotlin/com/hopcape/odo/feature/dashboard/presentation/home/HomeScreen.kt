@@ -33,6 +33,9 @@ import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoShimmerBlock
+import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
+import com.hopcape.odo.core.designsystem.component.ShimmerDefaults
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoScreen
@@ -1046,35 +1049,56 @@ private fun NoCarContent(onEvent: (HomeEvent) -> Unit) {
  * What Home shows while the record is being read.
  *
  * Cards in the shape of the real ones rather than a spinner: the tab is switched to
- * instantly, and an empty screen for even one frame reads as "there is nothing here"
- * — which is the wrong thing to tell someone about their own car.
+ * instantly, and an empty screen for even one frame reads as "there is nothing here" —
+ * which is the wrong thing to tell someone about their own car.
+ *
+ * **It stands in for what is actually below it**, block for block: the greeting and the
+ * car line, then health, fuel, the two stats, and the attention card. The first version
+ * was four bars of arbitrary heights, so the screen jumped when the real cards arrived
+ * — which is most of what a skeleton exists to prevent.
+ *
+ * It is also alive now. A static grey block is indistinguishable from a rendering fault;
+ * the sweep is what says the screen is working.
  */
 @Composable
 private fun HomeSkeleton() {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
-        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SKELETON),
-    ) {
-        SkeletonBlock(height = 160.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            SkeletonBlock(height = 96.dp, modifier = Modifier.weight(1f))
-            SkeletonBlock(height = 96.dp, modifier = Modifier.weight(1f))
+    OdoShimmerHost {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+            modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SKELETON),
+        ) {
+            // The greeting and the car under it, which the header draws before anything else.
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                OdoShimmerBlock(width = SKELETON_GREETING, height = ShimmerDefaults.HeadlineHeight)
+                OdoShimmerBlock(width = SKELETON_CAR_LINE, height = ShimmerDefaults.LineHeight)
+            }
+            SkeletonBlock(height = SKELETON_HEALTH)
+            SkeletonBlock(height = SKELETON_FUEL)
+            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+                SkeletonBlock(height = SKELETON_STAT, modifier = Modifier.weight(1f))
+                SkeletonBlock(height = SKELETON_STAT, modifier = Modifier.weight(1f))
+            }
+            SkeletonBlock(height = SKELETON_ATTENTION)
         }
-        SkeletonBlock(height = 80.dp)
-        SkeletonBlock(height = 80.dp)
     }
 }
 
 @Composable
 private fun SkeletonBlock(height: Dp, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(height)
-            .clip(OdoTheme.shapes.card)
-            .background(OdoTheme.colors.surfaceRaised),
+    OdoShimmerBlock(
+        modifier = modifier,
+        height = height,
+        shape = OdoTheme.shapes.card,
     )
 }
+
+/* The real cards' own heights, so nothing moves when they replace these. */
+private val SKELETON_GREETING = 180.dp
+private val SKELETON_CAR_LINE = 130.dp
+private val SKELETON_HEALTH = 168.dp
+private val SKELETON_FUEL = 104.dp
+private val SKELETON_STAT = 88.dp
+private val SKELETON_ATTENTION = 96.dp
 
 @Composable
 private fun HomeError(message: String) {
