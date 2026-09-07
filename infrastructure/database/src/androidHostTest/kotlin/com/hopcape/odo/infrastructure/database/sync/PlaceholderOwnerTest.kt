@@ -6,6 +6,7 @@ import com.hopcape.odo.core.data.owner.ProfileDto
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.infrastructure.database.car.CarSyncTable
+import com.hopcape.odo.infrastructure.database.car.RecordingRestoredHistoryStore
 import com.hopcape.odo.infrastructure.database.owner.ProfileSyncTable
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -48,7 +49,7 @@ class PlaceholderOwnerTest {
     fun theCarPullReportsAMissingScopeWhileSignedOut() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingCars()
-        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { OwnerId.LOCAL_PLACEHOLDER.value })
+        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { OwnerId.LOCAL_PLACEHOLDER.value }, restored = RecordingRestoredHistoryStore())
 
         // Not an empty list. The gate only starts a run when there is a session, so a
         // placeholder reaching here is an inconsistency the run should retry rather than
@@ -71,7 +72,7 @@ class PlaceholderOwnerTest {
     fun aRealOwnerIsPassedThrough() = runTest {
         val (db, _) = inMemoryDatabase()
         val remote = RecordingCars()
-        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { "5b28c012-545f-447d-9a85-920084f68246" })
+        val table = CarSyncTable(db, remote, silentSyncTelemetry(), ownerId = { "5b28c012-545f-447d-9a85-920084f68246" }, restored = RecordingRestoredHistoryStore())
 
         assertIs<FetchResult.Rows<CarDto>>(table.fetch(since = null))
 
