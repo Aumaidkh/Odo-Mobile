@@ -3,8 +3,10 @@ package com.hopcape.odo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
@@ -84,7 +86,7 @@ internal fun AppBlockedSheet(blocked: AppAvailability.Blocked, onRetry: () -> Un
     }
 }
 
-/** Icon, then the two lines, then the buttons — the layout both blocked states share. */
+/** Icon beside the title, then the message, then the buttons — shared by both blocked states. */
 @Composable
 private fun BlockedSheetContent(
     icon: @Composable () -> Unit,
@@ -92,9 +94,16 @@ private fun BlockedSheetContent(
     message: String,
     actions: @Composable ColumnScope.() -> Unit,
 ) {
-    icon()
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-        OdoText(title, style = OdoTheme.typography.title, color = OdoTheme.colors.text)
+        // Leading, not trailing: a trailing icon sits at the right edge, so it lands a
+        // different distance from the title in each state as the title's length changes.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            icon()
+            OdoText(title, style = OdoTheme.typography.title, color = OdoTheme.colors.text)
+        }
         OdoText(message, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
     }
     Column(
@@ -109,7 +118,7 @@ private fun BlockedIcon(icon: ImageVector) {
     OdoIcon(
         icon,
         contentDescription = null,
-        tint = OdoTheme.colors.warning,
+        tint = OdoTheme.colors.accent,
         size = OdoTheme.iconSizes.large,
     )
 }
