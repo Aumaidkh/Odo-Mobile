@@ -26,6 +26,8 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.appstatus.AppAvailability
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -247,6 +249,20 @@ private fun OdoApp(startDestination: OdoDestination) {
         if (shouldPromptPendingFills(currentDestination, pendingFillCount, promptedPendingFills)) {
             promptedPendingFills = true
             navigationManager.navigateTo(OdoDestination.Refuel.Pending)
+        }
+    }
+
+    // Signing in restored this car's history — service records, papers, fuel fills the
+    // owner never entered on this phone. Read straight from the store, like the pending
+    // fills above: there is nothing to decide here, only whether anything is waiting, and
+    // the sheet is a normal destination the garage owns.
+    val restoredHistory = koinInject<RestoredHistoryStore>()
+    val restoredCarId by produceState<CarId?>(initialValue = null, restoredHistory) {
+        restoredHistory.pending().collect { value = it }
+    }
+    LaunchedEffect(currentDestination, restoredCarId) {
+        if (shouldAnnounceRestoredHistory(currentDestination, restoredCarId != null)) {
+            navigationManager.navigateTo(OdoDestination.Garage.HistoryRestored)
         }
     }
 

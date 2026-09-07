@@ -285,4 +285,20 @@
     <string name="gr_time_hour">%1$d hour ago</string>
     <string name="gr_time_days">%1$d days ago</string>
     <string name="gr_time_day">%1$d day ago</string>
+
+    <!-- Restored history sheet (#425) — shown once after signing in brings a car's records back. -->
+    <string name="gr_hr_title">Purani history mil gayi</string>
+    <string name="gr_hr_body">Yeh car aapke Odo account me pehle se thi. Saara record wapas aa gaya hai.</string>
+    <string name="gr_hr_service">Service</string>
+    <string name="gr_hr_papers">Papers</string>
+    <string name="gr_hr_fuel">Fuel</string>
+    <string name="gr_hr_since">%1$s se ab tak</string>
+    <string name="gr_hr_odometer">Odometer</string>
+    <string name="gr_hr_you_entered">Aapne likha</string>
+    <string name="gr_hr_history_has">History me hai</string>
+    <string name="gr_hr_only_forward">Odometer sirf aage badhta hai. Odo ise kabhi peeche nahi le jaayega.</string>
+    <string name="gr_hr_adopt">%1$s set karo</string>
+    <string name="gr_hr_keep">Nahi, %1$s hi rakho</string>
+    <string name="gr_hr_view">History dekho</string>
+    <string name="gr_hr_done">Theek hai</string>
 </resources>

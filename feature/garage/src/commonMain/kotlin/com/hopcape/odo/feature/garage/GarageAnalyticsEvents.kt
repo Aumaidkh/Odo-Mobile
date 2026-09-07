@@ -41,6 +41,18 @@ val garageAnalyticsEvents: List<EventSchema> = listOf(
         GarageTelemetry.Event.NO_ACTIVE_CAR,
         mapOf(GarageTelemetry.Key.SOURCE to PropertyType.STRING),
     ),
+    EventSchema(
+        GarageTelemetry.Event.HISTORY_RESTORED_SHOWN,
+        mapOf(
+            GarageTelemetry.Key.SERVICE_COUNT to PropertyType.INT,
+            GarageTelemetry.Key.DOCUMENT_COUNT to PropertyType.INT,
+            GarageTelemetry.Key.OFFERED to PropertyType.BOOLEAN,
+        ),
+    ),
+    EventSchema(
+        GarageTelemetry.Event.HISTORY_RESTORED_ANSWERED,
+        mapOf(GarageTelemetry.Key.ADOPTED to PropertyType.BOOLEAN),
+    ),
     EventSchema(GarageTelemetry.Event.ODOMETER_OPENED),
     EventSchema(GarageTelemetry.Event.ODOMETER_UPDATED),
     EventSchema(
