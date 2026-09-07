@@ -33,6 +33,20 @@ internal class FakeConfigSource(
     }
 }
 
+/**
+ * A source that also refreshes, which is the shape both real backends have. Counts the
+ * calls so a test can prove the chain reached every one of them.
+ */
+internal class RecordingSource : ConfigSource by FakeConfigSource(), ConfigRefresher {
+
+    var refreshes: Int = 0
+        private set
+
+    override suspend fun refresh() {
+        refreshes += 1
+    }
+}
+
 internal class FakeOverrides : LocalConfigOverrides {
 
     private val values = mutableMapOf<String, String>()

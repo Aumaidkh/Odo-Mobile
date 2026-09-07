@@ -5,6 +5,7 @@ import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.remoteconfig.FetchStatus
 import dev.gitlive.firebase.remoteconfig.FirebaseRemoteConfig
+import dev.gitlive.firebase.remoteconfig.ValueSource
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlin.time.Instant
 
@@ -26,11 +27,17 @@ internal interface FirebaseRemoteConfigGateway {
      */
     suspend fun fetchAndActivate(): Boolean
 
-    /** The current value of [key] as a `Long`, or `null` if it could not be read. */
-    fun long(key: String): Long?
-
-    /** The current value of [key] as a `String`, or `null` if it could not be read. */
-    fun string(key: String): String?
+    /**
+     * The value of [key] **as the server actually served it**, or `null` when the console
+     * has never set it.
+     *
+     * Deliberately not "the current value". [applyLocalDefaults] seeds every registered
+     * key's compiled default into the SDK, so `getValue` answers for every key whether or
+     * not the console holds one. Returning those would make this source claim every key in
+     * the app, and a chain that reads Remote Config first would never reach the backend
+     * behind it.
+     */
+    fun remoteString(key: String): String?
 
     /**
      * When the config currently in force was genuinely confirmed from Firebase — not "now",
@@ -93,16 +100,11 @@ internal class RealFirebaseRemoteConfigGateway(
             .getOrDefault(false)
     }
 
-    override fun long(key: String): Long? {
+    override fun remoteString(key: String): String? {
         val config = remoteConfig ?: return null
-        return runCatchingCancellable { config.getValue(key).asLong() }
-            .onFailure { onDiagnostic("remoteconfig: read '$key' failed — ${it::class.simpleName}") }
-            .getOrNull()
-    }
-
-    override fun string(key: String): String? {
-        val config = remoteConfig ?: return null
-        return runCatchingCancellable { config.getValue(key).asString() }
+        return runCatchingCancellable {
+            config.getValue(key).takeIf { it.getSource() == ValueSource.Remote }?.asString()
+        }
             .onFailure { onDiagnostic("remoteconfig: read '$key' failed — ${it::class.simpleName}") }
             .getOrNull()
     }

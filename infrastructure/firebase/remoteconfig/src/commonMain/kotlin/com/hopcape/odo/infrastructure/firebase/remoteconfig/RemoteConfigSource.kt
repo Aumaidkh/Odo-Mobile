@@ -21,6 +21,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * booleans here, so a key set to one of those falls through to its default rather than
  * being read as true. For keys this app declares and this app's console holds, strict is
  * the safer half of that trade.
+ *
+ * **Only values the console actually set.** This is one link in a
+ * [com.hopcape.odo.core.config.ChainedConfigSource], so "no value" has to mean the next
+ * backend gets asked — see [FirebaseRemoteConfigGateway.remoteString].
  */
 internal class RemoteConfigSource(
     private val gateway: FirebaseRemoteConfigGateway,
@@ -48,7 +52,7 @@ internal class RemoteConfigSource(
      * often and one leading space is enough to make a mail composer refuse an address or a
      * number fail to parse.
      */
-    private fun raw(key: String): String? = gateway.string(key)?.trim()?.takeIf { it.isNotEmpty() }
+    private fun raw(key: String): String? = gateway.remoteString(key)?.trim()?.takeIf { it.isNotEmpty() }
 
     override fun boolean(key: String): Boolean? = raw(key)?.toBooleanStrictOrNull()
 
