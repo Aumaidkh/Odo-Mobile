@@ -134,6 +134,7 @@ internal class OnboardingViewModel(
         is OnboardingEvent.Workshop -> onWorkshopEvent(event)
         is OnboardingEvent.LastService -> onLastServiceEvent(event)
         is OnboardingEvent.OdometerChanged -> onOdometerChanged(event.km)
+        OnboardingEvent.OdometerUnknown -> onOdometerUnknown()
         OnboardingEvent.ContinueClicked -> advance()
         OnboardingEvent.BackClicked -> goBack()
     }
@@ -644,6 +645,13 @@ internal class OnboardingViewModel(
 
     /* ------------------------------ State writers ------------------------------ */
 
+    /** Drop whatever was half-dialled and move on; the car is saved with the reading pending. */
+    private fun onOdometerUnknown() {
+        _state.update { it.copy(odometer = FormField()) }
+        telemetry.odometerSkipped()
+        advance()
+    }
+
     private fun onOdometerChanged(km: Long) =
         _state.update { it.copy(odometer = it.odometer.update(km)) }
 
@@ -750,6 +758,8 @@ private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
         year = if (manualEntry) details.year.value else car.match?.year,
         fuelType = if (manualEntry) details.fuel.value else car.match?.fuelType,
         odometerKm = odometer.value?.toInt(),
+        // No reading given: the car is stored reading zero, flagged, and asked for again.
+        odometerPending = odometer.value == null,
         registrationNumber = car.plate.text,
         isPrimary = true,
     )

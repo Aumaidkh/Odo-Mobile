@@ -61,6 +61,7 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
         SetupTelemetry.Event.LAST_SERVICE_FORGOTTEN,
         mapOf(SetupTelemetry.Key.FORGOT to PropertyType.BOOLEAN),
     ),
+    EventSchema(SetupTelemetry.Event.ODOMETER_SKIPPED),
     EventSchema(SetupTelemetry.Event.LAST_SERVICE_SKIPPED),
     EventSchema(SetupTelemetry.Event.LAST_SERVICE_SAVED),
     EventSchema(SetupTelemetry.Event.FIRST_SCAN_CLICKED),

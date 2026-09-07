@@ -65,6 +65,7 @@
     <string name="onb_odometer_label">Reading</string>
     <string name="onb_odometer_save">Save reading</string>
     <string name="onb_odometer_hint">Tap to set</string>
+    <string name="onb_odometer_unknown">I don’t know it right now</string>
     <string name="onb_unit_km">Km</string>
     <string name="onb_unit_miles">Miles</string>
     <string name="onb_details_title">Your car’s details</string>

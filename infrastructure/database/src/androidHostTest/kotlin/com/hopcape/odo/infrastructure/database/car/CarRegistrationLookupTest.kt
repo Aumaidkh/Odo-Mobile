@@ -87,7 +87,7 @@ class CarRegistrationLookupTest {
         deletedAt: String? = null,
     ) = carQueries.insertCar(
         id, owner, "Maruti Suzuki", model, variant, 2019, "PETROL", plate,
-        42_000, null, null, 0, updatedAt, createdAt, updatedAt, deletedAt, null, "PENDING",
+        42_000, 0, null, null, 0, updatedAt, createdAt, updatedAt, deletedAt, null, "PENDING",
     )
 
     private companion object {

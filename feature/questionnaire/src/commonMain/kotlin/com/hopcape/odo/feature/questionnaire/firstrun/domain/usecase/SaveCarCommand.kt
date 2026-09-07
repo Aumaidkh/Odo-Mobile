@@ -13,6 +13,8 @@ internal data class SaveCarCommand(
     val year: Int?,
     val fuelType: FuelType?,
     val odometerKm: Int?,
+    /** The owner skipped the reading. [odometerKm] is then ignored. */
+    val odometerPending: Boolean = false,
     val variant: String? = null,
     val registrationNumber: String? = null,
     val purchaseYear: Int? = null,

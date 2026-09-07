@@ -56,6 +56,9 @@ data class CarDto(
     @SerialName("fuel_type") val fuelType: String,
     @SerialName("registration_number") val registrationNumber: String? = null,
     @SerialName("current_odometer_km") val currentOdometerKm: Int,
+    // A car whose owner has not read the odometer yet. Synced rather than kept on the
+    // device: without it a restored car would arrive reading a confident zero.
+    @SerialName("odometer_pending") val odometerPending: Boolean = false,
     @SerialName("purchase_year") val purchaseYear: Int? = null,
     @SerialName("nickname") val nickname: String? = null,
     @SerialName("is_primary") val isPrimary: Boolean = false,

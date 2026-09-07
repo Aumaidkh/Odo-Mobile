@@ -33,6 +33,7 @@ class CarMappersTest {
         current_odometer_km = 45_000L,
         purchase_year = purchaseYear,
         nickname = nickname,
+        odometer_pending = 0,
         is_primary = isPrimary,
         odometer_updated_at = "2026-06-30T00:00:00Z",
         created_at = createdAt,

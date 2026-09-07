@@ -286,16 +286,15 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun aPrefilledForm_answersTheStepOnceTheOdometerIsGiven() = runTest(dispatcher) {
+    fun aPrefilledForm_answersTheStepWithoutTheOdometer() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.Car.PlateChanged(HONDA_PLATE))
         advanceUntilIdle()
 
+        // Rejecting the match drops into the manual form with the plate's answers prefilled;
+        // the step is answered by those, and the odometer is not part of it.
         viewModel.onEvent(OnboardingEvent.Car.MatchRejected)
-        assertFalse(viewModel.state.value.canContinue)
-
-        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
 
         assertTrue(viewModel.state.value.canContinue)
     }
@@ -444,17 +443,34 @@ class OnboardingViewModelTest {
     /* ------------------------------ Steps ------------------------------ */
 
     @Test
-    fun theCarStep_needsBothAMatchAndAnOdometer() = runTest(dispatcher) {
+    fun theCarStep_needsAMatch_butNotAnOdometer() = runTest(dispatcher) {
         val viewModel = viewModel()
+
+        // Nothing has named a car yet.
+        assertFalse(viewModel.state.value.canContinue)
+
         viewModel.onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))
         advanceUntilIdle()
 
-        // The registry never knows the odometer, so a match alone can't answer the step.
-        assertFalse(viewModel.state.value.canContinue)
+        // The registry never knows the odometer, and the step no longer waits for one: an
+        // owner who is not at their car would otherwise be stuck on step 1 of 4.
+        assertTrue(viewModel.state.value.canContinue)
+    }
 
+    @Test
+    fun skippingTheOdometer_clearsTheField_andMovesOn() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))
+        advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
 
-        assertTrue(viewModel.state.value.canContinue)
+        viewModel.onEvent(OnboardingEvent.OdometerUnknown)
+        advanceUntilIdle()
+
+        // Whatever was half-dialled is dropped — the car is saved with the reading pending,
+        // not with a number the owner backed out of.
+        assertNull(viewModel.state.value.odometer.value)
+        assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
     }
 
     @Test

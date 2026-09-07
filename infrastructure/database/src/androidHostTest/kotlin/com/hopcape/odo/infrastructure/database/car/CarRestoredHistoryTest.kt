@@ -93,7 +93,7 @@ class CarRestoredHistoryTest {
 
     private fun OdoDatabase.insertLocalCar(id: String) = carQueries.insertCar(
         id, owner, "Maruti", "Swift", null, 2019, "PETROL", plate,
-        12_000, null, null, 1, earlier, earlier, earlier, null, null, "PENDING",
+        12_000, 0, null, null, 1, earlier, earlier, earlier, null, null, "PENDING",
     )
 
     private class StubRemote(private val rows: List<CarDto>) : CarRemoteDataSource {

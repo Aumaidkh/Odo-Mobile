@@ -35,6 +35,9 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_basis
 import com.hopcape.odo.feature.advisory.resources.adv_value_cd_back
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_body
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_title
+import com.hopcape.odo.feature.advisory.resources.adv_value_odometer_action
+import com.hopcape.odo.feature.advisory.resources.adv_value_odometer_body
+import com.hopcape.odo.feature.advisory.resources.adv_value_odometer_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_full_record_label
 import com.hopcape.odo.feature.advisory.resources.adv_value_pitch_complete
 import com.hopcape.odo.feature.advisory.resources.adv_value_pitch_empty
@@ -88,6 +91,22 @@ internal fun CarValueScreen(
     ) { padding ->
         when {
             state.isLoading -> Centred(padding) { OdoLoadingIndicator() }
+
+            // Before the no-car case: the car is there, and only the reading is missing.
+            // Kilometres are the second biggest term in the estimate after age, so there is
+            // nothing honest to show — but "no car yet" would be the wrong thing to say.
+            state.odometerPending -> Centred(padding) {
+                OdoEmptyState(
+                    title = stringResource(Res.string.adv_value_odometer_title),
+                    message = stringResource(Res.string.adv_value_odometer_body),
+                    action = {
+                        OdoButton(
+                            text = stringResource(Res.string.adv_value_odometer_action),
+                            onClick = { onEvent(CarValueEvent.AddOdometerClicked) },
+                        )
+                    },
+                )
+            }
 
             display == null -> Centred(padding) {
                 OdoEmptyState(

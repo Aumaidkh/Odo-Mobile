@@ -12,9 +12,11 @@ import com.hopcape.odo.feature.advisory.domain.CarValued
 internal data class CarValueUiState(
     val isLoading: Boolean = true,
     val valued: CarValued? = null,
+    /** A car is set up but its odometer has never been given. Asked for, not reported empty. */
+    val odometerPending: Boolean = false,
 ) {
     /** Nothing loading and nothing to value: no car has been added yet. */
-    val isEmpty: Boolean get() = !isLoading && valued == null
+    val isEmpty: Boolean get() = !isLoading && valued == null && !odometerPending
 }
 
 /**

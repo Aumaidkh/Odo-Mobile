@@ -130,6 +130,17 @@ internal class SetupTelemetry(
         )
     }
 
+    /**
+     * The owner moved past the car step without a reading.
+     *
+     * Worth a number of its own: how often this is tapped is how we learn whether asking for
+     * the odometer at setup was ever the right place to ask.
+     */
+    fun odometerSkipped() {
+        analytics.track(Event.ODOMETER_SKIPPED)
+        logger.info(TAG, Event.ODOMETER_SKIPPED, tc = flowTrace.toLog())
+    }
+
     fun lastServiceSkipped() {
         analytics.track(Event.LAST_SERVICE_SKIPPED)
         logger.info(TAG, Event.LAST_SERVICE_SKIPPED, tc = flowTrace.toLog())
@@ -374,6 +385,7 @@ internal class SetupTelemetry(
         const val WORKSHOP_TIER_SELECTED = "onboarding_workshop_tier_selected"
         const val WORKSHOP_SAVED = "onboarding_workshop_saved"
         const val LAST_SERVICE_FORGOTTEN = "onboarding_last_service_forgotten"
+        const val ODOMETER_SKIPPED = "onboarding_odometer_skipped"
         const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
         const val LAST_SERVICE_SAVED = "onboarding_last_service_saved"
         const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"

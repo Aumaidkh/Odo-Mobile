@@ -39,6 +39,8 @@ internal class UpdateCarDetailsUseCase(
             year = command.year,
             fuelType = command.fuelType,
             odometerKm = stored.odometer.km,
+            // Editing a nickname or a trim is not the owner reading their odometer.
+            odometerPending = stored.isOdometerPending,
             variant = command.variant,
             registrationNumber = command.registrationNumber,
             purchaseYear = stored.purchaseYear?.value,

@@ -148,7 +148,9 @@ internal class ObserveHomeUseCase(
             // The header's reading is the trip-aware aggregate: a service logged after
             // onboarding moves it, and so does a counted auto-trip on top of it — even
             // though the car's own stored reading stays put.
-            odometer = record.currentOdometer ?: record.car?.odometer,
+            // knownOdometer: a pending car's zero is a placeholder, and Home showing
+            // "0 km" as this car's reading is exactly the false precision it stands for.
+            odometer = record.currentOdometer ?: record.car?.knownOdometer,
             score = score,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,

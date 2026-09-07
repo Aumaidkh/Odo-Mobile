@@ -39,18 +39,23 @@ internal data class OnboardingUiState(
      * Continue enabled for the current step; the last step is always skippable.
      *
      * The single authority on "is this step answered" — the slices each answer only for
-     * their own fields, and the car step's answer is whichever route is showing *plus* the
-     * two things both routes share: the odometer, and the registration number.
+     * their own fields, and the car step's answer is whichever route is showing plus the
+     * registration number, which both routes share.
      *
      * The plate is required on **both** routes. It used to be required only on the plate
      * route, as a side effect of a match being what answered that route, so anyone who
      * entered their car by hand saved it without one. That car cannot be matched to a bill,
      * a reminder, an insurance document or a resale report afterwards, and nothing later in
      * the app asks for the plate again.
+     *
+     * The odometer is deliberately **not** part of this. It is often not in the owner's head
+     * — they are not at the car, or do not remember — and gating step 1 of 4 on it is a wall
+     * with no way around it. A car saved without one is stored pending and asked for again,
+     * on Home and at every feature that cannot work without it.
      */
     val canContinue: Boolean
         get() = when (step) {
-            OnboardingStep.CAR -> odometer.value != null && car.isPlateValid &&
+            OnboardingStep.CAR -> car.isPlateValid &&
                 if (manualEntry) details.isAnswered else car.isAnswered
 
             OnboardingStep.PROFILE -> profile.isAnswered

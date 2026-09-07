@@ -213,6 +213,8 @@ class CarValueEstimatorTest {
         cityTier: Int? = 2,
     ) = CarValueEstimator.estimate(
         car = car,
+        // The fixtures all build cars with a real reading, so this is that reading.
+        odometer = requireNotNull(car.knownOdometer),
         logs = logs,
         cityTier = cityTier,
         currentYear = CURRENT_YEAR,

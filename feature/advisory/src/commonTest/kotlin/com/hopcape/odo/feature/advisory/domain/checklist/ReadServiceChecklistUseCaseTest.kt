@@ -95,16 +95,39 @@ class ReadServiceChecklistUseCaseTest {
         assertIs<DomainError.CarNotFound>(result.leftOrNull())
     }
 
+    @Test
+    fun aCarWhoseOdometerIsStillPending_hasNoChecklist() = runTest {
+        // Nothing has supplied a reading: no service log, no counted trip, and the car itself
+        // holds the placeholder zero. Every by-km row would otherwise come out due now, which
+        // is a checklist that tells the owner to service a car it knows nothing about.
+        val pending = Car.create(
+            id = CarId("car-1"),
+            ownerId = OwnerId("owner-1"),
+            make = "Hyundai",
+            model = "i20",
+            year = 2023,
+            fuelType = FuelType.PETROL,
+            odometerKm = null,
+            odometerPending = true,
+            isPrimary = true,
+        ).getOrNull()!!
+
+        val result = useCase(car = pending, derivedOdometer = null).read()
+
+        assertEquals(DomainError.MissingOdometer, result.leftOrNull())
+    }
+
     private fun useCase(
         car: Car? = CAR,
         city: String? = "Mumbai",
+        derivedOdometer: Distance? = Distance.of(42_000).getOrNull(),
         intervals: Either<DomainError, Map<String, ServiceInterval>> = schedule.right(),
         bands: (PriceBandQuery) -> PriceBand? = { BAND },
     ) = ReadServiceChecklistUseCase(
         cars = FakeCars(car),
         logs = FakeLogs,
         odometers = object : CurrentOdometerProvider {
-            override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(Distance.of(42_000).getOrNull())
+            override fun observeCurrent(carId: CarId): Flow<Distance?> = flowOf(derivedOdometer)
         },
         schedule = ServiceIntervalRepository { intervals },
         bands = PriceBandRepository { bands(it).right() },
