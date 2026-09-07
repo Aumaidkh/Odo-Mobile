@@ -41,3 +41,17 @@ internal fun setCarOdometer(km: Int) = with(GlobalContext.get().get<SqlDriver>()
     execute(null, "UPDATE cars SET current_odometer_km = $km WHERE id = '${LogFixtures.CAR}'", 0)
     notifyListeners("cars")
 }
+
+/**
+ * The car as an owner who skipped the reading at setup leaves it: a placeholder zero with the
+ * question still open (issue #429).
+ */
+internal fun setCarOdometerPending() = with(GlobalContext.get().get<SqlDriver>()) {
+    execute(
+        null,
+        "UPDATE cars SET current_odometer_km = 0, odometer_pending = 1, " +
+            "odometer_updated_at = NULL WHERE id = '${LogFixtures.CAR}'",
+        0,
+    )
+    notifyListeners("cars")
+}
