@@ -12,7 +12,6 @@ import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
-import com.hopcape.odo.web.core.infrastructure.supabase.encoded
 import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -79,14 +78,30 @@ internal class SupabaseUsersRepository(
         // rather than colliding with it.
         onConflict = "owner_id,feature",
         serializer = EmptyRow.serializer(),
+        // deleted_at is an explicit null so that granting again lifts an earlier
+        // withdrawal. PostgREST reads an absent key as "leave this column alone",
+        // which would leave the client treating the row as cleared.
+        //
+        // granted_at is not sent: a trigger stamps it on every write, so the delta
+        // pull the app runs cannot miss an edit because a caller forgot.
         body = """{"owner_id":"$ownerId","feature":"${feature.jsonEscaped()}",""" +
-            """"granted":$granted,"reason":"${reason.jsonEscaped()}"}""",
+            """"granted":$granted,"reason":"${reason.jsonEscaped()}","deleted_at":null}""",
     ).map { }
 
+    /**
+     * Withdraw an override by marking it, not by deleting it.
+     *
+     * A deleted row cannot reach the app: the client pulls this table as a delta and an
+     * absent row is indistinguishable from a read that returned nothing, so a hard delete
+     * left every device holding the grant forever. The tombstone is a row the pull can see.
+     *
+     * An RPC because the moment of withdrawal is the server's to decide — `now()` in a
+     * PostgREST payload arrives as the text 'now()' and is not a valid timestamptz.
+     */
     override suspend fun clearEntitlement(ownerId: String, feature: String): Either<WebError, Unit> =
-        postgrest.delete(
-            table = TABLE_OVERRIDES,
-            query = "owner_id=eq.$ownerId&feature=eq.${feature.encoded()}",
+        postgrest.call(
+            name = "admin_clear_entitlement",
+            body = """{"p_owner_id":"$ownerId","p_feature":"${feature.jsonEscaped()}"}""",
         )
 
     override suspend fun setRestriction(

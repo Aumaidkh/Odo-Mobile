@@ -30,6 +30,14 @@ data class EntitlementOverrideDto(
      */
     @SerialName("granted") val granted: Boolean,
     @SerialName("expires_at") val expiresAt: String? = null,
+    /**
+     * Set when the override was withdrawn, which is a row rather than a missing one.
+     *
+     * A delta pull cannot report a deletion — an absent row and an empty read look the same,
+     * and the client cannot tell "support cleared this" from "the session had lapsed". So a
+     * withdrawal arrives as a tombstone and the mirror drops the row on seeing it.
+     */
+    @SerialName("deleted_at") val deletedAt: String? = null,
     @SerialName("granted_at") val grantedAt: String,
 )
 
