@@ -40,8 +40,9 @@ import kotlin.time.Duration.Companion.seconds
  * a number screen that has already finished its job.
  *
  * What that costs is honesty about state this screen no longer arrives with: until the
- * request comes back, no code has been sent, so the header says "Sending", Resend stays
- * down, and the countdown has not started.
+ * request comes back, no code has been sent, so the header says "Sending" and Resend stays
+ * down. The countdown, though, runs from the moment the code was asked for — see
+ * [watchTheRequest].
  *
  * Verification fires on the last digit rather than behind a button — the code is a fixed
  * length, so there is nothing to confirm. Wrong codes are counted, and after
@@ -69,6 +70,9 @@ internal class OtpViewModel(
     private var verifyJob: Job? = null
     private var countdownJob: Job? = null
 
+    /** Whether the cooldown for the request this screen arrived with is already running. */
+    private var cooldownStarted = false
+
     init {
         watchTheRequest()
         listenForCode()
@@ -83,21 +87,25 @@ internal class OtpViewModel(
      * the request and answers [OtpRequest.Sent] for a number it no longer remembers, which
      * is the assumption this screen has always made about how it got here.
      *
-     * The cooldown starts when a code is actually out, not when the screen opens. A refusal
-     * lands in [OtpUiState.submission] and records nothing against the throttle, so Resend is
-     * the retry — except after a rate limit, where the cooldown is exactly what is wanted.
+     * **The cooldown starts when the code is asked for, not when the provider answers** (#438).
+     * Firebase can spend seconds on that round trip, and anchoring the wait to the far end of
+     * it left the countdown reading "00:00" for the whole time — the delay the parallel
+     * request was meant to hide, moved rather than removed. A refusal then gives the wait
+     * back, because nothing was sent.
      */
     private fun watchTheRequest() {
         viewModelScope.launch {
             requests.observe(phone).collect { request ->
                 when (request) {
-                    OtpRequest.InFlight -> _state.update { it.copy(request = CodeRequest.SENDING) }
+                    OtpRequest.InFlight -> {
+                        startCooldown()
+                        _state.update { it.copy(request = CodeRequest.SENDING) }
+                    }
 
+                    // A broker holding nothing means a restored screen whose code went out
+                    // before the process died, so the cooldown still has to be started here.
                     OtpRequest.Sent -> {
-                        if (_state.value.request == CodeRequest.SENDING) {
-                            throttle.recordRequest()
-                            startCountdown()
-                        }
+                        startCooldown()
                         _state.update { it.copy(request = CodeRequest.SENT) }
                     }
 
@@ -110,6 +118,23 @@ internal class OtpViewModel(
         }
     }
 
+    /** Start the wait for the arrival request, once. Later states re-report the same request. */
+    private fun startCooldown() {
+        if (cooldownStarted) return
+        cooldownStarted = true
+        throttle.recordRequest()
+        startCountdown()
+    }
+
+    /** Give the wait back: the request it was started for turned out to send nothing. */
+    private fun cancelCooldown() {
+        if (!cooldownStarted) return
+        cooldownStarted = false
+        throttle.forgetLastRequest()
+        countdownJob?.cancel()
+        _state.update { it.copy(resendInSeconds = 0) }
+    }
+
     /**
      * A refusal, shown where the owner now is.
      *
@@ -117,15 +142,13 @@ internal class OtpViewModel(
      * unrelated, and letting a failed request overwrite a verification in flight puts
      * "could not send" over a sign-in that is succeeding.
      *
-     * A rate limit is the one refusal that records a request. Nothing was sent, but tapping
+     * A rate limit is the one refusal that keeps the cooldown. Nothing was sent, but tapping
      * Resend straight back into an endpoint that just said 429 deepens the ban, and the
-     * cooldown is the only thing that stops it.
+     * cooldown is the only thing that stops it. Every other refusal hands the wait back, so
+     * Resend is the retry rather than a minute of nothing.
      */
     private fun onRequestRefused(error: DomainError) {
-        if (error is DomainError.TooManyOtpRequests) {
-            throttle.recordRequest()
-            startCountdown()
-        }
+        if (error is DomainError.TooManyOtpRequests) startCooldown() else cancelCooldown()
         _state.update {
             if (verifyJob?.isActive == true) {
                 it.copy(request = CodeRequest.FAILED)

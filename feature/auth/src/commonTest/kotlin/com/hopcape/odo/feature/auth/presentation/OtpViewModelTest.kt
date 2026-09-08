@@ -31,6 +31,7 @@ import com.hopcape.odo.feature.auth.domain.OtpRequestBroker
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -121,8 +122,8 @@ class OtpViewModelTest {
         val viewModel = viewModel(gateway)
         advanceTimeBy(SETTLE)
 
-        // The screen asks for the code itself now (#409), and the wait starts when that
-        // request comes back — otherwise Resend is live exactly when it is least useful.
+        // The screen asks for the code itself now (#409), and the wait starts with that
+        // request — otherwise Resend is live exactly when it is least useful.
         assertEquals(1, gateway.requests)
         assertFalse(viewModel.state.value.canResend)
 
@@ -135,6 +136,9 @@ class OtpViewModelTest {
     fun resendWorksOnceTheCooldownHasPassed() = runTest(dispatcher) {
         val gateway = ScriptedGateway()
         val viewModel = viewModel(gateway)
+        // The screen's own request has to land before the clock moves, or the cooldown it
+        // starts is stamped at the already-advanced clock and never lapses.
+        advanceTimeBy(SETTLE)
 
         clockNow = clockNow.plus(OtpThrottle.COOLDOWN)
         advanceTimeBy(OtpThrottle.COOLDOWN.inWholeMilliseconds + 2_000)
@@ -142,7 +146,8 @@ class OtpViewModelTest {
         assertTrue(viewModel.state.value.canResend)
         viewModel.onEvent(OtpEvent.ResendClicked)
         advanceTimeBy(SETTLE)
-        assertEquals(1, gateway.requests)
+        // The screen's own request, then the resend.
+        assertEquals(2, gateway.requests)
     }
 
     @Test
@@ -223,6 +228,19 @@ class OtpViewModelTest {
     }
 
     @Test
+    fun theCountdownStartsWhenTheCodeIsAskedFor_notWhenTheProviderAnswers() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowGateway())
+        advanceTimeBy(SETTLE)
+
+        // Firebase is still on its reCAPTCHA round trip, which is where the seconds go.
+        assertEquals(CodeRequest.SENDING, viewModel.state.value.request)
+        // The owner's wait began when they tapped, not when the provider got round to
+        // answering. A countdown pinned at zero for those seconds is the old delay in a
+        // new place.
+        assertTrue(viewModel.state.value.resendInSeconds > 0)
+    }
+
+    @Test
     fun aRefusedRequestNeitherClaimsSendingNorSent() = runTest(dispatcher) {
         val viewModel = viewModel(RefusingGateway(DomainError.OtpRequestFailed))
         advanceTimeBy(SETTLE)
@@ -248,7 +266,6 @@ class OtpViewModelTest {
 
         // Before the request lands the screen must not claim a code was sent.
         assertEquals(CodeRequest.SENDING, viewModel.state.value.request)
-        assertEquals(0, viewModel.state.value.resendInSeconds)
 
         advanceTimeBy(SETTLE)
 
@@ -339,6 +356,18 @@ class OtpViewModelTest {
 
         override suspend fun verifyOtp(phone: PhoneNumber, code: String): arrow.core.Either<DomainError, AuthSession> =
             error.left()
+        override suspend fun refresh(refreshToken: String) = session().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** Takes the request and sits on it, the way a reCAPTCHA round trip does. */
+    private class SlowGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber): arrow.core.Either<DomainError, OtpRequestOutcome> {
+            delay(1.hours)
+            return OtpRequestOutcome.CodeSent.right()
+        }
+
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = session().right()
         override suspend fun refresh(refreshToken: String) = session().right()
         override suspend fun signOut(accessToken: String) = Unit.right()
     }
