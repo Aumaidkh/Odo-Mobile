@@ -32,6 +32,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 
@@ -148,6 +149,33 @@ class CheckBillPriceUseCaseTest {
         check(car = car(model = "Creta"), lines = listOf(line("AC service", 2_400)), spy = asked)
 
         assertEquals(VehicleSegment.SUV, asked.single().segment)
+    }
+
+    /**
+     * Every band is a network round trip, so a bill's lines must be priced together.
+     *
+     * Asked one after another the screen holds its spinner for the whole bill — four lines is
+     * four latencies, and a scanned thermal bill has far more than four. Measured on the test
+     * clock: the lookups overlap, so the wait is one of them and not the sum.
+     */
+    @Test
+    fun `the bands for a bill are asked for together`() = runTest {
+        val bands = SlowBands(takes = LOOKUP)
+        val lines = listOf(
+            line("AC service", 2_400),
+            line("Coolant", 2_500),
+            line("Brake pads", 3_000),
+            line("Engine oil 5W-30", 1_600),
+        )
+        val startedAt = testScheduler.currentTime
+
+        priceWith(bands, lines)
+
+        assertEquals(lines.size, bands.calls, "every line should have been priced")
+        assertTrue(
+            testScheduler.currentTime - startedAt < LOOKUP * 2,
+            "the lookups ran one after another: ${testScheduler.currentTime - startedAt}ms for ${lines.size} lines",
+        )
     }
 
     /* ------------------------------ The repeat rule ------------------------------ */
@@ -595,6 +623,40 @@ class CheckBillPriceUseCaseTest {
         basis = basis,
     )
 
+    /** Prices [lines] against [bands], with everything else left at its default. */
+    private suspend fun priceWith(bands: PriceBandRepository, lines: List<BillLine>) =
+        CheckBillPriceUseCase(
+            matcher = BillLineMatcher(),
+            bands = bands,
+            intervals = { emptyMap<String, ServiceInterval>().right() },
+            namer = BillLineNamer(
+                matcher = BillLineMatcher(),
+                classifier = namesNothing,
+                config = config(classifier = false),
+            ),
+        ).invoke(
+            car = car(),
+            city = "Srinagar",
+            workshop = WorkshopTier.AUTHORISED,
+            lines = lines,
+            billTotal = rupees(18_400),
+            billDate = BILL_DATE,
+            odometerKm = 12_000,
+            history = emptyList(),
+        )
+
+    /** A band lookup that costs what a network one does, on the test clock. */
+    private class SlowBands(private val takes: Long) : PriceBandRepository {
+        var calls = 0
+            private set
+
+        override suspend fun bandFor(query: PriceBandQuery): Either<DomainError, PriceBand?> {
+            calls++
+            delay(takes)
+            return null.right()
+        }
+    }
+
     private class FakeBands(
         private val band: PriceBand?,
         private val byCategory: Map<String, PriceBand>?,
@@ -665,5 +727,8 @@ class CheckBillPriceUseCaseTest {
 
     private companion object {
         val BILL_DATE = LocalDate(2026, 8, 12)
+
+        /** What one band lookup costs on the test clock. A stand-in for a round trip. */
+        const val LOOKUP = 200L
     }
 }
