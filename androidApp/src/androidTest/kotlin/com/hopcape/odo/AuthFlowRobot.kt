@@ -50,7 +50,6 @@ internal object AuthCopy {
     const val PHONE_TITLE = "What’s your number?"
     const val PHONE_LABEL = "Mobile number"
     const val SEND_CODE = "Send code"
-    const val SENDING_CODE = "Sending code..."
     const val SKIP = "Skip for now"
 
     const val OTP_TITLE = "Enter the code"
@@ -76,6 +75,9 @@ internal object AuthCopy {
 
     /** "Sent to 3210 · " — the last four digits, never the whole number. */
     fun sentTo(lastFour: String) = "Sent to $lastFour · "
+
+    /** The same line while the request is still out. It must not yet claim "Sent". */
+    fun sendingTo(lastFour: String) = "Sending to $lastFour · "
 
     /* The two profile rows the flow is reached from and lands back on. */
     const val PROFILE_SIGN_OUT = "Sign out"
@@ -234,11 +236,23 @@ internal fun AuthTestRule.openSignIn() {
     awaitText(AuthCopy.PHONE_TITLE)
 }
 
-/** Number → code screen, which is the precondition for every code-entry test. */
+/**
+ * Number → code screen, which is the precondition for every code-entry test.
+ *
+ * Waits for the header to say **Sent**, not merely for the screen to draw. The request is
+ * started by the broker and outlives the number screen (#409), so the code screen appears
+ * while it is still out — and until it lands, no code has reached the gateway and
+ * `OtpUiState.isVerifying` is suppressed. Stopping at the title left every later assertion
+ * racing that request.
+ */
 internal fun AuthTestRule.reachTheCodeScreen(number: String = AuthFixtures.TYPED_NUMBER) {
     requestTheCode(number)
     awaitText(AuthCopy.OTP_TITLE)
+    awaitTextStartingWith(AuthCopy.sentTo(number.takeLast(LAST_FOUR_DIGITS)))
 }
+
+/** The header names the last four digits and nothing more. */
+private const val LAST_FOUR_DIGITS = 4
 
 /**
  * Ask for a code and stop there, without waiting for the code screen.
