@@ -182,6 +182,12 @@ internal class CarSyncTable(
      * as far as adding a car.
      */
     override suspend fun afterPull(insertedIds: List<String>) {
+        // Only where the owner named no car. Theirs is already here and already plated, so
+        // anything the pull inserted beside it is another car on the account rather than
+        // their history coming back — and announcing it overwrote the plate match the push
+        // had just got right (#456).
+        val entered = queries.selectPlatedCarIds().executeAsList() - insertedIds.toSet()
+        if (entered.isNotEmpty()) return
         insertedIds.forEach { restored.record(CarId(it)) }
     }
 
