@@ -61,6 +61,9 @@ internal object Copy {
     const val WORKSHOP_AUTHORISED = "Company service centre"
     const val LAST_SERVICE_TITLE = "When was your last service?"
     const val LAST_SERVICE_FORGOT = "Don’t remember"
+    const val LAST_SERVICE_DATE_MISSING = "Add the month of that service, or tick “Don’t remember”."
+    const val LAST_SERVICE_ODOMETER_MISSING =
+        "Add the reading from that service, or tick “Don’t remember”."
     const val SCAN_CTA = "Photograph the old bill"
     const val SKIP = "Skip"
     const val CHOOSE = "Choose"
