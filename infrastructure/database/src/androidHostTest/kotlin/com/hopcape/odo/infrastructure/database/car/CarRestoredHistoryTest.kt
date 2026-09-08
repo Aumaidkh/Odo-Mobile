@@ -52,6 +52,48 @@ class CarRestoredHistoryTest {
         assertEquals(listOf(CarId("server-1")), restored.recorded)
     }
 
+    /**
+     * The fallback the guard must not break: a device that named no car of its own still gets
+     * told about the history that arrived. Inserted through [CarSyncTable.applyRemote] first,
+     * so the plated-car lookup sees what a real pull would leave it.
+     */
+    @Test
+    fun aFreshInstallStillAnnouncesTheHistoryItPulledDown() = runTest {
+        val (db, _) = inMemoryDatabase()
+        val restored = RecordingRestoredHistoryStore()
+        val table = table(db, server = emptyList(), restored = restored)
+
+        table.applyRemote(serverCar(id = "server-1"))
+        table.afterPull(insertedIds = listOf("server-1"))
+
+        assertEquals(listOf(CarId("server-1")), restored.recorded)
+    }
+
+    /**
+     * The bug this guards (#456). The account holds more than one car, so the pull inserts the
+     * others alongside the one the owner named — and every insert used to overwrite the
+     * announcement, leaving the sheet describing a car the owner never entered.
+     */
+    @Test
+    fun aCarTheAccountHoldsIsNotAnnouncedOverTheCarTheOwnerEntered() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1")
+        val restored = RecordingRestoredHistoryStore()
+        val table = table(db, server = listOf(serverCar(id = "server-1")), restored = restored)
+
+        // The push matches the plate and announces the owner's own car.
+        table.reconcileBeforePush(table.pending())
+        // The pull then brings down another car the account happens to hold.
+        table.applyRemote(serverCar(id = "server-other", plate = "JK03Q8279"))
+        table.afterPull(insertedIds = listOf("server-other"))
+
+        assertEquals(
+            listOf(CarId("server-1")),
+            restored.recorded,
+            "the account's other car must not replace the owner's own",
+        )
+    }
+
     @Test
     fun aCarThisDeviceAddedItselfIsNotAnnouncedAsRestored() = runTest {
         val (db, _) = inMemoryDatabase()
