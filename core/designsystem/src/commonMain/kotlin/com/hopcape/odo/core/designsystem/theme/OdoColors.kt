@@ -3,6 +3,7 @@ package com.hopcape.odo.core.designsystem.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 /**
  * Odo's brand colour tokens — the named `--odo-*` roles from the design spec,
@@ -80,6 +81,28 @@ internal val LightOdoColors = OdoColors(
  * brand-default appearance — so a read outside [OdoTheme] still renders on-brand.
  */
 internal val LocalOdoColors = staticCompositionLocalOf { TeslaDarkOdoColors }
+
+/**
+ * The block a skeleton draws while content is still being read.
+ *
+ * Reads as the card that will replace it: a shade above the card on the dark theme, and a shade
+ * below the white card on the light one. [border] is taken opaque because it ships translucent,
+ * and a block that lets the page through is not a block.
+ */
+val OdoColors.shimmerBase: Color get() = if (isDark) surfaceRaised else border.copy(alpha = 1f)
+
+/**
+ * The highlight that sweeps across [shimmerBase]. Always lighter than the block — a darker one
+ * reads as a shadow crossing it, which is what the dark theme used to do.
+ *
+ * Mixed toward white on the dark theme rather than taken from a token, because the palette has
+ * no neutral between [surfaceRaised] and the inks, and an ink-bright sweep would flash.
+ */
+val OdoColors.shimmerHighlight: Color
+    get() = if (isDark) lerp(surfaceRaised, Color.White, DARK_SWEEP_MIX) else surface
+
+/** How far the dark theme's highlight moves toward white. Enough to see, short of a flash. */
+private const val DARK_SWEEP_MIX = 0.12f
 
 /**
  * Maps an Odo Health Score (0–100) onto a status colour, on the PRD §5.4 band
