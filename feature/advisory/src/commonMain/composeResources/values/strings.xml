@@ -28,6 +28,7 @@
     <string name="adv_value_share_text">My %1$s is worth about %2$s. With a full service record it would be %3$s — around %4$s more. Tracking it on Odo.</string>
 
     <string name="adv_value_empty_title">No car yet</string>
+    <string name="adv_value_empty_action">Add your car</string>
     <string name="adv_value_empty_body">Add your car and Odo can tell you what it is worth, and what proving its history would add.</string>
 
     <!-- ─── "Before you go in": the pre-service checklist ─────────────────────────────── -->
