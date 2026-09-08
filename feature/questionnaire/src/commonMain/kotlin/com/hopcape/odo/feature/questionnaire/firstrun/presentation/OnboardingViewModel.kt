@@ -564,12 +564,14 @@ internal class OnboardingViewModel(
     /** Mark the odometer and refuse the step. Used where the form itself is incomplete. */
     private fun failLastServiceOdometer(message: StringResource): Boolean {
         attachOdometerError(message)
+        telemetry.lastServiceRefused(SetupTelemetry.Field.ODOMETER)
         return false
     }
 
     /** Mark the date and refuse the step. Used where the form itself is incomplete. */
     private fun failLastServiceDate(message: StringResource): Boolean {
         attachDateError(message)
+        telemetry.lastServiceRefused(SetupTelemetry.Field.DATE)
         return false
     }
 
