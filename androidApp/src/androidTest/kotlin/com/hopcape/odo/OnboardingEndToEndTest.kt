@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
@@ -164,6 +165,25 @@ class OnboardingEndToEndTest {
         assertEquals(3_000, entry.odometer.km)
         // No bill behind it, so no money. Zero is the truth, not a placeholder.
         assertEquals(0L, entry.totalAmount.paise)
+    }
+
+    /**
+     * Both backs on the sign-in screen mean the same thing.
+     *
+     * Backing out of the prompt is declining it, not abandoning the errand that opened it —
+     * the screen's own arrow has always honoured that. The system back skipped the route's
+     * policy entirely and popped the entry, landing the owner on the surface seeded beneath
+     * sign-in and losing the scan they had asked for.
+     */
+    @Test
+    fun theSystemBackFromSignIn_stillOpensTheScannerThatWasAskedFor() {
+        rule.reachTheLastServiceStep()
+        rule.onNodeWithText(Copy.SCAN_CTA).performClick()
+        rule.waitForText(Copy.AUTH_TITLE)
+
+        Espresso.pressBack()
+
+        rule.waitForText(ScanCopy.SCAN_TITLE_BILL, SCANNER_TIMEOUT_MILLIS)
     }
 
     /**
@@ -352,3 +372,6 @@ class OnboardingEndToEndTest {
         assertEquals(0, car.odometer.km)
     }
 }
+
+/** The viewfinder waits on the camera starting up, which a step transition does not. */
+private const val SCANNER_TIMEOUT_MILLIS = 20_000L
