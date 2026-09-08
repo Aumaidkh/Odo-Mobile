@@ -369,9 +369,7 @@ val coreDataModule = module {
     single<SubscriptionIdentity> { NoopSubscriptionIdentity() }
 
     single<DocumentAllowance> { EntitlementDocumentAllowance(entitlements = get()) }
-    single<ScanAllowance> {
-        EntitlementScanAllowance(entitlements = get(), usage = get(), credits = get())
-    }
+    single<ScanAllowance> { EntitlementScanAllowance(entitlements = get(), usage = get()) }
     // The bill check's own balance, beside the scanner's. They shared one, so five scanned
     // bills closed the check — a wall the owner had never spent anything on.
     single<CheckAllowance> {
