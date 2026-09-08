@@ -69,8 +69,8 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
             // run and nothing of it should survive. `popUpTo = Welcome` kept the pitch — a
             // non-inclusive popUpTo clears what is above the key, and the pitch was the top
             // — so back from the dashboard returned the owner to a screen they had already
-            // answered. Naming the flow rather than one key also covers the video intro,
-            // which is the root whenever that flag is on (#352's lesson).
+            // answered. Naming the flow says what is meant rather than naming the one key
+            // that happens to be under it.
             WelcomeEffect.OpenSignIn -> navigationManager.finishFlow(
                 OdoDestination.Auth.Phone(next = OdoDestination.Home),
                 ::isFirstRunStep,

@@ -1,7 +1,7 @@
 package com.hopcape.odo
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso
@@ -33,14 +33,20 @@ class PitchBackStackTest {
 
     @Test
     fun backFromTheDashboardAfterThePitchSignInLeavesTheApp() {
-        rule.waitForText(Copy.WELCOME_HEADLINE)
+        // The start destination waits on the database opening and the catalog seed, so
+        // the first frame gets the long timeout every other first-run wait uses.
+        rule.waitForText(Copy.WELCOME_HEADLINE, START_DESTINATION_TIMEOUT_MILLIS)
         rule.onNodeWithText(Copy.WELCOME_SIGN_IN).performClick()
         rule.waitForText(Copy.AUTH_TITLE)
 
         // Declining is a back, and it lands on the dashboard exactly where verifying does —
         // the same `next`, the same pop. So the stack under it is the same either way.
         Espresso.pressBack()
-        rule.onNodeWithTag(HomeTestTags.NO_CAR).assertExists()
+        // Waited for rather than asserted: Home draws its skeleton until the car read comes
+        // back off the IO dispatcher, which waitForIdle does not await.
+        rule.waitUntil {
+            rule.onAllNodesWithTag(HomeTestTags.NO_CAR).fetchSemanticsNodes().isNotEmpty()
+        }
 
         // Nothing is behind the dashboard now. Going back to the pitch would ask the owner
         // something they have already answered.
