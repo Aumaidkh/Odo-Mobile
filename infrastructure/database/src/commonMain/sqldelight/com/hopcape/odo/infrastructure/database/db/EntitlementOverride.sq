@@ -41,6 +41,11 @@ UPDATE entitlement_override
 SET granted = :granted, expires_at = :expires_at, updated_at = :updated_at, sync_status = 'SYNCED'
 WHERE owner_id = :owner_id AND feature = :feature;
 
+-- A withdrawn override, as the server reported it. A delta pull cannot mention a row that is
+-- no longer there, so a clear arrives as a tombstone and this is what acts on it.
+deleteRow:
+DELETE FROM entitlement_override WHERE owner_id = :owner_id AND feature = :feature;
+
 -- Sign-out wipe, and the foreign-owned sweep sign-in does. An override belongs to one
 -- account and must never outlive its session on a shared device.
 deleteAllRows:

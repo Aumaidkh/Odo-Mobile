@@ -50,7 +50,18 @@ internal class EntitlementOverrideSyncTable(
             ?.let { row -> LocalRowState(row.sync_status.toSyncStatus(), row.updated_at.toInstantOrNull()) }
     }
 
+    /**
+     * A withdrawn override is deleted rather than stored.
+     *
+     * The row is how the server says "this was cleared" — a delta pull cannot report a row
+     * that is no longer there, and an absent row is indistinguishable from a read that
+     * returned nothing. Keeping the tombstone locally would answer the same question twice.
+     */
     override fun applyRemote(dto: EntitlementOverrideDto) {
+        if (dto.deletedAt != null) {
+            queries.deleteRow(owner_id = dto.ownerId, feature = dto.feature)
+            return
+        }
         queries.insertFromRemote(
             owner_id = dto.ownerId,
             feature = dto.feature,
