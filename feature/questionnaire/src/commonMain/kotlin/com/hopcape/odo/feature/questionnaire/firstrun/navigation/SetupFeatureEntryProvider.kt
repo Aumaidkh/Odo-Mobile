@@ -1,10 +1,24 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
@@ -45,16 +59,18 @@ internal class SetupFeatureEntryProvider(
 internal fun SetupRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<OnboardingViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    // Held rather than shown on the spot: the effect lambda is neither composable nor
+    // suspending, and the message is a UiText that only a composition can resolve.
+    var failure by remember { mutableStateOf<UiText?>(null) }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             OnboardingEffect.NavigateBack -> navigationManager.back()
 
-            // TODO(ui): show this in a snackbar. Every step screen scaffolds itself with its
-            //  own OdoScreen, so the host state has to be threaded through OnboardingFlow
-            //  before there is anywhere to post it. Until then a failed write is visible
-            //  only as Continue not advancing — which is honest, but not an explanation.
-            is OnboardingEffect.SaveFailed -> Unit
+            // A refused step keeps the owner where they are, so this message is the only
+            // thing that separates "the write failed" from a dead button.
+            is OnboardingEffect.SaveFailed -> failure = effect.message
 
             is OnboardingEffect.Finish -> {
                 // Always the dashboard. Onboarding used to pick a surface from the owner's
@@ -95,6 +111,27 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
         }
     }
 
-    OnboardingFlow(state = state, onEvent = viewModel::onEvent)
+    val failureText = failure?.asString()
+    LaunchedEffect(failureText) {
+        if (failureText == null) return@LaunchedEffect
+        snackbarHostState.showSnackbar(failureText)
+        // Cleared so the same message shows again the next time a save is refused.
+        failure = null
+    }
+
+    // The flow's steps share one plain Column rather than a Scaffold, so the host lives here
+    // over all of them instead of being threaded through each screen.
+    Box(modifier = Modifier.fillMaxSize()) {
+        OnboardingFlow(state = state, onEvent = viewModel::onEvent)
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                // Follows the keyboard the way the step's own CTA does, so a refusal is not
+                // posted underneath it.
+                .imePadding(),
+        )
+    }
 }
 

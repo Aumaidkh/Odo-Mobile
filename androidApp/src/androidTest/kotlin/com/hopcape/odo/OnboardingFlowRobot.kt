@@ -20,6 +20,8 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
@@ -49,6 +51,9 @@ internal object Copy {
     const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
+
+    /** What a refused save says. Its whole job is to not be silence. */
+    const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."
     const val LOOKUP_NOT_FOUND = "No record for this plate"
     const val MATCH_SOURCE_OWN = "From your earlier Odo record"
     const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
@@ -357,4 +362,43 @@ private class StubOnboardingRegistry(
             // not-found copy, and a retry button instead would strand the test.
             DomainError.RegistrationNotFound.left()
         }
+}
+
+/**
+ * Makes storing the car fail, so the step's refusal path can be driven.
+ *
+ * Wraps the real repository rather than replacing it: every other read the flow makes still
+ * answers normally, and only `add` refuses — which is the shape of the failure the owner
+ * actually hits, not a graph with a hole in it.
+ */
+internal fun installRefusingCarStore() {
+    val real = GlobalContext.get().get<CarRepository>()
+    GlobalContext.get().loadModules(
+        listOf(module { single<CarRepository> { RefusingCarStore(real) } }),
+        allowOverride = true,
+    )
+}
+
+private class RefusingCarStore(private val real: CarRepository) : CarRepository by real {
+    override suspend fun add(car: Car): Either<DomainError, Car> =
+        DomainError.PersistenceFailure().left()
+}
+
+/**
+ * Drives the manual car form to the point where Continue is live and the save will be refused.
+ *
+ * Needs [installRefusingCarStore] to have run before the launch. Shared by the behaviour test
+ * and the screenshot one so both photograph and assert the same moment.
+ */
+internal fun OdoTestRule.reachARefusedCarSave() {
+    startFromWelcome()
+    onNodeWithText(Copy.ENTER_MANUALLY).performClick()
+    waitForText(Copy.DETAILS_TITLE)
+
+    pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
+    pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
+    confirmYear()
+    pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
+    setOdometer()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
 }
