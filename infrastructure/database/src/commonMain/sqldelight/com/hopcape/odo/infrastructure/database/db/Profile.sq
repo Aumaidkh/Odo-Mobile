@@ -89,9 +89,10 @@ WHERE id = :id AND deleted_at IS NULL;
 -- The number the session just proved, written on its own.
 --
 -- Deliberately not part of a whole-profile save: sign-in knows the phone and
--- nothing else, and there may be no profile row yet (someone who signs in
--- before finishing setup) or one still keyed to the placeholder owner. The
--- caller runs this and, if it changed nothing, inserts a row instead.
+-- nothing else, and the row may still be keyed to the placeholder owner. When
+-- there is no row at all this changes nothing, on purpose — the caller must not
+-- invent one, because the push is a whole-row upsert and a row holding only the
+-- number overwrites the account's real full_name with NULL.
 --
 -- Leaves the row PENDING so the next push carries it. Matching on `phone IS NOT
 -- :phone` keeps a relaunch from marking an already-correct row dirty and asking
