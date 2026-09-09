@@ -56,7 +56,7 @@ internal class RecordDeclaredServiceUseCase(
             source = LogSource.DECLARED,
         ).bind()
 
-        val known = logs.odometerReadings(carId).orEmpty()
+        val known = logs.odometerReadings(carId)
         OdometerTimeline.validate(
             candidate = OdometerReading(logId = id, date = date, odometer = entry.odometer),
             known = known,

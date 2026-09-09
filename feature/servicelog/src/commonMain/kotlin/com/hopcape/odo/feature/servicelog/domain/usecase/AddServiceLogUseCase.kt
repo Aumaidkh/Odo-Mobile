@@ -59,10 +59,10 @@ internal class AddServiceLogUseCase(
 
         // Cross-entity rule — the odometer only counts up, checked against the readings
         // around this one *in date order* so logging history backwards stays possible.
-        // The readings coalesce the car's prior logs with its onboarding baseline; null
-        // means the car has no baseline at all → it does not exist for this owner.
+        // The readings coalesce the car's prior logs with its baseline. Empty is ordinary —
+        // a car set up with the reading pending has none yet — so there is simply nothing to
+        // compare against, and the entry is still validated on its own fields.
         val readings = logs.odometerReadings(carId)
-        ensureNotNull(readings) { nonEmptyListOf(DomainError.CarNotFound) }
         OdometerTimeline.validate(
             candidate = OdometerReading(logId = entry.id, date = entry.serviceDate, odometer = entry.odometer),
             known = readings,

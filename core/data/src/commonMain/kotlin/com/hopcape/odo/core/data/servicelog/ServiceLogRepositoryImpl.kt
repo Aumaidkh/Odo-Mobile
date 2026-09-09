@@ -102,18 +102,16 @@ internal class ServiceLogRepositoryImpl(
             }
         }
 
-    override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? =
+    override suspend fun odometerReadings(carId: CarId): List<OdometerReading> =
         telemetry.span(DataTelemetry.SERVICE_LOG, OP_READINGS, carId.value) {
             try {
-                // An empty result means no live car contributed its baseline — the car does
-                // not exist for this owner, which the domain reads as CarNotFound.
-                local.odometerReadings(carId).ifEmpty { null }
+                // Handed back as it is. An empty timeline is a car with nothing recorded
+                // yet, not a car that is missing.
+                local.odometerReadings(carId)
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.SERVICE_LOG, OP_READINGS, e, carId.value)
-                // Null here would read as "no such car" and reject a legitimate write with
-                // CarNotFound. An empty timeline is the safer lie: the ordering check simply
-                // has nothing to compare against, and the entry is still validated on its
-                // own fields.
+                // The ordering check simply has nothing to compare against, and the entry is
+                // still validated on its own fields.
                 emptyList()
             }
         }

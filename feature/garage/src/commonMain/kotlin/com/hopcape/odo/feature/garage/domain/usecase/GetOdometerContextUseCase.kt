@@ -42,11 +42,12 @@ internal class GetOdometerContextUseCase(
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
     suspend operator fun invoke(carId: CarId): Either<DomainError, OdometerContext> = either {
-        val readings = ensureNotNull(logs.odometerReadings(carId)) { DomainError.CarNotFound }
-        // The car's own reading is the one without a log id. A live car always has it, so
-        // its absence means the readings came from somewhere they should not have.
-        val own = ensureNotNull(readings.firstOrNull { it.logId == null }) { DomainError.CarNotFound }
-        val latest = readings.currentReading() ?: own
+        val readings = logs.odometerReadings(carId)
+        // The car's own baseline, when it has one — a car set up with the reading pending
+        // does not, and that is not a reason to refuse the sheet. Only a fallback: whatever
+        // is newest wins, and the baseline is simply one of the candidates.
+        val own = readings.firstOrNull { it.logId == null }
+        val latest = ensureNotNull(readings.currentReading() ?: own) { DomainError.CarNotFound }
         val aggregate = currentOdometer.observeCurrent(carId).first() ?: latest.odometer
 
         OdometerContext(
