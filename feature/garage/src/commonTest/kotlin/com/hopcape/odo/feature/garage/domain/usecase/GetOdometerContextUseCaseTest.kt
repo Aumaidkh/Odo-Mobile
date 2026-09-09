@@ -89,11 +89,16 @@ class GetOdometerContextUseCaseTest {
         assertIs<DomainError.CarNotFound>(useCase(null)(TEST_CAR).leftOrNull())
     }
 
+    /**
+     * A timeline of logs and no car baseline is what a pending-reading car looks like once
+     * it has a service on file. The newest reading answers the sheet; the baseline was only
+     * ever a fallback, and its absence is not a missing car.
+     */
     @Test
-    fun readingsWithoutTheCarsOwn_isCarNotFound() = runTest {
+    fun readingsWithoutTheCarsOwn_stillAnswer() = runTest {
         val result = useCase(listOf(reading("log-1", LocalDate(2026, 1, 15), 40_000)))(TEST_CAR)
 
-        assertIs<DomainError.CarNotFound>(result.leftOrNull())
+        assertEquals(40_000, result.getOrNull()?.lastRecorded?.odometer?.km)
     }
 
     @Test

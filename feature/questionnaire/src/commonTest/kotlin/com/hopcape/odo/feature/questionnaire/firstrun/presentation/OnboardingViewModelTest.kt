@@ -1166,7 +1166,7 @@ class OnboardingViewModelTest {
             entry.right().also { added += entry }
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> = readings.orEmpty()
         override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
             flowOf(readings.orEmpty())
     }

@@ -80,7 +80,7 @@ internal class SaveCarUseCase(
         car.knownOdometer?.let { reading ->
             // `null` means this id has no baseline at all — true of every genuinely new car,
             // since onboarding is what would have written the first one.
-            val known = logs.odometerReadings(id).orEmpty()
+            val known = logs.odometerReadings(id)
             OdometerTimeline.validate(
                 candidate = OdometerReading(
                     // Not a service entry: this is the car's own baseline reading, taken today.

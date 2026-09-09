@@ -139,15 +139,21 @@ class UpdateOdometerUseCaseTest {
         assertIs<DomainError.CarNotFound>(result.leftOrNull())
     }
 
-    /** No readings at all means the car does not exist for this owner. */
+    /**
+     * A car with nothing recorded yet still takes a reading.
+     *
+     * It used to be refused as CarNotFound, on the grounds that a live car always
+     * contributed its own baseline. A car set up with the reading pending (#429) has none,
+     * and its owner could never give one — the update that would have created the first
+     * reading was the one being refused.
+     */
     @Test
-    fun noReadings_isCarNotFound() = runTest {
-        val result = useCase(
-            FakeCarRepository(testCar()),
-            FakeServiceLogRepository(readings = null),
-        )(TEST_CAR, 48_500)
+    fun noReadingsYet_stillTakesOne() = runTest {
+        val cars = FakeCarRepository(testCar())
 
-        assertIs<DomainError.CarNotFound>(result.leftOrNull())
+        val result = useCase(cars, FakeServiceLogRepository(readings = null))(TEST_CAR, 48_500)
+
+        assertEquals(48_500, result.getOrNull()?.odometer?.km)
     }
 
     @Test
