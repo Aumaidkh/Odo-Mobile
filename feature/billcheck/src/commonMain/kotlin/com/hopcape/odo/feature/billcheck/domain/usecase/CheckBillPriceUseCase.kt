@@ -20,6 +20,9 @@ import com.hopcape.odo.feature.billcheck.domain.Evidence
 import com.hopcape.odo.feature.billcheck.domain.FlaggedLine
 import com.hopcape.odo.feature.billcheck.domain.PricedLine
 import com.hopcape.odo.feature.billcheck.domain.Reason
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.LocalDate
 
 /** One line as it was printed on the bill. */
@@ -92,23 +95,36 @@ internal class CheckBillPriceUseCase(
             matched.filter { (_, match) -> match == LineMatch.Unknown }.map { (line, _) -> line.label },
         )
 
-        matched.forEach { (line, match) ->
-            val priced = PricedLine(line.label, line.amount)
-            val kind = when (match) {
+        // Every line's job, worked out before anything is asked for, so the lookups below can
+        // all be started at once.
+        val kinds = matched.map { (line, match) ->
+            when (match) {
                 // Labour, tax, a discount. There is nothing to check it against, and the
                 // modelled band already includes labour anyway.
                 LineMatch.NotAJob -> null
                 LineMatch.Unknown -> byModel[line.label]
                 is LineMatch.Job -> match.kind
             }
+        }
+
+        // Asked together, not one after another. Each is a network RPC, and a scanned bill
+        // with a dozen lines would otherwise hold the screen through a dozen serial round
+        // trips — the wait grew with the bill instead of staying one lookup long.
+        val bandsByLine = coroutineScope {
+            kinds.map { kind -> async { kind?.let { bandFor(it, car, city, workshop) } } }.awaitAll()
+        }
+
+        matched.forEachIndexed { index, (line, match) ->
+            val priced = PricedLine(line.label, line.amount)
+            val kind = kinds[index]
             if (kind == null) {
                 unchecked += priced
-                return@forEach
+                return@forEachIndexed
             }
 
             val repeat = repeats.previous(kind, history, billDate)
             val early = notDue.notDueYet(kind, odometerKm, history)
-            val band = bandFor(kind, car, city, workshop)
+            val band = bandsByLine[index]
             // Every named line with a band is a real price somebody paid, whatever else was
             // said about it — a repeat is still a price, and the pool is about what things
             // cost rather than about who should have asked.
