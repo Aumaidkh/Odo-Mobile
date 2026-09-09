@@ -457,18 +457,20 @@ class OnboardingViewModelTest {
         assertTrue(viewModel.state.value.canContinue)
     }
 
+    /**
+     * The reading is optional, and saying so is a label rather than a button now — so the
+     * only way past the step without one is Continue itself.
+     */
     @Test
-    fun skippingTheOdometer_clearsTheField_andMovesOn() = runTest(dispatcher) {
+    fun theCarStepMovesOnWithNoOdometerAtAll() = runTest(dispatcher) {
         val viewModel = viewModel()
         viewModel.onEvent(OnboardingEvent.Car.PlateChanged(FOUND_PLATE))
         advanceUntilIdle()
-        viewModel.onEvent(OnboardingEvent.OdometerChanged(54_000))
 
-        viewModel.onEvent(OnboardingEvent.OdometerUnknown)
+        viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
 
-        // Whatever was half-dialled is dropped — the car is saved with the reading pending,
-        // not with a number the owner backed out of.
+        // Nothing dialled, and the car is saved with the reading pending rather than at zero.
         assertNull(viewModel.state.value.odometer.value)
         assertEquals(OnboardingStep.PROFILE, viewModel.state.value.step)
     }

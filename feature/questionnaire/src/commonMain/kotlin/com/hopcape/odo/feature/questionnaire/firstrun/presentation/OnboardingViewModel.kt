@@ -134,7 +134,6 @@ internal class OnboardingViewModel(
         is OnboardingEvent.Workshop -> onWorkshopEvent(event)
         is OnboardingEvent.LastService -> onLastServiceEvent(event)
         is OnboardingEvent.OdometerChanged -> onOdometerChanged(event.km)
-        OnboardingEvent.OdometerUnknown -> onOdometerUnknown()
         OnboardingEvent.ContinueClicked -> advance()
         OnboardingEvent.BackClicked -> goBack()
     }
@@ -383,6 +382,12 @@ internal class OnboardingViewModel(
     private fun advance() {
         val current = _state.value
         if (!current.canContinue || saveJob?.isActive == true) return
+        // Leaving the car step without a reading is still a skip worth counting; it is just
+        // no longer its own button. Reported before the write so a failed save does not lose
+        // the fact that the owner declined to give one.
+        if (current.step == OnboardingStep.CAR && current.odometer.value == null) {
+            telemetry.odometerSkipped()
+        }
         saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
             if (!persist(current)) return@launch
             telemetry.stepAdvanced(from = current.step)
@@ -646,13 +651,6 @@ internal class OnboardingViewModel(
     }
 
     /* ------------------------------ State writers ------------------------------ */
-
-    /** Drop whatever was half-dialled and move on; the car is saved with the reading pending. */
-    private fun onOdometerUnknown() {
-        _state.update { it.copy(odometer = FormField()) }
-        telemetry.odometerSkipped()
-        advance()
-    }
 
     private fun onOdometerChanged(km: Long) =
         _state.update { it.copy(odometer = it.odometer.update(km)) }

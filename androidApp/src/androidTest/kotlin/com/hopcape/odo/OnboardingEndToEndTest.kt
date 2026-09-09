@@ -354,13 +354,25 @@ class OnboardingEndToEndTest {
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
     }
 
+    /**
+     * The reading is optional — Continue is live without it — so the step states that rather
+     * than offering a second button that does what Continue already does.
+     */
+    @Test
+    fun theCarStepSaysTheReadingCanWait() {
+        rule.startFromWelcome()
+
+        rule.onNodeWithText(Copy.ODOMETER_LATER).assertIsDisplayed()
+        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).assertDoesNotExist()
+    }
+
     @Test
     fun theOdometerCanBeSkipped_andTheCarIsStoredPending() {
         rule.startFromWelcome()
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
         rule.waitForText(Fixtures.MATCHED_CAR)
 
-        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
         rule.waitForText(Copy.PROFILE_TITLE)
 
         // Stored reading zero and flagged, so nothing downstream reads the placeholder as a

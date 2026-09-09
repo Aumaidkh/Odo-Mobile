@@ -58,7 +58,11 @@ internal object Copy {
     const val MATCH_SOURCE_OWN = "From your earlier Odo record"
     const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
+    /** Retired copy, kept so a test can assert the button did not come back. */
     const val ODOMETER_UNKNOWN = "I don\u2019t know it right now"
+
+    /** What replaced it: the reading is optional, so the step says so rather than asking. */
+    const val ODOMETER_LATER = "You can add that later"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"

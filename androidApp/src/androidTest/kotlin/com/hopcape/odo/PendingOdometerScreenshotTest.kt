@@ -55,7 +55,7 @@ class PendingOdometerScreenshotTest {
         // an owner who was not near their car.
         rule.captureScreen("after-car-step")
 
-        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
         rule.finishSetupFromTheProfileStep()
 
         // The costs goal lands on the value screen, which is one of the surfaces that cannot
