@@ -272,45 +272,6 @@ internal fun FieldLabel(text: String, modifier: Modifier = Modifier) {
  * @param leadingIcon optional glyph before the prompt (the auto-fill hint carries one).
  * @param boxed draws it as a bordered surface row rather than bare text.
  */
-/**
- * "I don't know it right now", under the odometer on both routes of the car step.
- *
- * Continue is live whether or not a reading is given, so this does not unblock anything — it
- * is what makes the option visible. Deliberately quiet: muted text with a hairline rule under
- * it, so the drum above stays the thing the eye lands on.
- */
-@Composable
-internal fun OdometerUnknownLink(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .clip(OdoTheme.shapes.small)
-                .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            OdoText(
-                text = text,
-                style = OdoTheme.typography.label,
-                color = OdoTheme.colors.textMuted,
-            )
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(OdoTheme.colors.textMuted.copy(alpha = 0.35f)),
-            )
-        }
-    }
-}
 
 @Composable
 internal fun InlineLinkRow(
