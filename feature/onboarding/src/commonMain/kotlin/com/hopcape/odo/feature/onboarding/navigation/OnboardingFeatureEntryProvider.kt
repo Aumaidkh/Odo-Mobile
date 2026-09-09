@@ -11,6 +11,8 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isFirstRunStep
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoEffect
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoScreen
@@ -61,11 +63,17 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
         when (effect) {
             WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
             // Home, not car setup: sync restores the returning owner's car, so setup would
-            // only make a second one. `popUpTo = Welcome` clears the pitch behind it, so
-            // back from Home leaves the app rather than returning to first run.
-            WelcomeEffect.OpenSignIn -> navigationManager.navigateTo(
+            // only make a second one.
+            //
+            // finishFlow rather than popUpTo, because signing in here is a way *past* first
+            // run and nothing of it should survive. `popUpTo = Welcome` kept the pitch — a
+            // non-inclusive popUpTo clears what is above the key, and the pitch was the top
+            // — so back from the dashboard returned the owner to a screen they had already
+            // answered. Naming the flow says what is meant rather than naming the one key
+            // that happens to be under it.
+            WelcomeEffect.OpenSignIn -> navigationManager.finishFlow(
                 OdoDestination.Auth.Phone(next = OdoDestination.Home),
-                popUpTo = OdoDestination.Welcome,
+                ::isFirstRunStep,
             )
             // A build with no backend configured gets blank URLs, and the tap then does
             // nothing. The sentence around the links is a legal statement, so unlike the
