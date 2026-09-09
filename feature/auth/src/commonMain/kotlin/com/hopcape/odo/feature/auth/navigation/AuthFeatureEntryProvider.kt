@@ -1,12 +1,15 @@
 package com.hopcape.odo.feature.auth.navigation
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.feature.auth.presentation.OtpEffect
 import com.hopcape.odo.feature.auth.presentation.OtpViewModel
 import com.hopcape.odo.feature.auth.presentation.PhoneEffect
+import com.hopcape.odo.feature.auth.presentation.PhoneEvent
 import com.hopcape.odo.feature.auth.presentation.PhoneViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -66,6 +69,7 @@ private fun NavigationManager.leaveAuth(key: OdoDestination.Auth) {
     )
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun PhoneRoute(key: OdoDestination.Auth.Phone, navigationManager: NavigationManager) {
     val viewModel = koinViewModel<PhoneViewModel>()
@@ -82,14 +86,22 @@ internal fun PhoneRoute(key: OdoDestination.Auth.Phone, navigationManager: Navig
         }
     }
 
+    // Backing out of a prompt is declining it, so every back runs "Skip for now": the same
+    // decision, the same destination, and counted the same way. Going through the ViewModel
+    // rather than straight to leaveAuth is what makes the count true — declining is the
+    // flow's biggest drop-off, and only the button was reporting it.
+    val decline = { viewModel.onEvent(PhoneEvent.SkipClicked) }
+
+    // The system back has to be caught here or it falls through to the host's plain pop,
+    // which lands on whatever sits under sign-in and never reaches `next` — the scan or the
+    // value screen the owner asked for is dropped, and where auth is the stack root the
+    // gesture does nothing at all.
+    BackHandler(enabled = true) { decline() }
+
     PhoneScreen(
         state = state,
         onEvent = viewModel::onEvent,
-        // Phone is the root of the stack here — onboarding cleared everything behind it,
-        // so there is nothing to pop back to. Backing out of a prompt means declining it,
-        // so back and "Skip for now" are the same action; a plain `back()` would be a
-        // dead control (Navigator.goBack no-ops at the root).
-        onBack = { navigationManager.leaveAuth(key) },
+        onBack = decline,
     )
 }
 
