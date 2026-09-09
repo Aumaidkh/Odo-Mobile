@@ -336,5 +336,5 @@ internal fun AuthTestRule.awaitResendOffered() {
  */
 internal const val AUTH_HANDOFF_TIMEOUT_MILLIS = 10_000L
 
-/** Longer than OtpThrottle's 30-second resend cooldown. */
-internal const val AUTH_COOLDOWN_TIMEOUT_MILLIS = 45_000L
+/** Longer than OtpThrottle's one-minute resend cooldown. */
+internal const val AUTH_COOLDOWN_TIMEOUT_MILLIS = 75_000L

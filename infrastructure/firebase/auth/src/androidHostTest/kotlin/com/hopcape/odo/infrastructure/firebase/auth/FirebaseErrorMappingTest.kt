@@ -33,7 +33,7 @@ class FirebaseErrorMappingTest {
     fun `a rate limit carries a countdown so the screen does not have to guess`() {
         val error = FirebaseTooManyRequestsException("slow down")
 
-        assertEquals(DomainError.TooManyOtpRequests(retryAfterSeconds = 30L), error.toSendFailure())
+        assertEquals(DomainError.TooManyOtpRequests(retryAfterSeconds = 60L), error.toSendFailure())
     }
 
     @Test
@@ -66,7 +66,7 @@ class FirebaseErrorMappingTest {
     fun `a rate limit on verify carries the same countdown as on send`() {
         val error = FirebaseTooManyRequestsException("slow down")
 
-        assertEquals(DomainError.TooManyOtpRequests(retryAfterSeconds = 30L), error.toVerifyFailure())
+        assertEquals(DomainError.TooManyOtpRequests(retryAfterSeconds = 60L), error.toVerifyFailure())
     }
 
     @Test

@@ -191,11 +191,11 @@ internal class FirebasePhoneVerifier(
  * How long to tell the owner to wait after Firebase rate-limits them.
  *
  * Firebase does not say how long its limit lasts, so this is the app's own answer rather than
- * the server's — the same 30 seconds `OtpThrottle` already makes the owner wait between
- * codes, so the countdown does not change shape when the limit turns out to be Firebase's
- * rather than ours.
+ * the server's — the same minute `OtpThrottle` already makes the owner wait between codes, so
+ * the countdown does not change shape when the limit turns out to be Firebase's rather than
+ * ours.
  */
-private const val RATE_LIMIT_COOLDOWN_SECONDS = 30L
+private const val RATE_LIMIT_COOLDOWN_SECONDS = 60L
 
 /**
  * What went wrong asking for a code.
