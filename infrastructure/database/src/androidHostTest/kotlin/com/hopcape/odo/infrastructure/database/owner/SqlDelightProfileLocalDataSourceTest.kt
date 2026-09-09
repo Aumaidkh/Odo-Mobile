@@ -163,19 +163,54 @@ class SqlDelightProfileLocalDataSourceTest {
     }
 
     @Test
-    fun recordPhone_createsARowWhenSetupHasNotRunYet() = runTest {
+    fun recordPhone_beforeSetupHasRun_writesNoProfileAtAll() = runTest {
         val db = newDb()
         val local = local(db)
 
-        // Signed in before finishing setup: there is nothing to attach the number to yet.
+        // Signed in before finishing setup: there is nothing to attach the number to yet,
+        // and inventing a row here is what used to wipe the name (see the outbox test above).
         local.recordPhone(ownerId, phone)
 
-        val stored = local.observe().first()
+        assertNull(local.observe().first())
+    }
+
+    @Test
+    fun recordPhone_ontoAPulledProfile_keepsTheNameAndQueuesTheNumber() = runTest {
+        val db = newDb()
+        // The row as a pull leaves it: the account's real name, no number, already SYNCED.
+        db.profileQueries.insertProfile(
+            id = ownerId.value,
+            fullName = "Rahul",
+            onboardingCompletedAt = completedAt.toString(),
+            city = null,
+            email = null,
+            avatarPath = null,
+            sharesPrices = 1,
+            now = completedAt.toString(),
+            syncStatus = SyncStatus.SYNCED.name,
+            phone = null,
+        )
+
+        local(db).recordPhone(ownerId, phone)
+
+        val stored = local(db).observe().first()
+        assertEquals("Rahul", stored?.name?.value)
         assertEquals(phone.value, stored?.phone?.value)
-        // And the row it made must not read as a finished setup, or the app opens on Home
-        // with no car.
-        assertNull(stored?.name)
-        assertTrue(stored?.hasCompletedOnboarding == false)
+        // Now it belongs in the outbox: the row carries the name the server already has, so
+        // the push adds the number instead of taking anything away.
+        assertEquals(1, db.profileQueries.selectPending().executeAsList().size)
+    }
+
+    @Test
+    fun recordPhone_withNoProfileYet_putsNothingInTheOutbox() = runTest {
+        val db = newDb()
+
+        // Signing in on a device that has never finished setup. The push is a whole-row
+        // upsert, so a nameless row in the outbox overwrites the account's real full_name
+        // with NULL on the server, and the owner's name is gone everywhere.
+        local(db).recordPhone(ownerId, phone)
+
+        assertEquals(emptyList(), db.profileQueries.selectPending().executeAsList())
     }
 
     @Test
@@ -197,6 +232,7 @@ class SqlDelightProfileLocalDataSourceTest {
     fun save_doesNotWipeTheNumberItWasNeverTold() = runTest {
         val db = newDb()
         val local = local(db)
+        local.save(profile())
         local.recordPhone(ownerId, phone)
 
         // Every screen that edits a profile builds one from what it asked for, and none of
@@ -239,6 +275,36 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
+        // Same reason as `record_export_credits` below: a real database at version 5 has
+        // `cars`, and 19.sqm adds a column to it. Only the columns the migrations touch are
+        // needed — this is a migration fixture, not the real schema.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE cars (
+                    id                  TEXT NOT NULL PRIMARY KEY,
+                    owner_id            TEXT NOT NULL,
+                    make                TEXT NOT NULL,
+                    model               TEXT NOT NULL,
+                    variant             TEXT,
+                    year                INTEGER NOT NULL,
+                    fuel_type           TEXT NOT NULL,
+                    registration_number TEXT,
+                    current_odometer_km INTEGER NOT NULL,
+                    purchase_year       INTEGER,
+                    nickname            TEXT,
+                    is_primary          INTEGER NOT NULL DEFAULT 0,
+                    odometer_updated_at TEXT,
+                    created_at          TEXT NOT NULL,
+                    updated_at          TEXT NOT NULL,
+                    deleted_at          TEXT,
+                    remote_version      TEXT,
+                    sync_status         TEXT NOT NULL DEFAULT 'PENDING'
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
         // A real database at version 5 has this too — 4.sqm created it — and the migration
         // that folds the old balances into `purchase_claims` reads it. Without it here the
         // chain below fails on a table the fixture forgot rather than on anything real.
@@ -260,6 +326,8 @@ class SqlDelightProfileLocalDataSourceTest {
         OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = OdoDatabase.Schema.version).await()
 
         val db = OdoDatabase(driver)
+        // A profile to write the number onto: `recordPhone` deliberately creates none.
+        local(db).save(profile())
         local(db).recordPhone(ownerId, phone)
         assertEquals(phone.value, local(db).observe().first()?.phone?.value)
     }

@@ -382,6 +382,12 @@ internal class OnboardingViewModel(
     private fun advance() {
         val current = _state.value
         if (!current.canContinue || saveJob?.isActive == true) return
+        // Leaving the car step without a reading is still a skip worth counting; it is just
+        // no longer its own button. Reported before the write so a failed save does not lose
+        // the fact that the owner declined to give one.
+        if (current.step == OnboardingStep.CAR && current.odometer.value == null) {
+            telemetry.odometerSkipped()
+        }
         saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
             if (!persist(current)) return@launch
             telemetry.stepAdvanced(from = current.step)
@@ -563,12 +569,14 @@ internal class OnboardingViewModel(
     /** Mark the odometer and refuse the step. Used where the form itself is incomplete. */
     private fun failLastServiceOdometer(message: StringResource): Boolean {
         attachOdometerError(message)
+        telemetry.lastServiceRefused(SetupTelemetry.Field.ODOMETER)
         return false
     }
 
     /** Mark the date and refuse the step. Used where the form itself is incomplete. */
     private fun failLastServiceDate(message: StringResource): Boolean {
         attachDateError(message)
+        telemetry.lastServiceRefused(SetupTelemetry.Field.DATE)
         return false
     }
 
@@ -750,6 +758,8 @@ private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
         year = if (manualEntry) details.year.value else car.match?.year,
         fuelType = if (manualEntry) details.fuel.value else car.match?.fuelType,
         odometerKm = odometer.value?.toInt(),
+        // No reading given: the car is stored reading zero, flagged, and asked for again.
+        odometerPending = odometer.value == null,
         registrationNumber = car.plate.text,
         isPrimary = true,
     )

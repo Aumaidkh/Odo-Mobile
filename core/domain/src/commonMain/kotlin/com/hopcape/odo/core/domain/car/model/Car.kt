@@ -33,6 +33,14 @@ class Car private constructor(
     val fuelType: FuelType,
     val registrationNumber: RegistrationNumber?,
     val odometer: Distance,
+    /**
+     * The owner has not told Odo where this car reads yet, so [odometer] is a placeholder
+     * zero rather than a measurement.
+     *
+     * A separate flag because zero is a reading a genuinely new car can have, and per-km
+     * cost, the health score and the value estimate would all take it literally.
+     */
+    val isOdometerPending: Boolean,
     val purchaseYear: PurchaseYear?,
     val nickname: String?,
     val isPrimary: Boolean,
@@ -61,6 +69,16 @@ class Car private constructor(
     val modelName: String get() = listOfNotNull(make, model, variant).joinToString(" ")
 
     /**
+     * The reading, or `null` while it is still [isOdometerPending].
+     *
+     * What anything computing from distance should read. [odometer] answers "what does the
+     * row hold" and is never null, which is what keeps the column and every mapper simple;
+     * this answers "what does this car actually read", which is the question a ₹/km figure,
+     * a health score or a value estimate is really asking.
+     */
+    val knownOdometer: Distance? get() = odometer.takeIf { !isOdometerPending }
+
+    /**
      * The same car with a new odometer reading, or the reason [km] is not a reading.
      *
      * Only the value itself is checked (present, not negative). Whether the reading fits
@@ -85,6 +103,8 @@ class Car private constructor(
                 fuelType = fuelType,
                 registrationNumber = registrationNumber,
                 odometer = reading,
+                // Writing a reading is how the question gets answered.
+                isOdometerPending = false,
                 purchaseYear = purchaseYear,
                 nickname = nickname,
                 isPrimary = isPrimary,
@@ -107,6 +127,11 @@ class Car private constructor(
             year: Int?,
             fuelType: FuelType?,
             odometerKm: Int?,
+            /**
+             * The owner skipped the reading. [odometerKm] is then ignored and the car is
+             * stored reading zero, with [Car.isOdometerPending] set.
+             */
+            odometerPending: Boolean = false,
             variant: String? = null,
             registrationNumber: String? = null,
             purchaseYear: Int? = null,
@@ -118,7 +143,7 @@ class Car private constructor(
                 { ensureNotNull(model?.trim()?.ifBlank { null }) { DomainError.BlankModel } },
                 { ModelYear.of(year).bind() },
                 { ensureNotNull(fuelType) { DomainError.MissingFuelType } },
-                { Distance.of(odometerKm).bind() },
+                { Distance.of(if (odometerPending) 0 else odometerKm).bind() },
                 { PurchaseYear.of(purchaseYear).bind() },
                 { RegistrationNumber.of(registrationNumber) },
             ) { validMake, validModel, validYear, validFuel, validOdometer, validPurchaseYear, validRegistration ->
@@ -132,6 +157,7 @@ class Car private constructor(
                     fuelType = validFuel,
                     registrationNumber = validRegistration,
                     odometer = validOdometer,
+                    isOdometerPending = odometerPending,
                     purchaseYear = validPurchaseYear,
                     nickname = nickname?.trim()?.ifBlank { null },
                     isPrimary = isPrimary,
@@ -162,6 +188,7 @@ class Car private constructor(
             fuelType: FuelType,
             registrationNumber: String?,
             odometerKm: Int,
+            isOdometerPending: Boolean = false,
             purchaseYear: Int?,
             nickname: String?,
             isPrimary: Boolean,
@@ -177,6 +204,7 @@ class Car private constructor(
             registrationNumber = RegistrationNumber.of(registrationNumber),
             odometer = Distance.of(odometerKm)
                 .getOrElse { error("corrupt car.odometer=$odometerKm for ${id.value}") },
+            isOdometerPending = isOdometerPending,
             purchaseYear = PurchaseYear.of(purchaseYear)
                 .getOrElse { error("corrupt car.purchaseYear=$purchaseYear for ${id.value}") },
             nickname = nickname,

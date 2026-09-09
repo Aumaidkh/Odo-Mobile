@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -93,6 +95,7 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_model_search
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_hint
+import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_optional
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_save
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_subtitle
@@ -309,6 +312,16 @@ private fun CarDetailsForm(
                 kmLabel = stringResource(Res.string.onb_unit_km),
                 milesLabel = stringResource(Res.string.onb_unit_miles),
                 hint = stringResource(Res.string.onb_odometer_hint),
+            )
+            // A label, not a button. Continue is live without a reading, so a second control
+            // that only did what Continue already does was one decision too many — this just
+            // says the reading can wait.
+            OdoText(
+                text = stringResource(Res.string.onb_odometer_optional),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

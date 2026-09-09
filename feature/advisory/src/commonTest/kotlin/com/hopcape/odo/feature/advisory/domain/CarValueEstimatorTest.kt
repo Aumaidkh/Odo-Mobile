@@ -30,8 +30,8 @@ class CarValueEstimatorTest {
         val older = estimate(car(year = 2018))
 
         assertTrue(
-            older.today.paise < newer.today.paise,
-            "2018 (${older.today.paise}) should be under 2024 (${newer.today.paise})",
+            older.today.low.paise < newer.today.low.paise,
+            "2018 (${older.today.low.paise}) should be under 2024 (${newer.today.low.paise})",
         )
     }
 
@@ -40,7 +40,7 @@ class CarValueEstimatorTest {
         val low = estimate(car(odometerKm = 20_000))
         val high = estimate(car(odometerKm = 90_000))
 
-        assertTrue(high.today.paise < low.today.paise)
+        assertTrue(high.today.low.paise < low.today.low.paise)
     }
 
     /**
@@ -52,7 +52,7 @@ class CarValueEstimatorTest {
         val far = estimate(car(odometerKm = 150_000))
         val absurd = estimate(car(odometerKm = 400_000))
 
-        assertEquals(far.today.paise, absurd.today.paise)
+        assertEquals(far.today.low.paise, absurd.today.low.paise)
     }
 
     @Test
@@ -62,7 +62,7 @@ class CarValueEstimatorTest {
 
         assertEquals(VehicleSegment.HATCHBACK, SegmentCatalog.segmentOf("Baleno"))
         assertEquals(VehicleSegment.SUV, SegmentCatalog.segmentOf("Creta"))
-        assertTrue(suv.today.paise > hatchback.today.paise)
+        assertTrue(suv.today.low.paise > hatchback.today.low.paise)
     }
 
     /** A model nobody entered is priced as a hatchback rather than not priced at all. */
@@ -73,7 +73,7 @@ class CarValueEstimatorTest {
         val unlisted = estimate(car(model = "Nonesuch GTX"))
         val hatchback = estimate(car(model = "Baleno"))
 
-        assertEquals(hatchback.today.paise, unlisted.today.paise)
+        assertEquals(hatchback.today.low.paise, unlisted.today.low.paise)
     }
 
     @Test
@@ -81,7 +81,7 @@ class CarValueEstimatorTest {
         val metro = estimate(car(), cityTier = 1)
         val small = estimate(car(), cityTier = 3)
 
-        assertTrue(small.today.paise < metro.today.paise)
+        assertTrue(small.today.low.paise < metro.today.low.paise)
     }
 
     /** No city set is not a failure; it is priced as the middle tier. */
@@ -99,7 +99,7 @@ class CarValueEstimatorTest {
         assertTrue(value.hasNoRecord)
         assertEquals(0.0, value.recordCompleteness)
         assertTrue(value.recordWorth.paise > 0)
-        assertTrue(value.today.paise < value.withFullRecord.low.paise)
+        assertTrue(value.today.low.paise < value.withFullRecord.low.paise)
     }
 
     /**
@@ -112,7 +112,7 @@ class CarValueEstimatorTest {
         val full = estimate(car(year = 2022), logs = List(4) { verifiedLog(it) })
 
         assertEquals(1.0, full.recordCompleteness)
-        assertTrue(full.today.paise > none.today.paise)
+        assertTrue(full.today.low.paise > none.today.low.paise)
         assertTrue(full.recordWorth.paise < none.recordWorth.paise)
     }
 
@@ -130,8 +130,14 @@ class CarValueEstimatorTest {
 
         assertTrue(full.isRecordComplete)
         assertEquals(0L, full.recordWorth.paise)
-        assertTrue(full.today.paise > full.withFullRecord.low.paise)
-        assertTrue(full.today.paise < full.withFullRecord.high.paise)
+        // Today's band carries the model's uncertainty about the base price *on top of* the
+        // premium band, so it is wider than that band rather than sitting inside it. What has
+        // to hold is that both describe the same car: the premium band's middle is inside
+        // today's. (The screen drops the premium card here for the same reason — at a
+        // complete record the two are one figure.)
+        val premiumMiddle = (full.withFullRecord.low.paise + full.withFullRecord.high.paise) / 2
+        assertTrue(full.today.low.paise < premiumMiddle)
+        assertTrue(full.today.high.paise > premiumMiddle)
     }
 
     /** With nothing proven, today sits below the band — that gap is the whole argument. */
@@ -140,7 +146,7 @@ class CarValueEstimatorTest {
         val none = estimate(car(year = 2022), logs = emptyList())
 
         assertTrue(!none.isRecordComplete)
-        assertTrue(none.today.paise < none.withFullRecord.low.paise)
+        assertTrue(none.today.low.paise < none.withFullRecord.low.paise)
         assertTrue(none.recordWorth.paise > 0)
     }
 
@@ -155,7 +161,7 @@ class CarValueEstimatorTest {
 
         assertEquals(0.0, typed.recordCompleteness)
         assertTrue(typed.hasNoRecord, "typing four services is still not a record")
-        assertEquals(none.today.paise, typed.today.paise)
+        assertEquals(none.today.low.paise, typed.today.low.paise)
     }
 
     @Test
@@ -164,8 +170,8 @@ class CarValueEstimatorTest {
         val half = estimate(car(year = 2022), logs = List(2) { verifiedLog(it) })
         val full = estimate(car(year = 2022), logs = List(4) { verifiedLog(it) })
 
-        assertTrue(half.today.paise > none.today.paise)
-        assertTrue(half.today.paise < full.today.paise)
+        assertTrue(half.today.low.paise > none.today.low.paise)
+        assertTrue(half.today.low.paise < full.today.low.paise)
     }
 
     /**
@@ -182,7 +188,7 @@ class CarValueEstimatorTest {
         assertEquals(0.0, value.recordCompleteness)
         assertEquals(0, value.provenServices)
         assertTrue(value.hasNoRecord)
-        assertTrue(value.today.paise < value.withFullRecord.low.paise)
+        assertTrue(value.today.low.paise < value.withFullRecord.low.paise)
     }
 
     /** One bill is a complete record for a car that has only had time for one service. */
@@ -202,7 +208,7 @@ class CarValueEstimatorTest {
     /** A running car is never worthless, however old it is. */
     @Test
     fun aVeryOldCarStillHasAFloorPrice() {
-        assertTrue(estimate(car(year = 1995)).today.paise > 0)
+        assertTrue(estimate(car(year = 1995)).today.low.paise > 0)
     }
 
     /* ------------------------------ Fixtures ------------------------------ */
@@ -213,6 +219,8 @@ class CarValueEstimatorTest {
         cityTier: Int? = 2,
     ) = CarValueEstimator.estimate(
         car = car,
+        // The fixtures all build cars with a real reading, so this is that reading.
+        odometer = requireNotNull(car.knownOdometer),
         logs = logs,
         cityTier = cityTier,
         currentYear = CURRENT_YEAR,

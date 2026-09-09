@@ -26,12 +26,13 @@ interface ProfileLocalDataSource {
     fun observe(): Flow<OwnerProfile?>
 
     /**
-     * Store the number the session just proved, on whichever profile row this device holds,
-     * creating one keyed to [ownerId] if there is none yet.
+     * Store the number the session just proved, on whichever profile row this device holds.
+     * Does nothing when there is none — sign-in knows the phone and nothing else, and a row
+     * built from that alone would push a null name over the account's real one.
      *
-     * Separate from [save] because sign-in knows the phone and nothing else: a whole-profile
-     * write would need a profile, and there may not be one, or it may still be keyed to the
-     * placeholder owner. Leaves the row `PENDING` so the next push carries the number.
+     * Separate from [save] because a whole-profile write needs a profile, and the row may
+     * still be keyed to the placeholder owner. Leaves the row `PENDING` so the next push
+     * carries the number.
      */
     suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber)
 

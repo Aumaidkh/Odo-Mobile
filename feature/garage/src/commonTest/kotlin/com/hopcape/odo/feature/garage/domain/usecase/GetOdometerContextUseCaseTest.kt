@@ -11,6 +11,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.time.Instant
@@ -48,8 +49,8 @@ class GetOdometerContextUseCaseTest {
         )(TEST_CAR)
 
         val context = result.getOrNull()!!
-        assertEquals(45_000, context.lastRecorded.odometer.km)
-        assertEquals(LocalDate(2026, 3, 2), context.lastRecorded.date)
+        assertEquals(45_000, context.lastRecorded?.odometer?.km)
+        assertEquals(LocalDate(2026, 3, 2), context.lastRecorded?.date)
         assertEquals(today, context.today)
     }
 
@@ -65,8 +66,8 @@ class GetOdometerContextUseCaseTest {
         )(TEST_CAR)
 
         val context = result.getOrNull()!!
-        assertEquals(52_000, context.lastRecorded.odometer.km)
-        assertEquals(LocalDate(2026, 6, 15), context.lastRecorded.date)
+        assertEquals(52_000, context.lastRecorded?.odometer?.km)
+        assertEquals(LocalDate(2026, 6, 15), context.lastRecorded?.date)
     }
 
     @Test
@@ -80,20 +81,54 @@ class GetOdometerContextUseCaseTest {
         )(TEST_CAR)
 
         val context = result.getOrNull()!!
-        assertEquals(45_120, context.lastRecorded.odometer.km)
-        assertEquals(LocalDate(2026, 3, 2), context.lastRecorded.date)
+        assertEquals(45_120, context.lastRecorded?.odometer?.km)
+        assertEquals(LocalDate(2026, 3, 2), context.lastRecorded?.date)
     }
 
+    /**
+     * A car with nothing recorded still opens the sheet — that is the only place a first
+     * reading can be given, so refusing it left the owner with no way to give one.
+     */
     @Test
-    fun noReadings_isCarNotFound() = runTest {
-        assertIs<DomainError.CarNotFound>(useCase(null)(TEST_CAR).leftOrNull())
+    fun nothingRecorded_stillOpensWithNothingToStartFrom() = runTest {
+        val context = useCase(emptyList())(TEST_CAR).getOrNull()
+
+        assertNotNull(context)
+        assertNull(context.lastRecorded)
+        assertNull(context.startFrom)
     }
 
+    /**
+     * A reading taken from a past service is what the sheet knows, not what it opens on.
+     * Offering it as the starting value puts a months-old figure one tap from being saved
+     * as today's reading.
+     */
     @Test
-    fun readingsWithoutTheCarsOwn_isCarNotFound() = runTest {
+    fun aReadingFromAServiceIsNotWhatTheDrumOpensOn() = runTest {
+        val context = useCase(listOf(reading("log-1", LocalDate(2026, 1, 15), 40_000)))(TEST_CAR).getOrNull()
+
+        assertEquals(40_000, context?.lastRecorded?.odometer?.km)
+        assertNull(context?.startFrom, "a past service is not today's reading")
+    }
+
+    /** The car's own reading is. It is the owner's most recent word on where the car is. */
+    @Test
+    fun theCarsOwnReadingIsWhatTheDrumOpensOn() = runTest {
+        val context = useCase(listOf(reading(null, LocalDate(2026, 3, 2), 45_000)))(TEST_CAR).getOrNull()
+
+        assertEquals(45_000, context?.startFrom?.km)
+    }
+
+    /**
+     * A timeline of logs and no car baseline is what a pending-reading car looks like once
+     * it has a service on file. The newest reading answers the sheet; the baseline was only
+     * ever a fallback, and its absence is not a missing car.
+     */
+    @Test
+    fun readingsWithoutTheCarsOwn_stillAnswer() = runTest {
         val result = useCase(listOf(reading("log-1", LocalDate(2026, 1, 15), 40_000)))(TEST_CAR)
 
-        assertIs<DomainError.CarNotFound>(result.leftOrNull())
+        assertEquals(40_000, result.getOrNull()?.lastRecorded?.odometer?.km)
     }
 
     @Test

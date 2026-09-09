@@ -27,6 +27,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.theme.shimmerBase
+import com.hopcape.odo.core.designsystem.theme.shimmerHighlight
 
 /**
  * A block that stands in for content still being read, with a highlight sweeping across it.
@@ -45,10 +47,11 @@ fun OdoShimmerBlock(
     width: Dp? = null,
     shape: RoundedCornerShape = RoundedCornerShape(ShimmerDefaults.Radius),
 ) {
-    val base = OdoTheme.colors.border
-    // The highlight is the surface rather than white: on a light theme white would be
-    // invisible against the block, and on a dark one it would flash.
-    val highlight = OdoTheme.colors.surfaceRaised
+    // Both come from the theme, which owns the rule that the highlight is lighter than the
+    // block. Reading two raw tokens here is what let the dark theme sweep a darker colour
+    // across a lighter one, so the sweep read as a shadow.
+    val base = OdoTheme.colors.shimmerBase
+    val highlight = OdoTheme.colors.shimmerHighlight
     val progress = LocalShimmerProgress.current
 
     Box(

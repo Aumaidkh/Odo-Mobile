@@ -6,8 +6,10 @@ import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.data.coreDataModule
+import com.hopcape.odo.infrastructure.database.car.RecordingRestoredHistoryStore
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -128,6 +130,8 @@ class SyncableRegistrationTest {
                 single<CurrentOwnerProvider> { CurrentOwnerProvider { OwnerId("owner-1") } }
                 // The blob uploader reads files off the device, which is a platform binding.
                 single<PlatformFileStore> { noopBlobUploaderFileStore }
+                // Restored-history marker: prefs on Android, so another platform binding.
+                single<RestoredHistoryStore> { RecordingRestoredHistoryStore() }
             },
         )
     }.koin

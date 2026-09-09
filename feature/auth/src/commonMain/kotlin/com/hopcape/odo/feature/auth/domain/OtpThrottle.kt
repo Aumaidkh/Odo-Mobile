@@ -1,7 +1,7 @@
 package com.hopcape.odo.feature.auth.domain
 
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
@@ -26,6 +26,9 @@ import kotlin.time.Instant
 internal class OtpThrottle(private val now: () -> Instant) {
 
     private var lastRequestedAt: Instant? = null
+
+    /** What [lastRequestedAt] was before the current request, so a refusal can fall back to it. */
+    private var previousRequestedAt: Instant? = null
     private var requests: Int = 0
 
     /** Whether another code may be asked for right now. */
@@ -41,15 +44,33 @@ internal class OtpThrottle(private val now: () -> Instant) {
     /** True once this sitting has used up its allowance; the countdown will not help. */
     fun isExhausted(): Boolean = requests >= MAX_REQUESTS
 
-    /** Record that a code was asked for. Called only when the request was accepted. */
+    /** Record that a code was asked for. Called when the request goes out, not when it lands. */
     fun recordRequest() {
+        previousRequestedAt = lastRequestedAt
         lastRequestedAt = now()
         requests++
     }
 
+    /**
+     * Undo the last [recordRequest], for a request the provider refused.
+     *
+     * Nothing was sent and nothing was spent, so it costs neither the cooldown nor one of the
+     * allowance. The cooldown falls back to the request before it rather than to zero: that
+     * one did go out, and its wait is still running.
+     */
+    fun forgetLastRequest() {
+        if (requests == 0) return
+        requests--
+        lastRequestedAt = previousRequestedAt
+        previousRequestedAt = null
+    }
+
     internal companion object {
-        /** Long enough for an SMS to actually arrive on an Indian network. */
-        val COOLDOWN = 30.seconds
+        /**
+         * Long enough for an SMS to arrive on an Indian network, and long enough that Resend
+         * cannot be tapped through the whole [MAX_REQUESTS] allowance in a couple of minutes.
+         */
+        val COOLDOWN = 1.minutes
 
         /** Codes per sitting. Beyond this the number is not receiving them. */
         const val MAX_REQUESTS = 5

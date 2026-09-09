@@ -77,6 +77,7 @@ internal sealed interface OnboardingEvent {
      */
     data class OdometerChanged(val km: Long) : OnboardingEvent
 
+
     /** The shared chrome's primary action — advances a step, or finishes on the last one. */
     data object ContinueClicked : OnboardingEvent
 

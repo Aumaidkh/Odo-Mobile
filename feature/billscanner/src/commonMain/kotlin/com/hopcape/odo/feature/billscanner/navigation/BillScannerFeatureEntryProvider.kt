@@ -17,6 +17,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
+import com.hopcape.odo.core.navigation.leaveBillScan
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.camera.CameraEvent
 import com.hopcape.odo.core.platform.camera.rememberOdoCameraState
@@ -353,14 +354,8 @@ private const val REVIEW_CITY = "Pune"
  * Exit the scan flow and reset to the car's service log with a clean back stack. With no
  * active car there is no log to reset to, so the flow is simply popped.
  */
-private fun NavigationManager.backToServiceLog(carId: CarId?) {
-    if (carId == null) {
-        back()
-        return
-    }
-    val log = OdoDestination.ServiceLog.List(carId.value)
-    navigateTo(log, popUpTo = log, inclusive = true)
-}
+private fun NavigationManager.backToServiceLog(carId: CarId?) =
+    leaveBillScan(carId?.let { OdoDestination.ServiceLog.List(it.value) })
 
 /** Where the paywall was opened from. A shipped analytics value — do not reword it. */
 private const val PAYWALL_TRIGGER_SCANS = "SCANS_EXHAUSTED"

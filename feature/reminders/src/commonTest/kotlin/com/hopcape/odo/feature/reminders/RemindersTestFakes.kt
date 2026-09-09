@@ -188,7 +188,7 @@ internal class FakeServiceLogRepository(
 
     override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
 
-    override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? =
+    override suspend fun odometerReadings(carId: CarId): List<OdometerReading> =
         storedReadings.value
 
     override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> = storedReadings

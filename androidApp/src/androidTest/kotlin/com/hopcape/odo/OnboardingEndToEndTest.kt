@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
@@ -81,9 +82,10 @@ class OnboardingEndToEndTest {
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
         rule.waitForText(Fixtures.MATCHED_CAR)
 
-        // A named car still isn't an answered step. Odo can't compute ₹/km, the health score
-        // or a km anomaly without the reading, so Continue stays shut until it is set.
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
+        // A named car answers the step. The reading is asked for here and wanted here, but
+        // an owner who is not at their car cannot give it, and gating step 1 of 4 on it left
+        // them with nowhere to go (issue #429).
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
 
@@ -163,6 +165,55 @@ class OnboardingEndToEndTest {
         assertEquals(3_000, entry.odometer.km)
         // No bill behind it, so no money. Zero is the truth, not a placeholder.
         assertEquals(0L, entry.totalAmount.paise)
+    }
+
+    /**
+     * Both backs on the sign-in screen mean the same thing.
+     *
+     * Backing out of the prompt is declining it, not abandoning the errand that opened it —
+     * the screen's own arrow has always honoured that. The system back skipped the route's
+     * policy entirely and popped the entry, landing the owner on the surface seeded beneath
+     * sign-in and losing the scan they had asked for.
+     */
+    @Test
+    fun theSystemBackFromSignIn_stillOpensTheScannerThatWasAskedFor() {
+        rule.reachTheLastServiceStep()
+        rule.onNodeWithText(Copy.SCAN_CTA).performClick()
+        rule.waitForText(Copy.AUTH_TITLE)
+
+        Espresso.pressBack()
+
+        rule.waitForText(ScanCopy.SCAN_TITLE_BILL, SCANNER_TIMEOUT_MILLIS)
+    }
+
+    /**
+     * A refused Done has to say what it wants.
+     *
+     * Half an answer is correctly rejected, but the reason only ever reached a field error
+     * the screen did not draw, so the owner saw a live button that did nothing and no way
+     * to learn which half was missing.
+     */
+    @Test
+    fun aDateWithNoReading_saysWhichHalfIsMissing() {
+        rule.reachTheLastServiceStep()
+
+        rule.pickFirstOfTheMonth()
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_ODOMETER_MISSING)
+        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
+    }
+
+    /** The other half, on the other field — and on a different component. */
+    @Test
+    fun aReadingWithNoDate_saysWhichHalfIsMissing() {
+        rule.reachTheLastServiceStep()
+
+        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_DATE_MISSING)
+        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
     }
 
     /** The car setup just stored, and the single log now hanging off it. */
@@ -268,7 +319,8 @@ class OnboardingEndToEndTest {
 
         // Every picker answered and the odometer given, and it is still not enough: the plate
         // is required on this route too, or the car is saved without the number every bill,
-        // reminder and document identifies it by.
+        // reminder and document identifies it by. (The odometer is not what holds it — that
+        // may be skipped; the plate may not.)
         rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
 
@@ -295,10 +347,43 @@ class OnboardingEndToEndTest {
         // Nothing typed: the car step is unanswered and says so.
         rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
 
-        // A plate alone isn't an answer either — the odometer is never optional.
+        // A matched plate is an answer, with or without a reading: the car step's job is to
+        // name the car, and the odometer is asked for again wherever it is actually needed.
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
         rule.waitForText(Fixtures.MATCHED_CAR)
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.onNodeWithText(Copy.CAR_TITLE).assertIsDisplayed()
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
+    }
+
+    /**
+     * The reading is optional — Continue is live without it — so the step states that rather
+     * than offering a second button that does what Continue already does.
+     */
+    @Test
+    fun theCarStepSaysTheReadingCanWait() {
+        rule.startFromWelcome()
+
+        rule.onNodeWithText(Copy.ODOMETER_LATER).assertIsDisplayed()
+        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).assertDoesNotExist()
+    }
+
+    @Test
+    fun theOdometerCanBeSkipped_andTheCarIsStoredPending() {
+        rule.startFromWelcome()
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+        rule.waitForText(Fixtures.MATCHED_CAR)
+
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
+        rule.waitForText(Copy.PROFILE_TITLE)
+
+        // Stored reading zero and flagged, so nothing downstream reads the placeholder as a
+        // measurement — and so Home knows to keep asking.
+        val car = runBlocking {
+            GlobalContext.get().get<CarRepository>().observePrimaryCar().filterNotNull().first()
+        }
+        assertEquals(true, car.isOdometerPending)
+        assertEquals(0, car.odometer.km)
     }
 }
+
+/** The viewfinder waits on the camera starting up, which a step transition does not. */
+private const val SCANNER_TIMEOUT_MILLIS = 20_000L

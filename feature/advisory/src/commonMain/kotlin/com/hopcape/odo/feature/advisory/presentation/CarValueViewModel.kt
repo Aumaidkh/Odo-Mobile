@@ -54,14 +54,24 @@ internal class CarValueViewModel(
             emit(CarValueEffect.Share(event.text))
         }
 
+        CarValueEvent.AddOdometerClicked -> emit(CarValueEffect.OpenUpdateOdometer)
+
+        CarValueEvent.AddCarClicked -> emit(CarValueEffect.OpenAddCar)
+
         CarValueEvent.BackClicked -> emit(CarValueEffect.NavigateBack)
     }
 
     private fun observe() {
         viewModelScope.launch(telemetry.op(AdvisoryTelemetry.Trace.LOAD)) {
-            telemetry.timeToFirstValue(observeCarValue()).collect { valued ->
-                _state.update { it.copy(isLoading = false, valued = valued) }
-                report(valued)
+            telemetry.timeToFirstValue(observeCarValue()).collect { snapshot ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        valued = snapshot.valued,
+                        odometerPending = snapshot.odometerPending,
+                    )
+                }
+                report(snapshot.valued)
             }
         }
     }

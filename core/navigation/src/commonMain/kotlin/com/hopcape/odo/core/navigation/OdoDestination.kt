@@ -137,6 +137,12 @@ sealed interface OdoDestination : NavKey {
         /** Remove-car confirmation — shown as a sheet. */
         @Serializable
         data object RemoveCar : Garage
+        /**
+         * "Your history came back" — the sheet shown once after signing in restored a car's
+         * records (issue #425). Pushed by the app shell, not by anything in the garage.
+         */
+        @Serializable
+        data object HistoryRestored : Garage
         /** Edit-car full screen. */
         @Serializable
         data object EditCar : Garage

@@ -75,7 +75,7 @@ class SaveCarUseCaseTest {
         override suspend fun add(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> = readings.orEmpty()
         override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
             flowOf(readings.orEmpty())
     }
@@ -89,6 +89,18 @@ class SaveCarUseCaseTest {
         fuelType = FuelType.PETROL,
         odometerKm = 45_000,
     )
+
+    /** A car a previous pass through setup already stored, and never got past. */
+    private fun storedPrimaryCar() = Car.create(
+        id = CarId("car-1"),
+        ownerId = ownerId,
+        make = "Maruti",
+        model = "Swift",
+        year = 2020,
+        fuelType = FuelType.PETROL,
+        odometerKm = 45_000,
+        isPrimary = true,
+    ).getOrNull()!!
 
     /** A reading already on file, dated when it was written down. */
     private fun reading(date: LocalDate, km: Int) = OdometerReading(
@@ -135,6 +147,30 @@ class SaveCarUseCaseTest {
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals(1, repo.addCount)
         assertEquals(0, repo.updateCount)
+    }
+
+    /**
+     * The deadlock this guards (#454).
+     *
+     * Setup stores the car on the car step and marks the flow finished a step later, so a run
+     * that ends in between leaves a stored car and no profile. The next launch opens setup
+     * again with `savedCarId` gone — it is a plain ViewModel field — and inserting a second
+     * live primary car is refused by `uq_cars_one_primary` every time, forever.
+     */
+    @Test
+    fun withoutAnExistingId_theStoredPrimaryCarIsAdopted() = runTest {
+        val repo = FakeCarRepository()
+        repo.lastAdded = storedPrimaryCar()
+
+        val result = useCase(repo, idGenerator = FixedIdGenerator("would-be-a-twin"))(
+            command = validCommand(),
+            ownerId = ownerId,
+        )
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals("car-1", result.getOrNull()?.id?.value, "the car already on file")
+        assertEquals(1, repo.updateCount)
+        assertEquals(0, repo.addCount, "a second live primary car cannot be stored")
     }
 
     @Test

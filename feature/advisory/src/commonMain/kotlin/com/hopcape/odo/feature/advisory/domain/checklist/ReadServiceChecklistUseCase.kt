@@ -64,7 +64,10 @@ internal class ReadServiceChecklistUseCase(
     override suspend fun read(): Either<DomainError, ServiceChecklist> {
         val car = cars.observePrimaryCar().first() ?: return DomainError.CarNotFound.left()
         val today = clock.now().toLocalDateTime(timeZone).date
-        val currentKm = odometers.observeCurrent(car.id).first()?.km ?: car.odometer.km
+        // knownOdometer, not odometer: a car whose reading is still pending holds a
+        // placeholder zero, and every by-km row would come out due immediately.
+        val currentKm = odometers.observeCurrent(car.id).first()?.km ?: car.knownOdometer?.km
+            ?: return DomainError.MissingOdometer.left()
         val history = logs.observe(car.id).first()
 
         // A schedule that could not be read is no schedule. Reported rather than logged, the

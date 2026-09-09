@@ -245,6 +245,15 @@ internal class HomeViewModel(
 
         HomeEvent.BellTapped -> send(HomeEffect.OpenReminders)
 
+        HomeEvent.AddOdometerTapped -> {
+            telemetry.addOdometerTapped()
+            send(HomeEffect.OpenUpdateOdometer)
+        }
+
+        // The card's visibility is the screen's, not this ViewModel's: dismissal lasts the
+        // session and nothing outside Home cares. Only the fact of it is worth counting.
+        HomeEvent.OdometerNudgeDismissed -> telemetry.odometerNudgeDismissed()
+
         HomeEvent.ProfileTapped -> send(HomeEffect.OpenProfile)
 
         HomeEvent.ScanBillTapped -> {
@@ -392,6 +401,7 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     userName = ownerName.orEmpty(),
     carName = car?.displayName.orEmpty(),
     odometer = odometer,
+    odometerPending = car?.isOdometerPending == true,
     score = score.total,
     band = score.band,
     scoreDelta = scoreDelta,

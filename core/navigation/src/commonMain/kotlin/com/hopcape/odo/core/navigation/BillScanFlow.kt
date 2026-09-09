@@ -27,3 +27,20 @@ fun isBillScanFlowStep(destination: OdoDestination): Boolean = when (destination
     is OdoDestination.BillScanner.Capture -> destination.target != ScanTarget.Document
     else -> false
 }
+
+/**
+ * End the scan errand and land on [destination], or on whatever opened the scanner when there
+ * is none.
+ *
+ * Leaving the flow first is what makes the success screen terminal: `popUpTo` pops nothing
+ * when its target was never on the stack, which is every scan started from somewhere other
+ * than the service log.
+ *
+ * Then navigating rather than [finishFlow]: the scanner can be opened from the log's own form,
+ * which leaves the log deeper in the stack, and only [NavigationCommand.NavigateTo] brings an
+ * existing entry forward instead of putting one key on the stack twice.
+ */
+fun NavigationManager.leaveBillScan(destination: OdoDestination?) {
+    leaveFlow(::isBillScanFlowStep)
+    destination?.let { navigateTo(it) }
+}

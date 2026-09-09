@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -271,6 +272,7 @@ internal fun FieldLabel(text: String, modifier: Modifier = Modifier) {
  * @param leadingIcon optional glyph before the prompt (the auto-fill hint carries one).
  * @param boxed draws it as a bordered surface row rather than bare text.
  */
+
 @Composable
 internal fun InlineLinkRow(
     prompt: String,

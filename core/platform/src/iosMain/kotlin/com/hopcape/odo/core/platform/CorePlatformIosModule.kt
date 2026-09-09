@@ -23,6 +23,7 @@ import com.hopcape.odo.core.platform.notification.NotificationAccess
 import com.hopcape.odo.core.platform.notification.PaymentNotices
 import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.IosSystemNotificationSettings
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.IosSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -32,6 +33,7 @@ import com.hopcape.odo.core.config.ConfigSnapshotStore
 import com.hopcape.odo.core.config.LocalConfigOverrides
 import com.hopcape.odo.core.platform.config.DefaultsConfigSnapshotStore
 import com.hopcape.odo.core.platform.config.DefaultsLocalConfigOverrides
+import com.hopcape.odo.core.platform.history.DefaultsRestoredHistoryStore
 import com.hopcape.odo.core.platform.showcase.DefaultsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.IosSmsAppSignature
 import com.hopcape.odo.core.platform.sms.IosSmsCodeReader
@@ -86,6 +88,7 @@ val corePlatformIosModule = module {
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }
     single<ShowcaseSeenStore> { DefaultsShowcaseSeenStore() }
+    single<RestoredHistoryStore> { DefaultsRestoredHistoryStore() }
 
     // Debug builds only — see the Android module for why.
     if (BuildInfo.isDebug) {

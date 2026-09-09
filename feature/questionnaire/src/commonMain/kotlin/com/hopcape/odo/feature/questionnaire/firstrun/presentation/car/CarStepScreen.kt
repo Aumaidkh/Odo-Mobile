@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
@@ -81,6 +82,7 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_car_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_car_matched
 import com.hopcape.odo.feature.questionnaire.resources.onb_continue
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_hint
+import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_optional
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_save
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_subtitle
@@ -193,6 +195,16 @@ internal fun CarStepScreen(
                 text = stringResource(Res.string.onb_car_odometer_helper),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textMuted,
+            )
+            // A label, not a button. Continue is live without a reading, so a second control
+            // that only did what Continue already does was one decision too many — this just
+            // says the reading can wait.
+            OdoText(
+                text = stringResource(Res.string.onb_odometer_optional),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

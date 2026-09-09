@@ -70,6 +70,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Garage.AddToHistory,
         OdoDestination.Garage.Export,
         OdoDestination.Garage.RemoveCar,
+        OdoDestination.Garage.HistoryRestored,
         OdoDestination.Garage.EditCar,
         OdoDestination.Garage.AddCar,
         // Reminders

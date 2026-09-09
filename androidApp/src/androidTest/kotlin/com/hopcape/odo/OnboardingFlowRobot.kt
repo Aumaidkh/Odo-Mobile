@@ -20,6 +20,8 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
@@ -49,10 +51,18 @@ internal object Copy {
     const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
+
+    /** What a refused save says. Its whole job is to not be silence. */
+    const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."
     const val LOOKUP_NOT_FOUND = "No record for this plate"
     const val MATCH_SOURCE_OWN = "From your earlier Odo record"
     const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
+    /** Retired copy, kept so a test can assert the button did not come back. */
+    const val ODOMETER_UNKNOWN = "I don\u2019t know it right now"
+
+    /** What replaced it: the reading is optional, so the step says so rather than asking. */
+    const val ODOMETER_LATER = "You can add that later"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
@@ -60,6 +70,9 @@ internal object Copy {
     const val WORKSHOP_AUTHORISED = "Company service centre"
     const val LAST_SERVICE_TITLE = "When was your last service?"
     const val LAST_SERVICE_FORGOT = "Don’t remember"
+    const val LAST_SERVICE_DATE_MISSING = "Add the month of that service, or tick “Don’t remember”."
+    const val LAST_SERVICE_ODOMETER_MISSING =
+        "Add the reading from that service, or tick “Don’t remember”."
     const val SCAN_CTA = "Photograph the old bill"
     const val SKIP = "Skip"
     const val CHOOSE = "Choose"
@@ -192,6 +205,31 @@ internal fun OdoTestRule.reachTheLastServiceStep() {
     onNodeWithText(Copy.CONTINUE).performClick()
 
     waitForText(Copy.LAST_SERVICE_TITLE)
+}
+
+/**
+ * Answer the three steps after the car and decline the sign-in offer, landing on Home.
+ *
+ * The mirror of [reachTheLastServiceStep] for a test that cares about what comes *after*
+ * setup rather than about setup itself.
+ */
+internal fun OdoTestRule.finishSetupFromTheProfileStep() {
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
+    onNodeWithText(Copy.SKIP).performClick()
+
+    // Nothing is signed in, so the offer comes before Home. Declining it is what an owner
+    // taking the quickest route through setup does.
+    waitForText(Copy.AUTH_TITLE)
+    onNodeWithText(AuthCopy.SKIP).performClick()
 }
 
 /**
@@ -328,4 +366,43 @@ private class StubOnboardingRegistry(
             // not-found copy, and a retry button instead would strand the test.
             DomainError.RegistrationNotFound.left()
         }
+}
+
+/**
+ * Makes storing the car fail, so the step's refusal path can be driven.
+ *
+ * Wraps the real repository rather than replacing it: every other read the flow makes still
+ * answers normally, and only `add` refuses — which is the shape of the failure the owner
+ * actually hits, not a graph with a hole in it.
+ */
+internal fun installRefusingCarStore() {
+    val real = GlobalContext.get().get<CarRepository>()
+    GlobalContext.get().loadModules(
+        listOf(module { single<CarRepository> { RefusingCarStore(real) } }),
+        allowOverride = true,
+    )
+}
+
+private class RefusingCarStore(private val real: CarRepository) : CarRepository by real {
+    override suspend fun add(car: Car): Either<DomainError, Car> =
+        DomainError.PersistenceFailure().left()
+}
+
+/**
+ * Drives the manual car form to the point where Continue is live and the save will be refused.
+ *
+ * Needs [installRefusingCarStore] to have run before the launch. Shared by the behaviour test
+ * and the screenshot one so both photograph and assert the same moment.
+ */
+internal fun OdoTestRule.reachARefusedCarSave() {
+    startFromWelcome()
+    onNodeWithText(Copy.ENTER_MANUALLY).performClick()
+    waitForText(Copy.DETAILS_TITLE)
+
+    pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
+    pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
+    confirmYear()
+    pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
+    setOdometer()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
 }

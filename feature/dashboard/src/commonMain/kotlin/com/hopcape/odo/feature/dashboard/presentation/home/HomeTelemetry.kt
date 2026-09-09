@@ -91,6 +91,23 @@ internal class HomeTelemetry(
         logger.debug(TAG, Event.RECENT_OPENED, tc = flowTrace.toLog())
     }
 
+    /**
+     * "Add reading" on the pending-odometer card.
+     *
+     * Paired with `onboarding_odometer_skipped`, these two say whether skipping at setup and
+     * answering later is a path owners actually take, or a hole they fall into.
+     */
+    fun addOdometerTapped() {
+        analytics.track(Event.ADD_ODOMETER_TAPPED, emptyMap())
+        logger.debug(TAG, Event.ADD_ODOMETER_TAPPED, tc = flowTrace.toLog())
+    }
+
+    /** The card was dismissed for the session. It returns on the next launch. */
+    fun odometerNudgeDismissed() {
+        analytics.track(Event.ODOMETER_NUDGE_DISMISSED, emptyMap())
+        logger.debug(TAG, Event.ODOMETER_NUDGE_DISMISSED, tc = flowTrace.toLog())
+    }
+
     /** "Timeline" beside the recent heading. */
     fun timelineOpened() {
         analytics.track(Event.TIMELINE_OPENED, emptyMap())
@@ -173,6 +190,8 @@ internal class HomeTelemetry(
         const val ATTENTION_TAPPED = "home_attention_tapped"
         const val RECENT_OPENED = "home_recent_opened"
         const val TIMELINE_OPENED = "home_timeline_opened"
+        const val ADD_ODOMETER_TAPPED = "home_add_odometer_tapped"
+        const val ODOMETER_NUDGE_DISMISSED = "home_odometer_nudge_dismissed"
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"
         const val ADD_CAR_TAPPED = "home_add_car_tapped"
