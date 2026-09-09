@@ -20,6 +20,7 @@ import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.component.OdoDateField
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
+import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
@@ -106,6 +107,7 @@ internal fun LastServiceStepScreen(
                 onDateChange = { onEvent(OnboardingEvent.LastService.DateChanged(it)) },
                 modifier = Modifier.testTag(OnboardingTestTags.LAST_SERVICE_DATE_FIELD),
                 enabled = lastService.isEditable,
+                errorText = lastService.date.error?.asString(),
                 trailingIcon = {
                     OdoIcon(
                         IcChevronRight,
@@ -134,6 +136,7 @@ internal fun LastServiceStepScreen(
                 kmLabel = stringResource(Res.string.onb_unit_km),
                 milesLabel = stringResource(Res.string.onb_unit_miles),
                 modifier = Modifier.testTag(OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD),
+                errorText = lastService.odometer.error?.asString(),
                 hint = stringResource(Res.string.onb_last_odometer_hint),
                 enabled = lastService.isEditable,
             )

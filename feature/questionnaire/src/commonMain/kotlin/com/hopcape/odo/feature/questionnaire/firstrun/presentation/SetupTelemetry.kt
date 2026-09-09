@@ -146,6 +146,22 @@ internal class SetupTelemetry(
         logger.info(TAG, Event.LAST_SERVICE_SKIPPED, tc = flowTrace.toLog())
     }
 
+    /**
+     * Done was refused because [field] was empty, so the owner is still on the last step.
+     *
+     * The last step's only dead end, and it went uncounted while the screen was dropping the
+     * reason on the floor. [field] names the half that was missing, never what was typed.
+     */
+    fun lastServiceRefused(field: String) {
+        analytics.track(Event.LAST_SERVICE_REFUSED, mapOf(Key.FIELD to field))
+        logger.info(
+            TAG,
+            Event.LAST_SERVICE_REFUSED,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.FIELD to field),
+        )
+    }
+
     fun firstScanClicked() {
         analytics.track(Event.FIRST_SCAN_CLICKED)
         logger.info(TAG, Event.FIRST_SCAN_CLICKED, tc = flowTrace.toLog())
@@ -387,6 +403,7 @@ internal class SetupTelemetry(
         const val LAST_SERVICE_FORGOTTEN = "onboarding_last_service_forgotten"
         const val ODOMETER_SKIPPED = "onboarding_odometer_skipped"
         const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
+        const val LAST_SERVICE_REFUSED = "onboarding_last_service_refused"
         const val LAST_SERVICE_SAVED = "onboarding_last_service_saved"
         const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
         const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
@@ -427,6 +444,13 @@ internal class SetupTelemetry(
         const val ERRORS = "errors"
         const val WORKSHOP_TIER = "workshop_tier"
         const val FORGOT = "forgot"
+        const val FIELD = "field"
+    }
+
+    /** The values [Key.FIELD] takes — which half of the last-service answer was missing. */
+    object Field {
+        const val DATE = "date"
+        const val ODOMETER = "odometer"
     }
 
     /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */

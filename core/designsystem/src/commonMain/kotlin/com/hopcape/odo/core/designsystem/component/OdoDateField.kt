@@ -38,6 +38,7 @@ import kotlin.time.Instant
  * @param placeholder what to show instead when no date is set.
  * @param enabled false dims the field and stops it opening the picker — for a form where
  *   another control has taken the answer over.
+ * @param errorText when non-null, puts the field in its error state and shows this under it.
  * @param trailingIcon drawn at the end of the row. Pass a chevron where the field sits
  *   beside other tappable rows and has to read as one of them.
  */
@@ -52,6 +53,7 @@ fun OdoDateField(
     onDateChange: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    errorText: String? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     var showPicker by remember { mutableStateOf(false) }
@@ -61,6 +63,7 @@ fun OdoDateField(
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
+            errorText = errorText,
             trailingIcon = trailingIcon,
             modifier = Modifier.fillMaxWidth(),
         )

@@ -166,6 +166,36 @@ class OnboardingEndToEndTest {
         assertEquals(0L, entry.totalAmount.paise)
     }
 
+    /**
+     * A refused Done has to say what it wants.
+     *
+     * Half an answer is correctly rejected, but the reason only ever reached a field error
+     * the screen did not draw, so the owner saw a live button that did nothing and no way
+     * to learn which half was missing.
+     */
+    @Test
+    fun aDateWithNoReading_saysWhichHalfIsMissing() {
+        rule.reachTheLastServiceStep()
+
+        rule.pickFirstOfTheMonth()
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_ODOMETER_MISSING)
+        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
+    }
+
+    /** The other half, on the other field — and on a different component. */
+    @Test
+    fun aReadingWithNoDate_saysWhichHalfIsMissing() {
+        rule.reachTheLastServiceStep()
+
+        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
+        rule.onNodeWithText(Copy.DONE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_DATE_MISSING)
+        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
+    }
+
     /** The car setup just stored, and the single log now hanging off it. */
     private suspend fun theOwnersOnlyServiceLog(): ServiceLogEntry {
         val koin = GlobalContext.get()
