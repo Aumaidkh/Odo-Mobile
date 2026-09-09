@@ -91,6 +91,17 @@ internal object DepreciationCurve {
     const val RECORD_PREMIUM_LOW: Double = 0.04
     const val RECORD_PREMIUM_HIGH: Double = 0.09
 
+    /**
+     * How wide today's figure is stated, as a fraction either side of it.
+     *
+     * [CONFIDENCE_WIDE] with nothing proven and [CONFIDENCE_TIGHT] with a complete record. The
+     * band narrows rather than resolving to a number: this is a segment average, not an
+     * appraisal of one car, and a point would be the same false precision the premium above is
+     * a range to avoid.
+     */
+    const val CONFIDENCE_WIDE: Double = 0.10
+    const val CONFIDENCE_TIGHT: Double = 0.04
+
     /** Roughly one service a year is what a record is measured against. */
     const val SERVICES_PER_YEAR: Int = 1
 
