@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -57,7 +58,13 @@ internal class SaveCarUseCase(
         ownerId: OwnerId,
         existing: CarId? = null,
     ): EitherNel<DomainError, Car> = either {
-        val id = existing ?: CarId.new(idGenerator)
+        // Which car this is, asked of the caller first and of the database second. [existing]
+        // is a ViewModel field, so a setup re-entered after the process died has forgotten the
+        // car it already stored — and inserting a second live primary car for one owner is
+        // refused by `uq_cars_one_primary` on every attempt, which left the owner unable to
+        // finish setup at all (#454).
+        val target = existing ?: cars.observePrimaryCar().first()?.id
+        val id = target ?: CarId.new(idGenerator)
         val car = Car.create(
             id = id,
             ownerId = ownerId,
@@ -92,7 +99,7 @@ internal class SaveCarUseCase(
             ).mapLeft { nonEmptyListOf(it) }.bind()
         }
 
-        val stored = if (existing == null) cars.add(car) else cars.update(car)
+        val stored = if (target == null) cars.add(car) else cars.update(car)
         stored.mapLeft { nonEmptyListOf(it) }.bind()
     }
 }
