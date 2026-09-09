@@ -51,7 +51,6 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_today_complete
 import com.hopcape.odo.feature.advisory.resources.adv_value_today_no_record
 import com.hopcape.odo.feature.advisory.resources.adv_value_today_with_record
-import com.hopcape.odo.feature.advisory.resources.adv_value_worth_label
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -135,8 +134,10 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
             color = OdoTheme.colors.textDim,
         )
 
-        // The dimmer of the two figures on purpose: it is the number the owner has today,
-        // and the card below is the one they can still change.
+        // The only value figure on the screen, so it carries full weight. It used to be the
+        // dimmer of two, until the second one turned out to contradict it: the model's own
+        // uncertainty is wider than the record premium, so a band for each said the owner
+        // might already be worth more than a full record would fetch.
         Row(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
@@ -144,7 +145,7 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
             OdoText(
                 text = display.today,
                 style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 44.sp),
-                color = OdoTheme.colors.textMuted,
+                color = OdoTheme.colors.text,
             )
             OdoText(
                 text = stringResource(
@@ -160,9 +161,15 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
             )
         }
 
-        OdoCard(
+        // What the record adds, as one figure on top of the band above — not a second band
+        // beside it. Two bands contradicted each other: the premium is 4-9% and the model's
+        // uncertainty is wider than that, so the aspirational band sat inside today's.
+        //
+        // Dropped once the record is complete: the gap is zero, and a "+Rs. 0" row reads as a
+        // bug rather than as an achievement.
+        if (!display.isRecordComplete) OdoCard(
             color = OdoTheme.colors.surfaceRaised,
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
             OdoText(
                 text = stringResource(Res.string.adv_value_full_record_label),
@@ -170,33 +177,10 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
                 color = OdoTheme.colors.textDim,
             )
             OdoText(
-                text = display.withFullRecord,
+                text = display.recordWorth,
                 style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 44.sp),
                 color = OdoTheme.colors.text,
             )
-            // Dropped once the record is complete: the gap is zero, and a "+Rs. 0" row
-            // reads as a bug rather than as an achievement.
-            if (!display.isRecordComplete) {
-                OdoDivider()
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-                ) {
-                    OdoText(
-                        text = stringResource(Res.string.adv_value_worth_label),
-                        style = OdoTheme.typography.body,
-                        color = OdoTheme.colors.textDim,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OdoText(
-                        text = display.recordWorth,
-                        style = OdoTheme.typography.heading.copy(fontSize = 22.sp),
-                        color = OdoTheme.colors.text,
-                        textAlign = TextAlign.End,
-                    )
-                }
-            }
         }
 
         OdoText(
@@ -223,7 +207,6 @@ private fun Actions(display: CarValueDisplay, onEvent: (CarValueEvent) -> Unit) 
         Res.string.adv_value_share_text,
         display.carSummary,
         display.today,
-        display.withFullRecord,
         display.recordWorth,
     )
     Row(
@@ -269,8 +252,7 @@ private fun CarValueNoRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             carSummary = "2022 Baleno Zeta · 38,400 km · Srinagar",
-            today = "Rs. 6.1L",
-            withFullRecord = "Rs. 6.4L–6.9L",
+            today = "Rs. 5.8L–6.4L",
             recordWorth = "+Rs. 35,000",
             hasNoRecord = true,
             isRecordComplete = false,
@@ -284,8 +266,7 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             carSummary = "2019 Creta SX · 71,200 km · Pune",
-            today = "Rs. 9.8L",
-            withFullRecord = "Rs. 9.9L–10.3L",
+            today = "Rs. 9.4L–10.2L",
             recordWorth = "+Rs. 27,000",
             hasNoRecord = false,
             isRecordComplete = false,

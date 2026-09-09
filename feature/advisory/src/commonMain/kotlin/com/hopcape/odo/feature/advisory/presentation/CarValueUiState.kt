@@ -31,7 +31,6 @@ internal data class CarValueDisplay(
     /** "2022 Baleno Zeta · 38,400 km · Srinagar" */
     val carSummary: String,
     val today: String,
-    val withFullRecord: String,
     val recordWorth: String,
     val hasNoRecord: Boolean,
     val isRecordComplete: Boolean,
@@ -44,8 +43,7 @@ internal fun CarValued.toDisplay(odometer: String, separator: String): CarValueD
             odometer,
             cityName,
         ).joinToString(separator),
-        today = value.today.formatRupeesCompact(),
-        withFullRecord = value.withFullRecord.formatCompact(),
+        today = value.today.formatCompact(),
         recordWorth = "+${value.recordWorth.roundedToThousand().formatRupees()}",
         hasNoRecord = value.hasNoRecord,
         isRecordComplete = value.isRecordComplete,

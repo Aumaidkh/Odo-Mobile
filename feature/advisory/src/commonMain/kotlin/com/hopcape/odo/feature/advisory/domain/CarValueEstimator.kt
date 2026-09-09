@@ -66,11 +66,17 @@ internal object CarValueEstimator {
         // that no further scanning could close.
         val today = bare + (middle - bare) * completeness
 
+        // How sure the figure is, as a band either side of it. Widest with nothing proven,
+        // tightest with a complete record — so every bill the owner adds visibly narrows it.
+        val width = DepreciationCurve.CONFIDENCE_WIDE -
+            (DepreciationCurve.CONFIDENCE_WIDE - DepreciationCurve.CONFIDENCE_TIGHT) * completeness
+
         return CarValue(
-            today = amount(today),
+            today = AmountRange(low = amount(today * (1 - width)), high = amount(today * (1 + width))),
             withFullRecord = AmountRange(low = amount(low), high = amount(high)),
-            // Never negative, and exactly zero once the record is complete — there is
-            // nothing left to earn, and the screen has to stop asking for it.
+            // Measured from the middle of the band, which is the figure the model actually
+            // produced. Never negative, and exactly zero once the record is complete — there
+            // is nothing left to earn, and the screen has to stop asking for it.
             recordWorth = amount(middle - today),
             recordCompleteness = completeness,
             provenServices = proven,

@@ -11,8 +11,7 @@
 
     <string name="adv_value_today_no_record">today, no record</string>
     <string name="adv_value_today_with_record">today, with your record</string>
-    <string name="adv_value_full_record_label">WITH A FULL SERVICE RECORD</string>
-    <string name="adv_value_worth_label">Roughly what the record is worth</string>
+    <string name="adv_value_full_record_label">WHAT A FULL RECORD ADDS</string>
     <string name="adv_value_pitch_empty">Start the record today. Scan the first bill — Odo adds the rest itself.</string>
     <string name="adv_value_pitch_partial">Keep going. Every bill you scan closes the gap.</string>
     <!-- Nothing left to earn, so the screen stops asking. -->
@@ -25,7 +24,7 @@
     <string name="adv_value_share">Share</string>
 
     <!-- The share text. No plate and no workshop name, ever. -->
-    <string name="adv_value_share_text">My %1$s is worth about %2$s. With a full service record it would be %3$s — around %4$s more. Tracking it on Odo.</string>
+    <string name="adv_value_share_text">My %1$s is worth about %2$s. A full service record would add around %3$s to that. Tracking it on Odo.</string>
 
     <string name="adv_value_empty_title">No car yet</string>
     <string name="adv_value_empty_body">Add your car and Odo can tell you what it is worth, and what proving its history would add.</string>

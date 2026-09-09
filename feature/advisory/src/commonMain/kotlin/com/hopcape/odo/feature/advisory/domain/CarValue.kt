@@ -10,14 +10,16 @@ import com.hopcape.odo.core.domain.shared.AmountRange
  * rupee answer to "why should I scan a bill?", and it is the only number on the screen the
  * owner can change.
  *
- * @param today what the car fetches with the record it has right now.
+ * @param today what the car fetches with the record it has right now, as a band. Never a
+ *  single figure: the estimate is a segment average and a point would claim precision it has
+ *  not got. It narrows as the record grows.
  * @param withFullRecord the band it would fetch with a complete, documented history.
  * @param recordWorth the middle of that band less [today] — the gap, as one number.
  * @param recordCompleteness 0 to 1, how much of the expected history is proven by a bill.
  * @param provenServices how many services have a bill behind them.
  */
 data class CarValue(
-    val today: Amount,
+    val today: AmountRange,
     val withFullRecord: AmountRange,
     val recordWorth: Amount,
     val recordCompleteness: Double,
