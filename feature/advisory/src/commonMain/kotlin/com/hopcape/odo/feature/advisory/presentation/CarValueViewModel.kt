@@ -56,6 +56,8 @@ internal class CarValueViewModel(
 
         CarValueEvent.AddOdometerClicked -> emit(CarValueEffect.OpenUpdateOdometer)
 
+        CarValueEvent.AddCarClicked -> emit(CarValueEffect.OpenAddCar)
+
         CarValueEvent.BackClicked -> emit(CarValueEffect.NavigateBack)
     }
 

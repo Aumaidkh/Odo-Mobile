@@ -142,6 +142,8 @@ dependencies {
     androidTestImplementation(projects.feature.documentVault)
     // The garage's semantics tags, for the same reason.
     androidTestImplementation(projects.feature.garage)
+    // The car-value screen's one tag: its no-car action has copy Home also uses.
+    androidTestImplementation(projects.feature.advisory)
     // ConfigGraphTest — asserts the config system against the real application graph.
     androidTestImplementation(projects.core.config)
     // The cost tracker's semantics tags, and its SpendCategory-keyed row tags.

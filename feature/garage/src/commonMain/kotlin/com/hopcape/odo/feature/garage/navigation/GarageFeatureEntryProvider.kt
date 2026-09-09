@@ -102,9 +102,16 @@ private fun AddToHistoryRoute(replace: (OdoDestination, OdoDestination) -> Unit)
 
     AddToHistorySheetContent(
         onScan = { replace(here, OdoDestination.BillScanner.Capture()) },
-        onManual = { carId?.let { replace(here, OdoDestination.ServiceLog.AddEdit(carId = it.value)) } },
+        // No car is not a reason to do nothing. Both rows need one, so both lead to adding
+        // it — a live row that swallows the tap leaves the owner on an open sheet with
+        // nothing said (#452's shape, on a different surface).
+        onManual = {
+            replace(here, carId?.let { OdoDestination.ServiceLog.AddEdit(carId = it.value) } ?: OdoDestination.Garage.AddCar)
+        },
         onAddDocument = { replace(here, OdoDestination.Documents.Add()) },
-        onViewAll = { carId?.let { replace(here, OdoDestination.ServiceLog.List(carId = it.value)) } },
+        onViewAll = {
+            replace(here, carId?.let { OdoDestination.ServiceLog.List(carId = it.value) } ?: OdoDestination.Garage.AddCar)
+        },
     )
 }
 

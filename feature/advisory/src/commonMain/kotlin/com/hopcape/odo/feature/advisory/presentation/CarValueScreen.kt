@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoBadge
@@ -33,6 +34,7 @@ import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.advisory.resources.Res
 import com.hopcape.odo.feature.advisory.resources.adv_value_basis
 import com.hopcape.odo.feature.advisory.resources.adv_value_cd_back
+import com.hopcape.odo.feature.advisory.resources.adv_value_empty_action
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_body
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_odometer_action
@@ -112,6 +114,15 @@ internal fun CarValueScreen(
                 OdoEmptyState(
                     title = stringResource(Res.string.adv_value_empty_title),
                     message = stringResource(Res.string.adv_value_empty_body),
+                    // The copy asks for a car, so the screen has to offer the way to add one.
+                    // Without this it named the one thing to do and left no way to do it.
+                    action = {
+                        OdoButton(
+                            text = stringResource(Res.string.adv_value_empty_action),
+                            onClick = { onEvent(CarValueEvent.AddCarClicked) },
+                            modifier = Modifier.testTag(CarValueTestTags.ADD_CAR),
+                        )
+                    },
                 )
             }
 

@@ -19,6 +19,9 @@ internal sealed interface CarValueEvent {
 
     /** "Add reading" on the pending-odometer state — the only way past it. */
     data object AddOdometerClicked : CarValueEvent
+
+    /** "Add your car" on the no-car state — the only way past that one. */
+    data object AddCarClicked : CarValueEvent
 }
 
 /**
@@ -35,6 +38,9 @@ internal sealed interface CarValueEffect {
     data object OpenUpdateOdometer : CarValueEffect
 
     data object OpenScanner : CarValueEffect
+
+    /** Nothing on this screen can say anything until there is a car to say it about. */
+    data object OpenAddCar : CarValueEffect
 
     /** [text] is already assembled — the plate and the workshop are deliberately not in it. */
     data class Share(val text: String) : CarValueEffect
