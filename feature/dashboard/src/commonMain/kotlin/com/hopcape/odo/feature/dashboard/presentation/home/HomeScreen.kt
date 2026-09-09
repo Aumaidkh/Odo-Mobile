@@ -28,8 +28,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,7 +41,6 @@ import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoShimmerBlock
 import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
-import com.hopcape.odo.core.designsystem.component.ShimmerDefaults
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoIconTile
@@ -273,7 +274,7 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HEADER_LINE_GAP)) {
             val greeting = if (content.userName.isBlank()) {
                 stringResource(Res.string.hm_greeting_generic)
             } else {
@@ -317,7 +318,7 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
         val profileLabel = stringResource(Res.string.hm_cd_profile)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(HEADER_CIRCLE)
                 .clip(CircleShape)
                 .background(OdoTheme.colors.accent)
                 .clickable(onClick = { onEvent(HomeEvent.ProfileTapped) })
@@ -349,7 +350,7 @@ private fun CircleButton(
 ) {
     Box(
         modifier = modifier
-            .size(44.dp)
+            .size(HEADER_CIRCLE)
             .clip(CircleShape)
             .background(OdoTheme.colors.surfaceRaised)
             .clickable(onClick = onClick),
@@ -357,6 +358,14 @@ private fun CircleButton(
         content = { content() },
     )
 }
+
+/*
+ * The header's own metrics. Shared with the skeleton below, which stands in for this Row and
+ * used to guess them — it spaced the two lines by 8dp against this 2dp, so the whole screen
+ * dropped when the real header arrived.
+ */
+private val HEADER_LINE_GAP = 2.dp
+private val HEADER_CIRCLE = 44.dp
 
 
 /**
@@ -1136,10 +1145,26 @@ private fun HomeSkeleton() {
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
             modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SKELETON),
         ) {
-            // The greeting and the car under it, which the header draws before anything else.
-            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                OdoShimmerBlock(width = SKELETON_GREETING, height = ShimmerDefaults.HeadlineHeight)
-                OdoShimmerBlock(width = SKELETON_CAR_LINE, height = ShimmerDefaults.LineHeight)
+            // The header, laid out as HomeHeader lays it out: the greeting and the car line on
+            // the left, the bell and the avatar on the right. Same Row, same gaps, same two
+            // circles — a Column of bars left the right-hand side empty until the content
+            // landed, and then two 44dp circles appeared out of nowhere.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(HEADER_LINE_GAP),
+                ) {
+                    SkeletonTextLine(OdoTheme.typography.title, SKELETON_GREETING)
+                    SkeletonTextLine(OdoTheme.typography.bodySmall, SKELETON_CAR_LINE)
+                }
+                // Both, always. Loading is before the app knows whether there is a car, and the
+                // owner with one is the common case; guessing the other way empties the row.
+                SkeletonCircle()
+                SkeletonCircle()
             }
             SkeletonBlock(height = SKELETON_HEALTH)
             SkeletonBlock(height = SKELETON_FUEL)
@@ -1160,6 +1185,37 @@ private fun SkeletonBlock(height: Dp, modifier: Modifier = Modifier) {
         shape = OdoTheme.shapes.card,
     )
 }
+
+/** Stands in for the bell and the avatar, which are both [HEADER_CIRCLE] circles. */
+@Composable
+private fun SkeletonCircle() {
+    OdoShimmerBlock(width = HEADER_CIRCLE, height = HEADER_CIRCLE, shape = CircleShape)
+}
+
+/**
+ * A bar standing in for one line of text in [style].
+ *
+ * The blank [OdoText] behind it is what reserves the space: a line box is taller than its
+ * `lineHeight` by the font's own padding, so heights guessed from the style — or the fixed
+ * 28dp/16dp this used before — leave the skeleton a few dp short of the text and the screen
+ * still moves when the content lands. Laying out the real style is the only way to be exact.
+ *
+ * The bar itself is deliberately shorter than the line it sits in, which is how a skeleton
+ * reads as a placeholder rather than as a solid block of text.
+ */
+@Composable
+private fun SkeletonTextLine(style: TextStyle, width: Dp) {
+    Box(contentAlignment = Alignment.CenterStart) {
+        OdoText(" ", style = style)
+        OdoShimmerBlock(
+            width = width,
+            height = with(LocalDensity.current) { (style.fontSize * BAR_TO_LINE).toDp() },
+        )
+    }
+}
+
+/** How much of a line of text the bar standing in for it fills. */
+private const val BAR_TO_LINE = 0.8f
 
 /* The real cards' own heights, so nothing moves when they replace these. */
 private val SKELETON_GREETING = 180.dp
