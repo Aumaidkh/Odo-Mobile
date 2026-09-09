@@ -33,6 +33,7 @@ import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerCustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerDocumentReminderScheduler
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.showcase.ShowcaseSeenStore
 import com.hopcape.odo.core.platform.secure.AndroidSecureStore
 import com.hopcape.odo.core.platform.secure.SecureStore
@@ -41,6 +42,7 @@ import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.config.ConfigSnapshotStore
 import com.hopcape.odo.core.platform.config.PrefsConfigSnapshotStore
 import com.hopcape.odo.core.platform.config.PrefsLocalConfigOverrides
+import com.hopcape.odo.core.platform.history.PrefsRestoredHistoryStore
 import com.hopcape.odo.core.platform.showcase.PrefsShowcaseSeenStore
 import com.hopcape.odo.core.platform.sms.AndroidSmsAppSignature
 import com.hopcape.odo.core.platform.sms.AndroidSmsCodeReader
@@ -115,6 +117,7 @@ val corePlatformAndroidModule = module {
     // Which coach marks have been seen — prefs, not the database, so nothing to migrate
     // (docs/SHOWCASE_PLAN.md decision 1). The arbiter that reads it is bound in :core:data.
     single<ShowcaseSeenStore> { PrefsShowcaseSeenStore(context = get<Context>()) }
+    single<RestoredHistoryStore> { PrefsRestoredHistoryStore(context = get<Context>()) }
 
     // Debug builds only. ConfigResolver takes this with getOrNull, so a release build finds
     // nothing behind the first step of the resolution order rather than taking a different

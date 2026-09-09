@@ -229,12 +229,15 @@ internal class SyncRunner<Dto : Any>(
         // is not a suspend context, and telemetry must never dictate the shape of the thing
         // it observes.
         val resolutions = mutableListOf<Boolean>()
+        // Rows this device had never seen, for the same reason and the same way.
+        val inserted = mutableListOf<String>()
 
         database.transaction {
             remote.forEach { dto ->
                 val decision = decide(dto)
                 if (decision.applyRemote) table.applyRemote(dto)
                 if (decision.wasConflict) resolutions += !decision.applyRemote
+                if (decision.wasInsert) inserted += table.idOf(dto)
 
                 val remoteAt = table.updatedAtOf(dto)
                 val current = highWater
@@ -243,6 +246,7 @@ internal class SyncRunner<Dto : Any>(
         }
 
         resolutions.forEach { localWon -> telemetry.conflictResolved(entity, localWon) }
+        if (inserted.isNotEmpty()) table.afterPull(inserted)
         return Pulled(count = remote.size, highWater = highWater)
     }
 
@@ -259,7 +263,7 @@ internal class SyncRunner<Dto : Any>(
      */
     private fun decide(dto: Dto): Decision {
         // Never seen it — an insert, not a conflict.
-        val local = table.localState(table.idOf(dto)) ?: return Decision(applyRemote = true)
+        val local = table.localState(table.idOf(dto)) ?: return Decision(applyRemote = true, wasInsert = true)
         // No local edit is at risk, so the server's version is simply the newer one.
         if (local.syncStatus != SyncStatus.PENDING) return Decision(applyRemote = true)
 
@@ -272,8 +276,15 @@ internal class SyncRunner<Dto : Any>(
         return Decision(applyRemote = remoteAt > localAt, wasConflict = true)
     }
 
-    /** Whether the pulled row wins, and whether a local edit was at stake when it was decided. */
-    private data class Decision(val applyRemote: Boolean, val wasConflict: Boolean = false)
+    /**
+     * Whether the pulled row wins, whether a local edit was at stake when it was decided,
+     * and whether this device had never seen the row before.
+     */
+    private data class Decision(
+        val applyRemote: Boolean,
+        val wasConflict: Boolean = false,
+        val wasInsert: Boolean = false,
+    )
 
     private companion object {
         val OVERLAP = 5.seconds

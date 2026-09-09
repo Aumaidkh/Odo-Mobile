@@ -285,4 +285,20 @@
     <string name="gr_time_hour">%1$d hour ago</string>
     <string name="gr_time_days">%1$d days ago</string>
     <string name="gr_time_day">%1$d day ago</string>
+
+    <!-- Restored history sheet (#425) — shown once after signing in brings a car's records back. -->
+    <string name="gr_hr_title">Your history is back</string>
+    <string name="gr_hr_body">This car was already on your Odo account. Every record has been restored.</string>
+    <string name="gr_hr_service">Service</string>
+    <string name="gr_hr_papers">Papers</string>
+    <string name="gr_hr_fuel">Fuel</string>
+    <string name="gr_hr_since">Since %1$s</string>
+    <string name="gr_hr_odometer">Odometer</string>
+    <string name="gr_hr_you_entered">You entered</string>
+    <string name="gr_hr_history_has">Your history shows</string>
+    <string name="gr_hr_only_forward">An odometer only counts up. Odo will never move yours backwards.</string>
+    <string name="gr_hr_adopt">Use %1$s</string>
+    <string name="gr_hr_keep">Keep %1$s</string>
+    <string name="gr_hr_view">See the history</string>
+    <string name="gr_hr_done">Got it</string>
 </resources>

@@ -189,6 +189,7 @@ val databaseInfrastructureModule = module {
                     remote = get(),
                     telemetry = get(),
                     ownerId = { get<CurrentOwnerProvider>().currentOwnerId().value },
+                    restored = get(),
                 ),
                 database = get(),
                 telemetry = get(),

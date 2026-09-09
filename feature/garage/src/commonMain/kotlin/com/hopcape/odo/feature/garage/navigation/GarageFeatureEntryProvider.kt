@@ -37,6 +37,9 @@ import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistoryEffect
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistorySheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistoryViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
@@ -74,6 +77,7 @@ internal class GarageFeatureEntryProvider(
         entry<OdoDestination.Garage.UpdateOdometer>(metadata = sheet) { UpdateOdometerRoute(nm) }
         entry<OdoDestination.Garage.Export>(metadata = sheet) { ExportRoute() }
         entry<OdoDestination.Garage.RemoveCar>(metadata = sheet) { RemoveCarRoute(nm, ::replace) }
+        entry<OdoDestination.Garage.HistoryRestored>(metadata = sheet) { RestoredHistoryRoute(nm, ::replace) }
 
         entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) { AddToHistoryRoute(::replace) }
 
@@ -231,6 +235,31 @@ private fun RemoveCarRoute(
     }
 
     RemoveCarSheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
+/**
+ * The restored-history sheet. Both answers close it; "History dekho" replaces it with the
+ * car's service log, so back from there lands on the app rather than a re-shown sheet.
+ */
+@Composable
+private fun RestoredHistoryRoute(
+    navigationManager: NavigationManager,
+    replace: (OdoDestination, OdoDestination) -> Unit,
+) {
+    val viewModel = koinViewModel<RestoredHistoryViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            RestoredHistoryEffect.Dismiss -> navigationManager.back()
+            is RestoredHistoryEffect.OpenHistory -> replace(
+                OdoDestination.Garage.HistoryRestored,
+                OdoDestination.ServiceLog.List(carId = effect.carId),
+            )
+        }
+    }
+
+    RestoredHistorySheetContent(state = state, onEvent = viewModel::onEvent)
 }
 
 @Composable
