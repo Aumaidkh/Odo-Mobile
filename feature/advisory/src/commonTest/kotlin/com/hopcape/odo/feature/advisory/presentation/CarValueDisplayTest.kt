@@ -19,11 +19,24 @@ class CarValueDisplayTest {
 
     @Test
     fun theRangeStatesTheCurrencyOnce() {
-        val display = display(
-            withFullRecord = AmountRange.ofPaise(6_40_000_00L, 6_90_000_00L),
-        )
+        val display = display(today = AmountRange.ofPaise(6_40_000_00L, 6_90_000_00L))
 
-        assertEquals("Rs. 6.4L–6.9L", display.withFullRecord)
+        assertEquals("Rs. 6.4L–6.9L", display.today)
+    }
+
+    /**
+     * Today's figure is a band too (#462).
+     *
+     * A single number reads as a verdict on the owner's car, and the estimate is a
+     * segment-average model that cannot support one — the same rule the record premium is
+     * already a range for.
+     */
+    @Test
+    fun todaysValueReadsAsABand() {
+        assertTrue(
+            display().today.contains(BAND_DASH),
+            "today should be stated as a band but was '${display().today}'",
+        )
     }
 
     /**
@@ -53,7 +66,7 @@ class CarValueDisplayTest {
     }
 
     private fun display(
-        withFullRecord: AmountRange = AmountRange.ofPaise(6_40_000_00L, 6_90_000_00L),
+        today: AmountRange = AmountRange.ofPaise(5_80_000_00L, 6_40_000_00L),
         recordWorth: Amount = amount(35_000_00L),
         cityName: String? = "Srinagar",
     ) = CarValued(
@@ -61,8 +74,8 @@ class CarValueDisplayTest {
         cityName = cityName,
         cityTier = CityTier.Resolved(2),
         value = CarValue(
-            today = amount(6_10_000_00L),
-            withFullRecord = withFullRecord,
+            today = today,
+            withFullRecord = AmountRange.ofPaise(6_40_000_00L, 6_90_000_00L),
             recordWorth = recordWorth,
             recordCompleteness = 0.0,
             provenServices = 0,
@@ -85,5 +98,6 @@ class CarValueDisplayTest {
 
     private companion object {
         const val SEPARATOR = " · "
+        const val BAND_DASH = "\u2013"
     }
 }
