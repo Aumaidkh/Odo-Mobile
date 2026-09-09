@@ -41,14 +41,19 @@ class OneTimeContextTest {
     }
 
     /**
-     * A way out is drawn only where the owner arrived without an errand. On the two walls the
-     * scrim and the back gesture are the way out, and a decline button under the thing they
-     * came for competes with it.
+     * A way out is drawn where declining leads somewhere.
+     *
+     * The export wall has no such place: the record is still there and the sheet is over it,
+     * so the scrim and the back gesture are the way out.
+     *
+     * The bill check does. Dismissing it landed on the masked check, which re-read and
+     * offered the same wall — a loop whose only exit was the back gesture used twice. Naming
+     * the decision and taking the owner out of the errand is what closes it.
      */
     @Test
-    fun `only the general sheet draws a way out`() {
+    fun `a way out is drawn where declining leads somewhere`() {
         assertNotNull(OneTimeContext.GENERIC.close)
-        assertNull(OneTimeContext.BILL_CHECK.close)
+        assertNotNull(OneTimeContext.BILL_CHECK.close)
         assertNull(OneTimeContext.EXPORT.close)
     }
 

@@ -83,15 +83,22 @@
     <!-- Reached from a bill check the owner cannot run. -->
     <string name="pw_ot_bill_title">See the full answer</string>
     <string name="pw_ot_bill_subtitle">Every line’s rate, the maker’s schedule, and what to ask at the counter.</string>
+    <!--
+      The way out, said as the decision it is.
+      A "Not now" leaves the owner where they were — masked, on the bill check, with the sheet
+      one back press from returning. This names what declining means and takes them out of it:
+      the bill is logged either way, and the record is what they came away with.
+    -->
+    <string name="pw_ot_bill_close">I’m okay with paying more</string>
     <string name="pw_ot_bill_footer">If a check fails the credit comes back — that’s our bug, not your rupee.</string>
 
     <!-- Reached from the record export. -->
     <string name="pw_ot_export_sheet_title">Take the record with you</string>
     <string name="pw_ot_export_sheet_subtitle">One PDF of everything the car has had done, ready to hand a buyer.</string>
     <string name="pw_ot_export_footer">Spent when the PDF reaches the share sheet, not before.</string>
-    <string name="pw_ot_bill_check_single_title">Bill Check × 1</string>
+    <string name="pw_ot_bill_check_single_title">One Bill Check</string>
     <string name="pw_ot_bill_check_single_subtitle">Check one bill against your city’s going rate.</string>
-    <string name="pw_ot_bill_check_pack_title">Bill Check × 3</string>
+    <string name="pw_ot_bill_check_pack_title">3 Bill Checks</string>
     <string name="pw_ot_bill_check_pack_subtitle">Three checks, for a service and the two after it.</string>
     <string name="pw_ot_export_title">Export Records</string>
     <string name="pw_ot_export_subtitle">Your full service record as one PDF, ready to send a buyer.</string>

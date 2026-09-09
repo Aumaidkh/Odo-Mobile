@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,6 +70,8 @@ internal class HomeViewModel(
     private val scoreHistoryGranted = entitlements.observe()
         .map { it.has(ProFeature.SCORE_HISTORY) }
         .catch { emit(false) }
+        // Answered before the store is. See [withoutWaiting].
+        .withoutWaiting(false)
 
     /** True while the SCAN coach mark holds the arbiter's grant. */
     private val scanShowcaseVisible = MutableStateFlow(false)
@@ -121,13 +124,22 @@ internal class HomeViewModel(
         }
         // Combined rather than folded into the snapshot: the offer is a device setting, and a
         // dashboard read that failed should not decide whether it is shown.
-        .combine(offerAutoDetect()) { ui, offer -> ui.copy(offerAutoDetect = offer) }
+        .combine(offerAutoDetect().withoutWaiting(false)) { ui, offer ->
+            ui.copy(offerAutoDetect = offer)
+        }
         // Same shape as the auto-detect offer: device state, not car state.
-        .combine(offerAutoOdometer()) { ui, offer -> ui.copy(offerAutoOdometer = offer) }
+        .combine(offerAutoOdometer().withoutWaiting(false)) { ui, offer ->
+            ui.copy(offerAutoOdometer = offer)
+        }
         .combine(scanShowcaseVisible) { ui, visible -> ui.copy(scanShowcase = visible) }
         .combine(healthShowcaseVisible) { ui, visible -> ui.copy(healthShowcase = visible) }
         // Read only to pick the Pro-gated coach marks' copy — never to hide them.
-        .combine(entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }) { ui, pro ->
+        .combine(
+            entitlements.observe()
+                .map { it.plan == Plan.PRO }
+                .catch { emit(false) }
+                .withoutWaiting(false),
+        ) { ui, pro ->
             ui.copy(proPlan = pro)
         }
         // Score *history* is Pro (#247), the score itself never is. Dropping the delta is
@@ -394,3 +406,20 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     setup = setup,
     isNewUser = isNewUser,
 )
+
+/**
+ * Answer with [initial] straight away, then with whatever the flow actually says.
+ *
+ * `combine` holds its result until *every* source has emitted once, so a single slow source
+ * keeps the whole dashboard on its skeleton — however fast the local database was.
+ *
+ * That is what the entitlement stream did. It is `state.filterNotNull()` over a value that
+ * stays null until RevenueCat answers, and the dashboard combines on it twice — so a screen
+ * built entirely from local rows sat behind a store round trip, and behind its timeout with
+ * no connection. On an offline-first app that is the wrong thing to make an owner wait for.
+ *
+ * Every flow this wraps has the same safe default: not Pro, do not offer. Being briefly wrong
+ * in that direction costs a card that appears a moment late; being wrong the other way shows
+ * Pro content to somebody who has not paid for it.
+ */
+private fun <T> Flow<T>.withoutWaiting(initial: T): Flow<T> = onStart { emit(initial) }

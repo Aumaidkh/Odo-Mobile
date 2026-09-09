@@ -24,7 +24,9 @@ import com.hopcape.odo.core.domain.entitlement.OverridableEntitlementSource
 import com.hopcape.odo.core.data.entitlement.FakeEntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.FakeCitySubmissionRemoteDataSource
 import com.hopcape.odo.core.data.cost.FuelFillRepositoryImpl
+import com.hopcape.odo.core.data.scan.AllowanceCheckCharger
 import com.hopcape.odo.core.data.scan.AllowanceScanCharger
+import com.hopcape.odo.core.data.scan.EntitlementCheckAllowance
 import com.hopcape.odo.core.data.scan.LocalBillCheckLedger
 import com.hopcape.odo.core.data.scan.LocalScanCredits
 import com.hopcape.odo.core.data.subscription.LocalPurchaseGrants
@@ -38,6 +40,8 @@ import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
+import com.hopcape.odo.core.domain.scan.entitlement.CheckAllowance
+import com.hopcape.odo.core.domain.scan.entitlement.CheckCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.entitlement.ScanCredits
@@ -368,6 +372,14 @@ val coreDataModule = module {
     single<ScanAllowance> {
         EntitlementScanAllowance(entitlements = get(), usage = get(), credits = get())
     }
+    // The bill check's own balance, beside the scanner's. They shared one, so five scanned
+    // bills closed the check — a wall the owner had never spent anything on.
+    single<CheckAllowance> {
+        EntitlementCheckAllowance(entitlements = get(), usage = get(), credits = get())
+    }
+    single<CheckCharger> {
+        AllowanceCheckCharger(allowance = get(), usage = get(), credits = get())
+    }
     single<RecordExportUsage> { LocalRecordExportUsage(local = get(), clock = get()) }
     // Bought-and-unspent one-off exports (#246), beside the tally they are spent against.
     single<ExportCredits> { LocalExportCredits(local = get()) }
@@ -395,7 +407,7 @@ val coreDataModule = module {
 
     // Free scans first, bought ones after — the one place that rule lives.
     single<ScanCharger> {
-        AllowanceScanCharger(allowance = get(), usage = get(), credits = get())
+        AllowanceScanCharger(usage = get())
     }
 
     // Extraction has no implementation yet, so both ports refuse and say why. A stub that

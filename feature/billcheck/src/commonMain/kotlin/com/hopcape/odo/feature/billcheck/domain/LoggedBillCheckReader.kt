@@ -9,7 +9,7 @@ import com.hopcape.odo.core.domain.owner.CurrentCityProvider
 import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
 import com.hopcape.odo.core.domain.scan.entitlement.BillCheckLedger
-import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
+import com.hopcape.odo.core.domain.scan.entitlement.CheckCharger
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -53,7 +53,8 @@ internal class LoggedBillCheckReader(
     private val cities: CurrentCityProvider,
     private val questionnaire: QuestionnaireRepository,
     private val check: CheckBillPriceUseCase,
-    private val charger: ScanCharger,
+    /** Spends a *check*, not a scan. The two used to be one balance — see [BillCheckModule]. */
+    private val charger: CheckCharger,
     private val contributor: FairnessContributor,
     private val ledger: BillCheckLedger,
     /** Whether the owner has a check to spend. Asked before charging, never after. */

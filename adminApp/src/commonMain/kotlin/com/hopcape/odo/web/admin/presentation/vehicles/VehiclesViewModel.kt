@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import arrow.core.Either
+import com.hopcape.odo.web.admin.domain.CatalogueDocument
 import com.hopcape.odo.web.admin.domain.VehicleMake
 import com.hopcape.odo.web.admin.domain.VehicleModel
 import com.hopcape.odo.web.admin.domain.VehicleSubmission
@@ -19,6 +20,9 @@ import com.hopcape.odo.web.admin.resources.ad_vehicles_deleted_done
 import com.hopcape.odo.web.admin.resources.ad_vehicles_duplicate
 import com.hopcape.odo.web.admin.resources.ad_vehicles_rejected_done
 import com.hopcape.odo.web.admin.resources.ad_vehicles_saved
+import com.hopcape.odo.web.admin.resources.ad_transfer_imported
+import com.hopcape.odo.web.admin.resources.ad_transfer_wrong_file
+import com.hopcape.odo.web.admin.ui.DownloadFile
 import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.core.presentation.state.FormField
 import com.hopcape.odo.web.core.presentation.state.Loadable
@@ -57,6 +61,15 @@ sealed interface VehiclesEvent {
     data class SubmissionDeleted(val submission: VehicleSubmission) : VehiclesEvent
 
     data object MessageDismissed : VehiclesEvent
+
+    /** Write the whole catalog to a file the admin can carry to another project. */
+    data object ExportRequested : VehiclesEvent
+
+    /** The screen has handed the file over; stop offering it. */
+    data object DownloadHandled : VehiclesEvent
+
+    /** The text of a file the admin chose. Not yet known to be one of ours. */
+    data class ImportPicked(val document: String) : VehiclesEvent
 }
 
 /**
@@ -121,6 +134,7 @@ data class VehiclesUiState(
     val pendingDelete: DeleteTarget? = null,
     val busy: Boolean = false,
     val message: UiText? = null,
+    val download: DownloadFile? = null,
 ) {
 
     val pending: List<VehicleSubmission>
@@ -271,6 +285,35 @@ class VehiclesViewModel(
             }
 
             VehiclesEvent.MessageDismissed -> _state.value = _state.value.copy(message = null)
+
+            // The whole catalog, not the search or the page. An export filtered by
+            // whatever happened to be typed is a trap.
+            VehiclesEvent.ExportRequested -> _state.value = _state.value.copy(
+                download = DownloadFile(
+                    fileName = EXPORT_FILE,
+                    mimeType = CatalogueDocument.MIME,
+                    text = CatalogueDocument.writeVehicles(
+                        makes = _state.value.allMakes,
+                        models = _state.value.models.valueOrNull.orEmpty(),
+                    ),
+                ),
+            )
+
+            VehiclesEvent.DownloadHandled -> _state.value = _state.value.copy(download = null)
+            is VehiclesEvent.ImportPicked -> import(event.document)
+        }
+    }
+
+    private fun import(document: String) {
+        when (val read = CatalogueDocument.readVehicles(document)) {
+            CatalogueDocument.Read.WrongFile ->
+                _state.value = _state.value.copy(message = UiText.Resource(Res.string.ad_transfer_wrong_file))
+
+            // The count comes back from the database rather than off the file: it is
+            // the number of rows actually written.
+            is CatalogueDocument.Read.Rows -> write(
+                done = { count -> UiText.Resource(Res.string.ad_transfer_imported, listOf(count)) },
+            ) { vehicles.importCatalog(read.value) }
         }
     }
 
@@ -343,10 +386,23 @@ class VehiclesViewModel(
         }
     }
 
+    /** The common case: a write with nothing to report beyond which one it was. */
     private fun write(
         done: StringResource,
         closeEditor: Boolean = false,
         action: suspend () -> Either<WebError, Unit>,
+    ) = write(closeEditor, { UiText.Resource(done) }, action)
+
+    /**
+     * Runs a write, reports it, and re-reads all three lists.
+     *
+     * [done] is given the write's own result so a message can say how much it did —
+     * which an import needs and nothing else does.
+     */
+    private fun <T> write(
+        closeEditor: Boolean = false,
+        done: (T) -> UiText,
+        action: suspend () -> Either<WebError, T>,
     ) {
         if (_state.value.busy) return
         _state.value = _state.value.copy(busy = true, message = null)
@@ -355,15 +411,19 @@ class VehiclesViewModel(
                 ifLeft = { error ->
                     _state.value = _state.value.copy(busy = false, message = error.asUiText())
                 },
-                ifRight = {
+                ifRight = { result ->
                     _state.value = _state.value.copy(
                         busy = false,
-                        message = UiText.Resource(done),
+                        message = done(result),
                         editor = if (closeEditor) null else _state.value.editor,
                     )
                     load()
                 },
             )
         }
+    }
+
+    private companion object {
+        const val EXPORT_FILE = "odo-vehicle-catalogue.json"
     }
 }

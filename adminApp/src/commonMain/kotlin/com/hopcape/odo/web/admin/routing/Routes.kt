@@ -99,6 +99,7 @@ private val SECTIONS_BY_SEGMENT: Map<String, AdminRoute> = mapOf(
     "roles" to AdminRoute.Roles,
     "content" to AdminRoute.Content,
     "catalogue" to AdminRoute.Catalogue,
+    "price-book" to AdminRoute.PriceBook,
     "vehicles" to AdminRoute.Vehicles,
     "cities" to AdminRoute.Cities,
     "tickets" to AdminRoute.Tickets,

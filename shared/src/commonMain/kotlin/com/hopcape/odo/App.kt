@@ -98,19 +98,18 @@ fun App() {
             // host. Putting it on the activity instead would tie a decision about the whole
             // UI tree to one platform's entry point, and iOS has no equivalent to give it.
             Box(modifier = Modifier.fillMaxSize().debugTestTags()) {
-                // Above the nav host, inside the theme: no route, deep link, or pending
-                // redirect can navigate past a block, because there is no destination to
-                // reach — and the block screen is still branded and honours dark/light.
+                // A block goes over the app as a sheet rather than replacing it, so the owner
+                // sees what is held back. Nothing under it is reachable: the sheet refuses
+                // swipe, scrim and back, and network work stands down in the sync gate.
                 val current = availability
+                OdoAppContent(
+                    koin = koin,
+                    maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                )
                 if (shouldBlock(current)) {
-                    AppBlockedScreen(
+                    AppBlockedSheet(
                         blocked = current as AppAvailability.Blocked,
                         onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
-                    )
-                } else {
-                    OdoAppContent(
-                        koin = koin,
-                        maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
                     )
                 }
             }
