@@ -43,6 +43,21 @@ class AppStatusGateEndToEndTest {
      * The point of the sheet: the owner still sees the app they are locked out of, which a
      * full-screen stop cannot show them.
      */
+    /**
+     * Maintenance offers one way out, and it leaves.
+     *
+     * A "Try again" here answers "still down" every time — the server decides when
+     * maintenance ends and the app re-asks on its next launch, so closing it *is* the retry.
+     */
+    @Test
+    fun maintenanceOffersOnlyAWayOut() {
+        installMaintenanceBlock()
+        rule.awaitText(AppStatusCopy.MAINTENANCE_TITLE)
+
+        rule.onNodeWithText(AppStatusCopy.CLOSE).assertIsDisplayed()
+        rule.onNodeWithText(AppStatusCopy.RETRY).assertDoesNotExist()
+    }
+
     @Test
     fun theDashboardStaysOnScreenBehindAMaintenanceBlock() {
         rule.awaitText(AppStatusCopy.MAINTENANCE_TITLE)

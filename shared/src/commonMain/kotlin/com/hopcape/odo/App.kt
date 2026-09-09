@@ -67,9 +67,14 @@ import org.koin.compose.koinInject
  * opens**: a returning owner goes straight to [OdoDestination.Home], a new one to the
  * [OdoDestination.Welcome] intro — navigation wiring, not business logic, since the fact
  * behind it (`OwnerProfile.hasCompletedOnboarding`) is already owned by the domain.
+ *
+ * @param onExit closes the app. Only the maintenance sheet uses it: there is nothing to retry
+ *  against while the server is down, so leaving is the honest action. Defaults to doing
+ *  nothing for hosts that cannot close themselves — iOS forbids it, and a button there would
+ *  be a promise the platform will not keep.
  */
 @Composable
-fun App() {
+fun App(onExit: () -> Unit = {}) {
     val koin = getKoin()
 
     // Observed, unlike the start destination: the appearance sheet changes these while the
@@ -112,6 +117,7 @@ fun App() {
                     AppBlockedSheet(
                         blocked = current as AppAvailability.Blocked,
                         onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
+                        onExit = onExit,
                     )
                 }
             }

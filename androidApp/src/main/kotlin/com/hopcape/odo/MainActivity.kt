@@ -22,7 +22,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            // finishAndRemoveTask rather than finish: maintenance blocks the whole app, and
+            // leaving it in the recents list invites the owner back into the same wall.
+            App(onExit = { finishAndRemoveTask() })
         }
 
         // After setContent, so the host is already collecting when the command is emitted.

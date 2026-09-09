@@ -19,6 +19,9 @@ internal object AppStatusCopy {
     const val UPDATE_TITLE = "Update required"
     const val UPDATE_NOW = "Update now"
     const val RETRY = "Try again"
+
+    /** The maintenance sheet's only action. There is nothing to retry while the server is down. */
+    const val CLOSE = "Close Odo"
 }
 
 /**
