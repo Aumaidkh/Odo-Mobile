@@ -123,16 +123,24 @@ class DataTelemetry(
         const val FAIRNESS = "fairness"
         const val OVERCHARGE = "overcharge"
         const val PROFILE = "profile"
+
+        /** Questionnaire answers (#394). Apart from [PROFILE]: different table, different writes. */
+        const val QUESTIONNAIRE = "questionnaire"
         const val DOCUMENT = "document"
         const val FUEL_PRICE = "fuelprice"
 
         /** Fuel fills — the measured half of the running cost, kept apart from the price feed. */
         const val FUEL_FILL = "fuelfill"
         const val HEALTH_SCORE = "healthscore"
+        const val CHALLAN = "challan"
 
         /** Custom reminders + dismissals — the stored half; the derived feed has no rows. */
         const val REMINDER = "reminder"
         const val TRIP = "trip"
+
+        /** Tickets the owner sent support, and their votes on the curated ideas. */
+        const val SUPPORT_TICKET = "supportticket"
+        const val FEATURE_IDEA = "featureidea"
         const val SYNC = "sync"
 
         /** The durable analytics event queue — SqlDelightAnalyticsEventStore. */

@@ -122,11 +122,9 @@ class OwnerProfileRepositoryImplTest {
 
     private fun profile(
         name: String = "Rahul",
-        goal: OnboardingGoal = OnboardingGoal.TRACK_COSTS,
     ): OwnerProfile = OwnerProfile.new(
         id = ownerId,
         name = OwnerName.of(name).getOrNull()!!,
-        goal = goal,
     )
 
     @Test

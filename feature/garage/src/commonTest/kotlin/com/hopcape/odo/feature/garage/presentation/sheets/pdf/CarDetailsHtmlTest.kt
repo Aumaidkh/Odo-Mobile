@@ -132,7 +132,7 @@ class CarDetailsHtmlTest {
     ): CarDetails = CarDetails(
         record = ServiceRecordBuilder.build(
             car = car,
-            owner = OwnerProfile.reconstitute(id = TEST_OWNER, name = "Rahul Deshmukh", goal = null, onboardingCompletedAt = null),
+            owner = OwnerProfile.reconstitute(id = TEST_OWNER, name = "Rahul Deshmukh", onboardingCompletedAt = null),
             entries = entries,
             documents = emptyList(),
             scores = emptyList(),

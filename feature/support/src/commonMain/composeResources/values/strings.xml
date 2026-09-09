@@ -168,34 +168,22 @@
     <string name="sp_fb_send">Continue in email</string>
     <!-- Stated on the form, not just in the draft: somebody deciding whether to write at all
          should know what rides along before they start typing. -->
-    <string name="sp_fb_attach_note">Your app version and phone model are added to the email so we can work out what went wrong. Nothing is sent until you send it, and you can edit or delete any of it first.</string>
     <!-- The attach-diagnostics choice, on the problem report only. An idea or a wrong price
          has no logs worth reading, and a checkbox there would be noise asking for data
          nobody would open. Default on: a problem report without logs is the one support has
          to answer with "can you send us diagnostics", which costs the owner another round
          trip. -->
-    <string name="sp_fb_attach_diagnostics">Attach diagnostics</string>
-    <string name="sp_fb_attach_diagnostics_sub">Recent app logs — what the app did and any errors. No bills, documents, photos or trip locations.</string>
     <!-- Added to the draft under the footer when diagnostics are attached. %1$s is the
          reference code the logs upload under. -->
     <string name="sp_fb_diagnostics_line">Diagnostics: %1$s</string>
-
-    <string name="sp_fb_report_intro">Tell us what happened. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_report_subject">Problem report</string>
     <!-- The form opens on this rather than an empty box. Headings, not questions, so the
          owner types under them instead of reading a paragraph and starting from nothing.
          Trailing newlines are deliberate: the cursor lands where they should write. -->
-    <string name="sp_fb_report_body">What went wrong:\n\n\nWhat I was doing at the time:\n\n\nWhat I expected instead:\n</string>
-
-    <string name="sp_fb_idea_intro">Tell us what you would like Odo to do. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_idea_subject">Feature idea</string>
-    <string name="sp_fb_idea_body">What I would like Odo to do:\n\n\nWhen I would use it:\n\n\nWhat I do today instead:\n</string>
-
-    <string name="sp_fb_flag_intro">Tell us which job looked wrong. Fill in what you can — anything you leave blank is fine.</string>
     <string name="sp_fb_flag_subject">Wrong price data</string>
     <!-- City is asked for because benchmarks are worked out per city, so a report without
          one cannot be checked against anything. -->
-    <string name="sp_fb_flag_body">The job or part:\n\n\nWhat Odo showed:\n\n\nWhat I actually paid:\n\n\nMy city:\n</string>
 
     <!-- Appended below the owner’s message in the draft. %1$s is the version name, %2$s the
          build number, %3$s the manufacturer, %4$s the model, %5$s the OS and its version. -->
@@ -229,4 +217,116 @@
     <string name="sp_rate_play">Rate on Play Store</string>
     <!-- %1$d is the star count, so a reply thread is sortable without opening it. -->
     <string name="sp_rate_subject">App rating: %1$d of 5</string>
+    <!-- ============ Send diagnostics ============ -->
+    <string name="sp_diag_title">Send diagnostics</string>
+    <string name="sp_diag_headline">This is what gets sent</string>
+    <string name="sp_diag_intro">Only do this if support asked you to. Nothing is sent in the background.</string>
+    <string name="sp_diag_item_app">App &amp; device</string>
+    <string name="sp_diag_item_logs">Crash &amp; error log</string>
+    <string name="sp_diag_item_scans">Last 3 bill scans</string>
+    <string name="sp_diag_item_scans_sub">the images themselves</string>
+    <string name="sp_diag_item_email">Account email</string>
+    <string name="sp_diag_item_email_sub">so we can reply</string>
+    <string name="sp_diag_never_label">NEVER INCLUDED</string>
+    <string name="sp_diag_never">Your location history, your registration number, your contacts, and anything you typed into a form but didn’t send.</string>
+    <string name="sp_diag_retention">Deleted from our side after %1$d days.</string>
+    <string name="sp_diag_send">Send · %1$s</string>
+    <!-- Nothing ticked is not a send. The button says so rather than going grey with no reason. -->
+    <string name="sp_diag_send_nothing">Nothing selected</string>
+    <!-- Until the size of the upload is actually known. "Send · 0 B" is a false fact on the
+         one screen whose job is to state true ones. -->
+    <string name="sp_diag_send_unsized">Send</string>
+
+    <!-- ============ Diagnostics sent ============ -->
+    <string name="sp_sent_diag_title">Diagnostics sent</string>
+    <string name="sp_sent_diag_intro">Quote this reference if you write in about the same problem.</string>
+    <string name="sp_sent_reference_label">REFERENCE</string>
+    <string name="sp_sent_row_sent">Sent</string>
+    <string name="sp_sent_row_just_now">Just now</string>
+    <string name="sp_sent_row_size">Size</string>
+    <string name="sp_sent_row_deleted_by">Deleted by</string>
+    <string name="sp_sent_copy">Copy reference</string>
+    <string name="sp_sent_copied">Reference copied</string>
+    <string name="sp_sent_delete">Delete what I just sent</string>
+
+    <!-- ============ Report a problem ============ -->
+    <string name="sp_rp_title">Report a problem</string>
+    <string name="sp_rp_where">WHERE DID IT HAPPEN</string>
+    <string name="sp_rp_what">WHAT WENT WRONG</string>
+    <string name="sp_rp_hint">What were you doing, and what happened instead?</string>
+    <string name="sp_rp_screenshot_note">A screenshot helps more than a description.</string>
+    <string name="sp_rp_add_screenshot">Add a screenshot</string>
+    <string name="sp_rp_remove_attachment">Remove %1$s</string>
+    <string name="sp_rp_attach_logs">Attach app logs</string>
+    <string name="sp_rp_attach_logs_sub">Helps us find it faster</string>
+    <string name="sp_rp_send">Send report</string>
+    <string name="sp_rp_reply_to">We reply to %1$s within a working day</string>
+    <!-- Shown instead of the line above when the account carries no address to reply to. -->
+    <string name="sp_rp_email_label">Your email</string>
+    <string name="sp_rp_email_hint">name@example.com</string>
+    <string name="sp_rp_email_why">So we can reply. We use it for this reply and nothing else.</string>
+    <string name="sp_rp_email_invalid">That does not look like an email address.</string>
+
+    <!-- The areas a report can be filed against. -->
+    <string name="sp_area_bill_scan">Bill scan</string>
+    <string name="sp_area_reminders">Reminders</string>
+    <string name="sp_area_challan">Challan</string>
+    <string name="sp_area_refuel">Refuel</string>
+    <string name="sp_area_payment">Payment</string>
+    <string name="sp_area_other">Something else</string>
+
+    <!-- ============ Report sent ============ -->
+    <string name="sp_sent_rp_title">Report sent</string>
+    <string name="sp_sent_rp_intro">A real person reads this. You’ll get an email at %1$s.</string>
+    <string name="sp_sent_row_ticket">Ticket</string>
+    <string name="sp_sent_row_area">Area</string>
+    <string name="sp_sent_row_attached">Attached</string>
+    <string name="sp_sent_attached_none">Nothing</string>
+    <string name="sp_sent_attached_logs">app logs</string>
+    <plurals name="sp_sent_attached_photos">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
+    <string name="sp_sent_wait_label">WHILE YOU WAIT</string>
+    <string name="sp_sent_wait_body">You can still log this bill by hand — the amount won’t be lost.</string>
+    <string name="sp_sent_wait_action">Enter it manually</string>
+    <string name="sp_sent_done">Done</string>
+
+    <!-- ============ Suggest an idea ============ -->
+    <string name="sp_idea_title">Suggest an idea</string>
+    <string name="sp_idea_label">YOUR IDEA</string>
+    <string name="sp_idea_hint">What would you do with it, and when would you use it?</string>
+    <string name="sp_idea_already">ALREADY ASKED FOR — ADD YOUR VOTE</string>
+    <string name="sp_idea_votes">votes</string>
+    <string name="sp_idea_voted">voted</string>
+    <string name="sp_idea_vote_action">Vote for %1$s</string>
+    <string name="sp_idea_no_dates">We don’t promise dates. We do read every one.</string>
+    <string name="sp_idea_send">Send idea</string>
+    <string name="sp_idea_sent">Idea sent. We read every one.</string>
+    <string name="sp_idea_failed">Could not save your idea. Try again.</string>
+    <string name="sp_idea_vote_failed">Could not add your vote. Try again.</string>
+    <string name="sp_idea_status_under_review">Under review</string>
+    <string name="sp_idea_status_in_progress">In progress</string>
+    <string name="sp_idea_status_shipping">Shipping this month</string>
+    <string name="sp_idea_status_shipped">Shipped</string>
+
+    <!-- ============ Flag wrong price ============ -->
+    <string name="sp_flag_title">Flag wrong price</string>
+    <string name="sp_flag_band_label">THE BAND YOU’RE FLAGGING</string>
+    <string name="sp_flag_whats_off">WHAT’S OFF ABOUT IT</string>
+    <string name="sp_flag_too_low">Too low for my city</string>
+    <string name="sp_flag_too_high">Too high — I pay less</string>
+    <string name="sp_flag_wrong_item">Wrong item entirely</string>
+    <string name="sp_flag_paid">WHAT DID YOU ACTUALLY PAY?</string>
+    <string name="sp_flag_paid_note">One real number moves the band more than a paragraph. Attach the bill and it counts double.</string>
+    <string name="sp_flag_attach_bill">Attach the bill</string>
+    <string name="sp_flag_attach_optional">Optional</string>
+    <string name="sp_flag_send">Send correction</string>
+    <string name="sp_flag_sent">Correction sent. Bands update weekly.</string>
+    <string name="sp_flag_failed">Could not save your correction. Try again.</string>
+    <string name="sp_flag_footer">Bands update weekly. We won’t email you about this one.</string>
+    <!-- Opened from the help sheet rather than from a band, so there is none to show. -->
+    <string name="sp_flag_no_band">Tell us which price looked wrong and what you paid for it.</string>
+    <string name="sp_flag_which_label">WHICH JOB</string>
+    <string name="sp_flag_which_hint">e.g. AC service</string>
 </resources>

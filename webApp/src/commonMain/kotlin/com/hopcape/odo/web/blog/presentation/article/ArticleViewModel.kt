@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.presentation.loadInto
-import com.hopcape.odo.web.blog.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Loadable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

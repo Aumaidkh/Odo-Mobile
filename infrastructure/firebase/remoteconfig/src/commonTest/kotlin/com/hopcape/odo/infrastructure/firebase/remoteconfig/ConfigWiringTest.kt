@@ -3,21 +3,24 @@ package com.hopcape.odo.infrastructure.firebase.remoteconfig
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
+import com.hopcape.odo.core.config.ChainedConfigSource
 import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.config.ConfigRegistry
 import com.hopcape.odo.core.config.ConfigResolver
 import com.hopcape.odo.core.config.ConfigSource
-import com.hopcape.odo.core.config.NoRemoteConfigSource
 import com.hopcape.odo.core.config.coreConfigModule
+import kotlinx.coroutines.test.runTest
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * The two things about this wiring that compile either way and only fail at runtime.
@@ -40,25 +43,48 @@ class ConfigWiringTest {
     }.koin
 
     @Test
-    fun `the Firebase source replaces the no-backend default`() {
-        val source = graph().get<ConfigSource>()
+    fun `this module contributes Remote Config under its own qualifier`() {
+        // Never as the plain ConfigSource. That is coreConfigModule's, and it holds the
+        // chain over every qualified backend — binding the plain interface here is what
+        // let this module and supabaseConfigModule overwrite each other depending on which
+        // way round initKoin listed them.
+        val koin = graph()
 
-        assertTrue(
-            source is RemoteConfigSource,
-            "expected RemoteConfigSource, got ${source::class.simpleName}. Listing " +
-                "firebaseRemoteConfigModule before coreConfigModule puts the " +
-                "no-backend source back and every key stays on its default.",
-        )
+        assertNotNull(koin.get<ConfigSource>(named(ConfigSource.REMOTE_CONFIG)))
+        assertIs<ChainedConfigSource>(koin.get<ConfigSource>())
+        assertIs<ChainedConfigSource>(koin.get<ConfigRefresher>())
     }
 
     @Test
-    fun `the source and the refresher are the same object`() {
+    fun `the source and the refresher are the same instance`() {
         // The generation counter lives in the instance. Two definitions would mean the
-        // refresher bumps one object while every flow watches another, so no screen would
-        // ever update after a fetch.
+        // graph fetches on one object while every config flow watches the other.
         val koin = graph()
 
-        assertSame(koin.get<ConfigSource>(), koin.get<ConfigRefresher>() as Any)
+        assertSame<Any>(koin.get<ConfigSource>(), koin.get<ConfigRefresher>())
+    }
+
+    @Test
+    fun `refreshing the graph fetches Remote Config`() {
+        // The app-status gate depends on this and nothing else does it: fetchAndActivate is
+        // what moves lastFetchStatus off NoFetchYet, and RemoteConfigAppStatusSource returns
+        // null — fail open, no gate — for as long as lastFetchAt is null. A graph whose
+        // refresher never touches Firebase is a build where force-update and maintenance mode
+        // cannot be switched on at all.
+        val gateway = FakeGateway()
+        val koin = startKoin {
+            modules(
+                module { single<Logger> { SilentLogger } },
+                coreConfigModule,
+                firebaseRemoteConfigModule,
+                // Only Firebase itself is faked. The wiring under test is the real one.
+                module { single<FirebaseRemoteConfigGateway> { gateway } },
+            )
+        }.koin
+
+        runTest { koin.get<ConfigRefresher>().refresh() }
+
+        assertEquals(1, gateway.fetches)
     }
 
     @Test
@@ -83,6 +109,11 @@ class ConfigWiringTest {
                 // keys somewhere.
                 "auto_odometer_enabled",
                 "refuel_detect_enabled",
+                "challan_check_enabled",
+                "plate_lookup_enabled",
+                "advisory_classifier_enabled",
+                "bill_check_enabled",
+                "service_checklist_enabled",
             ),
             keys,
         )
@@ -99,12 +130,13 @@ class ConfigWiringTest {
     }
 
     @Test
-    fun `without the Firebase module the no-backend source answers`() {
-        // iOS today, and any build with no Firebase project configured.
+    fun `without either backend the chain is empty and every key reads as null`() {
+        // iOS today, and any build with no Firebase project configured. An empty chain is
+        // the right answer rather than a failure: every key falls to its compiled default.
         val koin = startKoin { modules(coreConfigModule) }.koin
 
-        assertSame(NoRemoteConfigSource, koin.get<ConfigSource>())
-        assertSame(ConfigRefresher.None, koin.get<ConfigRefresher>())
+        assertNull(koin.get<ConfigSource>().string("maintenance_message"))
+        assertSame<Any>(koin.get<ConfigSource>(), koin.get<ConfigRefresher>())
     }
 
     private object SilentLogger : Logger {

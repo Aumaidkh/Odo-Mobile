@@ -1,0 +1,21 @@
+-- Schema 10 -> 11: the two things user management (#369) needs on the device.
+--
+-- `profiles.restriction` mirrors the server column of the same name. It is appended, after
+-- `phone`, for the reason 5.sqm's own note gives: a fresh install builds the table from
+-- Profile.sq and an upgraded one from these migrations, and `SELECT *` has to give the same
+-- column order on both.
+--
+-- `entitlement_override` is a new table, so there is nothing to migrate. Pull-only, the way
+-- `city` is: the server decides what an owner is entitled to and a device that could write
+-- its own row would not be an entitlement at all.
+ALTER TABLE profiles ADD COLUMN restriction TEXT NOT NULL DEFAULT 'none';
+
+CREATE TABLE entitlement_override (
+    owner_id    TEXT NOT NULL,
+    feature     TEXT NOT NULL,
+    granted     INTEGER NOT NULL,
+    expires_at  TEXT,
+    updated_at  TEXT NOT NULL,
+    sync_status TEXT NOT NULL DEFAULT 'SYNCED',
+    PRIMARY KEY (owner_id, feature)
+);

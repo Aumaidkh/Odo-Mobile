@@ -5,23 +5,25 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
 import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 
 /**
- * A development [VehicleRegistryLookup] backed by a handful of hardcoded plates, so the
- * "is this your car?" path can be walked end to end before any registry integration exists.
+ * A [VehicleRegistryLookup] backed by a handful of hardcoded plates.
  *
- * **This must not ship.** It is here to exercise the flow, not to answer questions about
- * real cars: it knows [KNOWN_VEHICLES] and nothing else, and every other plate comes back
- * [DomainError.RegistrationNotFound]. Replacing it is one line in `coreDataModule` — no
- * caller changes, which is the point of the port.
+ * What an **unconfigured** build gets. A checkout with no Supabase credentials binds no real
+ * tier (`SupabaseModule`'s `isConfigured` branch), and this keeps the "is this your car?"
+ * path walkable end to end without one — the same role `FakeCarRemoteDataSource` plays for
+ * the garage. The end-to-end suite drives it for the same reason: a test that reached the
+ * network would be testing the network.
  *
- * "Not found" rather than "unavailable" is the right failure for an unknown plate here: the
- * lookup did answer, and it has no record. That is the answer that sends the owner to manual
- * entry instead of offering a retry that would never succeed.
+ * It knows [KNOWN_VEHICLES] and nothing else; every other plate comes back
+ * [DomainError.RegistrationNotFound]. "Not found" rather than "unavailable" is right: the
+ * lookup answered, and it has no record. That is what sends the owner to manual entry
+ * instead of offering a retry that would never succeed.
  */
 internal class StubVehicleRegistryLookup : VehicleRegistryLookup {
 
@@ -47,6 +49,7 @@ internal class StubVehicleRegistryLookup : VehicleRegistryLookup {
                 variant = "VXI",
                 year = ModelYear.of(2020).getOrNull()!!,
                 fuelType = FuelType.PETROL,
+                source = VehicleSource.OWN_RECORD,
             ),
         )
     }

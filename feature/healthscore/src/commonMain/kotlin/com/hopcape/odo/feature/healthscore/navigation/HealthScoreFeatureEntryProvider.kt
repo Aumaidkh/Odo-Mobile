@@ -54,7 +54,7 @@ internal fun HealthScoreRoute(navigationManager: NavigationManager) {
             HealthScoreEffect.GoBack -> navigationManager.back()
             HealthScoreEffect.OpenInfo -> navigationManager.navigateTo(OdoDestination.HealthScore.Info)
             HealthScoreEffect.OpenPaywall ->
-                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER))
+                navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER))
         }
     }
 

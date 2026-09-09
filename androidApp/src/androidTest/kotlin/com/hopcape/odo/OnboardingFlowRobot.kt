@@ -15,8 +15,22 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.rules.ActivityScenarioRule
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
+import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.ModelYear
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.shared.DomainError
 import org.junit.rules.ExternalResource
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
+import org.koin.core.context.GlobalContext
+import org.koin.dsl.module
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 
 /**
  * The words the onboarding flow puts on screen, mirrored from each feature's `strings.xml`.
@@ -33,20 +47,41 @@ import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
 internal object Copy {
     const val WELCOME_HEADLINE = "Know what your car really costs you."
     const val WELCOME_CTA = "Get started"
+    const val WELCOME_SIGN_IN = "Already using Odo? Sign in"
     const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
     const val ENTER_MANUALLY = "Enter details manually"
+
+    /** What a refused save says. Its whole job is to not be silence. */
+    const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."
     const val LOOKUP_NOT_FOUND = "No record for this plate"
+    const val MATCH_SOURCE_OWN = "From your earlier Odo record"
+    const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
+    /** Retired copy, kept so a test can assert the button did not come back. */
+    const val ODOMETER_UNKNOWN = "I don\u2019t know it right now"
+
+    /** What replaced it: the reading is optional, so the step says so rather than asking. */
+    const val ODOMETER_LATER = "You can add that later"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
-    const val SCAN_TITLE = "Find out if you overpaid last time"
-    const val SCAN_CTA = "Check my last bill"
-    const val SCAN_SKIP = "I’ll do this later"
+    const val WORKSHOP_TITLE = "Where do you get your car serviced?"
+    const val WORKSHOP_AUTHORISED = "Company service centre"
+    const val LAST_SERVICE_TITLE = "When was your last service?"
+    const val LAST_SERVICE_FORGOT = "Don’t remember"
+    const val LAST_SERVICE_DATE_MISSING = "Add the month of that service, or tick “Don’t remember”."
+    const val LAST_SERVICE_ODOMETER_MISSING =
+        "Add the reading from that service, or tick “Don’t remember”."
+    const val SCAN_CTA = "Photograph the old bill"
+    const val SKIP = "Skip"
+    const val CHOOSE = "Choose"
     const val CONTINUE = "Continue"
     const val DONE = "Done"
     const val BACK = "Back"
+
+    /** The payoff screen setup ends on — proof the flow finished somewhere new. */
+    const val CAR_VALUE_TITLE = "My car’s value"
     const val AUTH_TITLE = "What’s your number?"
 
     /** Home's own copy, not the flow's — proof the gate landed somewhere else entirely. */
@@ -57,7 +92,7 @@ internal object Copy {
     const val HOME_SCORE_WAITING = "Your score is waiting"
 }
 
-/** What the development registry stub resolves, and what it does not. */
+/** What [installStubVehicleRegistry]'s lookup resolves, and what it does not. */
 internal object Fixtures {
     const val KNOWN_PLATE = "JK03N3078"
     const val MATCHED_CAR = "Maruti Suzuki Swift VXI"
@@ -147,17 +182,92 @@ internal fun OdoTestRule.startFromWelcome() {
 }
 
 /**
+ * Answer the plate route, the profile and the workshop tier, ending on the last step.
+ *
+ * Three steps is enough boilerplate that a test about the *fourth* one should not carry it,
+ * and the steps before it are covered on their own by
+ * [OnboardingEndToEndTest.plateRoute_setsUpTheCarAndNeverAsksAgain].
+ */
+internal fun OdoTestRule.reachTheLastServiceStep() {
+    startFromWelcome()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+    waitForText(Fixtures.MATCHED_CAR)
+    setOdometer()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
+}
+
+/**
+ * Answer the three steps after the car and decline the sign-in offer, landing on Home.
+ *
+ * The mirror of [reachTheLastServiceStep] for a test that cares about what comes *after*
+ * setup rather than about setup itself.
+ */
+internal fun OdoTestRule.finishSetupFromTheProfileStep() {
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
+    onNodeWithText(Copy.SKIP).performClick()
+
+    // Nothing is signed in, so the offer comes before Home. Declining it is what an owner
+    // taking the quickest route through setup does.
+    waitForText(Copy.AUTH_TITLE)
+    onNodeWithText(AuthCopy.SKIP).performClick()
+}
+
+/**
  * Open the odometer sheet and put a reading in it.
  *
  * The reading is entered with the sheet's own "+1,000" shortcut rather than by typing: it
  * needs no keyboard on screen, and the shortcut is what most owners will tap anyway.
  */
-internal fun OdoTestRule.setOdometer(thousands: Int = 5) {
-    onNodeWithTag(OnboardingTestTags.ODOMETER_FIELD).performClick()
+internal fun OdoTestRule.setOdometer(
+    thousands: Int = 5,
+    fieldTag: String = OnboardingTestTags.ODOMETER_FIELD,
+) {
+    onNodeWithTag(fieldTag).performClick()
     waitForText(Copy.ODOMETER_SAVE)
     repeat(thousands) { onNodeWithText(Copy.ODOMETER_BUMP).performClick() }
     onNodeWithText(Copy.ODOMETER_SAVE).performClick()
     waitUntil(DEFAULT_TIMEOUT_MILLIS) { onAllNodesWithTextCount(Copy.ODOMETER_SAVE) == 0 }
+}
+
+/**
+ * Pick the first day of the month the date picker opens on.
+ *
+ * A specific date would mean scrolling the picker, which is brittle and beside the point.
+ * The first of the current month is always in the past, which is what the entry's own
+ * validation cares about. Tapping a day matters: the dialog confirms nothing while its
+ * selection is empty, so "Choose" alone would close it having set no date at all.
+ */
+internal fun OdoTestRule.pickFirstOfTheMonth() {
+    onNodeWithTag(OnboardingTestTags.LAST_SERVICE_DATE_FIELD).performClick()
+    waitForText(Copy.CHOOSE)
+    // Unmerged: a day cell wraps its number in a node carrying the spoken date ("Tuesday,
+    // September 1, 2026"), and the merged tree hands back that description instead of "1".
+    // A day cell clears its children's semantics and states the whole date instead
+    // ("Tuesday, September 1, 2026"), so the digit alone matches nothing. " 1," picks the
+    // first without also matching the 11th or the 21st.
+    onAllNodesWithText(FIRST_OF_MONTH, substring = true).onFirst().performClick()
+    onNodeWithText(Copy.CHOOSE).performClick()
+    waitUntil(DEFAULT_TIMEOUT_MILLIS) { onAllNodesWithTextCount(Copy.CHOOSE) == 0 }
 }
 
 /** Open the picker behind [fieldTag] and choose [option] from the sheet it raises. */
@@ -202,8 +312,97 @@ internal fun OdoTestRule.typeInto(fieldTag: String, text: String) {
 internal fun OdoTestRule.onNodeWithLabel(label: String): SemanticsNodeInteraction =
     onNodeWithContentDescription(label)
 
+/** The day-of-month fragment of a date picker cell's spoken description. */
+private const val FIRST_OF_MONTH = " 1,"
+
 /** Long enough for a debounced lookup or a sheet animation, short enough to fail fast. */
 private const val DEFAULT_TIMEOUT_MILLIS = 5_000L
 
 /** The first frame waits on a database read, and on a cold start also on the catalog seed. */
 internal const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L
+
+/* ------------------------------ Plate lookup ------------------------------ */
+
+/**
+ * Put a fixed plate lookup in front of the car step.
+ *
+ * Always installed, never left to the real one. A debug build *is* configured, so the bound
+ * chain would read the owner's cars off the server and — once `plate_lookup_enabled` is on —
+ * call `resolve_plate`. A test that did that would be testing the network and would answer
+ * differently on every project.
+ *
+ * The fixtures it serves are the ones [Fixtures] names: [Fixtures.KNOWN_PLATE] resolves and
+ * [Fixtures.UNKNOWN_PLATE] does not, which is what the two routes through the car step are
+ * written against.
+ *
+ * [source] decides which record the match claims to come from, because that is what the card
+ * tells the owner and the two claims carry different weight.
+ */
+internal fun installStubVehicleRegistry(source: VehicleSource = VehicleSource.OWN_RECORD) {
+    val lookup = StubOnboardingRegistry(source)
+    GlobalContext.get().loadModules(
+        listOf(module { single<VehicleRegistryLookup> { lookup } }),
+        allowOverride = true,
+    )
+}
+
+private class StubOnboardingRegistry(
+    private val source: VehicleSource,
+) : VehicleRegistryLookup {
+    override suspend fun lookup(
+        registrationNumber: RegistrationNumber,
+    ): Either<DomainError, RegisteredVehicle> =
+        if (registrationNumber.value == Fixtures.KNOWN_PLATE) {
+            RegisteredVehicle(
+                make = Fixtures.MAKE,
+                model = Fixtures.MODEL,
+                variant = "VXI",
+                year = ModelYear.of(2020).getOrNull()!!,
+                fuelType = FuelType.PETROL,
+                source = source,
+            ).right()
+        } else {
+            // "No record" and not "unavailable": the manual route is reached through the
+            // not-found copy, and a retry button instead would strand the test.
+            DomainError.RegistrationNotFound.left()
+        }
+}
+
+/**
+ * Makes storing the car fail, so the step's refusal path can be driven.
+ *
+ * Wraps the real repository rather than replacing it: every other read the flow makes still
+ * answers normally, and only `add` refuses — which is the shape of the failure the owner
+ * actually hits, not a graph with a hole in it.
+ */
+internal fun installRefusingCarStore() {
+    val real = GlobalContext.get().get<CarRepository>()
+    GlobalContext.get().loadModules(
+        listOf(module { single<CarRepository> { RefusingCarStore(real) } }),
+        allowOverride = true,
+    )
+}
+
+private class RefusingCarStore(private val real: CarRepository) : CarRepository by real {
+    override suspend fun add(car: Car): Either<DomainError, Car> =
+        DomainError.PersistenceFailure().left()
+}
+
+/**
+ * Drives the manual car form to the point where Continue is live and the save will be refused.
+ *
+ * Needs [installRefusingCarStore] to have run before the launch. Shared by the behaviour test
+ * and the screenshot one so both photograph and assert the same moment.
+ */
+internal fun OdoTestRule.reachARefusedCarSave() {
+    startFromWelcome()
+    onNodeWithText(Copy.ENTER_MANUALLY).performClick()
+    waitForText(Copy.DETAILS_TITLE)
+
+    pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
+    pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
+    confirmYear()
+    pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
+    setOdometer()
+    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
+}

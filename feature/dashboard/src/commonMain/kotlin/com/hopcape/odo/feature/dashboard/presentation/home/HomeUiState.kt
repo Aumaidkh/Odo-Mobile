@@ -66,6 +66,17 @@ internal data class HomeUiState(
      */
     val offerAutoOdometer: Boolean = false,
 
+    /**
+     * Whether to offer the pre-service checklist as its own card.
+     *
+     * True when a service is close and the attention card is about something else. When
+     * attention *is* the service, that card opens the checklist itself and this stays down:
+     * Home saying the same thing twice is how a dashboard stops being read.
+     *
+     * It goes as soon as the next service is logged, because the interval resets with it.
+     */
+    val offerChecklist: Boolean = false,
+
 )
 
 /** A loaded dashboard. */
@@ -83,6 +94,14 @@ internal data class HomeContent(
     val carName: String = "",
     /** The car's reading today, for the line under the greeting. */
     val odometer: Distance? = null,
+    /**
+     * The owner skipped the reading at setup and has not given one since.
+     *
+     * Drives the nudge card. Separate from [odometer] being null, which is also true of a
+     * car whose reading is simply not derivable yet — this one is a question waiting for an
+     * answer, and the card is how it keeps being asked.
+     */
+    val odometerPending: Boolean = false,
     val score: Int = 0,
     val band: HealthBand = HealthBand.POOR,
     /** Points against the score from a month ago; `null` hides the line. */

@@ -3,13 +3,13 @@ package com.hopcape.odo.web.blog.presentation.admin.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.AdminRepository
-import com.hopcape.odo.web.blog.domain.UploadRequest
+import com.hopcape.odo.web.core.platform.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
 import com.hopcape.odo.web.blog.domain.model.MediaItem
 import com.hopcape.odo.web.blog.presentation.asUiText
 import com.hopcape.odo.web.blog.presentation.loadInto
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.UiText
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.UiText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -1,0 +1,102 @@
+<resources>
+    <!-- List (the owner's own car) -->
+    <string name="ch_title">Challans</string>
+    <string name="ch_status_checked">Checked %1$s</string>
+    <string name="ch_status_never_checked">Not checked yet</string>
+    <string name="ch_refresh">Refresh</string>
+    <string name="ch_total_pending_label">TOTAL PENDING</string>
+    <string name="ch_total_pending_car">%1$d challans on %2$s</string>
+    <string name="ch_total_pending_one_car">%1$d challan on %2$s</string>
+    <string name="ch_total_pending_count">%1$d challans</string>
+    <string name="ch_total_pending_count_one">%1$d challan</string>
+    <string name="ch_section_pending">Pending</string>
+    <string name="ch_section_year">%1$s · %2$d challans</string>
+    <string name="ch_section_year_one">%1$s · %2$d challan</string>
+    <string name="ch_section_payable">Payable online · %1$s</string>
+    <string name="ch_section_older">Older</string>
+    <string name="ch_older_count">Older · %1$d challans</string>
+    <string name="ch_older_count_one">Older · %1$d challan</string>
+    <string name="ch_older_range">%1$s–%2$s · may carry added penalties</string>
+    <string name="ch_older_bucket">Older</string>
+    <string name="ch_pay_on_parivahan">Pay on Parivahan</string>
+    <string name="ch_pay_amount_on_parivahan">Pay %1$s on Parivahan</string>
+    <string name="ch_pay_all_on_parivahan">Pay all on Parivahan</string>
+    <string name="ch_already_paid">I\'ve already paid these</string>
+    <string name="ch_payment_note">Payment happens on the official Parivahan site.</string>
+    <string name="ch_older_penalty_note">Older challans may carry added penalties</string>
+
+    <!-- Court section -->
+    <string name="ch_court_banner">In court · Cannot be paid online</string>
+    <string name="ch_court_label">Court</string>
+    <string name="ch_court_hearing_label">Next hearing</string>
+    <string name="ch_court_note">This has moved to court, so it can only be settled there. Odo will keep showing the hearing date.</string>
+
+    <!-- Clean state -->
+    <string name="ch_clean_title">No pending challans</string>
+    <string name="ch_clean_body">Nothing outstanding on %1$s across the records.</string>
+    <string name="ch_clean_last_checked">Last checked</string>
+    <string name="ch_clean_cleared_year">Cleared this year</string>
+    <string name="ch_clean_cleared_value">%1$d · %2$s</string>
+    <string name="ch_clean_next_check">Next check</string>
+    <string name="ch_next_check_days">In %1$d days</string>
+    <string name="ch_next_check_day">In %1$d day</string>
+    <string name="ch_next_check_due">Due now</string>
+    <string name="ch_compliance_title">Compliance · 5 / 5</string>
+    <string name="ch_compliance_body">Full marks in your Health Score</string>
+    <string name="ch_check_again">Check again now</string>
+
+    <!-- Source down -->
+    <string name="ch_down_title">Records are unreachable</string>
+    <string name="ch_down_body">The challan records service isn\'t responding. This is on their side, not yours — Odo will keep trying.</string>
+    <string name="ch_down_last_known">Last known result</string>
+    <string name="ch_down_checked_ago">Checked %1$s</string>
+    <string name="ch_down_stale_note">This may be out of date. Anything paid or added since won\'t show here.</string>
+    <string name="ch_try_again">Try again</string>
+    <string name="ch_check_on_parivahan">Check on Parivahan instead</string>
+
+    <!-- Lookup -->
+    <string name="ch_lookup_title">Check any vehicle</string>
+    <string name="ch_lookup_reason">Buying second-hand? Pending challans transfer with the vehicle, not the seller.</string>
+    <string name="ch_lookup_field_label">Registration number</string>
+    <string name="ch_lookup_field_hint">MH 12 AB 1234</string>
+    <string name="ch_lookup_public_only">Public challan records only</string>
+    <string name="ch_lookup_no_owner">No owner name, address or phone</string>
+    <string name="ch_lookup_nothing_saved">Nothing saved — result is shown once</string>
+    <string name="ch_lookup_cta">Check challans</string>
+    <string name="ch_lookup_footnote">This isn\'t your car, so it won\'t affect your Health Score</string>
+    <string name="ch_lookup_invalid">That doesn\'t look like a full registration number yet.</string>
+
+    <!-- Lookup: not found -->
+    <string name="ch_notfound_title">No vehicle found</string>
+    <string name="ch_notfound_body">%1$s isn\'t in the records. Registration numbers are usually 4 digits at the end.</string>
+    <string name="ch_notfound_check_for">Check for</string>
+    <string name="ch_notfound_hint_digit">A missing digit</string>
+    <string name="ch_notfound_hint_letters">0 and O, 1 and I mixed up</string>
+    <string name="ch_notfound_hint_new">Very new vehicles may not appear yet</string>
+    <string name="ch_notfound_edit">Edit the number</string>
+
+    <!-- Result -->
+    <string name="ch_result_checked_just_now">Checked just now</string>
+    <string name="ch_result_transfer_badge">%1$d pending · %2$s</string>
+    <string name="ch_result_transfer_title">These transfer with the vehicle</string>
+    <string name="ch_result_transfer_body">If you buy this car, the pending amount becomes yours. Ask the seller to clear it first.</string>
+    <string name="ch_result_clean_title">No pending challans</string>
+    <string name="ch_result_clean_body">Nothing outstanding on %1$s in the records right now.</string>
+    <string name="ch_result_privacy_note">Nothing about this lookup is saved to your account.</string>
+    <string name="ch_result_check_another">Check another number</string>
+
+    <!-- Relative time -->
+    <string name="ch_time_just_now">just now</string>
+    <string name="ch_time_minutes">%1$d minutes ago</string>
+    <string name="ch_time_minute">%1$d minute ago</string>
+    <string name="ch_time_hours">%1$d hours ago</string>
+    <string name="ch_time_hour">%1$d hour ago</string>
+    <string name="ch_time_days">%1$d days ago</string>
+    <string name="ch_time_day">%1$d day ago</string>
+
+    <!-- Errors -->
+    <string name="ch_error_load_failed">Couldn\'t read the challans on this device.</string>
+    <string name="ch_error_no_reg_no">Add your car\'s registration number first — challans are looked up by plate.</string>
+
+    <string name="ch_cd_back">Back</string>
+</resources>

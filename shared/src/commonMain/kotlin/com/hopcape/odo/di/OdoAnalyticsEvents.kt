@@ -3,14 +3,20 @@ package com.hopcape.odo.di
 import com.hopcape.analytics.api.EventSchema
 import com.hopcape.odo.core.data.appstatus.observability.appStatusAnalyticsEvents
 import com.hopcape.odo.core.data.showcase.observability.showcaseAnalyticsEvents
+import com.hopcape.odo.feature.advisory.advisoryAnalyticsEvents
+import com.hopcape.odo.feature.billcheck.billCheckAnalyticsEvents
 import com.hopcape.odo.feature.autoodometer.autoOdometerAnalyticsEvents
 import com.hopcape.odo.feature.onboarding.onboardingAnalyticsEvents
+import com.hopcape.odo.feature.challan.challanAnalyticsEvents
+import com.hopcape.odo.feature.questionnaire.firstrun.setupAnalyticsEvents
+import com.hopcape.odo.feature.questionnaire.questionnaireAnalyticsEvents
 import com.hopcape.odo.feature.costtracker.costTrackerAnalyticsEvents
 import com.hopcape.odo.feature.dashboard.dashboardAnalyticsEvents
 import com.hopcape.odo.feature.documentvault.documentVaultAnalyticsEvents
 import com.hopcape.odo.feature.fairnesscheck.fairnessCheckAnalyticsEvents
 import com.hopcape.odo.feature.garage.garageAnalyticsEvents
 import com.hopcape.odo.feature.healthscore.healthScoreAnalyticsEvents
+import com.hopcape.odo.feature.paywall.paywallAnalyticsEvents
 import com.hopcape.odo.feature.profile.profileAnalyticsEvents
 import com.hopcape.odo.feature.refuel.refuelAnalyticsEvents
 import com.hopcape.odo.feature.reminders.remindersAnalyticsEvents
@@ -34,10 +40,12 @@ import com.hopcape.odo.feature.timeline.timelineAnalyticsEvents
  * funnel is being checked. A feature that ships telemetry ships its schema in the same change.
  */
 val odoAnalyticsEvents: List<EventSchema> =
-    onboardingAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
+    onboardingAnalyticsEvents + setupAnalyticsEvents + questionnaireAnalyticsEvents + serviceLogAnalyticsEvents + documentVaultAnalyticsEvents +
         garageAnalyticsEvents + costTrackerAnalyticsEvents + healthScoreAnalyticsEvents +
         timelineAnalyticsEvents + dashboardAnalyticsEvents + fairnessCheckAnalyticsEvents +
         profileAnalyticsEvents + syncAnalyticsEvents + authAnalyticsEvents +
         billScannerAnalyticsEvents + remindersAnalyticsEvents + tripTrackerAnalyticsEvents +
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
-        showcaseAnalyticsEvents
+        showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents +
+        billCheckAnalyticsEvents +
+        paywallAnalyticsEvents

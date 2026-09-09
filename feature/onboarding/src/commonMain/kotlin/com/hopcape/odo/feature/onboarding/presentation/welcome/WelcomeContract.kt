@@ -14,6 +14,9 @@ internal sealed interface WelcomeEvent {
     /** "Continue with mobile" — into car setup. */
     data object ContinueClicked : WelcomeEvent
 
+    /** "Already using Odo? Sign in" — for an owner whose records are already on the server. */
+    data object SignInClicked : WelcomeEvent
+
     data object TermsClicked : WelcomeEvent
 
     data object PrivacyClicked : WelcomeEvent
@@ -26,6 +29,15 @@ internal sealed interface WelcomeEffect {
      * to reach a working car without an account; auth is offered *after* setup instead.
      */
     data object OpenCarSetup : WelcomeEffect
+
+    /**
+     * Sign in before setting anything up, for an owner who has done this before.
+     *
+     * Signing out or reinstalling clears the local rows, so a returning owner reaching this
+     * screen has an empty app and a full server. Sync brings back the car, the logs and the
+     * documents; retyping the car in setup would instead create a second one.
+     */
+    data object OpenSignIn : WelcomeEffect
 
     data object OpenTerms : WelcomeEffect
 

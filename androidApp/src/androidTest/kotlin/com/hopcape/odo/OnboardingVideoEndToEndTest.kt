@@ -10,7 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingTestTags
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import org.koin.core.context.GlobalContext
 
 /**
@@ -35,7 +35,10 @@ class OnboardingVideoEndToEndTest {
     @get:Rule
     val chain: RuleChain = RuleChain
         .outerRule(PinnedConfig(VIDEO_ENABLED, value = "true", compiledDefault = "false"))
-        .around(DeviceState { clearTheOwnersRows() })
+        .around(DeviceState {
+            clearTheOwnersRows()
+            installStubVehicleRegistry()
+        })
         .around(rule)
 
     @Test
@@ -118,8 +121,12 @@ class OnboardingVideoEndToEndTest {
         rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
         rule.onNodeWithText(Copy.CONTINUE).performClick()
 
-        rule.waitForText(Copy.SCAN_TITLE)
-        rule.onNodeWithText(Copy.SCAN_SKIP).performClick()
+        rule.waitForText(Copy.WORKSHOP_TITLE)
+        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+        rule.onNodeWithText(Copy.CONTINUE).performClick()
+
+        rule.waitForText(Copy.LAST_SERVICE_TITLE)
+        rule.onNodeWithText(Copy.SKIP).performClick()
         rule.waitForText(Copy.AUTH_TITLE)
 
         // The flag is still on, so this is the variant's own answer and not the usual flow's:

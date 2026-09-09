@@ -16,9 +16,17 @@ internal class FakeGateway(
     private val values: MutableMap<String, String> = mutableMapOf(),
     override val lastFetchAt: Instant? = null,
 ) : FirebaseRemoteConfigGateway {
-    override suspend fun fetchAndActivate(): Boolean = true
-    override fun long(key: String): Long? = values[key]?.toLongOrNull()
-    override fun string(key: String): String? = values[key]
+
+    /** How many times the graph actually asked Firebase for new values. */
+    var fetches: Int = 0
+        private set
+
+    override suspend fun fetchAndActivate(): Boolean {
+        fetches += 1
+        return true
+    }
+
+    override fun remoteString(key: String): String? = values[key]
 
     /** Mimics a console edit that a later fetch activated. */
     operator fun set(key: String, value: String) {

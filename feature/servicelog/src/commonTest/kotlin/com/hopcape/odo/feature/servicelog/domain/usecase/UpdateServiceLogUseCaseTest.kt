@@ -35,7 +35,7 @@ class UpdateServiceLogUseCaseTest {
             return entry.right()
         }
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> = readings.orEmpty()
         override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
             flowOf(readings.orEmpty())
     }
@@ -112,10 +112,15 @@ class UpdateServiceLogUseCaseTest {
         assertEquals(0, repo.updateCount)
     }
 
+    /** Same rule on the edit path: nothing recorded yet is not a missing car. */
     @Test
-    fun noBaseline_isCarNotFound() = runTest {
-        val result = useCase(FakeServiceLogRepository(readings = null))(command(odometerKm = 56_000))
-        assertTrue(result.leftOrNull()!!.contains(DomainError.CarNotFound))
+    fun noBaselineYet_stillUpdatesTheEntry() = runTest {
+        val repo = FakeServiceLogRepository(readings = null)
+
+        val result = useCase(repo)(command(odometerKm = 56_000))
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(1, repo.updateCount)
     }
 
     @Test

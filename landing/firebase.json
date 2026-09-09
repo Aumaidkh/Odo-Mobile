@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "//": "Pinned to its own site. Without this both this config and the root firebase.json deployed to odo-mobile-ba9aa, so whichever ran last replaced the other — that is how the legal pages became 404 while the store listing pointed at them. odoapp.in maps here; legal.odoapp.in maps to the root config's site.",
+    "//": "Pinned to its own site. Without this both this config and the root firebase.json deployed to odo-mobile-ba9aa, so whichever ran last replaced the other \u2014 that is how the legal pages became 404 while the store listing pointed at them. odoapp.in maps here; legal.odoapp.in maps to the root config's site.",
     "site": "odo-landing",
     "public": "public",
     "cleanUrls": true,
@@ -39,6 +39,16 @@
       {
         "source": "/delete",
         "destination": "/legal/delete",
+        "type": 301
+      },
+      {
+        "source": "/blog",
+        "destination": "https://blog.odoapp.in",
+        "type": 301
+      },
+      {
+        "source": "/blog/:rest*",
+        "destination": "https://blog.odoapp.in/:rest*",
         "type": 301
       }
     ],
@@ -108,15 +118,19 @@
         ]
       },
       {
-        "source": "/blog",
+        "source": "/admin",
         "headers": [
           {
             "key": "Content-Security-Policy",
             "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://identitytoolkit.googleapis.com https://kxxgfhwnidgfvjowqaad.supabase.co; img-src 'self' data: https://kxxgfhwnidgfvjowqaad.supabase.co; style-src 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
           },
           {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
             "key": "Cache-Control",
-            "value": "public, max-age=300"
+            "value": "no-store"
           },
           {
             "key": "X-Content-Type-Options",
@@ -129,11 +143,15 @@
         ]
       },
       {
-        "source": "/blog/**",
+        "source": "/admin/**",
         "headers": [
           {
             "key": "Content-Security-Policy",
             "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://identitytoolkit.googleapis.com https://kxxgfhwnidgfvjowqaad.supabase.co; img-src 'self' data: https://kxxgfhwnidgfvjowqaad.supabase.co; style-src 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
           },
           {
             "key": "Cache-Control",
@@ -168,15 +186,16 @@
         ]
       }
     ],
-    "//blog": "The Compose/Wasm app in :webApp. Two rewrites because Firebase matches them literally: '/blog/**' does not cover the bare '/blog'. Static files win over a rewrite, so /blog/odo-blog.js still serves the bundle and only unmatched paths fall through to the app.",
+    "//blog": "The blog moved to blog.odoapp.in. These 301s are what carries twenty indexed URLs across: the old paths keep working for anybody who bookmarked or linked one, and search transfers the ranking to the new host rather than dropping it. DEPLOY ORDER: blog.odoapp.in must already resolve before this goes out, or every reader and every crawler is sent to a host that does not answer.",
+    "//admin": "The Compose/Wasm app in :adminApp, published to public/admin. Two rewrites for the same literal-matching reason as /blog, and its own headers above rather than a shared rule, because header sources must not overlap. Nothing under /admin may be a .png or .svg served from this site: the '**/*.png' and '**/*.svg' rules below win over a specific source whichever order they appear in, and would strip the admin CSP from that file. Its noindex is doubled up as a <meta robots> tag in index.html, because a header is the half that a misordered rule can lose.",
     "rewrites": [
       {
-        "source": "/blog",
-        "destination": "/blog/index.html"
+        "source": "/admin",
+        "destination": "/admin/index.html"
       },
       {
-        "source": "/blog/**",
-        "destination": "/blog/index.html"
+        "source": "/admin/**",
+        "destination": "/admin/index.html"
       }
     ]
   }

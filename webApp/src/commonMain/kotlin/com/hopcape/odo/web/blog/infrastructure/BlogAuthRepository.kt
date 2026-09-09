@@ -4,13 +4,13 @@ import arrow.core.Either
 import arrow.core.raise.either
 import arrow.core.right
 import com.hopcape.odo.web.blog.domain.AuthRepository
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.blog.domain.model.Session
-import com.hopcape.odo.web.blog.infrastructure.firebase.FirebaseSignIn
+import com.hopcape.odo.web.core.infrastructure.firebase.FirebaseSignIn
 import com.hopcape.odo.web.blog.infrastructure.supabase.AuthorRow
-import com.hopcape.odo.web.blog.infrastructure.supabase.Postgrest
-import com.hopcape.odo.web.blog.infrastructure.supabase.SupabaseSession
-import com.hopcape.odo.web.blog.infrastructure.supabase.encoded
+import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.core.infrastructure.supabase.SupabaseSession
+import com.hopcape.odo.web.core.infrastructure.supabase.encoded
 
 /**
  * Signing in, end to end.
@@ -42,7 +42,7 @@ internal class BlogAuthRepository(
      */
     private var current: Session? = null
 
-    override suspend fun session(): Either<BlogError, Session?> = either {
+    override suspend fun session(): Either<WebError, Session?> = either {
         current?.let { return@either it }
         // No stored refresh token means signed out, which is not a failure.
         supabase.restore().bind() ?: return@either null
@@ -51,7 +51,7 @@ internal class BlogAuthRepository(
         session
     }
 
-    override suspend fun signIn(email: String, password: String): Either<BlogError, Session> = either {
+    override suspend fun signIn(email: String, password: String): Either<WebError, Session> = either {
         val identity = firebase.identify(email, password).bind()
         supabase.exchange(identity.idToken).bind()
         val session = authorSession(fallbackName = identity.displayName.ifBlank { identity.email }).bind()
@@ -59,7 +59,7 @@ internal class BlogAuthRepository(
         session
     }
 
-    override suspend fun signOut(): Either<BlogError, Unit> {
+    override suspend fun signOut(): Either<WebError, Unit> {
         current = null
         supabase.clear()
         return Unit.right()
@@ -73,7 +73,7 @@ internal class BlogAuthRepository(
      * CMS still opens under a name taken from the account, because being unable to
      * draw a byline is not a reason to lock somebody out of their own drafts.
      */
-    private suspend fun authorSession(fallbackName: String = ""): Either<BlogError, Session> = either {
+    private suspend fun authorSession(fallbackName: String = ""): Either<WebError, Session> = either {
         val email = supabase.email().orEmpty()
         val row = postgrest.select(
             table = "blog_authors",
@@ -81,7 +81,7 @@ internal class BlogAuthRepository(
             query = "email=eq.${email.encoded()}&limit=1",
         ).bind().firstOrNull()
 
-        supabase.authorId = row?.id
+        supabase.subjectId = row?.id
         val name = row?.name ?: fallbackName.ifBlank { email.substringBefore('@') }
         Session(
             authorSlug = row?.slug ?: name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-'),

@@ -21,6 +21,7 @@ object ProfileTestTags {
 
     /** The appearance row, whose summary names the theme. */
     const val APPEARANCE_ROW: String = "profile_appearance_row"
+    const val GOALS_ROW: String = "profile_goals_row"
 
     /** The last row: sign in, or sign out once there is a session. */
     const val SESSION_ROW: String = "profile_session_row"

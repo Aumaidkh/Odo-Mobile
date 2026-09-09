@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.model.PostSummary
 import com.hopcape.odo.web.blog.presentation.loadInto
-import com.hopcape.odo.web.blog.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Loadable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

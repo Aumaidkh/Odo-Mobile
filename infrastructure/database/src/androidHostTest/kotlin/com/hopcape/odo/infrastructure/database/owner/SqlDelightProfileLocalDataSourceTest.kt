@@ -4,7 +4,6 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
-import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerEmail
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.owner.model.OwnerName
@@ -57,11 +56,9 @@ class SqlDelightProfileLocalDataSourceTest {
 
     private fun profile(
         name: String = "Rahul",
-        goal: OnboardingGoal = OnboardingGoal.TRACK_COSTS,
     ): OwnerProfile = OwnerProfile.new(
         id = ownerId,
         name = OwnerName.of(name).getOrNull()!!,
-        goal = goal,
     )
 
     @Test
@@ -74,7 +71,6 @@ class SqlDelightProfileLocalDataSourceTest {
         val stored = local.observe().first()
         assertNotNull(stored)
         assertEquals("Rahul", stored.name?.value)
-        assertEquals(OnboardingGoal.TRACK_COSTS, stored.goal)
 
         val row = db.profileQueries.selectProfileById(ownerId.value).executeAsOne()
         assertEquals(SyncStatus.PENDING.name, row.sync_status)
@@ -107,13 +103,12 @@ class SqlDelightProfileLocalDataSourceTest {
         local.save(profile())
         val createdAt = db.profileQueries.selectProfileById(ownerId.value).executeAsOne().created_at
 
-        local.save(profile(goal = OnboardingGoal.SELL_SOON))
+        local.save(profile())
         val afterEdit = db.profileQueries.selectProfileById(ownerId.value).executeAsOne()
 
         // The ignored insert is what protects this: the first write owns the creation
         // time, and only updated_at moves on an edit.
         assertEquals(createdAt, afterEdit.created_at)
-        assertEquals(OnboardingGoal.SELL_SOON.name, afterEdit.onboarding_goal)
     }
 
     @Test
@@ -131,11 +126,10 @@ class SqlDelightProfileLocalDataSourceTest {
     @Test
     fun observe_readsBackASignupShapedRowWithNoAnswersYet() = runTest {
         val db = newDb()
-        // A row as the server's signup trigger would create it: no name, no goal.
+        // A row as the server's signup trigger would create it: no name yet.
         db.profileQueries.insertProfile(
             id = ownerId.value,
             fullName = null,
-            onboardingGoal = null,
             onboardingCompletedAt = null,
             city = null,
             email = null,
@@ -149,7 +143,6 @@ class SqlDelightProfileLocalDataSourceTest {
         val stored = local(db).observe().first()
         assertNotNull(stored)
         assertNull(stored.name)
-        assertNull(stored.goal)
     }
 
     /* ---------------------------- the owner's phone number ---------------------------- */
@@ -170,19 +163,54 @@ class SqlDelightProfileLocalDataSourceTest {
     }
 
     @Test
-    fun recordPhone_createsARowWhenSetupHasNotRunYet() = runTest {
+    fun recordPhone_beforeSetupHasRun_writesNoProfileAtAll() = runTest {
         val db = newDb()
         val local = local(db)
 
-        // Signed in before finishing setup: there is nothing to attach the number to yet.
+        // Signed in before finishing setup: there is nothing to attach the number to yet,
+        // and inventing a row here is what used to wipe the name (see the outbox test above).
         local.recordPhone(ownerId, phone)
 
-        val stored = local.observe().first()
+        assertNull(local.observe().first())
+    }
+
+    @Test
+    fun recordPhone_ontoAPulledProfile_keepsTheNameAndQueuesTheNumber() = runTest {
+        val db = newDb()
+        // The row as a pull leaves it: the account's real name, no number, already SYNCED.
+        db.profileQueries.insertProfile(
+            id = ownerId.value,
+            fullName = "Rahul",
+            onboardingCompletedAt = completedAt.toString(),
+            city = null,
+            email = null,
+            avatarPath = null,
+            sharesPrices = 1,
+            now = completedAt.toString(),
+            syncStatus = SyncStatus.SYNCED.name,
+            phone = null,
+        )
+
+        local(db).recordPhone(ownerId, phone)
+
+        val stored = local(db).observe().first()
+        assertEquals("Rahul", stored?.name?.value)
         assertEquals(phone.value, stored?.phone?.value)
-        // And the row it made must not read as a finished setup, or the app opens on Home
-        // with no car.
-        assertNull(stored?.name)
-        assertTrue(stored?.hasCompletedOnboarding == false)
+        // Now it belongs in the outbox: the row carries the name the server already has, so
+        // the push adds the number instead of taking anything away.
+        assertEquals(1, db.profileQueries.selectPending().executeAsList().size)
+    }
+
+    @Test
+    fun recordPhone_withNoProfileYet_putsNothingInTheOutbox() = runTest {
+        val db = newDb()
+
+        // Signing in on a device that has never finished setup. The push is a whole-row
+        // upsert, so a nameless row in the outbox overwrites the account's real full_name
+        // with NULL on the server, and the owner's name is gone everywhere.
+        local(db).recordPhone(ownerId, phone)
+
+        assertEquals(emptyList(), db.profileQueries.selectPending().executeAsList())
     }
 
     @Test
@@ -204,6 +232,7 @@ class SqlDelightProfileLocalDataSourceTest {
     fun save_doesNotWipeTheNumberItWasNeverTold() = runTest {
         val db = newDb()
         val local = local(db)
+        local.save(profile())
         local.recordPhone(ownerId, phone)
 
         // Every screen that edits a profile builds one from what it asked for, and none of
@@ -231,7 +260,6 @@ class SqlDelightProfileLocalDataSourceTest {
                 CREATE TABLE profiles (
                     id TEXT NOT NULL PRIMARY KEY,
                     full_name TEXT,
-                    onboarding_goal TEXT,
                     onboarding_completed_at TEXT,
                     city TEXT,
                     email TEXT,
@@ -247,35 +275,61 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
-        OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = 6L).await()
-
-        val db = OdoDatabase(driver)
-        local(db).recordPhone(ownerId, phone)
-        assertEquals(phone.value, local(db).observe().first()?.phone?.value)
-    }
-
-    @Test
-    fun observe_unknownStoredGoal_readsAsNotAnsweredRatherThanCrashing() = runTest {
-        val db = newDb()
-        // Written by a newer build, or corrupt. The goal only picks a landing surface,
-        // so the profile stays usable without it.
-        db.profileQueries.insertProfile(
-            id = ownerId.value,
-            fullName = "Rahul",
-            onboardingGoal = "TIME_TRAVEL",
-            onboardingCompletedAt = null,
-            city = null,
-            email = null,
-            avatarPath = null,
-            sharesPrices = 1,
-            now = completedAt.toString(),
-            syncStatus = SyncStatus.SYNCED.name,
-            phone = null,
+        // Same reason as `record_export_credits` below: a real database at version 5 has
+        // `cars`, and 19.sqm adds a column to it. Only the columns the migrations touch are
+        // needed — this is a migration fixture, not the real schema.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE cars (
+                    id                  TEXT NOT NULL PRIMARY KEY,
+                    owner_id            TEXT NOT NULL,
+                    make                TEXT NOT NULL,
+                    model               TEXT NOT NULL,
+                    variant             TEXT,
+                    year                INTEGER NOT NULL,
+                    fuel_type           TEXT NOT NULL,
+                    registration_number TEXT,
+                    current_odometer_km INTEGER NOT NULL,
+                    purchase_year       INTEGER,
+                    nickname            TEXT,
+                    is_primary          INTEGER NOT NULL DEFAULT 0,
+                    odometer_updated_at TEXT,
+                    created_at          TEXT NOT NULL,
+                    updated_at          TEXT NOT NULL,
+                    deleted_at          TEXT,
+                    remote_version      TEXT,
+                    sync_status         TEXT NOT NULL DEFAULT 'PENDING'
+                )
+            """.trimIndent(),
+            parameters = 0,
         )
 
-        val stored = local(db).observe().first()
-        assertEquals("Rahul", stored?.name?.value)
-        assertNull(stored?.goal)
+        // A real database at version 5 has this too — 4.sqm created it — and the migration
+        // that folds the old balances into `purchase_claims` reads it. Without it here the
+        // chain below fails on a table the fixture forgot rather than on anything real.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE record_export_credits (
+                    id        INTEGER NOT NULL PRIMARY KEY,
+                    remaining INTEGER NOT NULL
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
+        // All the way to current, not just to 6. The generated queries select every column
+        // the schema has, so stopping at the migration under test leaves them asking for
+        // columns a later one adds — which is a failure about the newest column rather
+        // than about the one this test is here for.
+        OdoDatabase.Schema.migrate(driver, oldVersion = 5L, newVersion = OdoDatabase.Schema.version).await()
+
+        val db = OdoDatabase(driver)
+        // A profile to write the number onto: `recordPhone` deliberately creates none.
+        local(db).save(profile())
+        local(db).recordPhone(ownerId, phone)
+        assertEquals(phone.value, local(db).observe().first()?.phone?.value)
     }
 
     @Test

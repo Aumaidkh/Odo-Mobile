@@ -36,11 +36,11 @@ val billScannerModule = module {
         BillScannerFeatureEntryProvider(navigationManager = get())
     } bind FeatureEntryProvider::class
 
-    factory { ScanBillUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
+    factory { ScanBillUseCase(extractor = get(), allowance = get(), charger = get(), ids = get(), clock = get()) }
     // No allowance and no usage: reading a pump is how a fill gets logged at all, so it is
     // not metered the way a workshop bill is.
     factory { ScanPumpDisplayUseCase(extractor = get(), ids = get(), clock = get()) }
-    factory { ScanDocumentUseCase(extractor = get(), allowance = get(), usage = get(), ids = get(), clock = get()) }
+    factory { ScanDocumentUseCase(extractor = get(), allowance = get(), charger = get(), ids = get(), clock = get()) }
     factory { SaveScannedBillUseCase(logs = get(), ids = get(), clock = get()) }
     factory {
         SaveScannedDocumentUseCase(

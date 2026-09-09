@@ -67,6 +67,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
         odometerKm: Long = 45_000,
         createdAt: String = "2026-01-01T09:00:00Z",
         odometerUpdatedAt: String? = createdAt,
+        odometerPending: Long = 0L,
     ) {
         carQueries.insertCar(
             id = carId.value,
@@ -77,6 +78,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
             year = 2020,
             fuel_type = "PETROL",
             registration_number = null,
+            odometer_pending = odometerPending,
             current_odometer_km = odometerKm,
             purchase_year = null,
             nickname = null,
@@ -90,6 +92,23 @@ class SqlDelightServiceLogLocalDataSourceTest {
         )
     }
 
+    @Test
+    fun odometerReadings_leaveOutACarWhoseReadingIsStillPending() = runTest {
+        // The placeholder zero must not enter the timeline. It would be the car's newest
+        // reading until a log outranked it, so it becomes the current odometer, and Home
+        // greets the owner with "0 km" for a car that has plainly been driven.
+        val db = newDb().apply { seedCar(odometerKm = 0, odometerPending = 1L) }
+
+        assertEquals(emptyList(), local(db).odometerReadings(carId))
+    }
+
+    @Test
+    fun odometerReadings_keepTheBaselineOnceAReadingIsGiven() = runTest {
+        val db = newDb().apply { seedCar(odometerKm = 45_000, odometerPending = 0L) }
+
+        assertEquals(listOf(45_000), local(db).odometerReadings(carId)?.map { it.odometer.km })
+    }
+
     private fun amt(paise: Long) = Amount.of(paise).getOrElse { Amount.ZERO }
 
     private fun entry(
@@ -100,6 +119,8 @@ class SqlDelightServiceLogLocalDataSourceTest {
         categories: Set<ServiceCategory> = setOf(ServiceCategory.BRAKES),
         fairness: FairnessSnapshot? = null,
         billPhotoRef: String? = null,
+        source: LogSource = LogSource.MANUAL,
+        workshopName: String? = "Sharma Motors",
     ) = ServiceLogEntry.reconstitute(
         id = ServiceLogId(id),
         carId = carId,
@@ -107,9 +128,9 @@ class SqlDelightServiceLogLocalDataSourceTest {
         serviceDate = LocalDate(2026, 6, day),
         odometerKm = odometerKm,
         totalAmountPaise = totalPaise,
-        workshopName = "Sharma Motors",
+        workshopName = workshopName,
         notes = "front pads",
-        source = LogSource.MANUAL,
+        source = source,
         billId = null,
         categories = categories,
         billPhotoRef = billPhotoRef,
@@ -213,6 +234,37 @@ class SqlDelightServiceLogLocalDataSourceTest {
         val row = db.serviceLogQueries.selectById("log-1").executeAsOne()
         assertEquals(SyncStatus.PENDING.name, row.sync_status)
         assertEquals("2026-07-30T10:00:00Z", row.created_at)
+    }
+
+    /**
+     * The row setup writes when the owner remembers their last service.
+     *
+     * `source` is a plain TEXT column, so a third constant needs no migration locally — but
+     * nothing had ever stored one, and a service with no workshop, no categories and no money
+     * is a shape this table had not been asked to hold either. All three round-trip or the
+     * step silently stores nothing.
+     */
+    @Test
+    fun aDeclaredServiceWithNoMoneyRoundTrips() = runTest {
+        val db = newDb().apply { seedCar() }
+        local(db).insert(
+            entry(
+                totalPaise = 0,
+                categories = emptySet(),
+                workshopName = null,
+                source = LogSource.DECLARED,
+            ),
+        )
+
+        val stored = local(db).observeById(ServiceLogId("log-1")).first()
+
+        assertEquals(LogSource.DECLARED, stored?.source)
+        assertEquals(0L, stored?.totalAmount?.paise)
+        assertNull(stored?.workshopName)
+        assertEquals(50_000, stored?.odometer?.km)
+        // It has to reach the server like any other row, which is what makes the missing
+        // Supabase enum value a sync failure rather than a cosmetic gap.
+        assertEquals(SyncStatus.PENDING.name, db.serviceLogQueries.selectById("log-1").executeAsOne().sync_status)
     }
 
     @Test
@@ -369,6 +421,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
             purchaseYear = null,
             nickname = null,
             isPrimary = 1,
+            odometerPending = 0L,
             odometerUpdatedAt = "2026-07-01T09:00:00Z",
             updatedAt = "2026-07-01T09:00:00Z",
             syncStatus = SyncStatus.PENDING.name,

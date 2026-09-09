@@ -2,10 +2,10 @@ package com.hopcape.odo.feature.garage.domain.usecase
 
 import arrow.core.Either
 import arrow.core.raise.either
-import arrow.core.raise.ensureNotNull
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.servicelog.model.currentReading
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -42,15 +42,16 @@ internal class GetOdometerContextUseCase(
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
     suspend operator fun invoke(carId: CarId): Either<DomainError, OdometerContext> = either {
-        val readings = ensureNotNull(logs.odometerReadings(carId)) { DomainError.CarNotFound }
-        // The car's own reading is the one without a log id. A live car always has it, so
-        // its absence means the readings came from somewhere they should not have.
-        val own = ensureNotNull(readings.firstOrNull { it.logId == null }) { DomainError.CarNotFound }
-        val latest = readings.currentReading() ?: own
-        val aggregate = currentOdometer.observeCurrent(carId).first() ?: latest.odometer
+        val readings = logs.odometerReadings(carId)
+        // Whatever is newest, with the car's own baseline as a fallback. A car set up with
+        // the reading pending has neither until something records one, and nothing recorded
+        // is not a reason to refuse the sheet — the sheet is where the first reading is
+        // given, so refusing it left the owner no way to give one.
+        val latest = readings.currentReading() ?: readings.firstOrNull { it.logId == null }
+        val aggregate = currentOdometer.observeCurrent(carId).first()
 
         OdometerContext(
-            lastRecorded = latest.copy(odometer = aggregate),
+            lastRecorded = latest?.copy(odometer = aggregate ?: latest.odometer),
             today = clock.now().toLocalDateTime(timeZone).date,
         )
     }
@@ -58,12 +59,30 @@ internal class GetOdometerContextUseCase(
 
 /** The reading the sheet starts from, and the day it is being changed on. */
 internal data class OdometerContext(
-    /** What the car reads on record, and the day that reading was written down. */
-    val lastRecorded: OdometerReading,
+    /**
+     * What the car reads on record and the day it was written down, or `null` when nothing
+     * has been recorded yet.
+     */
+    val lastRecorded: OdometerReading?,
     val today: LocalDate,
 ) {
-    /** How far the car has come since [lastRecorded], for a reading of [km]. Never negative. */
-    fun kmSinceLastRecorded(km: Int): Int = (km - lastRecorded.odometer.km).coerceAtLeast(0)
+    /**
+     * What the drum opens on, or `null` to open it empty.
+     *
+     * Only the car's own reading — the one with no log id. A figure taken from a past
+     * service is what the sheet *knows*, not what the car reads today, and offering it as
+     * the starting value puts a months-old number one tap from being saved as current.
+     */
+    val startFrom: Distance? get() = lastRecorded?.takeIf { it.logId == null }?.odometer
+
+    /**
+     * How far the car has come since [lastRecorded], for a reading of [km]. Never negative,
+     * and zero when nothing has been recorded — there is no distance to measure from.
+     */
+    fun kmSinceLastRecorded(km: Int): Int {
+        val from = lastRecorded ?: return 0
+        return (km - from.odometer.km).coerceAtLeast(0)
+    }
 
     /**
      * Roughly how far the car goes in a month, from the distance covered since
@@ -73,7 +92,7 @@ internal data class OdometerContext(
      * confident monthly figure, which is a made-up number wearing a real one's clothes.
      */
     fun kmPerMonth(km: Int): Int? {
-        val days = lastRecorded.date.daysUntil(today)
+        val days = (lastRecorded ?: return null).date.daysUntil(today)
         if (days < MIN_DAYS_FOR_RATE) return null
         return (kmSinceLastRecorded(km).toDouble() * DAYS_PER_MONTH / days).toInt()
     }

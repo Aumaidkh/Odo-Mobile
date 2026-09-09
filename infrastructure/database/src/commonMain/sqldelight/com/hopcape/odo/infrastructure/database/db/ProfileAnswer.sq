@@ -1,0 +1,163 @@
+-- Local questionnaire answers (#394) — one row per selected option.
+--
+-- Replaces `profiles.onboarding_goal` as the place an answer is stored, so a new question
+-- costs no migration and a multi-select answer is more rows. `onboarding_goal` is still
+-- written; backfill and drop are later slices.
+--
+-- Sync columns are the mandatory set from SYNC_DESIGN §4.1. The server table exists from the
+-- first release, so these rows sync rather than sitting PENDING.
+CREATE TABLE profile_answers (
+    id            TEXT NOT NULL PRIMARY KEY,
+    owner_id      TEXT NOT NULL,
+    -- Versioned: `goal.v1`, not `goal`.
+    question_key  TEXT NOT NULL,
+    -- The domain constant name (`TRACK_COSTS`), not the label on the card.
+    answer_value  TEXT NOT NULL,
+    -- When the owner answered. Not `updated_at`, which moves on a tombstone or a revive.
+    answered_at   TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    remote_version TEXT,
+    sync_status   TEXT NOT NULL DEFAULT 'PENDING',
+
+    -- On the triple, because a multi-select answer is several live rows for one key. It
+    -- covers tombstones too: that is what makes a re-selection revive the existing row and
+    -- keep the id sync depends on, instead of adding a row per tap.
+    UNIQUE (owner_id, question_key, answer_value)
+);
+
+CREATE INDEX idx_profile_answers_owner_key ON profile_answers (owner_id, question_key)
+    WHERE deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Writes. Saving is "replace everything stored for this key" — two or three of these run in
+-- one transaction, in SqlDelightQuestionAnswerLocalDataSource.
+--
+-- INSERT OR IGNORE plus UPDATE rather than UPSERT throughout: `ON CONFLICT DO UPDATE` needs
+-- SQLite 3.24 and minSdk 26 ships 3.18.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Ignored when the triple already exists, tombstoned or not, which protects the row's id and
+-- `created_at`.
+insertAnswer:
+INSERT OR IGNORE INTO profile_answers (
+    id, owner_id, question_key, answer_value, answered_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :questionKey, :answerValue, :now,
+    :now, :now, NULL, NULL, 'PENDING'
+);
+
+-- Clears any tombstone and re-stamps. Matched on the triple, not `id`, because the caller
+-- minting a fresh id cannot know the id of a row that already exists.
+reviveAnswer:
+UPDATE profile_answers
+SET deleted_at  = NULL,
+    answered_at = :now,
+    updated_at  = :now,
+    sync_status = 'PENDING'
+WHERE owner_id = :ownerId AND question_key = :questionKey AND answer_value = :answerValue;
+
+-- Used when the new answer set is empty, which the statement below cannot express: `NOT IN ()`
+-- is not valid SQL.
+softDeleteAnswersForKey:
+UPDATE profile_answers
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = 'PENDING'
+WHERE owner_id = :ownerId AND question_key = :questionKey AND deleted_at IS NULL;
+
+-- The same, keeping what is still selected.
+softDeleteAnswersForKeyExcept:
+UPDATE profile_answers
+SET deleted_at  = :deletedAt,
+    updated_at  = :deletedAt,
+    sync_status = 'PENDING'
+WHERE owner_id = :ownerId AND question_key = :questionKey AND deleted_at IS NULL
+  AND answer_value NOT IN :keptValues;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Reads. Tombstones excluded — a deselected option is not an answer.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- No id needed: one signed-in owner per device, the assumption `selectProfile` also makes.
+selectAnswers:
+SELECT *
+FROM profile_answers
+WHERE deleted_at IS NULL
+ORDER BY question_key ASC, answered_at ASC;
+
+selectAnswersForKey:
+SELECT *
+FROM profile_answers
+WHERE question_key = :questionKey AND deleted_at IS NULL
+ORDER BY answered_at ASC;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Housekeeping: sign-in adoption, sign-out wipe, evicting another account's rows.
+-- The two deletes are hard, like every other table's — a soft delete would leave tombstones
+-- that a later sign-in pushes, destroying the owner's answers on the server.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+adoptOwnership:
+UPDATE profile_answers
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+deleteAllRows:
+DELETE FROM profile_answers;
+
+deleteForeignOwned:
+DELETE FROM profile_answers
+WHERE owner_id <> :ownerId;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6). Tombstones are pushed and pulled, not filtered: it is the only way a
+-- second device learns an option was deselected here.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectPending:
+SELECT *
+FROM profile_answers
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM profile_answers
+WHERE id = :id;
+
+markSynced:
+UPDATE profile_answers
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markConflict:
+UPDATE profile_answers
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- The insert can be ignored on the unique triple, not just the primary key: the same answer
+-- written offline on two devices is two ids for one row. See QuestionAnswerSyncTable.
+insertFromRemote:
+INSERT OR IGNORE INTO profile_answers (id, owner_id, question_key, answer_value, answered_at, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :owner_id, :question_key, :answer_value, :answered_at, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateFromRemote:
+UPDATE profile_answers
+SET owner_id      = :owner_id,
+    question_key  = :question_key,
+    answer_value  = :answer_value,
+    answered_at   = :answered_at,
+    created_at    = :created_at,
+    updated_at    = :updated_at,
+    deleted_at    = :deleted_at,
+    remote_version = :remote_version,
+    sync_status   = 'SYNCED'
+WHERE id = :id;
+
+countPending:
+SELECT COUNT(*)
+FROM profile_answers
+WHERE sync_status = 'PENDING';

@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.hopcape.odo.web.blog.presentation.admin.signin.SignInEvent
 import com.hopcape.odo.web.blog.presentation.admin.signin.SignInUiState
-import com.hopcape.odo.web.blog.presentation.state.resolve
+import com.hopcape.odo.web.core.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_admin_email
 import com.hopcape.odo.web.blog.resources.bl_admin_forgot

@@ -4,6 +4,8 @@ plugins {
     // The Profile FeatureEntryProvider is published as a Koin definition so the :app
     // host wires it without depending on internals.
     alias(libs.plugins.odo.koin)
+    // Parses the NDJSON lines the file logger writes, for Developer Options' Logs screen.
+    alias(libs.plugins.kotlinSerialization)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
 }
@@ -42,6 +44,8 @@ kotlin {
             implementation(projects.observability.performance)
             // koinViewModel() in the route hosts.
             implementation(libs.koin.composeViewmodel)
+            // Parses each log line (one JSON object) for the Logs screen.
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)

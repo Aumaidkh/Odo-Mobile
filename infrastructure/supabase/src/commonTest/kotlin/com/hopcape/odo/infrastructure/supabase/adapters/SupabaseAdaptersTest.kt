@@ -27,6 +27,52 @@ import kotlin.time.Instant
  */
 class SupabaseAdaptersTest {
 
+    // ─── questionnaire answers ──────────────────────────────────────────────────────
+
+    /**
+     * The push resolves duplicates on the unique triple, not on `id`.
+     *
+     * The same answer can exist on both sides under different ids — the backfill minted its
+     * own server-side, and a device offline at the time minted another. Resolving on `id`
+     * makes that an INSERT, the triple's unique index refuses it, and PostgREST answers 409.
+     * The sync engine reads 409 as permanent, parks the row in CONFLICT and never retries it,
+     * so the owner's change is lost while the app still reports "up to date".
+     *
+     * Seen for real on a device after the backfill ran.
+     */
+    @Test
+    fun `answer push resolves duplicates on the unique triple not the id`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[]") }
+
+        SupabaseQuestionAnswerRemoteDataSource(harness.postgrest).push(listOf(answerDto()))
+
+        val url = harness.requests.single().url.toString()
+        assertContains(url, "on_conflict=owner_id,question_key,answer_value")
+    }
+
+    @Test
+    fun `answer delta pull filters on owner and cursor`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[]") }
+
+        SupabaseQuestionAnswerRemoteDataSource(harness.postgrest)
+            .fetchSince(ownerId = "owner-1", since = Instant.parse("2026-09-01T00:00:00Z"))
+
+        val url = harness.requests.single().url.toString()
+        assertContains(url, "owner_id=eq.owner-1")
+        // The cursor is percent-encoded in the query string, so match the date alone.
+        assertContains(url, "updated_at=gt.2026-09-01")
+    }
+
+    private fun answerDto() = com.hopcape.odo.core.data.owner.QuestionAnswerDto(
+        id = "answer-1",
+        ownerId = "owner-1",
+        questionKey = "goal.v1",
+        value = "TRACK_COSTS",
+        answeredAt = "2026-09-01T00:00:00Z",
+        createdAt = "2026-09-01T00:00:00Z",
+        updatedAt = "2026-09-01T00:00:00Z",
+    )
+
     // ─── service log ────────────────────────────────────────────────────────────────
 
     @Test

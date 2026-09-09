@@ -30,6 +30,15 @@ kotlin {
             // LegalLinks — where the full Privacy Policy and Terms are published. The
             // in-app summary is native; these are the authoritative documents it links to.
             implementation(projects.core.domain)
+            // IdGenerator — a ticket names itself on the device, before the server sees it.
+            implementation(projects.core.common)
+            // The forms are view-model-backed now: one per screen, resolved by the routes.
+            implementation(libs.koin.composeViewmodel)
+            implementation(projects.observability.analytics)
+            implementation(projects.observability.performance)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

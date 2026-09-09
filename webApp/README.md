@@ -65,6 +65,18 @@ giving them URLs would put a reader on a confirm dialog with no post behind it.
 Post URLs are flat, so `category`, `author`, `search` and `admin` cannot be post
 slugs — `RESERVED_SLUGS` names them, and the content pipeline has to reject them.
 
+### What is not here any more
+
+The PostgREST client, the Supabase session and its Firebase exchange, the token
+store, and the presentation primitives (`FormField`, `Loadable`, `Submission`,
+`UiText`, `CollectEffects`, `RouteScope`) now live in **`:webCore`**, shared with
+the admin panel — see `webCore/README.md`. `BuildBlogConfig` went with them and is
+`BuildWebConfig`; the Gradle task that generates it is `:webCore:generateWebConfig`.
+
+What stayed is everything that is about a blog: the routes, the domain, the
+repositories, the screens, the theme, and the `WebError` → copy mapping in
+`presentation/Loading.kt`.
+
 ## 2. Why it is not `odo.kmp.library`
 
 That convention exists to hand a shared module the Android and iOS targets and a

@@ -6,7 +6,6 @@ import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
-import com.hopcape.performance.api.APM
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -42,6 +41,31 @@ class WelcomeViewModelTest {
     }
 
     @Test
+    fun signingIn_skipsCarSetupEntirely() = runTest(dispatcher) {
+        val viewModel = viewModel()
+
+        viewModel.onEvent(WelcomeEvent.SignInClicked)
+
+        // A returning owner's car comes back through sync. Setting one up again would
+        // make a second car, not restore the first.
+        assertEquals(WelcomeEffect.OpenSignIn, viewModel.effects.first())
+    }
+
+    @Test
+    fun signingIn_isCountedApartFromCompletingThePitch() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+
+        viewModel(analytics).onEvent(WelcomeEvent.SignInClicked)
+
+        // Two different funnels with two different ends. Counting them as one would hide
+        // how many first-run installs are actually returning owners.
+        assertEquals(
+            listOf(OnboardingTelemetry.Event.WELCOME_SHOWN, OnboardingTelemetry.Event.WELCOME_SIGN_IN),
+            analytics.names,
+        )
+    }
+
+    @Test
     fun theLegalLinks_areOffered() = runTest(dispatcher) {
         val viewModel = viewModel()
 
@@ -70,7 +94,6 @@ class WelcomeViewModelTest {
         telemetry = OnboardingTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
-            tracer = APM.asTracer(),
             ids = IdGenerator { "trace-1" },
         ),
     )

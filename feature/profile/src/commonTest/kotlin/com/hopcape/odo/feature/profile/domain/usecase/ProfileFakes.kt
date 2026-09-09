@@ -39,11 +39,9 @@ internal val TEST_OWNER = OwnerId("owner-1")
 
 internal fun testProfile(
     name: String = "Rahul",
-    goal: OnboardingGoal = OnboardingGoal.TRACK_COSTS,
 ): OwnerProfile = OwnerProfile.new(
     id = TEST_OWNER,
     name = OwnerName.of(name).getOrNull()!!,
-    goal = goal,
 )
 
 internal fun testCar(id: String = "car-1"): Car = Car.create(

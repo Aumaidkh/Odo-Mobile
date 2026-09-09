@@ -5,9 +5,11 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
 import com.hopcape.logging.api.TraceContext
 import com.hopcape.odo.core.data.observability.DataTelemetry
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.sync.SyncReason
@@ -54,6 +56,7 @@ class CarRepositoryImplTest {
         private val softDeleteThrows: Throwable? = null,
         private val primary: Flow<Car?> = flowOf(null),
         private val byId: Flow<Car?> = flowOf(null),
+        private val byRegistration: RegisteredVehicle? = null,
     ) : CarLocalDataSource {
         var inserted: Car? = null
             private set
@@ -80,6 +83,11 @@ class CarRepositoryImplTest {
 
         override fun observePrimary(): Flow<Car?> = primary
         override fun observeById(id: CarId): Flow<Car?> = byId
+
+        override suspend fun vehicleByRegistration(
+            ownerId: OwnerId,
+            registrationNumber: RegistrationNumber,
+        ): RegisteredVehicle? = byRegistration
     }
 
     private object NoopLogger : Logger {

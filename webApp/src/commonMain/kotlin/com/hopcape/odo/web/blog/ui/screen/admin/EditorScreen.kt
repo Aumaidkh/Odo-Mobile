@@ -57,8 +57,8 @@ import com.hopcape.odo.web.blog.presentation.admin.editor.EditorEvent
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorSheet
 import com.hopcape.odo.web.blog.presentation.admin.editor.EditorUiState
 import com.hopcape.odo.web.blog.presentation.admin.editor.editableText
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.resolve
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_editor_body_placeholder
 import com.hopcape.odo.web.blog.resources.bl_editor_back

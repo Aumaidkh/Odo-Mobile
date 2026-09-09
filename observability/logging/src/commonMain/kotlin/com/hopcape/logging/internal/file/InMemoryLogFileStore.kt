@@ -26,6 +26,8 @@ internal class InMemoryLogFileStore(
         file.lines += lines
     }
 
+    override fun activeFileName(): String? = active?.let { LogFileNaming.activeFileName(it.openedAtMs) }
+
     override fun sealActive(stats: LogFileStats): LogFileHandle? {
         val file = active ?: return null
         active = null

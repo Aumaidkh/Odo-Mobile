@@ -66,7 +66,6 @@ class ServiceRecordBuilderTest {
     private fun owner(name: String? = "Rahul Deshmukh") = OwnerProfile.reconstitute(
         id = ownerId,
         name = name,
-        goal = null,
         onboardingCompletedAt = null,
     )
 

@@ -1,0 +1,40 @@
+-- Schema 12 -> 13: `profiles.onboarding_goal` goes. `profile_answers` holds goals now.
+--
+-- The table is rebuilt rather than altered. SQLite 3.18 ships with minSdk 26, and its
+-- ALTER TABLE does ADD COLUMN and RENAME TABLE and nothing else — a column cannot be dropped
+-- in place. Same approach as 2.sqm.
+--
+-- The copy names its columns on both sides. A `SELECT *` would shift every value after the
+-- dropped column one slot left, which is how a migration quietly turns a city into an email.
+--
+-- Column order matches Profile.sq exactly: a fresh install builds from there and an upgrade
+-- from here, and `SELECT *` has to give both the same shape.
+CREATE TABLE profiles_new (
+    id                      TEXT NOT NULL PRIMARY KEY,
+    full_name               TEXT,
+    onboarding_completed_at TEXT,
+    city                    TEXT,
+    email                   TEXT,
+    avatar_path             TEXT,
+    shares_prices           INTEGER NOT NULL DEFAULT 1,
+    created_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL,
+    deleted_at              TEXT,
+    remote_version          TEXT,
+    sync_status             TEXT NOT NULL DEFAULT 'PENDING',
+    phone                   TEXT,
+    restriction             TEXT NOT NULL DEFAULT 'none'
+);
+
+INSERT INTO profiles_new (
+    id, full_name, onboarding_completed_at, city, email, avatar_path, shares_prices,
+    created_at, updated_at, deleted_at, remote_version, sync_status, phone, restriction
+)
+SELECT
+    id, full_name, onboarding_completed_at, city, email, avatar_path, shares_prices,
+    created_at, updated_at, deleted_at, remote_version, sync_status, phone, restriction
+FROM profiles;
+
+DROP TABLE profiles;
+
+ALTER TABLE profiles_new RENAME TO profiles;

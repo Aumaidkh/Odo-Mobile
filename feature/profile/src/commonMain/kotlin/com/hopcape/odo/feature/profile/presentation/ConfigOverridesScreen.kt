@@ -1,9 +1,8 @@
 package com.hopcape.odo.feature.profile.presentation
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +19,7 @@ import androidx.compose.ui.Modifier
 import com.hopcape.odo.core.config.ConfigValueSource
 import com.hopcape.odo.core.config.ResolvedConfigValue
 import com.hopcape.odo.core.designsystem.component.OdoButton
+import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.component.OdoInputField
@@ -74,10 +74,10 @@ internal fun ConfigOverridesScreen(
         LazyColumn(
             modifier = Modifier.padding(padding),
             contentPadding = PaddingValues(OdoTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.cardGap),
         ) {
             items(keys, key = { it.key.key }) { resolved ->
                 ConfigKeyRow(resolved, editable, onSet, onClear)
-                Spacer(Modifier.height(OdoTheme.spacing.md))
             }
             if (editable) {
                 item {
@@ -108,23 +108,25 @@ private fun ConfigKeyRow(
         ConfigValueSource.DEFAULT -> stringResource(Res.string.pf_config_source_default)
     }
 
-    Column {
-        OdoText(resolved.key.key, style = OdoTheme.typography.heading)
-        OdoText(
-            "$sourceLabel · ${resolved.key.type.name.lowercase()}",
-            style = OdoTheme.typography.caption,
-            color = OdoTheme.colors.textMuted,
-        )
-        OdoText(
-            resolved.key.why,
-            style = OdoTheme.typography.caption,
-            color = OdoTheme.colors.textMuted,
-        )
-        OdoText(
-            stringResource(Res.string.pf_config_owner, resolved.key.owner),
-            style = OdoTheme.typography.caption,
-            color = OdoTheme.colors.textMuted,
-        )
+    OdoCard(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+            OdoText(resolved.key.key, style = OdoTheme.typography.heading)
+            OdoText(
+                "$sourceLabel · ${resolved.key.type.name.lowercase()}",
+                style = OdoTheme.typography.caption,
+                color = OdoTheme.colors.textMuted,
+            )
+            OdoText(
+                resolved.key.why,
+                style = OdoTheme.typography.caption,
+                color = OdoTheme.colors.textMuted,
+            )
+            OdoText(
+                stringResource(Res.string.pf_config_owner, resolved.key.owner),
+                style = OdoTheme.typography.caption,
+                color = OdoTheme.colors.textMuted,
+            )
+        }
         if (editable) {
             OdoInputField(
                 value = draft,
@@ -132,12 +134,10 @@ private fun ConfigKeyRow(
                 label = stringResource(Res.string.pf_config_value_hint),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Column {
-                OdoButton(
-                    text = stringResource(Res.string.pf_config_reset),
-                    onClick = { onClear(resolved.key.key) },
-                )
-            }
+            OdoButton(
+                text = stringResource(Res.string.pf_config_reset),
+                onClick = { onClear(resolved.key.key) },
+            )
             LaunchedCommit(draft, resolved) { onSet(resolved.key.key, draft) }
         } else {
             OdoText(resolved.value, style = OdoTheme.typography.body)

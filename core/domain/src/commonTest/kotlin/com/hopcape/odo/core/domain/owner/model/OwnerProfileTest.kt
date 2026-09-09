@@ -20,17 +20,15 @@ class OwnerProfileTest {
         val profile = OwnerProfile.new(
             id = ownerId,
             name = name("Rahul"),
-            goal = OnboardingGoal.TRACK_COSTS,
         )
 
         assertEquals("Rahul", profile.name?.value)
-        assertEquals(OnboardingGoal.TRACK_COSTS, profile.goal)
         assertFalse(profile.hasCompletedOnboarding)
     }
 
     @Test
     fun completeOnboarding_stampsTheTimestamp() {
-        val profile = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.SELL_SOON)
+        val profile = OwnerProfile.new(ownerId, name("Rahul"))
 
         val completed = profile.completeOnboarding(completedAt)
 
@@ -43,7 +41,7 @@ class OwnerProfileTest {
     @Test
     fun completeOnboarding_twice_keepsTheFirstTimestamp() {
         // Re-running the last step must not rewrite when the owner actually onboarded.
-        val completed = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.SELL_SOON)
+        val completed = OwnerProfile.new(ownerId, name("Rahul"))
             .completeOnboarding(completedAt)
 
         val again = completed.completeOnboarding(Instant.parse("2026-08-01T09:00:00Z"))
@@ -54,11 +52,10 @@ class OwnerProfileTest {
 
     @Test
     fun completeOnboarding_keepsTheAnswers() {
-        val completed = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.SELL_SOON)
+        val completed = OwnerProfile.new(ownerId, name("Rahul"))
             .completeOnboarding(completedAt)
 
         assertEquals("Rahul", completed.name?.value)
-        assertEquals(OnboardingGoal.SELL_SOON, completed.goal)
         assertEquals(ownerId, completed.id)
     }
 
@@ -69,12 +66,10 @@ class OwnerProfileTest {
         val profile = OwnerProfile.reconstitute(
             id = ownerId,
             name = null,
-            goal = null,
             onboardingCompletedAt = null,
         )
 
         assertNull(profile.name)
-        assertNull(profile.goal)
         assertFalse(profile.hasCompletedOnboarding)
     }
 
@@ -83,25 +78,23 @@ class OwnerProfileTest {
         val profile = OwnerProfile.reconstitute(
             id = ownerId,
             name = "Rahul",
-            goal = OnboardingGoal.NEVER_MISS_RENEWAL,
             onboardingCompletedAt = completedAt,
         )
 
         assertEquals("Rahul", profile.name?.value)
-        assertEquals(OnboardingGoal.NEVER_MISS_RENEWAL, profile.goal)
         assertTrue(profile.hasCompletedOnboarding)
     }
 
     @Test
     fun priceSharing_startsOnForANewProfile() {
-        val profile = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+        val profile = OwnerProfile.new(ownerId, name("Rahul"))
 
         assertTrue(profile.sharesPricesAnonymously)
     }
 
     @Test
     fun withPriceSharing_turnsItOffAndLeavesEverythingElseAlone() {
-        val profile = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+        val profile = OwnerProfile.new(ownerId, name("Rahul"))
             .withCity("Pune")
             .completeOnboarding(completedAt)
 
@@ -110,7 +103,6 @@ class OwnerProfileTest {
         assertFalse(optedOut.sharesPricesAnonymously)
         assertEquals("Rahul", optedOut.name?.value)
         assertEquals("Pune", optedOut.city)
-        assertEquals(OnboardingGoal.TRACK_COSTS, optedOut.goal)
         assertTrue(optedOut.hasCompletedOnboarding)
     }
 
@@ -118,7 +110,7 @@ class OwnerProfileTest {
     fun priceSharing_survivesEveryOtherEdit() {
         // Each `with*` rebuilds the whole aggregate positionally, so a new field is easy to
         // drop from one of them. An opted-out owner must not be opted back in by renaming.
-        val optedOut = OwnerProfile.new(ownerId, name("Rahul"), OnboardingGoal.TRACK_COSTS)
+        val optedOut = OwnerProfile.new(ownerId, name("Rahul"))
             .withPriceSharing(false)
 
         assertFalse(optedOut.withName(name("Rahul Sharma")).sharesPricesAnonymously)
@@ -133,7 +125,6 @@ class OwnerProfileTest {
         val profile = OwnerProfile.reconstitute(
             id = ownerId,
             name = "Rahul",
-            goal = null,
             onboardingCompletedAt = null,
         )
 

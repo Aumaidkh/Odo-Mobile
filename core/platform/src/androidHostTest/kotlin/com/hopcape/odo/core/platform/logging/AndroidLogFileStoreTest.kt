@@ -119,6 +119,47 @@ class AndroidLogFileStoreTest {
     }
 
     @Test
+    fun activeFileName_isNullUntilSomethingIsWritten() {
+        val store = AndroidLogFileStore(dir)
+        assertNull(store.activeFileName())
+    }
+
+    @Test
+    fun activeFileName_namesTheOpenFile_andReadReturnsItsPlainUncompressedBytes() {
+        val store = AndroidLogFileStore(dir)
+        store.appendToActive(listOf("still being written"))
+
+        val name = checkNotNull(store.activeFileName())
+        assertTrue(name.endsWith(LogFileNaming.ACTIVE_SUFFIX), "the active file is never gzip'd")
+        assertEquals("still being written\n", checkNotNull(store.read(name)).decodeToString())
+    }
+
+    @Test
+    fun activeFileName_isNullAgainAfterSealing() {
+        val store = AndroidLogFileStore(dir)
+        store.appendToActive(listOf("x"))
+        store.sealActive(stats)
+
+        assertNull(store.activeFileName())
+    }
+
+    @Test
+    fun activeFileName_findsAnotherInstancesActiveFileInTheSameDirectory() {
+        // The production shape: OdoApplication constructs one AndroidLogFileStore directly
+        // for HLogger, and a second is Koin-bound for readers like the Logs screen. The
+        // reader's instance never calls appendToActive itself, so `activeFile` alone would
+        // never see what the writer's instance is doing — it has to fall back to a scan.
+        val writer = AndroidLogFileStore(dir)
+        writer.appendToActive(listOf("written by the other instance"))
+
+        val reader = AndroidLogFileStore(dir)
+
+        val name = checkNotNull(reader.activeFileName())
+        assertEquals(writer.activeFileName(), name)
+        assertEquals("written by the other instance\n", checkNotNull(reader.read(name)).decodeToString())
+    }
+
+    @Test
     fun listSealed_reconstructsOpenedAtMsFromTheFileName() {
         val store = AndroidLogFileStore(dir)
         store.appendToActive(listOf("x"))

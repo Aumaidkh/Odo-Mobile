@@ -33,7 +33,6 @@ internal class SqlDelightProfileLocalDataSource(
     override suspend fun save(profile: OwnerProfile) {
         val now = clock.now().toString()
         val fullName = profile.name?.value
-        val goal = profile.goal?.name
         val completedAt = profile.onboardingCompletedAt?.toString()
         val email = profile.email?.value
         val phone = profile.phone?.value
@@ -45,7 +44,6 @@ internal class SqlDelightProfileLocalDataSource(
             queries.insertProfile(
                 id = profile.id.value,
                 fullName = fullName,
-                onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
                 city = profile.city,
                 email = email,
@@ -57,7 +55,6 @@ internal class SqlDelightProfileLocalDataSource(
             )
             queries.updateProfile(
                 fullName = fullName,
-                onboardingGoal = goal,
                 onboardingCompletedAt = completedAt,
                 city = profile.city,
                 email = email,
@@ -80,33 +77,17 @@ internal class SqlDelightProfileLocalDataSource(
             .map { row -> row?.toDomain() }
 
     override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber) {
-        val now = clock.now().toString()
-        database.transaction {
-            // One statement, then a row to put it on if there wasn't one. The update matches
-            // on "the single live profile" rather than on an id, because at sign-in the row
-            // may still be keyed to the placeholder owner — adoption re-keys it during the
-            // sync that follows, and waiting for that would mean the first push goes without
-            // the number.
-            queries.updatePhone(phone = phone.value, updatedAt = now)
-            if (queries.selectProfile().executeAsOneOrNull() == null) {
-                // Nobody has finished setup on this device yet. A row with nothing but the
-                // number is exactly what the server's own signup trigger writes, and it reads
-                // as "not onboarded" everywhere, so it does not skip the flow.
-                queries.insertProfile(
-                    id = ownerId.value,
-                    fullName = null,
-                    onboardingGoal = null,
-                    onboardingCompletedAt = null,
-                    city = null,
-                    email = null,
-                    avatarPath = null,
-                    sharesPrices = true.toDbLong(),
-                    now = now,
-                    syncStatus = SyncStatus.PENDING.name,
-                    phone = phone.value,
-                )
-            }
-        }
+        // Writes the number onto a profile this device already has, and does nothing at all
+        // when there is none. The update matches on "the single live profile" rather than on
+        // an id, because at sign-in the row may still be keyed to the placeholder owner —
+        // adoption re-keys it during the sync that follows.
+        //
+        // Creating a row here is what broke: the push is a whole-row upsert, so a row holding
+        // only the number went up with `full_name` null and overwrote the account's real name
+        // on the server. The server's signup trigger already writes the number, and once a
+        // pull has brought the profile down the next `recordSessionPhone()` puts it on that
+        // row and pushes it.
+        queries.updatePhone(phone = phone.value, updatedAt = clock.now().toString())
     }
 
     override suspend fun softDeleteAll() {

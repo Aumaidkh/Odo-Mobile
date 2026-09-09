@@ -15,8 +15,8 @@ import com.hopcape.odo.web.blog.domain.model.PublishOutcome
 import com.hopcape.odo.web.blog.domain.model.SeoDraft
 import com.hopcape.odo.web.blog.presentation.asUiText
 import com.hopcape.odo.web.blog.presentation.isRetryable
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.UiText
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.UiText
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_import_unreadable
 import kotlinx.coroutines.channels.Channel

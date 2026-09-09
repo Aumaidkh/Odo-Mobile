@@ -8,14 +8,42 @@
 //
 // So the article pages are written out as HTML here and Firebase serves them at
 // the same URLs. A static file wins over a rewrite, and cleanUrls maps
-// blog/<slug>.html onto /blog/<slug>, so the crawler and anyone arriving from
-// search get 30 KB of text instead of 12.4 MB of WebAssembly. The Compose app
-// still owns /blog, search, categories and all of /blog/admin, and its own
-// in-app navigation to an article never touches these files.
+// <slug>.html onto /<slug>, so the crawler and anyone arriving from search get
+// 30 KB of text instead of 12.4 MB of WebAssembly. The Compose app still owns the
+// index, search, categories and all of /admin, and its own in-app navigation to an
+// article never touches these files.
 //
-// Run: deno run -A render-blog.ts        (from the landing directory)
+// **The blog moved to its own origin.** It used to be odoapp.in/blog; it is
+// blog.odoapp.in now, served at the root. So the pages are written into the blog
+// site's staging directory rather than the landing site's, every internal link
+// dropped its /blog prefix, and the two links that still point at the marketing
+// site — the legal pages, "Get Odo" — became absolute.
+//
+// Run: BLOG_STAGE=<dir> deno run -A render-blog.ts     (from the landing directory)
 
-const ORIGIN = "https://odoapp.in"
+/** The blog's own origin. Canonicals, og:url and the sitemap are all against this. */
+const ORIGIN = Deno.env.get("SUPABASE_ENV") === "dev"
+  ? "https://odo-blog-dev.web.app"
+  : "https://blog.odoapp.in"
+
+/** The marketing site, which still owns the root and the legal pages. */
+const SITE = Deno.env.get("SUPABASE_ENV") === "dev"
+  ? "https://odo-mobile-dev.web.app"
+  : "https://odoapp.in"
+
+/**
+ * Where the pages go.
+ *
+ * The blog site's staging directory, passed in by webApp/deploy.sh. Defaulting to
+ * the old landing path would put a full set of article pages back on odoapp.in the
+ * first time somebody ran this by hand, and those pages are exactly what the 301s
+ * are there to replace.
+ */
+const STAGE = Deno.env.get("BLOG_STAGE")
+if (!STAGE) {
+  console.error("Set BLOG_STAGE to the blog site's public directory (webApp/deploy.sh does)")
+  Deno.exit(1)
+}
 const PLAY = "https://play.google.com/store/apps/details?id=com.hopcape.odo&referrer=utm_source%3Dblog"
 
 // ── config, from the same file the app is built with ─────────────────────────
@@ -33,8 +61,11 @@ const fromFile = async (key: string) => {
   }
 }
 
-const SUPABASE = Deno.env.get("SUPABASE_URL") || await fromFile("supabase.url")
-const ANON = Deno.env.get("SUPABASE_ANON_KEY") || await fromFile("supabase.anonKey")
+// The suffixed keys when building for dev, matching what :webCore's generator reads.
+// Without this, `SUPABASE_ENV=dev` rendered dev-origin pages from production posts.
+const SUFFIX = Deno.env.get("SUPABASE_ENV") === "dev" ? ".dev" : ""
+const SUPABASE = Deno.env.get("SUPABASE_URL") || await fromFile(`supabase.url${SUFFIX}`)
+const ANON = Deno.env.get("SUPABASE_ANON_KEY") || await fromFile(`supabase.anonKey${SUFFIX}`)
 if (!SUPABASE || !ANON) {
   console.error("Set SUPABASE_URL and SUPABASE_ANON_KEY, or run beside a local.properties that has them")
   Deno.exit(1)
@@ -226,7 +257,7 @@ footer.site a{color:var(--muted)}
 `.trim()
 
 const page = (post: Post, others: Post[]) => {
-  const url = `${ORIGIN}/blog/${post.slug}`
+  const url = `${ORIGIN}/${post.slug}`
   const title = (post.seo_title || `${post.title} — Odo`).trim()
   const description = (post.meta_description || post.dek).trim()
   const author = post.author?.name ?? "Odo"
@@ -270,8 +301,8 @@ ${published ? `<meta property="article:published_time" content="${published}">` 
 </head>
 <body>
 <header class="site">
-  <a class="mark" href="/" style="text-decoration:none">O D O</a>
-  <nav><a href="/blog">Blog</a><a href="/">Get Odo</a></nav>
+  <a class="mark" href="${SITE}" style="text-decoration:none">O D O</a>
+  <nav><a href="/">Blog</a><a href="${SITE}">Get Odo</a></nav>
 </header>
 <main>
   ${post.category ? `<p class="eyebrow">${escape(post.category.name)}</p>` : ""}
@@ -285,13 +316,13 @@ ${post.body.map(blockToHtml).filter(Boolean).map((html) => `    ${html}`).join("
 ${readNext.length ? `  <section class="next">
     <p class="eyebrow">Read next</p>
 ${readNext.map((other) =>
-  `    <a href="/blog/${other.slug}"><div class="t">${escape(other.title)}</div>` +
+  `    <a href="/${other.slug}"><div class="t">${escape(other.title)}</div>` +
   `<div class="d">${escape(other.dek)}</div></a>`).join("\n")}
   </section>` : ""}
 </main>
 <footer class="site">
   <span>Odo — your car's whole record, in one place.</span>
-  <span><a href="/legal/privacy">Privacy</a> · <a href="/legal/terms">Terms</a></span>
+  <span><a href="${SITE}/legal/privacy">Privacy</a> · <a href="${SITE}/legal/terms">Terms</a></span>
 </footer>
 </body>
 </html>
@@ -301,27 +332,29 @@ ${readNext.map((other) =>
 // ── write ────────────────────────────────────────────────────────────────────
 
 for (const post of posts) {
-  await Deno.writeTextFile(`public/blog/${post.slug}.html`, page(post, posts))
-  console.log(`  /blog/${post.slug}`)
+  await Deno.writeTextFile(`${STAGE}/${post.slug}.html`, page(post, posts))
+  console.log(`  ${ORIGIN}/${post.slug}`)
 }
 
+// The blog's own sitemap, on the blog's own origin. The marketing site keeps a
+// separate one for its root and legal pages — one sitemap cannot list URLs on two
+// hosts, and a sitemap that tries is ignored.
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${ORIGIN}/</loc><priority>1.0</priority></url>
-  <url><loc>${ORIGIN}/blog</loc><priority>0.8</priority></url>
+  <url><loc>${ORIGIN}/</loc><priority>0.9</priority></url>
 ${posts.map((post) =>
-  `  <url><loc>${ORIGIN}/blog/${post.slug}</loc>` +
+  `  <url><loc>${ORIGIN}/${post.slug}</loc>` +
   (post.published_on ? `<lastmod>${post.published_on}</lastmod>` : "") +
   `<priority>0.7</priority></url>`).join("\n")}
 </urlset>
 `
-await Deno.writeTextFile("public/sitemap.xml", sitemap)
+await Deno.writeTextFile(`${STAGE}/sitemap.xml`, sitemap)
 
 // The CMS is not for readers and not for crawlers. It is behind a sign-in
 // either way, but a crawler wasting requests on it helps nobody.
 await Deno.writeTextFile(
-  "public/robots.txt",
-  `User-agent: *\nAllow: /\nDisallow: /blog/admin\n\nSitemap: ${ORIGIN}/sitemap.xml\n`,
+  `${STAGE}/robots.txt`,
+  `User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: ${ORIGIN}/sitemap.xml\n`,
 )
 
-console.log(`\n${posts.length} pages, sitemap.xml, robots.txt`)
+console.log(`\n${posts.length} pages, sitemap.xml, robots.txt -> ${STAGE}`)

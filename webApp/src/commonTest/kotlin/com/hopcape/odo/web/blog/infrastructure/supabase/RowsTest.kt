@@ -1,5 +1,7 @@
 package com.hopcape.odo.web.blog.infrastructure.supabase
 
+import com.hopcape.odo.web.core.infrastructure.supabase.encoded
+import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
 import com.hopcape.odo.web.blog.domain.model.TextRun
 import kotlinx.serialization.json.Json

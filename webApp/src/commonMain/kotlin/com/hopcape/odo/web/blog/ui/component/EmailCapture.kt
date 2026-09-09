@@ -16,9 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.hopcape.odo.web.blog.presentation.state.FormField
-import com.hopcape.odo.web.blog.presentation.state.Submission
-import com.hopcape.odo.web.blog.presentation.state.resolve
+import com.hopcape.odo.web.core.presentation.state.FormField
+import com.hopcape.odo.web.core.presentation.state.Submission
+import com.hopcape.odo.web.core.presentation.state.resolve
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_email_placeholder
 import com.hopcape.odo.web.blog.ui.theme.BlogThemeTokens

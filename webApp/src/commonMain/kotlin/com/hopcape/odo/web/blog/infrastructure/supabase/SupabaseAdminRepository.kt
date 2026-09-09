@@ -4,9 +4,12 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.raise.either
 import arrow.core.right
+import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.core.infrastructure.supabase.encoded
+import com.hopcape.odo.web.core.infrastructure.supabase.jsonEscaped
 import com.hopcape.odo.web.blog.domain.AdminRepository
-import com.hopcape.odo.web.blog.domain.BlogError
-import com.hopcape.odo.web.blog.domain.UploadRequest
+import com.hopcape.odo.web.core.domain.WebError
+import com.hopcape.odo.web.core.platform.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
 import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.Draft
@@ -38,7 +41,7 @@ import kotlinx.coroutines.CancellationException
  * Every call runs as the signed-in author, and every table it touches is behind
  * `is_blog_author()`. There is no permission check in this file: a request from a
  * session without the claim comes back 403 and lands on
- * [BlogError.NotSignedIn], which the screen already draws. Re-checking here would
+ * [WebError.NotSignedIn], which the screen already draws. Re-checking here would
  * be a second copy of the rule that matters.
  */
 @OptIn(ExperimentalTime::class)
@@ -55,7 +58,7 @@ internal class SupabaseAdminRepository(
     },
 ) : AdminRepository {
 
-    override suspend fun posts(): Either<BlogError, List<DomainPostRow>> =
+    override suspend fun posts(): Either<WebError, List<DomainPostRow>> =
         postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
@@ -84,25 +87,25 @@ internal class SupabaseAdminRepository(
             }
         }
 
-    override suspend fun draft(id: String?): Either<BlogError, Draft> {
+    override suspend fun draft(id: String?): Either<WebError, Draft> {
         if (id == null) return emptyDraft().right()
         return postgrest.select(
             table = "blog_posts",
             serializer = PostRow.serializer(),
             query = "select=*&id=eq.$id&limit=1",
         ).flatMap { rows ->
-            rows.firstOrNull()?.toDraft()?.right() ?: BlogError.NotFound.left()
+            rows.firstOrNull()?.toDraft()?.right() ?: WebError.NotFound.left()
         }
     }
 
-    override suspend fun save(draft: Draft): Either<BlogError, Draft> =
+    override suspend fun save(draft: Draft): Either<WebError, Draft> =
         postgrest.upsert(
             table = "blog_posts",
             body = "[${draft.asJson(status = draft.status, publishedOn = null)}]",
             serializer = PostRow.serializer(),
         ).flatMap { rows ->
             rows.firstOrNull()?.toDraft()?.right()
-                ?: BlogError.Unexpected("save returned no row").left()
+                ?: WebError.Unexpected("save returned no row").left()
         }.onRight { if (it.status == PostStatus.PUBLISHED) requestRebuild() }
 
     /**
@@ -112,7 +115,7 @@ internal class SupabaseAdminRepository(
      * because the answer is not "that failed" — it is a choice between two ways
      * forward, and one of them needs the title of the post already at that URL.
      */
-    override suspend fun publish(draft: Draft, replaceExisting: Boolean): Either<BlogError, PublishOutcome> = either {
+    override suspend fun publish(draft: Draft, replaceExisting: Boolean): Either<WebError, PublishOutcome> = either {
         val slug = draft.seo.slug.trim().ifBlank { draft.title.slugify() }
 
         val holder = postgrest.select(
@@ -149,7 +152,7 @@ internal class SupabaseAdminRepository(
         PublishOutcome.Published(slug)
     }
 
-    override suspend fun unpublish(id: String): Either<BlogError, Unit> =
+    override suspend fun unpublish(id: String): Either<WebError, Unit> =
         // The slug goes with it, so the URL is free for whatever takes its place.
         // Keeping it would make the post unpublishable-and-unreplaceable at once.
         postgrest.patch(
@@ -158,7 +161,7 @@ internal class SupabaseAdminRepository(
             body = """{"status":"draft","slug":null}""",
         ).onRight { requestRebuild() }
 
-    override suspend fun discard(id: String): Either<BlogError, Unit> =
+    override suspend fun discard(id: String): Either<WebError, Unit> =
         // RLS decides whether this row is yours; nothing here needs to ask.
         postgrest.delete(table = "blog_posts", query = "id=eq.$id").onRight { requestRebuild() }
 
@@ -191,7 +194,7 @@ internal class SupabaseAdminRepository(
         }
     }
 
-    override suspend fun media(): Either<BlogError, List<MediaItem>> =
+    override suspend fun media(): Either<WebError, List<MediaItem>> =
         postgrest.select("blog_media", MediaRow.serializer(), "order=created_at.desc")
             .map { rows ->
                 rows.map { MediaItem(name = it.name, url = publicUrl(it.path), altText = it.altText) }
@@ -204,7 +207,7 @@ internal class SupabaseAdminRepository(
      * a broken image in the library, while a file with no row is invisible and
      * harmless. Neither is good, and only one of them shows up in an article.
      */
-    override suspend fun upload(file: UploadRequest): Either<BlogError, MediaItem> = either {
+    override suspend fun upload(file: UploadRequest): Either<WebError, MediaItem> = either {
         // Prefixed with the date, so two screenshots called `home.png` from
         // different weeks do not fight over one path.
         val path = "${today()}/${file.name.sanitised()}"
@@ -217,11 +220,11 @@ internal class SupabaseAdminRepository(
                 contentType(ContentType.parse(file.mimeType))
                 setBody(file.bytes)
             }
-        }.getOrNull() ?: raise(BlogError.Offline)
+        }.getOrNull() ?: raise(WebError.Offline)
 
         if (!response.status.isSuccess()) {
             val body = runCatching { response.bodyAsText() }.getOrNull().orEmpty()
-            raise(BlogError.Unexpected("upload ${response.status.value}: ${body.take(200)}"))
+            raise(WebError.Unexpected("upload ${response.status.value}: ${body.take(200)}"))
         }
 
         postgrest.upsert(
@@ -234,13 +237,13 @@ internal class SupabaseAdminRepository(
         MediaItem(name = file.name, url = publicUrl(path))
     }
 
-    override suspend fun profile(): Either<BlogError, Author> =
+    override suspend fun profile(): Either<WebError, Author> =
         postgrest.select(
             table = "blog_authors",
             serializer = AuthorRow.serializer(),
             query = "select=*&id=eq.${authorId() ?: NOBODY}&limit=1",
         ).flatMap { rows ->
-            rows.firstOrNull()?.toAuthor()?.right() ?: BlogError.NotFound.left()
+            rows.firstOrNull()?.toAuthor()?.right() ?: WebError.NotFound.left()
         }
 
     override suspend fun saveProfile(
@@ -248,7 +251,7 @@ internal class SupabaseAdminRepository(
         bio: String,
         topics: String,
         since: String,
-    ): Either<BlogError, Author> =
+    ): Either<WebError, Author> =
         // A patch, not an upsert: the row exists — blog-session made it on the
         // first sign-in — and the columns not named here (email, slug) are not
         // this form's to touch.
@@ -260,7 +263,7 @@ internal class SupabaseAdminRepository(
                 """"since_label":"${since.jsonEscaped()}"}""",
         ).flatMap { profile() }
 
-    override suspend fun analytics(): Either<BlogError, Analytics> = either {
+    override suspend fun analytics(): Either<WebError, Analytics> = either {
         val window = postgrest.rpc(
             name = "blog_analytics",
             body = """{"p_days":$WINDOW_DAYS}""",
@@ -357,5 +360,5 @@ internal class SupabaseAdminRepository(
     }
 }
 
-private inline fun <A, B> Either<BlogError, A>.flatMap(block: (A) -> Either<BlogError, B>): Either<BlogError, B> =
+private inline fun <A, B> Either<WebError, A>.flatMap(block: (A) -> Either<WebError, B>): Either<WebError, B> =
     fold({ it.left() }, block)

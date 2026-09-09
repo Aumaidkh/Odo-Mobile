@@ -24,6 +24,7 @@ internal sealed interface GarageEvent {
 
     /** The auto-odometer status tile, once set up — heads to settings (M7). */
     data object AutoOdometerStatusTileTapped : GarageEvent
+    data object ViewAllChallans: GarageEvent
 }
 
 /**
@@ -48,4 +49,6 @@ internal sealed interface GarageEffect {
 
     /** The status tile, once set up. */
     data object OpenAutoOdometerSettings : GarageEffect
+
+    data object OpenChallans: GarageEffect
 }

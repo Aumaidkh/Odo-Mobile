@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.presentation.asUiText
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.Submission
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Submission
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

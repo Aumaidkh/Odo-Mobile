@@ -3,7 +3,11 @@ package com.hopcape.odo.feature.profile.navigation
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.feature.profile.presentation.ConfigOverridesScreen
 import com.hopcape.odo.feature.profile.presentation.ConfigOverridesViewModel
+import com.hopcape.odo.feature.profile.presentation.DeveloperOptionsScreen
+import com.hopcape.odo.feature.profile.presentation.logs.LogsScreen
+import com.hopcape.odo.feature.profile.presentation.logs.LogsViewModel
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -15,6 +19,7 @@ import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.ModalBottomSheetSceneStrategy
 import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
@@ -48,7 +53,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Profile's contribution to the navigation graph — the [OdoDestination.Profile] group:
  * the account home, its full-screen editors (edit / notifications), and its bottom-sheet
  * destinations (units / appearance / export / sign-out). "Go Pro" / "Manage plan" and the
- * export both reuse the shared [OdoDestination.Paywall] route, and "Privacy & permissions"
+ * export both reuse the shared [OdoDestination.Paywall.Plans] route, and "Privacy & permissions"
  * reuses support's own key — profile never imports another feature.
  */
 internal class ProfileFeatureEntryProvider(
@@ -64,7 +69,9 @@ internal class ProfileFeatureEntryProvider(
         entry<OdoDestination.Profile.Privacy> { PrivacyRoute(nm) }
         entry<OdoDestination.Profile.DeleteAccount> { DeleteAccountRoute(nm) }
         // Registered in every build; the row that opens it is behind BuildInfo.isDebug.
+        entry<OdoDestination.Profile.DeveloperOptions> { DeveloperOptionsRoute(nm) }
         entry<OdoDestination.Profile.ConfigOverrides> { ConfigOverridesRoute(nm) }
+        entry<OdoDestination.Profile.Logs> { LogsRoute(nm) }
 
         val sheet = ModalBottomSheetSceneStrategy.bottomSheet()
         entry<OdoDestination.Profile.Units>(metadata = sheet) { UnitsRoute(nm) }
@@ -87,7 +94,7 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         state = state,
         onBack = { navigationManager.back() },
         onEdit = { navigationManager.navigateTo(OdoDestination.Profile.Edit) },
-        onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall()) },
+        onGoPro = { navigationManager.navigateTo(OdoDestination.Paywall.Plans()) },
         // The store's own subscription page. Cancelling, changing plan and fixing a card all
         // happen there — Play requires it, and an in-app cancel that did not cancel would be
         // the worst version of this screen.
@@ -95,10 +102,14 @@ internal fun ProfileRoute(navigationManager: NavigationManager) {
         onNotifications = { navigationManager.navigateTo(OdoDestination.Profile.Notifications) },
         onUnits = { navigationManager.navigateTo(OdoDestination.Profile.Units) },
         onAppearance = { navigationManager.navigateTo(OdoDestination.Profile.Appearance) },
+        // The questionnaire, asked for the goal alone. It is the same destination first-run
+        // setup could use; naming the keys is what keeps editing one answer from reopening
+        // the whole flow.
+        onGoals = { navigationManager.navigateTo(OdoDestination.Questionnaire(listOf(QuestionKeys.Goal.value))) },
         onExport = { navigationManager.navigateTo(OdoDestination.Profile.Export) },
         onPrivacy = { navigationManager.navigateTo(OdoDestination.Profile.Privacy) },
         debugToolsVisible = BuildInfo.isDebug,
-        onConfigOverrides = { navigationManager.navigateTo(OdoDestination.Profile.ConfigOverrides) },
+        onDeveloperOptions = { navigationManager.navigateTo(OdoDestination.Profile.DeveloperOptions) },
         onShowAround = { viewModel.onEvent(ProfileEvent.ShowAroundTapped) },
         onHelp = { navigationManager.navigateTo(OdoDestination.Support.Help) },
         onSignIn = {
@@ -293,8 +304,22 @@ private fun SignOutRoute(navigationManager: NavigationManager) {
 /** What the paywall is told it was opened for, so the screen can name the reason. */
 
 /**
- * The debug config screen. Its route is registered in every build and only a debug build
- * offers a way in, the same shape the refuel routes use: unreachable, not removed.
+ * The developer-tools hub. Its route is registered in every build and only a debug build
+ * offers a way in (from the account home), the same shape the refuel routes use:
+ * unreachable, not removed.
+ */
+@Composable
+private fun DeveloperOptionsRoute(navigationManager: NavigationManager) {
+    DeveloperOptionsScreen(
+        onConfigOverrides = { navigationManager.navigateTo(OdoDestination.Profile.ConfigOverrides) },
+        onLogs = { navigationManager.navigateTo(OdoDestination.Profile.Logs) },
+        onBack = { navigationManager.back() },
+    )
+}
+
+/**
+ * The debug config screen. Reached from [DeveloperOptionsRoute], never directly from the
+ * account home.
  */
 @Composable
 private fun ConfigOverridesRoute(navigationManager: NavigationManager) {
@@ -307,6 +332,31 @@ private fun ConfigOverridesRoute(navigationManager: NavigationManager) {
         onSet = viewModel::set,
         onClear = viewModel::clear,
         onClearAll = viewModel::clearAll,
+        onBack = { navigationManager.back() },
+    )
+}
+
+/**
+ * The log viewer. Polling starts when this composable enters composition and stops when it
+ * leaves — [DisposableEffect] rather than the ViewModel's `init {}`, since the ViewModel
+ * outlives a configuration change but the screen shouldn't keep polling in the background
+ * once it's off-screen for good (`onCleared` also stops it, for the process-death case).
+ */
+@Composable
+private fun LogsRoute(navigationManager: NavigationManager) {
+    val viewModel = koinViewModel<LogsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    DisposableEffect(Unit) {
+        viewModel.startPolling()
+        onDispose { viewModel.stopPolling() }
+    }
+
+    LogsScreen(
+        state = state,
+        onSearchChanged = viewModel::onSearchChanged,
+        onLevelToggled = viewModel::onLevelToggled,
+        onTagToggled = viewModel::onTagToggled,
         onBack = { navigationManager.back() },
     )
 }

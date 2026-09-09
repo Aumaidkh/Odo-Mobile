@@ -108,6 +108,17 @@ internal interface SyncTable<Dto : Any> {
      * has to say what it keeps.
      */
     fun applyRemote(dto: Dto)
+
+    /**
+     * Told which rows this pull stored for the very first time, after the transaction has
+     * committed.
+     *
+     * For a table where arriving from the server means something to the owner — a car this
+     * device has never seen is their history coming back after a reinstall. Runs outside the
+     * transaction because that is the only place a suspending call is allowed. Most tables
+     * have nothing to say and the default does nothing.
+     */
+    suspend fun afterPull(insertedIds: List<String>) = Unit
 }
 
 /**

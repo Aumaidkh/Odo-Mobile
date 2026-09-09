@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
@@ -58,6 +59,7 @@ import com.hopcape.odo.core.domain.entitlement.Entitlements
 import com.hopcape.odo.core.domain.entitlement.Plan
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.test.assertFalse
 
@@ -145,9 +147,13 @@ class HomeViewModelTest {
         assertEquals(HomeEffect.OpenVault, viewModel.effects.first())
     }
 
-    /** A service is dealt with in the log, which is where the next entry gets added. */
+    /**
+     * An owner tapping an overdue service has not had it yet — they are about to book one —
+     * so the tap leads to the checklist they need walking in, not the log a finished service
+     * is recorded in.
+     */
     @Test
-    fun aServiceAttentionLeadsToTheServiceLog() = runTest(dispatcher) {
+    fun aServiceAttentionLeadsToTheChecklist() = runTest(dispatcher) {
         val viewModel = viewModel(
             entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
             documents = emptyList(),
@@ -156,7 +162,80 @@ class HomeViewModelTest {
 
         viewModel.onEvent(HomeEvent.AttentionTapped)
 
+        assertEquals(
+            HomeEffect.OpenServiceChecklist(entry = "HOME_ATTENTION"),
+            viewModel.effects.first(),
+        )
+    }
+
+    /**
+     * The conditional card's whole reason to exist: a lapsed paper outranks a due service in
+     * the attention picker, so without it the checklist would be unreachable from Home
+     * exactly when the owner is about to book the service.
+     */
+    @Test
+    fun aLapsedPaperOverAServiceDueStillOffersTheChecklistOnItsOwnCard() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = listOf(testDocument(DocumentType.PUC, expiresOn = LocalDate(2025, 6, 1))),
+        )
+        viewModel.content()
+
+        assertTrue(viewModel.state.value.offerChecklist)
+
+        viewModel.onEvent(HomeEvent.ChecklistTapped)
+        assertEquals(
+            HomeEffect.OpenServiceChecklist(entry = "HOME_CARD"),
+            viewModel.effects.first(),
+        )
+    }
+
+    /**
+     * With `service_checklist_enabled` off, Home offers no way in and the attention card
+     * goes back to the service log. A card that leads nowhere is worse than one that leads
+     * somewhere less useful.
+     */
+    @Test
+    fun withTheChecklistGatedOffTheAttentionCardGoesBackToTheLog() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = listOf(testDocument(DocumentType.PUC, expiresOn = LocalDate(2025, 6, 1))),
+            serviceChecklistEnabled = false,
+        )
+        viewModel.content()
+
+        assertFalse(viewModel.state.value.offerChecklist)
+
+        viewModel.onEvent(HomeEvent.AttentionTapped)
+        // The lapsed paper is what attention shows, so the tap opens the vault; the service
+        // route is proven by the sibling test with no document in the way.
+        assertEquals(HomeEffect.OpenVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun withTheChecklistGatedOffAServiceAttentionOpensTheLog() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = emptyList(),
+            serviceChecklistEnabled = false,
+        )
+        viewModel.content()
+
+        viewModel.onEvent(HomeEvent.AttentionTapped)
+
         assertEquals(HomeEffect.OpenServiceLog(carId = TEST_CAR.value), viewModel.effects.first())
+    }
+
+    /** When attention is already the service, Home does not say it twice. */
+    @Test
+    fun aServiceAttentionKeepsTheConditionalCardDown() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            entries = listOf(testEntry("old", LocalDate(2025, 1, 1))),
+            documents = emptyList(),
+        )
+        viewModel.content()
+
+        assertFalse(viewModel.state.value.offerChecklist)
     }
 
     @Test
@@ -424,7 +503,9 @@ class HomeViewModelTest {
         trackingEnabled: Boolean = false,
         autoOdometerEnabled: Boolean = true,
         refuelDetectEnabled: Boolean = true,
+        serviceChecklistEnabled: Boolean = true,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
+        entitlements: EntitlementSource = FakeEntitlementSource(isPro = isPro),
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -444,19 +525,25 @@ class HomeViewModelTest {
         bonds = FakeVehicleBondStore(bond),
         tracker = FakeTripTracker(enabled = trackingEnabled),
         showcase = ShowcaseArbiter(seenStore),
-        entitlements = FakeEntitlementSource(isPro = isPro),
+        entitlements = entitlements,
         telemetry = telemetry(analytics),
         // Both flags on, which is what they default to. A test that wants either offer
         // hidden can now say so, which was impossible while these were compile-time consts.
-        config = featureConfig(autoOdometerEnabled, refuelDetectEnabled),
+        config = featureConfig(autoOdometerEnabled, refuelDetectEnabled, serviceChecklistEnabled),
     )
 
     private fun featureConfig(
         autoOdometer: Boolean = true,
         refuelDetect: Boolean = true,
+        serviceChecklist: Boolean = true,
     ) = object : FeatureConfig {
         override val autoOdometerEnabled = autoOdometer
         override val refuelDetectEnabled = refuelDetect
+        override val challanEnabled = false
+        override val plateLookupEnabled = false
+        override val advisoryClassifierEnabled = false
+        override val billCheckEnabled = false
+        override val serviceChecklistEnabled = serviceChecklist
     }
 
     private class FakeEntitlementSource(private val isPro: Boolean) : EntitlementSource {
@@ -466,12 +553,59 @@ class HomeViewModelTest {
         override suspend fun refresh() = Unit
     }
 
+    /**
+     * A store that never answers.
+     *
+     * Which is what the real one does with no connection: `CustomerInfoStream.resolved` is
+     * `filterNotNull()` over a value that stays null until RevenueCat replies, so the flow
+     * emits nothing at all until then.
+     */
+    private class SilentEntitlementSource : EntitlementSource {
+        override fun observe(): Flow<Entitlements> = emptyFlow()
+        override suspend fun refresh() = Unit
+    }
+
     private fun telemetry(analytics: RecordingAnalytics) = HomeTelemetry(
         logger = HLogger.asLogger(),
         analytics = analytics,
         tracer = APM.asTracer(),
         ids = FixedIdGenerator(),
     )
+
+    /* ------------------------------ Not waiting on the store ------------------------------ */
+
+    /**
+     * The dashboard is built from local rows, and must not wait on the network for any of them.
+     *
+     * `combine` holds its result until every source has emitted once, and the entitlement
+     * stream emits nothing until RevenueCat answers — so the whole screen sat on its skeleton
+     * behind a store round trip, and behind its timeout with no connection. On an offline-first
+     * app that is the wrong thing to make an owner wait for.
+     */
+    @Test
+    fun theDashboardDrawsBeforeTheStoreAnswers() = runTest(dispatcher) {
+        val viewModel = viewModel(entitlements = SilentEntitlementSource())
+
+        // Subscribed, because the state is `WhileSubscribed` — reading `.value` without a
+        // collector measures a flow that was never started.
+        val job = launch { viewModel.state.collect { } }
+        advanceUntilIdle()
+
+        assertIs<Loadable.Ready<HomeContent>>(viewModel.state.value.content)
+        job.cancel()
+    }
+
+    /** And until it does, nothing Pro is shown on the strength of not knowing. */
+    @Test
+    fun beforeTheStoreAnswersNothingIsTreatedAsPaidFor() = runTest(dispatcher) {
+        val viewModel = viewModel(entitlements = SilentEntitlementSource())
+
+        val job = launch { viewModel.state.collect { } }
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.proPlan)
+        job.cancel()
+    }
 
     private suspend fun HomeViewModel.content(): HomeContent =
         assertIs<Loadable.Ready<HomeContent>>(state.first { it.content is Loadable.Ready }.content).value

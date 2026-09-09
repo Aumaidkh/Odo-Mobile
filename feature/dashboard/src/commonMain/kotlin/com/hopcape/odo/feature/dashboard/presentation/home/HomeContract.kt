@@ -18,6 +18,12 @@ internal sealed interface HomeEvent {
     /** The bell in the header. */
     data object BellTapped : HomeEvent
 
+    /** "Add reading" on the pending-odometer card. */
+    data object AddOdometerTapped : HomeEvent
+
+    /** The pending-odometer card's dismiss. Gone for this session, back on the next launch. */
+    data object OdometerNudgeDismissed : HomeEvent
+
     /** The avatar in the header. */
     data object ProfileTapped : HomeEvent
 
@@ -37,6 +43,9 @@ internal sealed interface HomeEvent {
 
     /** The auto-odometer offer card — opens the education screen, not the permission. */
     data object AutoOdometerTapped : HomeEvent
+
+    /** The "Before you go in" card — the conditional entry to the pre-service checklist. */
+    data object ChecklistTapped : HomeEvent
 
     /** The checklist's documents row. */
     data object AddDocumentsTapped : HomeEvent
@@ -107,4 +116,13 @@ internal sealed interface HomeEffect {
 
     /** Open onboarding's add-car flow. */
     data object OpenAddCar : HomeEffect
+
+    /**
+     * Open the pre-service checklist. [entry] says which of Home's two doors was used, so the
+     * conditional card can be judged against the attention card rather than merged with it.
+     */
+    data class OpenServiceChecklist(val entry: String) : HomeEffect
+
+    /** Open the odometer sheet — the one place a reading is typed. */
+    data object OpenUpdateOdometer : HomeEffect
 }

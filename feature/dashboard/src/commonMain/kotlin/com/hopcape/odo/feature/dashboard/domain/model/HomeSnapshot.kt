@@ -41,6 +41,14 @@ internal data class HomeSnapshot(
     val savings: FairnessSavings,
     /** The single thing that needs acting on, or `null` when nothing does. */
     val attention: CarAttention?,
+    /**
+     * Whether the car is inside its service window, on time or distance.
+     *
+     * Carried beside [attention] rather than read off it: the picker returns one item, and a
+     * lapsed PUC outranks a service that is a week away — which would hide the checklist
+     * exactly when the owner is about to book one.
+     */
+    val serviceDue: Boolean,
     /** Something worth knowing that is not a deadline, or `null` when there is nothing. */
     val insight: CarInsight?,
     /** The newest thing that happened to the car; `null` on a record with no events. */

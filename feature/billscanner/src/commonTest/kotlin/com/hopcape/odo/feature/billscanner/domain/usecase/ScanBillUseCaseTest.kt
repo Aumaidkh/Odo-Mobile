@@ -10,7 +10,7 @@ import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.scan.BillExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
 import com.hopcape.odo.core.domain.scan.entitlement.ScanLimit
-import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.model.BillType
 import com.hopcape.odo.core.domain.scan.model.ExtractedBill
 import com.hopcape.odo.core.domain.scan.model.ExtractedLineItem
@@ -41,7 +41,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { _ -> called = true; readableBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 3) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -59,7 +59,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { readableBill().right() },
             allowance = { ScanLimit.Unlimited },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -72,7 +72,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { emptyBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -84,7 +84,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { DomainError.ScanUnavailable.left() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -97,7 +97,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { image -> seen = image; readableBill().right() },
             allowance = { ScanLimit.Unlimited },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -112,7 +112,7 @@ class ScanBillUseCaseTest {
         val useCase = ScanBillUseCase(
             extractor = { readableBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )
@@ -129,14 +129,14 @@ class ScanBillUseCaseTest {
         ScanBillUseCase(
             extractor = { DomainError.ScanUnavailable.left() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )("scans/a.jpg")
         ScanBillUseCase(
             extractor = { emptyBill().right() },
             allowance = { ScanLimit.UpTo(max = 3, used = 0) },
-            usage = usage,
+            charger = usage,
             ids = ids,
             clock = clock,
         )("scans/b.jpg")
@@ -162,13 +162,18 @@ class ScanBillUseCaseTest {
 
 
 /** Counts what was charged, so a test can assert nothing was. */
-private class RecordingScanUsage : ScanUsage {
+/**
+ * Stands in for the charger, and counts what it was asked to charge.
+ *
+ * Which balance a scan lands on — free or bought — is
+ * `AllowanceScanCharger`'s decision and is covered where that lives. What these tests care
+ * about is only whether the use case charged at all.
+ */
+private class RecordingScanUsage : ScanCharger {
     var recorded = 0
         private set
 
-    override suspend fun used(): Int = recorded
-
-    override suspend fun recordScan() {
+    override suspend fun chargeOne() {
         recorded++
     }
 }

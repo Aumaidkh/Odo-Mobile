@@ -60,7 +60,7 @@ internal fun RunningCostRoute(navigationManager: NavigationManager) {
                 navigationManager.navigateTo(OdoDestination.CostTracker.FuelRate)
 
             RunningCostEffect.OpenPaywall ->
-                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER))
+                navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER))
         }
     }
 

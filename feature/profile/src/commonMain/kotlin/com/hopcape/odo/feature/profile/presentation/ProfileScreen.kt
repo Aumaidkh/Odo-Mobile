@@ -35,6 +35,8 @@ import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.designsystem.icons.IcBellOutlined
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcEyeFilled
+import com.hopcape.odo.core.designsystem.icons.IcGearFilled
+import com.hopcape.odo.core.designsystem.icons.IcTagFilled
 import com.hopcape.odo.core.designsystem.icons.IcInfo
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
 import com.hopcape.odo.core.designsystem.icons.IcLockFilled
@@ -53,15 +55,16 @@ import com.hopcape.odo.core.domain.settings.model.ThemePreference
 import com.hopcape.odo.core.domain.shared.suffix
 import com.hopcape.odo.feature.profile.presentation.state.Loadable
 import com.hopcape.odo.feature.profile.resources.Res
-import com.hopcape.odo.feature.profile.resources.pf_config
 import com.hopcape.odo.feature.profile.resources.pf_appear_dark
 import com.hopcape.odo.feature.profile.resources.pf_appear_light
 import com.hopcape.odo.feature.profile.resources.pf_appear_system
 import com.hopcape.odo.feature.profile.resources.pf_appearance
+import com.hopcape.odo.feature.profile.resources.pf_goals
 import com.hopcape.odo.feature.profile.resources.pf_show_around
 import com.hopcape.odo.feature.profile.resources.pf_cd_back
 import com.hopcape.odo.feature.profile.resources.pf_city_missing
 import com.hopcape.odo.feature.profile.resources.pf_data_privacy
+import com.hopcape.odo.feature.profile.resources.pf_developer_options
 import com.hopcape.odo.feature.profile.resources.pf_edit
 import com.hopcape.odo.feature.profile.resources.pf_export
 import com.hopcape.odo.feature.profile.resources.pf_free_plan
@@ -130,6 +133,7 @@ internal fun ProfileScreen(
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
+    onGoals: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
@@ -137,9 +141,9 @@ internal fun ProfileScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onShowAround: () -> Unit = {},
-    /** Debug builds only. A release build never offers a way into the config screen. */
+    /** Debug builds only. A release build never offers a way into Developer Options. */
     debugToolsVisible: Boolean = false,
-    onConfigOverrides: () -> Unit = {},
+    onDeveloperOptions: () -> Unit = {},
 ) {
     OdoScreen(
         modifier = modifier,
@@ -177,6 +181,7 @@ internal fun ProfileScreen(
                 onNotifications = onNotifications,
                 onUnits = onUnits,
                 onAppearance = onAppearance,
+                onGoals = onGoals,
                 onExport = onExport,
                 onPrivacy = onPrivacy,
                 onHelp = onHelp,
@@ -184,7 +189,7 @@ internal fun ProfileScreen(
                 onSignOut = onSignOut,
                 onShowAround = onShowAround,
                 debugToolsVisible = debugToolsVisible,
-                onConfigOverrides = onConfigOverrides,
+                onDeveloperOptions = onDeveloperOptions,
             )
         }
     }
@@ -195,7 +200,7 @@ private fun ProfileContentColumn(
     content: ProfileContent,
     version: String,
     debugToolsVisible: Boolean = false,
-    onConfigOverrides: () -> Unit = {},
+    onDeveloperOptions: () -> Unit = {},
     buildNumber: Long?,
     sync: SyncStatus,
     padding: PaddingValues,
@@ -205,6 +210,7 @@ private fun ProfileContentColumn(
     onNotifications: () -> Unit,
     onUnits: () -> Unit,
     onAppearance: () -> Unit,
+    onGoals: () -> Unit,
     onExport: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
@@ -249,6 +255,15 @@ private fun ProfileContentColumn(
                 testTag = ProfileTestTags.APPEARANCE_ROW,
             )
             RowDivider()
+            // What the owner said they came for (#394). Whatever they picked during setup used
+            // to be permanent — there was no screen that could change it.
+            SettingsRow(
+                icon = IcTagFilled,
+                title = stringResource(Res.string.pf_goals),
+                onClick = onGoals,
+                testTag = ProfileTestTags.GOALS_ROW,
+            )
+            RowDivider()
             // #234: clears the coach marks' seen record. Each hook then fires again on its
             // own surface at its own moment — deliberately not a tour, and deliberately
             // nothing appears here.
@@ -287,9 +302,9 @@ private fun ProfileContentColumn(
             // same shape the refuel routes use.
             if (debugToolsVisible) {
                 SettingsRow(
-                    icon = IcInfo,
-                    title = stringResource(Res.string.pf_config),
-                    onClick = onConfigOverrides,
+                    icon = IcGearFilled,
+                    title = stringResource(Res.string.pf_developer_options),
+                    onClick = onDeveloperOptions,
                 )
                 RowDivider()
             }

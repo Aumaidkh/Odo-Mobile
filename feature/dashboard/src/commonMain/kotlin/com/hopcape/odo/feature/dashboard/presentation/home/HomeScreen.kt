@@ -16,6 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,8 +28,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,14 +39,19 @@ import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCard
+import com.hopcape.odo.core.designsystem.component.OdoShimmerBlock
+import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
+import com.hopcape.odo.core.designsystem.icons.IcClose
+import com.hopcape.odo.core.designsystem.icons.IcList
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
@@ -65,6 +76,8 @@ import com.hopcape.odo.feature.dashboard.resources.db_score_none
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_detect_body
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_title
+import com.hopcape.odo.feature.dashboard.resources.hm_checklist_body
+import com.hopcape.odo.feature.dashboard.resources.hm_checklist_title
 import com.hopcape.odo.feature.dashboard.resources.hm_auto_odometer_body
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_showcase
 import com.hopcape.odo.feature.dashboard.resources.hm_showcase_dismiss
@@ -78,6 +91,10 @@ import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase_free
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_action
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_body
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_dismiss
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_title
 import com.hopcape.odo.feature.dashboard.resources.hm_log_fill
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_bell
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_profile
@@ -177,7 +194,14 @@ internal fun HomeScreen(
             when (state.content) {
                 is Loadable.Loading -> HomeSkeleton()
                 is Loadable.Failed -> HomeError(state.content.message.asString())
-                is Loadable.Ready -> HomeBody(state.content.value, state.offerAutoDetect, state.offerAutoOdometer, healthAnchor, onEvent)
+                is Loadable.Ready -> HomeBody(
+                    content = state.content.value,
+                    offerAutoDetect = state.offerAutoDetect,
+                    offerAutoOdometer = state.offerAutoOdometer,
+                    offerChecklist = state.offerChecklist,
+                    healthAnchor = healthAnchor,
+                    onEvent = onEvent,
+                )
             }
         }
     }
@@ -219,14 +243,25 @@ private fun HomeBody(
     content: HomeContent,
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
+    offerChecklist: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
+    // Above the rest: it is a question waiting for an answer, and a new owner — the one most
+    // likely to have skipped it — sees the checklist branch rather than the score.
+    if (content.odometerPending && !content.hasNoCar) OdometerNudgeCard(onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
-        else -> ScoredContent(content, offerAutoDetect, offerAutoOdometer, healthAnchor, onEvent)
+        else -> ScoredContent(
+            content = content,
+            offerAutoDetect = offerAutoDetect,
+            offerAutoOdometer = offerAutoOdometer,
+            offerChecklist = offerChecklist,
+            healthAnchor = healthAnchor,
+            onEvent = onEvent,
+        )
     }
 }
 
@@ -239,7 +274,7 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HEADER_LINE_GAP)) {
             val greeting = if (content.userName.isBlank()) {
                 stringResource(Res.string.hm_greeting_generic)
             } else {
@@ -283,7 +318,7 @@ private fun HomeHeader(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
         val profileLabel = stringResource(Res.string.hm_cd_profile)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(HEADER_CIRCLE)
                 .clip(CircleShape)
                 .background(OdoTheme.colors.accent)
                 .clickable(onClick = { onEvent(HomeEvent.ProfileTapped) })
@@ -315,13 +350,77 @@ private fun CircleButton(
 ) {
     Box(
         modifier = modifier
-            .size(44.dp)
+            .size(HEADER_CIRCLE)
             .clip(CircleShape)
             .background(OdoTheme.colors.surfaceRaised)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
         content = { content() },
     )
+}
+
+/*
+ * The header's own metrics. Shared with the skeleton below, which stands in for this Row and
+ * used to guess them — it spaced the two lines by 8dp against this 2dp, so the whole screen
+ * dropped when the real header arrived.
+ */
+private val HEADER_LINE_GAP = 2.dp
+private val HEADER_CIRCLE = 44.dp
+
+
+/**
+ * The reading was skipped at setup and nothing has supplied one since.
+ *
+ * Shown until it is answered rather than once, because per-km cost, the health score and the
+ * value estimate are all absent until then and nothing else on Home explains why. Dismissal
+ * is remembered for the session only — the question does not stop mattering.
+ */
+@Composable
+private fun OdometerNudgeCard(onEvent: (HomeEvent) -> Unit) {
+    var dismissed by rememberSaveable { mutableStateOf(false) }
+    if (dismissed) return
+    OdoCard(modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.ODOMETER_NUDGE)) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                OdoIconTile(icon = IcSpeedometer, contentDescription = null)
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+                ) {
+                    OdoText(
+                        stringResource(Res.string.hm_odometer_nudge_title),
+                        style = OdoTheme.typography.label,
+                    )
+                    OdoText(
+                        stringResource(Res.string.hm_odometer_nudge_body),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+                CircleButton(
+                    onClick = {
+                        dismissed = true
+                        onEvent(HomeEvent.OdometerNudgeDismissed)
+                    },
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    OdoIcon(
+                        IcClose,
+                        contentDescription = stringResource(Res.string.hm_odometer_nudge_dismiss),
+                        tint = OdoTheme.colors.textMuted,
+                        size = OdoTheme.iconSizes.small,
+                    )
+                }
+            }
+            OdoButton(
+                text = stringResource(Res.string.hm_odometer_nudge_action),
+                onClick = { onEvent(HomeEvent.AddOdometerTapped) },
+            )
+        }
+    }
 }
 
 // --- Scored ---------------------------------------------------------------------
@@ -331,6 +430,7 @@ private fun ScoredContent(
     content: HomeContent,
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
+    offerChecklist: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -340,6 +440,7 @@ private fun ScoredContent(
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
     AttentionCard(content.attention, onEvent)
+    if (offerChecklist) ChecklistCard(onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
 }
@@ -433,6 +534,57 @@ private fun AutoOdometerOffer(onEvent: (HomeEvent) -> Unit) {
                 )
                 OdoText(
                     stringResource(Res.string.hm_auto_odometer_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(
+                IcChevronRight,
+                contentDescription = null,
+                tint = OdoTheme.colors.textMuted,
+                size = OdoTheme.iconSizes.small,
+            )
+        }
+    }
+}
+
+/**
+ * The pre-service checklist, as its own card.
+ *
+ * It exists for one case: a lapsed paper outranks a due service in the attention picker, so
+ * without this the checklist would be unreachable from Home exactly when the owner is about
+ * to book the service. When attention *is* the service, that card opens the checklist and
+ * this one stays down — Home never says the same thing twice.
+ *
+ * It goes as soon as the next service is logged, because the interval resets with it.
+ */
+@Composable
+private fun ChecklistCard(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.CHECKLIST_OFFER),
+        onClick = { onEvent(HomeEvent.ChecklistTapped) },
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoIcon(
+                IcList,
+                contentDescription = null,
+                tint = OdoTheme.colors.textDim,
+                size = OdoTheme.iconSizes.medium,
+            )
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+            ) {
+                OdoText(
+                    stringResource(Res.string.hm_checklist_title),
+                    style = OdoTheme.typography.label,
+                )
+                OdoText(
+                    stringResource(Res.string.hm_checklist_body),
                     style = OdoTheme.typography.bodySmall,
                     color = OdoTheme.colors.textDim,
                 )
@@ -975,35 +1127,103 @@ private fun NoCarContent(onEvent: (HomeEvent) -> Unit) {
  * What Home shows while the record is being read.
  *
  * Cards in the shape of the real ones rather than a spinner: the tab is switched to
- * instantly, and an empty screen for even one frame reads as "there is nothing here"
- * — which is the wrong thing to tell someone about their own car.
+ * instantly, and an empty screen for even one frame reads as "there is nothing here" —
+ * which is the wrong thing to tell someone about their own car.
+ *
+ * **It stands in for what is actually below it**, block for block: the greeting and the
+ * car line, then health, fuel, the two stats, and the attention card. The first version
+ * was four bars of arbitrary heights, so the screen jumped when the real cards arrived
+ * — which is most of what a skeleton exists to prevent.
+ *
+ * It is also alive now. A static grey block is indistinguishable from a rendering fault;
+ * the sweep is what says the screen is working.
  */
 @Composable
 private fun HomeSkeleton() {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
-        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SKELETON),
-    ) {
-        SkeletonBlock(height = 160.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            SkeletonBlock(height = 96.dp, modifier = Modifier.weight(1f))
-            SkeletonBlock(height = 96.dp, modifier = Modifier.weight(1f))
+    OdoShimmerHost {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg),
+            modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.SKELETON),
+        ) {
+            // The header, laid out as HomeHeader lays it out: the greeting and the car line on
+            // the left, the bell and the avatar on the right. Same Row, same gaps, same two
+            // circles — a Column of bars left the right-hand side empty until the content
+            // landed, and then two 44dp circles appeared out of nowhere.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(HEADER_LINE_GAP),
+                ) {
+                    SkeletonTextLine(OdoTheme.typography.title, SKELETON_GREETING)
+                    SkeletonTextLine(OdoTheme.typography.bodySmall, SKELETON_CAR_LINE)
+                }
+                // Both, always. Loading is before the app knows whether there is a car, and the
+                // owner with one is the common case; guessing the other way empties the row.
+                SkeletonCircle()
+                SkeletonCircle()
+            }
+            SkeletonBlock(height = SKELETON_HEALTH)
+            SkeletonBlock(height = SKELETON_FUEL)
+            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+                SkeletonBlock(height = SKELETON_STAT, modifier = Modifier.weight(1f))
+                SkeletonBlock(height = SKELETON_STAT, modifier = Modifier.weight(1f))
+            }
+            SkeletonBlock(height = SKELETON_ATTENTION)
         }
-        SkeletonBlock(height = 80.dp)
-        SkeletonBlock(height = 80.dp)
     }
 }
 
 @Composable
 private fun SkeletonBlock(height: Dp, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(height)
-            .clip(OdoTheme.shapes.card)
-            .background(OdoTheme.colors.surfaceRaised),
+    OdoShimmerBlock(
+        modifier = modifier,
+        height = height,
+        shape = OdoTheme.shapes.card,
     )
 }
+
+/** Stands in for the bell and the avatar, which are both [HEADER_CIRCLE] circles. */
+@Composable
+private fun SkeletonCircle() {
+    OdoShimmerBlock(width = HEADER_CIRCLE, height = HEADER_CIRCLE, shape = CircleShape)
+}
+
+/**
+ * A bar standing in for one line of text in [style].
+ *
+ * The blank [OdoText] behind it is what reserves the space: a line box is taller than its
+ * `lineHeight` by the font's own padding, so heights guessed from the style — or the fixed
+ * 28dp/16dp this used before — leave the skeleton a few dp short of the text and the screen
+ * still moves when the content lands. Laying out the real style is the only way to be exact.
+ *
+ * The bar itself is deliberately shorter than the line it sits in, which is how a skeleton
+ * reads as a placeholder rather than as a solid block of text.
+ */
+@Composable
+private fun SkeletonTextLine(style: TextStyle, width: Dp) {
+    Box(contentAlignment = Alignment.CenterStart) {
+        OdoText(" ", style = style)
+        OdoShimmerBlock(
+            width = width,
+            height = with(LocalDensity.current) { (style.fontSize * BAR_TO_LINE).toDp() },
+        )
+    }
+}
+
+/** How much of a line of text the bar standing in for it fills. */
+private const val BAR_TO_LINE = 0.8f
+
+/* The real cards' own heights, so nothing moves when they replace these. */
+private val SKELETON_GREETING = 180.dp
+private val SKELETON_CAR_LINE = 130.dp
+private val SKELETON_HEALTH = 168.dp
+private val SKELETON_FUEL = 104.dp
+private val SKELETON_STAT = 88.dp
+private val SKELETON_ATTENTION = 96.dp
 
 @Composable
 private fun HomeError(message: String) {

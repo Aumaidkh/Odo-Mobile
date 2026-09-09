@@ -94,8 +94,9 @@ internal class FakeServiceLogRepository(
         return Unit.right()
     }
 
-    override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? {
-        val baselineKm = carBaselineKm ?: return null
+    override suspend fun odometerReadings(carId: CarId): List<OdometerReading> {
+        // No baseline is a car with nothing recorded yet, not a missing car.
+        val baselineKm = carBaselineKm ?: return emptyList()
         val baseline = OdometerReading(
             logId = null,
             date = carBaselineDate,
@@ -209,7 +210,6 @@ internal fun testCar(
 internal fun testOwner(name: String? = "Rahul Deshmukh"): OwnerProfile = OwnerProfile.reconstitute(
     id = TEST_OWNER,
     name = name,
-    goal = null,
     onboardingCompletedAt = null,
 )
 

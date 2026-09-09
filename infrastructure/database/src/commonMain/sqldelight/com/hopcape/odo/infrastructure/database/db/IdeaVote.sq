@@ -1,0 +1,66 @@
+-- This owner's votes on the curated list.
+--
+-- One row per (owner, idea), and the vote is taken *off* by soft-deleting rather than removing:
+-- the server has to hear that it was withdrawn, and a row that is gone has nothing to push.
+--
+-- The primary key is the pair rather than a generated id, so pressing the pill twice cannot
+-- leave two rows racing each other to the server.
+CREATE TABLE idea_votes (
+    idea_id        TEXT NOT NULL,
+    owner_id       TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING',
+    PRIMARY KEY (idea_id, owner_id)
+);
+
+-- SQLite 3.18 on minSdk 26 has no UPSERT, so this is the insert-or-update pair the project
+-- writes everywhere else: try the insert, then update whatever was already there.
+insertVote:
+INSERT OR IGNORE INTO idea_votes (idea_id, owner_id, created_at, updated_at, deleted_at, sync_status)
+VALUES (:ideaId, :ownerId, :now, :now, NULL, 'PENDING');
+
+setVote:
+UPDATE idea_votes
+SET deleted_at = :deletedAt, updated_at = :now, sync_status = 'PENDING'
+WHERE idea_id = :ideaId AND owner_id = :ownerId;
+
+selectPending:
+SELECT *
+FROM idea_votes
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectSyncState:
+SELECT sync_status, updated_at
+FROM idea_votes
+WHERE idea_id = :ideaId AND owner_id = :ownerId;
+
+markSynced:
+UPDATE idea_votes
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE idea_id = :ideaId AND owner_id = :ownerId;
+
+markConflict:
+UPDATE idea_votes
+SET sync_status = 'CONFLICT'
+WHERE idea_id = :ideaId AND owner_id = :ownerId;
+
+upsertFromRemote:
+INSERT OR REPLACE INTO idea_votes (
+    idea_id, owner_id, created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (:ideaId, :ownerId, :createdAt, :updatedAt, :deletedAt, :remoteVersion, 'SYNCED');
+
+adoptOwnership:
+UPDATE idea_votes
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+deleteAllRows:
+DELETE FROM idea_votes;
+
+deleteForeignOwned:
+DELETE FROM idea_votes
+WHERE owner_id <> :ownerId;

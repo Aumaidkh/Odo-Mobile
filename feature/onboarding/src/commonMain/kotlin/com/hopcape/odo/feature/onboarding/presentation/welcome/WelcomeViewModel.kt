@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 /**
  * State holder for the Welcome pitch. It holds no state (see [WelcomeEvent]) — it turns the
- * three things the owner can tap into [WelcomeEffect]s the route host performs.
+ * four things the owner can tap into [WelcomeEffect]s the route host performs.
  *
  * Thin on purpose, and still worth existing: it is where the funnel begins. The pitch is the
  * first screen of the acquisition funnel, so how many owners see it versus continue past it is
@@ -33,6 +33,11 @@ internal class WelcomeViewModel(
             WelcomeEvent.ContinueClicked -> {
                 telemetry.welcomeCompleted()
                 WelcomeEffect.OpenCarSetup
+            }
+
+            WelcomeEvent.SignInClicked -> {
+                telemetry.signInFromWelcome()
+                WelcomeEffect.OpenSignIn
             }
 
             WelcomeEvent.TermsClicked -> {

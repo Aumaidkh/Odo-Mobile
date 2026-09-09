@@ -1,7 +1,7 @@
 package com.hopcape.odo.web.blog.data
 
 import arrow.core.Either
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.domain.model.AuthorPage
@@ -42,31 +42,31 @@ class CachingBlogRepository(
     private val authors = mutableMapOf<String, AuthorPage>()
     private val mostRead = mutableMapOf<Int, List<PostSummary>>()
 
-    override suspend fun categories(): Either<BlogError, List<Category>> =
+    override suspend fun categories(): Either<WebError, List<Category>> =
         categories?.let { Either.Right(it) } ?: delegate.categories().onRight { categories = it }
 
-    override suspend fun index(): Either<BlogError, IndexPage> =
+    override suspend fun index(): Either<WebError, IndexPage> =
         index?.let { Either.Right(it) } ?: delegate.index().onRight { index = it }
 
-    override suspend fun article(slug: String): Either<BlogError, Article> =
+    override suspend fun article(slug: String): Either<WebError, Article> =
         articles[slug]?.let { Either.Right(it) } ?: delegate.article(slug).onRight { articles[slug] = it }
 
-    override suspend fun category(slug: String): Either<BlogError, CategoryPage> =
+    override suspend fun category(slug: String): Either<WebError, CategoryPage> =
         categoryPages[slug]?.let { Either.Right(it) }
             ?: delegate.category(slug).onRight { categoryPages[slug] = it }
 
-    override suspend fun author(slug: String): Either<BlogError, AuthorPage> =
+    override suspend fun author(slug: String): Either<WebError, AuthorPage> =
         authors[slug]?.let { Either.Right(it) } ?: delegate.author(slug).onRight { authors[slug] = it }
 
-    override suspend fun search(query: String): Either<BlogError, SearchResults> = delegate.search(query)
+    override suspend fun search(query: String): Either<WebError, SearchResults> = delegate.search(query)
 
-    override suspend fun mostRead(limit: Int): Either<BlogError, List<PostSummary>> =
+    override suspend fun mostRead(limit: Int): Either<WebError, List<PostSummary>> =
         mostRead[limit]?.let { Either.Right(it) } ?: delegate.mostRead(limit).onRight { mostRead[limit] = it }
 
     // Writes, not reads. Nothing to remember, and remembering would mean a second
     // subscribe silently doing nothing.
-    override suspend fun subscribe(email: String): Either<BlogError, Unit> = delegate.subscribe(email)
+    override suspend fun subscribe(email: String): Either<WebError, Unit> = delegate.subscribe(email)
 
-    override suspend fun requestTopic(email: String, query: String): Either<BlogError, Unit> =
+    override suspend fun requestTopic(email: String, query: String): Either<WebError, Unit> =
         delegate.requestTopic(email, query)
 }

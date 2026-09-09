@@ -87,7 +87,7 @@ class CarSyncTableTest {
         val (db, _) = inMemoryDatabase()
         db.insertLocalCar(id = "local-1", remoteVersion = earlier)
         val remote = RecordingRemote(listOf(serverCar(id = "server-1")))
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
 
         val rows = table.reconcileBeforePush(table.pending())
 
@@ -102,7 +102,7 @@ class CarSyncTableTest {
         val (db, _) = inMemoryDatabase()
         db.insertLocalCar(id = "local-1", plate = null)
         val remote = RecordingRemote(listOf(serverCar(id = "server-1")))
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
 
         val rows = table.reconcileBeforePush(table.pending())
 
@@ -121,7 +121,7 @@ class CarSyncTableTest {
         // used to deadlock: the push would be an INSERT against a server that already holds
         // a different primary.
         val remote = RecordingRemote(listOf(serverCar(id = "server-1", plate = "MH01ZZ9999")))
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
 
         table.reconcileBeforePush(table.pending())
 
@@ -133,7 +133,7 @@ class CarSyncTableTest {
         val (db, _) = inMemoryDatabase()
         db.insertLocalCar(id = "local-1", isPrimary = false)
         val remote = RecordingRemote(emptyList())
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
 
         table.reconcileBeforePush(table.pending())
 
@@ -145,7 +145,7 @@ class CarSyncTableTest {
         val (db, _) = inMemoryDatabase()
         db.insertLocalCar(id = "local-1")
         val remote = RecordingRemote(listOf(serverCar(id = "server-1")))
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner })
+        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
 
         table.reconcileBeforePush(table.pending())
 
@@ -192,6 +192,7 @@ class CarSyncTableTest {
             remote = RecordingRemote(server),
             telemetry = silentSyncTelemetry(),
             ownerId = { owner },
+            restored = RecordingRestoredHistoryStore(),
         )
 
     private fun serverCar(
@@ -221,7 +222,7 @@ class CarSyncTableTest {
         isPrimary: Boolean = true,
     ) = carQueries.insertCar(
         id, owner, "Maruti", "Swift", null, 2019, "PETROL", plate,
-        42_000, null, null, if (isPrimary) 1 else 0, now, now, now, null, remoteVersion, "PENDING",
+        42_000, 0, null, null, if (isPrimary) 1 else 0, now, now, now, null, remoteVersion, "PENDING",
     )
 
     private fun OdoDatabase.insertServiceLog(id: String, carId: String) =

@@ -1,0 +1,26 @@
+-- Schema 11 -> 12: `profile_answers`, the questionnaire's storage (#394).
+--
+-- A new table, so there is nothing to migrate. `profiles.onboarding_goal` stays exactly where
+-- it is and keeps being written: backfilling into this table and dropping the column are
+-- later slices, and deliberately not the same release as each other
+-- (docs/QUESTIONNAIRE_PLAN.md, S7 and S8).
+--
+-- Kept identical to ProfileAnswer.sq, including the UNIQUE constraint and the partial index.
+-- A fresh install builds the table from the `.sq`, an upgraded one from this file, and the
+-- two have to agree — the same rule 5.sqm and 10.sqm state about column order.
+CREATE TABLE profile_answers (
+    id            TEXT NOT NULL PRIMARY KEY,
+    owner_id      TEXT NOT NULL,
+    question_key  TEXT NOT NULL,
+    answer_value  TEXT NOT NULL,
+    answered_at   TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    deleted_at    TEXT,
+    remote_version TEXT,
+    sync_status   TEXT NOT NULL DEFAULT 'PENDING',
+    UNIQUE (owner_id, question_key, answer_value)
+);
+
+CREATE INDEX idx_profile_answers_owner_key ON profile_answers (owner_id, question_key)
+    WHERE deleted_at IS NULL;
