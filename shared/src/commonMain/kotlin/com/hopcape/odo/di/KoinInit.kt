@@ -136,18 +136,17 @@ fun initKoin(
         // After coreDataModule for the same reason: its on-device BillExtractor binding
         // replaces that module's UnconfiguredBillExtractor stub.
         aiInfrastructureModule,
-        // The config registry and resolver. Listed after every module that could
-        // register a ConfigContribution, and immediately before the module that supplies
-        // the real ConfigSource — the Firebase one replaces its no-backend defaults.
+        // The config registry and resolver, plus the chain the resolver reads through.
+        // Listed after every module that could register a ConfigContribution. Where the
+        // two config backends below sit no longer matters: each binds its own qualifier
+        // and this module assembles the chain from whichever are present.
         coreConfigModule,
-        // Immediately after coreConfigModule, and that position is the wiring: feature
-        // flags live in the `app_config` table now, and this replaces that module's
-        // NoRemoteConfigSource and ConfigRefresher.None. Listed inside supabaseModule
-        // it would be overridden by those defaults a few lines later.
+        // The `app_config` table, second in the chain — it answers a key Remote Config
+        // has nothing for.
         supabaseConfigModule,
-        // Same reason again: its AppStatusSource binding replaces coreDataModule's
-        // AlwaysAvailableAppStatusSource, which blocks nothing. It no longer supplies
-        // the ConfigSource — the line above does.
+        // Firebase Remote Config, first in the chain. Its position still matters for one
+        // other binding: AppStatusSource replaces coreDataModule's
+        // AlwaysAvailableAppStatusSource, which blocks nothing.
         firebaseRemoteConfigModule,
         // After coreDataModule for the same reason: from S6 its EntitlementSource binding
         // replaces that module's FreePlanEntitlementSource. Today it only configures the

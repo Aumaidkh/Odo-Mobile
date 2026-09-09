@@ -2,7 +2,6 @@ package com.hopcape.odo.infrastructure.firebase.remoteconfig
 
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.BuildInfo
-import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.config.ConfigRegistry
 import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.core.domain.appstatus.AppStatusSource
@@ -45,16 +44,13 @@ val firebaseRemoteConfigModule = module {
         RemoteConfigAppStatusSource(gateway = get(), config = get(), refresher = get())
     }
 
-    // Replaces coreConfigModule's NoRemoteConfigSource and ConfigRefresher.None, the same
-    // later-definition-wins wiring as the AppStatusSource above.
-    //
-    // One instance bound to both interfaces, not two definitions: the generation counter
-    // lives in it, so a second instance would fetch on one object and leave every flow
-    // watching the other.
-    // No ConfigSource here any more. Feature flags come from the `app_config` table
-    // via supabaseConfigModule — see SupabaseConfigModule for why. What this module
-    // still owns is the app-status gate below, which reads its own Remote Config key
-    // and is a different question from a feature flag.
+    // First link in coreConfigModule's ChainedConfigSource. Bound under its own qualifier
+    // and never as the plain ConfigSource: binding that is what let this module and
+    // supabaseConfigModule overwrite each other, and the loser was whichever initKoin
+    // happened to list first. Nothing here fetched at all for as long as that stood, which
+    // took the app-status gate below down with it — lastFetchAt stays null until something
+    // calls fetchAndActivate, and RemoteConfigAppStatusSource returns null while it is.
+    single<ConfigSource>(named(ConfigSource.REMOTE_CONFIG)) { RemoteConfigSource(gateway = get()) }
 
     // Replaces supabaseModule's build-time links, and resolves that one as its fallback —
     // hence the qualifier. Same later-wins wiring as the AppStatusSource above, with one

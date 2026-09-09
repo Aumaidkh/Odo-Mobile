@@ -1,35 +1,30 @@
 package com.hopcape.odo.infrastructure.supabase.config
 
-import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.config.ConfigSnapshotStore
 import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.infrastructure.supabase.SupabaseEnvironment
-import org.koin.dsl.binds
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /**
- * Binds the config system to the `app_config` table.
+ * Contributes the `app_config` table to the config chain, behind Firebase Remote Config.
  *
- * **A module of its own, and its position in `initKoin` is the wiring.** Koin lets a
- * later definition win, so this has to be listed *after* `coreConfigModule` — that
- * module binds `NoRemoteConfigSource` and `ConfigRefresher.None` as the no-backend
- * defaults, and it is itself listed after `supabaseModule` because it must come after
- * everything that registers a `ConfigContribution`. Binding this inside
- * `supabaseModule` therefore looked right and did nothing: the defaults overrode it
- * a few lines later, silently, and every flag would have resolved to its compiled
- * value forever.
+ * **A module of its own, but its position in `initKoin` no longer decides anything.** It
+ * binds under [ConfigSource.APP_CONFIG_TABLE], never the plain `ConfigSource`, and
+ * `coreConfigModule` assembles the chain from whichever qualified backends are present.
+ * Both adapters used to bind the plain interface and silently overwrite each other,
+ * whichever way round the list happened to be.
  *
- * Firebase Remote Config is not replaced wholesale — `firebaseRemoteConfigModule`
- * still supplies `AppStatusSource`, which reads its own key and has nothing to do
- * with feature flags.
+ * Remote Config answers a key it holds; this answers the rest. The admin panel therefore
+ * still governs every flag nobody has set in the Firebase console.
  */
 internal fun supabaseConfigModule(environment: SupabaseEnvironment) = module {
 
     // Behind `isConfigured` like every other Supabase binding: a build with no
-    // credentials keeps coreConfigModule's no-backend defaults rather than binding a
-    // source whose every read can only fail.
+    // credentials contributes nothing to the chain rather than a backend whose every
+    // read can only fail.
     if (environment.isConfigured) {
-        single {
+        single<ConfigSource>(named(ConfigSource.APP_CONFIG_TABLE)) {
             SupabaseConfigSource(
                 postgrest = get(),
                 // Null on a platform with no store bound. Falling back to None rather
@@ -37,7 +32,7 @@ internal fun supabaseConfigModule(environment: SupabaseEnvironment) = module {
                 // degraded config cache, not a broken app.
                 store = getOrNull() ?: ConfigSnapshotStore.None,
             )
-        } binds arrayOf(ConfigSource::class, ConfigRefresher::class)
+        }
     }
 }
 
