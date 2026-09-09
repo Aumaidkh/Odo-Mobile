@@ -6,6 +6,15 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,6 +29,9 @@ import com.hopcape.odo.core.designsystem.icons.IcWarning
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.appstatus.AppAvailability
 import com.hopcape.odo.shared.resources.Res
+import com.hopcape.odo.shared.resources.as_close
+import com.hopcape.odo.shared.resources.as_maintenance_detail
+import com.hopcape.odo.shared.resources.as_update_detail
 import com.hopcape.odo.shared.resources.as_maintenance_message_default
 import com.hopcape.odo.shared.resources.as_maintenance_title
 import com.hopcape.odo.shared.resources.as_retry
@@ -48,14 +60,21 @@ internal fun shouldBlock(availability: AppAvailability): Boolean = availability 
  * back ([OdoBlockingSheet]), so there is no gesture that reaches the app underneath.
  */
 @Composable
-internal fun AppBlockedSheet(blocked: AppAvailability.Blocked, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AppBlockedSheet(
+    blocked: AppAvailability.Blocked,
+    onRetry: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val uriHandler = LocalUriHandler.current
     OdoBlockingSheet(modifier = modifier) {
         when (blocked) {
             AppAvailability.Blocked.UpdateRequired -> BlockedSheetContent(
-                icon = { BlockedIcon(IcRefresh) },
+                icon = IcRefresh,
+                tint = OdoTheme.colors.accent,
                 title = stringResource(Res.string.as_update_title),
                 message = stringResource(Res.string.as_update_message),
+                detail = stringResource(Res.string.as_update_detail),
             ) {
                 OdoButton(
                     stringResource(Res.string.as_update_now),
@@ -70,15 +89,21 @@ internal fun AppBlockedSheet(blocked: AppAvailability.Blocked, onRetry: () -> Un
                 )
             }
 
+            // One button, and it leaves. There is nothing for the owner to retry against —
+            // the server decides when maintenance ends, and the app re-asks on its next
+            // launch, so closing it *is* the retry. A "Try again" that answers "still down"
+            // every time is a button that exists to disappoint.
             is AppAvailability.Blocked.Maintenance -> BlockedSheetContent(
-                icon = { BlockedIcon(IcWarning) },
+                icon = IcWarning,
+                tint = OdoTheme.colors.warning,
                 title = stringResource(Res.string.as_maintenance_title),
                 message = blocked.message?.takeIf { it.isNotBlank() }
                     ?: stringResource(Res.string.as_maintenance_message_default),
+                detail = stringResource(Res.string.as_maintenance_detail),
             ) {
                 OdoButton(
-                    stringResource(Res.string.as_retry),
-                    onClick = onRetry,
+                    stringResource(Res.string.as_close),
+                    onClick = onExit,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -86,25 +111,54 @@ internal fun AppBlockedSheet(blocked: AppAvailability.Blocked, onRetry: () -> Un
     }
 }
 
-/** Icon beside the title, then the message, then the buttons — shared by both blocked states. */
+/**
+ * Illustration, then the title, then what is happening and what to do about it.
+ *
+ * Centred and given room on purpose. Both of these stop the app dead, and a stop stated in
+ * two cramped lines above a button reads as an error the owner caused. The illustration is
+ * most of the height, which is what makes it read as a state the app is in rather than a
+ * failure it is reporting.
+ */
 @Composable
 private fun BlockedSheetContent(
-    icon: @Composable () -> Unit,
+    icon: ImageVector,
+    tint: Color,
     title: String,
     message: String,
+    detail: String,
     actions: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
-        // Leading, not trailing: a trailing icon sits at the right edge, so it lands a
-        // different distance from the title in each state as the title's length changes.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+    ) {
+        BlockedIllustration(icon, tint)
+        OdoText(
+            title,
+            style = OdoTheme.typography.title,
+            color = OdoTheme.colors.text,
+            textAlign = TextAlign.Center,
+        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
         ) {
-            icon()
-            OdoText(title, style = OdoTheme.typography.title, color = OdoTheme.colors.text)
+            OdoText(
+                message,
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+                textAlign = TextAlign.Center,
+            )
+            // The second sentence is what the first cannot say without getting long: how
+            // long this lasts, and that nothing of the owner's is at stake.
+            OdoText(
+                detail,
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
         }
-        OdoText(message, style = OdoTheme.typography.bodySmall, color = OdoTheme.colors.textDim)
     }
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -113,12 +167,44 @@ private fun BlockedSheetContent(
     )
 }
 
+/**
+ * The picture: the state's icon inside three widening rings of its own colour.
+ *
+ * Drawn rather than drawn *from* — this codebase has no illustration assets and composes its
+ * pictures (see `OdoSystemHandoff`), and rings scale to any icon, so a third blocked state
+ * needs no new artwork.
+ */
 @Composable
-private fun BlockedIcon(icon: ImageVector) {
-    OdoIcon(
-        icon,
-        contentDescription = null,
-        tint = OdoTheme.colors.accent,
-        size = OdoTheme.iconSizes.large,
+private fun BlockedIllustration(icon: ImageVector, tint: Color) {
+    Box(
+        modifier = Modifier.size(RingOuter),
+        contentAlignment = Alignment.Center,
+    ) {
+        Ring(RingOuter, tint, alpha = RingOuterAlpha)
+        Ring(RingMiddle, tint, alpha = RingMiddleAlpha)
+        Ring(RingInner, tint, alpha = RingInnerAlpha)
+        OdoIcon(
+            icon,
+            contentDescription = null,
+            tint = tint,
+            size = OdoTheme.iconSizes.large,
+        )
+    }
+}
+
+@Composable
+private fun Ring(size: Dp, tint: Color, alpha: Float) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(tint.copy(alpha = alpha)),
     )
 }
+
+private val RingOuter = 132.dp
+private val RingMiddle = 96.dp
+private val RingInner = 64.dp
+private const val RingOuterAlpha = 0.06f
+private const val RingMiddleAlpha = 0.10f
+private const val RingInnerAlpha = 0.16f
