@@ -66,6 +66,7 @@ internal class SaveCarUseCase(
             year = command.year,
             fuelType = command.fuelType,
             odometerKm = command.odometerKm,
+            odometerPending = command.odometerPending,
             variant = command.variant,
             registrationNumber = command.registrationNumber,
             purchaseYear = command.purchaseYear,
@@ -73,18 +74,23 @@ internal class SaveCarUseCase(
             isPrimary = command.isPrimary,
         ).bind()
 
-        // `null` means this id has no baseline at all — true of every genuinely new car,
-        // since onboarding is what would have written the first one.
-        val known = logs.odometerReadings(id).orEmpty()
-        OdometerTimeline.validate(
-            candidate = OdometerReading(
-                // Not a service entry: this is the car's own baseline reading, taken today.
-                logId = null,
-                date = clock.now().toLocalDateTime(timeZone).date,
-                odometer = car.odometer,
-            ),
-            known = known,
-        ).mapLeft { nonEmptyListOf(it) }.bind()
+        // Only a real reading is checked against the car's history. A pending car's zero is a
+        // placeholder, not a measurement, and checking it against an existing timeline would
+        // reject the save for going backwards — which is the wrong answer to "I don't know".
+        car.knownOdometer?.let { reading ->
+            // `null` means this id has no baseline at all — true of every genuinely new car,
+            // since onboarding is what would have written the first one.
+            val known = logs.odometerReadings(id).orEmpty()
+            OdometerTimeline.validate(
+                candidate = OdometerReading(
+                    // Not a service entry: this is the car's own baseline reading, taken today.
+                    logId = null,
+                    date = clock.now().toLocalDateTime(timeZone).date,
+                    odometer = reading,
+                ),
+                known = known,
+            ).mapLeft { nonEmptyListOf(it) }.bind()
+        }
 
         val stored = if (existing == null) cars.add(car) else cars.update(car)
         stored.mapLeft { nonEmptyListOf(it) }.bind()

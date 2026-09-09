@@ -53,6 +53,7 @@ internal object Copy {
     const val MATCH_SOURCE_OWN = "From your earlier Odo record"
     const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
+    const val ODOMETER_UNKNOWN = "I don\u2019t know it right now"
     const val ODOMETER_BUMP = "+1,000"
     const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
@@ -192,6 +193,31 @@ internal fun OdoTestRule.reachTheLastServiceStep() {
     onNodeWithText(Copy.CONTINUE).performClick()
 
     waitForText(Copy.LAST_SERVICE_TITLE)
+}
+
+/**
+ * Answer the three steps after the car and decline the sign-in offer, landing on Home.
+ *
+ * The mirror of [reachTheLastServiceStep] for a test that cares about what comes *after*
+ * setup rather than about setup itself.
+ */
+internal fun OdoTestRule.finishSetupFromTheProfileStep() {
+    waitForText(Copy.PROFILE_TITLE)
+    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
+    onNodeWithText(Copy.GOAL_COSTS).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.WORKSHOP_TITLE)
+    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
+    onNodeWithText(Copy.CONTINUE).performClick()
+
+    waitForText(Copy.LAST_SERVICE_TITLE)
+    onNodeWithText(Copy.SKIP).performClick()
+
+    // Nothing is signed in, so the offer comes before Home. Declining it is what an owner
+    // taking the quickest route through setup does.
+    waitForText(Copy.AUTH_TITLE)
+    onNodeWithText(AuthCopy.SKIP).performClick()
 }
 
 /**

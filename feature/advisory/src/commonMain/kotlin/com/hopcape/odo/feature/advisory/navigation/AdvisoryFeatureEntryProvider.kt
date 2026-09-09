@@ -58,6 +58,9 @@ internal fun CarValueRoute(navigationManager: NavigationManager) {
             CarValueEffect.OpenScanner ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
 
+            CarValueEffect.OpenUpdateOdometer ->
+                navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
+
             is CarValueEffect.Share -> share(effect.text)
         }
     }

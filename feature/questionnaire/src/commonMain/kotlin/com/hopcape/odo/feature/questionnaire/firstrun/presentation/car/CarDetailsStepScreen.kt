@@ -37,6 +37,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTes
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.FieldLabel
 import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.InlineLinkRow
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OdometerUnknownLink
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.StepHeadline
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.fuelOptions
@@ -93,6 +94,7 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_model_search
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_hint
+import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_unknown
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_save
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_subtitle
@@ -309,6 +311,10 @@ private fun CarDetailsForm(
                 kmLabel = stringResource(Res.string.onb_unit_km),
                 milesLabel = stringResource(Res.string.onb_unit_miles),
                 hint = stringResource(Res.string.onb_odometer_hint),
+            )
+            OdometerUnknownLink(
+                text = stringResource(Res.string.onb_odometer_unknown),
+                onClick = { onEvent(OnboardingEvent.OdometerUnknown) },
             )
         }
     }

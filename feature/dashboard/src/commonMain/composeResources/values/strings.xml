@@ -147,4 +147,8 @@
     <!-- #232 — the Pro variant never mentions a plan; the free variant names the gate up front. -->
     <string name="hm_health_showcase">This score responds to what you log. The breakdown shows exactly what would move it.</string>
     <string name="hm_health_showcase_free">This score responds to what you log. The breakdown showing what would move it is included with Pro.</string>
+    <string name="hm_odometer_nudge_title">Add your odometer reading</string>
+    <string name="hm_odometer_nudge_body">Your ₹/km and health score stay locked until Odo knows where your car reads.</string>
+    <string name="hm_odometer_nudge_action">Add reading</string>
+    <string name="hm_odometer_nudge_dismiss">Dismiss</string>
 </resources>

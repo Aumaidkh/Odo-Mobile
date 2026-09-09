@@ -41,8 +41,16 @@ internal class ObserveCarValueUseCase(
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
-    operator fun invoke(): Flow<CarValued?> = cars.observePrimaryCar().flatMapLatest { car ->
-        if (car == null) return@flatMapLatest flowOf(null)
+    operator fun invoke(): Flow<CarValueSnapshot> = cars.observePrimaryCar().flatMapLatest { car ->
+        if (car == null) return@flatMapLatest flowOf(CarValueSnapshot())
+        // No estimate without a real reading. Kilometres are the second biggest term in the
+        // curve after age, and a pending car's placeholder zero would value a driven car as
+        // though it were showroom-fresh — the exact false precision this screen must not show.
+        //
+        // Reported as its own state rather than as "nothing to value": the car is there, and
+        // telling its owner they have no car would be a lie about a fixable gap.
+        val odometer = car.knownOdometer
+            ?: return@flatMapLatest flowOf(CarValueSnapshot(odometerPending = true))
         // The catalog is read when the owner's city changes, not on every emission. Without
         // this the whole city table is re-read from storage each time a service is filed.
         val tier = profiles.observe()
@@ -51,17 +59,18 @@ internal class ObserveCarValueUseCase(
             .map { city -> city to resolveTier(city) }
 
         combine(logs.observe(car.id), tier) { entries, (cityName, resolved) ->
-            CarValued(
+            CarValueSnapshot(valued = CarValued(
                 car = car,
                 cityName = cityName,
                 cityTier = resolved,
                 value = CarValueEstimator.estimate(
                     car = car,
+                    odometer = odometer,
                     logs = entries,
                     cityTier = resolved.tier,
                     currentYear = clock.now().toLocalDateTime(timeZone).date.year,
                 ),
-            )
+            ))
         }
     }
 
@@ -101,6 +110,18 @@ internal sealed interface CityTier {
     /** The catalog loaded but has no such city — it and the profile have drifted apart. */
     data class NotListed(val catalogSize: Int) : CityTier
 }
+
+/**
+ * What the value screen has to work with.
+ *
+ * Three outcomes, not two: an estimate, no car at all, or a car whose odometer has not been
+ * given yet. The last one is a gap the owner can close in one tap, and it must not be
+ * reported as the first.
+ */
+internal data class CarValueSnapshot(
+    val valued: CarValued? = null,
+    val odometerPending: Boolean = false,
+)
 
 /** A car, where it lives, and what it is worth — everything the value screen renders. */
 internal data class CarValued(

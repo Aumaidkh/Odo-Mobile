@@ -77,6 +77,15 @@ internal sealed interface OnboardingEvent {
      */
     data class OdometerChanged(val km: Long) : OnboardingEvent
 
+    /**
+     * The owner does not have the reading to hand, and is moving on without it.
+     *
+     * Continue is live either way, so this is not what unblocks the step — it is what makes
+     * the option visible. Somebody who cannot answer should not have to work out for
+     * themselves that the button below is already enabled.
+     */
+    data object OdometerUnknown : OnboardingEvent
+
     /** The shared chrome's primary action — advances a step, or finishes on the last one. */
     data object ContinueClicked : OnboardingEvent
 

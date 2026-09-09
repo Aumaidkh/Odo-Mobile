@@ -67,6 +67,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
         odometerKm: Long = 45_000,
         createdAt: String = "2026-01-01T09:00:00Z",
         odometerUpdatedAt: String? = createdAt,
+        odometerPending: Long = 0L,
     ) {
         carQueries.insertCar(
             id = carId.value,
@@ -77,6 +78,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
             year = 2020,
             fuel_type = "PETROL",
             registration_number = null,
+            odometer_pending = odometerPending,
             current_odometer_km = odometerKm,
             purchase_year = null,
             nickname = null,
@@ -88,6 +90,23 @@ class SqlDelightServiceLogLocalDataSourceTest {
             remote_version = null,
             sync_status = SyncStatus.PENDING.name,
         )
+    }
+
+    @Test
+    fun odometerReadings_leaveOutACarWhoseReadingIsStillPending() = runTest {
+        // The placeholder zero must not enter the timeline. It would be the car's newest
+        // reading until a log outranked it, so it becomes the current odometer, and Home
+        // greets the owner with "0 km" for a car that has plainly been driven.
+        val db = newDb().apply { seedCar(odometerKm = 0, odometerPending = 1L) }
+
+        assertEquals(emptyList(), local(db).odometerReadings(carId))
+    }
+
+    @Test
+    fun odometerReadings_keepTheBaselineOnceAReadingIsGiven() = runTest {
+        val db = newDb().apply { seedCar(odometerKm = 45_000, odometerPending = 0L) }
+
+        assertEquals(listOf(45_000), local(db).odometerReadings(carId)?.map { it.odometer.km })
     }
 
     private fun amt(paise: Long) = Amount.of(paise).getOrElse { Amount.ZERO }
@@ -402,6 +421,7 @@ class SqlDelightServiceLogLocalDataSourceTest {
             purchaseYear = null,
             nickname = null,
             isPrimary = 1,
+            odometerPending = 0L,
             odometerUpdatedAt = "2026-07-01T09:00:00Z",
             updatedAt = "2026-07-01T09:00:00Z",
             syncStatus = SyncStatus.PENDING.name,

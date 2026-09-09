@@ -33,6 +33,7 @@ internal fun Cars.toDomain(zone: TimeZone = TimeZone.currentSystemDefault()): Ca
     fuelType = FuelType.valueOf(fuel_type),
     registrationNumber = registration_number,
     odometerKm = current_odometer_km.toInt(),
+    isOdometerPending = odometer_pending == 1L,
     purchaseYear = purchase_year?.toInt(),
     nickname = nickname,
     isPrimary = is_primary == 1L,

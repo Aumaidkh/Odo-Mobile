@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.advisory.domain
 
 import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
@@ -28,8 +29,14 @@ internal object CarValueEstimator {
      * @param cityTier the owner's city tier, or null when no city is set.
      * @param currentYear today's year, injected because the domain owns no clock.
      */
+    /**
+     * @param odometer the car's **known** reading. Taken as a parameter rather than read off
+     *  [car] so a car whose reading is still pending cannot reach here at all — its stored
+     *  zero would price a used car as though it had never been driven.
+     */
     fun estimate(
         car: Car,
+        odometer: Distance,
         logs: List<ServiceLogEntry>,
         cityTier: Int?,
         currentYear: Int,
@@ -39,7 +46,7 @@ internal object CarValueEstimator {
 
         val bare = DepreciationCurve.newPricePaise(segment, car.fuelType) *
             DepreciationCurve.retentionAt(age) *
-            DepreciationCurve.odometerFactor(car.odometer.km, age) *
+            DepreciationCurve.odometerFactor(odometer.km, age) *
             DepreciationCurve.cityFactor(cityTier)
 
         // Only a bill counts. A self-reported service is worth having in the app and worth

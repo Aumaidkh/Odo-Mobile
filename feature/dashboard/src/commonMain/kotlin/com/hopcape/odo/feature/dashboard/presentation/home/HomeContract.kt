@@ -18,6 +18,12 @@ internal sealed interface HomeEvent {
     /** The bell in the header. */
     data object BellTapped : HomeEvent
 
+    /** "Add reading" on the pending-odometer card. */
+    data object AddOdometerTapped : HomeEvent
+
+    /** The pending-odometer card's dismiss. Gone for this session, back on the next launch. */
+    data object OdometerNudgeDismissed : HomeEvent
+
     /** The avatar in the header. */
     data object ProfileTapped : HomeEvent
 
@@ -116,4 +122,7 @@ internal sealed interface HomeEffect {
      * conditional card can be judged against the attention card rather than merged with it.
      */
     data class OpenServiceChecklist(val entry: String) : HomeEffect
+
+    /** Open the odometer sheet — the one place a reading is typed. */
+    data object OpenUpdateOdometer : HomeEffect
 }

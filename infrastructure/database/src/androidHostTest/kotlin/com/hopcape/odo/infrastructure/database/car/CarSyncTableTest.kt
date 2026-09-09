@@ -222,7 +222,7 @@ class CarSyncTableTest {
         isPrimary: Boolean = true,
     ) = carQueries.insertCar(
         id, owner, "Maruti", "Swift", null, 2019, "PETROL", plate,
-        42_000, null, null, if (isPrimary) 1 else 0, now, now, now, null, remoteVersion, "PENDING",
+        42_000, 0, null, null, if (isPrimary) 1 else 0, now, now, now, null, remoteVersion, "PENDING",
     )
 
     private fun OdoDatabase.insertServiceLog(id: String, carId: String) =

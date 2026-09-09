@@ -88,4 +88,9 @@
     <string name="adv_check_unavailable_body">Odo could not read your car’s service schedule just now. Try again when you are back online.</string>
     <string name="adv_check_empty_body">Odo builds this list from your car’s service schedule. Add your car, or check back when a service is closer.</string>
 
+    <!-- The car is set up but its odometer has never been given, so there is nothing honest
+         to estimate from — kilometres are the second biggest term in the curve after age. -->
+    <string name="adv_value_odometer_title">Odo needs your odometer</string>
+    <string name="adv_value_odometer_body">Kilometres drive most of what a used car is worth. Add your reading and the estimate appears.</string>
+    <string name="adv_value_odometer_action">Add reading</string>
 </resources>

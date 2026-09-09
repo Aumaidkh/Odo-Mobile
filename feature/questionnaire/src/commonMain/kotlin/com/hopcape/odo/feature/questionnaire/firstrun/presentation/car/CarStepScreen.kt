@@ -46,6 +46,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingEve
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.InlineLinkRow
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OdometerUnknownLink
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.StepHeadline
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.fuelLabel
@@ -81,6 +82,7 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_car_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_car_matched
 import com.hopcape.odo.feature.questionnaire.resources.onb_continue
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_hint
+import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_unknown
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_save
 import com.hopcape.odo.feature.questionnaire.resources.onb_odometer_sheet_subtitle
@@ -193,6 +195,10 @@ internal fun CarStepScreen(
                 text = stringResource(Res.string.onb_car_odometer_helper),
                 style = OdoTheme.typography.bodySmall,
                 color = OdoTheme.colors.textMuted,
+            )
+            OdometerUnknownLink(
+                text = stringResource(Res.string.onb_odometer_unknown),
+                onClick = { onEvent(OnboardingEvent.OdometerUnknown) },
             )
         }
     }

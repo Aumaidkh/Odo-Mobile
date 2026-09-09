@@ -16,6 +16,9 @@ internal sealed interface CarValueEvent {
     data class ShareClicked(val text: String) : CarValueEvent
 
     data object BackClicked : CarValueEvent
+
+    /** "Add reading" on the pending-odometer state — the only way past it. */
+    data object AddOdometerClicked : CarValueEvent
 }
 
 /**
@@ -27,6 +30,9 @@ internal sealed interface CarValueEvent {
 internal sealed interface CarValueEffect {
 
     data object NavigateBack : CarValueEffect
+
+    /** Open the odometer sheet, which is the one place a reading is typed. */
+    data object OpenUpdateOdometer : CarValueEffect
 
     data object OpenScanner : CarValueEffect
 

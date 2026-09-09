@@ -16,6 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,12 +42,14 @@ import com.hopcape.odo.core.designsystem.component.OdoShimmerHost
 import com.hopcape.odo.core.designsystem.component.ShimmerDefaults
 import com.hopcape.odo.core.designsystem.component.OdoHealthDial
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
 import com.hopcape.odo.core.designsystem.component.OdoScreen
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcBellFilled
 import com.hopcape.odo.core.designsystem.icons.IcCar
 import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.icons.IcChevronRight
+import com.hopcape.odo.core.designsystem.icons.IcClose
 import com.hopcape.odo.core.designsystem.icons.IcList
 import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
@@ -84,6 +90,10 @@ import com.hopcape.odo.feature.dashboard.resources.hm_health_showcase_free
 import com.hopcape.odo.feature.dashboard.resources.hm_add_car
 import com.hopcape.odo.feature.dashboard.resources.hm_avatar_fallback
 import com.hopcape.odo.feature.dashboard.resources.hm_car_line
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_action
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_body
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_dismiss
+import com.hopcape.odo.feature.dashboard.resources.hm_odometer_nudge_title
 import com.hopcape.odo.feature.dashboard.resources.hm_log_fill
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_bell
 import com.hopcape.odo.feature.dashboard.resources.hm_cd_profile
@@ -237,6 +247,9 @@ private fun HomeBody(
     onEvent: (HomeEvent) -> Unit,
 ) {
     HomeHeader(content, onEvent)
+    // Above the rest: it is a question waiting for an answer, and a new owner — the one most
+    // likely to have skipped it — sees the checklist branch rather than the score.
+    if (content.odometerPending && !content.hasNoCar) OdometerNudgeCard(onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
         content.isNewUser -> NewUserContent(content, onEvent)
@@ -343,6 +356,62 @@ private fun CircleButton(
         contentAlignment = Alignment.Center,
         content = { content() },
     )
+}
+
+
+/**
+ * The reading was skipped at setup and nothing has supplied one since.
+ *
+ * Shown until it is answered rather than once, because per-km cost, the health score and the
+ * value estimate are all absent until then and nothing else on Home explains why. Dismissal
+ * is remembered for the session only — the question does not stop mattering.
+ */
+@Composable
+private fun OdometerNudgeCard(onEvent: (HomeEvent) -> Unit) {
+    var dismissed by rememberSaveable { mutableStateOf(false) }
+    if (dismissed) return
+    OdoCard(modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.ODOMETER_NUDGE)) {
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                OdoIconTile(icon = IcSpeedometer, contentDescription = null)
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+                ) {
+                    OdoText(
+                        stringResource(Res.string.hm_odometer_nudge_title),
+                        style = OdoTheme.typography.label,
+                    )
+                    OdoText(
+                        stringResource(Res.string.hm_odometer_nudge_body),
+                        style = OdoTheme.typography.bodySmall,
+                        color = OdoTheme.colors.textDim,
+                    )
+                }
+                CircleButton(
+                    onClick = {
+                        dismissed = true
+                        onEvent(HomeEvent.OdometerNudgeDismissed)
+                    },
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    OdoIcon(
+                        IcClose,
+                        contentDescription = stringResource(Res.string.hm_odometer_nudge_dismiss),
+                        tint = OdoTheme.colors.textMuted,
+                        size = OdoTheme.iconSizes.small,
+                    )
+                }
+            }
+            OdoButton(
+                text = stringResource(Res.string.hm_odometer_nudge_action),
+                onClick = { onEvent(HomeEvent.AddOdometerTapped) },
+            )
+        }
+    }
 }
 
 // --- Scored ---------------------------------------------------------------------

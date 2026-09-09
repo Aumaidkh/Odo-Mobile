@@ -81,9 +81,10 @@ class OnboardingEndToEndTest {
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
         rule.waitForText(Fixtures.MATCHED_CAR)
 
-        // A named car still isn't an answered step. Odo can't compute ₹/km, the health score
-        // or a km anomaly without the reading, so Continue stays shut until it is set.
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
+        // A named car answers the step. The reading is asked for here and wanted here, but
+        // an owner who is not at their car cannot give it, and gating step 1 of 4 on it left
+        // them with nowhere to go (issue #429).
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
 
@@ -268,7 +269,8 @@ class OnboardingEndToEndTest {
 
         // Every picker answered and the odometer given, and it is still not enough: the plate
         // is required on this route too, or the car is saved without the number every bill,
-        // reminder and document identifies it by.
+        // reminder and document identifies it by. (The odometer is not what holds it — that
+        // may be skipped; the plate may not.)
         rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
 
@@ -295,10 +297,28 @@ class OnboardingEndToEndTest {
         // Nothing typed: the car step is unanswered and says so.
         rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
 
-        // A plate alone isn't an answer either — the odometer is never optional.
+        // A matched plate is an answer, with or without a reading: the car step's job is to
+        // name the car, and the odometer is asked for again wherever it is actually needed.
         rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
         rule.waitForText(Fixtures.MATCHED_CAR)
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.onNodeWithText(Copy.CAR_TITLE).assertIsDisplayed()
+        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
+    }
+
+    @Test
+    fun theOdometerCanBeSkipped_andTheCarIsStoredPending() {
+        rule.startFromWelcome()
+        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
+        rule.waitForText(Fixtures.MATCHED_CAR)
+
+        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).performClick()
+        rule.waitForText(Copy.PROFILE_TITLE)
+
+        // Stored reading zero and flagged, so nothing downstream reads the placeholder as a
+        // measurement — and so Home knows to keep asking.
+        val car = runBlocking {
+            GlobalContext.get().get<CarRepository>().observePrimaryCar().filterNotNull().first()
+        }
+        assertEquals(true, car.isOdometerPending)
+        assertEquals(0, car.odometer.km)
     }
 }

@@ -239,6 +239,36 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
+        // Same reason as `record_export_credits` below: a real database at version 5 has
+        // `cars`, and 19.sqm adds a column to it. Only the columns the migrations touch are
+        // needed — this is a migration fixture, not the real schema.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE cars (
+                    id                  TEXT NOT NULL PRIMARY KEY,
+                    owner_id            TEXT NOT NULL,
+                    make                TEXT NOT NULL,
+                    model               TEXT NOT NULL,
+                    variant             TEXT,
+                    year                INTEGER NOT NULL,
+                    fuel_type           TEXT NOT NULL,
+                    registration_number TEXT,
+                    current_odometer_km INTEGER NOT NULL,
+                    purchase_year       INTEGER,
+                    nickname            TEXT,
+                    is_primary          INTEGER NOT NULL DEFAULT 0,
+                    odometer_updated_at TEXT,
+                    created_at          TEXT NOT NULL,
+                    updated_at          TEXT NOT NULL,
+                    deleted_at          TEXT,
+                    remote_version      TEXT,
+                    sync_status         TEXT NOT NULL DEFAULT 'PENDING'
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
         // A real database at version 5 has this too — 4.sqm created it — and the migration
         // that folds the old balances into `purchase_claims` reads it. Without it here the
         // chain below fails on a table the fixture forgot rather than on anything real.
