@@ -190,6 +190,14 @@ WHERE sync_status = 'PENDING'
   AND deleted_at IS NULL
   AND registration_number IS NOT NULL;
 
+-- Every live car this device holds that names a plate. The restore announcement reads it to
+-- tell a car the owner entered from one the account merely holds.
+selectPlatedCarIds:
+SELECT id
+FROM cars
+WHERE registration_number IS NOT NULL
+  AND deleted_at IS NULL;
+
 countById:
 SELECT COUNT(*)
 FROM cars
