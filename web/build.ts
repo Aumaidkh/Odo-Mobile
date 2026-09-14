@@ -134,6 +134,40 @@ if (NAME === 'prod') {
     await Deno.writeTextFile(new URL(name, LANDING_OUT), markup)
     console.log(`legal/${name}  ${markup.length} bytes`)
   }
+
+  // The marketing site's own robots.txt and sitemap.
+  //
+  // These used to be written by landing/render-blog.ts, which listed every article
+  // alongside the root. The blog is a separate origin now, so it has its own
+  // sitemap on its own host — one sitemap cannot list URLs across two hosts, and a
+  // sitemap that tries is ignored rather than half-read.
+  //
+  // Written here because this is already the script that owns the landing site's
+  // generated files. Without it the next landing deploy ships no robots.txt at all,
+  // which is not a 404 anybody notices until the rankings move.
+  const LANDING_ROOT = new URL('../landing/public/', import.meta.url)
+  const SITE = 'https://odoapp.in'
+  const BLOG = 'https://blog.odoapp.in'
+
+  await Deno.writeTextFile(
+    new URL('sitemap.xml', LANDING_ROOT),
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      `  <url><loc>${SITE}/</loc><priority>1.0</priority></url>\n` +
+      `  <url><loc>${SITE}/legal/privacy</loc><priority>0.3</priority></url>\n` +
+      `  <url><loc>${SITE}/legal/terms</loc><priority>0.3</priority></url>\n` +
+      `  <url><loc>${SITE}/legal/delete</loc><priority>0.3</priority></url>\n` +
+      `</urlset>\n`,
+  )
+
+  // Both sitemaps are named. A crawler that only ever sees odoapp.in still finds
+  // its way to the blog's, which is the point of listing a cross-host sitemap here
+  // rather than relying on the 301s alone.
+  await Deno.writeTextFile(
+    new URL('robots.txt', LANDING_ROOT),
+    `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\nSitemap: ${BLOG}/sitemap.xml\n`,
+  )
+  console.log('sitemap.xml, robots.txt')
 }
 
 // `web/public` holds whichever environment was built last and nothing records which. Say so,

@@ -4,7 +4,7 @@ import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.AuthRepository
 import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.PostImporter
-import com.hopcape.odo.web.blog.infrastructure.supabase.Postgrest
+import com.hopcape.odo.web.core.infrastructure.supabase.Postgrest
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.core.qualifier.named

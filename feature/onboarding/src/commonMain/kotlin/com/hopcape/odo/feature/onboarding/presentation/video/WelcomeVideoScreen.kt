@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Image
-import com.hopcape.odo.feature.onboarding.presentation.components.accentGlow
+import com.hopcape.odo.core.designsystem.modifier.accentGlow
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.background

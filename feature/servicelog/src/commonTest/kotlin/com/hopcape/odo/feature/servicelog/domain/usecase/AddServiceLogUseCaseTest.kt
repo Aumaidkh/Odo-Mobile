@@ -40,7 +40,7 @@ class AddServiceLogUseCaseTest {
         }
         override suspend fun update(entry: ServiceLogEntry): Either<DomainError, ServiceLogEntry> = entry.right()
         override suspend fun softDelete(id: ServiceLogId): Either<DomainError, Unit> = Unit.right()
-        override suspend fun odometerReadings(carId: CarId): List<OdometerReading>? = readings
+        override suspend fun odometerReadings(carId: CarId): List<OdometerReading> = readings.orEmpty()
         override fun observeOdometerReadings(carId: CarId): Flow<List<OdometerReading>> =
             flowOf(readings.orEmpty())
     }
@@ -163,10 +163,21 @@ class AddServiceLogUseCaseTest {
         assertEquals(0, repo.addCount)
     }
 
+    /**
+     * The first service on a car that has nothing recorded yet.
+     *
+     * It used to be refused as CarNotFound: an empty timeline was read as a missing car,
+     * which held only while onboarding always stored a reading. A car set up with the
+     * reading pending (#429) has none, and its owner could not log a service at all.
+     */
     @Test
-    fun noBaseline_isCarNotFound() = runTest {
-        val result = useCase(repo(readings = null))(command(), carId, ownerId)
-        assertTrue(result.leftOrNull()!!.contains(DomainError.CarNotFound))
+    fun noBaselineYet_stillLogsTheService() = runTest {
+        val repo = repo(readings = null)
+
+        val result = useCase(repo)(command(), carId, ownerId)
+
+        assertTrue(result.isRight(), "expected Right but was $result")
+        assertEquals(1, repo.addCount)
     }
 
     @Test

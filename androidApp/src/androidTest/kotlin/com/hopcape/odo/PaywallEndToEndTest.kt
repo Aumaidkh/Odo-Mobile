@@ -1,6 +1,7 @@
 package com.hopcape.odo
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -50,6 +51,7 @@ class PaywallEndToEndTest {
         seedOnboardedOwner()
         setProEntitlement(isPro = false)
         installNoStore()
+        installNoOneTimeProducts()
     }
 
     /**
@@ -174,5 +176,90 @@ class PaywallEndToEndTest {
         openPaywall()
 
         rule.onNodeWithText(PaywallCopy.RESTORE).assertIsDisplayed()
+    }
+
+    /* ------------------------------ Buy it once ------------------------------ */
+
+    /**
+     * The sheet is a real destination, not a dialog the screen draws itself: opening it
+     * leaves the paywall underneath, and closing it puts the owner back on the plans rather
+     * than out of the paywall entirely.
+     */
+    @Test
+    fun theOneTimeSheetOpensOverThePlansAndComesBackToThem() {
+        installOffer()
+        installOneTimePrices()
+        openPaywall()
+
+        rule.openOneTimeOffers()
+        rule.awaitText(PaywallCopy.ONE_TIME_TITLE)
+
+        Espresso.pressBack()
+        rule.awaitText(PaywallCopy.HEADLINE)
+        // The plans stay composed *underneath* a sheet, so the headline alone would pass
+        // whether or not the back press closed anything. This is the half the name claims.
+        rule.onNodeWithText(PaywallCopy.ONE_TIME_TITLE).assertDoesNotExist()
+    }
+
+    /**
+     * A store that cannot be asked is not an empty catalogue.
+     *
+     * The distinction is invisible from the app otherwise: the shipped adapter used to
+     * swallow every store error into a null price, so an offline owner was told nothing was
+     * for sale and given no retry.
+     */
+    @Test
+    fun aStoreThatCannotBeReachedOffersARetryRatherThanSayingNothingIsOnSale() {
+        installOffer()
+        installUnreachableOneTimeStore()
+        openPaywall()
+
+        rule.openOneTimeOffers()
+
+        rule.awaitText(PaywallCopy.UNAVAILABLE)
+        rule.onNodeWithText(PaywallCopy.ONE_TIME_EMPTY).assertDoesNotExist()
+    }
+
+    @Test
+    fun everyOneTimePriceOnScreenIsTheOneTheStoreGave() {
+        installOffer()
+        installOneTimePrices(billCheckSingle = "₹39", billCheckPack = "₹89", recordExport = "₹129")
+        openPaywall()
+
+        rule.openOneTimeOffers()
+
+        rule.awaitText(PaywallCopy.BILL_CHECK_SINGLE)
+        rule.onNodeWithText("₹39").assertIsDisplayed()
+        rule.onNodeWithText("₹89").assertIsDisplayed()
+        rule.onNodeWithText("₹129").assertIsDisplayed()
+    }
+
+    /**
+     * A product nobody has created in the store has no price, and a row with no price is
+     * either a lie or a dead end.
+     */
+    @Test
+    fun aProductTheStoreDoesNotKnowIsNotOnTheSheet() {
+        installOffer()
+        installOneTimePrices(billCheckSingle = null, billCheckPack = null)
+        openPaywall()
+
+        rule.openOneTimeOffers()
+
+        rule.awaitText(PaywallCopy.EXPORT_RECORDS)
+        rule.onNodeWithText(PaywallCopy.BILL_CHECK_SINGLE).assertDoesNotExist()
+        rule.onNodeWithText(PaywallCopy.BILL_CHECK_PACK).assertDoesNotExist()
+    }
+
+    /** Today's real state: none of the three exist yet, so the sheet says so. */
+    @Test
+    fun withNothingOnSaleTheSheetSaysSoRatherThanShowingAnEmptyList() {
+        installOffer()
+        installNoOneTimeProducts()
+        openPaywall()
+
+        rule.openOneTimeOffers()
+
+        rule.awaitText(PaywallCopy.ONE_TIME_EMPTY)
     }
 }

@@ -7,8 +7,9 @@ import kotlin.time.Instant
  * The Owner aggregate root — who this person is to Odo, and why they came.
  *
  * Deliberately small. It holds only what a *feature* reads back: the name used to greet
- * them, the goal that decides where onboarding drops them (PRD §5.1), and whether first-run
- * setup is finished. The rest of the server's `profiles` row (home city, preferred language)
+ * them and whether first-run setup is finished. The owner's goals are not here — they live
+ * in `profile_answers`, which is the only shape that holds more than one (#394). The rest of
+ * the server's `profiles` row (home city, preferred language)
  * is either owned by auth or not asked for yet, and gets modelled when something actually
  * reads it.
  *
@@ -16,16 +17,14 @@ import kotlin.time.Instant
  * the server. It is not edited — auth proves it and this only carries it — so no screen
  * takes it and every whole-profile write leaves it alone (see [withPhone]).
  *
- * [name] and [goal] are nullable because a profile legitimately exists without them: the
- * server creates the row by trigger at signup, before onboarding has asked anything. The
- * rule that *onboarding* must collect both before finishing is onboarding's, so it lives in
- * that feature's use case — not here. [new] simply refuses to build a half-answered profile
- * by taking both, already validated.
+ * [name] is nullable because a profile legitimately exists without one: the server creates
+ * the row by trigger at signup, before onboarding has asked anything. The rule that
+ * *onboarding* must collect a name before finishing is onboarding's, so it lives in that
+ * feature's use case — not here.
  */
 class OwnerProfile private constructor(
     val id: OwnerId,
     val name: OwnerName?,
-    val goal: OnboardingGoal?,
     val onboardingCompletedAt: Instant?,
     val city: String?,
     val email: OwnerEmail?,
@@ -38,11 +37,11 @@ class OwnerProfile private constructor(
      * to check here — the same split as [new].
      */
     fun withName(name: OwnerName): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /** Set or clear the contact email. Null clears it; Odo never requires an address. */
     fun withEmail(email: OwnerEmail?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /**
      * Whether the prices on this owner's service logs may feed the city benchmark.
@@ -58,7 +57,7 @@ class OwnerProfile private constructor(
      * switch promises what happens next, not what has already happened.
      */
     fun withPriceSharing(shares: Boolean): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, shares, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city, email, avatarPath, shares, phone)
 
     /**
      * Point at the owner's profile photo, or clear it with null.
@@ -68,7 +67,7 @@ class OwnerProfile private constructor(
      * (`:core:platform`), because the domain does not touch files.
      */
     fun withAvatar(avatarPath: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null }, sharesPricesAnonymously, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city, email, avatarPath?.ifBlank { null }, sharesPricesAnonymously, phone)
 
     /**
      * Set the owner's home city — the key every fairness benchmark is looked up by
@@ -80,7 +79,7 @@ class OwnerProfile private constructor(
      * the benchmark RPC take end to end; wrapping it here would only unwrap it there.
      */
     fun withCity(city: String?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath, sharesPricesAnonymously, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city?.trim()?.ifBlank { null }, email, avatarPath, sharesPricesAnonymously, phone)
 
     /**
      * Carry the number the session proved.
@@ -90,7 +89,7 @@ class OwnerProfile private constructor(
      * reaches the server, which has no other way of learning it after the account was made.
      */
     fun withPhone(phone: PhoneNumber?): OwnerProfile =
-        OwnerProfile(id, name, goal, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
+        OwnerProfile(id, name, onboardingCompletedAt, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     /**
      * Whether first-run setup is finished. Stored as a timestamp rather than a boolean
@@ -108,7 +107,7 @@ class OwnerProfile private constructor(
      * call can't rewrite history.
      */
     fun completeOnboarding(at: Instant): OwnerProfile =
-        if (hasCompletedOnboarding) this else OwnerProfile(id, name, goal, at, city, email, avatarPath, sharesPricesAnonymously, phone)
+        if (hasCompletedOnboarding) this else OwnerProfile(id, name, at, city, email, avatarPath, sharesPricesAnonymously, phone)
 
     companion object {
         /**
@@ -116,10 +115,9 @@ class OwnerProfile private constructor(
          * name is [OwnerName]'s job and deciding that a goal is mandatory is the calling
          * feature's, so by the time this is reached there is nothing left to check.
          */
-        fun new(id: OwnerId, name: OwnerName, goal: OnboardingGoal): OwnerProfile = OwnerProfile(
+        fun new(id: OwnerId, name: OwnerName): OwnerProfile = OwnerProfile(
             id = id,
             name = name,
-            goal = goal,
             onboardingCompletedAt = null,
             city = null,
             email = null,
@@ -135,16 +133,14 @@ class OwnerProfile private constructor(
          * Rehydrate from already-persisted, trusted data (the local DB, or a row pulled
          * from the server).
          *
-         * Nulls are accepted here because a signup-created row genuinely has no name or
-         * goal yet, and refusing to load it would make the app unable to read its own
-         * database. A *present but invalid* value is different — that means corruption, so
+         * Nulls are accepted here because a signup-created row genuinely has no name yet,
+         * and refusing to load it would make the app unable to read its own database. A *present but invalid* value is different — that means corruption, so
          * it fails fast rather than silently repairing itself, matching
          * [com.hopcape.odo.core.domain.car.model.Car.reconstitute].
          */
         fun reconstitute(
             id: OwnerId,
             name: String?,
-            goal: OnboardingGoal?,
             onboardingCompletedAt: Instant?,
             city: String? = null,
             email: String? = null,
@@ -156,7 +152,6 @@ class OwnerProfile private constructor(
             name = name?.let {
                 OwnerName.of(it).getOrElse { error("corrupt profile.name for ${id.value}") }
             },
-            goal = goal,
             onboardingCompletedAt = onboardingCompletedAt,
             city = city,
             email = OwnerEmail.of(email).getOrElse { error("corrupt profile.email for ${id.value}") },

@@ -186,9 +186,9 @@ internal fun resetHealthScore() {
 internal fun seedHealthOwner() = with(healthDriver()) {
     execute(
         null,
-        "INSERT INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, " +
+        "INSERT INTO profiles (id, full_name, onboarding_completed_at, city, " +
             "created_at, updated_at, sync_status) VALUES ('${LogFixtures.OWNER}', 'Rahul', " +
-            "'SAVE_MONEY', '$HEALTH_SEEDED_AT', 'Pune', '$HEALTH_SEEDED_AT', '$HEALTH_SEEDED_AT', 'PENDING')",
+            "'$HEALTH_SEEDED_AT', 'Pune', '$HEALTH_SEEDED_AT', '$HEALTH_SEEDED_AT', 'PENDING')",
         0,
     )
     execute(

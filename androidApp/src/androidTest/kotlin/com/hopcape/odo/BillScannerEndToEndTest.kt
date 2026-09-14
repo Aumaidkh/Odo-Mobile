@@ -58,7 +58,10 @@ class BillScannerEndToEndTest {
      */
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(DeviceState { startOnASetUpDeviceWithNothingScanned() })
+        // The runner pins every key to its compiled default, and the bill check ships
+        // closed. This suite drives it, so it says so in its own file.
+        .outerRule(PinnedConfig("bill_check_enabled", value = "true", compiledDefault = "false"))
+        .around(DeviceState { startOnASetUpDeviceWithNothingScanned() })
         .around(rule)
 
     @get:Rule
@@ -216,7 +219,7 @@ class BillScannerEndToEndTest {
     }
 
     @Test
-    fun confirmingABillWritesItToTheServiceLogAndRunsTheFairnessCheck() {
+    fun confirmingABillWritesItToTheServiceLogAndLandsOnTheBillCheck() {
         installBillExtractor(readableBill())
         rule.openScanner()
         rule.openBillReview()
@@ -225,11 +228,14 @@ class BillScannerEndToEndTest {
 
         rule.onNodeWithText(ScanCopy.REVIEW_SAVE).performClick()
 
-        // The entry is written first; the fairness report is what the owner lands on, and it
-        // can only offer "report overcharge" against an entry that exists.
+        // The entry is written first; the bill check is what the owner lands on, and it can
+        // only speak about an entry that exists. Asserted by name, not by the review screen
+        // going away — with `bill_check_enabled` closed the same tap lands on the
+        // saved-success screen, and this test used to pass either way.
         rule.awaitGone(ScanCopy.REVIEW_TITLE, timeoutMillis = 10_000L)
         assertEquals(1, scannedLogCount())
         assertEquals(ScanFixtures.WORKSHOP, scannedLogWorkshop())
+        rule.awaitTextContaining(BILL_CHECK_LANDING, timeoutMillis = 10_000L)
     }
 
     /* ------------------------------ Picking from the gallery ------------------------------ */
@@ -300,3 +306,6 @@ class BillScannerEndToEndTest {
         assertEquals(0, documentCount())
     }
 }
+
+/** Whatever the check finds — the point is that the scan landed on it rather than elsewhere. */
+private const val BILL_CHECK_LANDING = "worth asking about"

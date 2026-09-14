@@ -45,6 +45,8 @@ kotlin {
             implementation(projects.core.domain)
             // coreConfigModule, listed in initKoin.
             implementation(projects.core.config)
+            implementation(projects.feature.advisory)
+            implementation(projects.feature.billcheck)
             implementation(projects.feature.auth)
             implementation(projects.feature.autoOdometer)
             implementation(projects.feature.onboarding)
@@ -58,10 +60,12 @@ kotlin {
             implementation(projects.feature.dashboard)
             implementation(projects.feature.garage)
             implementation(projects.feature.profile)
+            implementation(projects.feature.questionnaire)
             implementation(projects.feature.refuel)
             implementation(projects.feature.support)
             implementation(projects.feature.timeline)
             implementation(projects.feature.paywall)
+            implementation(projects.feature.challan)
             // The SQLDelight database and the LocalDataSource adapters :core:data's
             // repositories depend on. Listed here because :shared is the composition
             // root — databaseInfrastructureModule goes into initKoin before

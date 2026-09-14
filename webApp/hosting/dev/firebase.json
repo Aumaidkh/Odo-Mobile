@@ -1,0 +1,108 @@
+{
+  "hosting": {
+    "//": "The blog and its CMS, served at the ROOT of their own origin. They used to live under odoapp.in/blog; moving them to a subdomain is what makes this a site rather than a subdirectory, and the app already handles it \u2014 basePathOf() returns an empty base when the path does not start with /blog.",
+    "site": "odo-blog-dev",
+    "public": "public",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "//redirects": "Anything still asking for /blog/<slug> on THIS origin is an old link that was rewritten by hand or bookmarked mid-migration. Sent to the same slug at the root rather than 404ing. The redirects that matter for search live on the landing site, which is where the old URLs actually were.",
+    "redirects": [
+      {
+        "source": "/blog",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/blog/:rest*",
+        "destination": "/:rest*",
+        "type": 301
+      }
+    ],
+    "//rewrites": "Static files win, so a pre-rendered /<slug>.html is served to a crawler before this ever fires. Everything unmatched falls through to the app.",
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "//headers": "Sources must not overlap. The CSP names one Supabase project, never both: a policy listing the pair would let a build configured for the wrong environment reach it silently.",
+    "headers": [
+      {
+        "source": "/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://gezicmstbgfpwwohiboq.supabase.co; img-src 'self' data: https://gezicmstbgfpwwohiboq.supabase.co; style-src 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "//": "Content-hashed, so the name IS the version \u2014 `6e23e54\u2026.wasm` cannot ever hold different bytes. `immutable` tells the browser not even to revalidate, which removes a round trip per file on every visit after the first. These two files are 3.5 MB of the 3.6 MB a cold load costs.",
+        "source": "**/*.wasm",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "//": "A stable filename, so it must revalidate: a cached bundle can reference hashed .wasm files that no longer exist, which is a blank page with a 404 in the console. Revalidation is cheap \u2014 it answers 304 with no body.",
+        "source": "/odo-blog.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        "//": "The entry point. Firebase's hour would make a deploy invisible for an hour to anyone who had already visited.",
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        "//": "cleanUrls serves index.html here, and it needs the same treatment.",
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      },
+      {
+        "//": "The string table. A stable name and only 7 KB, so it revalidates rather than being pinned \u2014 every label in the app comes out of this file, and serving a stale one after a copy change is worse than one conditional request.",
+        "source": "**/*.cvr",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      }
+    ],
+    "//cache": "Cache-Control, split by whether a filename can be trusted.\nFirebase's default is max-age=3600 on everything, which is wrong in both directions: too short for a content-hashed file that can never change, and too long for an entry point that has to reflect a deploy."
+  }
+}

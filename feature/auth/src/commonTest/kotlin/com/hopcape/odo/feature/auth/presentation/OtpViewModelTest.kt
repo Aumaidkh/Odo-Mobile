@@ -27,9 +27,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.feature.auth.AuthTelemetry
 import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.feature.auth.domain.OtpRequestBroker
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -120,19 +122,23 @@ class OtpViewModelTest {
         val viewModel = viewModel(gateway)
         advanceTimeBy(SETTLE)
 
-        // The code that opened this screen has already been sent, so the wait starts now —
-        // otherwise Resend is live exactly when it is least useful.
+        // The screen asks for the code itself now (#409), and the wait starts with that
+        // request — otherwise Resend is live exactly when it is least useful.
+        assertEquals(1, gateway.requests)
         assertFalse(viewModel.state.value.canResend)
 
         viewModel.onEvent(OtpEvent.ResendClicked)
         advanceTimeBy(SETTLE)
-        assertEquals(0, gateway.requests)
+        assertEquals(1, gateway.requests)
     }
 
     @Test
     fun resendWorksOnceTheCooldownHasPassed() = runTest(dispatcher) {
         val gateway = ScriptedGateway()
         val viewModel = viewModel(gateway)
+        // The screen's own request has to land before the clock moves, or the cooldown it
+        // starts is stamped at the already-advanced clock and never lapses.
+        advanceTimeBy(SETTLE)
 
         clockNow = clockNow.plus(OtpThrottle.COOLDOWN)
         advanceTimeBy(OtpThrottle.COOLDOWN.inWholeMilliseconds + 2_000)
@@ -140,12 +146,16 @@ class OtpViewModelTest {
         assertTrue(viewModel.state.value.canResend)
         viewModel.onEvent(OtpEvent.ResendClicked)
         advanceTimeBy(SETTLE)
-        assertEquals(1, gateway.requests)
+        // The screen's own request, then the resend.
+        assertEquals(2, gateway.requests)
     }
 
     @Test
     fun aFreshCodeClearsWhateverWasTyped() = runTest(dispatcher) {
         val viewModel = viewModel(ScriptedGateway())
+        // Let the screen's own request land first; until it does there is no cooldown to
+        // wait out and Resend is refused for being in flight.
+        advanceTimeBy(SETTLE)
         viewModel.onEvent(OtpEvent.CodeChanged("12345"))
 
         clockNow = clockNow.plus(OtpThrottle.COOLDOWN)
@@ -161,8 +171,9 @@ class OtpViewModelTest {
     fun aSittingRunsOutOfCodes() = runTest(dispatcher) {
         val gateway = ScriptedGateway()
         val viewModel = viewModel(gateway)
+        // The screen's own request is the first of the allowance, and a real one now.
+        advanceTimeBy(SETTLE)
 
-        // One was spent opening the screen; walk the rest of the allowance.
         repeat(OtpThrottle.MAX_REQUESTS) {
             clockNow = clockNow.plus(OtpThrottle.COOLDOWN)
             advanceTimeBy(OtpThrottle.COOLDOWN.inWholeMilliseconds + 2_000)
@@ -173,7 +184,8 @@ class OtpViewModelTest {
         assertTrue(viewModel.state.value.resendExhausted)
         assertFalse(viewModel.state.value.canResend)
         // Each SMS costs money, and a number that has ignored five is not receiving a sixth.
-        assertEquals(OtpThrottle.MAX_REQUESTS - 1, gateway.requests)
+        // Every one of them is a real send now: the first is this screen's own.
+        assertEquals(OtpThrottle.MAX_REQUESTS, gateway.requests)
     }
 
     @Test
@@ -199,13 +211,106 @@ class OtpViewModelTest {
         assertFalse(viewModel.state.value.isError)
     }
 
+    /* --------------------- the request this screen now makes --------------------- */
+
+    @Test
+    fun aRestoredScreenShowsAsSentRatherThanAskingForASecondCode() = runTest(dispatcher) {
+        // Process death while the owner is in their SMS app: Nav3 restores the key and
+        // rebuilds this ViewModel, and the broker no longer holds the request. Asking again
+        // would send a second billed SMS nobody asked for, on a throttle that had reset.
+        val gateway = ScriptedGateway()
+        val viewModel = viewModel(gateway, broker = emptyBroker(gateway))
+        advanceTimeBy(SETTLE)
+
+        assertEquals(0, gateway.requests)
+        assertEquals(CodeRequest.SENT, viewModel.state.value.request)
+        assertTrue(viewModel.state.value.resendInSeconds > 0)
+    }
+
+    @Test
+    fun theCountdownStartsWhenTheCodeIsAskedFor_notWhenTheProviderAnswers() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowGateway())
+        advanceTimeBy(SETTLE)
+
+        // Firebase is still on its reCAPTCHA round trip, which is where the seconds go.
+        assertEquals(CodeRequest.SENDING, viewModel.state.value.request)
+        // The owner's wait began when they tapped, not when the provider got round to
+        // answering. A countdown pinned at zero for those seconds is the old delay in a
+        // new place.
+        assertTrue(viewModel.state.value.resendInSeconds > 0)
+    }
+
+    @Test
+    fun aRefusedRequestNeitherClaimsSendingNorSent() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingGateway(DomainError.OtpRequestFailed))
+        advanceTimeBy(SETTLE)
+
+        // "Sent" would be a lie and "Sending" is over. The error row says what happened.
+        assertEquals(CodeRequest.FAILED, viewModel.state.value.request)
+    }
+
+    @Test
+    fun aRateLimitStartsTheCooldownEvenThoughNothingWasSent() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingGateway(DomainError.TooManyOtpRequests(30)))
+        advanceTimeBy(SETTLE)
+
+        // Tapping Resend straight back into an endpoint that just said 429 deepens the ban.
+        assertFalse(viewModel.state.value.canResend)
+        assertTrue(viewModel.state.value.resendInSeconds > 0)
+    }
+
+    @Test
+    fun theScreenAsksForTheCodeItselfRatherThanArrivingWithOneSent() = runTest(dispatcher) {
+        val gateway = ScriptedGateway()
+        val viewModel = viewModel(gateway)
+
+        // Before the request lands the screen must not claim a code was sent.
+        assertEquals(CodeRequest.SENDING, viewModel.state.value.request)
+
+        advanceTimeBy(SETTLE)
+
+        assertEquals(1, gateway.requests)
+        assertTrue(viewModel.state.value.request != CodeRequest.SENDING)
+        assertTrue(viewModel.state.value.resendInSeconds > 0)
+    }
+
+    @Test
+    fun aFailedRequestIsShownHereAndLeavesResendAsTheRetry() = runTest(dispatcher) {
+        val viewModel = viewModel(RefusingGateway(DomainError.OtpRequestFailed))
+        advanceTimeBy(SETTLE)
+
+        // The owner is already on this screen, so the failure has to land on it. Nothing was
+        // recorded against the throttle, so Resend is live rather than counting down from a
+        // send that never happened.
+        assertTrue(viewModel.state.value.isError)
+        assertEquals(CodeRequest.FAILED, viewModel.state.value.request)
+        assertTrue(viewModel.state.value.canResend)
+    }
+
+    @Test
+    fun aNumberTheProviderAlreadyTrustsSkipsTheCodeEntirely() = runTest(dispatcher) {
+        val effects = mutableListOf<OtpEffect>()
+        val viewModel = viewModel(AlreadyVerifiedGateway())
+        backgroundScope.collectEffects(viewModel, effects)
+        advanceTimeBy(SETTLE)
+
+        // There is no code to collect, so waiting for six digits would wait forever.
+        assertEquals(listOf<OtpEffect>(OtpEffect.Verified), effects)
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
 
+    /**
+     * A code screen reached the way the app reaches it: the number screen started the
+     * request, so the broker is already holding one when this ViewModel is built.
+     */
     private fun viewModel(
         gateway: AuthGateway,
         smsCodes: SmsCodeReader = SmsCodeReader { flowOf(SmsCodeStatus.Listening) },
+        broker: OtpRequestBroker = startedBroker(gateway),
     ) = OtpViewModel(
         phone = phone,
+        requests = broker,
         sessions = OdoSessionManager(
             gateway = gateway,
             store = InMemoryStore(),
@@ -221,8 +326,60 @@ class OtpViewModelTest {
         clock = MovingClock(),
     )
 
+    /** A broker holding nothing — what a restored screen finds after a process death. */
+    private fun emptyBroker(gateway: AuthGateway) =
+        OtpRequestBroker(sessions = testSessionManager(gateway, MovingClock()), scope = CoroutineScope(dispatcher))
+
+    /** The broker with a request already in flight, which is how this screen is reached. */
+    private fun startedBroker(gateway: AuthGateway) =
+        OtpRequestBroker(
+            sessions = OdoSessionManager(
+                gateway = gateway,
+                store = InMemoryStore(),
+                telemetry = silentTelemetry(),
+                scheduler = NoopScheduler,
+                identity = NoopIdentity,
+                profiles = NoopProfiles,
+                clock = MovingClock(),
+            ),
+            scope = CoroutineScope(dispatcher),
+        ).apply { request(phone) }
+
     private fun CoroutineScope.collectEffects(viewModel: OtpViewModel, into: MutableList<OtpEffect>) {
         launch { viewModel.effects.collect { into += it } }
+    }
+
+    /** Refuses every request for a code; verification is never reached. */
+    private class RefusingGateway(private val error: DomainError) : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber): arrow.core.Either<DomainError, OtpRequestOutcome> =
+            error.left()
+
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String): arrow.core.Either<DomainError, AuthSession> =
+            error.left()
+        override suspend fun refresh(refreshToken: String) = session().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** Takes the request and sits on it, the way a reCAPTCHA round trip does. */
+    private class SlowGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber): arrow.core.Either<DomainError, OtpRequestOutcome> {
+            delay(1.hours)
+            return OtpRequestOutcome.CodeSent.right()
+        }
+
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = session().right()
+        override suspend fun refresh(refreshToken: String) = session().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
+    }
+
+    /** The provider proves the number without sending anything. */
+    private class AlreadyVerifiedGateway : AuthGateway {
+        override suspend fun requestOtp(phone: PhoneNumber) =
+            OtpRequestOutcome.AlreadyVerified(session()).right()
+
+        override suspend fun verifyOtp(phone: PhoneNumber, code: String) = session().right()
+        override suspend fun refresh(refreshToken: String) = session().right()
+        override suspend fun signOut(accessToken: String) = Unit.right()
     }
 
     private class ScriptedGateway(

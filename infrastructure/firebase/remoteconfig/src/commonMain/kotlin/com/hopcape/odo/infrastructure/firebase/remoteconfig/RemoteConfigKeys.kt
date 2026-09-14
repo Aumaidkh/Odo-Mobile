@@ -27,11 +27,29 @@ internal interface AppStatusConfig {
     )
     val minSupportedVersionCode: Long
 
+    /**
+     * How hard the current maintenance window bites. One of three
+     * [MaintenanceSeverity] names, matched without regard to case:
+     *
+     * - **`OFF`** — nothing in effect. The default, and where an incident ends.
+     * - **`DEGRADED`** — network work stops and sync is held; the app keeps working on what
+     *   is already on the device. What a Supabase migration or a broken Edge Function wants.
+     * - **`FULL_BLOCK`** — the app stops entirely behind the maintenance screen until this
+     *   clears. Reserve it for data that would be corrupted by carrying on.
+     *
+     * **Anything else reads as `OFF`.** A typo in the console, or a value a later release
+     * added that this build has never heard of, fails open rather than blocking everyone —
+     * see [RemoteConfigAppStatusSource]. So a value is never partly applied, and a mistyped
+     * block is a no-op rather than an outage.
+     *
+     * [maintenanceMessage] is what the owner is told while this is not `OFF`; blank falls
+     * back to the built-in copy.
+     */
     @Value(
         key = "maintenance_mode",
         default = "off",
         owner = "platform",
-        why = "Turns the app off, or down, during an incident",
+        why = "OFF | DEGRADED (network work stops) | FULL_BLOCK (app stops); anything else reads as OFF",
     )
     val maintenance: MaintenanceSeverity
 

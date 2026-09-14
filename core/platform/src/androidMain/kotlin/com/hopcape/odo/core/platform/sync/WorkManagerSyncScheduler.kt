@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration
 
 /**
  * Android's scheduler: one unique WorkManager job called `OdoSync`.
@@ -35,6 +35,10 @@ import kotlin.time.Duration.Companion.seconds
  * A manual refresh and a fresh sign-in use `REPLACE` and no delay — someone is watching, so
  * they cancel the waiting job and go now.
  *
+ * **How long everything else waits is [SyncJitter]'s decision, not this class's.** The
+ * triggers that matter reach every install in the same second, and a fixed delay would only
+ * move the spike rather than flatten it.
+ *
  * **Every request is logged, and so is what WorkManager then does with the job.** Enqueuing
  * is not running: a job whose network constraint is unmet sits there, and from inside the app
  * that is indistinguishable from a job that was never created — both produce no sync log at
@@ -44,6 +48,8 @@ import kotlin.time.Duration.Companion.seconds
 internal class WorkManagerSyncScheduler(
     context: Context,
     private val telemetry: SyncTelemetry,
+    /** How long this install waits, so a shared trigger does not become one spike. */
+    private val jitter: SyncJitter = SyncJitter(),
     /**
      * Owns its own scope rather than borrowing one: the scheduler outlives every screen, and
      * the only thing launched on it is the diagnostic collector below. A `SupervisorJob` keeps
@@ -69,39 +75,48 @@ internal class WorkManagerSyncScheduler(
 
     override fun scheduleStartupSync() {
         telemetry.requested(REASON_STARTUP)
-        enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.KEEP)
+        enqueue(jitter.startupDelay(), ExistingWorkPolicy.KEEP)
     }
 
     override fun requestSync(reason: SyncReason) {
         telemetry.requested(reason.name)
+        // The delay, including the local-write debounce, is the jitter policy's to decide —
+        // it is the one place that knows which triggers arrive at every install at once.
+        val delay = jitter.initialDelay(reason)
         when (reason) {
-            // The debounced one. Everything else has already been coalesced by whatever caused it.
-            SyncReason.LocalWrite -> enqueue(DEBOUNCE.inWholeSeconds, ExistingWorkPolicy.KEEP)
             // Bypasses a pending job rather than waiting behind it.
-            SyncReason.Manual -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.REPLACE)
+            SyncReason.Manual -> enqueue(delay, ExistingWorkPolicy.REPLACE)
             // Also REPLACE, and for a sharper reason: any job already waiting was queued while
             // there was no session, so its backoff was earned by failures that signing in just
             // fixed. KEEP would make the owner wait out a penalty for the very thing they have
             // now done — up to hours, while the screen says their data is backed up.
-            SyncReason.SignIn -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.REPLACE)
+            SyncReason.SignIn -> enqueue(delay, ExistingWorkPolicy.REPLACE)
+            // KEEP is the debounce: a second request while one is pending is dropped, because
+            // the name is already taken.
+            SyncReason.LocalWrite,
             SyncReason.AppForeground,
             SyncReason.RemoteChange,
             SyncReason.Reconnected,
-            -> enqueue(delaySeconds = 0, policy = ExistingWorkPolicy.KEEP)
+            -> enqueue(delay, ExistingWorkPolicy.KEEP)
         }
     }
 
-    private fun enqueue(delaySeconds: Long, policy: ExistingWorkPolicy) {
+    private fun enqueue(delay: Duration, policy: ExistingWorkPolicy) {
         val request = OneTimeWorkRequestBuilder<OdoSyncWorker>()
             .setConstraints(
                 // Not "unmetered": an owner on mobile data still wants their service log
                 // backed up, and the payloads are rows, not photos.
                 Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
             )
-            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
-            // Driven by the worker returning retry(). Exponential so a server that is down
-            // is not hammered by every install at once.
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
+            .setInitialDelay(delay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+            // Driven by the worker returning retry(). Exponential so a server that is down is
+            // given room, and off a base drawn per request so that two installs failing
+            // together climb different curves instead of returning in the same second.
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                jitter.backoffBase().inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
             .build()
 
         workManager.enqueueUniqueWork(WORK_NAME, policy, request)
@@ -110,8 +125,6 @@ internal class WorkManagerSyncScheduler(
     private companion object {
         /** Unique, so there is at most one sync pending or running for this install. */
         const val WORK_NAME = "OdoSync"
-        const val BACKOFF_SECONDS = 30L
-        val DEBOUNCE = 5.seconds
 
         /** `scheduleStartupSync` has no [SyncReason]; the log still needs to name it. */
         const val REASON_STARTUP = "Startup"

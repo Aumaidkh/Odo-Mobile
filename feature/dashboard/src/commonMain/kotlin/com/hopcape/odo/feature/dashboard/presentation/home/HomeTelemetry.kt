@@ -72,10 +72,40 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.ATTENTION_TAPPED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /**
+     * The pre-service checklist was opened from Home.
+     *
+     * [entry] names which door — the attention card or the conditional one. They are counted
+     * apart because the conditional card exists only to catch the owner a lapsed paper would
+     * otherwise have hidden the checklist from, and merging them would hide whether it does.
+     */
+    fun checklistOpened(entry: String) {
+        val fields = mapOf(Key.ENTRY to entry)
+        analytics.track(Event.CHECKLIST_OPENED, fields)
+        logger.info(TAG, Event.CHECKLIST_OPENED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /** The recent-activity row was opened. */
     fun recentOpened() {
         analytics.track(Event.RECENT_OPENED, emptyMap())
         logger.debug(TAG, Event.RECENT_OPENED, tc = flowTrace.toLog())
+    }
+
+    /**
+     * "Add reading" on the pending-odometer card.
+     *
+     * Paired with `onboarding_odometer_skipped`, these two say whether skipping at setup and
+     * answering later is a path owners actually take, or a hole they fall into.
+     */
+    fun addOdometerTapped() {
+        analytics.track(Event.ADD_ODOMETER_TAPPED, emptyMap())
+        logger.debug(TAG, Event.ADD_ODOMETER_TAPPED, tc = flowTrace.toLog())
+    }
+
+    /** The card was dismissed for the session. It returns on the next launch. */
+    fun odometerNudgeDismissed() {
+        analytics.track(Event.ODOMETER_NUDGE_DISMISSED, emptyMap())
+        logger.debug(TAG, Event.ODOMETER_NUDGE_DISMISSED, tc = flowTrace.toLog())
     }
 
     /** "Timeline" beside the recent heading. */
@@ -160,11 +190,14 @@ internal class HomeTelemetry(
         const val ATTENTION_TAPPED = "home_attention_tapped"
         const val RECENT_OPENED = "home_recent_opened"
         const val TIMELINE_OPENED = "home_timeline_opened"
+        const val ADD_ODOMETER_TAPPED = "home_add_odometer_tapped"
+        const val ODOMETER_NUDGE_DISMISSED = "home_odometer_nudge_dismissed"
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"
         const val ADD_CAR_TAPPED = "home_add_car_tapped"
         const val AUTO_DETECT_PAYWALLED = "home_auto_detect_paywalled"
         const val AUTO_ODOMETER_TAPPED = "home_auto_odometer_tapped"
+        const val CHECKLIST_OPENED = "home_checklist_opened"
         const val READ_FAILED = "home_read_failed"
     }
 
@@ -177,5 +210,6 @@ internal class HomeTelemetry(
         const val KIND = "kind"
         const val FROM_CHECKLIST = "from_checklist"
         const val REASON = "reason"
+        const val ENTRY = "entry"
     }
 }

@@ -79,16 +79,34 @@ sealed interface OdoDestination : NavKey {
         data object SignOut : Profile
 
         /**
+         * The developer-tools hub: "Config & Flags" and "Logs" as two rows on one screen,
+         * rather than either living loose on the account home.
+         *
+         * Registered in every build, reachable in none but debug — the row that opens it
+         * is behind `BuildInfo.isDebug`, same shape as [ConfigOverrides] below.
+         */
+        @Serializable
+        data object DeveloperOptions : Profile
+
+        /**
          * The QA config screen: every registered key, its resolved value, and which step
          * of the resolution order answered.
          *
-         * Registered in every build, reachable in none but debug — the row that opens it
-         * is behind `BuildInfo.isDebug`. Keeping the route registered rather than
-         * conditionally absent matches how the refuel routes are handled: unreachable,
-         * not removed.
+         * Registered in every build, reachable in none but debug — reached from
+         * [DeveloperOptions], never directly from the account home. Keeping the route
+         * registered rather than conditionally absent matches how the refuel routes are
+         * handled: unreachable, not removed.
          */
         @Serializable
         data object ConfigOverrides : Profile
+
+        /**
+         * The in-app log viewer — the current session's log file, filterable like Logcat
+         * (level, tag, message search), so a build can be read on-device without a Studio
+         * connection. Reached from [DeveloperOptions]; same debug-only reachability.
+         */
+        @Serializable
+        data object Logs : Profile
     }
 
     /**
@@ -119,6 +137,12 @@ sealed interface OdoDestination : NavKey {
         /** Remove-car confirmation — shown as a sheet. */
         @Serializable
         data object RemoveCar : Garage
+        /**
+         * "Your history came back" — the sheet shown once after signing in restored a car's
+         * records (issue #425). Pushed by the app shell, not by anything in the garage.
+         */
+        @Serializable
+        data object HistoryRestored : Garage
         /** Edit-car full screen. */
         @Serializable
         data object EditCar : Garage
@@ -399,6 +423,32 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
+     * "My car's value" — what the car is worth, and what a proven service record would add
+     * to it. Owned by `:feature:advisory`.
+     *
+     * Reachable from two places, which is why it is a destination rather than a step: the
+     * end of first-run setup, where the gap between the two figures is the argument for
+     * scanning a bill, and the garage, where the owner goes back to check it.
+     */
+    @Serializable
+    data object CarValue : OdoDestination
+
+    /**
+     * "Before you go in" — what this service should cover, what it should not, roughly what
+     * it should cost, and three questions to ask at the counter. Owned by `:feature:advisory`.
+     *
+     * Reachable from three places, because the moment it serves is the walk from the car park
+     * to the counter and no single surface catches every owner on the way there: Home's
+     * attention card, a conditional Home card, and the garage's actions sheet.
+     *
+     * [entry] is which door was used. Carried on the route because it is the only way the
+     * conditional card can be judged against the two permanent entries — without it they
+     * are one number on a dashboard.
+     */
+    @Serializable
+    data class ServiceChecklist(val entry: String = "MANUAL") : OdoDestination
+
+    /**
      * Cost tracker — the per-km "running cost" breakdown for the car. A sealed group: the
      * [Home] root (a bottom-nav root, labelled "Costs" in the bar) plus the sheet where the
      * owner corrects the fuel rate the estimate is built on.
@@ -436,17 +486,91 @@ sealed interface OdoDestination : NavKey {
     }
 
     /**
-     * Pro paywall — one screen, context-framed by [trigger] (why it was shown). Reached from
-     * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
-     * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
-     * "0 scans left" variant.
+     * The bill check. A sealed group: the [Result] screen plus the [Basis] sheet that
+     * explains where one line's band came from.
      */
     @Serializable
-    data class Paywall(
-        val trigger: String = "GENERIC",
-        val amountPaise: Long = 0L,
-        val freeScans: Int = 0,
-    ) : OdoDestination
+    sealed interface BillCheck : OdoDestination {
+
+        /** What on this bill is worth asking about. [billId] is the scanned bill. */
+        @Serializable
+        data class Result(val billId: String) : BillCheck
+
+        /**
+         * "How we know" — the inputs behind one line's band, as a bottom sheet (its entry is
+         * tagged with [ModalBottomSheetSceneStrategy] metadata).
+         *
+         * A sheet rather than a screen because it is an aside from the finding: the owner is
+         * checking whether to trust one number and then going back to the bill they were
+         * reading. [lineName] is the bill's own wording, which is what the check keyed on.
+         */
+        @Serializable
+        data class Basis(
+            val billId: String,
+            val lineName: String,
+            /**
+             * The job the check named the line as, as `service_categories.slug`.
+             *
+             * Carried rather than worked out again by the sheet. With the model fallback on,
+             * re-deriving it means asking a second time — and a second answer that can differ
+             * from the one the band being explained was actually built from.
+             */
+            val categorySlug: String,
+        ) : BillCheck
+
+        /**
+         * The share card — a picture of the result, for the group chat it gets retold in.
+         *
+         * It carries the figures rather than the bill id, and that is deliberate twice over.
+         * The card is built from exactly what the screen behind it showed, so the two cannot
+         * disagree about the number. And the plate and the workshop name have no route onto
+         * the card at all, because they were never in the key.
+         */
+        @Serializable
+        data class Share(
+            val amountPaise: Long,
+            val flagged: Int,
+            val lines: Int,
+        ) : BillCheck
+    }
+
+    /**
+     * Pro paywall. A sealed group: the [Plans] screen plus the [OneTimeOffers] sheet, for
+     * someone who wants one thing rather than a plan.
+     */
+    @Serializable
+    sealed interface Paywall : OdoDestination {
+
+        /**
+         * The plans screen, context-framed by [trigger] (why it was shown). Reached from
+         * every "Unlock with Pro" affordance. Primitives only, so `:core:navigation` stays
+         * domain-free: [amountPaise] frames the "you just saved" variant, [freeScans] the
+         * "0 scans left" variant.
+         */
+        @Serializable
+        data class Plans(
+            val trigger: String = "GENERIC",
+            val amountPaise: Long = 0L,
+            val freeScans: Int = 0,
+        ) : Paywall
+
+        /**
+         * "Buy just this instead" — the one-time products, as a bottom sheet (its entry is
+         * tagged with [ModalBottomSheetSceneStrategy] metadata).
+         *
+         * A sheet rather than a screen because it is an aside from the plans, not a rival to
+         * them: the owner should be able to look at what one thing costs and come back
+         * without losing the paywall they were reading.
+         *
+         * [context] frames it the way [Plans.trigger] frames the paywall: it decides the
+         * heading, which products are worth showing, and which of them is put forward. An
+         * owner who ran out of bill checks is not shopping for a PDF. A primitive, so
+         * `:core:navigation` stays free of the feature's types; an unrecognised one falls
+         * back to the generic framing rather than crashing.
+         */
+        @Serializable
+        data class OneTimeOffers(val context: String = "GENERIC") : Paywall
+    }
 
     /**
      * Health Score — the 0–100 rule-based score + its factor breakdown. Its own feature.
@@ -592,9 +716,41 @@ sealed interface OdoDestination : NavKey {
         /** "Request a feature" — an idea/suggestion form. */
         @Serializable
         data object SuggestIdea : Support
-        /** "A benchmark looks off" — dispute a fairness price data point. */
+        /**
+         * "A benchmark looks off" — dispute a price band.
+         *
+         * The other end of "How we know". Every argument is optional, because the row on the
+         * help sheet opens the same screen with nothing to dispute yet; opened from a band,
+         * they prefill the card that says what is being flagged. Primitives only, so
+         * `:core:navigation` stays free of the benchmark types.
+         */
         @Serializable
-        data object FlagPriceData : Support
+        data class FlagPriceData(
+            val lineName: String? = null,
+            val lowPaise: Long = 0L,
+            val highPaise: Long = 0L,
+            val city: String? = null,
+            /** The workshop *tier*, worded for a sentence — never a workshop's name. */
+            val workshop: String? = null,
+            val segment: String? = null,
+        ) : Support
+
+        /**
+         * The report went in — its number, and what actually travelled with it.
+         *
+         * [photos] and [logsAttached] are shown rather than implied, so nobody finds out
+         * later that a photograph went along.
+         */
+        @Serializable
+        data class ReportSent(
+            val ticket: String,
+            /** The area's own name, not its label — the screen resolves the wording. */
+            val area: String,
+            val photos: Int,
+            val logsAttached: Boolean,
+            /** Already masked. The full address is never a navigation argument. */
+            val maskedReplyTo: String,
+        ) : Support
         /**
          * Rate Odo — a bottom sheet that asks for stars, then offers both the store listing
          * and a private message. A key rather than a direct hand-off, unlike Email and
@@ -627,6 +783,19 @@ sealed interface OdoDestination : NavKey {
     data object WelcomeVideo : OdoDestination
     @Serializable
     data object Onboarding : OdoDestination
+
+    /**
+     * Asks the owner a set of questions (#394) and stores the answers.
+     *
+     * [keys] names which questions to ask, so onboarding can run the whole set while the
+     * profile screen edits one. Plain strings, not a feature type, so `:core:navigation`
+     * stays free of the questionnaire's presentation types — the registry resolves them.
+     *
+     * An unknown key is skipped rather than failing: a deep link built by an older build
+     * should ask what it can, not refuse to open.
+     */
+    @Serializable
+    data class Questionnaire(val keys: List<String>) : OdoDestination
 
     /**
      * Sign-in flow — phone → otp → verifying.
@@ -665,6 +834,20 @@ sealed interface OdoDestination : NavKey {
         /** Terminal progress while the code is checked, then hands off to [next]. */
         @Serializable
         data class Verifying(override val next: OdoDestination = Home) : Auth
+    }
+
+
+    @Serializable
+    sealed interface Challan: OdoDestination {
+        @Serializable
+        data object List: Challan
+        // List
+        @Serializable
+        data object Lookup: Challan
+        // Lookup
+        @Serializable
+        data class Result(val regNo: String): Challan
+        // Result
     }
 
     companion object {

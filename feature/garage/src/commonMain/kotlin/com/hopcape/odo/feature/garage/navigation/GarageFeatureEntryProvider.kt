@@ -37,6 +37,9 @@ import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistoryEffect
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistorySheetContent
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistoryViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerEffect
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerSheetContent
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
@@ -74,6 +77,7 @@ internal class GarageFeatureEntryProvider(
         entry<OdoDestination.Garage.UpdateOdometer>(metadata = sheet) { UpdateOdometerRoute(nm) }
         entry<OdoDestination.Garage.Export>(metadata = sheet) { ExportRoute() }
         entry<OdoDestination.Garage.RemoveCar>(metadata = sheet) { RemoveCarRoute(nm, ::replace) }
+        entry<OdoDestination.Garage.HistoryRestored>(metadata = sheet) { RestoredHistoryRoute(nm, ::replace) }
 
         entry<OdoDestination.Garage.AddToHistory>(metadata = sheet) { AddToHistoryRoute(::replace) }
 
@@ -98,9 +102,16 @@ private fun AddToHistoryRoute(replace: (OdoDestination, OdoDestination) -> Unit)
 
     AddToHistorySheetContent(
         onScan = { replace(here, OdoDestination.BillScanner.Capture()) },
-        onManual = { carId?.let { replace(here, OdoDestination.ServiceLog.AddEdit(carId = it.value)) } },
+        // No car is not a reason to do nothing. Both rows need one, so both lead to adding
+        // it — a live row that swallows the tap leaves the owner on an open sheet with
+        // nothing said (#452's shape, on a different surface).
+        onManual = {
+            replace(here, carId?.let { OdoDestination.ServiceLog.AddEdit(carId = it.value) } ?: OdoDestination.Garage.AddCar)
+        },
         onAddDocument = { replace(here, OdoDestination.Documents.Add()) },
-        onViewAll = { carId?.let { replace(here, OdoDestination.ServiceLog.List(carId = it.value)) } },
+        onViewAll = {
+            replace(here, carId?.let { OdoDestination.ServiceLog.List(carId = it.value) } ?: OdoDestination.Garage.AddCar)
+        },
     )
 }
 
@@ -111,6 +122,7 @@ internal fun GarageRoute(navigationManager: NavigationManager) {
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
+            GarageEffect.OpenChallans -> navigationManager.navigateTo(OdoDestination.Challan.List)
             GarageEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
             GarageEffect.OpenUpdateOdometer -> navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
             GarageEffect.OpenCarActions -> navigationManager.navigateTo(OdoDestination.Garage.CarActions)
@@ -161,6 +173,10 @@ private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             CarActionsEffect.OpenEdit -> replace(here, OdoDestination.Garage.EditCar)
+            CarActionsEffect.OpenCarValue -> replace(here, OdoDestination.CarValue)
+
+            CarActionsEffect.OpenServiceChecklist ->
+                replace(here, OdoDestination.ServiceChecklist(entry = ENTRY_GARAGE))
             CarActionsEffect.OpenExport -> replace(here, OdoDestination.Garage.Export)
             CarActionsEffect.OpenRemove -> replace(here, OdoDestination.Garage.RemoveCar)
         }
@@ -228,6 +244,31 @@ private fun RemoveCarRoute(
     RemoveCarSheetContent(state = state, onEvent = viewModel::onEvent)
 }
 
+/**
+ * The restored-history sheet. Both answers close it; "History dekho" replaces it with the
+ * car's service log, so back from there lands on the app rather than a re-shown sheet.
+ */
+@Composable
+private fun RestoredHistoryRoute(
+    navigationManager: NavigationManager,
+    replace: (OdoDestination, OdoDestination) -> Unit,
+) {
+    val viewModel = koinViewModel<RestoredHistoryViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffects(viewModel.effects) { effect ->
+        when (effect) {
+            RestoredHistoryEffect.Dismiss -> navigationManager.back()
+            is RestoredHistoryEffect.OpenHistory -> replace(
+                OdoDestination.Garage.HistoryRestored,
+                OdoDestination.ServiceLog.List(carId = effect.carId),
+            )
+        }
+    }
+
+    RestoredHistorySheetContent(state = state, onEvent = viewModel::onEvent)
+}
+
 @Composable
 private fun EditCarRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<EditCarViewModel>()
@@ -255,3 +296,9 @@ private fun AddCarRoute(navigationManager: NavigationManager) {
 
     AddCarScreen(state = state, onEvent = viewModel::onEvent)
 }
+
+/**
+ * Which door opened the checklist. A shipped name — the dashboard splits the garage's
+ * always-available entry from Home's two conditional ones.
+ */
+private const val ENTRY_GARAGE = "GARAGE"

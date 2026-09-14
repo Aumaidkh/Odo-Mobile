@@ -88,6 +88,10 @@
 
     <!-- Car actions sheet -->
     <string name="gr_ca_edit">Edit car details</string>
+    <string name="gr_ca_value">What is it worth?</string>
+    <!-- The always-available door to the pre-service checklist. Home's two entries are
+         conditional, so this is the one an owner can find when neither of them fired. -->
+    <string name="gr_ca_checklist">Before you go in</string>
     <string name="gr_ca_export">Export car record</string>
     <string name="gr_ca_remove">Remove car</string>
 
@@ -268,4 +272,33 @@
     <string name="gr_fuel_diesel">Diesel</string>
     <string name="gr_fuel_cng">CNG</string>
     <string name="gr_fuel_electric">Electric</string>
+
+    <!-- Challans row (feature/challan; debug + stage only for now). -->
+    <string name="gr_challans_title">Challans</string>
+    <string name="gr_challans_checked">Checked %1$s</string>
+    <string name="gr_challans_not_checked">Not checked yet</string>
+    <string name="gr_challans_pending">%1$d PENDING</string>
+    <string name="gr_time_just_now">just now</string>
+    <string name="gr_time_minutes">%1$d minutes ago</string>
+    <string name="gr_time_minute">%1$d minute ago</string>
+    <string name="gr_time_hours">%1$d hours ago</string>
+    <string name="gr_time_hour">%1$d hour ago</string>
+    <string name="gr_time_days">%1$d days ago</string>
+    <string name="gr_time_day">%1$d day ago</string>
+
+    <!-- Restored history sheet (#425) — shown once after signing in brings a car's records back. -->
+    <string name="gr_hr_title">Your history is back</string>
+    <string name="gr_hr_body">This car was already on your Odo account. Every record has been restored.</string>
+    <string name="gr_hr_service">Service</string>
+    <string name="gr_hr_papers">Papers</string>
+    <string name="gr_hr_fuel">Fuel</string>
+    <string name="gr_hr_since">Since %1$s</string>
+    <string name="gr_hr_odometer">Odometer</string>
+    <string name="gr_hr_you_entered">You entered</string>
+    <string name="gr_hr_history_has">Your history shows</string>
+    <string name="gr_hr_only_forward">An odometer only counts up. Odo will never move yours backwards.</string>
+    <string name="gr_hr_adopt">Use %1$s</string>
+    <string name="gr_hr_keep">Keep %1$s</string>
+    <string name="gr_hr_view">See the history</string>
+    <string name="gr_hr_done">Got it</string>
 </resources>

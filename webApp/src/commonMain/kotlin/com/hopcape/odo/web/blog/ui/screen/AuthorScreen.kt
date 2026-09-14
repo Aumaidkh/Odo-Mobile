@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hopcape.odo.web.blog.domain.model.AuthorPage
 import com.hopcape.odo.web.blog.presentation.author.AuthorEvent
-import com.hopcape.odo.web.blog.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Loadable
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_author_articles
 import com.hopcape.odo.web.blog.resources.bl_author_posts_heading

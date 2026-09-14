@@ -344,13 +344,18 @@ private fun LineItemsCard(items: List<BillLineItem>, total: Amount) {
 private fun LineRow(label: String, value: String, emphasized: Boolean, needsCheck: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             OdoText(
                 label,
                 style = if (emphasized) OdoTheme.typography.heading else OdoTheme.typography.body,
+                modifier = Modifier.weight(1f, fill = false),
             )
             if (needsCheck) CheckPill()
         }
@@ -358,6 +363,8 @@ private fun LineRow(label: String, value: String, emphasized: Boolean, needsChec
             value,
             style = if (emphasized) OdoTheme.typography.title else OdoTheme.typography.heading,
             color = if (needsCheck) OdoTheme.colors.warning else Color.Unspecified,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

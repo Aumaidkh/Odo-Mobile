@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,6 +70,8 @@ internal class HomeViewModel(
     private val scoreHistoryGranted = entitlements.observe()
         .map { it.has(ProFeature.SCORE_HISTORY) }
         .catch { emit(false) }
+        // Answered before the store is. See [withoutWaiting].
+        .withoutWaiting(false)
 
     /** True while the SCAN coach mark holds the arbiter's grant. */
     private val scanShowcaseVisible = MutableStateFlow(false)
@@ -106,18 +109,37 @@ internal class HomeViewModel(
             if (id == null) {
                 flowOf(HomeUiState(content = Loadable.Ready(HomeContent())))
             } else {
-                observeHome(id).map { HomeUiState(content = Loadable.Ready(it.toContent())) }
+                observeHome(id).map { snapshot ->
+                    HomeUiState(
+                        content = Loadable.Ready(snapshot.toContent()),
+                        // Only when the attention card is about something else. When it is
+                        // about the service, that card opens the checklist itself, and Home
+                        // saying the same thing twice is how a dashboard stops being read.
+                        offerChecklist = config.serviceChecklistEnabled &&
+                            snapshot.serviceDue &&
+                            !snapshot.attention.isAboutService,
+                    )
+                }
             }
         }
         // Combined rather than folded into the snapshot: the offer is a device setting, and a
         // dashboard read that failed should not decide whether it is shown.
-        .combine(offerAutoDetect()) { ui, offer -> ui.copy(offerAutoDetect = offer) }
+        .combine(offerAutoDetect().withoutWaiting(false)) { ui, offer ->
+            ui.copy(offerAutoDetect = offer)
+        }
         // Same shape as the auto-detect offer: device state, not car state.
-        .combine(offerAutoOdometer()) { ui, offer -> ui.copy(offerAutoOdometer = offer) }
+        .combine(offerAutoOdometer().withoutWaiting(false)) { ui, offer ->
+            ui.copy(offerAutoOdometer = offer)
+        }
         .combine(scanShowcaseVisible) { ui, visible -> ui.copy(scanShowcase = visible) }
         .combine(healthShowcaseVisible) { ui, visible -> ui.copy(healthShowcase = visible) }
         // Read only to pick the Pro-gated coach marks' copy — never to hide them.
-        .combine(entitlements.observe().map { it.plan == Plan.PRO }.catch { emit(false) }) { ui, pro ->
+        .combine(
+            entitlements.observe()
+                .map { it.plan == Plan.PRO }
+                .catch { emit(false) }
+                .withoutWaiting(false),
+        ) { ui, pro ->
             ui.copy(proPlan = pro)
         }
         // Score *history* is Pro (#247), the score itself never is. Dropping the delta is
@@ -209,6 +231,11 @@ internal class HomeViewModel(
 
         HomeEvent.AttentionTapped -> openAttention()
 
+        HomeEvent.ChecklistTapped -> {
+            telemetry.checklistOpened(entry = ENTRY_CARD)
+            send(HomeEffect.OpenServiceChecklist(entry = ENTRY_CARD))
+        }
+
         HomeEvent.TimelineTapped -> {
             telemetry.timelineOpened()
             send(HomeEffect.OpenTimeline)
@@ -217,6 +244,15 @@ internal class HomeViewModel(
         HomeEvent.RecentTapped -> openRecent()
 
         HomeEvent.BellTapped -> send(HomeEffect.OpenReminders)
+
+        HomeEvent.AddOdometerTapped -> {
+            telemetry.addOdometerTapped()
+            send(HomeEffect.OpenUpdateOdometer)
+        }
+
+        // The card's visibility is the screen's, not this ViewModel's: dismissal lasts the
+        // session and nothing outside Home cares. Only the fact of it is worth counting.
+        HomeEvent.OdometerNudgeDismissed -> telemetry.odometerNudgeDismissed()
 
         HomeEvent.ProfileTapped -> send(HomeEffect.OpenProfile)
 
@@ -296,8 +332,19 @@ internal class HomeViewModel(
             is CarAttention.DocumentLapsed, is CarAttention.DocumentExpiring ->
                 send(HomeEffect.OpenVault)
 
+            // Not the service log. The owner tapping this has not had the service yet —
+            // they are about to book one — and the log is where a service is recorded
+            // afterwards. The checklist is what they need on the way in.
+            //
+            // With the checklist gated off it goes back to the log: a card that leads
+            // nowhere is worse than one that leads somewhere less useful.
             is CarAttention.ServiceOverdue, is CarAttention.ServiceDue ->
-                carId?.let { send(HomeEffect.OpenServiceLog(carId = it.value)) }
+                if (config.serviceChecklistEnabled) {
+                    telemetry.checklistOpened(entry = ENTRY_ATTENTION)
+                    send(HomeEffect.OpenServiceChecklist(entry = ENTRY_ATTENTION))
+                } else {
+                    carId?.let { send(HomeEffect.OpenServiceLog(carId = it.value)) }
+                }
         }
     }
 
@@ -335,14 +382,26 @@ internal class HomeViewModel(
 
     private companion object {
         const val SUBSCRIPTION_TIMEOUT_MILLIS = 5_000L
+
+        /*
+         * Which of Home's two doors opened the checklist. Shipped names — a dashboard
+         * splitting the conditional card from the attention row queries these.
+         */
+        const val ENTRY_ATTENTION = "HOME_ATTENTION"
+        const val ENTRY_CARD = "HOME_CARD"
     }
 }
+
+/** Whether the attention card is already the service prompt. */
+private val CarAttention?.isAboutService: Boolean
+    get() = this is CarAttention.ServiceDue || this is CarAttention.ServiceOverdue
 
 /** Domain snapshot to display state. Decided here, once. */
 private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     userName = ownerName.orEmpty(),
     carName = car?.displayName.orEmpty(),
     odometer = odometer,
+    odometerPending = car?.isOdometerPending == true,
     score = score.total,
     band = score.band,
     scoreDelta = scoreDelta,
@@ -357,3 +416,20 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     setup = setup,
     isNewUser = isNewUser,
 )
+
+/**
+ * Answer with [initial] straight away, then with whatever the flow actually says.
+ *
+ * `combine` holds its result until *every* source has emitted once, so a single slow source
+ * keeps the whole dashboard on its skeleton — however fast the local database was.
+ *
+ * That is what the entitlement stream did. It is `state.filterNotNull()` over a value that
+ * stays null until RevenueCat answers, and the dashboard combines on it twice — so a screen
+ * built entirely from local rows sat behind a store round trip, and behind its timeout with
+ * no connection. On an offline-first app that is the wrong thing to make an owner wait for.
+ *
+ * Every flow this wraps has the same safe default: not Pro, do not offer. Being briefly wrong
+ * in that direction costs a card that appears a moment late; being wrong the other way shows
+ * Pro content to somebody who has not paid for it.
+ */
+private fun <T> Flow<T>.withoutWaiting(initial: T): Flow<T> = onStart { emit(initial) }

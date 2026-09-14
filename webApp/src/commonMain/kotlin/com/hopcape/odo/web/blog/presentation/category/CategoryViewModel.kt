@@ -7,11 +7,11 @@ import com.hopcape.odo.web.blog.domain.BlogRepository
 import com.hopcape.odo.web.blog.domain.model.CategoryPage
 import com.hopcape.odo.web.blog.presentation.asUiText
 import com.hopcape.odo.web.blog.presentation.loadInto
-import com.hopcape.odo.web.blog.presentation.state.FormField
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.Submission
-import com.hopcape.odo.web.blog.presentation.state.UiText
-import com.hopcape.odo.web.blog.presentation.state.textField
+import com.hopcape.odo.web.core.presentation.state.FormField
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.Submission
+import com.hopcape.odo.web.core.presentation.state.UiText
+import com.hopcape.odo.web.core.presentation.state.textField
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_email_invalid
 import kotlinx.coroutines.flow.MutableStateFlow

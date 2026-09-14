@@ -103,6 +103,34 @@ internal class GarageTelemetry(
         logger.warn(TAG, Event.NO_ACTIVE_CAR, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /* ------------------------------ Restored history ------------------------------ */
+
+    /**
+     * The owner was shown that signing in brought their car's history back (issue #425).
+     *
+     * Counts and one boolean: how much came back, and whether the odometer needed putting
+     * right. Never the readings themselves — an odometer identifies a vehicle's use.
+     */
+    fun historyRestoredShown(services: Int, documents: Int, correctionOffered: Boolean) {
+        val fields = mapOf(
+            Key.SERVICE_COUNT to services,
+            Key.DOCUMENT_COUNT to documents,
+            Key.OFFERED to correctionOffered,
+        )
+        analytics.track(Event.HISTORY_RESTORED_SHOWN, fields)
+        logger.info(TAG, Event.HISTORY_RESTORED_SHOWN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /**
+     * What the owner did with it — the number worth reading, because an offer nobody takes
+     * is copy that is not working.
+     */
+    fun historyRestoredAnswered(adopted: Boolean) {
+        val fields = mapOf(Key.ADOPTED to adopted)
+        analytics.track(Event.HISTORY_RESTORED_ANSWERED, fields)
+        logger.info(TAG, Event.HISTORY_RESTORED_ANSWERED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /* ------------------------------ Odometer ------------------------------ */
 
     fun odometerSheetOpened() {
@@ -303,6 +331,8 @@ internal class GarageTelemetry(
         const val EXPORT_REQUESTED = "garage_export_requested"
         const val AUTO_ODO_CARD_SHOWN = "garage_auto_odo_card_shown"
         const val AUTO_ODO_CARD_TAPPED = "garage_auto_odo_card_tapped"
+        const val HISTORY_RESTORED_SHOWN = "garage_history_restored_shown"
+        const val HISTORY_RESTORED_ANSWERED = "garage_history_restored_answered"
     }
 
     /** Span names for the feature's async operations. */
@@ -331,6 +361,8 @@ internal class GarageTelemetry(
         const val MISSING_COUNT = "missing_count"
         const val ATTENTION_COUNT = "attention_count"
         const val TARGET = "target"
+        const val OFFERED = "offered"
+        const val ADOPTED = "adopted"
     }
 
     /** Values for [Key.OUTCOME]. */
@@ -347,6 +379,7 @@ internal class GarageTelemetry(
         const val CAR_ACTIONS = "car_actions"
         const val REMOVE_CAR = "remove_car"
         const val EXPORT = "export"
+        const val HISTORY_RESTORED = "history_restored"
     }
 
     /** Values for [Key.TARGET] on an export request. */

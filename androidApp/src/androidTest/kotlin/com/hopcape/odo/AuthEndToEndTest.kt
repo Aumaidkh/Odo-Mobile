@@ -103,24 +103,26 @@ class AuthEndToEndTest {
 
     /**
      * Sending is not instant — Firebase runs app verification before the SMS is even asked
-     * for, which on a cold Play Services can take seconds. A button that only greyed out read
-     * as "not now" rather than "working", which is what this replaces.
+     * for, which on a cold Play Services can take seconds.
+     *
+     * Since #409 that wait is spent on the code screen rather than the number screen, so this
+     * is where it has to be reported. The header says "Sending" and must not claim a code was
+     * sent before the provider took the request.
      */
     @Test
-    fun whileTheCodeIsBeingSent_theButtonSaysSo() {
-        rule.openSignIn()
-        rule.enterPhoneNumber(AuthFixtures.TYPED_NUMBER)
+    fun whileTheCodeIsBeingSent_theCodeScreenSaysSo() {
         gateway.holdRequests()
 
-        rule.tapSendCode()
+        rule.requestTheCode()
 
-        rule.awaitText(AuthCopy.SENDING_CODE)
-        // The idle label is gone, not merely covered — otherwise the screen would be offering
-        // an action it is already performing.
-        rule.onNodeWithText(AuthCopy.SEND_CODE).assertDoesNotExist()
+        rule.awaitText(AuthCopy.OTP_TITLE)
+        rule.awaitTextStartingWith(AuthCopy.sendingTo(AuthFixtures.LAST_FOUR))
+        // Not "Sent". Nothing has been sent until the provider says so, and a screen that
+        // claims otherwise sends the owner to an inbox with nothing in it.
+        assertEquals(0, rule.textCount(AuthCopy.sentTo(AuthFixtures.LAST_FOUR)))
 
         gateway.release()
-        rule.awaitText(AuthCopy.OTP_TITLE)
+        rule.awaitTextStartingWith(AuthCopy.sentTo(AuthFixtures.LAST_FOUR))
     }
 
     /**
@@ -200,18 +202,27 @@ class AuthEndToEndTest {
         assertEquals(0, rule.textCount(AuthFixtures.TYPED_NUMBER))
     }
 
+    /**
+     * A refused send is reported where the owner now is.
+     *
+     * The number screen used to hold them while the request ran and show the failure there.
+     * Since #409 it hands off at once, so the code screen owns the answer — and a button that
+     * does nothing with no explanation is still the worst outcome, wherever it happens.
+     */
     @Test
-    fun aFailedSend_keepsTheOwnerOnTheNumberScreenAndSaysWhy() {
+    fun aFailedSend_saysSoOnTheCodeScreen() {
         gateway.sendResult = DomainError.OtpRequestFailed.left()
-        rule.openSignIn()
 
-        rule.enterPhoneNumber(AuthFixtures.TYPED_NUMBER)
-        rule.tapSendCode()
+        rule.requestTheCode()
 
-        // Still here, because no code went out.
-        rule.onNodeWithText(AuthCopy.PHONE_TITLE).assertIsDisplayed()
-        // And told so: a button that does nothing with no explanation is the worst outcome.
+        rule.awaitText(AuthCopy.OTP_TITLE)
         rule.awaitText(AuthCopy.ERROR_SEND_FAILED)
+        // Neither "Sent" nor "Sending" — both would be untrue once the provider has refused.
+        assertEquals(0, rule.textCount(AuthCopy.sentTo(AuthFixtures.LAST_FOUR)))
+        assertEquals(0, rule.textCount(AuthCopy.sendingTo(AuthFixtures.LAST_FOUR)))
+        // The cooldown is handed back, because nothing went out — so Resend is the retry
+        // rather than a minute of being told to wait for a code nobody sent.
+        rule.awaitText(AuthCopy.RESEND)
     }
 
     /* ------------------------------ The code ------------------------------ */

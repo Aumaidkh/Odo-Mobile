@@ -8,8 +8,8 @@ import com.hopcape.odo.web.blog.domain.model.Category
 import com.hopcape.odo.web.blog.domain.model.IndexPage
 import com.hopcape.odo.web.blog.domain.model.PostSummary
 import com.hopcape.odo.web.blog.presentation.loadInto
-import com.hopcape.odo.web.blog.presentation.state.Loadable
-import com.hopcape.odo.web.blog.presentation.state.valueOrNull
+import com.hopcape.odo.web.core.presentation.state.Loadable
+import com.hopcape.odo.web.core.presentation.state.valueOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.cost.model.CostShortfall
 import com.hopcape.odo.core.domain.cost.model.CostWindow
 import com.hopcape.odo.core.domain.cost.model.RunningCost
 import com.hopcape.odo.core.domain.cost.model.SpendCategory
+import com.hopcape.odo.core.domain.servicelog.model.LogSource
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.Amount
@@ -59,7 +60,11 @@ object RunningCostCalculator {
         fuelRatePerKm: Amount? = null,
     ): RunningCost {
         val kmDriven = distanceOver(window, readings)
-        val logged = entries.filter { it.serviceDate in window }
+        // A DECLARED entry is the owner remembering that a service happened, with no bill
+        // behind it. Counting its zero would not widen the rate, it would pull it down —
+        // the car would read cheaper to run than it is, and ₹/km is a number the product
+        // is sold on. Its odometer still counts: that reading is a fact either way.
+        val logged = entries.filter { it.serviceDate in window && it.source != LogSource.DECLARED }
         val spendByCategory = allocate(logged)
         val maintenanceSpend = amount(spendByCategory.values.sum())
         val fuelSpend = fuelRatePerKm?.times(kmDriven?.km ?: 0) ?: Amount.ZERO

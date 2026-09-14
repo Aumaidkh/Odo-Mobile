@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.servicelog.presentation.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -48,12 +49,14 @@ internal class ServiceLogDetailViewModel(
     private val recordFairness: RecordEntryFairnessUseCase,
     private val showcase: ShowcaseArbiter,
     private val telemetry: ServiceLogTelemetry,
+    private val config: FeatureConfig,
 ) : ViewModel() {
 
     /** One ask per screen (the detail is a pushed destination, so one VM is one visit). */
     private var fairnessShowcaseRequested = false
 
-    private val _state = MutableStateFlow(ServiceLogDetailUiState())
+    // Read once, when the screen is built: a flip lands on the next entry opened.
+    private val _state = MutableStateFlow(ServiceLogDetailUiState(showBillCheck = config.billCheckEnabled))
     val state: StateFlow<ServiceLogDetailUiState> = _state.asStateFlow()
 
     private val _effects = Channel<ServiceLogDetailEffect>(Channel.BUFFERED)
@@ -206,6 +209,9 @@ internal class ServiceLogDetailViewModel(
      * that skips the screen cannot open a report on lines that were never comparable.
      */
     private fun openFairness() {
+        // The invariant behind the button, not a second copy of it: a caller that skipped
+        // the screen must not open a check the switch has closed.
+        if (!config.billCheckEnabled) return
         val current = entry ?: return
         val lines = current.fairnessItems() ?: return
         telemetry.fairnessOpened()
@@ -246,7 +252,12 @@ internal class ServiceLogDetailViewModel(
      */
     private fun maybeRequestFairnessShowcase(ui: ServiceEntryDetailUiState) {
         if (fairnessShowcaseRequested) return
-        val due = ui.verification == VerificationStatus.VERIFIED &&
+        // The gate first: with the bill check closed the button never composes, so the mark
+        // has no bounds to draw against and nothing appears — while the arbiter has already
+        // granted the hook, counted it as shown, and is holding the one-at-a-time grant for
+        // as long as the screen is open.
+        val due = config.billCheckEnabled &&
+            ui.verification == VerificationStatus.VERIFIED &&
             ui.fairness is EntryFairnessUiState.NotAssessed &&
             ui.canCheckFairness
         if (!due) return

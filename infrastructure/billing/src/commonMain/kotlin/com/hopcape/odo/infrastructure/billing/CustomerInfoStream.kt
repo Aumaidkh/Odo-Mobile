@@ -22,6 +22,10 @@ import kotlinx.coroutines.launch
  * to need customer info — the second one to set it would silently unsubscribe the first. This
  * object owns it, and both the entitlement source and the subscription status read from here.
  *
+ * **Every read is guarded by [Purchases.isConfigured].** A build with a key can still reach a
+ * device where `configure()` failed, and `Purchases.sharedInstance` throws there rather than
+ * returning null. Unconfigured resolves to `null`, which reads as "no subscription".
+ *
  * **[resolved] withholds its first value until the store has answered.** Emitting "no
  * subscription" first and correcting it a moment later would tell a paying owner they are on
  * the free plan for as long as the read takes — long enough for the vault to refuse their
@@ -37,8 +41,19 @@ internal class CustomerInfoStream(
     private val state = MutableStateFlow<Answer?>(null)
 
     init {
-        Purchases.sharedInstance.delegate = this
-        scope.launch { refresh() }
+        // Guarded, because `Purchases.sharedInstance` throws when configure() never ran.
+        // The module picks this branch on a build-time key, and RevenueCatBootstrap swallows
+        // a configure() that fails at run time — so a key can be present and the SDK still
+        // not be there. This object is now built during startup, where that throw would be a
+        // launch crash rather than a screen that fails.
+        if (Purchases.isConfigured) {
+            Purchases.sharedInstance.delegate = this
+            scope.launch { refresh() }
+        } else {
+            // Answered, not left waiting: `resolved` withholds its first value, so a
+            // collector with nothing coming would hold the free plan open forever.
+            state.value = Answer(null)
+        }
     }
 
     /** What the store knows about this owner, or null when it could not be asked. */
@@ -46,6 +61,10 @@ internal class CustomerInfoStream(
 
     /** Ask again. Used when the app comes back to the foreground, or on a pull to refresh. */
     suspend fun refresh() {
+        if (!Purchases.isConfigured) {
+            state.value = Answer(null)
+            return
+        }
         Purchases.sharedInstance.awaitCustomerInfoEither().fold(
             ifLeft = { error ->
                 telemetry.entitlementFailed(error.code.toString(), error.message)

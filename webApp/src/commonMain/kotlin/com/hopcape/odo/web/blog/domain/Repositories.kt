@@ -1,6 +1,8 @@
 package com.hopcape.odo.web.blog.domain
 
 import arrow.core.Either
+import com.hopcape.odo.web.core.domain.WebError
+import com.hopcape.odo.web.core.platform.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
 import com.hopcape.odo.web.blog.domain.model.Author
 import com.hopcape.odo.web.blog.domain.model.Article
@@ -30,7 +32,7 @@ import com.hopcape.odo.web.blog.domain.model.Session
  * - **Suspend, not Flow.** A blog is request/response. A flow would promise
  *   updates that no source here will ever push, and every screen would carry
  *   collection machinery for a stream that emits once.
- * - **`Either<BlogError, T>`, not exceptions.** Same as the app's ports. A screen
+ * - **`Either<WebError, T>`, not exceptions.** Same as the app's ports. A screen
  *   has to draw the failure, so the failure has to be a value it can branch on.
  * - **Page-shaped returns.** [index] hands back the lead story, the grid and the
  *   nav categories together, because that is one screen and it should be one
@@ -40,25 +42,25 @@ import com.hopcape.odo.web.blog.domain.model.Session
 interface BlogRepository {
 
     /** The nav and the filter chips. Every public page draws these. */
-    suspend fun categories(): Either<BlogError, List<Category>>
+    suspend fun categories(): Either<WebError, List<Category>>
 
-    suspend fun index(): Either<BlogError, IndexPage>
+    suspend fun index(): Either<WebError, IndexPage>
 
-    /** [BlogError.NotFound] when no post has that slug — the 404 page. */
-    suspend fun article(slug: String): Either<BlogError, Article>
+    /** [WebError.NotFound] when no post has that slug — the 404 page. */
+    suspend fun article(slug: String): Either<WebError, Article>
 
-    suspend fun category(slug: String): Either<BlogError, CategoryPage>
+    suspend fun category(slug: String): Either<WebError, CategoryPage>
 
-    suspend fun author(slug: String): Either<BlogError, AuthorPage>
+    suspend fun author(slug: String): Either<WebError, AuthorPage>
 
     /** A blank [query] returns no hits and no suggestions, not everything. */
-    suspend fun search(query: String): Either<BlogError, SearchResults>
+    suspend fun search(query: String): Either<WebError, SearchResults>
 
     /** What the 404 page offers instead. Most-read, not most-recent. */
-    suspend fun mostRead(limit: Int): Either<BlogError, List<PostSummary>>
+    suspend fun mostRead(limit: Int): Either<WebError, List<PostSummary>>
 
     /** The footer's email capture on a thin category page. */
-    suspend fun subscribe(email: String): Either<BlogError, Unit>
+    suspend fun subscribe(email: String): Either<WebError, Unit>
 
     /**
      * "Want a topic that is not here?" on an empty search.
@@ -66,37 +68,37 @@ interface BlogRepository {
      * Carries [query] as well as the address: a request with no idea what was
      * being looked for is a mailing-list signup, not a topic request.
      */
-    suspend fun requestTopic(email: String, query: String): Either<BlogError, Unit>
+    suspend fun requestTopic(email: String, query: String): Either<WebError, Unit>
 }
 
 /** Who is signed in, and how they get that way. Only the CMS asks. */
 interface AuthRepository {
 
     /** The current session, or null when signed out. Not an error either way. */
-    suspend fun session(): Either<BlogError, Session?>
+    suspend fun session(): Either<WebError, Session?>
 
-    /** [BlogError.SignInRejected] carries the countdown the design shows. */
-    suspend fun signIn(email: String, password: String): Either<BlogError, Session>
+    /** [WebError.SignInRejected] carries the countdown the design shows. */
+    suspend fun signIn(email: String, password: String): Either<WebError, Session>
 
-    suspend fun signOut(): Either<BlogError, Unit>
+    suspend fun signOut(): Either<WebError, Unit>
 }
 
 /**
  * The CMS.
  *
- * Every call here assumes a session and returns [BlogError.NotSignedIn] without
+ * Every call here assumes a session and returns [WebError.NotSignedIn] without
  * one, rather than trusting the router to have kept the reader out. The route
  * guard is a convenience; this is the check.
  */
 interface AdminRepository {
 
-    suspend fun posts(): Either<BlogError, List<PostRow>>
+    suspend fun posts(): Either<WebError, List<PostRow>>
 
     /** [id] is null for a post being started, which returns an empty [Draft]. */
-    suspend fun draft(id: String?): Either<BlogError, Draft>
+    suspend fun draft(id: String?): Either<WebError, Draft>
 
     /** Returns the draft as stored — with an id, if this was its first save. */
-    suspend fun save(draft: Draft): Either<BlogError, Draft>
+    suspend fun save(draft: Draft): Either<WebError, Draft>
 
     /**
      * Publishes, or reports the slug is taken.
@@ -105,10 +107,10 @@ interface AdminRepository {
      * takes the slug and the old one's traffic. Passing it is an explicit choice
      * by the author, never a retry the app makes on its own.
      */
-    suspend fun publish(draft: Draft, replaceExisting: Boolean = false): Either<BlogError, PublishOutcome>
+    suspend fun publish(draft: Draft, replaceExisting: Boolean = false): Either<WebError, PublishOutcome>
 
     /** Back to draft. The URL stays alive, which is the point of not deleting. */
-    suspend fun unpublish(id: String): Either<BlogError, Unit>
+    suspend fun unpublish(id: String): Either<WebError, Unit>
 
     /**
      * Gone. Not a status change — the row goes.
@@ -117,13 +119,13 @@ interface AdminRepository {
      * shared, and taking that to a 404 is what [unpublish] exists to avoid; a
      * draft has never been anywhere and deleting it costs nothing but the writing.
      */
-    suspend fun discard(id: String): Either<BlogError, Unit>
+    suspend fun discard(id: String): Either<WebError, Unit>
 
-    suspend fun media(): Either<BlogError, List<MediaItem>>
+    suspend fun media(): Either<WebError, List<MediaItem>>
 
-    suspend fun upload(file: UploadRequest): Either<BlogError, MediaItem>
+    suspend fun upload(file: UploadRequest): Either<WebError, MediaItem>
 
-    suspend fun analytics(): Either<BlogError, Analytics>
+    suspend fun analytics(): Either<WebError, Analytics>
 
     /**
      * The signed-in author's own row.
@@ -132,30 +134,8 @@ interface AdminRepository {
      * sees under a byline. They are the same person and different data, and the
      * second is the one an author edits.
      */
-    suspend fun profile(): Either<BlogError, Author>
+    suspend fun profile(): Either<WebError, Author>
 
     /** Saves the byline. The email is not editable: it is what the session is keyed on. */
-    suspend fun saveProfile(name: String, bio: String, topics: String, since: String): Either<BlogError, Author>
-}
-
-/**
- * An image on its way in.
- *
- * Carries the bytes rather than a browser `File` so the port stays common code —
- * reading the file is the browser's job and happens above this, at the one place
- * that already knows it is running in a browser.
- */
-data class UploadRequest(
-    val name: String,
-    val mimeType: String,
-    val bytes: ByteArray,
-) {
-    // Data classes compare arrays by reference, which would make two identical
-    // uploads unequal and one re-read of the same file equal to nothing.
-    override fun equals(other: Any?): Boolean =
-        this === other ||
-            (other is UploadRequest && name == other.name && mimeType == other.mimeType && bytes.contentEquals(other.bytes))
-
-    override fun hashCode(): Int =
-        (name.hashCode() * 31 + mimeType.hashCode()) * 31 + bytes.contentHashCode()
+    suspend fun saveProfile(name: String, bio: String, topics: String, since: String): Either<WebError, Author>
 }

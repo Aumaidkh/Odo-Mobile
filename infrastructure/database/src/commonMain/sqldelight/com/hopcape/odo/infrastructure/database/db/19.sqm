@@ -1,0 +1,10 @@
+-- A car whose owner has not read the odometer yet.
+--
+-- Setup used to refuse to finish without a reading, which stopped owners who were not at
+-- their car. They can skip it now, and the car is stored reading zero with this set.
+--
+-- Zero on its own could not carry that: a genuinely new car reads near zero, and per-km
+-- cost, the health score and the value estimate would all take it literally.
+--
+-- Existing rows default to 0 — every car already stored has a reading the owner gave.
+ALTER TABLE cars ADD COLUMN odometer_pending INTEGER NOT NULL DEFAULT 0;

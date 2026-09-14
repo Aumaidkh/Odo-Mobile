@@ -4,11 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.web.blog.domain.AuthRepository
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.blog.presentation.asUiText
-import com.hopcape.odo.web.blog.presentation.state.FormField
-import com.hopcape.odo.web.blog.presentation.state.UiText
-import com.hopcape.odo.web.blog.presentation.state.textField
+import com.hopcape.odo.web.core.presentation.state.FormField
+import com.hopcape.odo.web.core.presentation.state.UiText
+import com.hopcape.odo.web.core.presentation.state.textField
 import com.hopcape.odo.web.blog.resources.Res
 import com.hopcape.odo.web.blog.resources.bl_admin_wrong_password
 import com.hopcape.odo.web.blog.resources.bl_admin_wrong_password_locked
@@ -109,11 +109,17 @@ class SignInViewModel(
      * their own line, and collapsing them into "this did not work" would throw
      * away the one thing that tells somebody what to do about it.
      */
-    private fun BlogError.asSignInText(): UiText = when {
-        this !is BlogError.SignInRejected -> asUiText()
-        // Zero gets its own line rather than "0 tries left", which reads like a
-        // counter that has not been updated yet.
-        triesLeft == null || triesLeft <= 0 -> UiText.Resource(Res.string.bl_admin_wrong_password_locked)
-        else -> UiText.Resource(Res.string.bl_admin_wrong_password, listOf(triesLeft))
+    private fun WebError.asSignInText(): UiText {
+        if (this !is WebError.SignInRejected) return asUiText()
+        // Read into a local first. `triesLeft` now lives in :webCore, and Kotlin
+        // will not smart-cast a public property from another module — it cannot
+        // prove the value has not changed between the check and the use.
+        val remaining = triesLeft
+        return when {
+            // Zero gets its own line rather than "0 tries left", which reads like a
+            // counter that has not been updated yet.
+            remaining == null || remaining <= 0 -> UiText.Resource(Res.string.bl_admin_wrong_password_locked)
+            else -> UiText.Resource(Res.string.bl_admin_wrong_password, listOf(remaining))
+        }
     }
 }

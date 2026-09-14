@@ -15,6 +15,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.billscanner.resources.Res
 import com.hopcape.odo.feature.billscanner.resources.bs_save_body
+import com.hopcape.odo.feature.billscanner.resources.bs_save_body_plain
 import com.hopcape.odo.feature.billscanner.resources.bs_save_card_body
 import com.hopcape.odo.feature.billscanner.resources.bs_save_card_title
 import com.hopcape.odo.feature.billscanner.resources.bs_save_done
@@ -29,6 +30,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun SaveSuccessScreen(
+    /** Blank when the caller has neither — the body then names nothing rather than nothing twice. */
     workshop: String,
     dateLabel: String,
     onViewLog: () -> Unit,
@@ -40,7 +42,11 @@ internal fun SaveSuccessScreen(
         badgeIcon = IcCheck,
         badgeTone = OdoTheme.colors.success,
         title = stringResource(Res.string.bs_save_title),
-        body = stringResource(Res.string.bs_save_body, workshop, dateLabel),
+        body = if (workshop.isBlank() && dateLabel.isBlank()) {
+            stringResource(Res.string.bs_save_body_plain)
+        } else {
+            stringResource(Res.string.bs_save_body, workshop, dateLabel)
+        },
         infoCard = {
             ResultInfoCard(
                 icon = IcLightbulbFilled,

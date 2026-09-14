@@ -51,7 +51,10 @@ class FairnessEndToEndTest {
      */
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(DeviceState { startFromASetUpDeviceWithAnEmptyLog() })
+        // The runner pins every key to its compiled default, and the bill check ships
+        // closed. This suite drives it, so it says so in its own file.
+        .outerRule(PinnedConfig("bill_check_enabled", value = "true", compiledDefault = "false"))
+        .around(DeviceState { startFromASetUpDeviceWithAnEmptyLog() })
         .around(rule)
 
     private fun startFromASetUpDeviceWithAnEmptyLog() {

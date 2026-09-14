@@ -78,9 +78,13 @@ private fun Editor(
         // The drums show and take the owner's unit; what is saved is kilometres. Passing
         // the reading on file lets a re-typed number stay exactly where it was rather than
         // landing a kilometre lower through the conversion.
-        value = distance.display(recorded.odometer.km).toLong(),
+        //
+        // `startFrom`, not whatever is on record: a figure taken from a past service is
+        // known but is not what the car reads today, and opening on it would put a
+        // months-old number one tap from being saved as current. Null opens the drum empty.
+        value = context.startFrom?.let { distance.display(it.km).toLong() },
         onSave = { dialled ->
-            onEvent(UpdateOdometerEvent.Save(distance.store(dialled.toInt(), recorded.odometer.km).toLong()))
+            onEvent(UpdateOdometerEvent.Save(distance.store(dialled.toInt(), context.startFrom?.km).toLong()))
         },
         title = stringResource(Res.string.gr_odo_title),
         subtitle = stringResource(Res.string.gr_odo_subtitle),
@@ -89,16 +93,20 @@ private fun Editor(
         kmLabel = stringResource(Res.string.gr_odo_unit_km),
         milesLabel = stringResource(Res.string.gr_odo_unit_miles),
         footer = { dialled ->
-            OdoText(
-                stringResource(
-                    Res.string.gr_odo_last,
-                    distance.format(recorded.odometer.km),
-                    formatDate(recorded.date),
-                ),
-                style = OdoTheme.typography.bodySmall,
-                color = OdoTheme.colors.textMuted,
-            )
-            DistanceSince(context, dialled?.let { distance.store(it.toInt(), recorded.odometer.km).toLong() })
+            // Only when there is something on record. A car that has never been read has no
+            // "last recorded" line to show and no distance to have covered since.
+            recorded?.let {
+                OdoText(
+                    stringResource(
+                        Res.string.gr_odo_last,
+                        distance.format(it.odometer.km),
+                        formatDate(it.date),
+                    ),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textMuted,
+                )
+            }
+            DistanceSince(context, dialled?.let { distance.store(it.toInt(), recorded?.odometer?.km).toLong() })
             state.submission.error?.let { message ->
                 OdoText(
                     message.asString(),

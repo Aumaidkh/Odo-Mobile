@@ -95,6 +95,11 @@ internal object ScanCopy {
     const val REVIEW_NOT_SET = "Not set"
     const val READING = "Reading…"
 
+    /* Saved-success — where a scan lands while the bill check is closed. */
+    const val SAVE_TITLE = "Saved to your log"
+    const val SAVE_VIEW = "View in Service Log"
+    const val SAVE_DONE = "Done"
+
     /* Document confirm. */
     const val DOC_TITLE = "Check the document"
     const val DOC_SAVE = "Save to vault"

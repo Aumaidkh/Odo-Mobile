@@ -79,7 +79,7 @@ class UpdateOdometerViewModelTest {
         val (viewModel, _) = viewModel()
 
         val context = assertIs<Loadable.Ready<OdometerContext>>(viewModel.state.value.context)
-        assertEquals(45_000, context.value.lastRecorded.odometer.km)
+        assertEquals(45_000, context.value.lastRecorded?.odometer?.km)
     }
 
     @Test

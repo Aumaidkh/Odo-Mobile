@@ -33,6 +33,22 @@ interface ConfigSource {
      * costs no new plumbing.
      */
     val generation: StateFlow<Long>
+
+    /**
+     * Koin qualifiers for the backends that make up the chain.
+     *
+     * A backend binds itself under its own name and never under the plain [ConfigSource],
+     * which [coreConfigModule] keeps for the [ChainedConfigSource] over all of them. That
+     * is what stops the two adapters overwriting each other, and what took the ordering of
+     * `initKoin`'s module list out of the wiring.
+     */
+    companion object {
+        /** Firebase Remote Config, first in the chain. */
+        const val REMOTE_CONFIG = "config.remoteConfig"
+
+        /** The Supabase `app_config` table, read when Remote Config has nothing for a key. */
+        const val APP_CONFIG_TABLE = "config.appConfigTable"
+    }
 }
 
 /**

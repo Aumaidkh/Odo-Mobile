@@ -13,12 +13,16 @@ import com.hopcape.odo.core.navigation.coreNavigationModule
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.auth.SessionRestore
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
+import com.hopcape.odo.core.data.subscription.PurchaseWatcher
 import com.hopcape.odo.core.sync.SyncScheduler
 import com.hopcape.odo.core.sync.coreSyncModule
 import com.hopcape.odo.core.triptracker.coreTripTrackerModule
+import com.hopcape.odo.feature.advisory.advisoryModule
+import com.hopcape.odo.feature.billcheck.billCheckModule
 import com.hopcape.odo.feature.autoodometer.di.autoOdometerModule
 import com.hopcape.odo.feature.auth.authModule
 import com.hopcape.odo.feature.billscanner.billScannerModule
+import com.hopcape.odo.feature.challan.di.challanModule
 import com.hopcape.odo.feature.costtracker.costTrackerModule
 import com.hopcape.odo.feature.dashboard.dashboardModule
 import com.hopcape.odo.feature.documentvault.documentVaultModule
@@ -31,6 +35,7 @@ import com.hopcape.odo.feature.refuel.domain.RefuelDetectionWorker
 import com.hopcape.odo.feature.refuel.refuelModule
 import com.hopcape.odo.feature.reminders.remindersModule
 import com.hopcape.odo.feature.onboarding.onboardingModule
+import com.hopcape.odo.feature.questionnaire.questionnaireModule
 import com.hopcape.odo.feature.servicelog.serviceLogModule
 import com.hopcape.odo.feature.support.supportModule
 import com.hopcape.odo.feature.timeline.timelineModule
@@ -39,6 +44,7 @@ import com.hopcape.odo.infrastructure.billing.billingInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
 import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
+import com.hopcape.odo.infrastructure.supabase.config.supabaseConfigModule
 import com.hopcape.odo.infrastructure.supabase.supabaseModule
 import com.hopcape.odo.preview.filePreviewModule
 import kotlinx.coroutines.CancellationException
@@ -109,6 +115,7 @@ fun initKoin(
         dashboardModule,
         garageModule,
         profileModule,
+        questionnaireModule,
         refuelModule,
         supportModule,
         timelineModule,
@@ -129,19 +136,31 @@ fun initKoin(
         // After coreDataModule for the same reason: its on-device BillExtractor binding
         // replaces that module's UnconfiguredBillExtractor stub.
         aiInfrastructureModule,
-        // The config registry and resolver. Listed after every module that could
-        // register a ConfigContribution, and immediately before the module that supplies
-        // the real ConfigSource — the Firebase one replaces its no-backend defaults.
+        // The config registry and resolver, plus the chain the resolver reads through.
+        // Listed after every module that could register a ConfigContribution. Where the
+        // two config backends below sit no longer matters: each binds its own qualifier
+        // and this module assembles the chain from whichever are present.
         coreConfigModule,
-        // Same reason again: its AppStatusSource binding replaces coreDataModule's
-        // AlwaysAvailableAppStatusSource, which blocks nothing. It also replaces
-        // coreConfigModule's NoRemoteConfigSource and ConfigRefresher.None.
+        // The `app_config` table, second in the chain — it answers a key Remote Config
+        // has nothing for.
+        supabaseConfigModule,
+        // Firebase Remote Config, first in the chain. Its position still matters for one
+        // other binding: AppStatusSource replaces coreDataModule's
+        // AlwaysAvailableAppStatusSource, which blocks nothing.
         firebaseRemoteConfigModule,
         // After coreDataModule for the same reason: from S6 its EntitlementSource binding
         // replaces that module's FreePlanEntitlementSource. Today it only configures the
         // RevenueCat SDK, which it does while Koin starts.
         billingInfrastructureModule,
+        // After coreDataModule, whose repositories its estimate reads. It registers one
+        // destination and nothing else replaces anything, so the position is not load-bearing.
+        advisoryModule,
+        // After coreDataModule, whose ScanAllowance decides whether the answer is shown.
+        // It registers two destinations and replaces nothing, so the position is not
+        // load-bearing.
+        billCheckModule,
         platformModule,
+        challanModule
     )
 }.also { application ->
     // Restore the session, then ask for the launch's first sync — in that order, because a
@@ -156,6 +175,12 @@ fun initKoin(
     // it is a subscription, not a step, and it must not sit between the session restore and
     // the first sync. While SMART_REFUEL_DETECT_ENABLED is false this returns immediately.
     application.koin.get<RefuelDetectionWorker>().start(startupScope)
+    // Also a subscription rather than a step, and for the same reason: a UPI mandate approved
+    // by a bank minutes after the purchase sheet closed arrives while the app is open, and
+    // nothing else would credit it. Its first pass is this launch's claim, so there is no
+    // one-shot beside it — anything the store took money for while the app was closed is
+    // caught by the same collector.
+    application.koin.get<PurchaseWatcher>().start(startupScope)
     startupScope.launch {
         // Restoring is allowed to fail — a session that will not decrypt is reported as no
         // session, which sends the owner to sign in again. What must not happen is losing

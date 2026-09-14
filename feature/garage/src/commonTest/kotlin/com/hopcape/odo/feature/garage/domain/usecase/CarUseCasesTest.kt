@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.garage.domain.usecase
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
+import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.model.ModelYear
@@ -216,6 +217,7 @@ class LookupPlateUseCaseTest {
         variant = "Asta",
         year = ModelYear.of(2022).getOrNull()!!,
         fuelType = FuelType.PETROL,
+        source = VehicleSource.OWN_RECORD,
     )
 
     @Test

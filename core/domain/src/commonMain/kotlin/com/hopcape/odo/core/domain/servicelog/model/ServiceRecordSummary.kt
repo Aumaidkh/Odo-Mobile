@@ -57,15 +57,25 @@ data class ServiceRecordSummary(
             resaleUplift = null,
         )
 
+        /**
+         * A declared service is left out of every figure except the reading.
+         *
+         * It carries no bill and no money, so counting it could only lower [verifiedRatio]
+         * and add a zero to [totalSpent] against a higher [serviceCount] — the record would
+         * read as weaker for the owner having answered an optional question.
+         */
         fun of(entries: List<ServiceLogEntry>): ServiceRecordSummary {
-            if (entries.isEmpty()) return EMPTY
+            val shown = entries.provable()
+            if (shown.isEmpty()) return EMPTY
 
-            val serviceCount = entries.size
-            val verifiedCount = entries.count { it.verification == VerificationStatus.VERIFIED }
-            val totalSpent = entries.map { it.totalAmount }.sum()
+            val serviceCount = shown.size
+            val verifiedCount = shown.count { it.verification == VerificationStatus.VERIFIED }
+            val totalSpent = shown.map { it.totalAmount }.sum()
             // The most recently *serviced* entry's reading — not the highest. Entries can be
             // logged backwards (history added after onboarding), so the largest odometer is
             // not necessarily the current one. Ties on a date fall back to the higher reading.
+            // Read from every entry rather than `shown`: a declared service's odometer is a
+            // real reading of this car even though its money is not.
             val latestOdometer = entries
                 .maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
                 ?.odometer

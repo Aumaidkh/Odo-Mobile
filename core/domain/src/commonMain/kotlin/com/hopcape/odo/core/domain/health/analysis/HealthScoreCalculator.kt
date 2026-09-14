@@ -11,6 +11,7 @@ import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.servicelog.analysis.OdometerTimeline
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
+import com.hopcape.odo.core.domain.servicelog.model.provable
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.servicelog.policy.ServiceDueStatus
@@ -200,14 +201,17 @@ object HealthScoreCalculator {
      * an overcharge: too thin a sample is not evidence against the owner.
      */
     private fun costEfficiencyPoints(entries: List<ServiceLogEntry>): Int {
-        if (entries.isEmpty()) return 0
-        val fair = entries.count { entry ->
+        // A declared service has no bill and so can never be fairness-checked. Leaving it in
+        // the denominator would lower the score for answering an optional setup question.
+        val checkable = entries.provable()
+        if (checkable.isEmpty()) return 0
+        val fair = checkable.count { entry ->
             when (entry.fairness?.outcome) {
                 FairnessOutcome.Fair, is FairnessOutcome.Under -> true
                 else -> false
             }
         }
-        return HealthFactorKind.COST_EFFICIENCY.weight * fair / denominator(entries.size)
+        return HealthFactorKind.COST_EFFICIENCY.weight * fair / denominator(checkable.size)
     }
 
     /**
@@ -220,9 +224,12 @@ object HealthScoreCalculator {
      * not have "most of" a clean history.
      */
     private fun historyPoints(entries: List<ServiceLogEntry>, readings: List<OdometerReading>): Int {
-        val verified = entries.count { it.verification == VerificationStatus.VERIFIED }
+        // Same reason as the cost factor: a declared service can never carry a bill, so it
+        // belongs in neither half of a "proven share" ratio.
+        val provable = entries.provable()
+        val verified = provable.count { it.verification == VerificationStatus.VERIFIED }
         val verifiedPoints =
-            if (entries.isEmpty()) 0 else VERIFIED_POINTS * verified / denominator(entries.size)
+            if (provable.isEmpty()) 0 else VERIFIED_POINTS * verified / denominator(provable.size)
 
         // One reading proves nothing either way — a car cannot contradict itself yet.
         val consistent = readings.size >= 2 && OdometerTimeline.anomalies(readings).isEmpty()

@@ -5,9 +5,9 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.web.blog.domain.AdminRepository
 import com.hopcape.odo.web.blog.domain.AuthRepository
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import com.hopcape.odo.web.blog.domain.BlogRepository
-import com.hopcape.odo.web.blog.domain.UploadRequest
+import com.hopcape.odo.web.core.platform.UploadRequest
 import com.hopcape.odo.web.blog.domain.model.Analytics
 import com.hopcape.odo.web.blog.domain.model.Article
 import com.hopcape.odo.web.blog.domain.model.ArticleBlock
@@ -47,12 +47,12 @@ private const val WRITE_DELAY: Long = 320
 
 internal class SampleBlogRepository : BlogRepository {
 
-    override suspend fun categories(): Either<BlogError, List<Category>> {
+    override suspend fun categories(): Either<WebError, List<Category>> {
         delay(READ_DELAY)
         return SampleContent.categories.right()
     }
 
-    override suspend fun index(): Either<BlogError, IndexPage> {
+    override suspend fun index(): Either<WebError, IndexPage> {
         delay(READ_DELAY)
         return IndexPage(
             lead = SampleContent.posts.firstOrNull(),
@@ -61,10 +61,10 @@ internal class SampleBlogRepository : BlogRepository {
         ).right()
     }
 
-    override suspend fun article(slug: String): Either<BlogError, Article> {
+    override suspend fun article(slug: String): Either<WebError, Article> {
         delay(READ_DELAY)
         val summary = SampleContent.posts.firstOrNull { it.slug == slug }
-            ?: return BlogError.NotFound.left()
+            ?: return WebError.NotFound.left()
         return Article(
             summary = summary,
             author = SampleContent.rahul,
@@ -77,23 +77,23 @@ internal class SampleBlogRepository : BlogRepository {
         ).right()
     }
 
-    override suspend fun category(slug: String): Either<BlogError, CategoryPage> {
+    override suspend fun category(slug: String): Either<WebError, CategoryPage> {
         delay(READ_DELAY)
         val category = SampleContent.categories.firstOrNull { it.slug == slug }
-            ?: return BlogError.NotFound.left()
+            ?: return WebError.NotFound.left()
         return CategoryPage(
             category = category,
             posts = SampleContent.posts.filter { it.category.slug == slug },
         ).right()
     }
 
-    override suspend fun author(slug: String): Either<BlogError, AuthorPage> {
+    override suspend fun author(slug: String): Either<WebError, AuthorPage> {
         delay(READ_DELAY)
-        if (slug != SampleContent.rahul.slug) return BlogError.NotFound.left()
+        if (slug != SampleContent.rahul.slug) return WebError.NotFound.left()
         return AuthorPage(SampleContent.rahul, SampleContent.posts).right()
     }
 
-    override suspend fun search(query: String): Either<BlogError, SearchResults> {
+    override suspend fun search(query: String): Either<WebError, SearchResults> {
         delay(READ_DELAY)
         val term = query.trim()
         if (term.isEmpty()) return SearchResults(query, emptyList(), emptyList()).right()
@@ -108,7 +108,7 @@ internal class SampleBlogRepository : BlogRepository {
         ).right()
     }
 
-    override suspend fun mostRead(limit: Int): Either<BlogError, List<PostSummary>> {
+    override suspend fun mostRead(limit: Int): Either<WebError, List<PostSummary>> {
         delay(READ_DELAY)
         return SampleContent.posts
             .sortedByDescending { SampleContent.views[it.slug] ?: 0 }
@@ -116,14 +116,14 @@ internal class SampleBlogRepository : BlogRepository {
             .right()
     }
 
-    override suspend fun subscribe(email: String): Either<BlogError, Unit> {
+    override suspend fun subscribe(email: String): Either<WebError, Unit> {
         delay(WRITE_DELAY)
-        return if (email.looksLikeEmail()) Unit.right() else BlogError.Unexpected("bad address").left()
+        return if (email.looksLikeEmail()) Unit.right() else WebError.Unexpected("bad address").left()
     }
 
-    override suspend fun requestTopic(email: String, query: String): Either<BlogError, Unit> {
+    override suspend fun requestTopic(email: String, query: String): Either<WebError, Unit> {
         delay(WRITE_DELAY)
-        return if (email.looksLikeEmail()) Unit.right() else BlogError.Unexpected("bad address").left()
+        return if (email.looksLikeEmail()) Unit.right() else WebError.Unexpected("bad address").left()
     }
 
     /**
@@ -166,25 +166,25 @@ internal class SampleAuthRepository : AuthRepository {
     /** Counts down the way the design's error does, and does not reset on its own. */
     private var triesLeft: Int = TRIES
 
-    override suspend fun session(): Either<BlogError, Session?> {
+    override suspend fun session(): Either<WebError, Session?> {
         delay(READ_DELAY)
         return session.right()
     }
 
-    override suspend fun signIn(email: String, password: String): Either<BlogError, Session> {
+    override suspend fun signIn(email: String, password: String): Either<WebError, Session> {
         delay(WRITE_DELAY)
         val correct = email.trim().equals(SampleContent.SIGN_IN_EMAIL, ignoreCase = true) &&
             password == SampleContent.SIGN_IN_PASSWORD
         if (!correct) {
             triesLeft = (triesLeft - 1).coerceAtLeast(0)
-            return BlogError.SignInRejected(triesLeft).left()
+            return WebError.SignInRejected(triesLeft).left()
         }
         triesLeft = TRIES
         session = SampleContent.session
         return SampleContent.session.right()
     }
 
-    override suspend fun signOut(): Either<BlogError, Unit> {
+    override suspend fun signOut(): Either<WebError, Unit> {
         session = null
         return Unit.right()
     }
@@ -210,7 +210,7 @@ internal class SampleAdminRepository(
 
     private var uploads: List<MediaItem> = SampleContent.media
 
-    override suspend fun posts(): Either<BlogError, List<PostRow>> = guarded {
+    override suspend fun posts(): Either<WebError, List<PostRow>> = guarded {
         stored.values
             .map { draft ->
                 PostRow(
@@ -230,14 +230,14 @@ internal class SampleAdminRepository(
             .right()
     }
 
-    override suspend fun draft(id: String?): Either<BlogError, Draft> = guarded {
+    override suspend fun draft(id: String?): Either<WebError, Draft> = guarded {
         when {
             id == null -> emptyDraft().right()
-            else -> stored[id]?.right() ?: BlogError.NotFound.left()
+            else -> stored[id]?.right() ?: WebError.NotFound.left()
         }
     }
 
-    override suspend fun save(draft: Draft): Either<BlogError, Draft> = guarded(WRITE_DELAY) {
+    override suspend fun save(draft: Draft): Either<WebError, Draft> = guarded(WRITE_DELAY) {
         // The first save is what gives a post an id. Until then it exists only in
         // the browser, which is the state the design warns about on the way out.
         val saved = draft.copy(id = draft.id ?: "draft-${draft.title.slugify()}").recount()
@@ -245,7 +245,7 @@ internal class SampleAdminRepository(
         saved.right()
     }
 
-    override suspend fun publish(draft: Draft, replaceExisting: Boolean): Either<BlogError, PublishOutcome> =
+    override suspend fun publish(draft: Draft, replaceExisting: Boolean): Either<WebError, PublishOutcome> =
         guarded(WRITE_DELAY) {
             val slug = draft.seo.slug.trim().ifBlank { draft.title.slugify() }
             val holder = stored.values.firstOrNull {
@@ -270,23 +270,23 @@ internal class SampleAdminRepository(
             PublishOutcome.Published(slug).right()
         }
 
-    override suspend fun unpublish(id: String): Either<BlogError, Unit> = guarded(WRITE_DELAY) {
+    override suspend fun unpublish(id: String): Either<WebError, Unit> = guarded(WRITE_DELAY) {
         val post = stored[id]
         if (post == null) {
-            BlogError.NotFound.left()
+            WebError.NotFound.left()
         } else {
             stored[id] = post.copy(status = PostStatus.DRAFT)
             Unit.right()
         }
     }
 
-    override suspend fun discard(id: String): Either<BlogError, Unit> = guarded(WRITE_DELAY) {
-        if (stored.remove(id) == null) BlogError.NotFound.left() else Unit.right()
+    override suspend fun discard(id: String): Either<WebError, Unit> = guarded(WRITE_DELAY) {
+        if (stored.remove(id) == null) WebError.NotFound.left() else Unit.right()
     }
 
-    override suspend fun media(): Either<BlogError, List<MediaItem>> = guarded { uploads.right() }
+    override suspend fun media(): Either<WebError, List<MediaItem>> = guarded { uploads.right() }
 
-    override suspend fun upload(file: UploadRequest): Either<BlogError, MediaItem> = guarded(WRITE_DELAY) {
+    override suspend fun upload(file: UploadRequest): Either<WebError, MediaItem> = guarded(WRITE_DELAY) {
         val item = MediaItem(file.name, "/blog/assets/sample/${file.name}")
         uploads = listOf(item) + uploads
         item.right()
@@ -294,14 +294,14 @@ internal class SampleAdminRepository(
 
     private var profile = SampleContent.rahul
 
-    override suspend fun profile(): Either<BlogError, Author> = guarded { profile.right() }
+    override suspend fun profile(): Either<WebError, Author> = guarded { profile.right() }
 
     override suspend fun saveProfile(
         name: String,
         bio: String,
         topics: String,
         since: String,
-    ): Either<BlogError, Author> = guarded(WRITE_DELAY) {
+    ): Either<WebError, Author> = guarded(WRITE_DELAY) {
         profile = profile.copy(
             name = name,
             initial = name.take(1).uppercase(),
@@ -312,7 +312,7 @@ internal class SampleAdminRepository(
         profile.right()
     }
 
-    override suspend fun analytics(): Either<BlogError, Analytics> = guarded { SampleContent.analytics.right() }
+    override suspend fun analytics(): Either<WebError, Analytics> = guarded { SampleContent.analytics.right() }
 
     /**
      * Every admin read and write, behind the session check.
@@ -323,9 +323,9 @@ internal class SampleAdminRepository(
      */
     private suspend fun <T> guarded(
         wait: Long = READ_DELAY,
-        block: suspend () -> Either<BlogError, T>,
-    ): Either<BlogError, T> {
-        if (auth.session().getOrNull() == null) return BlogError.NotSignedIn.left()
+        block: suspend () -> Either<WebError, T>,
+    ): Either<WebError, T> {
+        if (auth.session().getOrNull() == null) return WebError.NotSignedIn.left()
         delay(wait)
         return block()
     }

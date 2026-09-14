@@ -28,6 +28,7 @@ expect fun rememberFileSharer(): (storageKey: String, mimeType: String, title: S
 /** MIME types Odo shares files as. */
 object ShareMimeType {
     const val PDF: String = "application/pdf"
+    const val PNG: String = "image/png"
 }
 
 /**

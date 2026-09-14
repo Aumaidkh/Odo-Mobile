@@ -23,6 +23,10 @@ on:
     - cron: "45 8 * * *"
     - cron: "45 13 * * *"
   workflow_dispatch: {}
+  # Fired by the `post-now` function, so the panel's "Make one now" button does not have to
+  # wait hours for the next cron. Same job either way.
+  repository_dispatch:
+    types: [social-render]
 
 # Two runs at once would render the same draft twice and send two previews for it.
 concurrency:

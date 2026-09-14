@@ -2,14 +2,19 @@ package com.hopcape.odo.core.config
 
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.BuildInfo
+import org.koin.core.qualifier.named
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
- * The registry and the resolver, plus the answers used when nothing remote is wired.
+ * The registry, the resolver, and the chain of backends they read through.
  *
- * **Ordering.** List this after every module that registers a [ConfigContribution], and
- * before any module that supplies a real [ConfigSource] — `firebaseRemoteConfigModule`
- * replaces both bindings below, and in Koin the later definition wins.
+ * **Ordering.** List this after every module that registers a [ConfigContribution]. Where
+ * the backend adapters sit no longer matters: each binds itself under its own qualifier
+ * ([ConfigSource.REMOTE_CONFIG], [ConfigSource.APP_CONFIG_TABLE]) and the chain below picks
+ * up whichever are present, resolved lazily once every module is loaded. Two adapters used
+ * to bind the plain [ConfigSource] and quietly overwrite one another, which is how Remote
+ * Config stopped being fetched at all.
  *
  * [LocalConfigOverrides] is resolved with `getOrNull`, so a release build simply has no
  * store behind it. Nothing about the resolution order changes between variants; there is
@@ -21,11 +26,24 @@ val coreConfigModule = module {
     // coreConfigModule and initKoin's list does not grow with every group.
     includes(featureConfigModule)
 
-    // Replaced by the Firebase adapter. Not a stub to delete later: this is the correct
-    // answer for a build with no backend, and it keeps every key on its compiled default
-    // instead of failing.
-    single<ConfigSource> { NoRemoteConfigSource }
-    single<ConfigRefresher> { ConfigRefresher.None }
+    // Remote Config first, then the app_config table, then the compiled default. A build
+    // with neither adapter gets an empty chain, which answers null to everything — the
+    // correct behaviour for a build with no backend, not a stub to delete later.
+    //
+    // One instance bound to both interfaces, not two definitions: the generation counter
+    // lives in it, so a second instance would fetch on one object and leave every flow
+    // watching the other.
+    single {
+        ChainedConfigSource(
+            sources = listOfNotNull(
+                getOrNull<ConfigSource>(named(ConfigSource.REMOTE_CONFIG)),
+                getOrNull<ConfigSource>(named(ConfigSource.APP_CONFIG_TABLE)),
+            ),
+            onRefreshFailure = { e ->
+                get<Logger>().warn(TAG, "config refresh failed — ${e::class.simpleName}")
+            },
+        )
+    } binds arrayOf(ConfigSource::class, ConfigRefresher::class)
 
     // getAll, so a module that declares config contributes by being installed and nothing
     // has to maintain a list. Resolved lazily, after every module is loaded.

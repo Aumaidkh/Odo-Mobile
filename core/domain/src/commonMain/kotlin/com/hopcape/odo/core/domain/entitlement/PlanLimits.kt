@@ -44,6 +44,11 @@ object PlanLimits {
         // the period rather than the number — five is the first service, the RC and the
         // insurance, which is a real taste that runs out inside the first year.
         ProFeature.BILL_SCANS to Quota.UpTo(5),
+        // Its own five, not a share of the scanner's. Scanning a bill and asking what the
+        // bill should have cost are two different things to spend, and the owner who does the
+        // first five times has given the app exactly what it wants — that must not be what
+        // closes the second.
+        ProFeature.BILL_CHECKS to Quota.UpTo(5),
         ProFeature.HEALTH_BREAKDOWN to Quota.None,
         // Lifetime, for the same reason: an owner exports a record when they are selling the
         // car or handing it to a workshop, which is a handful of times ever.

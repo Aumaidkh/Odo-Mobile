@@ -1,6 +1,6 @@
 package com.hopcape.odo.web.blog.data
 
-import com.hopcape.odo.web.blog.domain.BlogError
+import com.hopcape.odo.web.core.domain.WebError
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,9 +23,9 @@ class SampleAdminRepositoryTest {
     @Test
     fun `every admin call needs a session`() = runTest {
         val admin = SampleAdminRepository(SampleAuthRepository())
-        assertEquals(BlogError.NotSignedIn, admin.posts().leftOrNull())
-        assertEquals(BlogError.NotSignedIn, admin.draft(null).leftOrNull())
-        assertEquals(BlogError.NotSignedIn, admin.analytics().leftOrNull())
+        assertEquals(WebError.NotSignedIn, admin.posts().leftOrNull())
+        assertEquals(WebError.NotSignedIn, admin.draft(null).leftOrNull())
+        assertEquals(WebError.NotSignedIn, admin.analytics().leftOrNull())
     }
 
     @Test
@@ -48,7 +48,7 @@ class SampleAdminRepositoryTest {
 
     @Test
     fun `an unknown id is not found`() = runTest {
-        assertEquals(BlogError.NotFound, signedIn().draft("nothing-here").leftOrNull())
+        assertEquals(WebError.NotFound, signedIn().draft("nothing-here").leftOrNull())
     }
 
     @Test

@@ -252,15 +252,18 @@ class ServiceLogRepositoryImplTest {
     /* ------------------------- odometer readings: the domain decisions ------------------------- */
 
     /**
-     * An empty result from the local data source means no live car contributed its
-     * baseline — the car does not exist for this owner, which the domain reads as
-     * CarNotFound. This mapping is the repository's, not the local data source's.
+     * An empty result is a car with nothing recorded yet, not a car that does not exist.
+     *
+     * It used to be read as CarNotFound, on the grounds that a live car always contributed
+     * its own baseline. Pending readings (#429) ended that: a car set up without a reading
+     * has no baseline row, and inferring a missing car from an empty timeline refused every
+     * odometer write on it — including the first service log.
      */
     @Test
-    fun odometerReadings_emptyLocalResult_readsAsNull() = runTest {
+    fun odometerReadings_emptyLocalResult_isNotAMissingCar() = runTest {
         val local = FakeServiceLogLocalDataSource(odometerReadingsResult = emptyList())
 
-        assertNull(repo(local).odometerReadings(carId))
+        assertEquals(emptyList(), repo(local).odometerReadings(carId))
     }
 
     @Test

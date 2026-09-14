@@ -66,15 +66,20 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
                 )
 
             HomeEffect.OpenReminders -> navigationManager.navigateTo(OdoDestination.Reminders.List)
+            HomeEffect.OpenUpdateOdometer ->
+                navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
             HomeEffect.OpenProfile -> navigationManager.navigateTo(OdoDestination.Profile.Root)
             HomeEffect.OpenScanner -> navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
             HomeEffect.OpenLogFill -> navigationManager.navigateTo(OdoDestination.Refuel.Log)
             HomeEffect.OpenAutoDetect -> navigationManager.navigateTo(OdoDestination.Refuel.AutoDetect)
             HomeEffect.OpenAutoOdometer -> navigationManager.navigateTo(OdoDestination.AutoOdometer.Education())
             HomeEffect.OpenAddDocument -> navigationManager.navigateTo(OdoDestination.Documents.Add())
+            is HomeEffect.OpenServiceChecklist ->
+                navigationManager.navigateTo(OdoDestination.ServiceChecklist(entry = effect.entry))
+
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
             HomeEffect.OpenPaywall ->
-                navigationManager.navigateTo(OdoDestination.Paywall(trigger = PAYWALL_TRIGGER_REFUEL))
+                navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER_REFUEL))
         }
     }
 

@@ -67,6 +67,9 @@ internal class PaywallViewModel(
                 send(PaywallEffect.GoBack)
             }
             PaywallEvent.RetryTapped -> loadOffer()
+            // No telemetry here: the sheet reports its own opening, with the count of what
+            // the store actually returned, which is the number worth having.
+            PaywallEvent.OneTimeOffersTapped -> send(PaywallEffect.OpenOneTimeOffers)
             is PaywallEvent.PlanSelected -> selectPlan(event.planId)
             PaywallEvent.StartProTapped -> startPurchase()
             PaywallEvent.RestoreTapped -> restore()

@@ -1,0 +1,34 @@
+-- How many bill checks the owner has spent.
+--
+-- Its own table because it is its own balance. Checks and scans shared `scan_usage`, so five
+-- scanned bills closed the check — the owner had spent nothing on it, and the wall arrived
+-- because they had used the app the way it asks to be used.
+--
+-- **Deliberately not syncable**, for the same reason as `scan_usage`: the cap is a commercial
+-- limit on something that costs nothing to run, not a cost control, and counting it
+-- server-side would need an account the app does not require. A reinstall clears it, which is
+-- accepted (docs/PAYWALL_PLAN.md, decision 4).
+--
+-- One row, pinned. The cap is a lifetime one, so there is no period to key on — unlike
+-- `scan_usage`, whose per-month rows are a leftover from when its cap reset.
+CREATE TABLE bill_check_usage (
+    id          INTEGER NOT NULL PRIMARY KEY,
+    check_count INTEGER NOT NULL
+);
+
+countAll:
+SELECT check_count
+FROM bill_check_usage
+WHERE id = 1;
+
+-- Insert-then-update in one transaction, not an UPSERT: `ON CONFLICT ... DO UPDATE` needs
+-- SQLite 3.24 and minSdk 26 ships 3.18. The insert is ignored once the row exists, so on
+-- every later check the update is what counts.
+start:
+INSERT OR IGNORE INTO bill_check_usage (id, check_count)
+VALUES (1, 0);
+
+increment:
+UPDATE bill_check_usage
+SET check_count = check_count + 1
+WHERE id = 1;

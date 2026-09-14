@@ -1,0 +1,234 @@
+-- What the owner bought one at a time, and what they have spent of it.
+--
+-- **The balance is not stored.** It is what these two tables say: everything granted, minus
+-- everything spent. A stored counter cannot be synced — two devices each holding "2 left"
+-- have no merge — while rows union with no conflict at all, which is what lets a balance
+-- survive a reinstall without being handed out twice.
+--
+-- Both tables are owner-scoped and carry the mandatory sync column set (SYNC_DESIGN §4.1).
+-- That is the whole point: a purchase honoured once must stay honoured once for the owner,
+-- not once per install. The store reports a completed purchase forever, so a device-local
+-- ledger let a reinstall claim the same ₹49 check again, without limit.
+--
+-- The free scan tally beside this (`scan_usage`) stays device-local and still resets on
+-- reinstall — deliberately, per PAYWALL_PLAN decision 4. This is about money that changed
+-- hands, which is a different question.
+
+-- One row per honoured store transaction. The row *is* the grant: it records what the
+-- purchase was worth at the moment it was honoured, rather than looking the product up
+-- again later. A release that changes what a pack contains must not silently change what an
+-- old purchase was worth.
+--
+-- `transaction_id` is the store's own, except for the single row per kind the migration
+-- writes for a balance that predates this table (`legacy-…`).
+CREATE TABLE purchase_claims (
+    id             TEXT NOT NULL PRIMARY KEY,
+    owner_id       TEXT NOT NULL,
+    transaction_id TEXT NOT NULL,
+    scan_checks    INTEGER NOT NULL,
+    record_exports INTEGER NOT NULL,
+    -- When it was honoured on this device. Not `updated_at`, which moves on any write.
+    claimed_at     TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING',
+
+    -- What makes claiming exactly-once survive a reinstall: the same transaction pulled back
+    -- from the server is ignored rather than granted again. On the pair, not `transaction_id`
+    -- alone, so two accounts on one device never collide.
+    UNIQUE (owner_id, transaction_id)
+);
+
+CREATE INDEX idx_purchase_claims_owner ON purchase_claims (owner_id)
+    WHERE deleted_at IS NULL;
+
+-- One row per credit consumed. A row rather than a counter for the same reason as above:
+-- spending offline on two devices merges by union, where two counters would have to be
+-- reconciled and one of them would lose.
+CREATE TABLE credit_spends (
+    id       TEXT NOT NULL PRIMARY KEY,
+    owner_id TEXT NOT NULL,
+    -- 'BILL_CHECK' or 'RECORD_EXPORT'. Text, not an enum table: the set changes with app
+    -- releases and the database should not need a migration to keep up.
+    kind     TEXT NOT NULL,
+    spent_at TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL,
+    deleted_at     TEXT,
+    remote_version TEXT,
+    sync_status    TEXT NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX idx_credit_spends_owner_kind ON credit_spends (owner_id, kind)
+    WHERE deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Balance. Granted minus spent, per kind, for whoever this device is signed in as.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- COALESCE, because SUM over no rows is NULL rather than 0.
+scanChecksGranted:
+SELECT COALESCE(SUM(scan_checks), 0) AS total
+FROM purchase_claims
+WHERE deleted_at IS NULL;
+
+recordExportsGranted:
+SELECT COALESCE(SUM(record_exports), 0) AS total
+FROM purchase_claims
+WHERE deleted_at IS NULL;
+
+spendCount:
+SELECT COUNT(*) AS total
+FROM credit_spends
+WHERE kind = :kind AND deleted_at IS NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Writes.
+--
+-- INSERT OR IGNORE plus a read of `changes()` rather than UPSERT: `ON CONFLICT DO UPDATE`
+-- needs SQLite 3.24 and minSdk 26 ships 3.18.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Ignored when this owner has already honoured the transaction, which is what makes the
+-- caller's "did I claim it" answer true exactly once however many passes race.
+insertClaim:
+INSERT OR IGNORE INTO purchase_claims (
+    id, owner_id, transaction_id, scan_checks, record_exports, claimed_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :transactionId, :scanChecks, :recordExports, :now,
+    :now, :now, NULL, NULL, 'PENDING'
+);
+
+insertSpend:
+INSERT INTO credit_spends (
+    id, owner_id, kind, spent_at,
+    created_at, updated_at, deleted_at, remote_version, sync_status
+) VALUES (
+    :id, :ownerId, :kind, :now,
+    :now, :now, NULL, NULL, 'PENDING'
+);
+
+-- Rows written by the statement above, on the same connection. Read inside the same
+-- transaction, so nothing else can run between the insert and the count.
+changedRows:
+SELECT changes();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Housekeeping: sign-in adoption, sign-out wipe, evicting another account's rows. Hard
+-- deletes, like every other table's — a tombstone pushed after a later sign-in would erase
+-- the owner's purchases on the server.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+adoptClaims:
+UPDATE purchase_claims
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+adoptSpends:
+UPDATE credit_spends
+SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
+WHERE owner_id = :placeholderOwnerId;
+
+deleteAllClaims:
+DELETE FROM purchase_claims;
+
+deleteAllSpends:
+DELETE FROM credit_spends;
+
+deleteForeignClaims:
+DELETE FROM purchase_claims
+WHERE owner_id <> :ownerId;
+
+deleteForeignSpends:
+DELETE FROM credit_spends
+WHERE owner_id <> :ownerId;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync (SYNC_DESIGN §6).
+-- ─────────────────────────────────────────────────────────────────────────────
+
+selectPendingClaims:
+SELECT *
+FROM purchase_claims
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectPendingSpends:
+SELECT *
+FROM credit_spends
+WHERE sync_status = 'PENDING'
+ORDER BY updated_at ASC;
+
+selectClaimSyncState:
+SELECT sync_status, updated_at
+FROM purchase_claims
+WHERE id = :id;
+
+selectSpendSyncState:
+SELECT sync_status, updated_at
+FROM credit_spends
+WHERE id = :id;
+
+markClaimSynced:
+UPDATE purchase_claims
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markSpendSynced:
+UPDATE credit_spends
+SET sync_status = 'SYNCED', remote_version = :remoteVersion
+WHERE id = :id;
+
+markClaimConflict:
+UPDATE purchase_claims
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+markSpendConflict:
+UPDATE credit_spends
+SET sync_status = 'CONFLICT'
+WHERE id = :id;
+
+-- Ignored on the unique pair as well as the primary key: the same transaction claimed
+-- offline on two devices is two ids for one row, and the second must not become a second
+-- grant.
+insertClaimFromRemote:
+INSERT OR IGNORE INTO purchase_claims (id, owner_id, transaction_id, scan_checks, record_exports, claimed_at, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :owner_id, :transaction_id, :scan_checks, :record_exports, :claimed_at, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateClaimFromRemote:
+UPDATE purchase_claims
+SET owner_id       = :owner_id,
+    transaction_id = :transaction_id,
+    scan_checks    = :scan_checks,
+    record_exports = :record_exports,
+    claimed_at     = :claimed_at,
+    created_at     = :created_at,
+    updated_at     = :updated_at,
+    deleted_at     = :deleted_at,
+    remote_version = :remote_version,
+    sync_status    = 'SYNCED'
+WHERE id = :id;
+
+insertSpendFromRemote:
+INSERT OR IGNORE INTO credit_spends (id, owner_id, kind, spent_at, created_at, updated_at, deleted_at, remote_version, sync_status)
+VALUES (:id, :owner_id, :kind, :spent_at, :created_at, :updated_at, :deleted_at, :remote_version, 'SYNCED');
+
+updateSpendFromRemote:
+UPDATE credit_spends
+SET owner_id       = :owner_id,
+    kind           = :kind,
+    spent_at       = :spent_at,
+    created_at     = :created_at,
+    updated_at     = :updated_at,
+    deleted_at     = :deleted_at,
+    remote_version = :remote_version,
+    sync_status    = 'SYNCED'
+WHERE id = :id;
+
+countPendingCredits:
+SELECT (SELECT COUNT(*) FROM purchase_claims WHERE sync_status = 'PENDING')
+     + (SELECT COUNT(*) FROM credit_spends WHERE sync_status = 'PENDING') AS total;

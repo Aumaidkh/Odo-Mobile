@@ -176,9 +176,9 @@ internal fun resetOwnerData() = with(driver()) {
 internal fun seedOnboardedOwner() = with(driver()) {
     execute(
         null,
-        "INSERT INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, " +
+        "INSERT INTO profiles (id, full_name, onboarding_completed_at, city, " +
             "created_at, updated_at, sync_status) VALUES ('${LogFixtures.OWNER}', 'Rahul', " +
-            "'SAVE_MONEY', '$SEEDED_AT', 'Pune', '$SEEDED_AT', '$SEEDED_AT', 'PENDING')",
+            "'$SEEDED_AT', 'Pune', '$SEEDED_AT', '$SEEDED_AT', 'PENDING')",
         0,
     )
     execute(

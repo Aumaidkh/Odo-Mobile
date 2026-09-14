@@ -202,7 +202,7 @@ class NavigatorCommandExecutorTest {
             OdoDestination.Garage.Home,
             OdoDestination.BillScanner.Capture(),
             OdoDestination.BillScanner.Review("p1"),
-            OdoDestination.Fairness(items = emptyList()),
+            OdoDestination.BillCheck.Result(billId = "log-1"),
         )
 
         nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))
@@ -223,7 +223,7 @@ class NavigatorCommandExecutorTest {
             OdoDestination.Home,
             OdoDestination.ServiceLog.List("car-1"),
             OdoDestination.ServiceLog.Detail(logId = "log-1", carId = "car-1"),
-            OdoDestination.Fairness(items = emptyList()),
+            OdoDestination.BillCheck.Result(billId = "log-1"),
         )
 
         nav.execute(NavigationCommand.LeaveFlow(::isBillScanFlowStep))

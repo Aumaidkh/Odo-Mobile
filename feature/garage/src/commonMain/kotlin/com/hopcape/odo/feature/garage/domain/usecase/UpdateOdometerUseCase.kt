@@ -37,8 +37,10 @@ internal class UpdateOdometerUseCase(
         val car = ensureNotNull(cars.observe(carId).first()) { DomainError.CarNotFound }
         val updated = car.withOdometer(km).bind()
 
-        // No readings at all means no such car — a live car always contributes its own.
-        val known = ensureNotNull(logs.odometerReadings(carId)) { DomainError.CarNotFound }
+        // The car was resolved above, so its existence is already settled. An empty timeline
+        // here is a car with nothing recorded yet — ordinary for one set up with the reading
+        // still pending — and reading it as a missing car refused every update on those.
+        val known = logs.odometerReadings(carId)
         OdometerTimeline.validate(
             candidate = OdometerReading(
                 // Not a service entry: this is the car's own reading, taken today.

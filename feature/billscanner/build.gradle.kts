@@ -31,6 +31,8 @@ kotlin {
             // Feature-specific use cases live HERE (in the feature), not in core.
             // Brings Arrow + coroutines-core + IdGenerator transitively via domain.
             implementation(projects.core.domain)
+            // FeatureConfig — the launch gate on where a finished scan lands.
+            implementation(projects.core.config)
             // The camera + camera-permission seams, and reading a captured photo back.
             implementation(projects.core.platform)
             // Observability: structured logging + product analytics, instrumented at

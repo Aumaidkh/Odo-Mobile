@@ -52,7 +52,6 @@ internal class UpdateServiceLogUseCase(
         // Re-checked against the car's timeline with **this entry excluded**, so correcting
         // its own reading is a typo fix rather than a regression against its stored value.
         val readings = logs.odometerReadings(command.carId)
-        ensureNotNull(readings) { nonEmptyListOf(DomainError.CarNotFound) }
         OdometerTimeline.validate(
             candidate = OdometerReading(logId = entry.id, date = entry.serviceDate, odometer = entry.odometer),
             known = readings,

@@ -37,10 +37,13 @@ interface ServiceLogRepository {
      * maximum alone cannot answer. Order is not guaranteed — the timeline sorts what it
      * needs.
      *
-     * `null` means the car has no baseline at all (it does not exist for the owner); an
-     * empty list would mean a car with no readings, which onboarding cannot produce.
+     * Empty means the car has nothing recorded yet, which is an ordinary state: setup can
+     * store a car with the reading still pending (#429), and that car has no baseline row
+     * until something records one. It does **not** mean the car is missing — whether a car
+     * exists is [CarRepository][com.hopcape.odo.core.domain.car.repository.CarRepository]'s
+     * answer, and inferring it from an empty timeline refused every write on a pending car.
      */
-    suspend fun odometerReadings(carId: CarId): List<OdometerReading>?
+    suspend fun odometerReadings(carId: CarId): List<OdometerReading>
 
     /**
      * The same readings as [odometerReadings], as a stream — for screens that stay open

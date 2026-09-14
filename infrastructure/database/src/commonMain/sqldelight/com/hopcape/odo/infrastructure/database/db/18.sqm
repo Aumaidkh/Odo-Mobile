@@ -1,0 +1,13 @@
+-- Bill checks get their own balance.
+--
+-- They shared `scan_usage` with the scanner, so five scanned bills closed the check behind a
+-- wall the owner had never spent anything on. Scanning is the thing the app most wants them
+-- to do; it must not be what takes the feature away.
+--
+-- Existing installs start this at zero. That is deliberate: nobody has spent a check under
+-- the old rule that can be told apart from a scan, and the generous reading is the only one
+-- that cannot take away something an owner already had.
+CREATE TABLE bill_check_usage (
+    id          INTEGER NOT NULL PRIMARY KEY,
+    check_count INTEGER NOT NULL
+);

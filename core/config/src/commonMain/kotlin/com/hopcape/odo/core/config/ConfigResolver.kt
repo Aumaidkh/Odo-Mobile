@@ -13,7 +13,8 @@ import kotlinx.coroutines.flow.onStart
  *
  * 1. [LocalConfigOverrides] — a per-device value set from the QA screen. Debug builds
  *    only, because release builds pass `null` here.
- * 2. [ConfigSource] — whatever the backend last activated.
+ * 2. [ConfigSource] — whatever the backend last activated. In the app this is a
+ *    [ChainedConfigSource]: Remote Config first, then the `app_config` table.
  * 3. The compiled default on [ConfigKey].
  *
  * Step 3 is not a fallback of last resort. It is the normal answer for the first

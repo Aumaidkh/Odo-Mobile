@@ -11,6 +11,12 @@
     <!-- OTP -->
     <string name="au_otp_title">Enter the code</string>
     <string name="au_otp_sent">Sent to %1$s · </string>
+    <!-- The request is still out. The screen must not claim a code was sent before the
+         provider says one was. -->
+    <string name="au_otp_sending">Sending to %1$s · </string>
+    <!-- The request was refused. The number, with no claim about it — the error row below
+         says what happened, and "Sent" or "Sending" would both be untrue. -->
+    <string name="au_otp_number">%1$s · </string>
     <string name="au_change">Change</string>
     <string name="au_verifying_code">Verifying code...</string>
     <string name="au_resend_in">Resend code in %1$s</string>

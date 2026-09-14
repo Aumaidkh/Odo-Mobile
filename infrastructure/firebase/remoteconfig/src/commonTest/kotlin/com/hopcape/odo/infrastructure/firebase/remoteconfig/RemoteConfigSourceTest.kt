@@ -67,6 +67,26 @@ class RemoteConfigSourceTest {
         assertNull(source.boolean("on"))
     }
 
+    @Test
+    fun `a key the console never set reads as null even though a default is seeded`() {
+        // applyLocalDefaults pushes every registered key's compiled default into the SDK, so
+        // getValue answers for every key whether or not the console holds one. Accepting
+        // those would make this source claim every key in the app, and the next source in
+        // the chain — the app_config table — would never be reached.
+        val source = RemoteConfigSource(FakeGateway(defaults = mapOf("a_string" to "compiled")))
+
+        assertNull(source.string("a_string"))
+    }
+
+    @Test
+    fun `a key the console did set is answered`() {
+        val source = RemoteConfigSource(
+            FakeGateway(values = mapOf("a_string" to "console"), defaults = mapOf("a_string" to "compiled")),
+        )
+
+        assertEquals("console", source.string("a_string"))
+    }
+
     // ── Refresh and the generation counter ────────────────────────────────────
 
     @Test
@@ -104,13 +124,19 @@ class RemoteConfigSourceTest {
         assertEquals(0L, source.generation.value)
     }
 
+    /**
+     * [values] is what the console serves. [defaults] is what `applyLocalDefaults` seeded,
+     * which the SDK answers with for any key the console has never set.
+     */
     private class FakeGateway(
         private val values: Map<String, String> = emptyMap(),
+        private val defaults: Map<String, String> = emptyMap(),
         private val activates: Boolean = true,
     ) : FirebaseRemoteConfigGateway {
         override val lastFetchAt: Instant? = null
         override suspend fun fetchAndActivate(): Boolean = activates
-        override fun long(key: String): Long? = values[key]?.toLongOrNull()
-        override fun string(key: String): String? = values[key]
+        // Only what the console served. A key present solely in [defaults] is exactly the
+        // case the SDK would answer and this must not.
+        override fun remoteString(key: String): String? = values[key]
     }
 }

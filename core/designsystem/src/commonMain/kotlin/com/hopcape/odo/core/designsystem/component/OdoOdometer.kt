@@ -89,6 +89,7 @@ fun OdoOdometer(
     milesLabel: String,
     modifier: Modifier = Modifier,
     helper: String? = null,
+    errorText: String? = null,
     hint: String? = null,
     unit: OdoDistanceUnit = LocalOdoDistanceFormat.current.unit,
     note: String? = null,
@@ -113,9 +114,19 @@ fun OdoOdometer(
             hint = hint,
             digits = digits,
             enabled = enabled,
+            isError = errorText != null,
             onClick = { open = true },
         )
-        if (helper != null) {
+        // Error replaces helper — never both. It is set the way OdoInputField sets its own
+        // supporting line, so a field error reads the same wherever the owner meets one.
+        if (errorText != null) {
+            OdoText(
+                text = errorText,
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.danger,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = OdoTheme.spacing.lg),
+            )
+        } else if (helper != null) {
             OdoText(helper, style = OdoTheme.typography.caption, color = OdoTheme.colors.textMuted)
         }
     }
@@ -278,6 +289,7 @@ private fun CollapsedOdometer(
     hint: String?,
     digits: Int,
     enabled: Boolean,
+    isError: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = OdoTheme.colors
@@ -286,7 +298,7 @@ private fun CollapsedOdometer(
             .fillMaxWidth()
             .clip(OdoTheme.shapes.field)
             .background(colors.surface)
-            .border(1.dp, colors.border, OdoTheme.shapes.field)
+            .border(1.dp, if (isError) colors.danger else colors.border, OdoTheme.shapes.field)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = OdoTheme.spacing.md, vertical = OdoTheme.spacing.md),
         verticalAlignment = Alignment.CenterVertically,

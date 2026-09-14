@@ -26,6 +26,8 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.appstatus.AppAvailability
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
 import com.hopcape.odo.core.domain.settings.model.ThemePreference
@@ -65,9 +67,14 @@ import org.koin.compose.koinInject
  * opens**: a returning owner goes straight to [OdoDestination.Home], a new one to the
  * [OdoDestination.Welcome] intro — navigation wiring, not business logic, since the fact
  * behind it (`OwnerProfile.hasCompletedOnboarding`) is already owned by the domain.
+ *
+ * @param onExit closes the app. Only the maintenance sheet uses it: there is nothing to retry
+ *  against while the server is down, so leaving is the honest action. Defaults to doing
+ *  nothing for hosts that cannot close themselves — iOS forbids it, and a button there would
+ *  be a promise the platform will not keep.
  */
 @Composable
-fun App() {
+fun App(onExit: () -> Unit = {}) {
     val koin = getKoin()
 
     // Observed, unlike the start destination: the appearance sheet changes these while the
@@ -98,19 +105,19 @@ fun App() {
             // host. Putting it on the activity instead would tie a decision about the whole
             // UI tree to one platform's entry point, and iOS has no equivalent to give it.
             Box(modifier = Modifier.fillMaxSize().debugTestTags()) {
-                // Above the nav host, inside the theme: no route, deep link, or pending
-                // redirect can navigate past a block, because there is no destination to
-                // reach — and the block screen is still branded and honours dark/light.
+                // A block goes over the app as a sheet rather than replacing it, so the owner
+                // sees what is held back. Nothing under it is reachable: the sheet refuses
+                // swipe, scrim and back, and network work stands down in the sync gate.
                 val current = availability
+                OdoAppContent(
+                    koin = koin,
+                    maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                )
                 if (shouldBlock(current)) {
-                    AppBlockedScreen(
+                    AppBlockedSheet(
                         blocked = current as AppAvailability.Blocked,
                         onRetry = { coroutineScope.launch { appStatusProvider.refresh() } },
-                    )
-                } else {
-                    OdoAppContent(
-                        koin = koin,
-                        maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                        onExit = onExit,
                     )
                 }
             }
@@ -248,6 +255,20 @@ private fun OdoApp(startDestination: OdoDestination) {
         if (shouldPromptPendingFills(currentDestination, pendingFillCount, promptedPendingFills)) {
             promptedPendingFills = true
             navigationManager.navigateTo(OdoDestination.Refuel.Pending)
+        }
+    }
+
+    // Signing in restored this car's history — service records, papers, fuel fills the
+    // owner never entered on this phone. Read straight from the store, like the pending
+    // fills above: there is nothing to decide here, only whether anything is waiting, and
+    // the sheet is a normal destination the garage owns.
+    val restoredHistory = koinInject<RestoredHistoryStore>()
+    val restoredCarId by produceState<CarId?>(initialValue = null, restoredHistory) {
+        restoredHistory.pending().collect { value = it }
+    }
+    LaunchedEffect(currentDestination, restoredCarId) {
+        if (shouldAnnounceRestoredHistory(currentDestination, restoredCarId != null)) {
+            navigationManager.navigateTo(OdoDestination.Garage.HistoryRestored)
         }
     }
 

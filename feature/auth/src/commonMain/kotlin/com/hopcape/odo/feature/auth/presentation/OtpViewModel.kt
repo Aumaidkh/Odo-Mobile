@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.auth.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
+import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.auth.AuthTelemetry
@@ -10,6 +11,8 @@ import com.hopcape.odo.feature.auth.domain.OdoSessionManager
 import com.hopcape.odo.core.platform.sms.SmsAppSignature
 import com.hopcape.odo.core.platform.sms.SmsCodeReader
 import com.hopcape.odo.core.platform.sms.SmsCodeStatus
+import com.hopcape.odo.feature.auth.domain.OtpRequest
+import com.hopcape.odo.feature.auth.domain.OtpRequestBroker
 import com.hopcape.odo.feature.auth.domain.OtpThrottle
 import com.hopcape.odo.feature.auth.presentation.state.Submission
 import com.hopcape.odo.feature.auth.resources.Res
@@ -29,7 +32,17 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Code entry: verify, resend, or go back and fix the number.
+ * Code entry: ask for the code, then verify, resend, or go back and fix the number.
+ *
+ * **The first request is made here, not by the screen before it** (#409). Firebase can spend
+ * seconds on a reCAPTCHA or Play Integrity round trip, and the owner spends them better on a
+ * screen that is doing something — the field is drawn, the SMS reader is listening — than on
+ * a number screen that has already finished its job.
+ *
+ * What that costs is honesty about state this screen no longer arrives with: until the
+ * request comes back, no code has been sent, so the header says "Sending" and Resend stays
+ * down. The countdown, though, runs from the moment the code was asked for — see
+ * [watchTheRequest].
  *
  * Verification fires on the last digit rather than behind a button — the code is a fixed
  * length, so there is nothing to confirm. Wrong codes are counted, and after
@@ -38,6 +51,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 internal class OtpViewModel(
     private val phone: PhoneNumber,
+    private val requests: OtpRequestBroker,
     private val sessions: OdoSessionManager,
     private val telemetry: AuthTelemetry,
     private val smsCodes: SmsCodeReader,
@@ -56,13 +70,92 @@ internal class OtpViewModel(
     private var verifyJob: Job? = null
     private var countdownJob: Job? = null
 
+    /** Whether the cooldown for the request this screen arrived with is already running. */
+    private var cooldownStarted = false
+
     init {
-        // The code that brought us here has already been sent, so the cooldown starts now
-        // rather than on the first Resend — otherwise Resend is live the instant the screen
-        // opens, which is exactly when it is least useful.
+        watchTheRequest()
+        listenForCode()
+    }
+
+    /**
+     * Show what became of the request the number screen started.
+     *
+     * This screen never starts one. The back stack is serialized, so a process death while
+     * the owner is in their SMS app rebuilds this ViewModel — and a request here would send
+     * a second billed SMS nobody asked for, on a throttle that had reset. The broker holds
+     * the request and answers [OtpRequest.Sent] for a number it no longer remembers, which
+     * is the assumption this screen has always made about how it got here.
+     *
+     * **The cooldown starts when the code is asked for, not when the provider answers** (#438).
+     * Firebase can spend seconds on that round trip, and anchoring the wait to the far end of
+     * it left the countdown reading "00:00" for the whole time — the delay the parallel
+     * request was meant to hide, moved rather than removed. A refusal then gives the wait
+     * back, because nothing was sent.
+     */
+    private fun watchTheRequest() {
+        viewModelScope.launch {
+            requests.observe(phone).collect { request ->
+                when (request) {
+                    OtpRequest.InFlight -> {
+                        startCooldown()
+                        _state.update { it.copy(request = CodeRequest.SENDING) }
+                    }
+
+                    // A broker holding nothing means a restored screen whose code went out
+                    // before the process died, so the cooldown still has to be started here.
+                    OtpRequest.Sent -> {
+                        startCooldown()
+                        _state.update { it.copy(request = CodeRequest.SENT) }
+                    }
+
+                    is OtpRequest.Failed -> onRequestRefused(request.error)
+
+                    // No code to collect, so waiting for six digits would wait forever.
+                    OtpRequest.Verified -> emit(OtpEffect.Verified)
+                }
+            }
+        }
+    }
+
+    /** Start the wait for the arrival request, once. Later states re-report the same request. */
+    private fun startCooldown() {
+        if (cooldownStarted) return
+        cooldownStarted = true
         throttle.recordRequest()
         startCountdown()
-        listenForCode()
+    }
+
+    /** Give the wait back: the request it was started for turned out to send nothing. */
+    private fun cancelCooldown() {
+        if (!cooldownStarted) return
+        cooldownStarted = false
+        throttle.forgetLastRequest()
+        countdownJob?.cancel()
+        _state.update { it.copy(resendInSeconds = 0) }
+    }
+
+    /**
+     * A refusal, shown where the owner now is.
+     *
+     * [submission] is left alone when a typed code is already being checked: the two are
+     * unrelated, and letting a failed request overwrite a verification in flight puts
+     * "could not send" over a sign-in that is succeeding.
+     *
+     * A rate limit is the one refusal that keeps the cooldown. Nothing was sent, but tapping
+     * Resend straight back into an endpoint that just said 429 deepens the ban, and the
+     * cooldown is the only thing that stops it. Every other refusal hands the wait back, so
+     * Resend is the retry rather than a minute of nothing.
+     */
+    private fun onRequestRefused(error: DomainError) {
+        if (error is DomainError.TooManyOtpRequests) startCooldown() else cancelCooldown()
+        _state.update {
+            if (verifyJob?.isActive == true) {
+                it.copy(request = CodeRequest.FAILED)
+            } else {
+                it.copy(request = CodeRequest.FAILED, submission = Submission.Failed(error.toMessage()))
+            }
+        }
     }
 
     /**
@@ -171,17 +264,25 @@ internal class OtpViewModel(
         viewModelScope.launch {
             sessions.requestOtp(phone).fold(
                 ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
-                ifRight = {
-                    throttle.recordRequest()
-                    // A fresh code invalidates the old one, so whatever is typed is stale.
-                    _state.update {
-                        it.copy(
-                            submission = Submission.Idle,
-                            code = "",
-                            resendExhausted = throttle.isExhausted(),
-                        )
+                ifRight = { outcome ->
+                    when (outcome) {
+                        OtpRequestOutcome.CodeSent -> {
+                            throttle.recordRequest()
+                            // A fresh code invalidates the old one, so what is typed is stale.
+                            _state.update {
+                                it.copy(
+                                    request = CodeRequest.SENT,
+                                    submission = Submission.Idle,
+                                    code = "",
+                                    resendExhausted = throttle.isExhausted(),
+                                )
+                            }
+                            startCountdown()
+                        }
+                        // The provider signed the owner in rather than sending a sixth code.
+                        // Waiting for one would wait forever, and the session already exists.
+                        is OtpRequestOutcome.AlreadyVerified -> emit(OtpEffect.Verified)
                     }
-                    startCountdown()
                 },
             )
         }

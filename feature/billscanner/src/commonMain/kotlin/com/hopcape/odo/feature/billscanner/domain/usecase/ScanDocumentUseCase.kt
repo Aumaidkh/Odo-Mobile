@@ -6,7 +6,7 @@ import arrow.core.raise.ensure
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.scan.DocumentExtractor
 import com.hopcape.odo.core.domain.scan.entitlement.ScanAllowance
-import com.hopcape.odo.core.domain.scan.entitlement.ScanUsage
+import com.hopcape.odo.core.domain.scan.entitlement.ScanCharger
 import com.hopcape.odo.core.domain.scan.model.ExtractedDocument
 import com.hopcape.odo.core.domain.scan.model.ScanId
 import com.hopcape.odo.core.domain.scan.model.ScannedImage
@@ -23,7 +23,7 @@ import kotlin.time.Clock
 internal class ScanDocumentUseCase(
     private val extractor: DocumentExtractor,
     private val allowance: ScanAllowance,
-    private val usage: ScanUsage,
+    private val charger: ScanCharger,
     private val ids: IdGenerator,
     private val clock: Clock,
 ) {
@@ -40,7 +40,7 @@ internal class ScanDocumentUseCase(
         ensure(!document.isEmpty) { DomainError.ScanRejected }
         // Counted only now, for the same reason as ScanBillUseCase: a read that gave the
         // owner nothing does not spend one of their three.
-        usage.recordScan()
+        charger.chargeOne()
         document
     }
 }

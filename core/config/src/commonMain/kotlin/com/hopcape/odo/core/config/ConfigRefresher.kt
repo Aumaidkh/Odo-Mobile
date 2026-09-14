@@ -18,19 +18,18 @@ interface ConfigRefresher {
 
     suspend fun refresh()
 
-    /** For builds with no backend wired: iOS today, and any test that does not care. */
+    /** For a test that does not care. The graph gets an empty [ChainedConfigSource]. */
     object None : ConfigRefresher {
         override suspend fun refresh() = Unit
     }
 }
 
 /**
- * The answer when nothing remote is configured. Every read is `null`, so every key
- * resolves to its compiled default.
+ * Every read is `null`, so every key resolves to its compiled default.
  *
- * This is a real answer rather than a placeholder. An install that never reaches the
- * backend behaves exactly like this for its whole life, and so does a build with no
- * Firebase project — which is what iOS is today.
+ * What a build with no backend behaves like, expressed as one object. The graph builds an
+ * empty [ChainedConfigSource] for that case rather than binding this; it stays for tests
+ * and as the read-only source a chain can be handed.
  */
 object NoRemoteConfigSource : ConfigSource {
     override fun boolean(key: String): Boolean? = null

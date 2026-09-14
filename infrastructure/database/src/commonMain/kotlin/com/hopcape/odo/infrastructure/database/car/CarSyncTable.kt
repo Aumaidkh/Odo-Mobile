@@ -2,6 +2,8 @@ package com.hopcape.odo.infrastructure.database.car
 
 import com.hopcape.odo.core.data.car.CarDto
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
+import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.infrastructure.database.db.Cars
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.FetchResult
@@ -29,6 +31,7 @@ internal class CarSyncTable(
     private val remote: CarRemoteDataSource,
     private val telemetry: SyncTelemetry,
     private val ownerId: () -> String?,
+    private val restored: RestoredHistoryStore,
 ) : SyncTable<CarDto> {
 
     private val queries get() = database.carQueries
@@ -80,13 +83,19 @@ internal class CarSyncTable(
         // What each re-pointed row becomes: the server's row when the local one survived
         // under its id, or null when the local one was dropped as a duplicate.
         val outcome = mutableMapOf<String, CarDto?>()
+        // Under the server's id: that is the car the pull is about to fill with history.
+        val matched = mutableListOf<String>()
         candidates.forEach { (localId, plate) ->
             val server = serverByPlate[plate] ?: return@forEach
             if (server.id == localId) return@forEach
+            matched += server.id
             outcome[localId] = if (adoptIdentity(localId = localId, server = server)) server else null
         }
         if (outcome.isEmpty()) return rows
         telemetry.identityAdopted(SyncEntity.CARS, count = outcome.size)
+        // The owner typed this car in by hand and the account turned out to already hold it.
+        // Their records are about to appear, and without this nothing says where from.
+        matched.forEach { restored.record(CarId(it)) }
 
         // The rows were read before the ids moved, so the ones that were re-pointed are
         // restated here rather than read back — the same values, under the server's identity.
@@ -167,6 +176,21 @@ internal class CarSyncTable(
         return FetchResult.Rows(remote.fetchSince(owner, since))
     }
 
+    /**
+     * A car this device had never seen is the account's history arriving on a fresh install
+     * — the restore that never goes through the plate match, because the owner had not got
+     * as far as adding a car.
+     */
+    override suspend fun afterPull(insertedIds: List<String>) {
+        // Only where the owner named no car. Theirs is already here and already plated, so
+        // anything the pull inserted beside it is another car on the account rather than
+        // their history coming back — and announcing it overwrote the plate match the push
+        // had just got right (#456).
+        val entered = queries.selectPlatedCarIds().executeAsList() - insertedIds.toSet()
+        if (entered.isNotEmpty()) return
+        insertedIds.forEach { restored.record(CarId(it)) }
+    }
+
     override fun localState(id: String): LocalRowState? =
         queries.selectSyncState(id).executeAsOneOrNull()?.let { row ->
             LocalRowState(row.sync_status.toSyncStatus(), row.updated_at.toInstantOrNull())
@@ -188,6 +212,7 @@ internal class CarSyncTable(
             fuel_type = dto.fuelType.uppercase(),
             registration_number = dto.registrationNumber,
             current_odometer_km = dto.currentOdometerKm.toLong(),
+            odometer_pending = if (dto.odometerPending) 1L else 0L,
             purchase_year = dto.purchaseYear?.toLong(),
             nickname = dto.nickname,
             is_primary = if (dto.isPrimary) 1L else 0L,
@@ -206,6 +231,7 @@ internal class CarSyncTable(
             fuel_type = dto.fuelType.uppercase(),
             registration_number = dto.registrationNumber,
             current_odometer_km = dto.currentOdometerKm.toLong(),
+            odometer_pending = if (dto.odometerPending) 1L else 0L,
             purchase_year = dto.purchaseYear?.toLong(),
             nickname = dto.nickname,
             is_primary = if (dto.isPrimary) 1L else 0L,
@@ -234,6 +260,7 @@ private fun Cars.toDto() = CarDto(
     fuelType = fuel_type.lowercase(),
     registrationNumber = registration_number,
     currentOdometerKm = current_odometer_km.toInt(),
+    odometerPending = odometer_pending == 1L,
     purchaseYear = purchase_year?.toInt(),
     nickname = nickname,
     isPrimary = is_primary == 1L,

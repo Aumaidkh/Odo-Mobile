@@ -88,4 +88,24 @@ class InMemoryLogFileStoreTest {
 
         assertTrue(store.sealOrphans().isEmpty())
     }
+
+    @Test
+    fun activeFileName_isNullUntilSomethingIsWritten_thenMatchesTheEventualSealedStem() {
+        val store = InMemoryLogFileStore(nowMs = { 1_000L })
+        assertNull(store.activeFileName())
+
+        store.appendToActive(listOf("line one"))
+        val activeName = checkNotNull(store.activeFileName())
+
+        assertEquals(LogFileNaming.sealedFileName(activeName), checkNotNull(store.sealActive(stats)).name)
+    }
+
+    @Test
+    fun activeFileName_isNullAgainAfterSealing() {
+        val store = InMemoryLogFileStore(nowMs = { 0L })
+        store.appendToActive(listOf("x"))
+        store.sealActive(stats)
+
+        assertNull(store.activeFileName())
+    }
 }

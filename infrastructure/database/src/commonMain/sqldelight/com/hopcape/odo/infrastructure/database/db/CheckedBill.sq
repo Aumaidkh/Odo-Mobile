@@ -1,0 +1,32 @@
+-- Bills already checked and paid for.
+--
+-- The result screen re-reads on every visit — a fresh ViewModel per navigation — so without
+-- this a second look at the same bill charged a second check and filed its prices into the
+-- shared pool again. One costs the owner money; the other skews the band every other owner
+-- is shown.
+--
+-- **Deliberately not a syncable table**, like the balance it guards. A check is spent from a
+-- device-local tally, so a row saying "already paid for" that arrived from another phone
+-- would let a bill be read free on a device that never paid.
+CREATE TABLE checked_bills (
+    service_log_id TEXT NOT NULL PRIMARY KEY,
+    checked_at     TEXT NOT NULL
+);
+
+-- INSERT OR IGNORE, so the insert itself decides who charged for it. Two reads racing both
+-- run this and `changes()` tells only one of them it won.
+claimBill:
+INSERT OR IGNORE INTO checked_bills (service_log_id, checked_at)
+VALUES (:serviceLogId, :checkedAt);
+
+-- Rows written by the statement above, on the same connection. 1 means this call claimed it.
+claimedRows:
+SELECT changes();
+
+-- Already paid for. What keeps a bill unlocked once it has been: without it, a re-read would
+-- re-ask the allowance and could mask an answer the owner has already bought.
+wasChecked:
+SELECT EXISTS(SELECT 1 FROM checked_bills WHERE service_log_id = :serviceLogId);
+
+deleteAllCheckedBills:
+DELETE FROM checked_bills;

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!--
+    Where every relative URL on this page resolves from.
+
+    The app answers on paths of different depths — /admin, /admin/vehicles — and
+    without this each of them becomes a different base. Compose Resources asks for
+    its string table as `./composeResources/…`, so on a deeper path it looks in
+    the wrong directory and gets a 404; the symptom is a page that renders its
+    layout and none of its labels, which reads like a styling bug rather than a
+    missing file.
+  -->
+  <base href="/admin/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Odo Admin</title>
+  <!--
+    Never indexed. This is a staff tool, its sign-in page has no business in a
+    search result, and `landing/firebase.json` sends the same instruction as a
+    header — belt and braces, because a header can be lost to a misordered rule
+    and this tag cannot.
+  -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FAFAFA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+  <style>
+    /* The page's own colours, for the one moment Compose is not on screen yet.
+       Matches AdminTheme's background on both sides so the boot screen does not
+       flash a different shade than the app it becomes. */
+    :root { color-scheme: light dark; --bg: #FAFAFA; --text: #111111; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #121212; --text: #EDEDED; } }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+    body { font: 400 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+
+    /* Shown until the bundle boots, then removed by main(). */
+    #boot {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: .34em;
+      background: var(--bg); color: var(--text);
+    }
+  </style>
+</head>
+<body>
+<div id="boot">ODO ADMIN</div>
+
+<!--
+  Absolute, not relative. The app answers on paths of different depths, and a
+  relative src resolves against whichever one was arrived at, so the deeper pages
+  ask for a bundle that is not there and never start.
+  adminApp/webpack.config.d/admin-base-path.js is what makes /admin/ true locally
+  as well.
+
+  Kotlin/Wasm emits an ES module, so `type="module"` is not optional.
+-->
+<script type="module" src="/admin/odo-admin.js"></script>
+</body>
+</html>

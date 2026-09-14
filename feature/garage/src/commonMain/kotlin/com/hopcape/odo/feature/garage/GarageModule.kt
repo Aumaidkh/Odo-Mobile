@@ -12,6 +12,8 @@ import com.hopcape.odo.feature.garage.domain.usecase.ObserveGarageUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.RemoveCarUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateCarDetailsUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.AcknowledgeRestoredHistoryUseCase
+import com.hopcape.odo.feature.garage.domain.usecase.ObserveRestoredHistoryUseCase
 import com.hopcape.odo.feature.garage.domain.usecase.UpdateOdometerUseCase
 import com.hopcape.odo.feature.garage.navigation.GarageFeatureEntryProvider
 import com.hopcape.odo.feature.garage.presentation.AddCarViewModel
@@ -23,6 +25,7 @@ import com.hopcape.odo.feature.garage.presentation.sheets.ExportViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.pdf.BrandedCarDetailsDocumentFactory
 import com.hopcape.odo.feature.garage.presentation.sheets.pdf.CarDetailsDocumentFactory
 import com.hopcape.odo.feature.garage.presentation.sheets.RemoveCarViewModel
+import com.hopcape.odo.feature.garage.presentation.sheets.RestoredHistoryViewModel
 import com.hopcape.odo.feature.garage.presentation.sheets.UpdateOdometerViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
@@ -61,6 +64,16 @@ val garageModule = module {
         )
     }
     factory { UpdateOdometerUseCase(cars = get(), logs = get(), clock = get()) }
+    factory {
+        ObserveRestoredHistoryUseCase(
+            store = get(),
+            cars = get(),
+            logs = get(),
+            documents = get(),
+            fills = get(),
+        )
+    }
+    factory { AcknowledgeRestoredHistoryUseCase(store = get()) }
     factory { GetOdometerContextUseCase(logs = get(), currentOdometer = get(), clock = get()) }
     factory { AddCarUseCase(cars = get(), idGenerator = get(), owner = get()) }
     factory { UpdateCarDetailsUseCase(cars = get()) }
@@ -97,7 +110,9 @@ val garageModule = module {
             activeCar = get(),
             observeGarage = get(),
             observeAutoOdometerCard = get(),
+            challans = get(),
             telemetry = get(),
+            featureConfig = get()
         )
     }
     viewModel {
@@ -129,12 +144,22 @@ val garageModule = module {
             telemetry = get(),
         )
     }
-    viewModel { CarActionsViewModel(activeCar = get(), observeGarage = get(), telemetry = get()) }
+    viewModel {
+        CarActionsViewModel(activeCar = get(), observeGarage = get(), telemetry = get(), config = get())
+    }
     viewModel {
         RemoveCarViewModel(
             activeCar = get(),
             observeGarage = get(),
             removeCar = get(),
+            telemetry = get(),
+        )
+    }
+    viewModel {
+        RestoredHistoryViewModel(
+            observeRestored = get(),
+            acknowledge = get(),
+            updateOdometer = get(),
             telemetry = get(),
         )
     }

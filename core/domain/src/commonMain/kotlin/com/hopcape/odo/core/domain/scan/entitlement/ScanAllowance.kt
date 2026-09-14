@@ -22,8 +22,14 @@ fun interface ScanAllowance {
 /** How many AI scans a plan permits in the current period, and how many are left. */
 sealed interface ScanLimit {
 
-    /** A capped plan: [used] of [max] scans spent this period. */
-    data class UpTo(val max: Int, val used: Int) : ScanLimit
+    /**
+     * A capped plan: [used] of [max] free scans spent, plus [bought] paid for one at a time.
+     *
+     * The two are counted apart rather than added into one cap, because they answer
+     * different questions and the screen says both: the free five are what the plan gives,
+     * the bought ones are what the owner paid for after they ran out.
+     */
+    data class UpTo(val max: Int, val used: Int, val bought: Int = 0) : ScanLimit
 
     /** A paid plan with no cap. */
     data object Unlimited : ScanLimit
@@ -32,16 +38,27 @@ sealed interface ScanLimit {
     val allowsAnother: Boolean
         get() = when (this) {
             Unlimited -> true
-            is UpTo -> used < max
+            is UpTo -> used < max || bought > 0
         }
 
     /** How many are left, or `null` when there is no cap to count down from. */
     val remaining: Int?
         get() = when (this) {
             Unlimited -> null
-            is UpTo -> (max - used).coerceAtLeast(0)
+            is UpTo -> (max - used).coerceAtLeast(0) + bought
         }
 
     /** The cap as a number for the "2 of 3 free" pill, or `null` when there isn't one. */
     val cap: Int? get() = (this as? UpTo)?.max
+
+    /**
+     * Free scans still unspent, ignoring anything bought.
+     *
+     * What decides which balance the next scan is charged to. Null where there is no cap.
+     */
+    val freeRemaining: Int?
+        get() = when (this) {
+            Unlimited -> null
+            is UpTo -> (max - used).coerceAtLeast(0)
+        }
 }

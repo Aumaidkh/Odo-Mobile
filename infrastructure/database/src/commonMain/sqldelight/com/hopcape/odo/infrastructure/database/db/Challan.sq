@@ -1,0 +1,65 @@
+-- A vehicle's challans, as the records source last answered — plus the stamp of when it
+-- was asked (`challan_checks`).
+--
+-- A cache of an external answer, not the owner's content: no sync columns and no soft
+-- delete, the `fuel_price` precedent. The source (today Odo's own Supabase table, later a
+-- government API behind the same port) owns the truth; a refresh replaces this table's
+-- rows for that plate wholesale, because a challan absent from the fresh answer was paid
+-- or withdrawn and keeping it would show a debt that no longer exists.
+--
+-- `id` is the challan number itself (globally unique already). Dates are ISO-8601 TEXT
+-- like every other table; `amount_paise` is integer money like everywhere else.
+CREATE TABLE challans (
+    id              TEXT NOT NULL PRIMARY KEY,
+    reg_no          TEXT NOT NULL,
+    violation       TEXT NOT NULL,
+    amount_paise    INTEGER NOT NULL,
+    location        TEXT,
+    issued_on       TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    court_name      TEXT,
+    next_hearing_on TEXT
+);
+
+CREATE INDEX idx_challans_reg_no ON challans (reg_no, issued_on DESC);
+
+-- When each plate was last checked against the source. One row per plate; the garage row
+-- ("Checked 2 hours ago") and the clean screen's "Next check" both read it. Separate from
+-- `challans` because a clean vehicle has no challan rows at all, yet "checked, nothing
+-- found" still has a time it was true.
+CREATE TABLE challan_checks (
+    reg_no     TEXT NOT NULL PRIMARY KEY,
+    checked_at TEXT NOT NULL
+);
+
+selectByRegNo:
+SELECT *
+FROM challans
+WHERE reg_no = :regNo
+ORDER BY issued_on DESC, id DESC;
+
+-- The refresh transaction: the caller deletes, then inserts the fresh answer.
+deleteByRegNo:
+DELETE FROM challans WHERE reg_no = :regNo;
+
+insertChallan:
+INSERT OR REPLACE INTO challans (
+    id, reg_no, violation, amount_paise, location, issued_on, status, court_name, next_hearing_on
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- "I've already paid these" flips only the online-payable rows; a court case is settled
+-- in court, not by a claim in an app.
+markAllPendingPaid:
+UPDATE challans SET status = 'PAID' WHERE reg_no = :regNo AND status = 'PENDING';
+
+selectLastChecked:
+SELECT checked_at FROM challan_checks WHERE reg_no = :regNo;
+
+-- Two statements instead of an UPSERT: SQLite 3.18 (minSdk 26) has none — the same
+-- portability rule every other table follows.
+insertCheck:
+INSERT OR IGNORE INTO challan_checks (reg_no, checked_at) VALUES (?, ?);
+
+updateCheck:
+UPDATE challan_checks SET checked_at = :checkedAt WHERE reg_no = :regNo;

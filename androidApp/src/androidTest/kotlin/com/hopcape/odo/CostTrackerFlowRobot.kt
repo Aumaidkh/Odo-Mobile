@@ -168,9 +168,9 @@ internal fun seedCostOwner(city: String? = "Pune") = with(costDriver()) {
     val cityValue = city?.let { "'$it'" } ?: "NULL"
     execute(
         null,
-        "INSERT INTO profiles (id, full_name, onboarding_goal, onboarding_completed_at, city, " +
+        "INSERT INTO profiles (id, full_name, onboarding_completed_at, city, " +
             "created_at, updated_at, sync_status) VALUES ('${LogFixtures.OWNER}', 'Rahul', " +
-            "'TRACK_COSTS', '$COST_SEEDED_AT', $cityValue, '$COST_SEEDED_AT', '$COST_SEEDED_AT', 'PENDING')",
+            "'$COST_SEEDED_AT', $cityValue, '$COST_SEEDED_AT', '$COST_SEEDED_AT', 'PENDING')",
         0,
     )
     execute(

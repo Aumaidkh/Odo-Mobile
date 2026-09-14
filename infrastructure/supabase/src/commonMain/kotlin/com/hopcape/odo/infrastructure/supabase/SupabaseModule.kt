@@ -3,11 +3,23 @@ package com.hopcape.odo.infrastructure.supabase
 import com.hopcape.odo.core.data.car.CarRemoteDataSource
 import com.hopcape.odo.core.data.car.VehicleCatalogRemoteDataSource
 import com.hopcape.odo.core.data.city.CityRemoteDataSource
+import com.hopcape.odo.core.data.entitlement.EntitlementOverrideRemoteDataSource
 import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
+import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
+import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
+import com.hopcape.odo.core.data.schedule.ServiceIntervalRemoteDataSource
+import com.hopcape.odo.core.data.support.FeatureIdeaRemoteDataSource
+import com.hopcape.odo.core.data.support.IdeaVoteRemoteDataSource
+import com.hopcape.odo.core.data.support.SupportTicketRemoteDataSource
+import com.hopcape.odo.core.data.subscription.CreditSpendRemoteDataSource
+import com.hopcape.odo.core.data.subscription.PurchaseClaimRemoteDataSource
+import com.hopcape.odo.core.data.owner.QuestionAnswerRemoteDataSource
 import com.hopcape.odo.core.data.document.DocumentRemoteDataSource
+import com.hopcape.odo.core.data.challan.ChallanRemoteDataSource
 import com.hopcape.odo.core.data.health.HealthScoreRemoteDataSource
 import com.hopcape.odo.core.data.owner.ProfileRemoteDataSource
 import com.hopcape.odo.core.data.fairness.FairnessRemoteDataSource
@@ -20,13 +32,29 @@ import com.hopcape.odo.core.domain.legal.LegalLinks
 import com.hopcape.logging.api.LogUploadTarget
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLegalLinks
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseAccountEraser
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseBillLineClassifier
+import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.data.car.vehicleRegistryLookup
+import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePlateRegistryLookup
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.FirebaseBridgeAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.UnavailableAuthGateway
 import com.hopcape.odo.infrastructure.supabase.auth.SupabaseTokenEndpoint
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseChallanRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDocumentRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFuelFillRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCreditSpendRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFairnessContributionRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePriceBandRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseFeatureIdeaRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseIdeaVoteRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceIntervalRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseSupportTicketRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePurchaseClaimRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseQuestionAnswerRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseHealthScoreRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseLogUploader
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseProfileRemoteDataSource
@@ -37,6 +65,7 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseRemoteFileStorag
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseServiceLogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseTripRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCityRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseEntitlementOverrideRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCitySubmissionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleCatalogRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
@@ -109,6 +138,18 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
             SupabaseAccountEraser(client = get(), environment = get(), telemetry = get())
         }
 
+        // The model naming bill lines the rules could not. Inside the configured branch for
+        // the same reason as the eraser: it is a real HTTP call, and an unconfigured build
+        // falls through to the offline classifier that names nothing.
+        single<BillLineClassifier> {
+            SupabaseBillLineClassifier(
+                client = get(),
+                environment = get(),
+                tokens = get(),
+                telemetry = get(),
+            )
+        }
+
         single { SupabaseTokenEndpoint(client = get(), environment = get(), telemetry = get()) }
     }
 
@@ -155,15 +196,51 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
         single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<VehicleCatalogRemoteDataSource> { SupabaseVehicleCatalogRemoteDataSource(postgrest = get()) }
         single<CityRemoteDataSource> { SupabaseCityRemoteDataSource(postgrest = get()) }
+        single<EntitlementOverrideRemoteDataSource> { SupabaseEntitlementOverrideRemoteDataSource(postgrest = get()) }
         single<CitySubmissionRemoteDataSource> { SupabaseCitySubmissionRemoteDataSource(postgrest = get()) }
         single<ServiceLogRemoteDataSource> { SupabaseServiceLogRemoteDataSource(postgrest = get()) }
         single<TripRemoteDataSource> { SupabaseTripRemoteDataSource(postgrest = get()) }
         single<HealthScoreRemoteDataSource> { SupabaseHealthScoreRemoteDataSource(postgrest = get()) }
+        // TEMPORARILY parked on the Fake from coreDataModule: the challans tables
+        // (supabase/migrations/20260822090000_challans.sql) are not applied to the
+        // project yet, and a source that times out on every open is worse than sample
+        // data. Uncomment once the migration has been run.
+        // single<ChallanRemoteDataSource> { SupabaseChallanRemoteDataSource(postgrest = get()) }
         single<DocumentRemoteDataSource> { SupabaseDocumentRemoteDataSource(postgrest = get()) }
         single<FuelFillRemoteDataSource> { SupabaseFuelFillRemoteDataSource(postgrest = get()) }
+        single<QuestionAnswerRemoteDataSource> { SupabaseQuestionAnswerRemoteDataSource(postgrest = get()) }
+        single<PriceBandRemoteDataSource> { SupabasePriceBandRemoteDataSource(postgrest = get()) }
+        single<FairnessContributionRemoteDataSource> {
+            SupabaseFairnessContributionRemoteDataSource(postgrest = get())
+        }
+        single<ServiceIntervalRemoteDataSource> { SupabaseServiceIntervalRemoteDataSource(postgrest = get()) }
+        single<SupportTicketRemoteDataSource> { SupabaseSupportTicketRemoteDataSource(postgrest = get()) }
+        single<IdeaVoteRemoteDataSource> { SupabaseIdeaVoteRemoteDataSource(postgrest = get()) }
+        single<FeatureIdeaRemoteDataSource> { SupabaseFeatureIdeaRemoteDataSource(postgrest = get()) }
+        single<PurchaseClaimRemoteDataSource> { SupabasePurchaseClaimRemoteDataSource(postgrest = get()) }
+        single<CreditSpendRemoteDataSource> { SupabaseCreditSpendRemoteDataSource(postgrest = get()) }
         single<FairnessRemoteDataSource> { SupabaseFairnessRemoteDataSource(postgrest = get()) }
         single<OverchargeRemoteDataSource> { SupabaseOverchargeRemoteDataSource(postgrest = get()) }
         single<ReminderRemoteDataSource> { SupabaseReminderRemoteDataSource(postgrest = get()) }
+
+        // The plate lookup, replacing StubVehicleRegistryLookup from coreDataModule (#392).
+        //
+        // Cheapest tier first. The cross-owner tier is the only one behind a flag, and it is
+        // read at construction rather than per call: the chain is a `single`, and a flag flip
+        // is a next-launch change, which is what a launch gate needs to be.
+        single<VehicleRegistryLookup> {
+            vehicleRegistryLookup(
+                cars = get(),
+                owners = get(),
+                telemetry = get(),
+                laterTiers = buildList {
+                    add(SupabaseVehicleRegistryLookup(postgrest = get(), owners = get()))
+                    if (get<FeatureConfig>().plateLookupEnabled) {
+                        add(SupabasePlateRegistryLookup(postgrest = get()))
+                    }
+                },
+            )
+        }
         single<RemoteFileStorage> {
             SupabaseRemoteFileStorage(
                 client = get(),

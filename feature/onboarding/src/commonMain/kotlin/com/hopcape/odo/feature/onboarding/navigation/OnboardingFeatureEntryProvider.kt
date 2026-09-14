@@ -1,10 +1,8 @@
 package com.hopcape.odo.feature.onboarding.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.domain.legal.LegalLinks
@@ -16,9 +14,6 @@ import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isFirstRunStep
 import com.hopcape.odo.core.navigation.navigateTo
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingEffect
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingFlow
-import com.hopcape.odo.feature.onboarding.presentation.OnboardingViewModel
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoEffect
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoScreen
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoViewModel
@@ -28,10 +23,9 @@ import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Onboarding's contribution to the navigation graph: registers the whole first-run
- * flow — the [OdoDestination.Welcome] pitch and [OdoDestination.Onboarding] car setup.
- * Both belong to this one feature, so they're registered by this one provider (a
- * `registerEntries` block can contribute any number of entries). Collected by the `:app`
+ * Onboarding's contribution to the navigation graph: registers the first-run pitch —
+ * the [OdoDestination.Welcome] page and its video variant. Car setup moved to
+ * `:feature:questionnaire` and registers [OdoDestination.Onboarding] itself. Collected by the `:app`
  * host (`getAll<FeatureEntryProvider>()`), so no other module references onboarding.
  *
  * The routes below are **only** a state-and-effects bridge: they render a ViewModel's state,
@@ -46,14 +40,16 @@ internal class OnboardingFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.Welcome> { WelcomeRoute(navigationManager, legalLinks) }
         entry<OdoDestination.WelcomeVideo> { WelcomeVideoRoute(navigationManager) }
-        entry<OdoDestination.Onboarding> { OnboardingRoute(navigationManager) }
     }
 }
 
 /**
  * The Welcome route. Continue goes straight into car setup — no sign-in first. Odo is
  * offline-first, so first run has to reach a working car without an account; auth is
- * offered *after* setup, and only if there's no session (see [OnboardingEffect.Finish]).
+ * offered *after* setup, and only if there's no session (see `OnboardingEffect.Finish`).
+ *
+ * Sign in is the other door, for an owner who has done this before. Signing out or
+ * reinstalling clears the local rows, so they arrive at an empty app with a full server.
  *
  * The two legal taps open the hosted pages in the platform browser, the same hand-off the
  * privacy screen in `:feature:support` makes. They leave the app on purpose: an in-app
@@ -66,6 +62,19 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            // Home, not car setup: sync restores the returning owner's car, so setup would
+            // only make a second one.
+            //
+            // finishFlow rather than popUpTo, because signing in here is a way *past* first
+            // run and nothing of it should survive. `popUpTo = Welcome` kept the pitch — a
+            // non-inclusive popUpTo clears what is above the key, and the pitch was the top
+            // — so back from the dashboard returned the owner to a screen they had already
+            // answered. Naming the flow says what is meant rather than naming the one key
+            // that happens to be under it.
+            WelcomeEffect.OpenSignIn -> navigationManager.finishFlow(
+                OdoDestination.Auth.Phone(next = OdoDestination.Home),
+                ::isFirstRunStep,
+            )
             // A build with no backend configured gets blank URLs, and the tap then does
             // nothing. The sentence around the links is a legal statement, so unlike the
             // support screen's rows it has to render either way — there is nothing to hide.
@@ -79,60 +88,6 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
 /** Opens this URL, or does nothing when the build has no legal pages configured. */
 private fun String.openIfSet(uriHandler: UriHandler) {
     if (isNotBlank()) uriHandler.openUri(this)
-}
-
-/**
- * The setup route — steps 2 to 4 behind one destination, because they are one form: back
- * moves between steps instead of popping screens, and the header's progress stays
- * continuous across them.
- *
- * Every way out of the last step is a finish, including its camera button. The flow does
- * not make a round trip to the scanner and come back, so the entry is popped once and the
- * first run is over.
- */
-@Composable
-internal fun OnboardingRoute(navigationManager: NavigationManager) {
-    val viewModel = koinViewModel<OnboardingViewModel>()
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
-    CollectEffects(viewModel.effects) { effect ->
-        when (effect) {
-            OnboardingEffect.NavigateBack -> navigationManager.back()
-
-            // TODO(ui): show this in a snackbar. Every step screen scaffolds itself with its
-            //  own OdoScreen, so the host state has to be threaded through OnboardingFlow
-            //  before there is anywhere to post it. Until then a failed write is visible
-            //  only as Continue not advancing — which is honest, but not an explanation.
-            is OnboardingEffect.SaveFailed -> Unit
-
-            is OnboardingEffect.Finish -> {
-                val destination = effect.start.toOdoDestination()
-                // The intro and the setup steps leave the back stack — first run doesn't
-                // repeat. finishFlow rather than popUpTo(Welcome), because the flow's root
-                // is whichever intro the remote flag chose, and popping up to the wrong
-                // one silently left the whole first run under the landing screen (#352).
-                if (effect.openScanner) {
-                    // The start surface is seeded *under* the scanner rather than replaced by
-                    // it. Leaving the scan errand pops its own steps and lands on whatever is
-                    // below them, so with the scanner alone on the stack there would be
-                    // nothing to land on and the owner would be stuck on the viewfinder.
-                    navigationManager.finishFlow(destination, ::isFirstRunStep)
-                    val scanner = OdoDestination.BillScanner.Capture()
-                    // Sign-in still comes first; auth carries the scanner as its `next`, so
-                    // both verifying and skipping arrive at the same viewfinder.
-                    navigationManager.navigateTo(
-                        if (effect.signInFirst) OdoDestination.Auth.Phone(scanner) else scanner,
-                    )
-                } else {
-                    val next =
-                        if (effect.signInFirst) OdoDestination.Auth.Phone(destination) else destination
-                    navigationManager.finishFlow(next, ::isFirstRunStep)
-                }
-            }
-        }
-    }
-
-    OnboardingFlow(state = state, onEvent = viewModel::onEvent)
 }
 
 /**

@@ -20,6 +20,8 @@ class PlanLimitsTest {
             val expected = when (feature) {
                 ProFeature.DOCUMENTS -> Quota.UpTo(3)
                 ProFeature.BILL_SCANS -> Quota.UpTo(5)
+                // Its own five, not a share of the scanner's.
+                ProFeature.BILL_CHECKS -> Quota.UpTo(5)
                 ProFeature.HEALTH_BREAKDOWN -> Quota.None
                 ProFeature.RECORD_EXPORT -> Quota.UpTo(3)
                 ProFeature.COST_ANALYSIS -> Quota.None

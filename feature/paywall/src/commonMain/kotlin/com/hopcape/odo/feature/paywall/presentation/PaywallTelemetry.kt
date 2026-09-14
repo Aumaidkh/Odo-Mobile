@@ -98,6 +98,55 @@ internal class PaywallTelemetry(
         report(Event.DISMISSED, mapOf(Key.TRIGGER to trigger))
     }
 
+    /* ------------------------------ One-time offers ------------------------------ */
+
+    /**
+     * The "buy just this instead" sheet was opened.
+     *
+     * [count] is how many of the three the store actually returned. Zero is the interesting
+     * value and the reason it is here: it means the products have not been created yet, and
+     * the owner was shown an empty sheet — which looks identical to a broken one.
+     */
+    fun oneTimeOffersShown(count: Int) {
+        report(Event.ONE_TIME_SHOWN, mapOf(Key.COUNT to count))
+    }
+
+    /**
+     * The owner declined, by tapping the way out rather than gesturing the sheet away.
+     *
+     * Worth its own event: a dismissal is ambiguous — a scrim tap, a back gesture, a phone
+     * call — and this one is not. It is the closest thing this sheet produces to an answer.
+     */
+    fun offersDeclined(context: String) {
+        report(Event.ONE_TIME_DECLINED, mapOf(Key.CONTEXT to context))
+    }
+
+    /** The store could not be read at all. */
+    fun oneTimeOffersUnavailable(reason: String) {
+        report(Event.ONE_TIME_UNAVAILABLE, mapOf(Key.REASON to reason))
+    }
+
+    /**
+     * A product was tapped. Nothing is bought yet — the purchase path is the next slice —
+     * so this is the only signal there is that anyone wants one of these.
+     */
+    fun oneTimeOfferTapped(productId: String) {
+        report(Event.ONE_TIME_TAPPED, mapOf(Key.PRODUCT to productId))
+    }
+
+    fun oneTimePurchaseCompleted(productId: String) {
+        report(Event.ONE_TIME_PURCHASED, mapOf(Key.PRODUCT to productId))
+    }
+
+    /** Backing out. Counted apart from a failure — one is a decision, the other is a fault. */
+    fun oneTimePurchaseCancelled(productId: String) {
+        report(Event.ONE_TIME_CANCELLED, mapOf(Key.PRODUCT to productId))
+    }
+
+    fun oneTimePurchaseFailed(productId: String) {
+        report(Event.ONE_TIME_FAILED, mapOf(Key.PRODUCT to productId))
+    }
+
     private fun report(event: String, fields: Map<String, Any?>) {
         analytics.track(event, fields)
         logger.info(TAG, event, tc = flowTrace, fields = fields)
@@ -115,6 +164,13 @@ internal class PaywallTelemetry(
         const val RESTORE_TAPPED = "paywall_restore_tapped"
         const val RESTORE_FINISHED = "paywall_restore_finished"
         const val DISMISSED = "paywall_dismissed"
+        const val ONE_TIME_SHOWN = "paywall_one_time_shown"
+        const val ONE_TIME_UNAVAILABLE = "paywall_one_time_unavailable"
+        const val ONE_TIME_DECLINED = "paywall_one_time_declined"
+        const val ONE_TIME_TAPPED = "paywall_one_time_tapped"
+        const val ONE_TIME_PURCHASED = "paywall_one_time_purchased"
+        const val ONE_TIME_CANCELLED = "paywall_one_time_cancelled"
+        const val ONE_TIME_FAILED = "paywall_one_time_failed"
     }
 
     /** Field keys — kept here so a dashboard query never breaks on a renamed literal. */
@@ -124,6 +180,11 @@ internal class PaywallTelemetry(
         const val TRIAL = "trial"
         const val REASON = "reason"
         const val RESTORED = "restored"
+        const val COUNT = "count"
+        const val PRODUCT = "product"
+
+        /** Which sheet it was — the errand the owner arrived with. */
+        const val CONTEXT = "context"
     }
 
     private companion object {

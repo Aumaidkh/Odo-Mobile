@@ -29,13 +29,8 @@ class RealFirebaseRemoteConfigGatewayTest {
     }
 
     @Test
-    fun long_withUnconfiguredFirebase_returnsNull() {
-        assertNull(gateway(mutableListOf()).long("min_supported_version_code"))
-    }
-
-    @Test
-    fun string_withUnconfiguredFirebase_returnsNull() {
-        assertNull(gateway(mutableListOf()).string("maintenance_mode"))
+    fun remoteString_withUnconfiguredFirebase_returnsNull() {
+        assertNull(gateway(mutableListOf()).remoteString("maintenance_mode"))
     }
 
     @Test
@@ -49,8 +44,8 @@ class RealFirebaseRemoteConfigGatewayTest {
         val sut = gateway(diagnostics)
 
         sut.fetchAndActivate()
-        sut.long("min_supported_version_code")
-        sut.string("maintenance_mode")
+        sut.remoteString("min_supported_version_code")
+        sut.remoteString("maintenance_mode")
 
         assertEquals(1, diagnostics.size, "the failed lookup is cached, not retried per call")
         assertTrue(diagnostics.single().contains("unavailable"))

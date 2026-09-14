@@ -38,7 +38,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.WelcomeVideo,
         OdoDestination.Onboarding,
         OdoDestination.CarDetail(carId = "car-1"),
-        OdoDestination.Paywall(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
+        OdoDestination.Paywall.Plans(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
         OdoDestination.FilePreview(
             storageKey = "scans/bill-1.jpg",
             title = "March service",
@@ -59,7 +59,9 @@ class OdoDestinationSerializationTest {
         OdoDestination.Profile.Appearance,
         OdoDestination.Profile.Export,
         OdoDestination.Profile.SignOut,
+        OdoDestination.Profile.DeveloperOptions,
         OdoDestination.Profile.ConfigOverrides,
+        OdoDestination.Profile.Logs,
         // Garage — Home is both a Garage key and a TopLevel one, which is the case most
         // likely to confuse a sealed hierarchy that can reach a subtype by two paths.
         OdoDestination.Garage.Home,
@@ -68,6 +70,7 @@ class OdoDestinationSerializationTest {
         OdoDestination.Garage.AddToHistory,
         OdoDestination.Garage.Export,
         OdoDestination.Garage.RemoveCar,
+        OdoDestination.Garage.HistoryRestored,
         OdoDestination.Garage.EditCar,
         OdoDestination.Garage.AddCar,
         // Reminders
@@ -145,7 +148,23 @@ class OdoDestinationSerializationTest {
         OdoDestination.Support.Search,
         OdoDestination.Support.ReportProblem,
         OdoDestination.Support.SuggestIdea,
-        OdoDestination.Support.FlagPriceData,
+        OdoDestination.Support.FlagPriceData(
+            lineName = "AC service",
+            lowPaise = 140_000L,
+            highPaise = 180_000L,
+            city = "Srinagar",
+            workshop = "company centre",
+            segment = "1.2L petrol hatchback",
+        ),
+        OdoDestination.Support.ReportSent(
+            ticket = "ODO-4821",
+            // The area's own name, which is what the screen matches on. A label here would
+            // resolve to "something else" and the round trip would still pass.
+            area = "BILL_SCAN",
+            photos = 1,
+            logsAttached = true,
+            maskedReplyTo = "r•••@gmail.com",
+        ),
         OdoDestination.Support.Rate,
         OdoDestination.Support.Faqs,
         OdoDestination.Support.Privacy,
@@ -154,6 +173,22 @@ class OdoDestinationSerializationTest {
         OdoDestination.Auth.Phone(next = OdoDestination.Garage.Home),
         OdoDestination.Auth.Otp(phone = "9876543210", next = OdoDestination.Timeline.List),
         OdoDestination.Auth.Verifying(next = OdoDestination.CostTracker.Home),
+        // Challan
+        OdoDestination.Challan.List,
+        OdoDestination.Challan.Lookup,
+        OdoDestination.Challan.Result(regNo = "MH12AB1234"),
+        // Questionnaire — the keys are a list, so this also covers a collection argument.
+        OdoDestination.Questionnaire(keys = listOf("goal.v1")),
+        OdoDestination.CarValue,
+        OdoDestination.ServiceChecklist(entry = "HOME_CARD"),
+        OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
+        OdoDestination.BillCheck.Result(billId = "bill-1"),
+        OdoDestination.BillCheck.Basis(
+            billId = "bill-1",
+            lineName = "AC service",
+            categorySlug = "ac_service",
+        ),
+        OdoDestination.BillCheck.Share(amountPaise = 730_000L, flagged = 3, lines = 6),
     )
 
     @Test

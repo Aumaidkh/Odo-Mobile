@@ -5,12 +5,16 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.hopcape.odo.core.data.car.CarLocalDataSource
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.infrastructure.database.sync.SyncStatus
+import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.model.RegistrationNumber
+import com.hopcape.odo.core.domain.owner.model.OwnerId
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 
 /**
@@ -45,11 +49,13 @@ internal class SqlDelightCarLocalDataSource(
                 fuel_type = car.fuelType.name,
                 registration_number = car.registrationNumber?.value,
                 current_odometer_km = car.odometer.km.toLong(),
+                odometer_pending = if (car.isOdometerPending) 1L else 0L,
                 purchase_year = car.purchaseYear?.value?.toLong(),
                 nickname = car.nickname,
                 is_primary = if (car.isPrimary) 1L else 0L,
-                // The reading arrived with the car, so it was written down now.
-                odometer_updated_at = now,
+                // Null while the reading is pending: there is no reading, so there is no day
+                // it was taken, and the odometer timeline must not date a placeholder zero.
+                odometer_updated_at = if (car.isOdometerPending) null else now,
                 created_at = now,
                 updated_at = now,
                 deleted_at = null,
@@ -69,12 +75,14 @@ internal class SqlDelightCarLocalDataSource(
             }
             // Only a changed reading was written down now. Re-dating it on a
             // nickname edit would claim the odometer was checked when it wasn't.
-            val odometerUpdatedAt =
-                if (stored.current_odometer_km == car.odometer.km.toLong()) {
-                    stored.odometer_updated_at
-                } else {
-                    now
-                }
+            val readingUnchanged = stored.current_odometer_km == car.odometer.km.toLong() &&
+                stored.odometer_pending == if (car.isOdometerPending) 1L else 0L
+            val odometerUpdatedAt = when {
+                readingUnchanged -> stored.odometer_updated_at
+                // Still no reading to date — answering it is what supplies the day.
+                car.isOdometerPending -> null
+                else -> now
+            }
             queries.updateCar(
                 make = car.make,
                 model = car.model,
@@ -83,6 +91,7 @@ internal class SqlDelightCarLocalDataSource(
                 fuelType = car.fuelType.name,
                 registrationNumber = car.registrationNumber?.value,
                 odometerKm = car.odometer.km.toLong(),
+                odometerPending = if (car.isOdometerPending) 1L else 0L,
                 purchaseYear = car.purchaseYear?.value?.toLong(),
                 nickname = car.nickname,
                 isPrimary = if (car.isPrimary) 1L else 0L,
@@ -145,4 +154,17 @@ internal class SqlDelightCarLocalDataSource(
             .asFlow()
             .mapToOneOrNull(dispatcher)
             .map { row -> row?.toDomain() }
+
+    // A row whose year or fuel label the domain refuses is dropped rather than raised: a
+    // suggestion is optional, and failing the lookup over one unreadable stored row would
+    // take the manual form away from the owner too.
+    override suspend fun vehicleByRegistration(
+        ownerId: OwnerId,
+        registrationNumber: RegistrationNumber,
+    ): RegisteredVehicle? = withContext(dispatcher) {
+        queries.selectAttributesByRegistration(
+            ownerId = ownerId.value,
+            registrationNumber = registrationNumber.value,
+        ).executeAsOneOrNull()?.toRegisteredVehicle()
+    }
 }

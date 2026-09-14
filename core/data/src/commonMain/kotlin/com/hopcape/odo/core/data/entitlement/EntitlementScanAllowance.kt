@@ -17,6 +17,11 @@ import kotlinx.coroutines.flow.first
  *
  * That the count is device-local is what makes it survivable to be wrong: a reinstall clears
  * it. Accepted deliberately — the cap limits a feature that costs nothing to run.
+ *
+ * **No credit balance is read here.** `ScanCredits` holds bill checks, and nothing sells a
+ * scan one at a time. Counting checks into this cap left `bought` above zero permanently,
+ * because [ScanCharger][com.hopcape.odo.core.domain.scan.entitlement.ScanCharger] does not
+ * spend one — so a single bought check uncapped the scanner for good.
  */
 internal class EntitlementScanAllowance(
     private val entitlements: EntitlementSource,

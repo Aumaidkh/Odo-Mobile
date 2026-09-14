@@ -40,9 +40,6 @@ internal sealed interface PhoneEffect {
     /** The code is on its way; move to the screen that collects it. */
     data class CodeSent(val phone: String) : PhoneEffect
 
-    /** The provider proved the number instantly — no code was ever sent. Skip straight past it. */
-    data object Verified : PhoneEffect
-
     /** Declined, or backed out — the same thing, and the same destination. */
     data object LeaveAuth : PhoneEffect
 }
@@ -51,6 +48,15 @@ internal sealed interface PhoneEffect {
 internal data class OtpUiState(
     /** The number the code went to, for the "Sent to …" line. Never the full number. */
     val maskedPhone: String = "",
+    /**
+     * Where the request that opened this screen got to.
+     *
+     * Its own field rather than a reading of [submission], which also covers verifying a
+     * typed code — the two overlap, and a screen that said "Verifying code" while nothing
+     * had been sent or typed was the first thing that went wrong when the request moved
+     * here. Claiming a code was sent before the provider says so is the other.
+     */
+    val request: CodeRequest = CodeRequest.SENDING,
     val code: String = "",
     val submission: Submission = Submission.Idle,
     /** Seconds until Resend becomes available; zero means it already is. */
@@ -62,7 +68,15 @@ internal data class OtpUiState(
     /** What the SMS reader is doing, so the card can stop claiming to listen when it isn't. */
     val autoRead: SmsCodeStatus = SmsCodeStatus.Listening,
 ) {
-    val canResend: Boolean get() = resendInSeconds == 0 && !resendExhausted && !submission.isInFlight
+    /** No code has gone out yet, so there is nothing to send again. */
+    val canResend: Boolean
+        get() = request != CodeRequest.SENDING &&
+            resendInSeconds == 0 &&
+            !resendExhausted &&
+            !submission.isInFlight
+
+    /** True only while a typed code is being checked — never while the first one is on its way. */
+    val isVerifying: Boolean get() = submission.isInFlight && request != CodeRequest.SENDING
 
     val isError: Boolean get() = submission is Submission.Failed
 
@@ -76,6 +90,14 @@ internal data class OtpUiState(
         const val MAX_ATTEMPTS = 3
     }
 }
+
+/**
+ * What the code screen may say about the code it is waiting for.
+ *
+ * [FAILED] shows the number with no claim attached: the error row says what happened, and
+ * either "Sending" or "Sent" would be untrue once the provider has refused.
+ */
+internal enum class CodeRequest { SENDING, SENT, FAILED }
 
 internal sealed interface OtpEvent {
     data class CodeChanged(val value: String) : OtpEvent

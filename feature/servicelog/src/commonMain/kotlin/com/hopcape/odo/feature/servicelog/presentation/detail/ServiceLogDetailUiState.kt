@@ -182,6 +182,14 @@ internal data class ServiceLogDetailUiState(
      * check, one tap clears it.
      */
     val fairnessShowcase: Boolean = false,
+    /**
+     * Whether the bill check is offered at all — `bill_check_enabled`.
+     *
+     * Off drops the button and the line under it together. Leaving a disabled button with
+     * "nothing comparable on this entry" printed under it would blame the owner's bill for
+     * a switch nobody has flipped yet.
+     */
+    val showBillCheck: Boolean = false,
 ) {
     sealed interface Content {
         data object Loading : Content

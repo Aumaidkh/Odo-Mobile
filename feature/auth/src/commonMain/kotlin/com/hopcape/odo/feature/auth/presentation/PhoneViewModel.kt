@@ -10,13 +10,11 @@ import com.hopcape.odo.feature.auth.resources.au_error_send_failed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
-import com.hopcape.odo.core.domain.auth.OtpRequestOutcome
 import com.hopcape.odo.core.domain.owner.model.PhoneNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.auth.AuthTelemetry
-import com.hopcape.odo.feature.auth.domain.OdoSessionManager
+import com.hopcape.odo.feature.auth.domain.OtpRequestBroker
 import com.hopcape.odo.feature.auth.presentation.state.Submission
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,14 +25,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Number entry: parse what was typed, ask for a code, move on.
+ * Number entry: parse what was typed, start the request, then move on.
+ *
+ * **It does not wait for the code.** Firebase's `verifyPhoneNumber` can spend seconds on a
+ * reCAPTCHA or Play Integrity round trip, and waiting here means waiting on a screen that
+ * has already finished its job — which an owner reads as the app being slow rather than the
+ * network. The request is handed to [OtpRequestBroker], which outlives this screen, and the
+ * code screen shows what became of it (#409).
  *
  * The screen is reached *after* car setup, so the owner already has something worth
  * protecting — which is why declining is a first-class action and not a hidden escape.
  * Skip and back are the same event for the same reason.
  */
 internal class PhoneViewModel(
-    private val sessions: OdoSessionManager,
+    private val requests: OtpRequestBroker,
     private val telemetry: AuthTelemetry,
 ) : ViewModel() {
 
@@ -43,9 +47,6 @@ internal class PhoneViewModel(
 
     private val _effects = Channel<PhoneEffect>(Channel.BUFFERED)
     val effects: Flow<PhoneEffect> = _effects.receiveAsFlow()
-
-    /** The in-flight request, so a double tap cannot ask for two codes. */
-    private var sendJob: Job? = null
 
     fun onEvent(event: PhoneEvent) = when (event) {
         is PhoneEvent.PhoneChanged -> _state.update {
@@ -62,32 +63,26 @@ internal class PhoneViewModel(
         }
     }
 
+    /**
+     * Parse, start the request, and go — without waiting for it.
+     *
+     * Nothing here is awaited, so there is no in-flight state and no double-tap job: the
+     * screen is left on the first tap, and the broker refuses a second request for the same
+     * number while one is outstanding.
+     */
     private fun sendCode() {
-        if (!_state.value.canSubmit || sendJob?.isActive == true) return
+        if (!_state.value.canSubmit) return
 
         // Parsed here rather than per keystroke: this is the first moment the owner has
-        // said they are finished typing.
-        val parsed = PhoneNumber.of(_state.value.phone).fold(
-            ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) }; null },
-            ifRight = { it },
-        ) ?: return
-
-        _state.update { it.copy(submission = Submission.InFlight) }
-        sendJob = viewModelScope.launch {
-            sessions.requestOtp(parsed).fold(
-                ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
-                ifRight = { outcome ->
-                    _state.update { it.copy(submission = Submission.Idle) }
-                    when (outcome) {
-                        // The parsed number travels, not what was typed — the next screen
-                        // has to send the same thing the code was issued against.
-                        OtpRequestOutcome.CodeSent -> emit(PhoneEffect.CodeSent(parsed.value))
-                        // Already signed in — there is no code to collect.
-                        is OtpRequestOutcome.AlreadyVerified -> emit(PhoneEffect.Verified)
-                    }
-                },
-            )
-        }
+        // said they are finished typing. The parsed number travels, not what was typed —
+        // the next screen has to show a result for the same thing the code was issued for.
+        PhoneNumber.of(_state.value.phone).fold(
+            ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
+            ifRight = { parsed ->
+                requests.request(parsed)
+                emit(PhoneEffect.CodeSent(parsed.value))
+            },
+        )
     }
 
     private fun emit(effect: PhoneEffect) {

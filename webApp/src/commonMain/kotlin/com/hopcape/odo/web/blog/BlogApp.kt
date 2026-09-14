@@ -9,8 +9,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
 import com.hopcape.odo.web.blog.presentation.ChromeViewModel
 import com.hopcape.odo.web.blog.presentation.admin.SessionViewModel
-import com.hopcape.odo.web.blog.presentation.RouteScope
-import com.hopcape.odo.web.blog.presentation.state.isMissing
+import com.hopcape.odo.web.core.presentation.RouteScope
+import com.hopcape.odo.web.core.presentation.state.isMissing
 import com.hopcape.odo.web.blog.presentation.article.ArticleViewModel
 import com.hopcape.odo.web.blog.presentation.author.AuthorViewModel
 import com.hopcape.odo.web.blog.presentation.category.CategoryViewModel

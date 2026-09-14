@@ -33,6 +33,7 @@ import com.hopcape.odo.core.domain.record.entitlement.ExportCredits
 import com.hopcape.odo.core.domain.record.entitlement.RecordExportUsage
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
+import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
 
 /**
  * State holder for the "share verified record" sheet.
@@ -60,6 +61,7 @@ internal class ShareRecordViewModel(
     private val exportUsage: RecordExportUsage,
     private val exportCredits: ExportCredits,
     private val oneTimePurchaser: OneTimePurchaser,
+    private val reconciler: PurchaseReconciler,
     private val documents: ServiceRecordDocumentFactory,
     private val bills: ServiceBillDocumentFactory,
     private val files: PlatformFileStore,
@@ -201,7 +203,20 @@ internal class ShareRecordViewModel(
                     _state.update { state -> state.copy(exportOffer = state.exportOffer?.copy(buying = false)) }
                 },
                 ifRight = {
-                    exportCredits.grant()
+                    // Claimed rather than granted outright. The reconciler owns crediting a
+                    // purchase, and it is the only thing that records the transaction — a
+                    // grant here would be credited again on the next launch, when the store
+                    // still reports a purchase this device never wrote down.
+                    reconciler.claimOutstanding()
+                    // Spent here rather than left on the balance: the owner bought one PDF
+                    // and is about to get it. The reconciler runs one pass at a time, so by
+                    // the time it returns the credit is on the balance — including when the
+                    // pass that awarded it was the watcher's rather than this one's.
+                    //
+                    // False only when the store went unreachable between the purchase and
+                    // the read that follows it, leaving the transaction to be claimed later.
+                    // The share still goes ahead: they paid, and a spare credit is the right
+                    // way to be wrong about money.
                     exportCredits.spend()
                     _state.update { state -> state.copy(exportOffer = null) }
                     startShare(target, record)

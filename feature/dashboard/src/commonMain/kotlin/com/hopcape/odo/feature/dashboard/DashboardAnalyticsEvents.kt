@@ -29,6 +29,8 @@ val dashboardAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(HomeTelemetry.Event.RECENT_OPENED, emptyMap()),
     EventSchema(HomeTelemetry.Event.TIMELINE_OPENED, emptyMap()),
+    EventSchema(HomeTelemetry.Event.ADD_ODOMETER_TAPPED, emptyMap()),
+    EventSchema(HomeTelemetry.Event.ODOMETER_NUDGE_DISMISSED, emptyMap()),
     EventSchema(
         HomeTelemetry.Event.SCAN_BILL_TAPPED,
         mapOf(HomeTelemetry.Key.FROM_CHECKLIST to PropertyType.BOOLEAN),
