@@ -42,6 +42,7 @@ import com.hopcape.odo.feature.timeline.timelineModule
 import com.hopcape.odo.infrastructure.ai.aiInfrastructureModule
 import com.hopcape.odo.infrastructure.billing.billingInfrastructureModule
 import com.hopcape.odo.infrastructure.database.databaseInfrastructureModule
+import com.hopcape.odo.infrastructure.firebase.analytics.firebaseAnalyticsInstallIdModule
 import com.hopcape.odo.infrastructure.firebase.auth.firebaseAuthModule
 import com.hopcape.odo.infrastructure.firebase.remoteconfig.firebaseRemoteConfigModule
 import com.hopcape.odo.infrastructure.supabase.config.supabaseConfigModule
@@ -126,6 +127,7 @@ fun initKoin(
         // Before supabaseModule, not after — this one replaces nothing. It publishes the
         // PhoneVerifier that supabaseModule's bridge gateway resolves when it is built, so
         // it has to already be in the graph by then.
+        firebaseAnalyticsInstallIdModule,
         firebaseAuthModule,
         // After every feature module, because its whole job is to replace things: the
         // offline remote-data-source fakes from coreDataModule, the always-signed-out

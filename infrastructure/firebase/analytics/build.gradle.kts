@@ -3,6 +3,8 @@ plugins {
     // Depends inward on :observability:analytics only; nothing in that module
     // knows this one exists.
     alias(libs.plugins.odo.kmpLibrary)
+    // Publishes AnalyticsInstallId into the graph — see FirebaseAnalyticsInstallIdModule.
+    alias(libs.plugins.odo.koin)
     // kotlin-test in commonTest comes from the odo.kmp.test convention plugin.
     alias(libs.plugins.odo.kmpTest)
 }
@@ -18,6 +20,8 @@ kotlin {
             // runCatchingCancellable — rethrows CancellationException instead of
             // swallowing it, unlike stdlib's runCatching.
             implementation(projects.core.common)
+            // AnalyticsInstallId, the port the app instance id is published as.
+            implementation(projects.core.domain)
             implementation(libs.gitlive.firebase.analytics)
         }
         commonTest.dependencies {

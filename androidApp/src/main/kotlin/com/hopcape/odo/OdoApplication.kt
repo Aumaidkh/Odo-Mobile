@@ -26,6 +26,8 @@ import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.logging.api.loggerConfig
 import com.hopcape.odo.core.common.BuildInfo
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
+import com.hopcape.odo.core.domain.device.DeviceRegistry
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformAndroidModule
 import com.hopcape.odo.core.platform.logging.AndroidLogFileStore
@@ -205,6 +207,12 @@ class OdoApplication : Application(), Configuration.Provider {
                         // launch, again on foreground" rule needs no second call site.
                         // refresh() never throws.
                         KoinPlatform.getKoin().get<ConfigRefresher>().refresh()
+                        // Only when there is an account to attach it to: the RPC takes the
+                        // owner from the session and refuses without one. The registry keeps
+                        // its own hourly guard, so every foreground may ask.
+                        if (KoinPlatform.getKoin().get<SessionStatusProvider>().isSignedIn()) {
+                            KoinPlatform.getKoin().get<DeviceRegistry>().recordSeen()
+                        }
                     }
                 }
 
