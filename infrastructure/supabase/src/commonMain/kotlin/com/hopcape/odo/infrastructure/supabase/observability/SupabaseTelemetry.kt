@@ -105,6 +105,20 @@ internal class SupabaseTelemetry(
         logger.warn(TAG, "request.retried", fields = mapOf(Key.RESOURCE to resource, Key.ATTEMPT to attempt))
     }
 
+    /**
+     * The device heartbeat went out without an analytics id.
+     *
+     * Warned, not counted: the id is the whole reason the row exists, and if Firebase never
+     * hands one over the feature is useless while looking perfectly healthy.
+     */
+    suspend fun deviceMissingAnalyticsId() {
+        logger.warn(
+            TAG,
+            "device.no_analytics_id",
+            tc = currentTraceContext().toLog(),
+        )
+    }
+
     /** How many rows a call actually moved. The number that says whether sync is working. */
     suspend fun rows(operation: String, resource: String, count: Int) {
         logger.info(

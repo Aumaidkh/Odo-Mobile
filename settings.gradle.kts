@@ -32,6 +32,8 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
+// Records the startup baseline profile for :androidApp. Ships nothing.
+include(":baselineprofile")
 // The Compose/Wasm browser app published at odoapp.in/blog. A sibling of the two
 // mobile app modules rather than a library: it has its own entry point, its own
 // design tokens (the web ones, not the app's) and ships to Firebase Hosting.

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- The theme the window keeps once the splash hands over. Parent matches what the
+         manifest used before the splash existed, so nothing about the window changes
+         except its background: that is painted in the brand colour rather than the
+         platform's white, so the handover to the Compose surface shows no flash. -->
+    <style name="Theme.Odo" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/odo_splash_background</item>
+    </style>
+
+    <!-- The launch theme. It stays on screen until MainActivity says the startup gate
+         has resolved, so the wait behind it is branded instead of blank (#473). -->
+    <style name="Theme.Odo.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/odo_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Odo</item>
+    </style>
+
+</resources>

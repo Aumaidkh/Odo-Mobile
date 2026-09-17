@@ -28,6 +28,23 @@ data class EntitlementOverride(
     val grantedAt: String,
 )
 
+/**
+ * One installation of the app, as recorded by its heartbeat.
+ *
+ * [appInstanceId] is what GA4 reports on, so it is the value a support answer gets pasted
+ * into analytics with. Null on a device whose Firebase never handed one over.
+ */
+data class UserDevice(
+    val installId: String,
+    val appInstanceId: String?,
+    val platform: String,
+    val appVersion: String?,
+    val osVersion: String?,
+    val model: String?,
+    val firstSeenAt: String,
+    val lastSeenAt: String,
+)
+
 /** One account, as the support screen shows it. */
 data class ManagedUser(
     val id: String,
@@ -37,6 +54,9 @@ data class ManagedUser(
     val restrictionReason: String?,
     val createdAt: String,
     val entitlements: List<EntitlementOverride>,
+    /** Most recently seen first. Empty for an account that has never signed in on a build
+     *  new enough to report one. */
+    val devices: List<UserDevice> = emptyList(),
 )
 
 /**

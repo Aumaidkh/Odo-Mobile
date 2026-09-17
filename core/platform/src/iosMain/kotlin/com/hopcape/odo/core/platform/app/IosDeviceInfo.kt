@@ -17,4 +17,6 @@ internal class IosDeviceInfo : DeviceInfo {
 
     override val osVersion: String =
         "${UIDevice.currentDevice.systemName} ${UIDevice.currentDevice.systemVersion}"
+
+    override val platform: String = "ios"
 }

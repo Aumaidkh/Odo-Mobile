@@ -18,6 +18,8 @@ internal class AndroidDeviceInfo : DeviceInfo {
     override val osVersion: String =
         "Android ${Build.VERSION.RELEASE ?: UNKNOWN} (API ${Build.VERSION.SDK_INT})"
 
+    override val platform: String = "android"
+
     private companion object {
         const val UNKNOWN = "—"
     }

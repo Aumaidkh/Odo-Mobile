@@ -8,6 +8,7 @@ import com.hopcape.odo.core.data.city.CitySubmissionRemoteDataSource
 import com.hopcape.odo.core.domain.advisory.BillLineClassifier
 import com.hopcape.odo.core.domain.auth.AccountEraser
 import com.hopcape.odo.core.domain.auth.AuthGateway
+import com.hopcape.odo.core.domain.device.DeviceRegistry
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.FairnessContributionRemoteDataSource
 import com.hopcape.odo.core.data.benchmark.PriceBandRemoteDataSource
@@ -37,6 +38,7 @@ import com.hopcape.odo.core.config.FeatureConfig
 import com.hopcape.odo.core.data.car.vehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCarRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseDeviceRegistry
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePlateRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleRegistryLookup
 import com.hopcape.odo.infrastructure.supabase.auth.DevPasswordAuthGateway
@@ -193,6 +195,16 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
 
     if (environment.isConfigured) {
         single<ProfileRemoteDataSource> { SupabaseProfileRemoteDataSource(postgrest = get()) }
+        single<DeviceRegistry> {
+            SupabaseDeviceRegistry(
+                postgrest = get(),
+                installationId = get(),
+                deviceInfo = get(),
+                appInfo = get(),
+                analyticsInstallId = get(),
+                telemetry = get(),
+            )
+        }
         single<CarRemoteDataSource> { SupabaseCarRemoteDataSource(postgrest = get()) }
         single<VehicleCatalogRemoteDataSource> { SupabaseVehicleCatalogRemoteDataSource(postgrest = get()) }
         single<CityRemoteDataSource> { SupabaseCityRemoteDataSource(postgrest = get()) }

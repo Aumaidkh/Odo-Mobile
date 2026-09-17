@@ -105,7 +105,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.Odo">
 
         <!-- The runtime half of the AD_ID removal above. The first flag stops Analytics
              reading the Advertising ID at all; the second stops it marking the events it does
@@ -119,6 +119,25 @@
             android:name="google_analytics_default_allow_ad_personalization_signals"
             android:value="false" />
 
+        <!-- WorkManager initialised itself here, on the main thread, before
+             Application.onCreate, on every launch — including the ones that enqueue
+             nothing. Removing this entry makes it on-demand: the first
+             WorkManager.getInstance() builds it, and those all happen after startup.
+             OdoApplication implements Configuration.Provider for that.
+
+             merge, not remove: ProfileInstaller registers under the same provider, and
+             dropping the whole thing would stop the baseline profile installing. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <!-- singleTop so a widget tap on an already-running app is delivered to
              onNewIntent rather than starting a second copy of the activity. Without it the
              owner taps "Scan pump", the existing screen stays where it was, and nothing
@@ -127,6 +146,7 @@
             android:exported="true"
             android:launchMode="singleTop"
             android:name=".MainActivity"
+            android:theme="@style/Theme.Odo.Starting"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

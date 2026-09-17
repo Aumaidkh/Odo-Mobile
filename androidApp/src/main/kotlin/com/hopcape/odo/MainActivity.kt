@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.Intent
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.navigation.NavigationCommand
@@ -17,15 +18,29 @@ class MainActivity : ComponentActivity() {
 
     private val navigationManager: NavigationManager by inject()
 
+    /** Whether a real screen is composed. The splash polls this every frame. */
+    private var contentReady = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Before super.onCreate, where the library swaps in the post-splash theme. The
+        // condition holds the branded window through the startup gate (#473).
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !contentReady }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
             // finishAndRemoveTask rather than finish: maintenance blocks the whole app, and
             // leaving it in the recents list invites the owner back into the same wall.
-            App(onExit = { finishAndRemoveTask() })
+            App(
+                onExit = { finishAndRemoveTask() },
+                onFirstContent = { returning -> releaseSplash(returning) },
+            )
         }
+
+        // The waits behind the splash are bounded, but a hung database read is not, and a
+        // splash with no way out is worse than the empty surface it replaced.
+        window.decorView.postDelayed({ releaseSplash(returning = null) }, SPLASH_TIMEOUT_MS)
 
         // After setContent, so the host is already collecting when the command is emitted.
         // The manager buffers, so the ordering is belt and braces rather than load-bearing.
@@ -87,5 +102,33 @@ class MainActivity : ComponentActivity() {
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner
         // every time the activity was rebuilt.
         if (WidgetLaunch.handle(intent, navigationManager)) intent?.action = null
+    }
+
+    /**
+     * Let the splash go, and close the span measuring the wait behind it. [returning] is
+     * null only on the timeout path, where the gate never answered.
+     */
+    private fun releaseSplash(returning: Boolean?) {
+        contentReady = true
+
+        val app = application as OdoApplication
+        // Null on every activity rebuild after the first: the span measures one launch.
+        val span = app.consumeFirstContentSpan() ?: return
+        APM.endSpan(
+            span.setAttribute("returning", returning?.toString() ?: "unknown")
+                .setAttribute("timed_out", returning == null),
+        )
+
+        val log = HLogger.tag("APP_LIFECYCLE")
+        val fields = mapOf("appSessionId" to app.appSessionId, "returning" to returning)
+        // An error, not info: every wait behind the splash is bounded, so reaching the
+        // timeout means one of those bounds is not holding.
+        if (returning == null) log.e("app_first_content_timeout", fields)
+        else log.i("app_first_content", fields)
+    }
+
+    private companion object {
+        /** How long the splash may hold before it gives up on the gate and shows the app. */
+        const val SPLASH_TIMEOUT_MS = 5_000L
     }
 }

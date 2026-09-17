@@ -16,6 +16,9 @@ interface AnalyticsSink {
     val name: String
     fun identify(traits: UserTraits)
 
+    /** Drops the identity. Defaulted, so an existing sink needs no change. */
+    fun forget() {}
+
     /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
     fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean
     fun flush()
