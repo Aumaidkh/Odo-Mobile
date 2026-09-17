@@ -35,6 +35,7 @@ import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.QuestionRegistry
 import com.hopcape.odo.feature.questionnaire.presentation.toggle
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateProgress
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
@@ -122,6 +123,19 @@ internal class OnboardingViewModel(
      */
     private var savedCarId: CarId? = null
 
+    /**
+     * The furthest the plate got, not where it is now — somebody who types a full plate and
+     * clears it has still shown the field is not what stopped them.
+     */
+    private var plateFurthest: PlateProgress = PlateProgress.NONE
+    private var plateReported: Boolean = false
+
+    /**
+     * Whether this attempt has already been accounted for, by finishing or by leaving. Guards
+     * the [onCleared] backstop from counting a second abandonment on top of a real ending.
+     */
+    private var flowEnded: Boolean = false
+
     init {
         telemetry.started()
         loadCatalogOptions()
@@ -155,6 +169,7 @@ internal class OnboardingViewModel(
      */
     private fun onPlateChanged(plate: String) {
         updateCar { it.copy(plate = it.plate.update(plate), lookup = PlateLookup.Idle) }
+        recordPlateReach()
         restartLookup()
     }
 
@@ -385,8 +400,9 @@ internal class OnboardingViewModel(
         // Leaving the car step without a reading is still a skip worth counting; it is just
         // no longer its own button. Reported before the write so a failed save does not lose
         // the fact that the owner declined to give one.
-        if (current.step == OnboardingStep.CAR && current.odometer.value == null) {
-            telemetry.odometerSkipped()
+        if (current.step == OnboardingStep.CAR) {
+            if (current.odometer.value == null) telemetry.odometerSkipped()
+            reportPlateProgress()
         }
         saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
             if (!persist(current)) return@launch
@@ -606,7 +622,7 @@ internal class OnboardingViewModel(
         }
         val previous = current.step.previous
         if (previous == null) {
-            telemetry.abandoned(current.step)
+            endAbandoned(current.step)
             emit(OnboardingEffect.NavigateBack)
         } else {
             telemetry.stepBack(current.step)
@@ -642,12 +658,50 @@ internal class OnboardingViewModel(
     }
 
     private fun finish(openScanner: Boolean = false) {
+        flowEnded = true
         val signInFirst = !sessionStatus.isSignedIn()
         telemetry.completed(
             goals = _state.value.profile.goals,
             signInOffered = signInFirst,
         )
         emit(OnboardingEffect.Finish(signInFirst = signInFirst, openScanner = openScanner))
+    }
+
+    /* ------------------------------ Funnel accounting ------------------------------ */
+
+    /**
+     * Most people do not press back — they leave. Without this the funnel showed silence
+     * where it should have shown an abandonment, so the step people give up on was invisible.
+     *
+     * `onCleared` covers leaving the flow and the host being destroyed. A process the system
+     * kills outright runs nothing at all, and no hook can change that.
+     */
+    override fun onCleared() {
+        if (!flowEnded) endAbandoned(_state.value.step)
+        super.onCleared()
+    }
+
+    private fun endAbandoned(step: OnboardingStep) {
+        flowEnded = true
+        reportPlateProgress()
+        telemetry.abandoned(step)
+    }
+
+    private fun recordPlateReach() {
+        val car = _state.value.car
+        val reached = when {
+            car.isPlateValid -> PlateProgress.COMPLETE
+            car.plate.text.isNotEmpty() -> PlateProgress.PARTIAL
+            else -> PlateProgress.NONE
+        }
+        if (reached > plateFurthest) plateFurthest = reached
+    }
+
+    /** Once per attempt, whichever way the car step is left. */
+    private fun reportPlateProgress() {
+        if (plateReported) return
+        plateReported = true
+        telemetry.plateProgress(plateFurthest)
     }
 
     /* ------------------------------ State writers ------------------------------ */

@@ -23,6 +23,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +71,11 @@ internal fun WelcomeVideoScreen(
     val scope = rememberCoroutineScope()
     val onLastPage = pagerState.currentPage == pages.lastIndex
 
+    // Settled, not current: a page half-swiped and released is not a page that was read.
+    LaunchedEffect(pagerState.settledPage) {
+        onEvent(WelcomeVideoEvent.PageSettled(pagerState.settledPage))
+    }
+
     OdoLightSystemBars()
 
     // A Box, not a Column with a header row: the clip has to start at y=0 and run up under
@@ -100,7 +106,11 @@ internal fun WelcomeVideoScreen(
             ) { index ->
                 // Alive but paused when it is not the page being looked at. Kept alive so it
                 // does not re-buffer; paused so a clip nobody can see is not being decoded.
-                PageClip(pages[index], playing = index == pagerState.currentPage)
+                PageClip(
+                    page = pages[index],
+                    playing = index == pagerState.currentPage,
+                    onFailed = { onEvent(WelcomeVideoEvent.ClipFailed(index)) },
+                )
             }
 
             PageCopy(pages[pagerState.settledPage])
@@ -137,7 +147,7 @@ internal fun WelcomeVideoScreen(
         ) {
             OdoButton(
                 text = stringResource(Res.string.onb_video_skip),
-                onClick = { onEvent(WelcomeVideoEvent.SkipClicked) },
+                onClick = { onEvent(WelcomeVideoEvent.SkipClicked(pagerState.currentPage)) },
                 variant = OdoButtonVariant.Tertiary,
             )
         }
@@ -145,8 +155,12 @@ internal fun WelcomeVideoScreen(
 }
 
 @Composable
-private fun PageClip(page: VideoPage, playing: Boolean) {
+private fun PageClip(page: VideoPage, playing: Boolean, onFailed: () -> Unit) {
     val videoState = rememberOdoVideoState()
+
+    LaunchedEffect(videoState.hasFailed) {
+        if (videoState.hasFailed) onFailed()
+    }
 
     Box(
         // A ground colour of its own, so the moment before the still has decoded is black

@@ -52,3 +52,11 @@ internal data class CarStepState(
         const val MAX_PLATE_LENGTH = 11
     }
 }
+
+/**
+ * How far the registration number got, as a bucket the funnel can count.
+ *
+ * Only ever the bucket: a plate identifies a person's car, so the value itself must never
+ * reach analytics.
+ */
+internal enum class PlateProgress { NONE, PARTIAL, COMPLETE }

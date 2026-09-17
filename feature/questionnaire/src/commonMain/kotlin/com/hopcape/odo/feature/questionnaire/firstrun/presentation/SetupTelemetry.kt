@@ -16,6 +16,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateProgress
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import com.hopcape.performance.api.currentTraceContext
@@ -70,6 +71,23 @@ internal class SetupTelemetry(
     fun stepAdvanced(from: OnboardingStep) {
         analytics.track(Event.STEP_ADVANCED, mapOf(Key.STEP to from.name))
         logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
+    }
+
+    /**
+     * How far the registration number got before the car step was left.
+     *
+     * The funnel cannot otherwise tell "never touched the field" from "typed it and gave up",
+     * and those two say opposite things about whether asking for a plate here is the problem.
+     * Only the bucket is sent — a plate identifies a person's car and never leaves the device.
+     */
+    fun plateProgress(progress: PlateProgress) {
+        analytics.track(Event.PLATE_PROGRESS, mapOf(Key.PROGRESS to progress.name))
+        logger.info(
+            TAG,
+            Event.PLATE_PROGRESS,
+            tc = flowTrace.toLog(),
+            fields = mapOf(Key.PROGRESS to progress.name),
+        )
     }
 
     fun stepBack(from: OnboardingStep) {
@@ -391,6 +409,7 @@ internal class SetupTelemetry(
         const val STARTED = "onboarding_started"
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
+        const val PLATE_PROGRESS = "onboarding_plate_progress"
         const val ABANDONED = "onboarding_abandoned"
         const val MANUAL_ENTRY_CHOSEN = "onboarding_manual_entry_chosen"
         const val PLATE_LOOKUP = "onboarding_plate_lookup"
@@ -430,6 +449,7 @@ internal class SetupTelemetry(
     /** Structured field / property keys, shared across logs, events and spans. */
     object Key {
         const val STEP = "step"
+        const val PROGRESS = "progress"
         const val GOAL = "goal"
         const val SIGN_IN_OFFERED = "sign_in_offered"
         const val HAD_MATCH = "had_match"

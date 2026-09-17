@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
+import androidx.lifecycle.ViewModelStore
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
@@ -53,6 +54,7 @@ import com.hopcape.odo.feature.questionnaire.odoQuestions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateProgress
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
 import kotlinx.coroutines.Dispatchers
@@ -985,6 +987,7 @@ class OnboardingViewModelTest {
         assertEquals(
             listOf(
                 SetupTelemetry.Event.STARTED,
+                SetupTelemetry.Event.PLATE_PROGRESS,
                 SetupTelemetry.Event.CAR_SAVED,
                 SetupTelemetry.Event.STEP_ADVANCED,
                 SetupTelemetry.Event.GOAL_SELECTED,
@@ -998,6 +1001,95 @@ class OnboardingViewModelTest {
             ),
             analytics.names.filterNot { it == SetupTelemetry.Event.PLATE_LOOKUP },
         )
+    }
+
+    @Test
+    fun leavingTheCarStep_saysHowFarThePlateGot() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        reachProfileStep(viewModel)
+
+        val progress = analytics.events.single { it.first == SetupTelemetry.Event.PLATE_PROGRESS }
+        assertEquals(PlateProgress.COMPLETE.name, progress.second[SetupTelemetry.Key.PROGRESS])
+    }
+
+    @Test
+    fun aPlateTypedAndCleared_isStillCountedAsTyped() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged("MH12"))
+        viewModel.onEvent(OnboardingEvent.Car.PlateChanged(""))
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        // The furthest reach, not the final state: somebody who types and gives up has shown
+        // the field is not what stopped them, and clearing it must not erase that.
+        val progress = analytics.events.single { it.first == SetupTelemetry.Event.PLATE_PROGRESS }
+        assertEquals(PlateProgress.PARTIAL.name, progress.second[SetupTelemetry.Key.PROGRESS])
+    }
+
+    @Test
+    fun neverTouchingThePlate_isReportedAsNone() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        // The distinction the funnel could not make: nobody typing at all says something very
+        // different about the step than people typing and failing.
+        val progress = analytics.events.single { it.first == SetupTelemetry.Event.PLATE_PROGRESS }
+        assertEquals(PlateProgress.NONE.name, progress.second[SetupTelemetry.Key.PROGRESS])
+    }
+
+    @Test
+    fun leavingWithoutPressingBack_isStillAnAbandonment() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val store = ViewModelStore()
+        store.put("onboarding", viewModel(analytics = analytics))
+        advanceUntilIdle()
+
+        // What people actually do: they leave. Without this the funnel showed silence where
+        // it should have shown an abandonment, so the step people give up on was invisible.
+        store.clear()
+
+        val abandoned = analytics.events.single { it.first == SetupTelemetry.Event.ABANDONED }
+        assertEquals(OnboardingStep.CAR.name, abandoned.second[SetupTelemetry.Key.STEP])
+    }
+
+    @Test
+    fun finishingTheFlow_isNeverAlsoCountedAsAbandoned() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        val store = ViewModelStore()
+        store.put("onboarding", viewModel)
+        advanceUntilIdle()
+
+        completeTheWholeFlow(viewModel)
+        store.clear()
+
+        // The backstop must not turn every completed setup into an abandonment as well.
+        assertEquals(0, analytics.events.count { it.first == SetupTelemetry.Event.ABANDONED })
+    }
+
+    @Test
+    fun pressingBackOutOfTheFlow_countsOneAbandonment_notTwo() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        val store = ViewModelStore()
+        store.put("onboarding", viewModel)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+        store.clear()
+
+        assertEquals(1, analytics.events.count { it.first == SetupTelemetry.Event.ABANDONED })
     }
 
     @Test

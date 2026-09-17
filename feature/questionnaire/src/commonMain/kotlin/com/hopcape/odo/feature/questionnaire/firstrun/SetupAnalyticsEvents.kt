@@ -23,6 +23,10 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
         mapOf(SetupTelemetry.Key.STEP to PropertyType.STRING),
     ),
     EventSchema(
+        SetupTelemetry.Event.PLATE_PROGRESS,
+        mapOf(SetupTelemetry.Key.PROGRESS to PropertyType.STRING),
+    ),
+    EventSchema(
         SetupTelemetry.Event.MANUAL_ENTRY_CHOSEN,
         mapOf(SetupTelemetry.Key.HAD_MATCH to PropertyType.BOOLEAN),
     ),
