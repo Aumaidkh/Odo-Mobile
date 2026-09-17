@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The splash window's background. Mirrors OdoColors.LightBg / DarkBg so the
+     handover to the Compose surface is invisible; keep the two in step. -->
+<resources>
+    <color name="odo_splash_background">#FAF6F0</color>
+</resources>
