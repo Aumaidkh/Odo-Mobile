@@ -46,6 +46,8 @@ import com.hopcape.odo.feature.dashboard.presentation.shell.OdoAppScaffold
 import com.hopcape.odo.shared.resources.Res
 import com.hopcape.odo.shared.resources.as_maintenance_banner_default
 import com.hopcape.odo.units.DomainDistanceFormat
+import com.hopcape.logging.api.HLogger
+import kotlin.time.TimeSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -73,6 +75,19 @@ import org.koin.compose.koinInject
  *  nothing for hosts that cannot close themselves — iOS forbids it, and a button there would
  *  be a promise the platform will not keep.
  */
+/**
+ * Times one startup step into the log.
+ *
+ * HLogger, not an APM span: APM writes spans only to Firebase on a reporting build, so a
+ * span is invisible in the very build cold start is measured on.
+ */
+private inline fun <T> timed(step: String, block: () -> T): T {
+    val start = TimeSource.Monotonic.markNow()
+    val result = block()
+    HLogger.tag("STARTUP").i("step", mapOf("step" to step, "ms" to start.elapsedNow().inWholeMilliseconds))
+    return result
+}
+
 @Composable
 fun App(onExit: () -> Unit = {}) {
     val koin = getKoin()
@@ -82,7 +97,8 @@ fun App(onExit: () -> Unit = {}) {
     // opens the database, so that happens off the main thread like the read below.
     val settings by produceState(AppSettings.Default, koin) {
         withContext(Dispatchers.Default) {
-            koin.get<AppSettingsRepository>().observe().collect { value = it }
+            val settingsRepo = timed("resolve_settings") { koin.get<AppSettingsRepository>() }
+            settingsRepo.observe().collect { value = it }
         }
     }
 
@@ -159,8 +175,10 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
         val returning = withContext(Dispatchers.Default) {
             // Resolving the repository is what opens the database — and on first launch
             // seeds the vehicle catalog — so it happens off the main thread.
-            val profiles = koin.get<OwnerProfileRepository>()
-            profiles.observe().first()?.hasCompletedOnboarding == true
+            // Both measured at ~0-8ms, despite the comment above. The gate's real cost is
+            // the config fetch below.
+            val profiles = timed("open_database") { koin.get<OwnerProfileRepository>() }
+            timed("read_profile") { profiles.observe().first()?.hasCompletedOnboarding == true }
         }
         onboarded = returning
         // A new install waits (bounded) for the first Remote Config fetch before the
