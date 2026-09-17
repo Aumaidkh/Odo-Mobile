@@ -20,6 +20,17 @@ plugins {
     // custom spans (FirebasePerformanceSink) work without it. Same conditional as
     // google-services/firebase-crashlytics: no config file, no plugin.
     alias(libs.plugins.firebase.perf) apply false
+    // Consumes the profile from :baselineprofile. Adds nonMinified* variants, which
+    // exist only to give the recorder an unobfuscated build to watch.
+    alias(libs.plugins.androidx.baselineprofile)
+}
+
+/**
+ * `mergeIntoMain` puts the profile in `src/main` instead of `src/release`, so `minified`
+ * carries it too — that is the variant cold start is measured on.
+ */
+baselineProfile {
+    mergeIntoMain = true
 }
 
 // google-services.json identifies a specific Firebase project, so it's gitignored and
@@ -74,6 +85,11 @@ configurations.configureEach {
 }
 
 dependencies {
+    // Installs the baseline profile on the device at first run. It ships in the APK
+    // either way, but below API 31 nothing applies it without this.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(projects.baselineprofile)
+
     implementation(projects.shared)
     // The Android SQLDelight DriverFactory (needs a Context) wired into Koin here.
     implementation(projects.infrastructure.database)
