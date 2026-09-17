@@ -94,6 +94,18 @@ class OdoApplication : Application(), Configuration.Provider {
     lateinit var coldStartSpan: Span
         private set
 
+    /**
+     * Launch until the owner can see a screen. [coldStartSpan] stops at the first drawn
+     * frame, which on a new install is the empty surface behind the splash (#473).
+     */
+    private var firstContentSpan: Span? = null
+
+    /**
+     * Hand the span to whoever ends it; later callers get null. The activity is rebuilt on
+     * rotation and re-runs the startup gate, so the span must end only once.
+     */
+    fun consumeFirstContentSpan(): Span? = firstContentSpan.also { firstContentSpan = null }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -108,6 +120,8 @@ class OdoApplication : Application(), Configuration.Provider {
         // inside the span, and the span only closes on the first drawn frame.
         configureApm(BuildConfig.DEBUG)
         coldStartSpan = APM.startSpan("app_cold_start", traceId = appSessionId)
+            .setAttribute("launch_type", "cold")
+        firstContentSpan = APM.startSpan("app_first_content", traceId = appSessionId)
             .setAttribute("launch_type", "cold")
 
         // Analytics pipeline — republished into the graph by analyticsModule so

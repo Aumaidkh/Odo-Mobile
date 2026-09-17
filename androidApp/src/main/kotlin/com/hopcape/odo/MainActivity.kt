@@ -34,13 +34,13 @@ class MainActivity : ComponentActivity() {
             // leaving it in the recents list invites the owner back into the same wall.
             App(
                 onExit = { finishAndRemoveTask() },
-                onFirstContent = ::releaseSplash,
+                onFirstContent = { returning -> releaseSplash(returning) },
             )
         }
 
         // The waits behind the splash are bounded, but a hung database read is not, and a
         // splash with no way out is worse than the empty surface it replaced.
-        window.decorView.postDelayed(::releaseSplash, SPLASH_TIMEOUT_MS)
+        window.decorView.postDelayed({ releaseSplash(returning = null) }, SPLASH_TIMEOUT_MS)
 
         // After setContent, so the host is already collecting when the command is emitted.
         // The manager buffers, so the ordering is belt and braces rather than load-bearing.
@@ -104,9 +104,27 @@ class MainActivity : ComponentActivity() {
         if (WidgetLaunch.handle(intent, navigationManager)) intent?.action = null
     }
 
-    /** Let the splash go. Called by the startup gate, or by the timeout if it never answers. */
-    private fun releaseSplash() {
+    /**
+     * Let the splash go, and close the span measuring the wait behind it. [returning] is
+     * null only on the timeout path, where the gate never answered.
+     */
+    private fun releaseSplash(returning: Boolean?) {
         contentReady = true
+
+        val app = application as OdoApplication
+        // Null on every activity rebuild after the first: the span measures one launch.
+        val span = app.consumeFirstContentSpan() ?: return
+        APM.endSpan(
+            span.setAttribute("returning", returning?.toString() ?: "unknown")
+                .setAttribute("timed_out", returning == null),
+        )
+
+        val log = HLogger.tag("APP_LIFECYCLE")
+        val fields = mapOf("appSessionId" to app.appSessionId, "returning" to returning)
+        // An error, not info: every wait behind the splash is bounded, so reaching the
+        // timeout means one of those bounds is not holding.
+        if (returning == null) log.e("app_first_content_timeout", fields)
+        else log.i("app_first_content", fields)
     }
 
     private companion object {

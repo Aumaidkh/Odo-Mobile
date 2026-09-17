@@ -87,13 +87,14 @@ private inline fun <T> timed(step: String, block: () -> T): T {
  *  against while the server is down, so leaving is the honest action. Defaults to doing
  *  nothing for hosts that cannot close themselves — iOS forbids it, and a button there would
  *  be a promise the platform will not keep.
- * @param onFirstContent fires once the start destination is known. Android holds its splash
- *  until then, so nobody watches the empty surface behind it (#473).
+ * @param onFirstContent fires once the start destination is known, with whether this is a
+ *  returning owner. Android holds its splash until then, and only a new install waits on
+ *  the config fetch, so the two cannot share an average (#473).
  */
 @Composable
 fun App(
     onExit: () -> Unit = {},
-    onFirstContent: () -> Unit = {},
+    onFirstContent: (returning: Boolean) -> Unit = {},
 ) {
     val koin = getKoin()
 
@@ -159,7 +160,7 @@ fun App(
 private fun OdoAppContent(
     koin: Koin,
     maintenanceMessage: String? = null,
-    onFirstContent: () -> Unit = {},
+    onFirstContent: (returning: Boolean) -> Unit = {},
 ) {
     // Which onboarding a new install opens into. Read here because this is the composable
     // that owns the start destination.
@@ -199,7 +200,7 @@ private fun OdoAppContent(
     // Its own effect, not folded into the one above: that one returns early on the
     // restored path, and a host holding a splash would then hold it for good.
     LaunchedEffect(startDestination) {
-        if (startDestination != null) onFirstContent()
+        if (startDestination != null) onFirstContent(onboarded == true)
     }
 
     // Column + weighted Box regardless of whether the banner shows, so the tree shape
