@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.work.Configuration
 import com.hopcape.analytics.api.AnalyticsConfig
 import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.analytics.api.ConsentStatus
@@ -68,7 +69,19 @@ import java.util.UUID
  * It also opens the **cold-start** span here and closes it from [MainActivity] once
  * the first frame is drawn (see [coldStartSpan] / [appSessionId]).
  */
-class OdoApplication : Application() {
+class OdoApplication : Application(), Configuration.Provider {
+
+    /**
+     * Read by WorkManager when it initialises on first use.
+     *
+     * Its androidx.startup entry is removed in the manifest, so it no longer builds itself
+     * on the main thread before every launch. Nothing asks for it until after startup
+     * (SyncScheduler on first foreground, the trip tracker).
+     */
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(if (BuildConfig.DEBUG) Log.DEBUG else Log.INFO)
+            .build()
 
     /**
      * Cold start gets its own trace id: the process is launching, no user is

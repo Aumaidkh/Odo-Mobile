@@ -115,6 +115,9 @@ dependencies {
     implementation(projects.infrastructure.firebase.analytics)
     // ProcessLifecycleOwner — flushes the analytics queue on every foreground.
     implementation(libs.androidx.lifecycle.process)
+    // Already here transitively via :core:sync. Declared directly because
+    // OdoApplication implements Configuration.Provider — see the manifest.
+    implementation(libs.androidx.work.runtime)
     // APM — cold-start span started here, ended from MainActivity on first frame.
     implementation(projects.observability.performance)
     // FirebasePerformanceSink is constructed directly in configureApm (see
