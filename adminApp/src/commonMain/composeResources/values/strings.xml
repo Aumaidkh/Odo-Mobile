@@ -186,6 +186,13 @@
     <string name="ad_users_apply">Apply</string>
 
     <string name="ad_users_entitlements">Entitlements</string>
+    <string name="ad_users_devices">Devices</string>
+    <string name="ad_users_devices_empty">No device has reported in. They have not opened a build new enough to say.</string>
+    <string name="ad_users_device_seen">Last seen</string>
+    <string name="ad_users_device_first_seen">First seen</string>
+    <string name="ad_users_device_no_analytics_id">No analytics id — cannot be looked up in GA4</string>
+    <string name="ad_users_device_copy">Copy analytics id</string>
+    <string name="ad_users_device_copied">Analytics id copied.</string>
     <string name="ad_users_entitlements_empty">No overrides. Their access is whatever the store says.</string>
     <string name="ad_users_feature">Feature</string>
     <string name="ad_users_grant">Grant</string>
