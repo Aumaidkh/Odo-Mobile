@@ -45,14 +45,15 @@ internal fun onboardingStartDestination(
  * not sit on the startup screen, and the compiled default is the designed answer for it.
  * A returning owner goes Home whatever the config says, so only a new install waits.
  *
- * 1.5 seconds rather than 3: the splash screen is branded now, but it is still a wait the
- * owner did not ask for, and a fetch that has not landed by then is not about to.
+ * **400ms, measured down from 1.5s.** Tracing put this at 692ms of a 2.9s cold start — the
+ * largest thing the gate does, on a new install's first launch. All it buys is which of
+ * two intros to open, and both are fine. Raise it only with a measurement.
  */
 internal suspend fun onboardingStartDestination(
     returning: Boolean,
     config: OnboardingConfig,
     refresher: ConfigRefresher,
-    firstFetchWait: Duration = 1500.milliseconds,
+    firstFetchWait: Duration = 400.milliseconds,
 ): OdoDestination {
     if (!returning) withTimeoutOrNull(firstFetchWait) { refresher.refresh() }
     return onboardingStartDestination(returning, config)

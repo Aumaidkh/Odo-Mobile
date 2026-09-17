@@ -5,6 +5,7 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -87,7 +88,8 @@ class OnboardingStartTest {
         // destination is decided, so the flag reads false and the old onboarding shows —
         // the video variant only appears on the next launch. The decision must wait for
         // the fetch.
-        val remote = SlowRemote(fetchTakes = 1.seconds)
+        // Inside the 400ms bound: a fetch slower than that is the *other* test's case.
+        val remote = SlowRemote(fetchTakes = 200.milliseconds)
         assertEquals(
             OdoDestination.WelcomeVideo,
             onboardingStartDestination(returning = false, config = remote, refresher = remote),
