@@ -19,6 +19,8 @@ internal class SinkDestination(
 
     override fun identify(traits: UserTraits) = sink.identify(traits)
 
+    override fun forget() = sink.forget()
+
     override fun track(event: AnalyticsEvent): Boolean =
         sink.track(event.name, event.properties, event.timestampMs)
 

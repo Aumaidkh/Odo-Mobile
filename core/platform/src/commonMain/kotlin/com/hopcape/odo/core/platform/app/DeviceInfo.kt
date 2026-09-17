@@ -21,4 +21,7 @@ interface DeviceInfo {
 
     /** The OS and its version, e.g. `Android 14 (API 34)` or `iOS 17.2`. */
     val osVersion: String
+
+    /** Which OS family, as `android` or `ios`. Lowercase, because servers group on it. */
+    val platform: String
 }

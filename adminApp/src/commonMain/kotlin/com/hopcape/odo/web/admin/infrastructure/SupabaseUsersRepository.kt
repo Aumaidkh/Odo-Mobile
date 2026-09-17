@@ -8,6 +8,7 @@ import com.hopcape.odo.web.admin.domain.DirectoryUser
 import com.hopcape.odo.web.admin.domain.ManagedUser
 import com.hopcape.odo.web.admin.domain.RevealedContact
 import com.hopcape.odo.web.admin.domain.UserPage
+import com.hopcape.odo.web.admin.domain.UserDevice
 import com.hopcape.odo.web.admin.domain.Restriction
 import com.hopcape.odo.web.admin.domain.UsersRepository
 import com.hopcape.odo.web.core.domain.WebError
@@ -186,6 +187,7 @@ private data class UserRow(
     @SerialName("restriction_reason") val restrictionReason: String? = null,
     @SerialName("created_at") val createdAt: String = "",
     val entitlements: List<OverrideRow> = emptyList(),
+    val devices: List<DeviceRow> = emptyList(),
 ) {
     fun toUser() = ManagedUser(
         id = id,
@@ -203,8 +205,37 @@ private data class UserRow(
                 grantedAt = it.grantedAt.substringBefore('T'),
             )
         },
+        devices = devices.map {
+            UserDevice(
+                installId = it.installId,
+                appInstanceId = it.appInstanceId,
+                platform = it.platform,
+                appVersion = it.appVersion,
+                osVersion = it.osVersion,
+                model = it.model,
+                // Minute precision: support is answering "was this today", not timing a race.
+                firstSeenAt = it.firstSeenAt.readableTime(),
+                lastSeenAt = it.lastSeenAt.readableTime(),
+            )
+        },
     )
 }
+
+/** `2026-09-17T12:34:56.789Z` -> `2026-09-17 12:34`. */
+private fun String.readableTime(): String =
+    replace('T', ' ').substringBefore('.').substringBeforeLast(':')
+
+@Serializable
+private data class DeviceRow(
+    @SerialName("install_id") val installId: String,
+    @SerialName("app_instance_id") val appInstanceId: String? = null,
+    val platform: String = "",
+    @SerialName("app_version") val appVersion: String? = null,
+    @SerialName("os_version") val osVersion: String? = null,
+    val model: String? = null,
+    @SerialName("first_seen_at") val firstSeenAt: String = "",
+    @SerialName("last_seen_at") val lastSeenAt: String = "",
+)
 
 @Serializable
 private data class OverrideRow(

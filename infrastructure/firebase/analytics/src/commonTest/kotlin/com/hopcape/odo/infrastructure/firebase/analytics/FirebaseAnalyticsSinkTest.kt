@@ -28,6 +28,18 @@ class FirebaseAnalyticsSinkTest {
     }
 
     @Test
+    fun forget_clearsTheUserIdRatherThanBlankingIt() {
+        // Firebase treats null as "no user"; an empty string is a user called "".
+        val gateway = FakeFirebaseAnalyticsGateway()
+        val sink = FirebaseAnalyticsSink(gateway = gateway)
+        sink.identify(UserTraits("owner-1"))
+
+        sink.forget()
+
+        assertNull(gateway.capturedUserId)
+    }
+
+    @Test
     fun track_sanitizesThenForwardsToTheGateway() {
         val gateway = FakeFirebaseAnalyticsGateway()
         val sink = FirebaseAnalyticsSink(gateway = gateway)

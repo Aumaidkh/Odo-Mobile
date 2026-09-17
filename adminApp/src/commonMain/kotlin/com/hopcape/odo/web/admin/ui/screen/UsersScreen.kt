@@ -46,6 +46,12 @@ import com.hopcape.odo.web.admin.resources.ad_users_col_plan
 import com.hopcape.odo.web.admin.resources.ad_users_col_status
 import com.hopcape.odo.web.admin.resources.ad_users_col_user
 import com.hopcape.odo.web.admin.resources.ad_users_directory
+import com.hopcape.odo.web.admin.resources.ad_users_device_copy
+import com.hopcape.odo.web.admin.resources.ad_users_device_first_seen
+import com.hopcape.odo.web.admin.resources.ad_users_device_no_analytics_id
+import com.hopcape.odo.web.admin.resources.ad_users_device_seen
+import com.hopcape.odo.web.admin.resources.ad_users_devices
+import com.hopcape.odo.web.admin.resources.ad_users_devices_empty
 import com.hopcape.odo.web.admin.resources.ad_users_empty
 import com.hopcape.odo.web.admin.resources.ad_users_entitlements
 import com.hopcape.odo.web.admin.resources.ad_users_entitlements_empty
@@ -71,6 +77,8 @@ import com.hopcape.odo.web.admin.resources.ad_users_status_blocked
 import com.hopcape.odo.web.admin.resources.ad_users_status_none
 import com.hopcape.odo.web.admin.resources.ad_users_status_read_only
 import com.hopcape.odo.web.admin.resources.ad_users_unnamed
+import com.hopcape.odo.web.admin.domain.UserDevice
+import com.hopcape.odo.web.core.platform.copyToClipboard
 import com.hopcape.odo.web.admin.ui.component.AdminField
 import com.hopcape.odo.web.admin.ui.component.Banner
 import com.hopcape.odo.web.admin.ui.component.Cell
@@ -326,6 +334,8 @@ private fun AccountPanel(user: ManagedUser, state: UsersUiState, onEvent: (Users
                     color = AdminTokens.textDim,
                 )
             }
+
+            DevicesPanel(user.devices)
         }
     }
 }
@@ -374,4 +384,49 @@ private fun Restriction.hintResource(): StringResource = when (this) {
     Restriction.None -> Res.string.ad_users_access_none_hint
     Restriction.ReadOnly -> Res.string.ad_users_access_read_only_hint
     Restriction.Blocked -> Res.string.ad_users_access_blocked_hint
+}
+
+/**
+ * Which installs this account has used, newest first.
+ *
+ * The analytics id is the reason the panel exists: GA4 reports on it and not on the account,
+ * so without it support cannot look the person up there at all.
+ */
+@Composable
+private fun DevicesPanel(devices: List<UserDevice>) {
+    Column(Modifier.widthIn(max = 620.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FieldLabel(stringResource(Res.string.ad_users_devices).uppercase())
+        if (devices.isEmpty()) {
+            Text(
+                stringResource(Res.string.ad_users_devices_empty),
+                style = AdminType.body,
+                color = AdminTokens.textFaint,
+            )
+            return@Column
+        }
+        devices.forEach { device ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    CellPrimary(listOfNotNull(device.model, device.osVersion).joinToString(" · "))
+                    CellSecondary(
+                        stringResource(Res.string.ad_users_device_seen) + " " + device.lastSeenAt +
+                            " · " + stringResource(Res.string.ad_users_device_first_seen) + " " +
+                            device.firstSeenAt +
+                            (device.appVersion?.let { " · v$it" } ?: ""),
+                    )
+                    CellSecondary(
+                        device.appInstanceId
+                            ?: stringResource(Res.string.ad_users_device_no_analytics_id),
+                    )
+                }
+                device.appInstanceId?.let { id ->
+                    RowAction(stringResource(Res.string.ad_users_device_copy), { copyToClipboard(id) }, true)
+                }
+            }
+        }
+    }
 }
