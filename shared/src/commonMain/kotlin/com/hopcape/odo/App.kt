@@ -58,6 +58,19 @@ import org.koin.core.Koin
 import org.koin.compose.koinInject
 
 /**
+ * Times one startup step into the log.
+ *
+ * HLogger, not an APM span: APM writes spans only to Firebase on a reporting build, so a
+ * span is invisible in the very build cold start is measured on.
+ */
+private inline fun <T> timed(step: String, block: () -> T): T {
+    val start = TimeSource.Monotonic.markNow()
+    val result = block()
+    HLogger.tag("STARTUP").i("step", mapOf("step" to step, "ms" to start.elapsedNow().inWholeMilliseconds))
+    return result
+}
+
+/**
  * The app's composition root. Koin is already started by the platform bootstrap
  * (Android `OdoApplication` / iOS `MainViewController`), and Koin 4.x exposes that
  * global graph to the composition automatically — so feature routes can
@@ -74,22 +87,14 @@ import org.koin.compose.koinInject
  *  against while the server is down, so leaving is the honest action. Defaults to doing
  *  nothing for hosts that cannot close themselves — iOS forbids it, and a button there would
  *  be a promise the platform will not keep.
+ * @param onFirstContent fires once the start destination is known. Android holds its splash
+ *  until then, so nobody watches the empty surface behind it (#473).
  */
-/**
- * Times one startup step into the log.
- *
- * HLogger, not an APM span: APM writes spans only to Firebase on a reporting build, so a
- * span is invisible in the very build cold start is measured on.
- */
-private inline fun <T> timed(step: String, block: () -> T): T {
-    val start = TimeSource.Monotonic.markNow()
-    val result = block()
-    HLogger.tag("STARTUP").i("step", mapOf("step" to step, "ms" to start.elapsedNow().inWholeMilliseconds))
-    return result
-}
-
 @Composable
-fun App(onExit: () -> Unit = {}) {
+fun App(
+    onExit: () -> Unit = {},
+    onFirstContent: () -> Unit = {},
+) {
     val koin = getKoin()
 
     // Observed, unlike the start destination: the appearance sheet changes these while the
@@ -128,6 +133,7 @@ fun App(onExit: () -> Unit = {}) {
                 OdoAppContent(
                     koin = koin,
                     maintenanceMessage = (current as? AppAvailability.DegradedByMaintenance)?.message,
+                    onFirstContent = onFirstContent,
                 )
                 if (shouldBlock(current)) {
                     AppBlockedSheet(
@@ -150,7 +156,11 @@ fun App(onExit: () -> Unit = {}) {
  * banner; the local app keeps working underneath it.
  */
 @Composable
-private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
+private fun OdoAppContent(
+    koin: Koin,
+    maintenanceMessage: String? = null,
+    onFirstContent: () -> Unit = {},
+) {
     // Which onboarding a new install opens into. Read here because this is the composable
     // that owns the start destination.
     val onboardingConfig = koinInject<OnboardingConfig>()
@@ -184,6 +194,12 @@ private fun OdoAppContent(koin: Koin, maintenanceMessage: String? = null) {
         // A new install waits (bounded) for the first Remote Config fetch before the
         // video-onboarding flag is read — issue #351; a returning owner resolves at once.
         startDestination = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
+    }
+
+    // Its own effect, not folded into the one above: that one returns early on the
+    // restored path, and a host holding a splash would then hold it for good.
+    LaunchedEffect(startDestination) {
+        if (startDestination != null) onFirstContent()
     }
 
     // Column + weighted Box regardless of whether the banner shows, so the tree shape
