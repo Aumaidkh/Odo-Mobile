@@ -4,7 +4,7 @@ import com.hopcape.odo.core.config.ConfigRefresher
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -44,12 +44,15 @@ internal fun onboardingStartDestination(
  * The wait is bounded by [firstFetchWait]: a device that cannot reach the backend must
  * not sit on the startup screen, and the compiled default is the designed answer for it.
  * A returning owner goes Home whatever the config says, so only a new install waits.
+ *
+ * 1.5 seconds rather than 3: the splash screen is branded now, but it is still a wait the
+ * owner did not ask for, and a fetch that has not landed by then is not about to.
  */
 internal suspend fun onboardingStartDestination(
     returning: Boolean,
     config: OnboardingConfig,
     refresher: ConfigRefresher,
-    firstFetchWait: Duration = 3.seconds,
+    firstFetchWait: Duration = 1500.milliseconds,
 ): OdoDestination {
     if (!returning) withTimeoutOrNull(firstFetchWait) { refresher.refresh() }
     return onboardingStartDestination(returning, config)
