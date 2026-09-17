@@ -43,6 +43,9 @@ internal class AnalyticsTrackerImpl(
         destinations.forEach { it.identify(traits) }
     }
 
+    // No consent gate: forgetting is what a withdrawn consent would ask for anyway.
+    override fun forget() = destinations.forEach { it.forget() }
+
     override fun track(eventName: String, properties: Map<String, Any?>) {
         // 1. Consent gate — fail closed. No consent, no event.
         if (consent.load() != ConsentStatus.GRANTED) return

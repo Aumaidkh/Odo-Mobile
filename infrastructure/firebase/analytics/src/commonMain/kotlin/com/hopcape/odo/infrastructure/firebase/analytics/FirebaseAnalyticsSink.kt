@@ -44,6 +44,9 @@ class FirebaseAnalyticsSink internal constructor(
         }
     }
 
+    /** Firebase clears its user id when handed null, which is what a sign-out means here. */
+    override fun forget() = gateway.setUserId(null)
+
     /**
      * [timestampMs] is not forwarded. Firebase Analytics has no client-side way to
      * backdate an event, so a retried or delayed delivery is stamped at the moment

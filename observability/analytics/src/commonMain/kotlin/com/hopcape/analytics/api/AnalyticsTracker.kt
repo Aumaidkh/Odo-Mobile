@@ -12,6 +12,13 @@ interface AnalyticsTracker {
     fun identify(traits: UserTraits)
 
     /**
+     * Drops the identity set by [identify], so later events are anonymous again.
+     *
+     * Defaulted to nothing: a destination that cannot forget is not a broken destination.
+     */
+    fun forget() {}
+
+    /**
      * Records a single event. [properties] are validated against the registered
      * [EventSchema] (when one exists) before the event is queued for delivery.
      */

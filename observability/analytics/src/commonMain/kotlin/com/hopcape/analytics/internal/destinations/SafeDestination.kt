@@ -22,6 +22,10 @@ internal class SafeDestination(
         runCatching { delegate.identify(traits) }.onFailure { onInternalError(name, it) }
     }
 
+    override fun forget() {
+        runCatching { delegate.forget() }.onFailure { onInternalError(name, it) }
+    }
+
     override fun track(event: AnalyticsEvent): Boolean =
         runCatching { delegate.track(event) }
             .onFailure { onInternalError(name, it) }

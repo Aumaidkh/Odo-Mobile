@@ -13,6 +13,9 @@ internal interface AnalyticsDestination {
     val name: String
     fun identify(traits: UserTraits)
 
+    /** Drops the identity. Defaulted, so a destination opts in by overriding. */
+    fun forget() {}
+
     /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
     fun track(event: AnalyticsEvent): Boolean
     fun flush()

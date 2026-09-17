@@ -261,12 +261,19 @@ internal class OdoSessionManager(
      * one, sign-out and a refresh that was refused all have to reach it, and one of them
      * being forgotten is exactly how a paid owner ends up on the free plan.
      *
-     * Neither identity call blocks or can fail — that is [SubscriptionIdentity]'s contract —
-     * so this stays inside the mutex without holding a network call under it.
+     * Neither identity call blocks or can fail — that is [SubscriptionIdentity]'s contract,
+     * and analytics queues rather than sends — so this stays inside the mutex without
+     * holding a network call under it.
      */
-    private fun hold(session: AuthSession?) {
+    private suspend fun hold(session: AuthSession?) {
         _session.value = session
-        if (session != null) identity.identify(session.ownerId) else identity.forget()
+        if (session != null) {
+            identity.identify(session.ownerId)
+            telemetry.ownerIdentified(session.ownerId.value)
+        } else {
+            identity.forget()
+            telemetry.ownerForgotten()
+        }
     }
 
     private companion object {

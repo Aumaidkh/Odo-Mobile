@@ -76,6 +76,12 @@ object HAnalytics {
         delegate.identify(UserTraits(userId, traits))
     }
 
+    /** Drops the identity, so events after a sign-out are not attributed to whoever left. */
+    fun forget() {
+        globalContext = globalContext.copy(userId = null)
+        delegate.forget()
+    }
+
     @JvmStatic
     fun setConsent(status: ConsentStatus) = delegate.setConsent(status)
 
@@ -103,6 +109,7 @@ object HAnalytics {
     /** Stable reference for DI that always forwards to the live [delegate]. */
     private object DelegatingTracker : AnalyticsTracker {
         override fun identify(traits: UserTraits) = delegate.identify(traits)
+        override fun forget() = delegate.forget()
         override fun track(eventName: String, properties: Map<String, Any?>) =
             delegate.track(eventName, properties)
 

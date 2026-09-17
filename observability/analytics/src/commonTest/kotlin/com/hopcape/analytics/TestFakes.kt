@@ -77,6 +77,13 @@ internal class RecordingDestination(
         identified += traits
     }
 
+    var forgetCount = 0
+        private set
+
+    override fun forget() {
+        forgetCount++
+    }
+
     override fun track(event: AnalyticsEvent): Boolean {
         if (throwTimes > 0) {
             throwTimes--

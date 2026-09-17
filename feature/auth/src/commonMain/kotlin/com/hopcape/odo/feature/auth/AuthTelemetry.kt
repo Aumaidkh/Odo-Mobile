@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.auth
 
 import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.Logger
 import com.hopcape.performance.api.currentTraceContext
 import com.hopcape.logging.api.TraceContext as LogTrace
@@ -30,6 +31,22 @@ internal class AuthTelemetry(
     /** A code was rejected — wrong, expired, or asked for too often. */
     suspend fun otpRejected(reason: Any) =
         log(EVENT_OTP_REJECTED, mapOf(Key.REASON to reason::class.simpleName))
+
+    /**
+     * Name this install's owner to analytics, so a support answer can be found there.
+     *
+     * The owner id and nothing else: it is an opaque uuid, unlike the number behind it.
+     */
+    suspend fun ownerIdentified(ownerId: String) {
+        analytics.identify(UserTraits(ownerId))
+        log(EVENT_OWNER_IDENTIFIED)
+    }
+
+    /** The session went away. Without this, later anonymous use still counts as that owner. */
+    suspend fun ownerForgotten() {
+        analytics.forget()
+        log(EVENT_OWNER_FORGOTTEN)
+    }
 
     /** Someone signed in. The funnel's end, and the moment sync becomes possible. */
     suspend fun signedIn() {
@@ -121,6 +138,8 @@ internal class AuthTelemetry(
         const val EVENT_OTP_REJECTED = "auth_otp_rejected"
         const val EVENT_SIGNED_IN = "auth_signed_in"
         const val EVENT_SIGNED_OUT = "auth_signed_out"
+        const val EVENT_OWNER_IDENTIFIED = "auth_owner_identified"
+        const val EVENT_OWNER_FORGOTTEN = "auth_owner_forgotten"
         const val EVENT_SESSION_ENDED = "auth_session_ended"
         const val EVENT_SESSION_RESTORED = "auth_session_restored"
         const val EVENT_SKIPPED = "auth_skipped"

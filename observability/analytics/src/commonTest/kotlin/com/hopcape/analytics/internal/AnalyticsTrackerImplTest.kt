@@ -85,6 +85,18 @@ class AnalyticsTrackerImplTest {
         assertEquals("u-1", destination.identified.single().userId)
     }
 
+    @Test
+    fun forget_reachesDestinations_evenWithoutConsent() {
+        // No consent gate on the way out: someone who never granted it is exactly who
+        // must not stay named.
+        val destination = RecordingDestination()
+        val tracker = tracker(store = RecordingStore(), destinations = listOf(destination))
+
+        tracker.forget()
+
+        assertEquals(1, destination.forgetCount)
+    }
+
     // ── Dedup ───────────────────────────────────────────────────
 
     @Test
