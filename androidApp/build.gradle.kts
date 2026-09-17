@@ -141,6 +141,10 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
 
+    // The system splash screen. It holds the branded window until the startup gate
+    // resolves, so a new install never sees the empty frame behind it (#473).
+    implementation(libs.androidx.core.splashscreen)
+
     // The home-screen widget. Glance is Android-only and draws through RemoteViews, so it
     // cannot live in a shared module or reuse :core:designsystem's Compose components — the
     // widget re-states its own colours and lays out with Glance's own primitives.
