@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.cost.model.RunningCost
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.insight.model.CarInsight
+import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.core.domain.shared.Distance
 
@@ -47,6 +48,14 @@ internal data class HomeSnapshot(
     val cost: RunningCost,
     /** No rate could be measured, so the ₹/km on screen is the segment's, not this car's. */
     val costEstimated: Boolean,
+    /**
+     * What a car of this fuel type costs to run, before anything has been logged.
+     *
+     * Fuel price divided by the segment's assumed mileage — the same rate the cost
+     * calculator prices distance at. With nothing logged there is no maintenance spend to
+     * add to it, so it is not a part of the answer, it is all of it that is knowable.
+     */
+    val modelledPerKm: Amount?,
     /** What the car is worth today. `null` only when there is no car. */
     val resale: AmountRange?,
     /** How ₹/km moved against the window before; `null` when either window has no rate. */

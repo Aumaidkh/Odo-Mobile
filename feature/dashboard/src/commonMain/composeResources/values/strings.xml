@@ -50,7 +50,7 @@
     <string name="hm_attention_no_plate">Nothing to check yet</string>
     <string name="hm_attention_no_plate_body">Add your number for insurance and challan</string>
     <string name="hm_estimate_prefix">~%1$s</string>
-    <string name="hm_score_modelled">Modelled from age and the maker\'s service cadence. Nothing logged yet.</string>
+    <string name="hm_score_modelled">Modelled from age and the maker’s service cadence. Nothing logged yet.</string>
     <string name="hm_cost_segment">Segment average</string>
     <string name="hm_resale_value">Resale value</string>
     <string name="hm_resale_from_day_one">Real from day one</string>

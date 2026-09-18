@@ -166,8 +166,13 @@ internal class ObserveHomeUseCase(
             scoreEstimated = unrecorded,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,
-            // No measured rate, so the tile quotes the segment's. Stated on screen either way.
-            costEstimated = cost.current.perKm == null,
+            // A modelled rate is being shown in place of a measured one. Not the same as
+            // having no rate at all: with no city set there is no price to model from, and
+            // labelling that absence "segment average" would give a dash a basis it has not
+            // got. Fuel is priced by state here, so a national figure would be a guess
+            // dressed as a quote.
+            costEstimated = cost.current.perKm == null && cost.fuelRate != null,
+            modelledPerKm = cost.fuelRate,
             resale = record.car?.let { car ->
                 CarValueEstimator.estimate(
                     car = car,
@@ -237,6 +242,7 @@ internal class ObserveHomeUseCase(
         return CostPair(
             current = compute(window, record, fuelRate),
             previous = compute(window.previous(), record, fuelRate),
+            fuelRate = fuelRate,
         )
     }
 
@@ -269,7 +275,12 @@ internal class ObserveHomeUseCase(
     private data class ReadingsAndCurrent(val readings: List<OdometerReading>, val current: Distance?)
 
     /** A window and its predecessor, which exists only to produce the trend. */
-    private data class CostPair(val current: RunningCost, val previous: RunningCost) {
+    private data class CostPair(
+        val current: RunningCost,
+        val previous: RunningCost,
+        /** The modelled ₹/km both windows were priced at; `null` with no city or no price. */
+        val fuelRate: Amount?,
+    ) {
         val trend get() = current.trendAgainst(previous)
     }
 
