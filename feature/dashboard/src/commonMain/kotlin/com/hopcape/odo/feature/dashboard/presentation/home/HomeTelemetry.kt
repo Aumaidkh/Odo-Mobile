@@ -76,6 +76,18 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.ADD_PLATE_TAPPED, tc = flowTrace.toLog())
     }
 
+    /**
+     * The backup offer was taken.
+     *
+     * The one number worth watching against it is how many dashboards showed the offer at
+     * all — an owner with a record and no session is the only person this app can still
+     * lose everything for.
+     */
+    fun backUpTapped() {
+        analytics.track(Event.BACK_UP_TAPPED, emptyMap())
+        logger.info(TAG, Event.BACK_UP_TAPPED, tc = flowTrace.toLog())
+    }
+
     /** The health card's "see breakdown" was tapped. */
     fun breakdownOpened() {
         analytics.track(Event.BREAKDOWN_OPENED, emptyMap())
@@ -213,6 +225,7 @@ internal class HomeTelemetry(
         const val TIMELINE_OPENED = "home_timeline_opened"
         const val ADD_ODOMETER_TAPPED = "home_add_odometer_tapped"
         const val ADD_PLATE_TAPPED = "home_add_plate_tapped"
+        const val BACK_UP_TAPPED = "home_back_up_tapped"
         const val ODOMETER_NUDGE_DISMISSED = "home_odometer_nudge_dismissed"
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"

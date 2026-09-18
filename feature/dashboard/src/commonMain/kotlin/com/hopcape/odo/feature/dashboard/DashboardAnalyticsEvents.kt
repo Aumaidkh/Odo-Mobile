@@ -14,6 +14,7 @@ import com.hopcape.odo.feature.dashboard.presentation.home.HomeTelemetry
  */
 val dashboardAnalyticsEvents: List<EventSchema> = listOf(
     EventSchema(HomeTelemetry.Event.ADD_PLATE_TAPPED),
+    EventSchema(HomeTelemetry.Event.BACK_UP_TAPPED),
     EventSchema(
         HomeTelemetry.Event.OPENED,
         mapOf(

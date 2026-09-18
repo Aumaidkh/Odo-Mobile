@@ -33,6 +33,9 @@ object HomeTestTags {
     /** The slot the overcharge card takes over once there is money on the board. */
     const val RESALE_CARD = "home_resale_card"
 
+    /** The backup offer, up only while there is a record and no session. */
+    const val BACKUP_CARD = "home_backup_card"
+
     const val ATTENTION_CARD = "home_attention_card"
     const val INSIGHT_CARD = "home_insight_card"
 

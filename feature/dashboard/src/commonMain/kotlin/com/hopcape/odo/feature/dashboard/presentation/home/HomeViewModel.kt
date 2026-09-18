@@ -16,6 +16,7 @@ import com.hopcape.odo.core.domain.showcase.ShowcaseArbiter
 import com.hopcape.odo.core.domain.showcase.ShowcaseHookId
 import com.hopcape.odo.core.triptracker.TripTracker
 import com.hopcape.odo.core.triptracker.VehicleBondStore
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.feature.dashboard.domain.model.HomeSnapshot
 import com.hopcape.odo.feature.dashboard.domain.usecase.ObserveHomeUseCase
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
@@ -59,6 +60,7 @@ internal class HomeViewModel(
     private val tracker: TripTracker,
     private val showcase: ShowcaseArbiter,
     private val entitlements: EntitlementSource,
+    private val sessions: SessionStatusProvider,
     private val telemetry: HomeTelemetry,
     private val config: FeatureConfig,
 ) : ViewModel() {
@@ -112,6 +114,10 @@ internal class HomeViewModel(
                 observeHome(id).map { snapshot ->
                     HomeUiState(
                         content = Loadable.Ready(snapshot.toContent()),
+                        // Only once there is something to lose. Asked before that it is a
+                        // sign-up form; asked after, it is about the record the owner just
+                        // made. Read per emission, so it goes the moment they sign in.
+                        offerBackup = !snapshot.isNewUser && !sessions.isSignedIn(),
                         // Only when the attention card is about something else. When it is
                         // about the service, that card opens the checklist itself, and Home
                         // saying the same thing twice is how a dashboard stops being read.
@@ -227,6 +233,11 @@ internal class HomeViewModel(
         HomeEvent.BreakdownTapped -> {
             telemetry.breakdownOpened()
             send(HomeEffect.OpenHealthScore)
+        }
+
+        HomeEvent.BackUpTapped -> {
+            telemetry.backUpTapped()
+            send(HomeEffect.OpenSignIn)
         }
 
         HomeEvent.AddPlateTapped -> {

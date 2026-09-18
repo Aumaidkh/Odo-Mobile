@@ -56,6 +56,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
+import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
@@ -109,6 +110,9 @@ import com.hopcape.odo.feature.dashboard.resources.hm_no_car_body
 import com.hopcape.odo.feature.dashboard.resources.hm_cost_segment
 import com.hopcape.odo.feature.dashboard.resources.hm_estimate_prefix
 import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate
+import com.hopcape.odo.feature.dashboard.resources.hm_backup_action
+import com.hopcape.odo.feature.dashboard.resources.hm_backup_body
+import com.hopcape.odo.feature.dashboard.resources.hm_backup_title
 import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate_body
 import com.hopcape.odo.feature.dashboard.resources.hm_estimated
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_caught
@@ -207,6 +211,7 @@ internal fun HomeScreen(
                     offerAutoDetect = state.offerAutoDetect,
                     offerAutoOdometer = state.offerAutoOdometer,
                     offerChecklist = state.offerChecklist,
+                    offerBackup = state.offerBackup,
                     healthAnchor = healthAnchor,
                     onEvent = onEvent,
                 )
@@ -252,6 +257,7 @@ private fun HomeBody(
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
     offerChecklist: Boolean,
+    offerBackup: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -269,6 +275,7 @@ private fun HomeBody(
             offerAutoDetect = offerAutoDetect,
             offerAutoOdometer = offerAutoOdometer,
             offerChecklist = offerChecklist,
+            offerBackup = offerBackup,
             healthAnchor = healthAnchor,
             onEvent = onEvent,
         )
@@ -441,6 +448,7 @@ private fun ScoredContent(
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
     offerChecklist: Boolean,
+    offerBackup: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -451,6 +459,7 @@ private fun ScoredContent(
     StatsRow(content)
     AttentionCard(content.attention, content.hasPlate, onEvent)
     if (offerChecklist) ChecklistCard(onEvent)
+    if (offerBackup) BackupCard(onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
 }
@@ -1294,3 +1303,34 @@ private fun AmountRange.formatCompact(): String {
 }
 
 private const val RANGE_DASH = "\u2013"
+
+/**
+ * The one place Odo asks for a phone number, and only once the owner has something to lose.
+ *
+ * Setup used to ask at the end of first run, before anything had been made — a request with
+ * nothing behind it but the request. This one is about a record that already exists, which
+ * is the only version of the question the owner can actually weigh.
+ */
+@Composable
+private fun BackupCard(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        onClick = { onEvent(HomeEvent.BackUpTapped) },
+        modifier = Modifier.testTag(HomeTestTags.BACKUP_CARD),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HomeIconTile(IcShieldCheck, OdoTheme.colors.accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                OdoText(stringResource(Res.string.hm_backup_title), style = OdoTheme.typography.heading)
+                OdoText(
+                    stringResource(Res.string.hm_backup_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            Chevron()
+        }
+    }
+}

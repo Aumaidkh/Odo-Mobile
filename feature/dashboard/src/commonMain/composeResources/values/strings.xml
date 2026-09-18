@@ -43,6 +43,11 @@
     <!-- Insurance, PUC and challan are all looked up by the registration number, so without
          one there is nothing to check and saying "all clear" would be a claim, not a
          finding. Setup no longer asks for it; this is where it does. -->
+    <!-- Asked only once there is a record to lose, and phrased as what losing it costs.
+         Before that it is a sign-up form with nothing behind it. -->
+    <string name="hm_backup_title">Your record is only on this phone</string>
+    <string name="hm_backup_body">Lose the phone and it goes with it. A number keeps it.</string>
+    <string name="hm_backup_action">Back it up</string>
     <string name="hm_attention_no_plate">Nothing to check yet</string>
     <string name="hm_attention_no_plate_body">Add your number for insurance and challan</string>
     <string name="hm_estimate_prefix">~%1$s</string>

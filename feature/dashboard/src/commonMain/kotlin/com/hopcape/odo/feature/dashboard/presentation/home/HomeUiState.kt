@@ -78,6 +78,16 @@ internal data class HomeUiState(
      */
     val offerChecklist: Boolean = false,
 
+    /**
+     * Whether to offer backing the record up.
+     *
+     * True only once the owner has made something worth losing and has no session. Setup
+     * used to ask at the end of first run, when there was nothing behind the request but
+     * the request itself; this asks about a record that already exists, which is the only
+     * version of the question the owner can weigh.
+     */
+    val offerBackup: Boolean = false,
+
 )
 
 /** A loaded dashboard. */
