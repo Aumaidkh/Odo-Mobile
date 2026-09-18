@@ -108,7 +108,7 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
 
     // One facade for every call that leaves the device. A `single`: it holds no per-call
     // state — the trace comes from the calling coroutine, not from this object.
-    single { SupabaseTelemetry(logger = get(), tracer = get(), crash = get()) }
+    single { SupabaseTelemetry(logger = get(), tracer = get(), crash = get(), analytics = get()) }
 
     // Outside the isConfigured branch below, unlike every other binding here: these are
     // three strings built from the project URL, with no client and nothing to call. An
