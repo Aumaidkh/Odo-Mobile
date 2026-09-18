@@ -21,6 +21,7 @@ import com.hopcape.odo.core.triptracker.port.MotionActivitySource
 import com.hopcape.odo.core.triptracker.port.TripForegroundSession
 import com.hopcape.odo.core.triptracker.port.TripSessionStore
 import com.hopcape.odo.core.triptracker.port.VehiclePresenceSource
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -130,6 +131,8 @@ internal class TripTrackerEngine(
             handle(TripEvent.Enabled)
             val restored = try {
                 sessionStore.load()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Exception) {
                 telemetry.nonFatal(e, stage = STAGE_SESSION_LOAD)
                 null
@@ -159,12 +162,16 @@ internal class TripTrackerEngine(
         for (effect in result.effects) {
             try {
                 executeEffect(effect)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Exception) {
                 telemetry.nonFatal(e, stage = "effect.${effect::class.simpleName}")
             }
         }
         try {
             maybePersist(previous, phase)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (e: Exception) {
             telemetry.nonFatal(e, stage = STAGE_SESSION_PERSIST)
         }
@@ -194,6 +201,8 @@ internal class TripTrackerEngine(
         if (bond.triggerMode != TriggerMode.STEREO) return
         val connectedNow = try {
             bondedDeviceCatalog.devices().any { it.id == bond.bluetoothId && it.isConnectedNow }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (e: Exception) {
             telemetry.nonFatal(e, stage = STAGE_START_IF_CONNECTED)
             false
@@ -264,10 +273,15 @@ internal class TripTrackerEngine(
      * A signal-source collector dying silently is worse than it never having started —
      * the next event from that source (a permission revoked mid-trip, a Play Services
      * hiccup) would simply never arrive again with nothing to explain why.
+     *
+     * Cancellation is rethrown, here and at every other catch in this file: a collector the
+     * engine stopped is not a source that broke.
      */
     private suspend fun safely(stage: String, block: suspend () -> Unit) {
         try {
             block()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (e: Exception) {
             telemetry.nonFatal(e, stage = stage)
         }

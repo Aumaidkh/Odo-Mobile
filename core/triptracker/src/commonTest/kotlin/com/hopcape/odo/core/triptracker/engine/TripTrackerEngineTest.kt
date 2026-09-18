@@ -193,6 +193,32 @@ class TripTrackerEngineTest {
         assertEquals(1_110L, trip.distance.meters)
     }
 
+    @Test
+    fun disablingTracking_recordsNoNonFatals() = runTest {
+        // Turning tracking off cancels the motion, presence, fixes and timer jobs.
+        val env = Env(this, parked = null)
+        env.enableAndSettleCar()
+        env.driveBtFrom(0)
+        advanceTimeBy(5.seconds)
+
+        env.engine.setEnabled(false)
+        env.advance()
+
+        assertEquals(emptyList(), env.crash.nonFatals, "stopping a collector is not a fault")
+    }
+
+    @Test
+    fun aWholeTrip_recordsNoNonFatals() = runTest {
+        // startFixes cancels the previous fixes job and stopFixes the live one.
+        val env = Env(this, parked = null)
+        env.enableAndSettleCar()
+
+        env.driveBtFrom(0)
+        env.stopBtAndFinalize()
+
+        assertEquals(emptyList(), env.crash.nonFatals, "an ordinary trip reports nothing")
+    }
+
     // ---- auto-odometer F1 deltas ----
 
     @Test
@@ -408,7 +434,8 @@ class TripTrackerEngineTest {
         val fixes = MutableSharedFlow<LocationSample>(extraBufferCapacity = 16)
         val foregroundSession = FakeTripForegroundSession()
         val tripRepository = FakeTripRepository(parked)
-        val telemetry = TripTrackerTelemetry(logger = NoopLogger, analytics = NoopAnalytics, tracer = NoopTracer, crash = NoopCrash)
+        val crash = RecordingCrash()
+        val telemetry = TripTrackerTelemetry(logger = NoopLogger, analytics = NoopAnalytics, tracer = NoopTracer, crash = crash)
 
         val engine = TripTrackerEngine(
             locationProvider = { FakeLocationProvider(fixes) },
@@ -647,6 +674,18 @@ private object NoopTracer : PerformanceTracer {
     }
     override fun endSpan(span: Span) = Unit
     override fun flush() = Unit
+}
+
+/** Captures what a crash dashboard would have received, so a test can assert it got nothing. */
+private class RecordingCrash : CrashRecorder {
+    val nonFatals = mutableListOf<Throwable>()
+    override fun recordNonFatal(throwable: Throwable, customKeys: Map<String, Any?>) {
+        nonFatals += throwable
+    }
+
+    override fun leaveBreadcrumb(tag: String, message: String) = Unit
+    override fun setCustomKey(key: String, value: Any?) = Unit
+    override fun setUserId(userId: String?) = Unit
 }
 
 private object NoopCrash : CrashRecorder {
