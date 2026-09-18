@@ -41,7 +41,7 @@ val billScannerModule = module {
     // not metered the way a workshop bill is.
     factory { ScanPumpDisplayUseCase(extractor = get(), ids = get(), clock = get()) }
     factory { ScanDocumentUseCase(extractor = get(), allowance = get(), charger = get(), ids = get(), clock = get()) }
-    factory { SaveScannedBillUseCase(logs = get(), ids = get(), nudges = get(), clock = get()) }
+    factory { SaveScannedBillUseCase(logs = get(), ids = get(), nudges = get(), sessions = get(), clock = get()) }
     factory {
         SaveScannedDocumentUseCase(
             documents = get(),

@@ -52,7 +52,11 @@ import com.hopcape.odo.web.admin.resources.ad_dash_metric_logs
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_posts
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_pro
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_tickets
+import com.hopcape.odo.web.admin.resources.ad_dash_metric_active
+import com.hopcape.odo.web.admin.resources.ad_dash_metric_sticky
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_users
+import com.hopcape.odo.web.admin.resources.ad_dash_sub_active
+import com.hopcape.odo.web.admin.resources.ad_dash_sub_sticky
 import com.hopcape.odo.web.admin.resources.ad_dash_signups
 import com.hopcape.odo.web.admin.resources.ad_dash_signups_none
 import com.hopcape.odo.web.admin.resources.ad_dash_sub_cars
@@ -182,6 +186,24 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 snapshot.users.toString(),
                 delta = snapshot.signupDelta,
                 sub = null,
+                modifier = Modifier.weight(1f),
+            )
+            MetricCard(
+                stringResource(Res.string.ad_dash_metric_active),
+                snapshot.active1d.toString(),
+                delta = snapshot.activeDelta,
+                sub = stringResource(
+                    Res.string.ad_dash_sub_active,
+                    snapshot.active7d,
+                    snapshot.active30d,
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            MetricCard(
+                stringResource(Res.string.ad_dash_metric_sticky),
+                snapshot.stickiness?.let { "$it%" } ?: EMPTY_FIGURE,
+                delta = null,
+                sub = stringResource(Res.string.ad_dash_sub_sticky),
                 modifier = Modifier.weight(1f),
             )
             MetricCard(
@@ -351,3 +373,6 @@ private fun ActivityPanel(snapshot: DashboardSnapshot) {
         }
     }
 }
+
+/** What a ratio with no denominator shows: unanswerable, not zero. */
+private const val EMPTY_FIGURE = "—"

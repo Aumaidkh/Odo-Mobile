@@ -44,4 +44,14 @@ enum class EngagementNudge(val delay: Duration) {
 
     /** A bill was scanned. */
     SCAN_FOLLOW_UP(delay = 3.days),
+
+    /**
+     * A record exists and no account does.
+     *
+     * The one nudge that is about losing something rather than doing something. Two days is
+     * long enough that the owner has stopped thinking about setup and short enough that the
+     * record is still small — the point is to ask before there is a year of history riding
+     * on one phone, not after.
+     */
+    BACK_UP(delay = 2.days),
 }

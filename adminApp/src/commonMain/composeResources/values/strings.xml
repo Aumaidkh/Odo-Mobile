@@ -312,6 +312,13 @@
     <string name="ad_dash_attn_drafts">%1$d posts still in draft</string>
     <string name="ad_dash_attn_pastdue">%1$d subscriptions past due</string>
     <string name="ad_dash_metric_users">OWNERS</string>
+    <!-- Actives come from the device heartbeat, which only a signed-in app writes. The label
+         says "accounts" and the subtitle says the rest, so nobody reads this as total DAU. -->
+    <string name="ad_dash_metric_active">ACCOUNTS ACTIVE TODAY</string>
+    <string name="ad_dash_sub_active">%1$d this week · %2$d this month</string>
+    <string name="ad_dash_metric_sticky">STILL HERE</string>
+    <string name="ad_dash_sub_sticky">Of all accounts, active in the last 30 days</string>
+    <string name="ad_dash_actives_note">Signed-in accounts only — an owner who never verified a number is using Odo and is not counted here. GA4 counts those.</string>
     <string name="ad_dash_metric_cars">CARS</string>
     <string name="ad_dash_metric_pro">PRO, ACTIVE</string>
     <string name="ad_dash_metric_tickets">TICKETS OPEN</string>

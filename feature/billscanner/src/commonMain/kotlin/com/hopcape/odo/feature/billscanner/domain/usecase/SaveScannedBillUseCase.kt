@@ -14,6 +14,7 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.platform.notification.EngagementNudge
 import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.core.domain.shared.DomainError
@@ -43,6 +44,7 @@ internal class SaveScannedBillUseCase(
     private val logs: ServiceLogRepository,
     private val ids: IdGenerator,
     private val nudges: EngagementNudgeScheduler,
+    private val sessions: SessionStatusProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -84,6 +86,10 @@ internal class SaveScannedBillUseCase(
         // ever ask for the next one. After the write, so a refused save never leaves a nudge
         // about a bill that was not kept.
         nudges.schedule(EngagementNudge.SCAN_FOLLOW_UP)
+        // There is now something on this phone that nothing else holds a copy of. Rescheduled
+        // on every scan rather than only the first: it is replaced, not stacked, so it lands
+        // two days after the owner stops scanning rather than two days after they started.
+        if (!sessions.isSignedIn()) nudges.schedule(EngagementNudge.BACK_UP)
         saved
     }
 }

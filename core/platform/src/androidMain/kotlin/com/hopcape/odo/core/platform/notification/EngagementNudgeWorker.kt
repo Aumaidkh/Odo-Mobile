@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hopcape.logging.api.Logger
+import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.platform.R
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -21,6 +22,7 @@ internal class EngagementNudgeWorker(
 ) : CoroutineWorker(context, parameters), KoinComponent {
 
     private val logger: Logger by inject()
+    private val sessions: SessionStatusProvider by inject()
 
     override suspend fun doWork(): Result {
         val nudge = inputData.getString(KEY_NUDGE)
@@ -29,6 +31,13 @@ internal class EngagementNudgeWorker(
             // A bug in the scheduler rather than a condition that improves on its own.
             logger.error(TAG, "nudge_unknown")
             return Result.failure()
+        }
+
+        // Days can pass between scheduling and firing. Telling somebody to back up a record
+        // they have already backed up is the kind of nudge that gets an app muted.
+        if (nudge == EngagementNudge.BACK_UP && sessions.isSignedIn()) {
+            logger.info(TAG, "nudge_stale_${nudge.name}")
+            return Result.success()
         }
 
         val posted = EngagementNudgeNotification.show(
@@ -44,11 +53,13 @@ internal class EngagementNudgeWorker(
     private fun EngagementNudge.titleRes() = when (this) {
         EngagementNudge.FIRST_SCORE -> R.string.nudge_first_score_title
         EngagementNudge.SCAN_FOLLOW_UP -> R.string.nudge_scan_follow_up_title
+        EngagementNudge.BACK_UP -> R.string.nudge_back_up_title
     }
 
     private fun EngagementNudge.bodyRes() = when (this) {
         EngagementNudge.FIRST_SCORE -> R.string.nudge_first_score_body
         EngagementNudge.SCAN_FOLLOW_UP -> R.string.nudge_scan_follow_up_body
+        EngagementNudge.BACK_UP -> R.string.nudge_back_up_body
     }
 
     companion object {

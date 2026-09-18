@@ -32,6 +32,8 @@
     <string name="nudge_channel_description">Occasional suggestions — never a deadline</string>
     <string name="nudge_first_score_title">Your car’s first health score is ready</string>
     <string name="nudge_first_score_body">It is modelled for now. Scan one bill and it becomes your car’s own.</string>
+    <string name="nudge_back_up_title">Your record is only on this phone</string>
+    <string name="nudge_back_up_body">Lose the phone and it goes with it. Add your number and Odo keeps it for you.</string>
     <string name="nudge_scan_follow_up_title">Got another bill lying around?</string>
     <string name="nudge_scan_follow_up_body">Every bill you scan tightens what your car is worth, and catches what you were overcharged.</string>
 </resources>

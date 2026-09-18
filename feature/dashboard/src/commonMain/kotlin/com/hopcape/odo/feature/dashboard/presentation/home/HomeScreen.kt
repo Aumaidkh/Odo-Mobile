@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -778,7 +779,15 @@ private fun HealthCard(
                         } else {
                             bandText(content.band)
                         },
-                        style = OdoTheme.typography.caption,
+                        // Smaller and less tracked than a caption when it qualifies rather
+                        // than grades: a band is the dial's verdict and reads at full size,
+                        // while "Estimated" only says what kind of number is above it and
+                        // should not compete with the number for the space inside the ring.
+                        style = if (content.scoreEstimated) {
+                            OdoTheme.typography.caption.copy(fontSize = 10.sp, letterSpacing = 0.04.em)
+                        } else {
+                            OdoTheme.typography.caption
+                        },
                         color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                     )
                 },
