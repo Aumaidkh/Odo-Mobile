@@ -190,6 +190,17 @@ WHERE sync_status = 'PENDING'
   AND deleted_at IS NULL
   AND registration_number IS NOT NULL;
 
+-- Never-synced cars in the outbox with no plate at all. Setup stopped asking for one, so
+-- this is the ordinary shape of a car added before sign-in — and with no plate to match on,
+-- the reconcile above cannot see it. Matched on make/model/year instead.
+selectUnsyncedWithoutPlate:
+SELECT id, make, model, year
+FROM cars
+WHERE sync_status = 'PENDING'
+  AND remote_version IS NULL
+  AND deleted_at IS NULL
+  AND registration_number IS NULL;
+
 -- Every live car this device holds that names a plate. The restore announcement reads it to
 -- tell a car the owner entered from one the account merely holds.
 selectPlatedCarIds:
@@ -264,8 +275,25 @@ WHERE sync_status = 'PENDING';
 -- Sign-in adoption (SYNC_DESIGN §9): move rows created before there was an account onto
 -- the account that just signed in, and put them in the outbox. Matching on the placeholder
 -- is what makes this idempotent — a second run finds nothing.
+-- Placeholder cars whose plate the account already holds on a live car of its own.
+-- Adoption cannot move these as they are: `uq_cars_owner_reg` allows one live plate per
+-- owner, and the UPDATE would fail the whole transaction. The caller merges them instead.
+selectPlateCollisions:
+SELECT local.id AS localId, mine.id AS serverId
+FROM cars local
+JOIN cars mine
+  ON mine.registration_number = local.registration_number
+ AND mine.owner_id = :realOwnerId
+ AND mine.deleted_at IS NULL
+WHERE local.owner_id = :placeholderOwnerId
+  AND local.registration_number IS NOT NULL
+  AND local.deleted_at IS NULL;
+
+-- OR IGNORE: a plate the account already holds would otherwise fail this statement and roll
+-- back every other table's adoption with it, permanently — adoption runs before every pass
+-- and swallows what it throws. A row that loses here keeps the placeholder and is retried.
 adoptOwnership:
-UPDATE cars
+UPDATE OR IGNORE cars
 SET owner_id = :realOwnerId, sync_status = 'PENDING', updated_at = :now
 WHERE owner_id = :placeholderOwnerId;
 

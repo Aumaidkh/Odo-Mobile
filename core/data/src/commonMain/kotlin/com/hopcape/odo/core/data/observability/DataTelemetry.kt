@@ -85,6 +85,23 @@ class DataTelemetry(
     }
 
     /**
+     * Rows this layer folded together on its own, with no owner involved.
+     *
+     * Counted because it is a silent write: a merge deletes one row and moves another row's
+     * children onto a second, and nothing on screen says it happened. A device reporting
+     * these every pass is a device where the merge is not settling.
+     */
+    suspend fun reconciled(entity: String, operation: String, count: Int) {
+        if (count == 0) return
+        logger.info(
+            TAG,
+            "$entity.$operation.reconciled",
+            tc = currentTraceContext().toLog(),
+            fields = mapOf(Key.COUNT to count),
+        )
+    }
+
+    /**
      * An exception this layer caught and turned into a `DomainError.PersistenceFailure`.
      * Recorded as a non-fatal because a swallowed exception is exactly the kind of broken
      * that never reaches a crash dashboard on its own.
@@ -109,6 +126,7 @@ class DataTelemetry(
         const val OPERATION = "operation"
         const val ERROR = "error"
         const val KEY = "key"
+        const val COUNT = "count"
     }
 
     companion object {
