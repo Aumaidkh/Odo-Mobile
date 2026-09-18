@@ -40,7 +40,6 @@ internal val setupModule = module {
             answers = get(),
             loadCatalog = get(),
             loadModels = get(),
-            lookupPlate = get(),
             saveCar = get(),
             reportUnlisted = get(),
             recordDeclaredService = get(),

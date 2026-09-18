@@ -17,19 +17,7 @@ import kotlinx.datetime.LocalDate
  */
 internal sealed interface OnboardingEvent {
 
-    /** Step 2, plate route. */
-    sealed interface Car : OnboardingEvent {
-        /** The plate field changed; [plate] is already normalized by the input component. */
-        data class PlateChanged(val plate: String) : Car
-
-        /** "Try again" on a failed lookup — same plate, fresh attempt. */
-        data object LookupRetried : Car
-
-        /** "Not your car?" — the match (or the miss) is rejected in favour of manual entry. */
-        data object MatchRejected : Car
-    }
-
-    /** Step 2, manual route. */
+    /** Step 1 — the car. */
     sealed interface Details : OnboardingEvent {
         data class MakeSelected(val make: String) : Details
         data class ModelSelected(val model: CarModel) : Details
@@ -38,9 +26,6 @@ internal sealed interface OnboardingEvent {
 
         /** The reference data failed to load and the owner asked for another attempt. */
         data object CatalogRetried : Details
-
-        /** "Found your plate instead?" — back to the plate route. */
-        data object TryAutoFillClicked : Details
     }
 
     /** Step 3. */

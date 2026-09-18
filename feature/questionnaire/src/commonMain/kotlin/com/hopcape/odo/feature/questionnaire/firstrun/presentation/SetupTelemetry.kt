@@ -8,7 +8,6 @@ import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
-import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
@@ -16,7 +15,6 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateProgress
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
 import com.hopcape.performance.api.currentTraceContext
@@ -73,23 +71,6 @@ internal class SetupTelemetry(
         logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
     }
 
-    /**
-     * How far the registration number got before the car step was left.
-     *
-     * The funnel cannot otherwise tell "never touched the field" from "typed it and gave up",
-     * and those two say opposite things about whether asking for a plate here is the problem.
-     * Only the bucket is sent — a plate identifies a person's car and never leaves the device.
-     */
-    fun plateProgress(progress: PlateProgress) {
-        analytics.track(Event.PLATE_PROGRESS, mapOf(Key.PROGRESS to progress.name))
-        logger.info(
-            TAG,
-            Event.PLATE_PROGRESS,
-            tc = flowTrace.toLog(),
-            fields = mapOf(Key.PROGRESS to progress.name),
-        )
-    }
-
     fun stepBack(from: OnboardingStep) {
         logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
     }
@@ -101,16 +82,6 @@ internal class SetupTelemetry(
     fun abandoned(step: OnboardingStep) {
         analytics.track(Event.ABANDONED, mapOf(Key.STEP to step.name))
         logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step.name))
-    }
-
-    /**
-     * The owner chose to type the car in by hand. [hadMatch] separates "the registry was wrong"
-     * from "the registry gave us nothing" — the two say very different things about whether a
-     * lookup integration is worth having.
-     */
-    fun manualEntryChosen(hadMatch: Boolean) {
-        analytics.track(Event.MANUAL_ENTRY_CHOSEN, mapOf(Key.HAD_MATCH to hadMatch))
-        logger.info(TAG, Event.MANUAL_ENTRY_CHOSEN, tc = flowTrace.toLog(), fields = mapOf(Key.HAD_MATCH to hadMatch))
     }
 
     fun goalSelected(goal: OnboardingGoal) {
@@ -239,33 +210,8 @@ internal class SetupTelemetry(
         }
 
     /**
-     * Times the plate lookup and records which way it went, and on a match which tier
-     * answered.
-     *
-     * [Key.SOURCE] is the number the cross-owner tier has to justify itself with: it is the
-     * only tier that reaches another owner's data, and its share of matches says whether
-     * that is buying anything. The plate itself is never recorded.
-     */
-    suspend fun plateLookup(
-        read: suspend () -> Either<DomainError, RegisteredVehicle>,
-    ): Either<DomainError, RegisteredVehicle> = traced(Trace.PLATE_LOOKUP) { span ->
-        val result = read()
-        val outcome = result.fold(
-            ifLeft = { it::class.simpleName ?: Outcome.FAILED },
-            ifRight = { Outcome.MATCHED },
-        )
-        val source = result.getOrNull()?.source?.name ?: Outcome.NO_MATCH
-        val fields = mapOf(Key.OUTCOME to outcome, Key.SOURCE to source)
-        span.setAttribute(Key.OUTCOME, outcome)
-        span.setAttribute(Key.SOURCE, source)
-        analytics.track(Event.PLATE_LOOKUP, fields)
-        logger.info(TAG, Event.PLATE_LOOKUP, tc = currentTraceContext().toLog(), fields = fields)
-        result
-    }
-
-    /**
      * Times the car write and records the outcome. [edit] separates a first save from the owner
-     * stepping back to fix something — a flow with many edits is a flow whose lookup or pickers
+     * stepping back to fix something — a flow with many edits is a flow whose pickers
      * are getting it wrong.
      */
     suspend fun carSave(
@@ -409,10 +355,7 @@ internal class SetupTelemetry(
         const val STARTED = "onboarding_started"
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
-        const val PLATE_PROGRESS = "onboarding_plate_progress"
         const val ABANDONED = "onboarding_abandoned"
-        const val MANUAL_ENTRY_CHOSEN = "onboarding_manual_entry_chosen"
-        const val PLATE_LOOKUP = "onboarding_plate_lookup"
         const val GOAL_SELECTED = "onboarding_goal_selected"
         const val CAR_SAVED = "onboarding_car_saved"
         const val PROFILE_SAVED = "onboarding_profile_saved"
@@ -439,7 +382,6 @@ internal class SetupTelemetry(
         const val STEP_SUBMIT = "onboarding_step_submit"
         const val CATALOG_LOAD = "onboarding_catalog_load"
         const val MODELS_LOAD = "onboarding_models_load"
-        const val PLATE_LOOKUP = "onboarding_plate_lookup"
         const val SAVE_CAR = "onboarding_save_car"
         const val SAVE_PROFILE = "onboarding_save_profile"
         const val SAVE_WORKSHOP = "onboarding_save_workshop"
@@ -449,10 +391,8 @@ internal class SetupTelemetry(
     /** Structured field / property keys, shared across logs, events and spans. */
     object Key {
         const val STEP = "step"
-        const val PROGRESS = "progress"
         const val GOAL = "goal"
         const val SIGN_IN_OFFERED = "sign_in_offered"
-        const val HAD_MATCH = "had_match"
         const val EDIT = "edit"
         const val CAR_ID = "car_id"
         const val MAKE = "make"

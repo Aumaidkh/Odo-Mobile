@@ -39,7 +39,6 @@ class PendingOdometerScreenshotTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
                 silenceTheCoachMarks()
             },
         )
@@ -48,8 +47,7 @@ class PendingOdometerScreenshotTest {
     @Test
     fun capturesTheCarStepAndTheHomeCardThatFollowsIt() {
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
 
         // The car is named and the odometer is untouched — the moment the old build stopped
         // an owner who was not near their car.

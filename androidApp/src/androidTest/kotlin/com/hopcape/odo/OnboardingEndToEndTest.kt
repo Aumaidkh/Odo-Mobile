@@ -64,7 +64,6 @@ class OnboardingEndToEndTest {
     val chain: RuleChain = RuleChain
         .outerRule(DeviceState {
             clearTheOwnersRows()
-            installStubVehicleRegistry()
         })
         .around(rule)
 
@@ -76,15 +75,14 @@ class OnboardingEndToEndTest {
     }
 
     @Test
-    fun plateRoute_setsUpTheCarAndNeverAsksAgain() {
+    fun setup_namesTheCarAndNeverAsksAgain() {
         rule.startFromWelcome()
 
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
 
-        // A named car answers the step. The reading is asked for here and wanted here, but
-        // an owner who is not at their car cannot give it, and gating step 1 of 4 on it left
-        // them with nowhere to go (issue #429).
+        // Four pickers and no typing answer the step. The reading is wanted here, but an
+        // owner who is not at their car cannot give it, and gating step 1 on it left them
+        // with nowhere to go (issue #429) — as did gating it on a registration number.
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
@@ -116,7 +114,7 @@ class OnboardingEndToEndTest {
         rule.relaunchTheApp().use {
             rule.waitForText(Copy.HOME_SCORE_WAITING, START_DESTINATION_TIMEOUT_MILLIS)
             rule.onNodeWithText(Copy.WELCOME_HEADLINE).assertDoesNotExist()
-            rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
+            rule.onNodeWithText(Copy.DETAILS_TITLE).assertDoesNotExist()
         }
     }
 
@@ -252,92 +250,7 @@ class OnboardingEndToEndTest {
 
         // Straight to the number, with no car step in between.
         rule.waitForText(Copy.AUTH_TITLE)
-        rule.onNodeWithText(Copy.CAR_TITLE).assertDoesNotExist()
-    }
-
-    /**
-     * The match names where it came from (issue #392, D3).
-     *
-     * The card used to say only what the car was. It now answers from Odo's own records
-     * rather than the RTO, and an owner cannot weigh a suggestion without knowing whether
-     * it is their own history or a stranger's.
-     */
-    @Test
-    fun aMatchFromTheOwnersOwnRecords_saysSo() {
-        rule.startFromWelcome()
-
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-
-        rule.onNodeWithText(Copy.MATCH_SOURCE_OWN).assertIsDisplayed()
-    }
-
-    /**
-     * A car somebody else entered under this plate is flagged as exactly that.
-     *
-     * The guardrail behind the whole cross-owner tier. Cars change hands, so this is a guess
-     * about the owner's car rather than something they wrote down — and a wrong car accepted
-     * silently becomes the car every fairness benchmark and health score is computed from.
-     * The copy has to differ, and it has to carry the nudge to check.
-     */
-    @Test
-    fun aMatchFromAnotherOwnersRecord_asksTheOwnerToCheckIt() {
-        installStubVehicleRegistry(VehicleSource.ANOTHER_RECORD)
-        rule.startFromWelcome()
-
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-
-        rule.onNodeWithText(Copy.MATCH_SOURCE_OTHER).assertIsDisplayed()
-        rule.onNodeWithText(Copy.MATCH_SOURCE_OWN).assertDoesNotExist()
-    }
-
-    @Test
-    fun unknownPlate_saysSoAndOffersTheManualForm() {
-        rule.startFromWelcome()
-
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
-        rule.waitForText(Copy.LOOKUP_NOT_FOUND)
-
-        // "No record" is permanent, so the way forward is the form, not a retry.
-        rule.onNodeWithText(Copy.ENTER_MANUALLY).performClick()
-        rule.waitForText(Copy.DETAILS_TITLE)
-    }
-
-    @Test
-    fun manualRoute_setsUpTheCarByHand() {
-        rule.startFromWelcome()
-        rule.onNodeWithText(Copy.ENTER_MANUALLY).performClick()
-        rule.waitForText(Copy.DETAILS_TITLE)
-
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
-        rule.pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
-        rule.confirmYear()
-        rule.pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
-        rule.setOdometer()
-
-        // Every picker answered and the odometer given, and it is still not enough: the plate
-        // is required on this route too, or the car is saved without the number every bill,
-        // reminder and document identifies it by. (The odometer is not what holds it — that
-        // may be skipped; the plate may not.)
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
-
-        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
-    }
-
-    @Test
-    fun backFromTheManualForm_returnsToThePlate() {
-        rule.startFromWelcome()
-        rule.onNodeWithText(Copy.ENTER_MANUALLY).performClick()
-        rule.waitForText(Copy.DETAILS_TITLE)
-
-        // Manual entry is a mode of the car step, not a step of its own, so back leaves the
-        // mode and stays in the flow.
-        rule.onNodeWithLabel(Copy.BACK).performClick()
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.onNodeWithText(Copy.DETAILS_TITLE).assertDoesNotExist()
     }
 
     @Test
@@ -347,10 +260,9 @@ class OnboardingEndToEndTest {
         // Nothing typed: the car step is unanswered and says so.
         rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
 
-        // A matched plate is an answer, with or without a reading: the car step's job is to
-        // name the car, and the odometer is asked for again wherever it is actually needed.
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        // The four pickers are the answer, with or without a reading: the car step's job is
+        // to name the car, and the odometer is asked for again wherever it is needed.
+        rule.answerTheCarStep()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled()
     }
 
@@ -369,8 +281,7 @@ class OnboardingEndToEndTest {
     @Test
     fun theOdometerCanBeSkipped_andTheCarIsStoredPending() {
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.nameTheCar()
 
         rule.onNodeWithText(Copy.CONTINUE).performClick()
         rule.waitForText(Copy.PROFILE_TITLE)

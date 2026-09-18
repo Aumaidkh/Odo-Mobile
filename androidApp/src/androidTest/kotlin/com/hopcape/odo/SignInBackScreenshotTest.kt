@@ -35,7 +35,6 @@ class SignInBackScreenshotTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
             },
         )
         .around(rule)

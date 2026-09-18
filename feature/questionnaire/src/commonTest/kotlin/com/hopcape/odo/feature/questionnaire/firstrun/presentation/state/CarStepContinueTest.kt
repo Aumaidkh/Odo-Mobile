@@ -33,11 +33,9 @@ class CarStepContinueTest {
         assertTrue(state.canContinue)
     }
 
-    /** Every answer the car step asks for except the odometer, on the manual route. */
+    /** Every answer the car step asks for except the odometer. */
     private fun answeredCarStep(odometer: FormField<Long>) = OnboardingUiState(
         step = OnboardingStep.CAR,
-        manualEntry = true,
-        car = CarStepState(plate = FormField(PLATE)),
         details = CarDetailsState(
             make = FormField("Maruti Suzuki"),
             model = FormField(CarModel("Swift", "VXI")),
@@ -47,7 +45,4 @@ class CarStepContinueTest {
         odometer = odometer,
     )
 
-    private companion object {
-        const val PLATE = "MH12AB1234"
-    }
 }

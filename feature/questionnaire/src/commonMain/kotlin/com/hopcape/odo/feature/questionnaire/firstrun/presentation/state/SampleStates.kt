@@ -1,7 +1,6 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.state
 
 import com.hopcape.odo.core.domain.car.catalog.CarModel
-import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
 
 /**
@@ -10,20 +9,6 @@ import com.hopcape.odo.core.domain.car.model.FuelType
  * Previews are the only consumer: the running app gets its reference data from the
  * `VehicleCatalog` port through `OnboardingViewModel`, never from here.
  */
-internal fun sampleCarStep(): CarStepState = CarStepState(
-    plate = FormField("MH12AB1234"),
-    lookup = PlateLookup.Found(
-        PlateMatch(
-            make = "Maruti",
-            model = "Swift",
-            variant = "VXI",
-            year = 2020,
-            fuelType = FuelType.PETROL,
-            source = VehicleSource.OWN_RECORD,
-        ),
-    ),
-)
-
 internal fun sampleCarDetails(): CarDetailsState = CarDetailsState(
     catalog = Loadable.Ready(sampleCatalog()),
     models = sampleModels,

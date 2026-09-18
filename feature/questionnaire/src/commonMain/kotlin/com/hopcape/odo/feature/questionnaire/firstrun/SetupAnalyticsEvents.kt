@@ -23,24 +23,12 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
         mapOf(SetupTelemetry.Key.STEP to PropertyType.STRING),
     ),
     EventSchema(
-        SetupTelemetry.Event.PLATE_PROGRESS,
-        mapOf(SetupTelemetry.Key.PROGRESS to PropertyType.STRING),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.MANUAL_ENTRY_CHOSEN,
-        mapOf(SetupTelemetry.Key.HAD_MATCH to PropertyType.BOOLEAN),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.PLATE_LOOKUP,
-        mapOf(SetupTelemetry.Key.OUTCOME to PropertyType.STRING),
-    ),
-    EventSchema(
         SetupTelemetry.Event.GOAL_SELECTED,
         mapOf(SetupTelemetry.Key.GOAL to PropertyType.STRING),
     ),
-    // Make and fuel are nullable at the call site (the plate route may have neither), so they
-    // are declared by absence rather than as required properties — a required property with a
-    // null value is exactly what strict validation throws on.
+    // Make and fuel are nullable at the call site, so they are declared by absence rather
+    // than as required properties — a required property with a null value is exactly what
+    // strict validation throws on.
     EventSchema(
         SetupTelemetry.Event.CAR_SAVED,
         mapOf(SetupTelemetry.Key.EDIT to PropertyType.BOOLEAN),

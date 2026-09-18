@@ -35,7 +35,6 @@ class SetupReentryTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
             },
         )
         .around(rule)
@@ -50,8 +49,7 @@ class SetupReentryTest {
     fun setupReenteredWithItsOwnCarStored_stillGetsPast() {
         // First pass: name the car and move on, which is what stores it.
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
         rule.waitForText(Copy.PROFILE_TITLE)
@@ -63,8 +61,7 @@ class SetupReentryTest {
         // No profile, so first run starts over — from the pitch, on a database that already
         // holds the car.
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
 
         // The second pass has to edit the stored car. Adding a twin is refused by the unique

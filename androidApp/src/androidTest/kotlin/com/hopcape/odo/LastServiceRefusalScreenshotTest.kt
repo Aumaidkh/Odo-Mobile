@@ -36,7 +36,6 @@ class LastServiceRefusalScreenshotTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
             },
         )
         .around(rule)

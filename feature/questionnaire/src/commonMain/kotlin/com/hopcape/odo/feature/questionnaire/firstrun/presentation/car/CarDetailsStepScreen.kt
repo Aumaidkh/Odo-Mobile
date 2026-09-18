@@ -23,7 +23,6 @@ import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoModelYearField
 import com.hopcape.odo.core.designsystem.component.OdoOdometer
-import com.hopcape.odo.core.designsystem.component.OdoRegistrationNumberField
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -38,7 +37,6 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingEve
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.FieldLabel
 import com.hopcape.odo.core.designsystem.component.OdoIconTile
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.StepHeadline
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.fuelOptions
@@ -55,12 +53,9 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleC
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_cancel
-import com.hopcape.odo.feature.questionnaire.resources.onb_car_plate_placeholder
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_close
 import com.hopcape.odo.feature.questionnaire.resources.onb_choose
 import com.hopcape.odo.feature.questionnaire.resources.onb_continue
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_autofill_action
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_autofill_prompt
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_loading
@@ -68,7 +63,6 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_details_fuel_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_make_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_model_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_odometer_label
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_plate_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_year_label
@@ -108,35 +102,26 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_year_sheet_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Step 2 (manual route) — the same step, answered by hand when the plate lookup misses or
- * the owner doesn't want the registry to name their car. Four pickers keyed to the catalog,
- * because the fairness benchmarks are keyed on make/model/year/fuel — except make and model
- * also offer "not listed" free text for a car the catalog doesn't have. A free-typed car
- * simply has no peer group to benchmark against yet, which is honest: it has none until
+ * Step 1 — the car, in four taps and no typing.
+ *
+ * Pickers keyed to the catalog, because the fairness benchmarks are keyed on
+ * make/model/year/fuel — except make and model also offer "not listed" free text for a car
+ * the catalog doesn't have. A free-typed car has no peer group to benchmark against until
  * enough other owners report the same one (UnlistedVehicleReporter).
  *
- * The registration number opens the form, and it is required here exactly as it is on the
- * other route. It is the same field, holding the same value — somebody who typed a plate and
- * then came here finds it already filled in — but on this route it names the car rather than
- * looking it up, so nothing is fetched when it changes.
+ * No registration number. It used to open this form and gate the step, which asked a
+ * stranger for the most guarded thing they have before the app had given them anything;
+ * it is now taken later, by the features that can say why they need it.
  *
  * Year and fuel share a row: they're one-tap answers, and pairing them keeps the whole form
- * above the fold. The odometer closes the form — this route reaches the same `Car` the plate
- * route does, and no car exists without a reading.
- *
- * The pickers can only render once the catalog has loaded, so the form waits behind that
- * state; the link back to [CarStepScreen] does not, because a broken catalog is exactly when
- * the owner most needs the other route.
- *
- * When the plate lookup found a car, the pickers arrive already answered from it — rejecting
- * a match is nearly always about one wrong field, not all four.
+ * above the fold. The odometer closes the form and may be left empty — a car saved without
+ * a reading is stored pending and asked again where it matters.
  *
  * Stateless: renders [details] + [odometer] and forwards [OnboardingEvent]s.
  */
 @Composable
 internal fun CarDetailsStepScreen(
     details: CarDetailsState,
-    plate: FormField<String>,
     odometer: FormField<Long>,
     canContinue: Boolean,
     onEvent: (OnboardingEvent) -> Unit,
@@ -164,31 +149,18 @@ internal fun CarDetailsStepScreen(
 
             is Loadable.Ready -> CarDetailsForm(
                 details = details,
-                plate = plate,
                 odometer = odometer,
                 options = catalog.value,
                 onEvent = onEvent,
             )
         }
-
-        InlineLinkRow(
-            prompt = stringResource(Res.string.onb_details_autofill_prompt),
-            action = stringResource(Res.string.onb_details_autofill_action),
-            onClick = { onEvent(OnboardingEvent.Details.TryAutoFillClicked) },
-            leadingIcon = IcRefresh,
-            boxed = true,
-        )
     }
 }
 
-/**
- * The plate and the four pickers plus the odometer, once the catalog they choose from is in
- * hand.
- */
+/** The four pickers plus the odometer, once the catalog they choose from is in hand. */
 @Composable
 private fun CarDetailsForm(
     details: CarDetailsState,
-    plate: FormField<String>,
     odometer: FormField<Long>,
     options: CatalogOptions,
     onEvent: (OnboardingEvent) -> Unit,
@@ -199,16 +171,6 @@ private fun CarDetailsForm(
     val makes = options.makes.map { it.toOdoCarMake() }
 
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-            FieldLabel(stringResource(Res.string.onb_details_plate_label))
-            OdoRegistrationNumberField(
-                modifier = Modifier.testTag(OnboardingTestTags.PLATE_FIELD),
-                value = plate.text,
-                onValueChange = { onEvent(OnboardingEvent.Car.PlateChanged(it)) },
-                placeholder = stringResource(Res.string.onb_car_plate_placeholder),
-            )
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.onb_details_make_label))
             OdoCarMakeField(
@@ -347,8 +309,7 @@ private fun CatalogLoadingCard() {
 
 /**
  * The catalog didn't load. Warning-toned rather than danger — nothing is wrong with the
- * owner's car — and it offers the two ways out: try again, or the plate route in the link
- * below it.
+ * owner's car — and it offers the way out: try again.
  */
 @Composable
 private fun CatalogFailedCard(message: UiText, onRetry: () -> Unit) {
@@ -405,13 +366,12 @@ private fun CarModel.toOdoCarModel(): OdoCarModel =
 
 private fun OdoCarModel.toDomainModel(): CarModel = CarModel(name = name, variant = variant)
 
-/** Answered — the shape the form arrives in when a plate lookup prefilled it. */
+/** Answered — the shape the form is in once all four pickers have been used. */
 @OdoThemePreviews
 @Composable
 private fun CarDetailsStepPreview() = OdoPreview(padded = false) {
     CarDetailsStepScreen(
         details = sampleCarDetails(),
-        plate = FormField("MH12AB1234"),
         odometer = FormField(54_000L),
         canContinue = true,
         onEvent = {},
@@ -443,7 +403,6 @@ private fun CarDetailsStepCatalogFailedPreview() = OdoPreview(padded = false) {
 private fun CarDetailsStepPreview(details: CarDetailsState) {
     CarDetailsStepScreen(
         details = details,
-        plate = FormField(""),
         odometer = FormField(),
         canContinue = false,
         onEvent = {},

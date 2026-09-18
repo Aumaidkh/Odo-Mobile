@@ -6,7 +6,6 @@ import arrow.core.NonEmptyList
 import arrow.core.nonEmptyListOf
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
-import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
@@ -15,14 +14,12 @@ import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnb
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
-import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LookupPlateUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.RecordDeclaredServiceUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarCommand
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.VehicleCatalogSnapshot
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CarDetailsState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CarStepState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.FormField
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.LastServiceState
@@ -35,12 +32,8 @@ import com.hopcape.odo.core.domain.owner.model.QuestionKeys
 import com.hopcape.odo.feature.questionnaire.QuestionRegistry
 import com.hopcape.odo.feature.questionnaire.presentation.toggle
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateProgress
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookup
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateLookupError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.ProfileState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.PlateMatch
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
@@ -69,15 +62,15 @@ import kotlin.coroutines.cancellation.CancellationException
  * State holder for first-run setup. Holds [OnboardingUiState], consumes [OnboardingEvent]s,
  * and emits one-shot [OnboardingEffect]s.
  *
- * It owns the flow's shape — which step is showing, whether the car step is in manual mode,
- * when a plate is worth looking up — and nothing else: the copy lives in `strings.xml`, the
+ * It owns the flow's shape — which step is showing, and when a step may be left — and
+ * nothing else: the copy lives in `strings.xml`, the
  * rules live in the domain, and navigation lives in the route host that collects [effects].
  * Nothing here imports a nav or Compose type, which is what makes the whole flow testable
  * with a plain `runTest`.
  *
  * Reads top-down: [onEvent] dispatches, then one section per step, then the flow's own
  * step/finish logic, then the state writers every section above is phrased in. The writers
- * exist so the sections read as decisions ("show this lookup", "select that make") rather than
+ * exist so the sections read as decisions ("show this step", "select that make") rather than
  * as nested `copy` plumbing.
  *
  * **Each step persists its own answers on Continue** rather than the whole flow saving at the
@@ -91,7 +84,6 @@ internal class OnboardingViewModel(
     private val answers: QuestionnaireRepository,
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
-    private val lookupPlate: LookupPlateUseCase,
     private val saveCar: SaveCarUseCase,
     private val reportUnlisted: ReportUnlistedVehicleUseCase,
     private val recordDeclaredService: RecordDeclaredServiceUseCase,
@@ -107,9 +99,6 @@ internal class OnboardingViewModel(
     private val _effects = Channel<OnboardingEffect>(Channel.BUFFERED)
     val effects: Flow<OnboardingEffect> = _effects.receiveAsFlow()
 
-    /** The in-flight plate lookup, held so a newer plate cancels a stale answer. */
-    private var lookupJob: Job? = null
-
     /** The in-flight model read, held so a newer make cancels a stale list. */
     private var modelsJob: Job? = null
 
@@ -124,13 +113,6 @@ internal class OnboardingViewModel(
     private var savedCarId: CarId? = null
 
     /**
-     * The furthest the plate got, not where it is now — somebody who types a full plate and
-     * clears it has still shown the field is not what stopped them.
-     */
-    private var plateFurthest: PlateProgress = PlateProgress.NONE
-    private var plateReported: Boolean = false
-
-    /**
      * Whether this attempt has already been accounted for, by finishing or by leaving. Guards
      * the [onCleared] backstop from counting a second abandonment on top of a real ending.
      */
@@ -142,7 +124,6 @@ internal class OnboardingViewModel(
     }
 
     fun onEvent(event: OnboardingEvent) = when (event) {
-        is OnboardingEvent.Car -> onCarEvent(event)
         is OnboardingEvent.Details -> onDetailsEvent(event)
         is OnboardingEvent.Profile -> onProfileEvent(event)
         is OnboardingEvent.Workshop -> onWorkshopEvent(event)
@@ -152,130 +133,7 @@ internal class OnboardingViewModel(
         OnboardingEvent.BackClicked -> goBack()
     }
 
-    /* ------------------------------ Step 2 · plate route ------------------------------ */
-
-    private fun onCarEvent(event: OnboardingEvent.Car) = when (event) {
-        is OnboardingEvent.Car.PlateChanged -> onPlateChanged(event.plate)
-        OnboardingEvent.Car.LookupRetried -> restartLookup()
-        OnboardingEvent.Car.MatchRejected -> onMatchRejected()
-    }
-
-    /**
-     * Take the new plate and drop whatever the last one resolved to — a match must never
-     * outlive the plate it was found for — then start looking the new one up.
-     *
-     * [restartLookup] decides whether a lookup actually follows — on the manual route it
-     * only cancels.
-     */
-    private fun onPlateChanged(plate: String) {
-        updateCar { it.copy(plate = it.plate.update(plate), lookup = PlateLookup.Idle) }
-        recordPlateReach()
-        restartLookup()
-    }
-
-    /**
-     * "Not your car?" — hand the owner the manual form. The match is dropped but the form it
-     * seeded is not: rejecting a car usually means one field was wrong, not all four.
-     */
-    private fun onMatchRejected() {
-        telemetry.manualEntryChosen(hadMatch = _state.value.car.match != null)
-        // A lookup still in flight would land on the form the owner is now filling in and
-        // overwrite the answers they came here to give.
-        lookupJob?.cancel()
-        _state.update { it.copy(manualEntry = true, car = it.car.copy(lookup = PlateLookup.Idle)) }
-    }
-
-    /**
-     * Look the current plate up, cancelling whatever was already in flight.
-     *
-     * The debounce is what makes this safe to call on every keystroke: a plate only becomes
-     * "complete" on its last character, and the owner may well keep typing past it (a BH
-     * series plate is longer than a state one), so waiting a moment before spending a round
-     * trip costs nothing and saves several.
-     *
-     * The manual route cancels and stops there. The plate field is on both routes now that
-     * one is required to finish the step, but somebody filling the form in by hand has
-     * already been told the registry could not name their car — or has said it named the
-     * wrong one — and a lookup answering over the top of that would take the form away from
-     * them again.
-     */
-    private fun restartLookup() {
-        lookupJob?.cancel()
-        if (_state.value.manualEntry) return
-        val plate = _state.value.car.takeIf { it.isPlateLookupReady }?.plate?.text ?: return
-        lookupJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.PLATE_LOOKUP)) {
-            delay(LOOKUP_DEBOUNCE_MILLIS)
-            resolvePlate(plate)
-        }
-    }
-
-    /**
-     * Ask the registry who owns [plate].
-     *
-     * The answer comes from cars Odo already holds — this owner's first, then another
-     * owner's record for the same plate when that is switched on. It stays a suggestion
-     * either way: a match accepted without being read becomes the car every fairness
-     * benchmark and health score is computed against.
-     */
-    private suspend fun resolvePlate(plate: String) {
-        showLookup(PlateLookup.Loading)
-        telemetry.plateLookup { lookupPlate(plate) }
-            .fold(ifLeft = ::onLookupFailed, ifRight = ::onCarFound)
-    }
-
-    private fun onLookupFailed(error: DomainError) =
-        showLookup(PlateLookup.Failed(error.toLookupError()))
-
-    /** A car came back: show it for confirmation, and seed the manual form from it. */
-    private fun onCarFound(vehicle: RegisteredVehicle) {
-        val match = vehicle.toPlateMatch()
-        showLookup(PlateLookup.Found(match))
-        prefillDetails(match)
-    }
-
-    /* ------------------------------ Prefill from a match ------------------------------ */
-
-    /**
-     * Seed the manual form from what the registry found, so "Not your car?" opens a form that
-     * already describes that car — the owner corrects the one field that is wrong instead of
-     * re-answering all four. (Rejecting a match is nearly always about a wrong trim.)
-     *
-     * TODO(persistence): the plate route saves [PlateMatch] directly, so reconciling the
-     *  match's naming against the catalog belongs with the save rather than only here.
-     */
-    private fun prefillDetails(match: PlateMatch) {
-        prefillYearAndFuel(match)
-        val make = catalogMakeFor(match) ?: return
-        selectMake(make)
-        prefillModelOnceListed(make, match)
-    }
-
-    /** Always safe to seed: a year is a number and a fuel is an enum, so neither can disagree
-     * with the catalog. */
-    private fun prefillYearAndFuel(match: PlateMatch) = updateDetails {
-        it.copy(year = it.year.update(match.year), fuel = it.fuel.update(match.fuelType))
-    }
-
-    /**
-     * The **catalog's** spelling of the matched make, or `null` if it doesn't list it.
-     *
-     * The registry and the catalog are two different naming authorities ("Maruti" vs "Maruti
-     * Suzuki"), and a make that isn't a catalog entry would show in the field while being
-     * absent from the picker behind it — and would then key this car's fairness benchmarks to
-     * a bucket of its own. `null` also covers "the catalog hasn't loaded", where there is
-     * nothing to check the name against and the field is better left to the owner.
-     */
-    private fun catalogMakeFor(match: PlateMatch): String? = _state.value.details.options
-        ?.makes
-        ?.firstOrNull { it.equals(match.make, ignoreCase = true) }
-
-    /** The model can only be seeded from the list for [make], so it waits for that read. */
-    private fun prefillModelOnceListed(make: String, match: PlateMatch) = loadModelsFor(make) { models ->
-        showModels(models)
-        selectModel(models.matching(match))
-    }
-
-    /* ------------------------------ Step 2 · manual route ------------------------------ */
+    /* ------------------------------ Step 1 · the car ------------------------------ */
 
     private fun onDetailsEvent(event: OnboardingEvent.Details) = when (event) {
         is OnboardingEvent.Details.MakeSelected -> onMakeSelected(event.make)
@@ -283,7 +141,6 @@ internal class OnboardingViewModel(
         is OnboardingEvent.Details.YearSelected -> updateDetails { it.copy(year = it.year.update(event.year)) }
         is OnboardingEvent.Details.FuelSelected -> updateDetails { it.copy(fuel = it.fuel.update(event.fuel)) }
         OnboardingEvent.Details.CatalogRetried -> loadCatalogOptions()
-        OnboardingEvent.Details.TryAutoFillClicked -> exitManualEntry()
     }
 
     private fun onMakeSelected(make: String) {
@@ -400,9 +257,8 @@ internal class OnboardingViewModel(
         // Leaving the car step without a reading is still a skip worth counting; it is just
         // no longer its own button. Reported before the write so a failed save does not lose
         // the fact that the owner declined to give one.
-        if (current.step == OnboardingStep.CAR) {
-            if (current.odometer.value == null) telemetry.odometerSkipped()
-            reportPlateProgress()
+        if (current.step == OnboardingStep.CAR && current.odometer.value == null) {
+            telemetry.odometerSkipped()
         }
         saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
             if (!persist(current)) return@launch
@@ -451,7 +307,7 @@ internal class OnboardingViewModel(
     }
 
     /**
-     * Only the manual route answers against the catalog at all — the plate route's make/model
+     * The answers are compared against the catalog
      * come from the vehicle registry, which this catalog has no opinion on, so there is
      * nothing to compare there. See `:feature:garage`'s `AddCarViewModel.reportIfUnlisted` for
      * the same inference on the other place a car gets saved.
@@ -461,7 +317,6 @@ internal class OnboardingViewModel(
      * would otherwise race a fire-and-forget launch against the ViewModel being cleared.
      */
     private suspend fun reportIfUnlisted(state: OnboardingUiState, command: SaveCarCommand) {
-        if (!state.manualEntry) return
         val make = command.make ?: return
         val model = command.model ?: return
         val options = state.details.options ?: return
@@ -610,16 +465,11 @@ internal class OnboardingViewModel(
     }
 
     /**
-     * Back rewinds one step. Two exceptions: manual entry is a *mode* of the car step, so
-     * back leaves the mode before it leaves the step; and back from the first step leaves
-     * the flow entirely, which only the route host can do.
+     * Back rewinds one step. Back from the first step leaves the flow entirely, which only
+     * the route host can do.
      */
     private fun goBack() {
         val current = _state.value
-        if (current.step == OnboardingStep.CAR && current.manualEntry) {
-            exitManualEntry()
-            return
-        }
         val previous = current.step.previous
         if (previous == null) {
             endAbandoned(current.step)
@@ -683,25 +533,7 @@ internal class OnboardingViewModel(
 
     private fun endAbandoned(step: OnboardingStep) {
         flowEnded = true
-        reportPlateProgress()
         telemetry.abandoned(step)
-    }
-
-    private fun recordPlateReach() {
-        val car = _state.value.car
-        val reached = when {
-            car.isPlateValid -> PlateProgress.COMPLETE
-            car.plate.text.isNotEmpty() -> PlateProgress.PARTIAL
-            else -> PlateProgress.NONE
-        }
-        if (reached > plateFurthest) plateFurthest = reached
-    }
-
-    /** Once per attempt, whichever way the car step is left. */
-    private fun reportPlateProgress() {
-        if (plateReported) return
-        plateReported = true
-        telemetry.plateProgress(plateFurthest)
     }
 
     /* ------------------------------ State writers ------------------------------ */
@@ -710,10 +542,6 @@ internal class OnboardingViewModel(
         _state.update { it.copy(odometer = it.odometer.update(km)) }
 
     private fun showStep(step: OnboardingStep) = _state.update { it.copy(step = step) }
-
-    private fun exitManualEntry() = _state.update { it.copy(manualEntry = false) }
-
-    private fun showLookup(lookup: PlateLookup) = updateCar { it.copy(lookup = lookup) }
 
     private fun showCatalog(catalog: Loadable<CatalogOptions>) =
         updateDetails { it.copy(catalog = catalog) }
@@ -727,9 +555,6 @@ internal class OnboardingViewModel(
 
     /** `null` clears the choice — that is what an unlistable model resolves to. */
     private fun selectModel(model: CarModel?) = updateDetails { it.copy(model = it.model.update(model)) }
-
-    private fun updateCar(transform: (CarStepState) -> CarStepState) =
-        _state.update { it.copy(car = transform(it.car)) }
 
     private fun updateDetails(transform: (CarDetailsState) -> CarDetailsState) =
         _state.update { it.copy(details = transform(it.details)) }
@@ -760,74 +585,32 @@ internal class OnboardingViewModel(
             null
         }
 
-    private companion object {
-        /** How long a plate must stop changing before it is worth a round trip. */
-        const val LOOKUP_DEBOUNCE_MILLIS = 350L
-    }
 }
 
 /* ------------------------------ Domain → state mappers ------------------------------ */
 
 /**
- * Lookup failure → the copy the owner sees. Only the three lookup errors mean anything on
- * this screen; anything else reaching here is unexpected, and "couldn't check right now"
- * (retryable) is the truthful thing to say about an unexpected failure — unlike "no record
- * for this plate", which would be a claim about the registry we can't support.
- */
-private fun DomainError.toLookupError(): PlateLookupError = when (this) {
-    DomainError.RegistrationNotFound -> PlateLookupError.NOT_FOUND
-    DomainError.LookupOffline -> PlateLookupError.OFFLINE
-    else -> PlateLookupError.SERVICE
-}
-
-/**
- * The catalog entry for a matched car: the exact model **and** trim if the catalog lists it,
- * otherwise the same model without a trim, otherwise nothing.
- *
- * Falling back to the trim-less entry rather than the nearest trim is the point. Trim ladders
- * change with every facelift, so a seeded list is always incomplete — and a *wrong* trim is
- * worse than no trim, because it silently feeds ₹/km and every fairness benchmark.
- */
-private fun List<CarModel>.matching(match: PlateMatch): CarModel? =
-    firstOrNull { it.isSameModelAs(match) && it.variant.equals(match.variant, ignoreCase = true) }
-        ?: firstOrNull { it.isSameModelAs(match) && it.variant == null }
-
-private fun CarModel.isSameModelAs(match: PlateMatch): Boolean = name.equals(match.model, ignoreCase = true)
-
-/**
  * The answered car step → the command that stores it.
  *
- * The two routes are two different authorities and this is the seam between them: manual
- * entry is answered against the catalog, while the plate route saves what the registry
- * claimed. The plate is kept either way — it is what a bill, a reminder or a resale report
- * will identify this car by — and the car is primary because setup only ever names the
- * first one.
+ * No registration number: setup no longer asks for one. The column is nullable and the car
+ * is stored without it until a feature that needs it asks. Primary because setup only ever
+ * names the first car.
  */
 private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
     val model = details.model.value
     return SaveCarCommand(
-        make = if (manualEntry) details.make.value else car.match?.make,
-        model = if (manualEntry) model?.name else car.match?.model,
-        variant = if (manualEntry) model?.variant else car.match?.variant,
-        year = if (manualEntry) details.year.value else car.match?.year,
-        fuelType = if (manualEntry) details.fuel.value else car.match?.fuelType,
+        make = details.make.value,
+        model = model?.name,
+        variant = model?.variant,
+        year = details.year.value,
+        fuelType = details.fuel.value,
         odometerKm = odometer.value?.toInt(),
         // No reading given: the car is stored reading zero, flagged, and asked for again.
         odometerPending = odometer.value == null,
-        registrationNumber = car.plate.text,
         isPrimary = true,
     )
 }
 
-/** The lookup's claim → the confirmation card's content. */
-private fun RegisteredVehicle.toPlateMatch(): PlateMatch = PlateMatch(
-    make = make,
-    model = model,
-    variant = variant,
-    year = year.value,
-    fuelType = fuelType,
-    source = source,
-)
 
 /**
  * Catalog snapshot → the pickers' options. The years list becomes a range because that is

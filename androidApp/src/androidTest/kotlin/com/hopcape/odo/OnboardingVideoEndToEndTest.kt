@@ -37,7 +37,6 @@ class OnboardingVideoEndToEndTest {
         .outerRule(PinnedConfig(VIDEO_ENABLED, value = "true", compiledDefault = "false"))
         .around(DeviceState {
             clearTheOwnersRows()
-            installStubVehicleRegistry()
         })
         .around(rule)
 
@@ -84,7 +83,7 @@ class OnboardingVideoEndToEndTest {
 
         rule.onNodeWithText(VideoCopy.CTA).performClick()
 
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.waitForText(Copy.DETAILS_TITLE)
     }
 
     /**
@@ -100,7 +99,7 @@ class OnboardingVideoEndToEndTest {
 
         rule.onNodeWithText(VideoCopy.SKIP).performClick()
 
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.waitForText(Copy.DETAILS_TITLE)
         rule.onNodeWithText(Copy.HOME_SCORE_WAITING).assertDoesNotExist()
     }
 
@@ -109,10 +108,9 @@ class OnboardingVideoEndToEndTest {
     fun onceTheCarIsSetUp_theIntroIsNotShownAgain() {
         rule.waitForText(VideoCopy.REFUEL_TITLE, START_DESTINATION_TIMEOUT_MILLIS)
         rule.onNodeWithText(VideoCopy.SKIP).performClick()
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.waitForText(Copy.DETAILS_TITLE)
 
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).performClick()
 
