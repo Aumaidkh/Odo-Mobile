@@ -761,12 +761,11 @@ private fun HealthCard(
                 strokeWidth = 12.dp,
                 arcColor = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                 centerContent = {
+                    // No tilde on the dial. The label under it already says the figure is
+                    // modelled, and a prefix on a number this size reads as part of the
+                    // number rather than as a qualifier on it.
                     OdoText(
-                        if (content.scoreEstimated) {
-                            stringResource(Res.string.hm_estimate_prefix, content.score.toString())
-                        } else {
-                            content.score.toString()
-                        },
+                        content.score.toString(),
                         style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 40.sp),
                         color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.text,
                         modifier = Modifier.testTag(HomeTestTags.SCORE),
