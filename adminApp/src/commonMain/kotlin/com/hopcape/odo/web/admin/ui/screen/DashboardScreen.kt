@@ -180,14 +180,10 @@ private fun AttentionItem.labelResource(): StringResource = when (kind) {
 @Composable
 private fun MetricRow(snapshot: DashboardSnapshot) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Five to a row, which is what the second row's spacer has always assumed. Actives
+        // lead: how many people opened the app is the question a dashboard is opened to
+        // answer, and every count behind it is a total that only moves slowly.
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
-            MetricCard(
-                stringResource(Res.string.ad_dash_metric_users),
-                snapshot.users.toString(),
-                delta = snapshot.signupDelta,
-                sub = null,
-                modifier = Modifier.weight(1f),
-            )
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_active),
                 snapshot.active1d.toString(),
@@ -207,6 +203,13 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 modifier = Modifier.weight(1f),
             )
             MetricCard(
+                stringResource(Res.string.ad_dash_metric_users),
+                snapshot.users.toString(),
+                delta = snapshot.signupDelta,
+                sub = null,
+                modifier = Modifier.weight(1f),
+            )
+            MetricCard(
                 stringResource(Res.string.ad_dash_metric_cars),
                 snapshot.cars.toString(),
                 delta = null,
@@ -220,6 +223,8 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 sub = stringResource(Res.string.ad_dash_sub_pro, snapshot.subsPastDue),
                 modifier = Modifier.weight(1f),
             )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_tickets),
                 snapshot.ticketsOpen.toString(),
@@ -227,8 +232,6 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 sub = stringResource(Res.string.ad_dash_sub_tickets, snapshot.ticketsUrgent),
                 modifier = Modifier.weight(1f),
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_posts),
                 snapshot.postsPublished.toString(),
@@ -244,7 +247,7 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 snapshot.documents.toString(),
                 delta = null, sub = null, modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(2f))
+            Spacer(Modifier.weight(1f))
         }
     }
 }
