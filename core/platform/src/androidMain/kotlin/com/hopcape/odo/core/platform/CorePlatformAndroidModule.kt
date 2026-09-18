@@ -30,6 +30,8 @@ import com.hopcape.odo.core.platform.notification.PaymentNotices
 import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
 import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
+import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
+import com.hopcape.odo.core.platform.notification.WorkManagerEngagementNudgeScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerCustomReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerDocumentReminderScheduler
@@ -103,6 +105,10 @@ val corePlatformAndroidModule = module {
     }
     // Replaces :core:data's no-op — the line that turns the owner's own reminders from a
     // list they have to open the app to see into notifications that arrive.
+    single<EngagementNudgeScheduler> {
+        WorkManagerEngagementNudgeScheduler(context = get(), logger = get())
+    }
+
     single<CustomReminderScheduler> {
         WorkManagerCustomReminderScheduler(
             context = get<Context>(),

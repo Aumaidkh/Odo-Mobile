@@ -14,6 +14,7 @@ import com.hopcape.odo.core.platform.file.PlatformDownloads
 import com.hopcape.odo.core.platform.file.PlatformFileStore
 import com.hopcape.odo.core.platform.file.StoredPageRenderer
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
+import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.core.platform.notification.BackgroundStartAccess
 import com.hopcape.odo.core.platform.notification.IosBackgroundStartAccess
 import com.hopcape.odo.core.platform.notification.IosDetectedFillNotifier
@@ -84,6 +85,7 @@ val corePlatformIosModule = module {
     // No local notification scheduling on iOS yet; the reminders screen still derives and
     // shows every expiry, so nothing is lost beyond the push itself.
     single<DocumentReminderScheduler> { DocumentReminderScheduler { } }
+    single<EngagementNudgeScheduler> { EngagementNudgeScheduler { } }
     // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.
     single<SecureStore> { IosSecureStore() }

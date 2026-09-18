@@ -8,6 +8,8 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.platform.notification.EngagementNudge
+import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingCommand
@@ -80,6 +82,7 @@ internal class OnboardingViewModel(
     private val currentOwner: CurrentOwnerProvider,
     private val sessionStatus: SessionStatusProvider,
     private val telemetry: SetupTelemetry,
+    private val nudges: EngagementNudgeScheduler,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingUiState())
@@ -283,6 +286,10 @@ internal class OnboardingViewModel(
     private fun finish() {
         flowEnded = true
         telemetry.completed()
+        // First run leaves nothing on this device that will ever ring. The owner has a car
+        // and a modelled score; a day later that score is theirs to improve, and this is the
+        // only thing that says so to somebody who has closed the app.
+        viewModelScope.launch { nudges.schedule(EngagementNudge.FIRST_SCORE) }
         emit(OnboardingEffect.ShowValue)
     }
 

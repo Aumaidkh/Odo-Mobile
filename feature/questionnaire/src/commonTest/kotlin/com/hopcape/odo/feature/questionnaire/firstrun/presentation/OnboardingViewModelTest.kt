@@ -6,6 +6,8 @@ import arrow.core.left
 import arrow.core.right
 import androidx.lifecycle.ViewModelStore
 import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.odo.core.platform.notification.EngagementNudge
+import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
@@ -350,6 +352,35 @@ class OnboardingViewModelTest {
         )
     }
 
+    /**
+     * Setup leaves nothing on the device that will ever ring — no expiry, no date, nothing
+     * the owner asked to be told about. Without this, an owner who closes the app after
+     * first run has given Odo no way to ask for them back.
+     */
+    @Test
+    fun finishingSetup_leavesSomethingOnTheSchedule() = runTest(dispatcher) {
+        val nudges = RecordingNudges()
+        val viewModel = viewModel(nudges = nudges)
+        advanceUntilIdle()
+
+        completeTheWholeFlow(viewModel)
+
+        assertEquals(listOf(EngagementNudge.FIRST_SCORE), nudges.scheduled)
+    }
+
+    @Test
+    fun anAbandonedSetup_schedulesNothing() = runTest(dispatcher) {
+        val nudges = RecordingNudges()
+        val viewModel = viewModel(nudges = nudges)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        // Nothing was set up, so there is nothing to come back to.
+        assertTrue(nudges.scheduled.isEmpty())
+    }
+
     @Test
     fun leavingWithoutPressingBack_isStillAnAbandonment() = runTest(dispatcher) {
         val analytics = RecordingAnalytics()
@@ -437,6 +468,7 @@ class OnboardingViewModelTest {
         analytics: AnalyticsTracker = RecordingAnalytics(),
         unlistedReporter: FakeUnlistedVehicleReporter = FakeUnlistedVehicleReporter(),
         answers: FakeAnswers = FakeAnswers(),
+        nudges: RecordingNudges = RecordingNudges(),
     ) = OnboardingViewModel(
         questions = odoQuestions(),
         answers = answers,
@@ -461,6 +493,7 @@ class OnboardingViewModelTest {
         sessionStatus = SessionStatusProvider { signedIn },
         // The real telemetry, so its own code runs under test; only the tracker is a fake. The
         // logger and tracer facades no-op until the app bootstrap configures them.
+        nudges = nudges,
         telemetry = SetupTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
@@ -480,6 +513,14 @@ class OnboardingViewModelTest {
         advanceUntilIdle()
         viewModel.onEvent(OnboardingEvent.ContinueClicked)
         advanceUntilIdle()
+    }
+
+    /** Records what was put on the nudge schedule, so first run's only future touch is testable. */
+    private class RecordingNudges : EngagementNudgeScheduler {
+        val scheduled = mutableListOf<EngagementNudge>()
+        override suspend fun schedule(nudge: EngagementNudge) {
+            scheduled += nudge
+        }
     }
 
     /** Captures what was tracked, so the funnel and the PII guard can both be asserted. */

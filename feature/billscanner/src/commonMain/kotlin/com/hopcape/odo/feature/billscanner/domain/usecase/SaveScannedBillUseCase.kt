@@ -14,6 +14,8 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogLineItemDraft
 import com.hopcape.odo.core.domain.servicelog.repository.ServiceLogRepository
+import com.hopcape.odo.core.platform.notification.EngagementNudge
+import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.core.domain.shared.DomainError
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -40,6 +42,7 @@ import kotlin.time.Clock
 internal class SaveScannedBillUseCase(
     private val logs: ServiceLogRepository,
     private val ids: IdGenerator,
+    private val nudges: EngagementNudgeScheduler,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -75,7 +78,13 @@ internal class SaveScannedBillUseCase(
             billPhotoRef = command.photoStorageKey,
         ).bind()
 
-        logs.add(entry).mapLeft { nonEmptyListOf(it) }.bind()
+        val saved = logs.add(entry).mapLeft { nonEmptyListOf(it) }.bind()
+
+        // Scanning is the habit the whole product rests on, and nothing on the device would
+        // ever ask for the next one. After the write, so a refused save never leaves a nudge
+        // about a bill that was not kept.
+        nudges.schedule(EngagementNudge.SCAN_FOLLOW_UP)
+        saved
     }
 }
 
