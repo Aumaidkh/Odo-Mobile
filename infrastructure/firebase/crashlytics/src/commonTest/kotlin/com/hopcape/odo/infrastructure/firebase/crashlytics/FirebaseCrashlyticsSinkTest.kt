@@ -50,6 +50,45 @@ class FirebaseCrashlyticsSinkTest {
     }
 
     @Test
+    fun record_keepsTheRealTypeAsAKey() {
+        val gateway = FakeFirebaseCrashlyticsGateway()
+        val sink = FirebaseCrashlyticsSink(gateway = gateway)
+
+        sink.record(
+            throwableType = "SocketTimeoutException",
+            throwableMessage = "timeout",
+            stackTrace = "SocketTimeoutException: timeout",
+            isFatal = false,
+            breadcrumbs = emptyList(),
+            customKeys = emptyMap(),
+        )
+
+        // Without this key the real type sits only inside a message string, which R8
+        // never deobfuscates.
+        assertEquals("SocketTimeoutException", gateway.customKeys["crash_type"])
+    }
+
+    @Test
+    fun record_dropsAFatal_becauseCrashlyticsAlreadyCaughtItLive() {
+        val gateway = FakeFirebaseCrashlyticsGateway()
+        val sink = FirebaseCrashlyticsSink(gateway = gateway)
+
+        sink.record(
+            throwableType = "IllegalStateException",
+            throwableMessage = "boom",
+            stackTrace = "IllegalStateException: boom\n\tat Foo.bar(Foo.kt:1)",
+            isFatal = true,
+            breadcrumbs = listOf("AUTH: login started"),
+            customKeys = mapOf("car_count" to 2),
+        )
+
+        assertNull(gateway.recordedException)
+        // Dropped with it: replayed next launch they would attach to the wrong crash.
+        assertEquals(emptyList<String>(), gateway.loggedLines)
+        assertEquals(emptyMap<String, String>(), gateway.customKeys)
+    }
+
+    @Test
     fun setCustomKey_stringifiesTheValue() {
         val gateway = FakeFirebaseCrashlyticsGateway()
         val sink = FirebaseCrashlyticsSink(gateway = gateway)
