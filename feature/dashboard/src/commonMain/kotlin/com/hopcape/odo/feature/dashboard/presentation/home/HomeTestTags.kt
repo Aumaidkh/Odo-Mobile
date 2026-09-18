@@ -30,6 +30,9 @@ object HomeTestTags {
     const val COST_CARD = "home_cost_card"
     const val OVERCHARGE_CARD = "home_overcharge_card"
 
+    /** The slot the overcharge card takes over once there is money on the board. */
+    const val RESALE_CARD = "home_resale_card"
+
     const val ATTENTION_CARD = "home_attention_card"
     const val INSIGHT_CARD = "home_insight_card"
 

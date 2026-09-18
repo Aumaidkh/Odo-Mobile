@@ -78,7 +78,8 @@ internal object Copy {
      * What Home shows a car that has just been set up. Not the health card: nothing has
      * been logged or filed yet, so Home offers the checklist that earns a score instead.
      */
-    const val HOME_SCORE_WAITING = "Your score is waiting"
+    /* A day-one dashboard landmark: the tile that needs nothing from the owner. */
+    const val HOME_RESALE = "Resale value"
 }
 
 /** The car every setup test names, and the owner who names it. */

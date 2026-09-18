@@ -106,13 +106,19 @@ import com.hopcape.odo.feature.dashboard.resources.hm_insight_eyebrow
 import com.hopcape.odo.feature.dashboard.resources.hm_insight_resale_eyebrow
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car_body
+import com.hopcape.odo.feature.dashboard.resources.hm_cost_segment
+import com.hopcape.odo.feature.dashboard.resources.hm_estimate_prefix
+import com.hopcape.odo.feature.dashboard.resources.hm_estimated
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_caught
+import com.hopcape.odo.feature.dashboard.resources.hm_resale_from_day_one
+import com.hopcape.odo.feature.dashboard.resources.hm_resale_value
+import com.hopcape.odo.feature.dashboard.resources.hm_score_modelled
+import com.hopcape.odo.core.domain.shared.AmountRange
+import com.hopcape.odo.core.domain.shared.formatRupeesCompact
 import com.hopcape.odo.feature.dashboard.resources.hm_per_unit
 import com.hopcape.odo.feature.dashboard.resources.hm_recent
 import com.hopcape.odo.feature.dashboard.resources.hm_running_cost
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_first
-import com.hopcape.odo.feature.dashboard.resources.hm_score_waiting
-import com.hopcape.odo.feature.dashboard.resources.hm_score_waiting_body
 import com.hopcape.odo.feature.dashboard.resources.hm_see_breakdown
 import com.hopcape.odo.feature.dashboard.resources.hm_setup_bill
 import com.hopcape.odo.feature.dashboard.resources.hm_setup_bill_sub
@@ -253,7 +259,9 @@ private fun HomeBody(
     if (content.odometerPending && !content.hasNoCar) OdometerNudgeCard(onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
-        content.isNewUser -> NewUserContent(content, onEvent)
+        // No `isNewUser` branch any more. Every tile carries a figure from the first
+        // launch — modelled where it has to be, and labelled as such — because the setup
+        // checklist that used to stand here was an empty app telling its owner so.
         else -> ScoredContent(
             content = content,
             offerAutoDetect = offerAutoDetect,
@@ -741,17 +749,28 @@ private fun HealthCard(
                 score = content.score,
                 dialSize = 128.dp,
                 strokeWidth = 12.dp,
-                arcColor = OdoTheme.colors.accent,
+                arcColor = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                 centerContent = {
                     OdoText(
-                        content.score.toString(),
+                        if (content.scoreEstimated) {
+                            stringResource(Res.string.hm_estimate_prefix, content.score.toString())
+                        } else {
+                            content.score.toString()
+                        },
                         style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 40.sp),
+                        color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.text,
                         modifier = Modifier.testTag(HomeTestTags.SCORE),
                     )
+                    // A band is a grade, and grading a car nobody has shown us anything of
+                    // is the one thing this dial must not do.
                     OdoText(
-                        bandText(content.band),
+                        if (content.scoreEstimated) {
+                            stringResource(Res.string.hm_estimated)
+                        } else {
+                            bandText(content.band)
+                        },
                         style = OdoTheme.typography.caption,
-                        color = OdoTheme.colors.accent,
+                        color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                     )
                 },
             )
@@ -761,7 +780,14 @@ private fun HealthCard(
                     style = OdoTheme.typography.caption,
                     color = OdoTheme.colors.textDim,
                 )
-                OdoText(healthNoteText(content.scoreDelta), style = OdoTheme.typography.body)
+                OdoText(
+                    if (content.scoreEstimated) {
+                        stringResource(Res.string.hm_score_modelled)
+                    } else {
+                        healthNoteText(content.scoreDelta)
+                    },
+                    style = OdoTheme.typography.body,
+                )
                 LinkRow(
                     label = stringResource(Res.string.hm_see_breakdown),
                     onClick = { onEvent(HomeEvent.BreakdownTapped) },
@@ -781,11 +807,19 @@ private fun StatsRow(content: HomeContent) {
             value = {
                 Row(verticalAlignment = Alignment.Bottom) {
                     val distance = LocalOdoDistanceFormat.current
+                    val rateText = content.perKm?.let { rate ->
+                        Amount.of(distance.ratePaise(rate.paise)).getOrElse { rate }.formatRupeesDecimal()
+                    }
                     OdoText(
-                        content.perKm?.let { rate ->
-                            Amount.of(distance.ratePaise(rate.paise)).getOrElse { rate }.formatRupeesDecimal()
-                        } ?: stringResource(Res.string.db_score_none),
+                        when {
+                            rateText == null -> stringResource(Res.string.db_score_none)
+                            // The tilde is the whole claim: this is the segment's rate, not
+                            // the one this car has actually run at.
+                            content.costEstimated -> stringResource(Res.string.hm_estimate_prefix, rateText)
+                            else -> rateText
+                        },
                         style = OdoTheme.typography.title,
+                        color = if (content.costEstimated) OdoTheme.colors.textDim else OdoTheme.colors.text,
                     )
                     if (content.perKm != null) {
                         OdoText(
@@ -796,7 +830,11 @@ private fun StatsRow(content: HomeContent) {
                     }
                 }
             },
-            footer = costTrendText(content.costTrend?.percentChange, hasRate = content.perKm != null),
+            footer = if (content.costEstimated) {
+                stringResource(Res.string.hm_cost_segment)
+            } else {
+                costTrendText(content.costTrend?.percentChange, hasRate = content.perKm != null)
+            },
             // Costlier than last quarter is the only reading worth flagging; cheaper, flat
             // and "no comparison yet" are all fine news or no news.
             footerColor = if (content.costTrend?.isUp == true) {
@@ -805,23 +843,38 @@ private fun StatsRow(content: HomeContent) {
                 OdoTheme.colors.textDim
             },
         )
-        StatCard(
-            label = stringResource(Res.string.hm_overcharge_caught),
-            modifier = Modifier.weight(1f).testTag(HomeTestTags.OVERCHARGE_CARD),
-            value = {
-                OdoText(
-                    content.overchargeTotal.formatRupees(),
-                    style = OdoTheme.typography.title,
-                    color = if (content.overchargesCaught > 0) {
-                        OdoTheme.colors.accent
-                    } else {
-                        OdoTheme.colors.textDim
-                    },
-                )
-            },
-            footer = overchargeSubText(content.overchargesCaught),
-            footerColor = OdoTheme.colors.textDim,
-        )
+        // Resale until the owner has caught something, then what they caught. Resale is what
+        // the car might fetch one day; an overcharge is money Odo has already saved them, and
+        // that is the better number to keep. Resale stays a tap away in the garage.
+        if (content.showsOvercharge) {
+            StatCard(
+                label = stringResource(Res.string.hm_overcharge_caught),
+                modifier = Modifier.weight(1f).testTag(HomeTestTags.OVERCHARGE_CARD),
+                value = {
+                    OdoText(
+                        content.overchargeTotal.formatRupees(),
+                        style = OdoTheme.typography.title,
+                        color = OdoTheme.colors.accent,
+                    )
+                },
+                footer = overchargeSubText(content.overchargesCaught),
+                footerColor = OdoTheme.colors.textDim,
+            )
+        } else {
+            StatCard(
+                label = stringResource(Res.string.hm_resale_value),
+                modifier = Modifier.weight(1f).testTag(HomeTestTags.RESALE_CARD),
+                value = {
+                    OdoText(
+                        content.resale?.formatCompact() ?: stringResource(Res.string.db_score_none),
+                        style = OdoTheme.typography.title,
+                    )
+                },
+                // The one figure on a day-one dashboard that needs nothing from the owner.
+                footer = stringResource(Res.string.hm_resale_from_day_one),
+                footerColor = OdoTheme.colors.textDim,
+            )
+        }
     }
 }
 
@@ -963,75 +1016,6 @@ private fun recentIcon(event: ActivityEvent): ImageVector = when (event) {
     is ActivityEvent.ScoreChanged -> IcTagFilled
     is ActivityEvent.FuelFilled -> IcFuelPump
     is ActivityEvent.CarAdded -> IcCar
-}
-
-// --- New user -------------------------------------------------------------------
-
-@Composable
-private fun NewUserContent(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
-    OdoCard(modifier = Modifier.testTag(HomeTestTags.SCORE_WAITING)) {
-        Column(
-            Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            OdoHealthDial(
-                score = 0,
-                dialSize = 128.dp,
-                strokeWidth = 12.dp,
-                arcColor = OdoTheme.colors.border,
-                centerContent = {
-                    OdoText(
-                        stringResource(Res.string.db_score_none),
-                        style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 40.sp),
-                        color = OdoTheme.colors.textMuted,
-                    )
-                },
-            )
-            OdoText(
-                stringResource(Res.string.hm_score_waiting),
-                style = OdoTheme.typography.heading,
-                textAlign = TextAlign.Center,
-            )
-            OdoText(
-                stringResource(Res.string.hm_score_waiting_body),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-    OdoText(
-        stringResource(Res.string.hm_get_set_up, content.setup.doneCount, content.setup.stepCount),
-        style = OdoTheme.typography.caption,
-        color = OdoTheme.colors.textDim,
-    )
-    Column(
-        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        modifier = Modifier.testTag(HomeTestTags.CHECKLIST),
-    ) {
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_car),
-            subtitle = null,
-            done = content.setup.carAdded,
-            onClick = null,
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_CAR),
-        )
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_bill),
-            subtitle = stringResource(Res.string.hm_setup_bill_sub),
-            done = content.setup.billScanned,
-            onClick = { onEvent(HomeEvent.ScanBillTapped) },
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_BILL),
-        )
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_docs),
-            subtitle = stringResource(Res.string.hm_setup_docs_sub),
-            done = content.setup.documentsFiled,
-            onClick = { onEvent(HomeEvent.AddDocumentsTapped) },
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_DOCS),
-        )
-    }
 }
 
 @Composable
@@ -1272,3 +1256,16 @@ private fun Chevron() {
         size = OdoTheme.iconSizes.small,
     )
 }
+
+/**
+ * "Rs. 4.4L–4.9L" — the currency is stated once, because both bounds carry the same one.
+ *
+ * The high bound is trimmed to its first digit rather than by stripping a known prefix, so
+ * the currency symbol stays the money formatter's business and not this file's.
+ */
+private fun AmountRange.formatCompact(): String {
+    val top = high.formatRupeesCompact().dropWhile { !it.isDigit() }
+    return "${low.formatRupeesCompact()}$RANGE_DASH$top"
+}
+
+private const val RANGE_DASH = "\u2013"

@@ -97,7 +97,7 @@ class OnboardingEndToEndTest {
         // recreate(), because only a launch with no saved state re-asks the gate — see
         // relaunchTheApp.
         rule.relaunchTheApp().use {
-            rule.waitForText(Copy.HOME_SCORE_WAITING, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.waitForText(Copy.HOME_RESALE, START_DESTINATION_TIMEOUT_MILLIS)
             rule.onNodeWithText(Copy.WELCOME_HEADLINE).assertDoesNotExist()
             rule.onNodeWithText(Copy.DETAILS_TITLE).assertDoesNotExist()
         }

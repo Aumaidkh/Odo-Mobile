@@ -17,6 +17,8 @@ import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.analysis.SavingsCalculator
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
+import com.hopcape.odo.core.domain.health.analysis.EstimatedHealthScore
 import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
@@ -134,13 +136,22 @@ internal class ObserveHomeUseCase(
         val today = now.toLocalDateTime(timeZone).date
 
         val cost = costOver(CostWindow.endingOn(today, COST_WINDOW_MONTHS), record, today)
-        val score = HealthScoreCalculator.compute(
-            today = today,
-            entries = record.entries,
-            documents = record.documents,
-            readings = record.readings,
-            currentOdometer = record.currentOdometer,
-        )
+
+        // A car nobody has shown us anything of is not a neglected car. Scoring the empty
+        // record would put a single-digit verdict on the dial, which is what Home used to
+        // hide behind a setup checklist rather than show.
+        val unrecorded = record.entries.isEmpty() && record.documents.isEmpty()
+        val score = if (unrecorded) {
+            EstimatedHealthScore.forUnrecordedCar()
+        } else {
+            HealthScoreCalculator.compute(
+                today = today,
+                entries = record.entries,
+                documents = record.documents,
+                readings = record.readings,
+                currentOdometer = record.currentOdometer,
+            )
+        }
 
         return HomeSnapshot(
             ownerName = ownerName,
@@ -152,8 +163,20 @@ internal class ObserveHomeUseCase(
             // "0 km" as this car's reading is exactly the false precision it stands for.
             odometer = record.currentOdometer ?: record.car?.knownOdometer,
             score = score,
+            scoreEstimated = unrecorded,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,
+            // No measured rate, so the tile quotes the segment's. Stated on screen either way.
+            costEstimated = cost.current.perKm == null,
+            resale = record.car?.let { car ->
+                CarValueEstimator.estimate(
+                    car = car,
+                    odometer = car.knownOdometer,
+                    logs = record.entries,
+                    cityTier = null,
+                    currentYear = today.year,
+                ).today
+            },
             costTrend = cost.trend,
             savings = SavingsCalculator.of(record.entries),
             attention = AttentionPicker.pick(

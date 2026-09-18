@@ -100,7 +100,7 @@ class OnboardingVideoEndToEndTest {
         rule.onNodeWithText(VideoCopy.SKIP).performClick()
 
         rule.waitForText(Copy.DETAILS_TITLE)
-        rule.onNodeWithText(Copy.HOME_SCORE_WAITING).assertDoesNotExist()
+        rule.onNodeWithText(Copy.HOME_RESALE).assertDoesNotExist()
     }
 
     /** Setup still only happens once, whichever intro led into it. */
@@ -120,7 +120,7 @@ class OnboardingVideoEndToEndTest {
         // The flag is still on, so this is the variant's own answer and not the usual flow's:
         // an owner who has set up a car never sees either intro again.
         rule.relaunchTheApp().use {
-            rule.waitForText(Copy.HOME_SCORE_WAITING, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.waitForText(Copy.HOME_RESALE, START_DESTINATION_TIMEOUT_MILLIS)
             rule.onNodeWithText(VideoCopy.REFUEL_TITLE).assertDoesNotExist()
         }
     }

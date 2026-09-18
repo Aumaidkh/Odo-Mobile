@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.cost.model.RunningCost
 import com.hopcape.odo.core.domain.fairness.model.FairnessSavings
 import com.hopcape.odo.core.domain.health.model.HealthScore
 import com.hopcape.odo.core.domain.insight.model.CarInsight
+import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.core.domain.shared.Distance
 
 /**
@@ -30,12 +31,24 @@ internal data class HomeSnapshot(
     val odometer: Distance?,
     val score: HealthScore,
     /**
+     * Nothing has been logged or filed, so [score] is modelled rather than measured.
+     *
+     * Carried rather than re-derived on the screen: the figure and the label that qualifies
+     * it must never come from two different reads, or Home shows a real score under an
+     * "Estimated" badge the moment the first bill lands.
+     */
+    val scoreEstimated: Boolean,
+    /**
      * Points gained or lost against the score from a month ago. `null` when there is no
      * snapshot that old — the card hides the line rather than comparing against last
      * week's number and calling it a month.
      */
     val scoreDelta: Int?,
     val cost: RunningCost,
+    /** No rate could be measured, so the ₹/km on screen is the segment's, not this car's. */
+    val costEstimated: Boolean,
+    /** What the car is worth today. `null` only when there is no car. */
+    val resale: AmountRange?,
     /** How ₹/km moved against the window before; `null` when either window has no rate. */
     val costTrend: CostTrend?,
     val savings: FairnessSavings,
@@ -58,12 +71,11 @@ internal data class HomeSnapshot(
     val setup: SetupProgress,
 ) {
     /**
-     * Nothing has been logged or filed yet, so there is no score worth showing.
+     * Nothing has been logged or filed yet.
      *
-     * The gate is one service log **or** one document, which is exactly when the score
-     * stops being zero for want of evidence. Below it Home shows the setup checklist
-     * instead: a dial reading 4 out of 100 is not a verdict on the car, it is a verdict on
-     * an empty app.
+     * Home no longer hides behind a checklist when this is true — every tile carries a
+     * modelled figure and says so. It still decides the copy: a card that explains where a
+     * number came from is only worth the room while the number is an assumption.
      */
     val isNewUser: Boolean get() = !setup.hasServiceLogs && !setup.hasDocuments
 }

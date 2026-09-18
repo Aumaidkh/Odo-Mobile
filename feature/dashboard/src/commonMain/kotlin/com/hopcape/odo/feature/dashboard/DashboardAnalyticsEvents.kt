@@ -17,6 +17,7 @@ val dashboardAnalyticsEvents: List<EventSchema> = listOf(
         HomeTelemetry.Event.OPENED,
         mapOf(
             HomeTelemetry.Key.BAND to PropertyType.STRING,
+            HomeTelemetry.Key.SCORE_ESTIMATED to PropertyType.BOOLEAN,
             HomeTelemetry.Key.IS_NEW_USER to PropertyType.BOOLEAN,
             HomeTelemetry.Key.HAS_ATTENTION to PropertyType.BOOLEAN,
             HomeTelemetry.Key.SETUP_DONE to PropertyType.INT,

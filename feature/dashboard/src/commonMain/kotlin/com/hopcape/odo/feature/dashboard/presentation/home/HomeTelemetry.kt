@@ -44,9 +44,18 @@ internal class HomeTelemetry(
      * a different product problem from one opened on a scored car. [hasAttention] says how
      * often the card that drives every renewal actually has something in it.
      */
-    fun homeOpened(band: String, isNewUser: Boolean, hasAttention: Boolean, setupDone: Int) {
+    fun homeOpened(
+        band: String,
+        scoreEstimated: Boolean,
+        isNewUser: Boolean,
+        hasAttention: Boolean,
+        setupDone: Int,
+    ) {
         val fields = mapOf(
             Key.BAND to band,
+            // Without it the band is ambiguous: a modelled score has one too, and a
+            // dashboard counting "good" cars would be counting assumptions among them.
+            Key.SCORE_ESTIMATED to scoreEstimated,
             Key.IS_NEW_USER to isNewUser,
             Key.HAS_ATTENTION to hasAttention,
             Key.SETUP_DONE to setupDone,
@@ -204,6 +213,7 @@ internal class HomeTelemetry(
     /** Property names carried by the events above. */
     object Key {
         const val BAND = "band"
+        const val SCORE_ESTIMATED = "score_estimated"
         const val IS_NEW_USER = "is_new_user"
         const val HAS_ATTENTION = "has_attention"
         const val SETUP_DONE = "setup_done"

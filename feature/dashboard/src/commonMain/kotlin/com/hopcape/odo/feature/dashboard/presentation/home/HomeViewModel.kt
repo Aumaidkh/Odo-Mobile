@@ -367,6 +367,7 @@ internal class HomeViewModel(
         reportedOpen = true
         telemetry.homeOpened(
             band = content.band.name,
+            scoreEstimated = content.scoreEstimated,
             isNewUser = content.isNewUser,
             hasAttention = content.attention != null,
             setupDone = content.setup.doneCount,
@@ -401,6 +402,9 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     userName = ownerName.orEmpty(),
     carName = car?.displayName.orEmpty(),
     odometer = odometer,
+    scoreEstimated = scoreEstimated,
+    costEstimated = costEstimated,
+    resale = resale,
     odometerPending = car?.isOdometerPending == true,
     score = score.total,
     band = score.band,

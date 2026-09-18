@@ -37,6 +37,14 @@
     <string name="hm_cost_not_enough">Not enough distance yet</string>
 
     <!-- Home: overcharges caught. Not "saved" — the money was caught, not refunded. -->
+    <!-- Day one: every tile carries a modelled figure and says so, rather than an empty
+         state. An assumption is worth less than proof, and the screen has to show which. -->
+    <string name="hm_estimated">Estimated</string>
+    <string name="hm_estimate_prefix">~%1$s</string>
+    <string name="hm_score_modelled">Modelled from age and the maker\'s service cadence. Nothing logged yet.</string>
+    <string name="hm_cost_segment">Segment average</string>
+    <string name="hm_resale_value">Resale value</string>
+    <string name="hm_resale_from_day_one">Real from day one</string>
     <string name="hm_overcharge_caught">OVERCHARGE CAUGHT</string>
     <string name="hm_overcharge_one">1 bill flagged</string>
     <string name="hm_overcharge_many">%1$d bills flagged</string>
@@ -84,8 +92,6 @@
     <string name="hm_recent_doc_renewed">%1$s renewed</string>
 
     <!-- Home: new user -->
-    <string name="hm_score_waiting">Your score is waiting</string>
-    <string name="hm_score_waiting_body">Add one bill or document and Odo can start scoring your car’s health.</string>
     <string name="hm_get_set_up">GET SET UP · %1$d OF %2$d DONE</string>
     <string name="hm_scan_first">Scan your first bill</string>
     <string name="hm_setup_car">Car added</string>
