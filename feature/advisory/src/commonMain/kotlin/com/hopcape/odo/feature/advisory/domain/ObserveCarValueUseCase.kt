@@ -1,6 +1,8 @@
 package com.hopcape.odo.feature.advisory.domain
 
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
+import com.hopcape.odo.core.domain.car.value.CarValue
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.city.CityCatalog

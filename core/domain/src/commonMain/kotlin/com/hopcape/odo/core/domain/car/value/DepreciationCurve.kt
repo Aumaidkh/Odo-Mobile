@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.advisory.domain
+package com.hopcape.odo.core.domain.car.value
 
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.shared.VehicleSegment
@@ -15,7 +15,7 @@ import com.hopcape.odo.core.domain.shared.VehicleSegment
  * Everything here is a **band**, not a price. A model-level price table would never be
  * finished and would still leave the tail empty, so the axis is the segment.
  */
-internal object DepreciationCurve {
+object DepreciationCurve {
 
     /**
      * Mid-variant ex-showroom price, in paise, by segment and fuel.

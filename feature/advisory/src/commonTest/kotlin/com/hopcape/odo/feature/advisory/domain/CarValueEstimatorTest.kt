@@ -1,6 +1,8 @@
 package com.hopcape.odo.feature.advisory.domain
 
 import arrow.core.getOrElse
+import com.hopcape.odo.core.domain.car.value.DepreciationCurve
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.car.model.CarId

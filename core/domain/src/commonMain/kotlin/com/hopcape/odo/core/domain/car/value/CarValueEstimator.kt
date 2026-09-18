@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.advisory.domain
+package com.hopcape.odo.core.domain.car.value
 
 import com.hopcape.odo.core.domain.car.catalog.SegmentCatalog
 import com.hopcape.odo.core.domain.car.model.Car
@@ -21,7 +21,7 @@ import arrow.core.getOrElse
  * The estimate is stated as modelled wherever it is shown. It is a band built from segment
  * averages, not a valuation of this particular car, and the screen has to say so.
  */
-internal object CarValueEstimator {
+object CarValueEstimator {
 
     /**
      * @param car the car being valued; its year, fuel, model and reading are the inputs.
