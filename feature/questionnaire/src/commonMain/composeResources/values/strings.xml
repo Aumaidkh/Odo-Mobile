@@ -35,31 +35,10 @@
     <string name="onb_step_eyebrow">STEP %1$d OF %2$d</string>
     <string name="onb_step_eyebrow_skippable">STEP %1$d OF %2$d · SKIPPABLE</string>
     <string name="onb_continue">Continue</string>
-    <string name="onb_skip">Skip</string>
     <string name="onb_choose">Choose</string>
     <string name="onb_cancel">Cancel</string>
     <string name="onb_done">Done</string>
     <string name="onb_retry">Try again</string>
-    <string name="onb_car_title">Which car is yours?</string>
-    <string name="onb_car_subtitle">Just the number plate — so we can compare your bills to the right prices.</string>
-    <string name="onb_car_plate_placeholder">MH 12 AB 1234</string>
-    <string name="onb_car_match_meta">%1$d · %2$s</string>
-    <string name="onb_cd_car_matched">This is my car</string>
-    <string name="onb_car_match_source_own">From your earlier Odo record</string>
-    <string name="onb_car_match_source_other">From another Odo record for this plate — check it</string>
-    <string name="onb_car_lookup_loading">Looking up your plate…</string>
-    <string name="onb_car_lookup_loading_note">Checking your Odo records.</string>
-    <string name="onb_car_lookup_not_found_title">No record for this plate</string>
-    <string name="onb_car_lookup_not_found_body">We have nothing on record for %1$s. Add the details yourself — it takes four taps.</string>
-    <string name="onb_car_lookup_offline_title">You’re offline</string>
-    <string name="onb_car_lookup_offline_body">Connect to the internet to look up this plate, or add the details yourself.</string>
-    <string name="onb_car_lookup_service_title">Couldn’t check right now</string>
-    <string name="onb_car_lookup_service_body">The lookup service didn’t answer. Try again, or add the details yourself.</string>
-    <string name="onb_car_lookup_retry">Try again</string>
-    <string name="onb_car_not_yours">Not your car?</string>
-    <string name="onb_car_enter_manually">Enter details manually</string>
-    <string name="onb_car_odometer_label">Current odometer</string>
-    <string name="onb_car_odometer_helper">Tap to set — powers your ₹/km and service predictions.</string>
     <string name="onb_odometer_sheet_title">Current odometer</string>
     <string name="onb_odometer_sheet_subtitle">Roughly is fine — every service log updates it later.</string>
     <string name="onb_odometer_label">Reading</string>
@@ -70,14 +49,16 @@
     <string name="onb_unit_miles">Miles</string>
     <string name="onb_details_title">Your car’s details</string>
     <string name="onb_details_subtitle">Pick from the list — we use these for accurate price benchmarks.</string>
-    <string name="onb_details_plate_label">REGISTRATION NUMBER</string>
     <string name="onb_details_make_label">MAKE</string>
+    <!-- A field whose turn has not come says what it is waiting for, rather than opening
+         a sheet with nothing usable in it. -->
+    <string name="onb_details_model_waiting">Pick a make first</string>
+    <string name="onb_details_waiting">—</string>
+    <string name="onb_details_fuel_other">Other</string>
     <string name="onb_details_model_label">MODEL</string>
     <string name="onb_details_year_label">YEAR</string>
     <string name="onb_details_fuel_label">FUEL</string>
     <string name="onb_details_odometer_label">ODOMETER</string>
-    <string name="onb_details_autofill_prompt">Found your plate instead?</string>
-    <string name="onb_details_autofill_action">Try auto-fill</string>
     <string name="onb_details_catalog_loading">Loading the car list…</string>
     <string name="onb_details_catalog_error_title">Couldn’t load the car list</string>
     <string name="onb_details_catalog_error_body">We couldn’t read the list of cars on this phone. Try again, or use your number plate instead.</string>
@@ -97,7 +78,6 @@
     <string name="onb_model_empty">No models match that</string>
     <string name="onb_model_not_listed">My car’s model isn’t listed</string>
     <string name="onb_model_not_listed_name_placeholder">Type your car’s model</string>
-    <string name="onb_model_not_listed_variant_placeholder">Trim (optional)</string>
     <string name="onb_model_not_listed_confirm">Use this model</string>
     <string name="onb_match_count">%1$d MATCHING</string>
     <string name="onb_year_sheet_title">Model year</string>
@@ -108,47 +88,14 @@
     <string name="onb_fuel_diesel">Diesel</string>
     <string name="onb_fuel_cng">CNG</string>
     <string name="onb_fuel_electric">Electric</string>
-    <string name="onb_profile_title">Last bit about you</string>
-    <string name="onb_profile_subtitle">No email, no address. Two taps and you’re in.</string>
-    <string name="onb_profile_name_label">Your name</string>
-    <string name="onb_profile_name_placeholder">Rahul</string>
-    <string name="onb_cd_name_valid">Name looks good</string>
-    <string name="onb_profile_name_error_blank">Add your name so we know what to call you.</string>
-    <string name="onb_profile_name_error_short">That looks a bit short — add a letter or two.</string>
-    <string name="onb_profile_name_error_long">That name is too long to fit.</string>
-    <string name="onb_profile_goal_label">What brought you here?</string>
     <string name="onb_goal_overpay">Stop overpaying</string>
     <string name="onb_goal_healthy">Keep the car healthy</string>
     <string name="onb_goal_resale">Sell it for more</string>
-    <string name="onb_cd_goal_selected">Selected</string>
     <string name="onb_save_error">Couldn’t save that on your phone. Please try again.</string>
     <string name="onb_video_cd_page">Page %1$d of %2$d</string>
 
-    <!-- Step 3 — where the car is serviced. The question itself comes from the registry
-         (qn_workshop_*); only the step's own chrome is here. -->
-    <string name="onb_cd_workshop_selected">Selected</string>
 
-    <!-- Step 4 — the last service. Skippable, and "don't remember" is a real answer rather
-         than an empty form. -->
-    <string name="onb_last_title">When was your last service?</string>
-    <string name="onb_last_subtitle">Don’t remember? We’ll estimate from the year and odometer, and keep the range wider.</string>
-    <string name="onb_last_date_label">DATE</string>
-    <string name="onb_last_date_placeholder">Pick a month</string>
-    <string name="onb_last_odometer_label">ODOMETER THEN</string>
-    <string name="onb_last_odometer_hint">Tap to set</string>
-    <string name="onb_last_odometer_sheet_title">Odometer at that service</string>
-    <string name="onb_last_odometer_sheet_subtitle">Roughly is fine. It only has to be lower than today’s reading.</string>
-    <string name="onb_last_forgot">Don’t remember</string>
     <!-- Two halves of one paragraph; the second is set bold, so it is its own resource
          rather than markup a string resource cannot carry. -->
-    <string name="onb_last_bill_prompt">Got the last service bill? It’s usually in the glovebox or on WhatsApp. </string>
-    <string name="onb_last_bill_prompt_emphasis">One photo and your record starts today.</string>
-    <string name="onb_last_bill_cta">Photograph the old bill</string>
-    <string name="onb_last_odometer_error">That reading is higher than the car’s current one.</string>
-    <!-- Half an answer is not an answer. Said on the field that is missing, so the owner
-         does not have to guess which half. -->
-    <string name="onb_last_odometer_missing">Add the reading from that service, or tick “Don’t remember”.</string>
-    <string name="onb_last_date_missing">Add the month of that service, or tick “Don’t remember”.</string>
-    <string name="onb_last_date_error">Pick a date in the past.</string>
 
 </resources>

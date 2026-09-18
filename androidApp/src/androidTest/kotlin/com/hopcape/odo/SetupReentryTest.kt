@@ -35,7 +35,6 @@ class SetupReentryTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
             },
         )
         .around(rule)
@@ -50,26 +49,24 @@ class SetupReentryTest {
     fun setupReenteredWithItsOwnCarStored_stillGetsPast() {
         // First pass: name the car and move on, which is what stores it.
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
 
-        // Leave before the profile step writes anything. A new activity is a new ViewModel, so
+        // Leave on the value screen, before anything else is written. A new activity is a new ViewModel, so
         // the id of the car just stored is gone — exactly what a killed process does.
         rule.relaunchTheApp()
 
         // No profile, so first run starts over — from the pitch, on a database that already
         // holds the car.
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
 
         // The second pass has to edit the stored car. Adding a twin is refused by the unique
         // index, and the owner would never leave this step.
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
     }
 }

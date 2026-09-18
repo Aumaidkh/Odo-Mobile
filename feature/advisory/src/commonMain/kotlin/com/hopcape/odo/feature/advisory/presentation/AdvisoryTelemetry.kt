@@ -40,8 +40,9 @@ internal class AdvisoryTelemetry(
      * The screen opened. [hasRecord] is the segment that matters: an owner with no record is
      * the one the screen is written for, and their scan rate is what it is judged on.
      */
-    fun valueShown(hasRecord: Boolean) {
-        val fields = mapOf(Key.HAS_RECORD to hasRecord)
+    /** [firstRun] separates the screen that pays for setup from the one the garage opens. */
+    fun valueShown(hasRecord: Boolean, firstRun: Boolean) {
+        val fields = mapOf(Key.HAS_RECORD to hasRecord, Key.FIRST_RUN to firstRun)
         analytics.track(Event.VALUE_SHOWN, fields)
         logger.info(TAG, Event.VALUE_SHOWN, tc = flowTrace.toLog(), fields = fields)
     }
@@ -50,6 +51,18 @@ internal class AdvisoryTelemetry(
     fun scanClicked() {
         analytics.track(Event.SCAN_CLICKED)
         logger.info(TAG, Event.SCAN_CLICKED, tc = flowTrace.toLog())
+    }
+
+    /**
+     * "Not now" on the first-run screen.
+     *
+     * Its share against [scanClicked] is what says whether the value screen is an argument
+     * or a wall — and it is the one number that decides whether the screen earns its place
+     * in first run at all.
+     */
+    fun firstRunSkipped() {
+        analytics.track(Event.FIRST_RUN_SKIPPED)
+        logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog())
     }
 
     fun shareClicked() {
@@ -205,6 +218,7 @@ internal class AdvisoryTelemetry(
     object Event {
         const val VALUE_SHOWN = "advisory_value_shown"
         const val SCAN_CLICKED = "advisory_value_scan_clicked"
+        const val FIRST_RUN_SKIPPED = "advisory_value_first_run_skipped"
         const val SHARE_CLICKED = "advisory_value_share_clicked"
         const val NO_CAR = "advisory_value_no_car"
         const val CITY_CATALOG_UNAVAILABLE = "advisory_city_catalog_unavailable"
@@ -223,6 +237,7 @@ internal class AdvisoryTelemetry(
 
     object Key {
         const val HAS_RECORD = "has_record"
+        const val FIRST_RUN = "first_run"
         const val COUNT = "count"
         const val CAUSE = "cause"
         const val DUE = "due"

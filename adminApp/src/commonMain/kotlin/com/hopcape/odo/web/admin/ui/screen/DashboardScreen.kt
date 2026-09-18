@@ -52,7 +52,11 @@ import com.hopcape.odo.web.admin.resources.ad_dash_metric_logs
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_posts
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_pro
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_tickets
+import com.hopcape.odo.web.admin.resources.ad_dash_metric_active
+import com.hopcape.odo.web.admin.resources.ad_dash_metric_sticky
 import com.hopcape.odo.web.admin.resources.ad_dash_metric_users
+import com.hopcape.odo.web.admin.resources.ad_dash_sub_active
+import com.hopcape.odo.web.admin.resources.ad_dash_sub_sticky
 import com.hopcape.odo.web.admin.resources.ad_dash_signups
 import com.hopcape.odo.web.admin.resources.ad_dash_signups_none
 import com.hopcape.odo.web.admin.resources.ad_dash_sub_cars
@@ -176,7 +180,28 @@ private fun AttentionItem.labelResource(): StringResource = when (kind) {
 @Composable
 private fun MetricRow(snapshot: DashboardSnapshot) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Five to a row, which is what the second row's spacer has always assumed. Actives
+        // lead: how many people opened the app is the question a dashboard is opened to
+        // answer, and every count behind it is a total that only moves slowly.
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+            MetricCard(
+                stringResource(Res.string.ad_dash_metric_active),
+                snapshot.active1d.toString(),
+                delta = snapshot.activeDelta,
+                sub = stringResource(
+                    Res.string.ad_dash_sub_active,
+                    snapshot.active7d,
+                    snapshot.active30d,
+                ),
+                modifier = Modifier.weight(1f),
+            )
+            MetricCard(
+                stringResource(Res.string.ad_dash_metric_sticky),
+                snapshot.stickiness?.let { "$it%" } ?: EMPTY_FIGURE,
+                delta = null,
+                sub = stringResource(Res.string.ad_dash_sub_sticky),
+                modifier = Modifier.weight(1f),
+            )
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_users),
                 snapshot.users.toString(),
@@ -198,6 +223,8 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 sub = stringResource(Res.string.ad_dash_sub_pro, snapshot.subsPastDue),
                 modifier = Modifier.weight(1f),
             )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_tickets),
                 snapshot.ticketsOpen.toString(),
@@ -205,8 +232,6 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 sub = stringResource(Res.string.ad_dash_sub_tickets, snapshot.ticketsUrgent),
                 modifier = Modifier.weight(1f),
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
             MetricCard(
                 stringResource(Res.string.ad_dash_metric_posts),
                 snapshot.postsPublished.toString(),
@@ -222,7 +247,7 @@ private fun MetricRow(snapshot: DashboardSnapshot) {
                 snapshot.documents.toString(),
                 delta = null, sub = null, modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(2f))
+            Spacer(Modifier.weight(1f))
         }
     }
 }
@@ -351,3 +376,6 @@ private fun ActivityPanel(snapshot: DashboardSnapshot) {
         }
     }
 }
+
+/** What a ratio with no denominator shows: unanswerable, not zero. */
+private const val EMPTY_FIGURE = "—"

@@ -366,6 +366,28 @@ class HomeViewModelTest {
     }
 
     /**
+     * Setup used to ask for a number at the end of first run, before anything had been
+     * made. The request had nothing behind it but itself; this one is about a record that
+     * already exists, which is the only version an owner can weigh.
+     */
+    @Test
+    fun theBackupOffer_waitsForSomethingWorthLosing() = runTest(dispatcher) {
+        val nothingLogged = viewModel(entries = emptyList(), documents = emptyList(), signedIn = false)
+        assertFalse(nothingLogged.state.first { it.content is Loadable.Ready }.offerBackup)
+
+        val withARecord = viewModel(signedIn = false)
+        assertTrue(withARecord.state.first { it.content is Loadable.Ready }.offerBackup)
+    }
+
+    @Test
+    fun theBackupOffer_goesOnceThereIsASession() = runTest(dispatcher) {
+        // Nothing left to lose to a lost phone, so the card has nothing to say.
+        val signedIn = viewModel(signedIn = true)
+
+        assertFalse(signedIn.state.first { it.content is Loadable.Ready }.offerBackup)
+    }
+
+    /**
      * Both of these were impossible to write until this release. The flags were
      * compile-time consts, so a test could not set one — the off path was only ever
      * exercised by a build that happened to be compiled with the flag off, which is to say
@@ -506,6 +528,7 @@ class HomeViewModelTest {
         serviceChecklistEnabled: Boolean = true,
         seenStore: FakeShowcaseSeenStore = FakeShowcaseSeenStore(),
         entitlements: EntitlementSource = FakeEntitlementSource(isPro = isPro),
+        signedIn: Boolean = true,
     ) = HomeViewModel(
         activeCar = FakeActiveCarProvider(carId),
         observeHome = ObserveHomeUseCase(
@@ -527,6 +550,7 @@ class HomeViewModelTest {
         showcase = ShowcaseArbiter(seenStore),
         entitlements = entitlements,
         telemetry = telemetry(analytics),
+        sessions = { signedIn },
         // Both flags on, which is what they default to. A test that wants either offer
         // hidden can now say so, which was impossible while these were compile-time consts.
         config = featureConfig(autoOdometerEnabled, refuelDetectEnabled, serviceChecklistEnabled),

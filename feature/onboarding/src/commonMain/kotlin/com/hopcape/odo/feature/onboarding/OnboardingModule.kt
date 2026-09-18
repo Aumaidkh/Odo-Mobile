@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.onboarding
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
+import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoViewModel
 import com.hopcape.odo.feature.onboarding.presentation.welcome.WelcomeViewModel
 import org.koin.core.module.dsl.viewModel
@@ -23,8 +24,9 @@ val onboardingModule = module {
 
     // A factory, so one instance covers one visit to the pitch.
     factory { OnboardingTelemetry(logger = get(), analytics = get(), ids = get()) }
+    factory { WelcomeVideoTelemetry(logger = get(), analytics = get(), ids = get()) }
 
-    viewModel { WelcomeVideoViewModel(config = get()) }
+    viewModel { WelcomeVideoViewModel(config = get(), telemetry = get()) }
     viewModel { WelcomeViewModel(telemetry = get()) }
 
     single {

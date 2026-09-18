@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.cost.model.CostTrend
 import com.hopcape.odo.core.domain.health.model.HealthBand
 import com.hopcape.odo.core.domain.insight.model.CarInsight
 import com.hopcape.odo.core.domain.shared.Amount
+import com.hopcape.odo.core.domain.shared.AmountRange
 import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.feature.dashboard.domain.model.SetupProgress
 import com.hopcape.odo.feature.dashboard.presentation.state.Loadable
@@ -77,6 +78,16 @@ internal data class HomeUiState(
      */
     val offerChecklist: Boolean = false,
 
+    /**
+     * Whether to offer backing the record up.
+     *
+     * True only once the owner has made something worth losing and has no session. Setup
+     * used to ask at the end of first run, when there was nothing behind the request but
+     * the request itself; this asks about a record that already exists, which is the only
+     * version of the question the owner can weigh.
+     */
+    val offerBackup: Boolean = false,
+
 )
 
 /** A loaded dashboard. */
@@ -104,16 +115,37 @@ internal data class HomeContent(
     val odometerPending: Boolean = false,
     val score: Int = 0,
     val band: HealthBand = HealthBand.POOR,
+    /**
+     * The score is modelled, not measured — nothing has been logged or filed.
+     *
+     * The dial shows it dimmed and prefixed, and the card says where it came from. A car
+     * nobody has shown us anything of is not a neglected car, and a single-digit dial would
+     * say it was.
+     */
+    val scoreEstimated: Boolean = false,
     /** Points against the score from a month ago; `null` hides the line. */
     val scoreDelta: Int? = null,
     /** `null` when the car has not moved far enough this quarter to quote a rate. */
     val perKm: Amount? = null,
+    /** [perKm] is the segment's typical rate rather than this car's measured one. */
+    val costEstimated: Boolean = false,
+    /** What the car is worth today, as a band. `null` before setup has stored a car. */
+    val resale: AmountRange? = null,
     /** `null` when either quarter has no rate to compare. */
     val costTrend: CostTrend? = null,
     val overchargeTotal: Amount = Amount.ZERO,
     val overchargesCaught: Int = 0,
     /** The one thing to act on; `null` renders the all-clear card. */
     val attention: CarAttention? = null,
+    /**
+     * The car carries a registration number.
+     *
+     * Without one there is nothing Odo can check — insurance, PUC and challan are all
+     * looked up by it — so "nothing needs attention" would be a claim rather than a
+     * finding. Setup no longer asks for the number, which makes this the ordinary state of
+     * a day-one car and the attention slot the honest place to ask.
+     */
+    val hasPlate: Boolean = false,
     /** `null` hides the insight card rather than inventing something to say. */
     val insight: CarInsight? = null,
     /** The newest event on the car's feed; `null` hides the recent section. */
@@ -138,4 +170,13 @@ internal data class HomeContent(
 ) {
     /** Setup has never stored a car, so there is nothing truthful to say about one. */
     val hasNoCar: Boolean get() = !setup.carAdded
+
+    /**
+     * Whether the resale tile hands its slot to what the owner has caught.
+     *
+     * Once there is money on the board, that is the better number: resale is what the car
+     * might fetch one day, and this is what Odo has already saved them. Resale stays a tap
+     * away in the garage.
+     */
+    val showsOvercharge: Boolean get() = overchargesCaught > 0
 }

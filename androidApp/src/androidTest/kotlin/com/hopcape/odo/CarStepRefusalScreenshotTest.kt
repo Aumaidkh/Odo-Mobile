@@ -30,7 +30,6 @@ class CarStepRefusalScreenshotTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
                 installRefusingCarStore()
             },
         )

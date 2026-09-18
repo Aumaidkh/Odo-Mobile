@@ -37,7 +37,6 @@ class OnboardingVideoEndToEndTest {
         .outerRule(PinnedConfig(VIDEO_ENABLED, value = "true", compiledDefault = "false"))
         .around(DeviceState {
             clearTheOwnersRows()
-            installStubVehicleRegistry()
         })
         .around(rule)
 
@@ -84,7 +83,7 @@ class OnboardingVideoEndToEndTest {
 
         rule.onNodeWithText(VideoCopy.CTA).performClick()
 
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.waitForText(Copy.DETAILS_TITLE)
     }
 
     /**
@@ -100,8 +99,8 @@ class OnboardingVideoEndToEndTest {
 
         rule.onNodeWithText(VideoCopy.SKIP).performClick()
 
-        rule.waitForText(Copy.CAR_TITLE)
-        rule.onNodeWithText(Copy.HOME_SCORE_WAITING).assertDoesNotExist()
+        rule.waitForText(Copy.DETAILS_TITLE)
+        rule.onNodeWithText(Copy.HOME_RESALE).assertDoesNotExist()
     }
 
     /** Setup still only happens once, whichever intro led into it. */
@@ -109,30 +108,19 @@ class OnboardingVideoEndToEndTest {
     fun onceTheCarIsSetUp_theIntroIsNotShownAgain() {
         rule.waitForText(VideoCopy.REFUEL_TITLE, START_DESTINATION_TIMEOUT_MILLIS)
         rule.onNodeWithText(VideoCopy.SKIP).performClick()
-        rule.waitForText(Copy.CAR_TITLE)
+        rule.waitForText(Copy.DETAILS_TITLE)
 
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
+        rule.answerTheCarStep()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).performClick()
 
-        rule.waitForText(Copy.PROFILE_TITLE)
-        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.WORKSHOP_TITLE)
-        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.LAST_SERVICE_TITLE)
-        rule.onNodeWithText(Copy.SKIP).performClick()
-        rule.waitForText(Copy.AUTH_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
+        rule.onNodeWithText(Copy.VALUE_SKIP).performClick()
 
         // The flag is still on, so this is the variant's own answer and not the usual flow's:
         // an owner who has set up a car never sees either intro again.
         rule.relaunchTheApp().use {
-            rule.waitForText(Copy.HOME_SCORE_WAITING, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.waitForText(Copy.HOME_RESALE, START_DESTINATION_TIMEOUT_MILLIS)
             rule.onNodeWithText(VideoCopy.REFUEL_TITLE).assertDoesNotExist()
         }
     }

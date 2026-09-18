@@ -176,6 +176,87 @@ fun OdoFuelTypeField(
     }
 }
 
+/* ------------------------------ Chips ------------------------------ */
+
+/**
+ * The same choice as [OdoFuelTypeField], laid out as chips instead of a field that opens.
+ *
+ * For the two or three fuels nearly every car runs on, a tap on the answer beats a tap that
+ * opens a sheet to tap the answer in. The rest stay behind [otherLabel], which opens the
+ * field's own sheet — the long tail is real (CNG, electric) and hiding it would be a lie,
+ * but putting it in the row would make the common case pay for the rare one.
+ *
+ * @param primary the kinds worth their own chip, in the order they should read.
+ * @param otherLabel the chip that opens the sheet; the sheet then offers [options] in full.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OdoFuelTypeChips(
+    selected: OdoFuelKind?,
+    options: List<OdoFuelTypeOption>,
+    primary: List<OdoFuelKind>,
+    onSelect: (OdoFuelKind) -> Unit,
+    otherLabel: String,
+    title: String,
+    subtitle: String,
+    closeContentDescription: String,
+    modifier: Modifier = Modifier,
+    note: String? = null,
+    enabled: Boolean = true,
+) {
+    var open by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+    ) {
+        primary.forEach { kind ->
+            val option = options.firstOrNull { it.kind == kind } ?: return@forEach
+            OdoChip(
+                label = option.label,
+                onClick = { onSelect(kind) },
+                selected = selected == kind,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // Selected when the answer came from the sheet, so a CNG owner can still see their
+        // own answer in the row rather than an unmarked "Other".
+        OdoChip(
+            label = options.firstOrNull { it.kind == selected && it.kind !in primary }?.label ?: otherLabel,
+            onClick = { open = true },
+            selected = selected != null && selected !in primary,
+            enabled = enabled,
+            modifier = Modifier.weight(1f),
+        )
+    }
+
+    if (open) {
+        val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { open = false } }
+        ModalBottomSheet(
+            onDismissRequest = { open = false },
+            sheetState = sheetState,
+            containerColor = OdoTheme.colors.surface,
+        ) {
+            FuelTypeSheet(
+                selected = selected,
+                options = options,
+                title = title,
+                subtitle = subtitle,
+                note = note,
+                closeContentDescription = closeContentDescription,
+                onSelect = { kind ->
+                    onSelect(kind)
+                    dismiss()
+                },
+                onClose = { dismiss() },
+            )
+        }
+    }
+}
+
 /* ------------------------------ Collapsed field ------------------------------ */
 
 @Composable
