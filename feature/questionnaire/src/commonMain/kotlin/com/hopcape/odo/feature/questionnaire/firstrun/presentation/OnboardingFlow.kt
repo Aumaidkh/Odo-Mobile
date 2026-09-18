@@ -11,12 +11,8 @@ import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.car.CarDetailsStepScreen
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.lastservice.LastServiceStepScreen
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.profile.ProfileStepScreen
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.workshop.WorkshopStepScreen
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleProfile
 
 /**
  * The setup steps as one screen that changes its mind: the step selects which body renders,
@@ -53,22 +49,8 @@ internal fun OnboardingFlow(
                 onEvent = onEvent,
             )
 
-            OnboardingStep.PROFILE -> ProfileStepScreen(
-                profile = state.profile,
-                canContinue = state.canContinue,
-                onEvent = onEvent,
-            )
 
-            OnboardingStep.WORKSHOP -> WorkshopStepScreen(
-                workshop = state.workshop,
-                canContinue = state.canContinue,
-                onEvent = onEvent,
-            )
 
-            OnboardingStep.LAST_SERVICE -> LastServiceStepScreen(
-                lastService = state.lastService,
-                onEvent = onEvent,
-            )
         }
     }
 }
@@ -79,11 +61,3 @@ private fun OnboardingFlowCarPreview() = OdoPreview(padded = false) {
     OnboardingFlow(state = OnboardingUiState(), onEvent = {})
 }
 
-@OdoThemePreviews
-@Composable
-private fun OnboardingFlowProfilePreview() = OdoPreview(padded = false) {
-    OnboardingFlow(
-        state = OnboardingUiState(step = OnboardingStep.PROFILE, profile = sampleProfile()),
-        onEvent = {},
-    )
-}

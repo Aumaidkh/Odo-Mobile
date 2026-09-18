@@ -84,7 +84,6 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_model_empty
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_confirm
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_name_placeholder
-import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_variant_placeholder
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_search
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_title
@@ -214,7 +213,6 @@ private fun CarDetailsForm(
                 placeholder = choose,
                 notListedLabel = stringResource(Res.string.onb_model_not_listed),
                 notListedNamePlaceholder = stringResource(Res.string.onb_model_not_listed_name_placeholder),
-                notListedVariantPlaceholder = stringResource(Res.string.onb_model_not_listed_variant_placeholder),
                 notListedConfirmLabel = stringResource(Res.string.onb_model_not_listed_confirm),
             )
         }

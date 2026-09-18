@@ -44,6 +44,8 @@ internal object Copy {
     const val WELCOME_CTA = "Get started"
     const val WELCOME_SIGN_IN = "Already using Odo? Sign in"
     const val DETAILS_TITLE = "Your car’s details"
+    const val VALUE_SCAN = "Scan your first bill"
+    const val VALUE_SKIP = "Not now — let me look around"
 
     /** What a refused save says. Its whole job is to not be silence. */
     const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."
@@ -54,11 +56,8 @@ internal object Copy {
     /** What replaced it: the reading is optional, so the step says so rather than asking. */
     const val ODOMETER_LATER = "You can add that later"
     const val ODOMETER_BUMP = "+1,000"
-    const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
-    const val WORKSHOP_TITLE = "Where do you get your car serviced?"
     const val WORKSHOP_AUTHORISED = "Company service centre"
-    const val LAST_SERVICE_TITLE = "When was your last service?"
     const val LAST_SERVICE_FORGOT = "Don’t remember"
     const val LAST_SERVICE_DATE_MISSING = "Add the month of that service, or tick “Don’t remember”."
     const val LAST_SERVICE_ODOMETER_MISSING =
@@ -188,52 +187,20 @@ internal fun OdoTestRule.nameTheCar() {
 }
 
 /**
- * Answer the car, the profile and the workshop tier, ending on the last step.
- *
- * Three steps is enough boilerplate that a test about the *fourth* one should not carry it,
- * and the steps before it are covered on their own by
- * [OnboardingEndToEndTest.setup_namesTheCarAndNeverAsksAgain].
+ * Welcome, the car step, and the value screen that pays for it — first run up to its last
+ * screen, which is where a test about what setup *produces* wants to start.
  */
-internal fun OdoTestRule.reachTheLastServiceStep() {
+internal fun OdoTestRule.reachTheValueScreen() {
     startFromWelcome()
     answerTheCarStep()
     onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.PROFILE_TITLE)
-    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-    onNodeWithText(Copy.GOAL_COSTS).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.WORKSHOP_TITLE)
-    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.LAST_SERVICE_TITLE)
+    waitUntilPresent(Copy.VALUE_SKIP)
 }
 
-/**
- * Answer the three steps after the car and decline the sign-in offer, landing on Home.
- *
- * The mirror of [reachTheLastServiceStep] for a test that cares about what comes *after*
- * setup rather than about setup itself.
- */
-internal fun OdoTestRule.finishSetupFromTheProfileStep() {
-    waitForText(Copy.PROFILE_TITLE)
-    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-    onNodeWithText(Copy.GOAL_COSTS).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.WORKSHOP_TITLE)
-    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.LAST_SERVICE_TITLE)
-    onNodeWithText(Copy.SKIP).performClick()
-
-    // Nothing is signed in, so the offer comes before Home. Declining it is what an owner
-    // taking the quickest route through setup does.
-    waitForText(Copy.AUTH_TITLE)
-    onNodeWithText(AuthCopy.SKIP).performClick()
+/** All of first run, declining the scan — the quickest honest route to Home. */
+internal fun OdoTestRule.finishSetupToHome() {
+    reachTheValueScreen()
+    onNodeWithText(Copy.VALUE_SKIP).performClick()
 }
 
 /**

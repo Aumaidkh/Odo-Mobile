@@ -52,9 +52,9 @@ class SetupReentryTest {
         rule.answerTheCarStep()
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
 
-        // Leave before the profile step writes anything. A new activity is a new ViewModel, so
+        // Leave on the value screen, before anything else is written. A new activity is a new ViewModel, so
         // the id of the car just stored is gone — exactly what a killed process does.
         rule.relaunchTheApp()
 
@@ -67,6 +67,6 @@ class SetupReentryTest {
         // The second pass has to edit the stored car. Adding a twin is refused by the unique
         // index, and the owner would never leave this step.
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
     }
 }

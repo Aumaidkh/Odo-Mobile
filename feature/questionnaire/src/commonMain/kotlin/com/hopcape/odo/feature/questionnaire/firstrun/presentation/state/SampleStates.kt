@@ -18,11 +18,6 @@ internal fun sampleCarDetails(): CarDetailsState = CarDetailsState(
     fuel = FormField(FuelType.PETROL),
 )
 
-internal fun sampleProfile(): ProfileState = ProfileState(
-    name = FormField("Rahul"),
-    goals = setOf("TRACK_COSTS"),
-)
-
 internal fun sampleCatalog(): CatalogOptions = CatalogOptions(
     makes = sampleMakes,
     popularMakes = samplePopularMakes,

@@ -33,7 +33,7 @@ class NoCarValueScreenshotTest {
     fun capturesTheNoCarValueScreen() {
         rule.awaitText(GarageCopy.TAB)
         rule.runOnUiThread {
-            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue)
+            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue())
         }
         rule.awaitText("My car’s value")
         rule.captureScreen("car-value-no-car")

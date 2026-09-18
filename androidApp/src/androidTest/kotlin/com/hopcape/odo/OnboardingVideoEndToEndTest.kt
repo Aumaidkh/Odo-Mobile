@@ -114,18 +114,8 @@ class OnboardingVideoEndToEndTest {
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).performClick()
 
-        rule.waitForText(Copy.PROFILE_TITLE)
-        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.WORKSHOP_TITLE)
-        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).performClick()
-
-        rule.waitForText(Copy.LAST_SERVICE_TITLE)
-        rule.onNodeWithText(Copy.SKIP).performClick()
-        rule.waitForText(Copy.AUTH_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
+        rule.onNodeWithText(Copy.VALUE_SKIP).performClick()
 
         // The flag is still on, so this is the variant's own answer and not the usual flow's:
         // an owner who has set up a car never sees either intro again.

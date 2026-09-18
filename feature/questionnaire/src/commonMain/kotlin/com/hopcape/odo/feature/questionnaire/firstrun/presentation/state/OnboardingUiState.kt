@@ -22,9 +22,6 @@ internal data class OnboardingUiState(
      * two fields that have to be kept equal is a drift waiting to happen.
      */
     val odometer: FormField<Long> = FormField(),
-    val profile: ProfileState = ProfileState(),
-    val workshop: WorkshopState = WorkshopState(),
-    val lastService: LastServiceState = LastServiceState(),
 ) {
     /**
      * Continue enabled for the current step; the last step is always skippable.
@@ -43,10 +40,5 @@ internal data class OnboardingUiState(
     val canContinue: Boolean
         get() = when (step) {
             OnboardingStep.CAR -> details.isAnswered
-            OnboardingStep.PROFILE -> profile.isAnswered
-            OnboardingStep.WORKSHOP -> workshop.isAnswered
-            // Done is always live on the last step: "don't remember" is an answer, and an
-            // owner who wants neither has Skip beside it.
-            OnboardingStep.LAST_SERVICE -> true
         }
 }

@@ -6,6 +6,29 @@
     <!-- A typographic apostrophe, not \' — Compose Resources has no Android escape and
          prints the backslash. -->
     <string name="adv_value_title">My car’s value</string>
+
+    <!-- First run, step 3 of 4: the screen that pays for the answers setup just took. -->
+    <string name="adv_value_fr_title">What your %1$s is worth today</string>
+    <string name="adv_value_fr_today_label">TODAY, WITH NO RECORD</string>
+    <string name="adv_value_fr_today_label_partial">TODAY, WITH YOUR RECORD</string>
+    <string name="adv_value_fr_record_label">WITH A PROVEN SERVICE RECORD</string>
+    <string name="adv_value_fr_record_body">That is what buyers usually pay extra for a car with its history on paper. You have %1$s so far.</string>
+    <string name="adv_value_fr_bills_none">0 bills logged</string>
+    <string name="adv_value_fr_bills_one">1 bill logged</string>
+    <string name="adv_value_fr_bills_many">%1$d bills logged</string>
+    <string name="adv_value_fr_band_note">It is a band, not one number, because the estimate runs off the segment average. A single figure would claim a precision we don’t have.</string>
+    <string name="adv_value_fr_basis">Estimated · your bills will tighten this</string>
+    <string name="adv_value_fr_scan">Scan your first bill</string>
+    <string name="adv_value_fr_skip">Not now — let me look around</string>
+    <string name="adv_value_fr_cd_progress">Step %1$d of %2$d</string>
+    <string name="adv_value_fr_fuel_petrol">Petrol</string>
+    <string name="adv_value_fr_fuel_diesel">Diesel</string>
+    <string name="adv_value_fr_fuel_cng">CNG</string>
+    <string name="adv_value_fr_fuel_electric">Electric</string>
+    <string name="adv_value_fr_segment_hatchback">hatchback segment</string>
+    <string name="adv_value_fr_segment_sedan">sedan segment</string>
+    <string name="adv_value_fr_segment_suv">SUV segment</string>
+    <string name="adv_value_fr_segment_muv">MUV segment</string>
     <string name="adv_value_cd_back">Back</string>
     <string name="adv_value_separator"> · </string>
 

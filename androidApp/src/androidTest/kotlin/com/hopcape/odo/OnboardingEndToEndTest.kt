@@ -87,26 +87,11 @@ class OnboardingEndToEndTest {
         rule.setOdometer()
         rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
 
-        rule.waitForText(Copy.PROFILE_TITLE)
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-        rule.onNodeWithText(Copy.GOAL_COSTS).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-
-        // The workshop tier decides the labour rate every price comparison is quoted at,
-        // so its step will not pass without an answer.
-        rule.waitForText(Copy.WORKSHOP_TITLE)
-        rule.onNodeWithText(Copy.CONTINUE).assertIsNotEnabled()
-        rule.onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-        rule.onNodeWithText(Copy.CONTINUE).assertIsEnabled().performClick()
-
-        // Skipping the last service still finishes setup.
-        rule.waitForText(Copy.LAST_SERVICE_TITLE)
-        rule.onNodeWithText(Copy.SKIP).performClick()
-
-        // With no session yet, the sign-in offer comes first — the one place Odo asks,
-        // because by now there is something concrete worth backing up.
-        rule.waitForText(Copy.AUTH_TITLE)
+        // Step 3: the screen that pays for those four answers. Setup has taken everything
+        // it is going to take, and this is the first thing the owner gets back.
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
+        rule.onNodeWithText(Copy.VALUE_SCAN).assertIsDisplayed()
+        rule.onNodeWithText(Copy.VALUE_SKIP).performClick()
 
         // The point of the whole flow: it does not happen twice. A new activity rather than
         // recreate(), because only a launch with no saved state re-asks the gate — see
@@ -118,121 +103,11 @@ class OnboardingEndToEndTest {
         }
     }
 
-    /**
-     * Regression for the last step handing an owner straight to the scanner.
-     *
-     * The camera button used to open `BillScanner.Capture` with setup still running, so the
-     * sign-in offer at the end of the flow was never reached. From the viewfinder the scan
-     * ran on to the fairness report, and the report's "set your city" opened the profile
-     * editor — a post-setup surface, reached by someone who had not been asked to sign in.
-     * Scanning now finishes setup like Skip does, so the offer comes first either way.
-     */
-    @Test
-    fun photographingTheOldBill_asksForSignInBeforeTheScanner() {
-        rule.reachTheLastServiceStep()
-
-        rule.onNodeWithText(Copy.SCAN_CTA).performClick()
-
-        // Sign-in, not the viewfinder.
-        rule.waitForText(Copy.AUTH_TITLE)
-        rule.onNodeWithText(ScanCopy.SCAN_TITLE_BILL).assertDoesNotExist()
-    }
-
-    /**
-     * The point of the whole step: an owner who remembers their last service leaves setup
-     * with a real service log against their car.
-     *
-     * Asserted against the app's own repository rather than a fake, because everything
-     * between the ViewModel and SQLite is what this is checking — the use case, the mapper,
-     * and a `DECLARED` row surviving a column that has only ever held MANUAL or SCANNED.
-     * The unit tests already cover the decision to write; only this covers the write.
-     */
-    @Test
-    fun rememberingTheLastService_leavesARealServiceLogBehind() {
-        rule.reachTheLastServiceStep()
-
-        rule.pickFirstOfTheMonth()
-        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
-        rule.onNodeWithText(Copy.DONE).performClick()
-
-        // Setup is over either way; the row is what matters.
-        rule.waitForText(Copy.AUTH_TITLE)
-
-        val entry = runBlocking { theOwnersOnlyServiceLog() }
-        assertEquals(LogSource.DECLARED, entry.source)
-        assertEquals(3_000, entry.odometer.km)
-        // No bill behind it, so no money. Zero is the truth, not a placeholder.
-        assertEquals(0L, entry.totalAmount.paise)
-    }
-
-    /**
-     * Both backs on the sign-in screen mean the same thing.
-     *
-     * Backing out of the prompt is declining it, not abandoning the errand that opened it —
-     * the screen's own arrow has always honoured that. The system back skipped the route's
-     * policy entirely and popped the entry, landing the owner on the surface seeded beneath
-     * sign-in and losing the scan they had asked for.
-     */
-    @Test
-    fun theSystemBackFromSignIn_stillOpensTheScannerThatWasAskedFor() {
-        rule.reachTheLastServiceStep()
-        rule.onNodeWithText(Copy.SCAN_CTA).performClick()
-        rule.waitForText(Copy.AUTH_TITLE)
-
-        Espresso.pressBack()
-
-        rule.waitForText(ScanCopy.SCAN_TITLE_BILL, SCANNER_TIMEOUT_MILLIS)
-    }
-
-    /**
-     * A refused Done has to say what it wants.
-     *
-     * Half an answer is correctly rejected, but the reason only ever reached a field error
-     * the screen did not draw, so the owner saw a live button that did nothing and no way
-     * to learn which half was missing.
-     */
-    @Test
-    fun aDateWithNoReading_saysWhichHalfIsMissing() {
-        rule.reachTheLastServiceStep()
-
-        rule.pickFirstOfTheMonth()
-        rule.onNodeWithText(Copy.DONE).performClick()
-
-        rule.waitForText(Copy.LAST_SERVICE_ODOMETER_MISSING)
-        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
-    }
-
-    /** The other half, on the other field — and on a different component. */
-    @Test
-    fun aReadingWithNoDate_saysWhichHalfIsMissing() {
-        rule.reachTheLastServiceStep()
-
-        rule.setOdometer(thousands = 3, fieldTag = OnboardingTestTags.LAST_SERVICE_ODOMETER_FIELD)
-        rule.onNodeWithText(Copy.DONE).performClick()
-
-        rule.waitForText(Copy.LAST_SERVICE_DATE_MISSING)
-        rule.onNodeWithText(Copy.LAST_SERVICE_TITLE).assertIsDisplayed()
-    }
-
     /** The car setup just stored, and the single log now hanging off it. */
     private suspend fun theOwnersOnlyServiceLog(): ServiceLogEntry {
         val koin = GlobalContext.get()
         val car = koin.get<CarRepository>().observePrimaryCar().filterNotNull().first()
         return koin.get<ServiceLogRepository>().observe(car.id).first().single()
-    }
-
-    /**
-     * "Don't remember" is a first-class answer, and ticking it must not leave a half-row
-     * behind: a date typed before the box was ticked used to still be written on Done.
-     */
-    @Test
-    fun theLastServiceStepAcceptsNotRemembering() {
-        rule.reachTheLastServiceStep()
-
-        rule.onNodeWithText(Copy.LAST_SERVICE_FORGOT).performClick()
-        rule.onNodeWithText(Copy.DONE).assertIsEnabled().performClick()
-
-        rule.waitForText(Copy.AUTH_TITLE)
     }
 
     /**
@@ -284,7 +159,7 @@ class OnboardingEndToEndTest {
         rule.nameTheCar()
 
         rule.onNodeWithText(Copy.CONTINUE).performClick()
-        rule.waitForText(Copy.PROFILE_TITLE)
+        rule.waitUntilPresent(Copy.VALUE_SKIP)
 
         // Stored reading zero and flagged, so nothing downstream reads the placeholder as a
         // measurement — and so Home knows to keep asking.

@@ -28,9 +28,10 @@ import kotlinx.coroutines.launch
 internal class CarValueViewModel(
     private val observeCarValue: ObserveCarValueUseCase,
     private val telemetry: AdvisoryTelemetry,
+    firstRun: Boolean = false,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CarValueUiState())
+    private val _state = MutableStateFlow(CarValueUiState(firstRun = firstRun))
     val state: StateFlow<CarValueUiState> = _state.asStateFlow()
 
     private val _effects = Channel<CarValueEffect>(Channel.BUFFERED)
@@ -59,6 +60,11 @@ internal class CarValueViewModel(
         CarValueEvent.AddCarClicked -> emit(CarValueEffect.OpenAddCar)
 
         CarValueEvent.BackClicked -> emit(CarValueEffect.NavigateBack)
+
+        CarValueEvent.SkipClicked -> {
+            telemetry.firstRunSkipped()
+            emit(CarValueEffect.FinishFirstRun)
+        }
     }
 
     private fun observe() {
@@ -93,7 +99,7 @@ internal class CarValueViewModel(
             telemetry.noCar()
             return
         }
-        telemetry.valueShown(hasRecord = !valued.value.hasNoRecord)
+        telemetry.valueShown(hasRecord = !valued.value.hasNoRecord, firstRun = _state.value.firstRun)
         when (val city = valued.cityTier) {
             is CityTier.Unavailable -> telemetry.cityCatalogUnavailable(city.cause)
             is CityTier.NotListed -> telemetry.cityNotListed(city.catalogSize)

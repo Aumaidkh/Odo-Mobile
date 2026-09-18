@@ -80,7 +80,12 @@ class CarValueDisplayTest {
             recordCompleteness = 0.0,
             provenServices = 0,
         ),
-    ).toDisplay(odometer = "38,400 km", separator = SEPARATOR)
+    ).toDisplay(
+        odometer = "38,400 km",
+        separator = SEPARATOR,
+        fuelLabel = "Petrol",
+        segmentLabel = "hatchback segment",
+    )
 
     private fun car(): Car = Car.create(
         id = CarId("car-1"),

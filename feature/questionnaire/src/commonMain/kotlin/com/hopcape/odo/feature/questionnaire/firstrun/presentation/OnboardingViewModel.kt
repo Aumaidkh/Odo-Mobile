@@ -22,9 +22,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.VehicleCata
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CarDetailsState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.FormField
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.LastServiceState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.WorkshopState
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.QuestionKey
 import com.hopcape.odo.core.domain.owner.repository.QuestionnaireRepository
@@ -33,17 +31,9 @@ import com.hopcape.odo.feature.questionnaire.QuestionRegistry
 import com.hopcape.odo.feature.questionnaire.presentation.toggle
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingUiState
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.ProfileState
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
-import com.hopcape.odo.feature.questionnaire.resources.onb_last_date_error
-import com.hopcape.odo.feature.questionnaire.resources.onb_last_date_missing
-import com.hopcape.odo.feature.questionnaire.resources.onb_last_odometer_error
-import com.hopcape.odo.feature.questionnaire.resources.onb_last_odometer_missing
-import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_blank
-import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_long
-import com.hopcape.odo.feature.questionnaire.resources.onb_profile_name_error_short
 import com.hopcape.odo.feature.questionnaire.resources.onb_save_error
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -55,7 +45,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -125,9 +114,6 @@ internal class OnboardingViewModel(
 
     fun onEvent(event: OnboardingEvent) = when (event) {
         is OnboardingEvent.Details -> onDetailsEvent(event)
-        is OnboardingEvent.Profile -> onProfileEvent(event)
-        is OnboardingEvent.Workshop -> onWorkshopEvent(event)
-        is OnboardingEvent.LastService -> onLastServiceEvent(event)
         is OnboardingEvent.OdometerChanged -> onOdometerChanged(event.km)
         OnboardingEvent.ContinueClicked -> advance()
         OnboardingEvent.BackClicked -> goBack()
@@ -178,72 +164,6 @@ internal class OnboardingViewModel(
         }
     }
 
-    /* ------------------------------ Step 3 ------------------------------ */
-
-    private fun onProfileEvent(event: OnboardingEvent.Profile) = when (event) {
-        is OnboardingEvent.Profile.NameChanged -> updateProfile { it.copy(name = it.name.update(event.name)) }
-        is OnboardingEvent.Profile.GoalToggled -> onGoalToggled(event.value)
-    }
-
-    /**
-     * The goal is worth an event of its own rather than only appearing on completion: it decides
-     * the surface the owner lands on, so which goals people pick is what says whether those
-     * surfaces are the right three.
-     */
-    private fun onGoalToggled(value: String) {
-        val mode = questions.require(QuestionKeys.Goal).selection
-        OnboardingGoal.entries.firstOrNull { it.name == value }?.let(telemetry::goalSelected)
-        updateProfile { it.copy(goals = it.goals.toggle(value, mode)) }
-    }
-
-    /* ------------------------------ Step 3 ------------------------------ */
-
-    /**
-     * The tier is emitted as it is picked, not only on completion: it names a *kind* of
-     * workshop rather than a place, so it carries no PII, and the split between authorised
-     * and local is what says whether the labour-rate table is being asked the right question.
-     */
-    private fun onWorkshopEvent(event: OnboardingEvent.Workshop) = when (event) {
-        is OnboardingEvent.Workshop.TierSelected -> {
-            telemetry.workshopTierSelected(event.value)
-            _state.update { it.copy(workshop = WorkshopState(tier = event.value)) }
-        }
-    }
-
-    /* ------------------------------ Step 4 ------------------------------ */
-
-    private fun onLastServiceEvent(event: OnboardingEvent.LastService) = when (event) {
-        is OnboardingEvent.LastService.DateChanged ->
-            updateLastService { it.copy(date = it.date.update(event.date)) }
-
-        is OnboardingEvent.LastService.OdometerChanged ->
-            updateLastService { it.copy(odometer = it.odometer.update(event.km)) }
-
-        is OnboardingEvent.LastService.ForgotToggled -> {
-            telemetry.lastServiceForgotten(event.forgot)
-            updateLastService { it.withForgot(event.forgot) }
-        }
-
-        OnboardingEvent.LastService.ScanClicked -> {
-            // Bills scanned per month is the product's North Star, so where a scan was launched
-            // from is worth knowing — this is the first one an owner is ever offered.
-            telemetry.firstScanClicked()
-            // Anything already typed is stored before the hand-off. The scan can be abandoned
-            // at the viewfinder, and discarding an answer the owner has already given — in
-            // order to offer them a better way to give it — is the wrong trade.
-            //
-            // Scanning ends setup like skipping does. Handing off with the flow still open is
-            // what let an owner reach the fairness report, and the profile editor behind it,
-            // without ever being asked to sign in.
-            storeThenFinish(openScanner = true)
-        }
-
-        OnboardingEvent.LastService.SkipClicked -> {
-            telemetry.lastServiceSkipped()
-            finish()
-        }
-    }
-
     /* ------------------------------ Flow ------------------------------ */
 
     /**
@@ -275,9 +195,6 @@ internal class OnboardingViewModel(
      */
     private suspend fun persist(state: OnboardingUiState): Boolean = when (state.step) {
         OnboardingStep.CAR -> saveCarStep(state)
-        OnboardingStep.PROFILE -> saveProfile(state)
-        OnboardingStep.WORKSHOP -> saveWorkshop(state)
-        OnboardingStep.LAST_SERVICE -> saveLastService(state)
     }
 
 
@@ -335,186 +252,38 @@ internal class OnboardingViewModel(
      * a lost set is recoverable from the profile screen, whereas refusing to finish setup over
      * it would strand the owner on the last step.
      */
-    private suspend fun saveProfile(state: OnboardingUiState): Boolean = telemetry.profileSave {
-        answers.save(QuestionKeys.Goal, state.profile.goals)
-        completeOnboarding(CompleteOnboardingCommand(name = state.profile.name.text))
-    }.fold(
-        ifLeft = { errors -> reportSaveFailure(errors); false },
-        ifRight = { true },
-    )
-
-    /**
-     * Store the workshop tier.
-     *
-     * Unlike the goal set, a failed write does stop the step: the tier *is* the step, and an
-     * owner who moves on from it believing it was recorded gets every price comparison quoted
-     * at the wrong labour rate with nothing on screen to say so.
-     */
-    private suspend fun saveWorkshop(state: OnboardingUiState): Boolean {
-        val tier = state.workshop.tier ?: return true
-        return telemetry.workshopSave(tier) { answers.save(QuestionKeys.Workshop, setOf(tier)) }
-            .fold(
-                ifLeft = { error -> reportSaveFailure(nonEmptyListOf(error)); false },
-                ifRight = { true },
-            )
-    }
-
-    /**
-     * Write the remembered service as a `DECLARED` log row, if there is one to write.
-     *
-     * Four ways this step ends with nothing stored, and all of them are fine: the owner
-     * skipped, they ticked "don't remember", they left a field empty, or the car step never
-     * produced a car to hang it on. Only a *rejected* answer stops the flow, because the one
-     * mistake available here — a reading above today's — would poison every distance the app
-     * computes afterwards.
-     */
-    private suspend fun saveLastService(state: OnboardingUiState): Boolean {
-        val last = state.lastService
-        // Nothing offered at all, or the owner said they cannot remember. Both are answers.
-        if (last.forgot || last.isUntouched) return true
-        // Half of one is not. Saying so on the field that is empty beats storing nothing and
-        // letting the owner leave believing they told us.
-        val date = last.date.value ?: return failLastServiceDate(Res.string.onb_last_date_missing)
-        val km = last.odometer.value?.toInt()
-            ?: return failLastServiceOdometer(Res.string.onb_last_odometer_missing)
-        val carId = savedCarId ?: return true
-        return telemetry.lastServiceSave {
-            recordDeclaredService(
-                carId = carId,
-                ownerId = currentOwner.currentOwnerId(),
-                date = date,
-                odometerKm = km,
-            )
-        }.fold(
-            ifLeft = { errors -> reportSaveFailure(errors); false },
-            ifRight = { true },
-        )
-    }
-
-    /**
-     * Put each failure where the owner can act on it: on the field that owns it when one
-     * does, and as a one-shot message when none does.
-     *
-     * Both halves matter. A field error without the message would leave a storage failure
-     * invisible; the message without the field errors would make the owner hunt for which
-     * answer was wrong.
-     */
     private fun reportSaveFailure(errors: NonEmptyList<DomainError>) {
         val unowned = errors.filterNot(::showFieldError)
         if (unowned.isNotEmpty()) emit(OnboardingEffect.SaveFailed(UiText(Res.string.onb_save_error)))
     }
 
     /**
-     * Attach [error] to the field it belongs to, answering `false` when no field owns it —
-     * a storage failure isn't any one answer's fault.
+     * The car step has no rendered error slot, so nothing is claimed by a field.
      *
-     * Only the name has a rendered error slot today. The car step's own validation failures
-     * can't reach here anyway: [OnboardingUiState.canContinue] already refuses to submit an
-     * unanswered car, so anything arriving from that step is a storage problem.
+     * Its own validation failures cannot reach here anyway: [OnboardingUiState.canContinue]
+     * refuses to submit an unanswered car, so whatever arrives is a storage problem and is
+     * reported as a message rather than marked on an answer.
      */
-    private fun showFieldError(error: DomainError): Boolean = when (error) {
-        DomainError.BlankOwnerName -> failName(Res.string.onb_profile_name_error_blank)
-        is DomainError.OwnerNameTooShort -> failName(Res.string.onb_profile_name_error_short)
-        is DomainError.OwnerNameTooLong -> failName(Res.string.onb_profile_name_error_long)
-        // The odometer rules are checked on two steps, and only the last-service step has a
-        // field to hang them on. On the car step the reading lives in a bottom sheet that is
-        // already closed by now, so it stays unowned and is reported as a message — which is
-        // what the owner would otherwise get in silence.
-        is DomainError.OdometerRegression -> claimOnLastServiceStep { attachOdometerError(Res.string.onb_last_odometer_error) }
-        is DomainError.OdometerAheadOfLaterEntry -> claimOnLastServiceStep { attachOdometerError(Res.string.onb_last_odometer_error) }
-        DomainError.ServiceDateInFuture -> claimOnLastServiceStep { attachDateError(Res.string.onb_last_date_error) }
-        else -> false
-    }
-
-    private fun failName(message: StringResource): Boolean {
-        updateProfile { it.copy(name = it.name.fail(UiText(message))) }
-        return true
-    }
-
-    private fun attachOdometerError(message: StringResource) =
-        updateLastService { it.copy(odometer = it.odometer.fail(UiText(message))) }
-
-    private fun attachDateError(message: StringResource) =
-        updateLastService { it.copy(date = it.date.fail(UiText(message))) }
-
-    /** Mark the odometer and refuse the step. Used where the form itself is incomplete. */
-    private fun failLastServiceOdometer(message: StringResource): Boolean {
-        attachOdometerError(message)
-        telemetry.lastServiceRefused(SetupTelemetry.Field.ODOMETER)
-        return false
-    }
-
-    /** Mark the date and refuse the step. Used where the form itself is incomplete. */
-    private fun failLastServiceDate(message: StringResource): Boolean {
-        attachDateError(message)
-        telemetry.lastServiceRefused(SetupTelemetry.Field.DATE)
-        return false
-    }
+    private fun showFieldError(error: DomainError): Boolean = false
 
     /**
-     * Claim a `DomainError` for a last-service field, but only while that step is showing.
-     *
-     * Answers `false` anywhere else, which hands the failure back to be reported as a
-     * message. Without the guard the car step's own odometer check would write its error
-     * onto a field two steps away and look, from the owner's side, like nothing happened.
-     */
-    private fun claimOnLastServiceStep(attach: () -> Unit): Boolean {
-        if (_state.value.step != OnboardingStep.LAST_SERVICE) return false
-        attach()
-        return true
-    }
-
-    /**
-     * Back rewinds one step. Back from the first step leaves the flow entirely, which only
-     * the route host can do.
+     * Back leaves the flow — the car step is the first one setup owns, and only the route
+     * host can pop past it.
      */
     private fun goBack() {
-        val current = _state.value
-        val previous = current.step.previous
-        if (previous == null) {
-            endAbandoned(current.step)
-            emit(OnboardingEffect.NavigateBack)
-        } else {
-            telemetry.stepBack(current.step)
-            showStep(previous)
-        }
+        endAbandoned(_state.value.step)
+        emit(OnboardingEffect.NavigateBack)
     }
 
     /**
-     * Setup is over: the owner's goal picks the surface they land on, and sign-in is offered
-     * only if there's no session — the ask can finally be concrete ("back up *these*
-     * records") instead of an account wall on a blank app.
-     *
-     * [openScanner] carries the one difference between the two ways out of the last step:
-     * the camera button also wants the scanner opened once the owner has landed.
+     * The car is named, which is everything this screen was for. What pays for those answers
+     * is the value screen, and it is a step of first run rather than a screen after it — so
+     * the flow is not finished here, it moves on.
      */
-    /**
-     * Store whatever the last step holds, then finish either way.
-     *
-     * The write is not allowed to block the hand-off: the owner asked for the camera, and an
-     * incomplete form is exactly the case the scan is meant to replace. So a refused save
-     * leaves its field marked and the flow still ends — the answer is not lost, it is simply
-     * superseded by the photo they are about to take.
-     */
-    private fun storeThenFinish(openScanner: Boolean) {
-        if (saveJob?.isActive == true) return
-        saveJob = viewModelScope.launch(telemetry.op(SetupTelemetry.Trace.STEP_SUBMIT)) {
-            // This step's own write, not `persist` — the scan button belongs to the last
-            // step, and running whichever step happens to be current would try to re-save
-            // the car. An untouched form stores nothing and answers true.
-            saveLastService(_state.value)
-            finish(openScanner = openScanner)
-        }
-    }
-
-    private fun finish(openScanner: Boolean = false) {
+    private fun finish() {
         flowEnded = true
-        val signInFirst = !sessionStatus.isSignedIn()
-        telemetry.completed(
-            goals = _state.value.profile.goals,
-            signInOffered = signInFirst,
-        )
-        emit(OnboardingEffect.Finish(signInFirst = signInFirst, openScanner = openScanner))
+        telemetry.completed()
+        emit(OnboardingEffect.ShowValue)
     }
 
     /* ------------------------------ Funnel accounting ------------------------------ */
@@ -546,7 +315,16 @@ internal class OnboardingViewModel(
     private fun showCatalog(catalog: Loadable<CatalogOptions>) =
         updateDetails { it.copy(catalog = catalog) }
 
-    private fun showModels(models: List<CarModel>) = updateDetails { it.copy(models = models) }
+    /**
+     * Setup lists models without their trims.
+     *
+     * A trim ladder changes with every facelift, and picking one is a tap that answers a
+     * question nothing in first run asks. It is taken at the first service log instead,
+     * where it actually moves the labour rate.
+     */
+    private fun showModels(models: List<CarModel>) = updateDetails {
+        it.copy(models = models.map { model -> CarModel(model.name) }.distinctBy(CarModel::name))
+    }
 
     /** Take a make, dropping the model chosen under the previous one and the list it came from. */
     private fun selectMake(make: String) = updateDetails {
@@ -558,12 +336,6 @@ internal class OnboardingViewModel(
 
     private fun updateDetails(transform: (CarDetailsState) -> CarDetailsState) =
         _state.update { it.copy(details = transform(it.details)) }
-
-    private fun updateProfile(transform: (ProfileState) -> ProfileState) =
-        _state.update { it.copy(profile = transform(it.profile)) }
-
-    private fun updateLastService(transform: (LastServiceState) -> LastServiceState) =
-        _state.update { it.copy(lastService = transform(it.lastService)) }
 
     private fun emit(effect: OnboardingEffect) {
         viewModelScope.launch { _effects.send(effect) }

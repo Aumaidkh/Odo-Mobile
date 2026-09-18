@@ -72,41 +72,13 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
             // thing that separates "the write failed" from a dead button.
             is OnboardingEffect.SaveFailed -> failure = effect.message
 
-            is OnboardingEffect.Finish -> {
-                // Always the dashboard. Onboarding used to pick a surface from the owner's
-                // goal, but all three choices resolved to this one, so the choice was never
-                // real. The goals are now stored by the questionnaire (#394) and read by
-                // whatever wants them.
-                val destination = OdoDestination.Home
-                // …with the value screen on top of it, unless the owner is on their way to
-                // the scanner already. Setup has just taken four answers and given nothing
-                // back; this is the one screen that can pay for them immediately, and the
-                // gap it shows is the argument for the first scan.
-                // The intro and the setup steps leave the back stack — first run doesn't
-                // repeat. finishFlow rather than popUpTo(Welcome), because the flow's root
-                // is whichever intro the remote flag chose, and popping up to the wrong
-                // one silently left the whole first run under the landing screen (#352).
-                if (effect.openScanner) {
-                    // The start surface is seeded *under* the scanner rather than replaced by
-                    // it. Leaving the scan errand pops its own steps and lands on whatever is
-                    // below them, so with the scanner alone on the stack there would be
-                    // nothing to land on and the owner would be stuck on the viewfinder.
-                    navigationManager.finishFlow(destination, ::isFirstRunStep)
-                    val scanner = OdoDestination.BillScanner.Capture()
-                    // Sign-in still comes first; auth carries the scanner as its `next`, so
-                    // both verifying and skipping arrive at the same viewfinder.
-                    navigationManager.navigateTo(
-                        if (effect.signInFirst) OdoDestination.Auth.Phone(scanner) else scanner,
-                    )
-                } else {
-                    // Same seed-then-push shape as the scanner branch above: the dashboard
-                    // goes under the value screen so leaving it lands somewhere.
-                    navigationManager.finishFlow(destination, ::isFirstRunStep)
-                    val value = OdoDestination.CarValue
-                    navigationManager.navigateTo(
-                        if (effect.signInFirst) OdoDestination.Auth.Phone(value) else value,
-                    )
-                }
+            OnboardingEffect.ShowValue -> {
+                // A step of first run, not a screen after it: the flow stays open so the
+                // progress bar carries on and back returns to the car step. Setup has just
+                // taken four answers and given nothing back, and this is the one screen that
+                // can pay for them immediately — the gap it shows is the argument for the
+                // scan that follows.
+                navigationManager.navigateTo(OdoDestination.CarValue(firstRun = true))
             }
         }
     }

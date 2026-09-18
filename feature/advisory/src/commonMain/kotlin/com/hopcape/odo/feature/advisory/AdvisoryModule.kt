@@ -52,7 +52,9 @@ val advisoryModule = module {
     // A factory, so one instance covers one visit to the screen.
     factory { AdvisoryTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
-    viewModel { CarValueViewModel(observeCarValue = get(), telemetry = get()) }
+    viewModel { (firstRun: Boolean) ->
+        CarValueViewModel(observeCarValue = get(), telemetry = get(), firstRun = firstRun)
+    }
 
     viewModel { (entry: String) ->
         ChecklistViewModel(
