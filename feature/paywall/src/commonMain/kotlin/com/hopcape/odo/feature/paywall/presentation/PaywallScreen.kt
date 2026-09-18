@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hopcape.odo.core.domain.subscription.StoreReadiness
+import com.hopcape.odo.core.platform.store.rememberStoreRater
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoIcon
@@ -73,6 +75,9 @@ import com.hopcape.odo.feature.paywall.resources.pw_badge_savings
 import com.hopcape.odo.feature.paywall.resources.pw_badge_scans
 import com.hopcape.odo.feature.paywall.resources.pw_cd_close
 import com.hopcape.odo.feature.paywall.resources.pw_cta
+import com.hopcape.odo.feature.paywall.resources.pw_store_not_from_play
+import com.hopcape.odo.feature.paywall.resources.pw_store_open_play
+import com.hopcape.odo.feature.paywall.resources.pw_store_payments_unavailable
 import com.hopcape.odo.feature.paywall.resources.pw_cta_trial
 import com.hopcape.odo.feature.paywall.resources.pw_cta_working
 import com.hopcape.odo.feature.paywall.resources.pw_feature_documents_sub
@@ -327,8 +332,12 @@ private fun ReadyOffer(state: PaywallUiState, offer: PaywallOffer, onEvent: (Pay
             Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 // Above the button, not below it: Play requires the terms before the tap, not
                 // as small print after it.
-                Terms(selected)
-                StartProButton(selected, busy = state.busy, onStart = { onEvent(PaywallEvent.StartProTapped) })
+                if (state.canBuy) {
+                    Terms(selected)
+                    StartProButton(selected, busy = state.busy, onStart = { onEvent(PaywallEvent.StartProTapped) })
+                } else {
+                    StoreUnavailableNotice(state.storeReadiness)
+                }
                 state.notice?.let { notice ->
                     OdoText(
                         notice.asString(),
@@ -500,6 +509,40 @@ private fun StartProButton(plan: PaywallPlanCard, busy: Boolean, onStart: () -> 
                 spotColor = OdoTheme.colors.accent,
             ),
     )
+}
+
+/**
+ * What stands where the CTA would be when the store will not sell on this device.
+ *
+ * The prices stay up: someone who cannot buy here can still see what Pro costs.
+ */
+@Composable
+private fun StoreUnavailableNotice(readiness: StoreReadiness) {
+    val openListing = rememberStoreRater()
+    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+        OdoText(
+            stringResource(
+                if (readiness == StoreReadiness.NOT_FROM_STORE) {
+                    Res.string.pw_store_not_from_play
+                } else {
+                    Res.string.pw_store_payments_unavailable
+                },
+            ),
+            style = OdoTheme.typography.bodySmall,
+            color = OdoTheme.colors.textDim,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        // A device Play cannot charge already has the Play Store, so the link says nothing
+        // new there.
+        if (readiness == StoreReadiness.NOT_FROM_STORE && openListing != null) {
+            OdoButton(
+                text = stringResource(Res.string.pw_store_open_play),
+                onClick = openListing,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
 
 /**

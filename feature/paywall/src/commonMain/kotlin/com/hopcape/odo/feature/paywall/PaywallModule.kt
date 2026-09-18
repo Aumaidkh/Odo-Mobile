@@ -47,6 +47,7 @@ val paywallModule = module {
         PaywallViewModel(
             catalog = get(),
             purchaser = get(),
+            availability = get(),
             telemetry = get(),
             trigger = trigger,
             amountPaise = amountPaise,

@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.billing
 
 import com.hopcape.odo.core.domain.entitlement.OverridableEntitlementSource
 import com.hopcape.odo.core.domain.entitlement.EntitlementSource
+import com.hopcape.odo.core.domain.subscription.StoreAvailability
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionIdentity
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
@@ -65,9 +66,10 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
     // the real adapter would throw there — the unconfigured one says nothing is for sale,
     // which is true and is a screen the paywall already has.
     if (environment.isConfigured) {
+        single<StoreAvailability> { RevenueCatStoreAvailability(appInfo = get(), telemetry = get()) }
         single<SubscriptionCatalog> { RevenueCatCatalog(telemetry = get()) }
-        single<SubscriptionPurchaser> { RevenueCatPurchaser(telemetry = get()) }
-        single<OneTimePurchaser> { RevenueCatOneTimePurchaser(telemetry = get()) }
+        single<SubscriptionPurchaser> { RevenueCatPurchaser(telemetry = get(), availability = get()) }
+        single<OneTimePurchaser> { RevenueCatOneTimePurchaser(telemetry = get(), availability = get()) }
         // The SDK allows one delegate, so one object owns customer info and every reader
         // below shares it.
         single { CustomerInfoStream(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get()) }
@@ -93,6 +95,7 @@ internal fun billingInfrastructureModule(environment: BillingEnvironment) = modu
             RevenueCatIdentity(scope = get(named(QUALIFIER_BILLING_SCOPE)), telemetry = get())
         }
     } else {
+        single<StoreAvailability> { UnconfiguredStoreAvailability() }
         single<SubscriptionCatalog> { UnconfiguredCatalog() }
         // The paywall's ViewModel asks for a purchaser the moment it is built, so this is
         // bound too. No entitlement source and no identity: coreDataModule's free-plan source
