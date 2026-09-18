@@ -74,7 +74,7 @@ internal class CarValueViewModel(
                     it.copy(
                         isLoading = false,
                         valued = snapshot.valued,
-                        odometerPending = snapshot.odometerPending,
+                        odometerAssumed = snapshot.odometerAssumed,
                     )
                 }
                 report(snapshot.valued)

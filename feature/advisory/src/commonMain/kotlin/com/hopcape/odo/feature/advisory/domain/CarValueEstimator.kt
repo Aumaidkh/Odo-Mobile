@@ -30,13 +30,16 @@ internal object CarValueEstimator {
      * @param currentYear today's year, injected because the domain owns no clock.
      */
     /**
-     * @param odometer the car's **known** reading. Taken as a parameter rather than read off
-     *  [car] so a car whose reading is still pending cannot reach here at all — its stored
-     *  zero would price a used car as though it had never been driven.
+     * @param odometer the car's known reading, or `null` when it has never been given.
+     *  Taken as a parameter rather than read off [car] so the stored zero of a pending
+     *  reading cannot reach the maths — that would price a used car as though it had never
+     *  been driven. `null` assumes the segment-typical distance for the car's age instead,
+     *  which is the same average everything else here is built from. Callers say so on
+     *  screen: an assumed reading is the widest the band ever gets.
      */
     fun estimate(
         car: Car,
-        odometer: Distance,
+        odometer: Distance?,
         logs: List<ServiceLogEntry>,
         cityTier: Int?,
         currentYear: Int,
@@ -46,7 +49,7 @@ internal object CarValueEstimator {
 
         val bare = DepreciationCurve.newPricePaise(segment, car.fuelType) *
             DepreciationCurve.retentionAt(age) *
-            DepreciationCurve.odometerFactor(odometer.km, age) *
+            DepreciationCurve.odometerFactor(odometer?.km ?: DepreciationCurve.typicalKm(age), age) *
             DepreciationCurve.cityFactor(cityTier)
 
         // Only a bill counts. A self-reported service is worth having in the app and worth

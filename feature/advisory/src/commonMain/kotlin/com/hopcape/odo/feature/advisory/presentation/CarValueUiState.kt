@@ -12,8 +12,12 @@ import com.hopcape.odo.feature.advisory.domain.CarValued
 internal data class CarValueUiState(
     val isLoading: Boolean = true,
     val valued: CarValued? = null,
-    /** A car is set up but its odometer has never been given. Asked for, not reported empty. */
-    val odometerPending: Boolean = false,
+    /**
+     * No reading has ever been given, so the estimate assumed a typical one for the car's
+     * age. The figure still shows — a wall here would be the screen refusing to pay for the
+     * answers setup just took — but it is worth an extra word that a reading tightens it.
+     */
+    val odometerAssumed: Boolean = false,
     /**
      * Reached as step 3 of first run rather than from the garage.
      *
@@ -24,7 +28,7 @@ internal data class CarValueUiState(
     val firstRun: Boolean = false,
 ) {
     /** Nothing loading and nothing to value: no car has been added yet. */
-    val isEmpty: Boolean get() = !isLoading && valued == null && !odometerPending
+    val isEmpty: Boolean get() = !isLoading && valued == null
 }
 
 /**

@@ -32,6 +32,7 @@ import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.feature.advisory.resources.Res
+import com.hopcape.odo.feature.advisory.resources.adv_value_assumed_reading
 import com.hopcape.odo.feature.advisory.resources.adv_value_basis
 import com.hopcape.odo.feature.advisory.resources.adv_value_cd_back
 import com.hopcape.odo.feature.advisory.resources.adv_value_empty_action
@@ -121,7 +122,7 @@ internal fun CarValueScreen(
     // First run owns its own chrome: the flow is still running, so the progress carries on
     // and the two ways out are the scan and "not now" rather than a title bar and share.
     if (state.firstRun && display != null) {
-        FirstRunEstimate(display, onEvent, modifier)
+        FirstRunEstimate(display, state.odometerAssumed, onEvent, modifier)
         return
     }
 
@@ -134,22 +135,6 @@ internal fun CarValueScreen(
     ) { padding ->
         when {
             state.isLoading -> Centred(padding) { OdoLoadingIndicator() }
-
-            // Before the no-car case: the car is there, and only the reading is missing.
-            // Kilometres are the second biggest term in the estimate after age, so there is
-            // nothing honest to show — but "no car yet" would be the wrong thing to say.
-            state.odometerPending -> Centred(padding) {
-                OdoEmptyState(
-                    title = stringResource(Res.string.adv_value_odometer_title),
-                    message = stringResource(Res.string.adv_value_odometer_body),
-                    action = {
-                        OdoButton(
-                            text = stringResource(Res.string.adv_value_odometer_action),
-                            onClick = { onEvent(CarValueEvent.AddOdometerClicked) },
-                        )
-                    },
-                )
-            }
 
             display == null -> Centred(padding) {
                 OdoEmptyState(
@@ -167,13 +152,17 @@ internal fun CarValueScreen(
                 )
             }
 
-            else -> Estimate(display, modifier = Modifier.padding(padding))
+            else -> Estimate(display, state.odometerAssumed, modifier = Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
+private fun Estimate(
+    display: CarValueDisplay,
+    odometerAssumed: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -250,6 +239,12 @@ private fun Estimate(display: CarValueDisplay, modifier: Modifier = Modifier) {
 
         // The honesty label. It is not decoration: an estimate built from segment averages
         // shown without it reads as a valuation of this car.
+        if (odometerAssumed) OdoText(
+            text = stringResource(Res.string.adv_value_assumed_reading),
+            style = OdoTheme.typography.body,
+            color = OdoTheme.colors.textDim,
+        )
+
         OdoBadge(text = stringResource(Res.string.adv_value_basis), tone = OdoBadgeTone.Neutral)
     }
 }
@@ -341,7 +336,7 @@ private fun PreviewScreen(display: CarValueDisplay) {
         onBack = {},
         bottomBar = { Actions(display) {} },
     ) { padding ->
-        Estimate(display, modifier = Modifier.padding(padding))
+        Estimate(display, odometerAssumed = false, modifier = Modifier.padding(padding))
     }
 }
 
@@ -361,6 +356,7 @@ private fun PreviewScreen(display: CarValueDisplay) {
 @Composable
 private fun FirstRunEstimate(
     display: CarValueDisplay,
+    odometerAssumed: Boolean,
     onEvent: (CarValueEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -452,6 +448,12 @@ private fun FirstRunEstimate(
 
             OdoText(
                 text = stringResource(Res.string.adv_value_fr_band_note),
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+            )
+
+            if (odometerAssumed) OdoText(
+                text = stringResource(Res.string.adv_value_assumed_reading),
                 style = OdoTheme.typography.body,
                 color = OdoTheme.colors.textDim,
             )
