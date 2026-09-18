@@ -184,7 +184,8 @@ internal fun OdoTestRule.nameTheCar() {
     pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
     pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
     confirmYear()
-    pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
+    // Fuel is chips now, not a field that opens a sheet — the answer is the tap.
+    onNodeWithText(Fixtures.FUEL).performClick()
 }
 
 /**

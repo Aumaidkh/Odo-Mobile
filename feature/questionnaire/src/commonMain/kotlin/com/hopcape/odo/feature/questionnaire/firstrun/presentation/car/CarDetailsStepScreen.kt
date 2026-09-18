@@ -18,7 +18,8 @@ import com.hopcape.odo.core.designsystem.component.OdoCarMake
 import com.hopcape.odo.core.designsystem.component.OdoCarMakeField
 import com.hopcape.odo.core.designsystem.component.OdoCarModel
 import com.hopcape.odo.core.designsystem.component.OdoCarModelField
-import com.hopcape.odo.core.designsystem.component.OdoFuelTypeField
+import com.hopcape.odo.core.designsystem.component.OdoFuelKind
+import com.hopcape.odo.core.designsystem.component.OdoFuelTypeChips
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoModelYearField
@@ -60,6 +61,9 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_loading
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_fuel_label
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_fuel_other
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_model_waiting
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_waiting
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_make_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_model_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_odometer_label
@@ -168,6 +172,9 @@ private fun CarDetailsForm(
     val close = stringResource(Res.string.onb_cd_close)
     val matchTemplate = stringResource(Res.string.onb_match_count)
     val makes = options.makes.map { it.toOdoCarMake() }
+    // Nothing below the model opens until there is one. A field whose turn has not come is
+    // shown waiting rather than left falsely tappable.
+    val answered = details.model.value != null
 
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
@@ -210,18 +217,22 @@ private fun CarDetailsForm(
                 allSectionLabel = stringResource(Res.string.onb_model_all),
                 emptyResultsText = stringResource(Res.string.onb_model_empty),
                 closeContentDescription = close,
-                placeholder = choose,
+                enabled = details.make.value != null,
+                placeholder = if (details.make.value == null) {
+                    stringResource(Res.string.onb_details_model_waiting)
+                } else {
+                    choose
+                },
                 notListedLabel = stringResource(Res.string.onb_model_not_listed),
                 notListedNamePlaceholder = stringResource(Res.string.onb_model_not_listed_name_placeholder),
                 notListedConfirmLabel = stringResource(Res.string.onb_model_not_listed_confirm),
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
+        // Year keeps the field; fuel does not. Year has thirty-odd answers and needs the
+        // wheel, and a full-width row of two would waste the space the chips want.
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.onb_details_year_label))
                 OdoModelYearField(
                     modifier = Modifier.testTag(OnboardingTestTags.YEAR_FIELD),
@@ -232,23 +243,23 @@ private fun CarDetailsForm(
                     cancelLabel = stringResource(Res.string.onb_cancel),
                     confirmLabel = stringResource(Res.string.onb_done),
                     subtitle = stringResource(Res.string.onb_year_sheet_subtitle),
-                    placeholder = choose,
+                    enabled = answered,
+                    placeholder = if (answered) choose else stringResource(Res.string.onb_details_waiting),
                 )
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.onb_details_fuel_label))
-                OdoFuelTypeField(
+                OdoFuelTypeChips(
                     modifier = Modifier.testTag(OnboardingTestTags.FUEL_FIELD),
                     selected = details.fuel.value?.toFuelKind(),
                     options = fuelOptions(options.fuelTypes),
+                    primary = PRIMARY_FUELS,
                     onSelect = { onEvent(OnboardingEvent.Details.FuelSelected(it.toDomain())) },
+                    otherLabel = stringResource(Res.string.onb_details_fuel_other),
                     title = stringResource(Res.string.onb_fuel_sheet_title),
                     subtitle = stringResource(Res.string.onb_fuel_sheet_subtitle),
                     closeContentDescription = close,
-                    placeholder = choose,
+                    enabled = answered,
                 )
             }
         }
@@ -406,3 +417,6 @@ private fun CarDetailsStepPreview(details: CarDetailsState) {
         onEvent = {},
     )
 }
+
+/** The two fuels nearly every car in the catalogue runs on; the rest wait behind "Other". */
+private val PRIMARY_FUELS = listOf(OdoFuelKind.PETROL, OdoFuelKind.DIESEL)
