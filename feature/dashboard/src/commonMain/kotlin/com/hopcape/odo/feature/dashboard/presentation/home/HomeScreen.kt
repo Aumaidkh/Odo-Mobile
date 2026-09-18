@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import arrow.core.getOrElse
 import com.hopcape.odo.core.designsystem.component.OdoButton
@@ -56,6 +57,7 @@ import com.hopcape.odo.core.designsystem.icons.IcFileFilled
 import com.hopcape.odo.core.designsystem.icons.IcFuelPump
 import com.hopcape.odo.core.designsystem.icons.IcJournal
 import com.hopcape.odo.core.designsystem.icons.IcLightbulbFilled
+import com.hopcape.odo.core.designsystem.icons.IcShieldCheck
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
 import com.hopcape.odo.core.designsystem.icons.IcShieldFilled
 import com.hopcape.odo.core.designsystem.icons.IcSpeedometer
@@ -106,13 +108,23 @@ import com.hopcape.odo.feature.dashboard.resources.hm_insight_eyebrow
 import com.hopcape.odo.feature.dashboard.resources.hm_insight_resale_eyebrow
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car_body
+import com.hopcape.odo.feature.dashboard.resources.hm_cost_segment
+import com.hopcape.odo.feature.dashboard.resources.hm_estimate_prefix
+import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate
+import com.hopcape.odo.feature.dashboard.resources.hm_backup_body
+import com.hopcape.odo.feature.dashboard.resources.hm_backup_title
+import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate_body
+import com.hopcape.odo.feature.dashboard.resources.hm_estimated
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_caught
+import com.hopcape.odo.feature.dashboard.resources.hm_resale_from_day_one
+import com.hopcape.odo.feature.dashboard.resources.hm_resale_value
+import com.hopcape.odo.feature.dashboard.resources.hm_score_modelled
+import com.hopcape.odo.core.domain.shared.AmountRange
+import com.hopcape.odo.core.domain.shared.formatRupeesCompact
 import com.hopcape.odo.feature.dashboard.resources.hm_per_unit
 import com.hopcape.odo.feature.dashboard.resources.hm_recent
 import com.hopcape.odo.feature.dashboard.resources.hm_running_cost
 import com.hopcape.odo.feature.dashboard.resources.hm_scan_first
-import com.hopcape.odo.feature.dashboard.resources.hm_score_waiting
-import com.hopcape.odo.feature.dashboard.resources.hm_score_waiting_body
 import com.hopcape.odo.feature.dashboard.resources.hm_see_breakdown
 import com.hopcape.odo.feature.dashboard.resources.hm_setup_bill
 import com.hopcape.odo.feature.dashboard.resources.hm_setup_bill_sub
@@ -199,6 +211,7 @@ internal fun HomeScreen(
                     offerAutoDetect = state.offerAutoDetect,
                     offerAutoOdometer = state.offerAutoOdometer,
                     offerChecklist = state.offerChecklist,
+                    offerBackup = state.offerBackup,
                     healthAnchor = healthAnchor,
                     onEvent = onEvent,
                 )
@@ -244,6 +257,7 @@ private fun HomeBody(
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
     offerChecklist: Boolean,
+    offerBackup: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -253,12 +267,15 @@ private fun HomeBody(
     if (content.odometerPending && !content.hasNoCar) OdometerNudgeCard(onEvent)
     when {
         content.hasNoCar -> NoCarContent(onEvent)
-        content.isNewUser -> NewUserContent(content, onEvent)
+        // No `isNewUser` branch any more. Every tile carries a figure from the first
+        // launch — modelled where it has to be, and labelled as such — because the setup
+        // checklist that used to stand here was an empty app telling its owner so.
         else -> ScoredContent(
             content = content,
             offerAutoDetect = offerAutoDetect,
             offerAutoOdometer = offerAutoOdometer,
             offerChecklist = offerChecklist,
+            offerBackup = offerBackup,
             healthAnchor = healthAnchor,
             onEvent = onEvent,
         )
@@ -431,6 +448,7 @@ private fun ScoredContent(
     offerAutoDetect: Boolean,
     offerAutoOdometer: Boolean,
     offerChecklist: Boolean,
+    offerBackup: Boolean,
     healthAnchor: CoachMarkAnchorState,
     onEvent: (HomeEvent) -> Unit,
 ) {
@@ -439,8 +457,9 @@ private fun ScoredContent(
     if (offerAutoDetect) AutoDetectOffer(onEvent)
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
-    AttentionCard(content.attention, onEvent)
+    AttentionCard(content.attention, content.hasPlate, onEvent)
     if (offerChecklist) ChecklistCard(onEvent)
+    if (offerBackup) BackupCard(onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
 }
@@ -741,17 +760,35 @@ private fun HealthCard(
                 score = content.score,
                 dialSize = 128.dp,
                 strokeWidth = 12.dp,
-                arcColor = OdoTheme.colors.accent,
+                arcColor = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                 centerContent = {
+                    // No tilde on the dial. The label under it already says the figure is
+                    // modelled, and a prefix on a number this size reads as part of the
+                    // number rather than as a qualifier on it.
                     OdoText(
                         content.score.toString(),
                         style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 40.sp),
+                        color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.text,
                         modifier = Modifier.testTag(HomeTestTags.SCORE),
                     )
+                    // A band is a grade, and grading a car nobody has shown us anything of
+                    // is the one thing this dial must not do.
                     OdoText(
-                        bandText(content.band),
-                        style = OdoTheme.typography.caption,
-                        color = OdoTheme.colors.accent,
+                        if (content.scoreEstimated) {
+                            stringResource(Res.string.hm_estimated)
+                        } else {
+                            bandText(content.band)
+                        },
+                        // Smaller and less tracked than a caption when it qualifies rather
+                        // than grades: a band is the dial's verdict and reads at full size,
+                        // while "Estimated" only says what kind of number is above it and
+                        // should not compete with the number for the space inside the ring.
+                        style = if (content.scoreEstimated) {
+                            OdoTheme.typography.caption.copy(fontSize = 10.sp, letterSpacing = 0.04.em)
+                        } else {
+                            OdoTheme.typography.caption
+                        },
+                        color = if (content.scoreEstimated) OdoTheme.colors.textDim else OdoTheme.colors.accent,
                     )
                 },
             )
@@ -761,7 +798,14 @@ private fun HealthCard(
                     style = OdoTheme.typography.caption,
                     color = OdoTheme.colors.textDim,
                 )
-                OdoText(healthNoteText(content.scoreDelta), style = OdoTheme.typography.body)
+                OdoText(
+                    if (content.scoreEstimated) {
+                        stringResource(Res.string.hm_score_modelled)
+                    } else {
+                        healthNoteText(content.scoreDelta)
+                    },
+                    style = OdoTheme.typography.body,
+                )
                 LinkRow(
                     label = stringResource(Res.string.hm_see_breakdown),
                     onClick = { onEvent(HomeEvent.BreakdownTapped) },
@@ -781,11 +825,19 @@ private fun StatsRow(content: HomeContent) {
             value = {
                 Row(verticalAlignment = Alignment.Bottom) {
                     val distance = LocalOdoDistanceFormat.current
+                    val rateText = content.perKm?.let { rate ->
+                        Amount.of(distance.ratePaise(rate.paise)).getOrElse { rate }.formatRupeesDecimal()
+                    }
                     OdoText(
-                        content.perKm?.let { rate ->
-                            Amount.of(distance.ratePaise(rate.paise)).getOrElse { rate }.formatRupeesDecimal()
-                        } ?: stringResource(Res.string.db_score_none),
+                        when {
+                            rateText == null -> stringResource(Res.string.db_score_none)
+                            // The tilde is the whole claim: this is the segment's rate, not
+                            // the one this car has actually run at.
+                            content.costEstimated -> stringResource(Res.string.hm_estimate_prefix, rateText)
+                            else -> rateText
+                        },
                         style = OdoTheme.typography.title,
+                        color = if (content.costEstimated) OdoTheme.colors.textDim else OdoTheme.colors.text,
                     )
                     if (content.perKm != null) {
                         OdoText(
@@ -796,7 +848,11 @@ private fun StatsRow(content: HomeContent) {
                     }
                 }
             },
-            footer = costTrendText(content.costTrend?.percentChange, hasRate = content.perKm != null),
+            footer = if (content.costEstimated) {
+                stringResource(Res.string.hm_cost_segment)
+            } else {
+                costTrendText(content.costTrend?.percentChange, hasRate = content.perKm != null)
+            },
             // Costlier than last quarter is the only reading worth flagging; cheaper, flat
             // and "no comparison yet" are all fine news or no news.
             footerColor = if (content.costTrend?.isUp == true) {
@@ -805,23 +861,38 @@ private fun StatsRow(content: HomeContent) {
                 OdoTheme.colors.textDim
             },
         )
-        StatCard(
-            label = stringResource(Res.string.hm_overcharge_caught),
-            modifier = Modifier.weight(1f).testTag(HomeTestTags.OVERCHARGE_CARD),
-            value = {
-                OdoText(
-                    content.overchargeTotal.formatRupees(),
-                    style = OdoTheme.typography.title,
-                    color = if (content.overchargesCaught > 0) {
-                        OdoTheme.colors.accent
-                    } else {
-                        OdoTheme.colors.textDim
-                    },
-                )
-            },
-            footer = overchargeSubText(content.overchargesCaught),
-            footerColor = OdoTheme.colors.textDim,
-        )
+        // Resale until the owner has caught something, then what they caught. Resale is what
+        // the car might fetch one day; an overcharge is money Odo has already saved them, and
+        // that is the better number to keep. Resale stays a tap away in the garage.
+        if (content.showsOvercharge) {
+            StatCard(
+                label = stringResource(Res.string.hm_overcharge_caught),
+                modifier = Modifier.weight(1f).testTag(HomeTestTags.OVERCHARGE_CARD),
+                value = {
+                    OdoText(
+                        content.overchargeTotal.formatRupees(),
+                        style = OdoTheme.typography.title,
+                        color = OdoTheme.colors.accent,
+                    )
+                },
+                footer = overchargeSubText(content.overchargesCaught),
+                footerColor = OdoTheme.colors.textDim,
+            )
+        } else {
+            StatCard(
+                label = stringResource(Res.string.hm_resale_value),
+                modifier = Modifier.weight(1f).testTag(HomeTestTags.RESALE_CARD),
+                value = {
+                    OdoText(
+                        content.resale?.formatCompact() ?: stringResource(Res.string.db_score_none),
+                        style = OdoTheme.typography.title,
+                    )
+                },
+                // The one figure on a day-one dashboard that needs nothing from the owner.
+                footer = stringResource(Res.string.hm_resale_from_day_one),
+                footerColor = OdoTheme.colors.textDim,
+            )
+        }
     }
 }
 
@@ -842,15 +913,27 @@ private fun StatCard(
 
 /** The one thing to act on, or the all-clear when there is nothing. */
 @Composable
-private fun AttentionCard(attention: CarAttention?, onEvent: (HomeEvent) -> Unit) {
+private fun AttentionCard(
+    attention: CarAttention?,
+    hasPlate: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+) {
     val colors = OdoTheme.colors
+    // Nothing to check is not the same as nothing wrong. Without a registration number Odo
+    // cannot look up insurance, PUC or challan at all, so the card asks for it rather than
+    // reporting an all-clear it has not earned.
+    val invitesPlate = attention == null && !hasPlate
     val tint = when {
-        attention == null -> colors.success
+        attention == null -> if (invitesPlate) colors.textDim else colors.success
         attention.isOverdue -> colors.warning
         else -> colors.accent
     }
     OdoCard(
-        onClick = if (attention != null) ({ onEvent(HomeEvent.AttentionTapped) }) else null,
+        onClick = when {
+            attention != null -> ({ onEvent(HomeEvent.AttentionTapped) })
+            invitesPlate -> ({ onEvent(HomeEvent.AddPlateTapped) })
+            else -> null
+        },
         border = BorderStroke(1.dp, tint.copy(alpha = 0.4f)),
         modifier = Modifier.testTag(HomeTestTags.ATTENTION_CARD),
     ) {
@@ -860,14 +943,25 @@ private fun AttentionCard(attention: CarAttention?, onEvent: (HomeEvent) -> Unit
         ) {
             HomeIconTile(attentionIcon(attention), tint)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                OdoText(attentionTitle(attention), style = OdoTheme.typography.heading)
                 OdoText(
-                    attentionSubtitle(attention),
+                    if (invitesPlate) {
+                        stringResource(Res.string.hm_attention_no_plate)
+                    } else {
+                        attentionTitle(attention)
+                    },
+                    style = OdoTheme.typography.heading,
+                )
+                OdoText(
+                    if (invitesPlate) {
+                        stringResource(Res.string.hm_attention_no_plate_body)
+                    } else {
+                        attentionSubtitle(attention)
+                    },
                     style = OdoTheme.typography.bodySmall,
                     color = colors.textDim,
                 )
             }
-            if (attention != null) Chevron()
+            if (attention != null || invitesPlate) Chevron()
         }
     }
 }
@@ -963,75 +1057,6 @@ private fun recentIcon(event: ActivityEvent): ImageVector = when (event) {
     is ActivityEvent.ScoreChanged -> IcTagFilled
     is ActivityEvent.FuelFilled -> IcFuelPump
     is ActivityEvent.CarAdded -> IcCar
-}
-
-// --- New user -------------------------------------------------------------------
-
-@Composable
-private fun NewUserContent(content: HomeContent, onEvent: (HomeEvent) -> Unit) {
-    OdoCard(modifier = Modifier.testTag(HomeTestTags.SCORE_WAITING)) {
-        Column(
-            Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        ) {
-            OdoHealthDial(
-                score = 0,
-                dialSize = 128.dp,
-                strokeWidth = 12.dp,
-                arcColor = OdoTheme.colors.border,
-                centerContent = {
-                    OdoText(
-                        stringResource(Res.string.db_score_none),
-                        style = OdoTheme.typography.display.copy(fontSize = 40.sp, lineHeight = 40.sp),
-                        color = OdoTheme.colors.textMuted,
-                    )
-                },
-            )
-            OdoText(
-                stringResource(Res.string.hm_score_waiting),
-                style = OdoTheme.typography.heading,
-                textAlign = TextAlign.Center,
-            )
-            OdoText(
-                stringResource(Res.string.hm_score_waiting_body),
-                style = OdoTheme.typography.body,
-                color = OdoTheme.colors.textDim,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-    OdoText(
-        stringResource(Res.string.hm_get_set_up, content.setup.doneCount, content.setup.stepCount),
-        style = OdoTheme.typography.caption,
-        color = OdoTheme.colors.textDim,
-    )
-    Column(
-        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-        modifier = Modifier.testTag(HomeTestTags.CHECKLIST),
-    ) {
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_car),
-            subtitle = null,
-            done = content.setup.carAdded,
-            onClick = null,
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_CAR),
-        )
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_bill),
-            subtitle = stringResource(Res.string.hm_setup_bill_sub),
-            done = content.setup.billScanned,
-            onClick = { onEvent(HomeEvent.ScanBillTapped) },
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_BILL),
-        )
-        ChecklistCard(
-            title = stringResource(Res.string.hm_setup_docs),
-            subtitle = stringResource(Res.string.hm_setup_docs_sub),
-            done = content.setup.documentsFiled,
-            onClick = { onEvent(HomeEvent.AddDocumentsTapped) },
-            modifier = Modifier.testTag(HomeTestTags.CHECKLIST_DOCS),
-        )
-    }
 }
 
 @Composable
@@ -1271,4 +1296,48 @@ private fun Chevron() {
         tint = OdoTheme.colors.accent,
         size = OdoTheme.iconSizes.small,
     )
+}
+
+/**
+ * "Rs. 4.4L–4.9L" — the currency is stated once, because both bounds carry the same one.
+ *
+ * The high bound is trimmed to its first digit rather than by stripping a known prefix, so
+ * the currency symbol stays the money formatter's business and not this file's.
+ */
+private fun AmountRange.formatCompact(): String {
+    val top = high.formatRupeesCompact().dropWhile { !it.isDigit() }
+    return "${low.formatRupeesCompact()}$RANGE_DASH$top"
+}
+
+private const val RANGE_DASH = "\u2013"
+
+/**
+ * The one place Odo asks for a phone number, and only once the owner has something to lose.
+ *
+ * Setup used to ask at the end of first run, before anything had been made — a request with
+ * nothing behind it but the request. This one is about a record that already exists, which
+ * is the only version of the question the owner can actually weigh.
+ */
+@Composable
+private fun BackupCard(onEvent: (HomeEvent) -> Unit) {
+    OdoCard(
+        onClick = { onEvent(HomeEvent.BackUpTapped) },
+        modifier = Modifier.testTag(HomeTestTags.BACKUP_CARD),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HomeIconTile(IcShieldCheck, OdoTheme.colors.accent)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                OdoText(stringResource(Res.string.hm_backup_title), style = OdoTheme.typography.heading)
+                OdoText(
+                    stringResource(Res.string.hm_backup_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            Chevron()
+        }
+    }
 }

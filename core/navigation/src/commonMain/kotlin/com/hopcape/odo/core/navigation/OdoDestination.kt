@@ -427,11 +427,15 @@ sealed interface OdoDestination : NavKey {
      * to it. Owned by `:feature:advisory`.
      *
      * Reachable from two places, which is why it is a destination rather than a step: the
-     * end of first-run setup, where the gap between the two figures is the argument for
-     * scanning a bill, and the garage, where the owner goes back to check it.
+     * garage, where the owner goes back to check it, and first-run setup, where the gap
+     * between the two figures is the argument for the scan that follows.
+     *
+     * [firstRun] is the setup arrival. It is step 3 of first run rather than a screen after
+     * it: the flow's progress carries on, back returns to the car step, and the two ways out
+     * are the scan and "not now". The garage arrival gets the ordinary screen.
      */
     @Serializable
-    data object CarValue : OdoDestination
+    data class CarValue(val firstRun: Boolean = false) : OdoDestination
 
     /**
      * "Before you go in" — what this service should cover, what it should not, roughly what

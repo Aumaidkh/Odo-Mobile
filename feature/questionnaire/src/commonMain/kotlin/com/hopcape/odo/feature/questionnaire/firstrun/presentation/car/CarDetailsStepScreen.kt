@@ -18,12 +18,12 @@ import com.hopcape.odo.core.designsystem.component.OdoCarMake
 import com.hopcape.odo.core.designsystem.component.OdoCarMakeField
 import com.hopcape.odo.core.designsystem.component.OdoCarModel
 import com.hopcape.odo.core.designsystem.component.OdoCarModelField
-import com.hopcape.odo.core.designsystem.component.OdoFuelTypeField
+import com.hopcape.odo.core.designsystem.component.OdoFuelKind
+import com.hopcape.odo.core.designsystem.component.OdoFuelTypeChips
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoLoadingIndicator
 import com.hopcape.odo.core.designsystem.component.OdoModelYearField
 import com.hopcape.odo.core.designsystem.component.OdoOdometer
-import com.hopcape.odo.core.designsystem.component.OdoRegistrationNumberField
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcRefresh
 import com.hopcape.odo.core.designsystem.icons.IcWarning
@@ -38,7 +38,6 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingEve
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.FieldLabel
 import com.hopcape.odo.core.designsystem.component.OdoIconTile
-import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.InlineLinkRow
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.OnboardingStepScaffold
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.StepHeadline
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.fuelOptions
@@ -55,20 +54,19 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.sampleC
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.text
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_cancel
-import com.hopcape.odo.feature.questionnaire.resources.onb_car_plate_placeholder
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_close
 import com.hopcape.odo.feature.questionnaire.resources.onb_choose
 import com.hopcape.odo.feature.questionnaire.resources.onb_continue
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_autofill_action
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_autofill_prompt
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_error_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_catalog_loading
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_fuel_label
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_fuel_other
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_model_waiting
+import com.hopcape.odo.feature.questionnaire.resources.onb_details_waiting
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_make_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_model_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_odometer_label
-import com.hopcape.odo.feature.questionnaire.resources.onb_details_plate_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_details_year_label
@@ -90,7 +88,6 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_model_empty
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_confirm
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_name_placeholder
-import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed_variant_placeholder
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_search
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_subtitle
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_sheet_title
@@ -108,35 +105,26 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_year_sheet_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Step 2 (manual route) — the same step, answered by hand when the plate lookup misses or
- * the owner doesn't want the registry to name their car. Four pickers keyed to the catalog,
- * because the fairness benchmarks are keyed on make/model/year/fuel — except make and model
- * also offer "not listed" free text for a car the catalog doesn't have. A free-typed car
- * simply has no peer group to benchmark against yet, which is honest: it has none until
+ * Step 1 — the car, in four taps and no typing.
+ *
+ * Pickers keyed to the catalog, because the fairness benchmarks are keyed on
+ * make/model/year/fuel — except make and model also offer "not listed" free text for a car
+ * the catalog doesn't have. A free-typed car has no peer group to benchmark against until
  * enough other owners report the same one (UnlistedVehicleReporter).
  *
- * The registration number opens the form, and it is required here exactly as it is on the
- * other route. It is the same field, holding the same value — somebody who typed a plate and
- * then came here finds it already filled in — but on this route it names the car rather than
- * looking it up, so nothing is fetched when it changes.
+ * No registration number. It used to open this form and gate the step, which asked a
+ * stranger for the most guarded thing they have before the app had given them anything;
+ * it is now taken later, by the features that can say why they need it.
  *
  * Year and fuel share a row: they're one-tap answers, and pairing them keeps the whole form
- * above the fold. The odometer closes the form — this route reaches the same `Car` the plate
- * route does, and no car exists without a reading.
- *
- * The pickers can only render once the catalog has loaded, so the form waits behind that
- * state; the link back to [CarStepScreen] does not, because a broken catalog is exactly when
- * the owner most needs the other route.
- *
- * When the plate lookup found a car, the pickers arrive already answered from it — rejecting
- * a match is nearly always about one wrong field, not all four.
+ * above the fold. The odometer closes the form and may be left empty — a car saved without
+ * a reading is stored pending and asked again where it matters.
  *
  * Stateless: renders [details] + [odometer] and forwards [OnboardingEvent]s.
  */
 @Composable
 internal fun CarDetailsStepScreen(
     details: CarDetailsState,
-    plate: FormField<String>,
     odometer: FormField<Long>,
     canContinue: Boolean,
     onEvent: (OnboardingEvent) -> Unit,
@@ -164,31 +152,18 @@ internal fun CarDetailsStepScreen(
 
             is Loadable.Ready -> CarDetailsForm(
                 details = details,
-                plate = plate,
                 odometer = odometer,
                 options = catalog.value,
                 onEvent = onEvent,
             )
         }
-
-        InlineLinkRow(
-            prompt = stringResource(Res.string.onb_details_autofill_prompt),
-            action = stringResource(Res.string.onb_details_autofill_action),
-            onClick = { onEvent(OnboardingEvent.Details.TryAutoFillClicked) },
-            leadingIcon = IcRefresh,
-            boxed = true,
-        )
     }
 }
 
-/**
- * The plate and the four pickers plus the odometer, once the catalog they choose from is in
- * hand.
- */
+/** The four pickers plus the odometer, once the catalog they choose from is in hand. */
 @Composable
 private fun CarDetailsForm(
     details: CarDetailsState,
-    plate: FormField<String>,
     odometer: FormField<Long>,
     options: CatalogOptions,
     onEvent: (OnboardingEvent) -> Unit,
@@ -197,18 +172,11 @@ private fun CarDetailsForm(
     val close = stringResource(Res.string.onb_cd_close)
     val matchTemplate = stringResource(Res.string.onb_match_count)
     val makes = options.makes.map { it.toOdoCarMake() }
+    // Nothing below the model opens until there is one. A field whose turn has not come is
+    // shown waiting rather than left falsely tappable.
+    val answered = details.model.value != null
 
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.lg)) {
-        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-            FieldLabel(stringResource(Res.string.onb_details_plate_label))
-            OdoRegistrationNumberField(
-                modifier = Modifier.testTag(OnboardingTestTags.PLATE_FIELD),
-                value = plate.text,
-                onValueChange = { onEvent(OnboardingEvent.Car.PlateChanged(it)) },
-                placeholder = stringResource(Res.string.onb_car_plate_placeholder),
-            )
-        }
-
         Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
             FieldLabel(stringResource(Res.string.onb_details_make_label))
             OdoCarMakeField(
@@ -249,19 +217,22 @@ private fun CarDetailsForm(
                 allSectionLabel = stringResource(Res.string.onb_model_all),
                 emptyResultsText = stringResource(Res.string.onb_model_empty),
                 closeContentDescription = close,
-                placeholder = choose,
+                enabled = details.make.value != null,
+                placeholder = if (details.make.value == null) {
+                    stringResource(Res.string.onb_details_model_waiting)
+                } else {
+                    choose
+                },
                 notListedLabel = stringResource(Res.string.onb_model_not_listed),
                 notListedNamePlaceholder = stringResource(Res.string.onb_model_not_listed_name_placeholder),
-                notListedVariantPlaceholder = stringResource(Res.string.onb_model_not_listed_variant_placeholder),
                 notListedConfirmLabel = stringResource(Res.string.onb_model_not_listed_confirm),
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
+        // Year keeps the field; fuel does not. Year has thirty-odd answers and needs the
+        // wheel, and a full-width row of two would waste the space the chips want.
+        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.onb_details_year_label))
                 OdoModelYearField(
                     modifier = Modifier.testTag(OnboardingTestTags.YEAR_FIELD),
@@ -272,23 +243,23 @@ private fun CarDetailsForm(
                     cancelLabel = stringResource(Res.string.onb_cancel),
                     confirmLabel = stringResource(Res.string.onb_done),
                     subtitle = stringResource(Res.string.onb_year_sheet_subtitle),
-                    placeholder = choose,
+                    enabled = answered,
+                    placeholder = if (answered) choose else stringResource(Res.string.onb_details_waiting),
                 )
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                 FieldLabel(stringResource(Res.string.onb_details_fuel_label))
-                OdoFuelTypeField(
+                OdoFuelTypeChips(
                     modifier = Modifier.testTag(OnboardingTestTags.FUEL_FIELD),
                     selected = details.fuel.value?.toFuelKind(),
                     options = fuelOptions(options.fuelTypes),
+                    primary = PRIMARY_FUELS,
                     onSelect = { onEvent(OnboardingEvent.Details.FuelSelected(it.toDomain())) },
+                    otherLabel = stringResource(Res.string.onb_details_fuel_other),
                     title = stringResource(Res.string.onb_fuel_sheet_title),
                     subtitle = stringResource(Res.string.onb_fuel_sheet_subtitle),
                     closeContentDescription = close,
-                    placeholder = choose,
+                    enabled = answered,
                 )
             }
         }
@@ -347,8 +318,7 @@ private fun CatalogLoadingCard() {
 
 /**
  * The catalog didn't load. Warning-toned rather than danger — nothing is wrong with the
- * owner's car — and it offers the two ways out: try again, or the plate route in the link
- * below it.
+ * owner's car — and it offers the way out: try again.
  */
 @Composable
 private fun CatalogFailedCard(message: UiText, onRetry: () -> Unit) {
@@ -405,13 +375,12 @@ private fun CarModel.toOdoCarModel(): OdoCarModel =
 
 private fun OdoCarModel.toDomainModel(): CarModel = CarModel(name = name, variant = variant)
 
-/** Answered — the shape the form arrives in when a plate lookup prefilled it. */
+/** Answered — the shape the form is in once all four pickers have been used. */
 @OdoThemePreviews
 @Composable
 private fun CarDetailsStepPreview() = OdoPreview(padded = false) {
     CarDetailsStepScreen(
         details = sampleCarDetails(),
-        plate = FormField("MH12AB1234"),
         odometer = FormField(54_000L),
         canContinue = true,
         onEvent = {},
@@ -443,9 +412,11 @@ private fun CarDetailsStepCatalogFailedPreview() = OdoPreview(padded = false) {
 private fun CarDetailsStepPreview(details: CarDetailsState) {
     CarDetailsStepScreen(
         details = details,
-        plate = FormField(""),
         odometer = FormField(),
         canContinue = false,
         onEvent = {},
     )
 }
+
+/** The two fuels nearly every car in the catalogue runs on; the rest wait behind "Other". */
+private val PRIMARY_FUELS = listOf(OdoFuelKind.PETROL, OdoFuelKind.DIESEL)

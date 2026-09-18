@@ -17,6 +17,8 @@ import com.hopcape.odo.core.domain.cost.repository.FuelFillRepository
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.fairness.analysis.SavingsCalculator
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
+import com.hopcape.odo.core.domain.health.analysis.EstimatedHealthScore
 import com.hopcape.odo.core.domain.health.analysis.HealthScoreCalculator
 import com.hopcape.odo.core.domain.health.model.HealthSnapshot
 import com.hopcape.odo.core.domain.health.repository.HealthScoreRepository
@@ -134,13 +136,22 @@ internal class ObserveHomeUseCase(
         val today = now.toLocalDateTime(timeZone).date
 
         val cost = costOver(CostWindow.endingOn(today, COST_WINDOW_MONTHS), record, today)
-        val score = HealthScoreCalculator.compute(
-            today = today,
-            entries = record.entries,
-            documents = record.documents,
-            readings = record.readings,
-            currentOdometer = record.currentOdometer,
-        )
+
+        // A car nobody has shown us anything of is not a neglected car. Scoring the empty
+        // record would put a single-digit verdict on the dial, which is what Home used to
+        // hide behind a setup checklist rather than show.
+        val unrecorded = record.entries.isEmpty() && record.documents.isEmpty()
+        val score = if (unrecorded) {
+            EstimatedHealthScore.forUnrecordedCar()
+        } else {
+            HealthScoreCalculator.compute(
+                today = today,
+                entries = record.entries,
+                documents = record.documents,
+                readings = record.readings,
+                currentOdometer = record.currentOdometer,
+            )
+        }
 
         return HomeSnapshot(
             ownerName = ownerName,
@@ -152,8 +163,25 @@ internal class ObserveHomeUseCase(
             // "0 km" as this car's reading is exactly the false precision it stands for.
             odometer = record.currentOdometer ?: record.car?.knownOdometer,
             score = score,
+            scoreEstimated = unrecorded,
             scoreDelta = score.deltaFrom(scores.latestOnOrBefore(carId, now - DELTA_WINDOW)?.score),
             cost = cost.current,
+            // A modelled rate is being shown in place of a measured one. Not the same as
+            // having no rate at all: with no city set there is no price to model from, and
+            // labelling that absence "segment average" would give a dash a basis it has not
+            // got. Fuel is priced by state here, so a national figure would be a guess
+            // dressed as a quote.
+            costEstimated = cost.current.perKm == null && cost.fuelRate != null,
+            modelledPerKm = cost.fuelRate,
+            resale = record.car?.let { car ->
+                CarValueEstimator.estimate(
+                    car = car,
+                    odometer = car.knownOdometer,
+                    logs = record.entries,
+                    cityTier = null,
+                    currentYear = today.year,
+                ).today
+            },
             costTrend = cost.trend,
             savings = SavingsCalculator.of(record.entries),
             attention = AttentionPicker.pick(
@@ -214,6 +242,7 @@ internal class ObserveHomeUseCase(
         return CostPair(
             current = compute(window, record, fuelRate),
             previous = compute(window.previous(), record, fuelRate),
+            fuelRate = fuelRate,
         )
     }
 
@@ -246,7 +275,12 @@ internal class ObserveHomeUseCase(
     private data class ReadingsAndCurrent(val readings: List<OdometerReading>, val current: Distance?)
 
     /** A window and its predecessor, which exists only to produce the trend. */
-    private data class CostPair(val current: RunningCost, val previous: RunningCost) {
+    private data class CostPair(
+        val current: RunningCost,
+        val previous: RunningCost,
+        /** The modelled ₹/km both windows were priced at; `null` with no city or no price. */
+        val fuelRate: Amount?,
+    ) {
         val trend get() = current.trendAgainst(previous)
     }
 

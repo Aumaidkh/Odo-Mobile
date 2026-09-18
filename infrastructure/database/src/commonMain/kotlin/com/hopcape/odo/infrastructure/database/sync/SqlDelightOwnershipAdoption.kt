@@ -47,7 +47,9 @@ internal class SqlDelightOwnershipAdoption(
         telemetry.span(DataTelemetry.SYNC, OP_ADOPT) {
             try {
                 val stamp = now.toString()
+                var merged = 0
                 database.transaction {
+                    merged = mergePlateCollisions(realOwnerId)
                     database.carQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.serviceLogQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
                     database.documentQueries.adoptOwnership(realOwnerId, stamp, placeholderOwnerId)
@@ -85,6 +87,7 @@ internal class SqlDelightOwnershipAdoption(
 
                     evictOtherOwners(realOwnerId)
                 }
+                telemetry.reconciled(DataTelemetry.SYNC, OP_ADOPT, merged)
             } catch (e: Exception) {
                 telemetry.crashed(DataTelemetry.SYNC, OP_ADOPT, e)
                 // Swallowed on purpose. Adoption runs before every sync, so a failure here
@@ -92,6 +95,41 @@ internal class SqlDelightOwnershipAdoption(
                 // better than a crash on a screen the owner was using at the time.
             }
         }
+    }
+
+    /**
+     * Fold a car added before sign-in into the account's own copy of the same car.
+     *
+     * Two rows under one owner cannot share a plate (`uq_cars_owner_reg`), so without this
+     * the adopting UPDATE fails and takes every other table's adoption down with it — and
+     * since adoption runs before every pass and swallows what it throws, it would fail that
+     * way forever.
+     *
+     * The account's row wins and the local one is dropped, but only after its children have
+     * been carried across: the owner's offline service logs, documents, fills, scores,
+     * reminders and trips are the whole reason any of this runs.
+     *
+     * Silent to the owner, but counted: it is a write nothing on screen accounts for.
+     * Answers how many were folded.
+     */
+    private fun mergePlateCollisions(realOwnerId: String): Int {
+        val collisions = database.carQueries
+            .selectPlateCollisions(realOwnerId = realOwnerId, placeholderOwnerId = placeholderOwnerId)
+            .executeAsList()
+
+        collisions.forEach { collision ->
+            val serverId = collision.serverId
+            val localId = collision.localId
+            database.serviceLogQueries.repointCar(serverId = serverId, localId = localId)
+            database.documentQueries.repointCar(serverId = serverId, localId = localId)
+            database.fuelFillQueries.repointCar(serverId = serverId, localId = localId)
+            database.healthScoreQueries.repointCar(serverId = serverId, localId = localId)
+            database.reminderQueries.repointCar(serverId = serverId, localId = localId)
+            database.tripQueries.repointCar(serverId = serverId, localId = localId)
+            database.parkedLocationQueries.repointCar(serverId = serverId, localId = localId)
+            database.carQueries.deleteById(localId)
+        }
+        return collisions.size
     }
 
     /**

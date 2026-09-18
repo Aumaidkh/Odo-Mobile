@@ -124,17 +124,17 @@ class QuestionAnswerDeselectionSyncTest {
      * The same deselection, but the tombstone's push was **refused** and the row went to
      * CONFLICT before the pull arrived.
      *
-     * **Pins today's behaviour, which is that the deselection is lost.** `decide` short-circuits
-     * on anything that is not PENDING — "no local edit is at risk" — so an older remote row is
-     * applied with no timestamp comparison, and the answer comes back live.
+     * The deselection used to be lost: `decide` short-circuited on anything that was not
+     * PENDING, so an older remote row was applied with no timestamp comparison and the answer
+     * came back live. A CONFLICT row is an unsent local edit — the status takes it out of the
+     * outbox until a local edit re-queues it, and the owner's data is meant to stay on the
+     * device meanwhile.
      *
-     * Whether that is right is a decision about the whole engine, not this table. A CONFLICT row
-     * is an unsent local edit, which argues for last-write-wins; but it is also a row the server
-     * has already refused, and letting the server settle it is how the row ever converges.
-     * Changing it moves every syncable table at once, so it is deliberately not changed here.
+     * Convergence is not what was traded away for it: a server row that really is newer still
+     * wins. Only a stale one has stopped overwriting an edit the owner made after it.
      */
     @Test
-    fun `a deselection stuck in CONFLICT is currently lost to an older remote row`() = runTest {
+    fun `a deselection stuck in CONFLICT survives an older remote row`() = runTest {
         val (db, driver) = inMemoryDatabase()
         val clock = FixedClock(answered)
         val local = SqlDelightQuestionAnswerLocalDataSource(
@@ -153,9 +153,9 @@ class QuestionAnswerDeselectionSyncTest {
         runner(db, FakeRemote(listOf(dto(id = "answer-1", updatedAt = answered)))).pull(FakeSynchronizer())
 
         assertEquals(
-            0,
+            1,
             driver.count("SELECT COUNT(*) FROM profile_answers WHERE deleted_at IS NOT NULL"),
-            "if this now fails, the engine's CONFLICT handling changed — read the KDoc above",
+            "the owner deselected this after the server's copy was written; a stale pull must not undo it",
         )
     }
 

@@ -42,6 +42,18 @@ data class AttentionItem(val kind: Kind, val count: Int) {
  */
 data class DashboardSnapshot(
     val users: Int,
+    /**
+     * Accounts that opened the app in the last day, week and month.
+     *
+     * **Signed-in accounts, not every install.** The device heartbeat these come from sits
+     * behind a session check in the app, and setup no longer asks for a number — so an owner
+     * who never verified one is using Odo and is absent from here. Read alongside GA4, which
+     * counts installs whether or not anybody signed in.
+     */
+    val active1d: Int,
+    val activePrev1d: Int,
+    val active7d: Int,
+    val active30d: Int,
     val users7d: Int,
     val usersPrev7d: Int,
     val cars: Int,
@@ -56,6 +68,8 @@ data class DashboardSnapshot(
     val vehiclePending: Int,
     val cityPending: Int,
     val signups: List<SignupDay>,
+    /** The same fourteen days as [signups], so the two charts share an axis. */
+    val actives: List<SignupDay>,
     val activity: List<ActivityEntry>,
 ) {
     /**
@@ -68,6 +82,19 @@ data class DashboardSnapshot(
      */
     val signupDelta: Int?
         get() = if (usersPrev7d == 0) null else ((users7d - usersPrev7d) * 100) / usersPrev7d
+
+    /** Day-on-day change in actives, or null when yesterday was zero — same rule as above. */
+    val activeDelta: Int?
+        get() = if (activePrev1d == 0) null else ((active1d - activePrev1d) * 100) / activePrev1d
+
+    /**
+     * Actives over the month, as a percentage — how much of the account base is still here.
+     *
+     * Null with no accounts at all, for the reason every other ratio here is: a percentage of
+     * nothing is not zero, it is unanswerable.
+     */
+    val stickiness: Int?
+        get() = if (users == 0) null else (active30d * 100) / users
 
     /**
      * What needs a person, worst first, with the empty rows dropped.

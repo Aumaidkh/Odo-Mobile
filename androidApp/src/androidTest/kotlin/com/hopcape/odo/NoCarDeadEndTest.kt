@@ -52,7 +52,7 @@ class NoCarDeadEndTest {
     fun theValueScreenWithNoCarOffersAWayToAddOne() {
         rule.awaitText(GarageCopy.TAB)
         rule.runOnUiThread {
-            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue)
+            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue())
         }
         rule.awaitText(VALUE_TITLE)
 

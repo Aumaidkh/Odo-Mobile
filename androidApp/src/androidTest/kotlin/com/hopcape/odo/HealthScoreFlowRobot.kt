@@ -47,10 +47,10 @@ internal object HealthCopy {
     /* Under the dial. */
     const val NOTHING_LOGGED = "Log a service or add a document to start building your score"
 
-    /* What Home shows instead of a score while there is nothing to score. */
-    const val HOME_SCORE_WAITING = "Your score is waiting"
-    const val HOME_SCORE_WAITING_BODY =
-        "Add one bill or document and Odo can start scoring your car’s health."
+    /* What Home shows on a car with nothing logged: a modelled score, labelled as one. */
+    const val HOME_SCORE_ESTIMATED = "Estimated"
+    const val HOME_SCORE_MODELLED =
+        "Modelled from age and the maker’s service cadence. Nothing logged yet."
 
     /* Breakdown. */
     const val BREAKDOWN = "WHAT MAKES UP YOUR SCORE"

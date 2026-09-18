@@ -78,6 +78,11 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
                 navigationManager.navigateTo(OdoDestination.ServiceChecklist(entry = effect.entry))
 
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
+            HomeEffect.OpenEditCar -> navigationManager.navigateTo(OdoDestination.Garage.EditCar)
+            // Back to Home afterwards: nothing about this screen changes but the offer
+            // leaving it, and landing somewhere else would lose the owner their place.
+            HomeEffect.OpenSignIn ->
+                navigationManager.navigateTo(OdoDestination.Auth.Phone(next = OdoDestination.Home))
             HomeEffect.OpenPaywall ->
                 navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER_REFUEL))
         }

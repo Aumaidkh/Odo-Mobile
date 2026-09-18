@@ -8,7 +8,6 @@ import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
-import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
@@ -83,16 +82,6 @@ internal class SetupTelemetry(
     fun abandoned(step: OnboardingStep) {
         analytics.track(Event.ABANDONED, mapOf(Key.STEP to step.name))
         logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step.name))
-    }
-
-    /**
-     * The owner chose to type the car in by hand. [hadMatch] separates "the registry was wrong"
-     * from "the registry gave us nothing" — the two say very different things about whether a
-     * lookup integration is worth having.
-     */
-    fun manualEntryChosen(hadMatch: Boolean) {
-        analytics.track(Event.MANUAL_ENTRY_CHOSEN, mapOf(Key.HAD_MATCH to hadMatch))
-        logger.info(TAG, Event.MANUAL_ENTRY_CHOSEN, tc = flowTrace.toLog(), fields = mapOf(Key.HAD_MATCH to hadMatch))
     }
 
     fun goalSelected(goal: OnboardingGoal) {
@@ -172,16 +161,17 @@ internal class SetupTelemetry(
         logger.info(TAG, Event.FIRST_SCAN_SKIPPED, tc = flowTrace.toLog())
     }
 
-    // `destination` used to be a field here. It is gone with goal-based routing, which sent
-    // every goal to the same screen — the property was a constant and told a dashboard nothing.
-    /** Every goal picked, not one nominated from the set — the column that took one is gone. */
-    fun completed(goals: Set<String>, signInOffered: Boolean) {
-        val fields = mapOf(
-            Key.GOAL to goals.sorted().joinToString(",").ifEmpty { UNSET },
-            Key.SIGN_IN_OFFERED to signInOffered,
-        )
-        analytics.track(Event.COMPLETED, fields)
-        logger.info(TAG, Event.COMPLETED, tc = flowTrace.toLog(), fields = fields)
+    /**
+     * Every question setup asks has been answered and the car is stored.
+     *
+     * Kept under its shipped name: it is the activation metric every dashboard already
+     * queries, and renaming it would break the history it is measured against. It carries no
+     * properties now — the goal and the sign-in offer both left first run with the steps
+     * that asked for them.
+     */
+    fun completed() {
+        analytics.track(Event.COMPLETED)
+        logger.info(TAG, Event.COMPLETED, tc = flowTrace.toLog())
     }
 
     /* ------------------------------ Async ops ------------------------------ */
@@ -221,33 +211,8 @@ internal class SetupTelemetry(
         }
 
     /**
-     * Times the plate lookup and records which way it went, and on a match which tier
-     * answered.
-     *
-     * [Key.SOURCE] is the number the cross-owner tier has to justify itself with: it is the
-     * only tier that reaches another owner's data, and its share of matches says whether
-     * that is buying anything. The plate itself is never recorded.
-     */
-    suspend fun plateLookup(
-        read: suspend () -> Either<DomainError, RegisteredVehicle>,
-    ): Either<DomainError, RegisteredVehicle> = traced(Trace.PLATE_LOOKUP) { span ->
-        val result = read()
-        val outcome = result.fold(
-            ifLeft = { it::class.simpleName ?: Outcome.FAILED },
-            ifRight = { Outcome.MATCHED },
-        )
-        val source = result.getOrNull()?.source?.name ?: Outcome.NO_MATCH
-        val fields = mapOf(Key.OUTCOME to outcome, Key.SOURCE to source)
-        span.setAttribute(Key.OUTCOME, outcome)
-        span.setAttribute(Key.SOURCE, source)
-        analytics.track(Event.PLATE_LOOKUP, fields)
-        logger.info(TAG, Event.PLATE_LOOKUP, tc = currentTraceContext().toLog(), fields = fields)
-        result
-    }
-
-    /**
      * Times the car write and records the outcome. [edit] separates a first save from the owner
-     * stepping back to fix something — a flow with many edits is a flow whose lookup or pickers
+     * stepping back to fix something — a flow with many edits is a flow whose pickers
      * are getting it wrong.
      */
     suspend fun carSave(
@@ -264,71 +229,6 @@ internal class SetupTelemetry(
                 val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel)
                 analytics.track(Event.CAR_SAVED, fields)
                 logger.info(TAG, Event.CAR_SAVED, tc = currentTraceContext().toLog(), fields = fields)
-            },
-        )
-        result
-    }
-
-    /** Times the profile write. The owner's name is never emitted — only whether it stored. */
-    suspend fun profileSave(
-        write: suspend () -> EitherNel<DomainError, OwnerProfile>,
-    ): EitherNel<DomainError, OwnerProfile> = traced(Trace.SAVE_PROFILE) { span ->
-        val result = write()
-        result.fold(
-            ifLeft = { errors ->
-                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                logSaveFailure(OnboardingStep.PROFILE, errors)
-            },
-            ifRight = {
-                analytics.track(Event.PROFILE_SAVED)
-                logger.info(TAG, Event.PROFILE_SAVED, tc = currentTraceContext().toLog())
-            },
-        )
-        result
-    }
-
-    /** Times the workshop-tier write. The tier is a kind of workshop, so it is emitted. */
-    suspend fun workshopSave(
-        tier: String,
-        write: suspend () -> Either<DomainError, Unit>,
-    ): Either<DomainError, Unit> = traced(Trace.SAVE_WORKSHOP, Key.WORKSHOP_TIER to tier) { span ->
-        val result = write()
-        result.fold(
-            ifLeft = { error ->
-                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                logSaveFailure(OnboardingStep.WORKSHOP, nonEmptyListOf(error))
-            },
-            ifRight = {
-                analytics.track(Event.WORKSHOP_SAVED, mapOf(Key.WORKSHOP_TIER to tier))
-                logger.info(
-                    TAG,
-                    Event.WORKSHOP_SAVED,
-                    tc = currentTraceContext().toLog(),
-                    fields = mapOf(Key.WORKSHOP_TIER to tier),
-                )
-            },
-        )
-        result
-    }
-
-    /**
-     * Times the declared-service write.
-     *
-     * Neither the service date nor the reading is emitted: both are facts about the owner's
-     * own car, and an odometer is resale-relevant. Only that a row was written.
-     */
-    suspend fun lastServiceSave(
-        write: suspend () -> EitherNel<DomainError, ServiceLogEntry>,
-    ): EitherNel<DomainError, ServiceLogEntry> = traced(Trace.SAVE_LAST_SERVICE) { span ->
-        val result = write()
-        result.fold(
-            ifLeft = { errors ->
-                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                logSaveFailure(OnboardingStep.LAST_SERVICE, errors)
-            },
-            ifRight = {
-                analytics.track(Event.LAST_SERVICE_SAVED)
-                logger.info(TAG, Event.LAST_SERVICE_SAVED, tc = currentTraceContext().toLog())
             },
         )
         result
@@ -375,7 +275,6 @@ internal class SetupTelemetry(
         const val FLOW = "onboarding"
 
         /** Stands in for an absent enum value, so a property is never silently missing. */
-        const val UNSET = "unset"
     }
 
     /*
@@ -392,19 +291,14 @@ internal class SetupTelemetry(
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
         const val ABANDONED = "onboarding_abandoned"
-        const val MANUAL_ENTRY_CHOSEN = "onboarding_manual_entry_chosen"
-        const val PLATE_LOOKUP = "onboarding_plate_lookup"
         const val GOAL_SELECTED = "onboarding_goal_selected"
         const val CAR_SAVED = "onboarding_car_saved"
-        const val PROFILE_SAVED = "onboarding_profile_saved"
         const val SAVE_FAILED = "onboarding_save_failed"
         const val WORKSHOP_TIER_SELECTED = "onboarding_workshop_tier_selected"
-        const val WORKSHOP_SAVED = "onboarding_workshop_saved"
         const val LAST_SERVICE_FORGOTTEN = "onboarding_last_service_forgotten"
         const val ODOMETER_SKIPPED = "onboarding_odometer_skipped"
         const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
         const val LAST_SERVICE_REFUSED = "onboarding_last_service_refused"
-        const val LAST_SERVICE_SAVED = "onboarding_last_service_saved"
         const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
         const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
         const val COMPLETED = "onboarding_completed"
@@ -420,19 +314,13 @@ internal class SetupTelemetry(
         const val STEP_SUBMIT = "onboarding_step_submit"
         const val CATALOG_LOAD = "onboarding_catalog_load"
         const val MODELS_LOAD = "onboarding_models_load"
-        const val PLATE_LOOKUP = "onboarding_plate_lookup"
         const val SAVE_CAR = "onboarding_save_car"
-        const val SAVE_PROFILE = "onboarding_save_profile"
-        const val SAVE_WORKSHOP = "onboarding_save_workshop"
-        const val SAVE_LAST_SERVICE = "onboarding_save_last_service"
     }
 
     /** Structured field / property keys, shared across logs, events and spans. */
     object Key {
         const val STEP = "step"
         const val GOAL = "goal"
-        const val SIGN_IN_OFFERED = "sign_in_offered"
-        const val HAD_MATCH = "had_match"
         const val EDIT = "edit"
         const val CAR_ID = "car_id"
         const val MAKE = "make"

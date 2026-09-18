@@ -1,6 +1,10 @@
 package com.hopcape.odo.infrastructure.database.sync
 
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
 import com.hopcape.odo.core.data.sync.SyncRejection
+import com.hopcape.odo.core.sync.observability.SyncTelemetry
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
 import com.hopcape.odo.core.sync.SyncCursor
 import com.hopcape.odo.core.sync.SyncEntity
@@ -270,6 +274,46 @@ class SyncRunnerTest {
         assertTrue(table.applied.isEmpty())
     }
 
+    /**
+     * A push the server refused permanently leaves the row `CONFLICT`: out of the outbox
+     * until a local edit re-queues it, with the owner's data still on the device. A pull
+     * used to overwrite it regardless of age, so the edit went silently — which is the one
+     * thing the status is supposed to prevent.
+     */
+    @Test
+    fun conflict_localConflictedAndNewer_localWins() = runTest {
+        val table = FakeTable(
+            remote = listOf(row("a", t0)),
+            local = mapOf("a" to LocalRowState(SyncStatus.CONFLICT, t1)),
+        )
+        runner(table).both(FakeSynchronizer())
+        assertTrue(table.applied.isEmpty())
+    }
+
+    @Test
+    fun conflict_localConflictedAndOlder_remoteWins() = runTest {
+        val table = FakeTable(
+            remote = listOf(row("a", t1)),
+            local = mapOf("a" to LocalRowState(SyncStatus.CONFLICT, t0)),
+        )
+        runner(table).both(FakeSynchronizer())
+        // A genuinely newer server row still wins, which is what unsticks the row.
+        assertEquals(listOf("a"), table.applied.map { it.id })
+    }
+
+    @Test
+    fun conflict_aConflictedEditThatLoses_isReported() = runTest {
+        val analytics = RecordingAnalytics()
+        val table = FakeTable(
+            remote = listOf(row("a", t1)),
+            local = mapOf("a" to LocalRowState(SyncStatus.CONFLICT, t0)),
+        )
+        runner(table, analytics = analytics).both(FakeSynchronizer())
+        // The whole point of reporting: data going missing shows as a spike rather than as
+        // nothing at all. It used to be silent, because the row never counted as a conflict.
+        assertEquals(listOf("remote"), analytics.winners)
+    }
+
     @Test
     fun conflict_remoteHasNoTimestamp_localEditStands() = runTest {
         val table = FakeTable(
@@ -305,13 +349,24 @@ class SyncRunnerTest {
         return pushed && pulled
     }
 
-    private fun runner(table: FakeTable) = SyncRunner(
+    private fun runner(table: FakeTable, analytics: AnalyticsTracker = NoopAnalytics) = SyncRunner(
         entity = SyncEntity.CARS,
         table = table,
         database = inMemoryDatabase().first,
-        telemetry = silentSyncTelemetry(),
+        telemetry = SyncTelemetry(logger = NoopLogger, analytics = analytics, tracer = NoopTracer, crash = NoopCrash),
         clock = Clock.System,
     )
+
+    /** Captures which side won each reported conflict. */
+    private class RecordingAnalytics : AnalyticsTracker {
+        val winners = mutableListOf<String>()
+        override fun identify(traits: UserTraits) = Unit
+        override fun track(eventName: String, properties: Map<String, Any?>) {
+            properties["winner"]?.let { winners += it.toString() }
+        }
+        override fun setConsent(status: ConsentStatus) = Unit
+        override fun flush() = Unit
+    }
 
     private fun row(id: String, updatedAt: Instant? = null, deleted: Boolean = false) =
         Row(id, updatedAt, deleted)

@@ -1,6 +1,8 @@
 package com.hopcape.odo.feature.advisory.domain
 
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
+import com.hopcape.odo.core.domain.car.value.CarValue
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.city.CityCatalog
@@ -43,14 +45,14 @@ internal class ObserveCarValueUseCase(
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(): Flow<CarValueSnapshot> = cars.observePrimaryCar().flatMapLatest { car ->
         if (car == null) return@flatMapLatest flowOf(CarValueSnapshot())
-        // No estimate without a real reading. Kilometres are the second biggest term in the
-        // curve after age, and a pending car's placeholder zero would value a driven car as
-        // though it were showroom-fresh — the exact false precision this screen must not show.
+        // A reading is wanted, not required. Setup asks for one and lets it be skipped, so
+        // demanding it here put a wall on the screen that is supposed to pay for setup —
+        // the owner answered everything and was told to go and read their odometer.
         //
-        // Reported as its own state rather than as "nothing to value": the car is there, and
-        // telling its owner they have no car would be a lie about a fixable gap.
+        // The placeholder zero never reaches the maths: `knownOdometer` is null for a
+        // pending car and the estimator assumes the segment-typical distance instead. The
+        // band is at its widest either way, and the screen says it is modelled.
         val odometer = car.knownOdometer
-            ?: return@flatMapLatest flowOf(CarValueSnapshot(odometerPending = true))
         // The catalog is read when the owner's city changes, not on every emission. Without
         // this the whole city table is re-read from storage each time a service is filed.
         val tier = profiles.observe()
@@ -59,7 +61,7 @@ internal class ObserveCarValueUseCase(
             .map { city -> city to resolveTier(city) }
 
         combine(logs.observe(car.id), tier) { entries, (cityName, resolved) ->
-            CarValueSnapshot(valued = CarValued(
+            CarValueSnapshot(odometerAssumed = odometer == null, valued = CarValued(
                 car = car,
                 cityName = cityName,
                 cityTier = resolved,
@@ -120,7 +122,8 @@ internal sealed interface CityTier {
  */
 internal data class CarValueSnapshot(
     val valued: CarValued? = null,
-    val odometerPending: Boolean = false,
+    /** No reading has ever been given, so the estimate assumed a typical one. Say so. */
+    val odometerAssumed: Boolean = false,
 )
 
 /** A car, where it lives, and what it is worth — everything the value screen renders. */

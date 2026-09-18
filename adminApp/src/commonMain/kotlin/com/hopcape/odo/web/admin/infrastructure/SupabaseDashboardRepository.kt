@@ -44,6 +44,11 @@ internal class SupabaseDashboardRepository(
                 postsDraft = row.postsDraft,
                 vehiclePending = row.vehiclePending,
                 cityPending = row.cityPending,
+                active1d = row.active1d,
+                activePrev1d = row.activePrev1d,
+                active7d = row.active7d,
+                active30d = row.active30d,
+                actives = row.actives.map { SignupDay(it.d, it.n) },
                 signups = row.signups.map { SignupDay(it.d, it.n) },
                 activity = row.activity.map {
                     ActivityEntry(
@@ -76,6 +81,11 @@ private data class DashboardRow(
     @SerialName("posts_draft") val postsDraft: Int = 0,
     @SerialName("vehicle_pending") val vehiclePending: Int = 0,
     @SerialName("city_pending") val cityPending: Int = 0,
+    @SerialName("active_1d") val active1d: Int = 0,
+    @SerialName("active_prev_1d") val activePrev1d: Int = 0,
+    @SerialName("active_7d") val active7d: Int = 0,
+    @SerialName("active_30d") val active30d: Int = 0,
+    val actives: List<SignupRow> = emptyList(),
     val signups: List<SignupRow> = emptyList(),
     val activity: List<ActivityRow> = emptyList(),
 )

@@ -253,10 +253,16 @@ internal class SyncRunner<Dto : Any>(
     /**
      * The conflict matrix, as one decision (SYNC_DESIGN §7).
      *
-     * The only interesting case is a row that is `PENDING` locally *and* newer on the
+     * The only interesting case is a row holding an unsent local edit *and* newer on the
      * server, which on a single device means a reinstall or a second device. Ties go to the
      * device: the owner is holding it, and if the two versions are identical the push that
      * follows is a no-op anyway.
+     *
+     * **`CONFLICT` counts as an unsent edit, the same as `PENDING`.** It means the server
+     * refused the push for good, which takes the row out of the outbox until a local edit
+     * re-queues it — the owner's data is meant to stay on the device meanwhile. Treating it
+     * as settled let any pulled row overwrite it, including one older than the edit, and
+     * because the row did not count as a conflict the loss was never reported either.
      *
      * Every resolution where a real local edit lost is reported, so a conflict storm shows
      * up as a spike rather than as data quietly going missing.
@@ -264,8 +270,8 @@ internal class SyncRunner<Dto : Any>(
     private fun decide(dto: Dto): Decision {
         // Never seen it — an insert, not a conflict.
         val local = table.localState(table.idOf(dto)) ?: return Decision(applyRemote = true, wasInsert = true)
-        // No local edit is at risk, so the server's version is simply the newer one.
-        if (local.syncStatus != SyncStatus.PENDING) return Decision(applyRemote = true)
+        // Nothing unsent is at risk, so the server's version is simply the newer one.
+        if (local.syncStatus == SyncStatus.SYNCED) return Decision(applyRemote = true)
 
         // From here a real local edit is on the line, so whichever way it goes is a conflict
         // that gets reported.
