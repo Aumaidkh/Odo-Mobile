@@ -108,6 +108,49 @@ class OwnershipAdoptionTest {
         assertEquals(before, driver.snapshot())
     }
 
+    /* ---------------- plate collisions ---------------- */
+
+    /**
+     * A sign-out whose wipe failed leaves the account's own rows behind. Signing back into
+     * that same account, having added the same car offline in between, puts two rows with
+     * one plate under one owner — which `uq_cars_owner_reg` refuses.
+     *
+     * The whole of adoption is one transaction, so if the car UPDATE throws, service logs,
+     * documents, reminders, trips and the rest never move either. Adoption runs before every
+     * pass and the exception is swallowed, so it fails identically forever: sync is dead on
+     * that device and the only trace is a non-fatal.
+     */
+    @Test
+    fun aPlateAlreadyHeldByTheAccountDoesNotStrandEveryOtherTable() = runTest {
+        val (db, driver) = seeded()
+        driver.exec("UPDATE cars SET registration_number = 'MH12AB1234' WHERE id = 'car-1'")
+        driver.exec(
+            "INSERT INTO cars (id, owner_id, make, model, year, fuel_type, registration_number, " +
+                "current_odometer_km, created_at, updated_at, sync_status) VALUES ('car-server', " +
+                "'$real', 'Maruti', 'Swift', 2019, 'PETROL', 'MH12AB1234', 42000, '$now', '$now', 'SYNCED')",
+        )
+
+        adoption(db).adopt(real, now)
+
+        // The car itself loses — the account's own copy is the one to keep — but everything
+        // the owner made offline has to reach the account regardless.
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM service_logs WHERE owner_id = '$placeholder'"))
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM documents WHERE owner_id = '$placeholder'"))
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM health_scores WHERE owner_id = '$placeholder'"))
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM cars WHERE owner_id = '$placeholder'"))
+
+        // One car under that plate, and the offline history now hangs off it rather than off
+        // a row that was deleted underneath it.
+        assertEquals(1, driver.count("SELECT COUNT(*) FROM cars WHERE registration_number = 'MH12AB1234'"))
+        assertEquals(0, driver.count("SELECT COUNT(*) FROM cars WHERE id = 'car-1'"))
+        assertEquals(1, driver.count("SELECT COUNT(*) FROM service_logs WHERE car_id = 'car-server'"))
+        assertEquals(1, driver.count("SELECT COUNT(*) FROM documents WHERE car_id = 'car-server'"))
+        assertEquals(1, driver.count("SELECT COUNT(*) FROM health_scores WHERE car_id = 'car-server'"))
+
+        // And they are in the outbox: the account has never seen them.
+        assertEquals("PENDING", driver.text("SELECT sync_status FROM service_logs WHERE id = 'log-1'"))
+    }
+
     /* ---------------- finishing a sign-out that did not finish ---------------- */
 
     @Test

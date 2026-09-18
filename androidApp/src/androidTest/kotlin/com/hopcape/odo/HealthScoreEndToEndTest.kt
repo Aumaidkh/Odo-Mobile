@@ -162,17 +162,15 @@ class HealthScoreEndToEndTest {
     }
 
     @Test
-    fun aCarWithNothingLoggedHasNoScoreToOpenAndIsToldHowToEarnOne() {
+    fun aCarWithNothingLoggedShowsAModelledScore_labelledAsOne() {
         startEmptyCar()
         rule.openHomeTab()
 
-        // Nothing logged and nothing filed, so there is nothing to score. Home says so and
-        // names what would change it, instead of opening a dial reading zero — a number
-        // that would be a verdict on the record rather than on the car.
-        rule.awaitText(HealthCopy.HOME_SCORE_WAITING)
-        rule.onNodeWithText(HealthCopy.HOME_SCORE_WAITING_BODY).assertIsDisplayed()
-        // No breakdown link either: it belongs to the health card, which is not drawn.
-        rule.onNodeWithText(HealthCopy.HOME_SEE_BREAKDOWN).assertDoesNotExist()
+        // A car nobody has shown us anything of is not a neglected car. The dial carries a
+        // modelled figure rather than a single-digit verdict on an empty record — and it
+        // says it is modelled, in place of the band that would otherwise grade it.
+        rule.awaitText(HealthCopy.HOME_SCORE_ESTIMATED)
+        rule.onNodeWithText(HealthCopy.HOME_SCORE_MODELLED).assertIsDisplayed()
     }
 
     @Test

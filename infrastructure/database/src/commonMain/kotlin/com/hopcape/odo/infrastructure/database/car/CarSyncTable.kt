@@ -70,26 +70,31 @@ internal class CarSyncTable(
     /** The plate-match adoption of §6.1.2. Answers the rows as they should now be pushed. */
     private suspend fun adoptIdentities(owner: String, rows: List<CarDto>): List<CarDto> {
         // `registration_number` is non-null here: the query filters on it.
-        val candidates = queries.selectUnsyncedWithPlate().executeAsList()
+        val plated = queries.selectUnsyncedWithPlate().executeAsList()
             .map { row -> row.id to row.registration_number }
-        if (candidates.isEmpty()) return rows
+        val unplated = queries.selectUnsyncedWithoutPlate().executeAsList()
+        if (plated.isEmpty() && unplated.isEmpty()) return rows
 
         // Live rows only: a soft-deleted car has released its plate, so re-adding it really
         // is a new row and the id it was given locally is the right one.
-        val serverByPlate = remote.fetchSince(owner, since = null)
-            .filter { it.deletedAt == null && it.registrationNumber != null }
-            .associateBy { it.registrationNumber }
+        val live = remote.fetchSince(owner, since = null).filter { it.deletedAt == null }
+        val serverByPlate = live.filter { it.registrationNumber != null }.associateBy { it.registrationNumber }
 
         // What each re-pointed row becomes: the server's row when the local one survived
         // under its id, or null when the local one was dropped as a duplicate.
         val outcome = mutableMapOf<String, CarDto?>()
         // Under the server's id: that is the car the pull is about to fill with history.
         val matched = mutableListOf<String>()
-        candidates.forEach { (localId, plate) ->
-            val server = serverByPlate[plate] ?: return@forEach
-            if (server.id == localId) return@forEach
+
+        fun merge(localId: String, server: CarDto) {
+            if (server.id == localId || outcome.containsKey(localId)) return
             matched += server.id
             outcome[localId] = if (adoptIdentity(localId = localId, server = server)) server else null
+        }
+
+        plated.forEach { (localId, plate) -> serverByPlate[plate]?.let { merge(localId, it) } }
+        unplated.forEach { row ->
+            serverMatching(live, row.make, row.model, row.year)?.let { merge(row.id, it) }
         }
         if (outcome.isEmpty()) return rows
         telemetry.identityAdopted(SyncEntity.CARS, count = outcome.size)
@@ -107,6 +112,24 @@ internal class CarSyncTable(
             dto.copy(id = server.id, createdAt = server.createdAt)
         }
     }
+
+    /**
+     * The account's one car of this make, model and year — or nothing.
+     *
+     * Setup stopped asking for a registration number, so a car added before sign-in usually
+     * has no plate to match on, and on a reinstall it would otherwise push as a second copy
+     * of a car the account already holds. Make, model and year is the strongest thing left.
+     *
+     * **Only when it is unambiguous.** Two cars of the same model and year cannot be told
+     * apart this way, and merging the wrong pair would fold one car's history into another's.
+     * A duplicate the owner can delete is the better failure.
+     */
+    private fun serverMatching(live: List<CarDto>, make: String, model: String, year: Long): CarDto? =
+        live.filter {
+            it.make.equals(make, ignoreCase = true) &&
+                it.model.equals(model, ignoreCase = true) &&
+                it.year.toLong() == year
+        }.singleOrNull()
 
     /**
      * Clear the primary flag on the server's other cars before this device's primary goes up.

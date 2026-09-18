@@ -12,11 +12,23 @@ import com.hopcape.odo.feature.advisory.domain.CarValued
 internal data class CarValueUiState(
     val isLoading: Boolean = true,
     val valued: CarValued? = null,
-    /** A car is set up but its odometer has never been given. Asked for, not reported empty. */
-    val odometerPending: Boolean = false,
+    /**
+     * No reading has ever been given, so the estimate assumed a typical one for the car's
+     * age. The figure still shows — a wall here would be the screen refusing to pay for the
+     * answers setup just took — but it is worth an extra word that a reading tightens it.
+     */
+    val odometerAssumed: Boolean = false,
+    /**
+     * Reached as step 3 of first run rather than from the garage.
+     *
+     * The estimate is the same; what changes is everything around it. First run is still
+     * running, so the progress carries on, back returns to the car step, and the two ways
+     * out are the scan and "not now" rather than share.
+     */
+    val firstRun: Boolean = false,
 ) {
     /** Nothing loading and nothing to value: no car has been added yet. */
-    val isEmpty: Boolean get() = !isLoading && valued == null && !odometerPending
+    val isEmpty: Boolean get() = !isLoading && valued == null
 }
 
 /**
@@ -28,6 +40,12 @@ internal data class CarValueUiState(
  */
 @Immutable
 internal data class CarValueDisplay(
+    /** Just the model, for the first-run headline: "What your Swift is worth today". */
+    val shortName: String,
+    /** "2019 Swift · Petrol · hatchback segment" — what the estimate was actually read off. */
+    val basis: String,
+    /** How many services have a bill behind them. The record card counts them out loud. */
+    val provenServices: Int,
     /** "2022 Baleno Zeta · 38,400 km · Srinagar" */
     val carSummary: String,
     val today: String,
@@ -36,8 +54,16 @@ internal data class CarValueDisplay(
     val isRecordComplete: Boolean,
 )
 
-internal fun CarValued.toDisplay(odometer: String, separator: String): CarValueDisplay =
+internal fun CarValued.toDisplay(
+    odometer: String,
+    separator: String,
+    fuelLabel: String,
+    segmentLabel: String,
+): CarValueDisplay =
     CarValueDisplay(
+        shortName = car.model,
+        basis = listOf("${car.year.value} ${car.model}", fuelLabel, segmentLabel).joinToString(separator),
+        provenServices = value.provenServices,
         carSummary = listOfNotNull(
             "${car.year.value} ${car.modelName}",
             odometer,

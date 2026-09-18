@@ -39,7 +39,6 @@ class PendingOdometerScreenshotTest {
         .outerRule(
             DeviceState {
                 clearTheOwnersRows()
-                installStubVehicleRegistry()
                 silenceTheCoachMarks()
             },
         )
@@ -48,15 +47,13 @@ class PendingOdometerScreenshotTest {
     @Test
     fun capturesTheCarStepAndTheHomeCardThatFollowsIt() {
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-
+        
         // The car is named and the odometer is untouched — the moment the old build stopped
         // an owner who was not near their car.
         rule.captureScreen("after-car-step")
 
         rule.onNodeWithText(Copy.CONTINUE).performClick()
-        rule.finishSetupFromTheProfileStep()
+        rule.finishSetupToHome()
 
         // The costs goal lands on the value screen, which is one of the surfaces that cannot
         // work without the reading. It asks for it instead of reporting an empty estimate —

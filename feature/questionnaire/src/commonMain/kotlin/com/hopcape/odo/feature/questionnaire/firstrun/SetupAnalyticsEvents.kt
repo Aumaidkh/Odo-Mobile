@@ -22,26 +22,13 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
         SetupTelemetry.Event.ABANDONED,
         mapOf(SetupTelemetry.Key.STEP to PropertyType.STRING),
     ),
-    EventSchema(
-        SetupTelemetry.Event.MANUAL_ENTRY_CHOSEN,
-        mapOf(SetupTelemetry.Key.HAD_MATCH to PropertyType.BOOLEAN),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.PLATE_LOOKUP,
-        mapOf(SetupTelemetry.Key.OUTCOME to PropertyType.STRING),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.GOAL_SELECTED,
-        mapOf(SetupTelemetry.Key.GOAL to PropertyType.STRING),
-    ),
-    // Make and fuel are nullable at the call site (the plate route may have neither), so they
-    // are declared by absence rather than as required properties — a required property with a
-    // null value is exactly what strict validation throws on.
+    // Make and fuel are nullable at the call site, so they are declared by absence rather
+    // than as required properties — a required property with a null value is exactly what
+    // strict validation throws on.
     EventSchema(
         SetupTelemetry.Event.CAR_SAVED,
         mapOf(SetupTelemetry.Key.EDIT to PropertyType.BOOLEAN),
     ),
-    EventSchema(SetupTelemetry.Event.PROFILE_SAVED),
     EventSchema(
         SetupTelemetry.Event.SAVE_FAILED,
         mapOf(
@@ -49,30 +36,6 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
             SetupTelemetry.Key.ERRORS to PropertyType.STRING,
         ),
     ),
-    EventSchema(
-        SetupTelemetry.Event.WORKSHOP_TIER_SELECTED,
-        mapOf(SetupTelemetry.Key.WORKSHOP_TIER to PropertyType.STRING),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.WORKSHOP_SAVED,
-        mapOf(SetupTelemetry.Key.WORKSHOP_TIER to PropertyType.STRING),
-    ),
-    EventSchema(
-        SetupTelemetry.Event.LAST_SERVICE_FORGOTTEN,
-        mapOf(SetupTelemetry.Key.FORGOT to PropertyType.BOOLEAN),
-    ),
     EventSchema(SetupTelemetry.Event.ODOMETER_SKIPPED),
-    EventSchema(SetupTelemetry.Event.LAST_SERVICE_SKIPPED),
-    EventSchema(SetupTelemetry.Event.LAST_SERVICE_SAVED),
-    EventSchema(SetupTelemetry.Event.FIRST_SCAN_CLICKED),
-    EventSchema(SetupTelemetry.Event.FIRST_SCAN_SKIPPED),
-    // `destination` was a property here until goal-based routing was deleted. It named one of
-    // three surfaces that all resolved to the dashboard, so it was a constant.
-    EventSchema(
-        SetupTelemetry.Event.COMPLETED,
-        mapOf(
-            SetupTelemetry.Key.GOAL to PropertyType.STRING,
-            SetupTelemetry.Key.SIGN_IN_OFFERED to PropertyType.BOOLEAN,
-        ),
-    ),
+    EventSchema(SetupTelemetry.Event.COMPLETED),
 )

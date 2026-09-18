@@ -40,7 +40,6 @@ internal val setupModule = module {
             answers = get(),
             loadCatalog = get(),
             loadModels = get(),
-            lookupPlate = get(),
             saveCar = get(),
             reportUnlisted = get(),
             recordDeclaredService = get(),
@@ -50,6 +49,7 @@ internal val setupModule = module {
             // to offer sign-in without knowing auth exists.
             sessionStatus = get(),
             telemetry = get(),
+            nudges = get(),
         )
     }
 

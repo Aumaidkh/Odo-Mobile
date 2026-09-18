@@ -28,7 +28,7 @@ class PitchBackStackTest {
 
     @get:Rule
     val chain: RuleChain = RuleChain
-        .outerRule(DeviceState { resetGarage(); installStubVehicleRegistry() })
+        .outerRule(DeviceState { resetGarage() })
         .around(rule)
 
     @Test

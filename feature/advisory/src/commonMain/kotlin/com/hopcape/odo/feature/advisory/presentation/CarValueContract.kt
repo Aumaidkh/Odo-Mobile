@@ -17,6 +17,9 @@ internal sealed interface CarValueEvent {
 
     data object BackClicked : CarValueEvent
 
+    /** "Not now" on the first-run screen — the only way past it that is not the scanner. */
+    data object SkipClicked : CarValueEvent
+
     /** "Add reading" on the pending-odometer state — the only way past it. */
     data object AddOdometerClicked : CarValueEvent
 
@@ -38,6 +41,13 @@ internal sealed interface CarValueEffect {
     data object OpenUpdateOdometer : CarValueEffect
 
     data object OpenScanner : CarValueEffect
+
+    /**
+     * First run is over and nothing is being scanned: pop its steps and land on the
+     * dashboard. Separate from [OpenScanner] because that one finishes the flow too, and
+     * then puts the viewfinder on top of what it landed on.
+     */
+    data object FinishFirstRun : CarValueEffect
 
     /** Nothing on this screen can say anything until there is a car to say it about. */
     data object OpenAddCar : CarValueEffect

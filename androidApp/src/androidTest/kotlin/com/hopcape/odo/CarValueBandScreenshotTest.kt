@@ -30,7 +30,7 @@ class CarValueBandScreenshotTest {
     fun capturesTheValueScreen() {
         rule.waitForText(GarageCopy.TAB, START_DESTINATION_TIMEOUT_MILLIS)
         rule.runOnUiThread {
-            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue)
+            GlobalContext.get().get<NavigationManager>().navigateTo(OdoDestination.CarValue())
         }
         rule.waitForText("My car’s value")
         rule.captureScreen("car-value-band")

@@ -9,6 +9,12 @@ internal sealed interface HomeEvent {
     /** The attention card — where it goes depends on what it is about. */
     data object AttentionTapped : HomeEvent
 
+    /** "Add your number" on the day-one attention card — the one thing that unlocks checks. */
+    data object AddPlateTapped : HomeEvent
+
+    /** "Back it up" — the one place Odo asks for a number, and only once there is a record. */
+    data object BackUpTapped : HomeEvent
+
     /** "Timeline" beside the recent-activity heading. */
     data object TimelineTapped : HomeEvent
 
@@ -116,6 +122,12 @@ internal sealed interface HomeEffect {
 
     /** Open onboarding's add-car flow. */
     data object OpenAddCar : HomeEffect
+
+    /** The car's own details, where the registration number is taken. */
+    data object OpenEditCar : HomeEffect
+
+    /** Verify a number, then come back here — nothing about Home changes but the offer. */
+    data object OpenSignIn : HomeEffect
 
     /**
      * Open the pre-service checklist. [entry] says which of Home's two doors was used, so the

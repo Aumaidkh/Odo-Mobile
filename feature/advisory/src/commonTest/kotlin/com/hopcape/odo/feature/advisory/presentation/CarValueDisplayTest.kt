@@ -1,13 +1,13 @@
 package com.hopcape.odo.feature.advisory.presentation
 
 import arrow.core.getOrElse
+import com.hopcape.odo.core.domain.car.value.CarValue
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange
-import com.hopcape.odo.feature.advisory.domain.CarValue
 import com.hopcape.odo.feature.advisory.domain.CarValued
 import com.hopcape.odo.feature.advisory.domain.CityTier
 import kotlin.test.Test
@@ -80,7 +80,12 @@ class CarValueDisplayTest {
             recordCompleteness = 0.0,
             provenServices = 0,
         ),
-    ).toDisplay(odometer = "38,400 km", separator = SEPARATOR)
+    ).toDisplay(
+        odometer = "38,400 km",
+        separator = SEPARATOR,
+        fuelLabel = "Petrol",
+        segmentLabel = "hatchback segment",
+    )
 
     private fun car(): Car = Car.create(
         id = CarId("car-1"),

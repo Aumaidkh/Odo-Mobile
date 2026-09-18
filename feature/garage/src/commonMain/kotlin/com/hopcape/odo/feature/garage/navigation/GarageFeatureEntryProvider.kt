@@ -173,7 +173,7 @@ private fun CarActionsRoute(replace: (OdoDestination, OdoDestination) -> Unit) {
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             CarActionsEffect.OpenEdit -> replace(here, OdoDestination.Garage.EditCar)
-            CarActionsEffect.OpenCarValue -> replace(here, OdoDestination.CarValue)
+            CarActionsEffect.OpenCarValue -> replace(here, OdoDestination.CarValue())
 
             CarActionsEffect.OpenServiceChecklist ->
                 replace(here, OdoDestination.ServiceChecklist(entry = ENTRY_GARAGE))

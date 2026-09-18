@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.advisory.domain
+package com.hopcape.odo.core.domain.car.value
 
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.shared.VehicleSegment
@@ -15,7 +15,7 @@ import com.hopcape.odo.core.domain.shared.VehicleSegment
  * Everything here is a **band**, not a price. A model-level price table would never be
  * finished and would still leave the tail empty, so the axis is the segment.
  */
-internal object DepreciationCurve {
+object DepreciationCurve {
 
     /**
      * Mid-variant ex-showroom price, in paise, by segment and fuel.
@@ -104,6 +104,15 @@ internal object DepreciationCurve {
 
     /** Roughly one service a year is what a record is measured against. */
     const val SERVICES_PER_YEAR: Int = 1
+
+    /**
+     * What a car of this age has typically run, for an owner who has not given a reading.
+     *
+     * Not a stored zero, which would price a used car as though it had never been driven.
+     * It is the same segment average the rest of the model is built from, so assuming it
+     * leaves [odometerFactor] neutral and the estimate as wide as it already was.
+     */
+    fun typicalKm(age: Int): Int = EXPECTED_KM_PER_YEAR * maxOf(age, 1)
 
     private const val EXPECTED_KM_PER_YEAR = 12_000
     private const val KM_PER_STEP = 10_000.0

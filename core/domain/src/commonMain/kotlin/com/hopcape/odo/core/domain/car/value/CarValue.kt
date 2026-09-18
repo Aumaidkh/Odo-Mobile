@@ -1,4 +1,4 @@
-package com.hopcape.odo.feature.advisory.domain
+package com.hopcape.odo.core.domain.car.value
 
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.AmountRange

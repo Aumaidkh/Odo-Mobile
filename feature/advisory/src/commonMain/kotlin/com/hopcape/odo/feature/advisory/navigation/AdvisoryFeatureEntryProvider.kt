@@ -11,6 +11,8 @@ import androidx.navigation3.runtime.NavKey
 import com.hopcape.odo.core.navigation.CollectEffects
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
+import com.hopcape.odo.core.navigation.finishFlow
+import com.hopcape.odo.core.navigation.isFirstRunStep
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
@@ -34,7 +36,7 @@ internal class AdvisoryFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.CarValue> { CarValueRoute(navigationManager) }
+        entry<OdoDestination.CarValue> { CarValueRoute(navigationManager, it.firstRun) }
         entry<OdoDestination.ServiceChecklist> { ChecklistRoute(navigationManager, it.entry) }
     }
 }
@@ -47,14 +49,19 @@ internal class AdvisoryFeatureEntryProvider(
  * and watch it move.
  */
 @Composable
-internal fun CarValueRoute(navigationManager: NavigationManager) {
-    val viewModel = koinViewModel<CarValueViewModel>()
+internal fun CarValueRoute(navigationManager: NavigationManager, firstRun: Boolean = false) {
+    val viewModel = koinViewModel<CarValueViewModel> { parametersOf(firstRun) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val share = rememberTextSharer()
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             CarValueEffect.NavigateBack -> navigationManager.back()
+
+            // First run is over and nothing is being scanned. Its steps leave the back stack
+            // — first run does not repeat — and the dashboard is what is left underneath.
+            CarValueEffect.FinishFirstRun ->
+                navigationManager.finishFlow(OdoDestination.Home, ::isFirstRunStep)
             CarValueEffect.OpenScanner ->
                 navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
 

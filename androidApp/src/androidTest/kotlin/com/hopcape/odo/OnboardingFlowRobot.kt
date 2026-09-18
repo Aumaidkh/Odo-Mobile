@@ -18,14 +18,9 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.hopcape.odo.core.domain.car.lookup.RegisteredVehicle
-import com.hopcape.odo.core.domain.car.lookup.VehicleRegistryLookup
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.repository.CarRepository
-import com.hopcape.odo.core.domain.car.lookup.VehicleSource
 import com.hopcape.odo.core.domain.car.model.FuelType
-import com.hopcape.odo.core.domain.car.model.ModelYear
-import com.hopcape.odo.core.domain.car.model.RegistrationNumber
 import com.hopcape.odo.core.domain.shared.DomainError
 import org.junit.rules.ExternalResource
 import org.koin.core.context.GlobalContext
@@ -48,15 +43,12 @@ internal object Copy {
     const val WELCOME_HEADLINE = "Know what your car really costs you."
     const val WELCOME_CTA = "Get started"
     const val WELCOME_SIGN_IN = "Already using Odo? Sign in"
-    const val CAR_TITLE = "Which car is yours?"
     const val DETAILS_TITLE = "Your car’s details"
-    const val ENTER_MANUALLY = "Enter details manually"
+    const val VALUE_SCAN = "Scan your first bill"
+    const val VALUE_SKIP = "Not now — let me look around"
 
     /** What a refused save says. Its whole job is to not be silence. */
     const val SAVE_ERROR = "Couldn’t save that on your phone. Please try again."
-    const val LOOKUP_NOT_FOUND = "No record for this plate"
-    const val MATCH_SOURCE_OWN = "From your earlier Odo record"
-    const val MATCH_SOURCE_OTHER = "From another Odo record for this plate — check it"
     const val ODOMETER_SAVE = "Save reading"
     /** Retired copy, kept so a test can assert the button did not come back. */
     const val ODOMETER_UNKNOWN = "I don\u2019t know it right now"
@@ -64,11 +56,8 @@ internal object Copy {
     /** What replaced it: the reading is optional, so the step says so rather than asking. */
     const val ODOMETER_LATER = "You can add that later"
     const val ODOMETER_BUMP = "+1,000"
-    const val PROFILE_TITLE = "Last bit about you"
     const val GOAL_COSTS = "Stop overpaying"
-    const val WORKSHOP_TITLE = "Where do you get your car serviced?"
     const val WORKSHOP_AUTHORISED = "Company service centre"
-    const val LAST_SERVICE_TITLE = "When was your last service?"
     const val LAST_SERVICE_FORGOT = "Don’t remember"
     const val LAST_SERVICE_DATE_MISSING = "Add the month of that service, or tick “Don’t remember”."
     const val LAST_SERVICE_ODOMETER_MISSING =
@@ -89,14 +78,12 @@ internal object Copy {
      * What Home shows a car that has just been set up. Not the health card: nothing has
      * been logged or filed yet, so Home offers the checklist that earns a score instead.
      */
-    const val HOME_SCORE_WAITING = "Your score is waiting"
+    /* A day-one dashboard landmark: the tile that needs nothing from the owner. */
+    const val HOME_RESALE = "Resale value"
 }
 
-/** What [installStubVehicleRegistry]'s lookup resolves, and what it does not. */
+/** The car every setup test names, and the owner who names it. */
 internal object Fixtures {
-    const val KNOWN_PLATE = "JK03N3078"
-    const val MATCHED_CAR = "Maruti Suzuki Swift VXI"
-    const val UNKNOWN_PLATE = "MH12AB1234"
     const val OWNER_NAME = "Rahul"
     const val MAKE = "Maruti Suzuki"
     const val MODEL = "Swift"
@@ -178,58 +165,44 @@ internal fun OdoTestRule.relaunchTheApp(): ActivityScenario<MainActivity> {
 internal fun OdoTestRule.startFromWelcome() {
     waitForText(Copy.WELCOME_HEADLINE, START_DESTINATION_TIMEOUT_MILLIS)
     onNodeWithText(Copy.WELCOME_CTA).performClick()
-    waitForText(Copy.CAR_TITLE)
+    waitForText(Copy.DETAILS_TITLE)
 }
 
 /**
- * Answer the plate route, the profile and the workshop tier, ending on the last step.
+ * Name the car with the four pickers, and give a reading.
  *
- * Three steps is enough boilerplate that a test about the *fourth* one should not carry it,
- * and the steps before it are covered on their own by
- * [OnboardingEndToEndTest.plateRoute_setsUpTheCarAndNeverAsksAgain].
+ * The whole of step 1 now: setup asks for no registration number, so there is nothing to
+ * type here at all.
  */
-internal fun OdoTestRule.reachTheLastServiceStep() {
-    startFromWelcome()
-    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-    waitForText(Fixtures.MATCHED_CAR)
+internal fun OdoTestRule.answerTheCarStep() {
+    nameTheCar()
     setOdometer()
-    onNodeWithText(Copy.CONTINUE).performClick()
+}
 
-    waitForText(Copy.PROFILE_TITLE)
-    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-    onNodeWithText(Copy.GOAL_COSTS).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.WORKSHOP_TITLE)
-    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.LAST_SERVICE_TITLE)
+/** The four pickers alone — the way somebody away from their car answers the step. */
+internal fun OdoTestRule.nameTheCar() {
+    pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
+    pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
+    confirmYear()
+    // Fuel is chips now, not a field that opens a sheet — the answer is the tap.
+    onNodeWithText(Fixtures.FUEL).performClick()
 }
 
 /**
- * Answer the three steps after the car and decline the sign-in offer, landing on Home.
- *
- * The mirror of [reachTheLastServiceStep] for a test that cares about what comes *after*
- * setup rather than about setup itself.
+ * Welcome, the car step, and the value screen that pays for it — first run up to its last
+ * screen, which is where a test about what setup *produces* wants to start.
  */
-internal fun OdoTestRule.finishSetupFromTheProfileStep() {
-    waitForText(Copy.PROFILE_TITLE)
-    typeInto(OnboardingTestTags.NAME_FIELD, Fixtures.OWNER_NAME)
-    onNodeWithText(Copy.GOAL_COSTS).performClick()
+internal fun OdoTestRule.reachTheValueScreen() {
+    startFromWelcome()
+    answerTheCarStep()
     onNodeWithText(Copy.CONTINUE).performClick()
+    waitUntilPresent(Copy.VALUE_SKIP)
+}
 
-    waitForText(Copy.WORKSHOP_TITLE)
-    onNodeWithText(Copy.WORKSHOP_AUTHORISED).performClick()
-    onNodeWithText(Copy.CONTINUE).performClick()
-
-    waitForText(Copy.LAST_SERVICE_TITLE)
-    onNodeWithText(Copy.SKIP).performClick()
-
-    // Nothing is signed in, so the offer comes before Home. Declining it is what an owner
-    // taking the quickest route through setup does.
-    waitForText(Copy.AUTH_TITLE)
-    onNodeWithText(AuthCopy.SKIP).performClick()
+/** All of first run, declining the scan — the quickest honest route to Home. */
+internal fun OdoTestRule.finishSetupToHome() {
+    reachTheValueScreen()
+    onNodeWithText(Copy.VALUE_SKIP).performClick()
 }
 
 /**
@@ -321,52 +294,7 @@ private const val DEFAULT_TIMEOUT_MILLIS = 5_000L
 /** The first frame waits on a database read, and on a cold start also on the catalog seed. */
 internal const val START_DESTINATION_TIMEOUT_MILLIS = 20_000L
 
-/* ------------------------------ Plate lookup ------------------------------ */
-
-/**
- * Put a fixed plate lookup in front of the car step.
- *
- * Always installed, never left to the real one. A debug build *is* configured, so the bound
- * chain would read the owner's cars off the server and — once `plate_lookup_enabled` is on —
- * call `resolve_plate`. A test that did that would be testing the network and would answer
- * differently on every project.
- *
- * The fixtures it serves are the ones [Fixtures] names: [Fixtures.KNOWN_PLATE] resolves and
- * [Fixtures.UNKNOWN_PLATE] does not, which is what the two routes through the car step are
- * written against.
- *
- * [source] decides which record the match claims to come from, because that is what the card
- * tells the owner and the two claims carry different weight.
- */
-internal fun installStubVehicleRegistry(source: VehicleSource = VehicleSource.OWN_RECORD) {
-    val lookup = StubOnboardingRegistry(source)
-    GlobalContext.get().loadModules(
-        listOf(module { single<VehicleRegistryLookup> { lookup } }),
-        allowOverride = true,
-    )
-}
-
-private class StubOnboardingRegistry(
-    private val source: VehicleSource,
-) : VehicleRegistryLookup {
-    override suspend fun lookup(
-        registrationNumber: RegistrationNumber,
-    ): Either<DomainError, RegisteredVehicle> =
-        if (registrationNumber.value == Fixtures.KNOWN_PLATE) {
-            RegisteredVehicle(
-                make = Fixtures.MAKE,
-                model = Fixtures.MODEL,
-                variant = "VXI",
-                year = ModelYear.of(2020).getOrNull()!!,
-                fuelType = FuelType.PETROL,
-                source = source,
-            ).right()
-        } else {
-            // "No record" and not "unavailable": the manual route is reached through the
-            // not-found copy, and a retry button instead would strand the test.
-            DomainError.RegistrationNotFound.left()
-        }
-}
+/* ------------------------------ Refused save ------------------------------ */
 
 /**
  * Makes storing the car fail, so the step's refusal path can be driven.
@@ -389,20 +317,12 @@ private class RefusingCarStore(private val real: CarRepository) : CarRepository 
 }
 
 /**
- * Drives the manual car form to the point where Continue is live and the save will be refused.
+ * Drives the car form to the point where Continue is live and the save will be refused.
  *
  * Needs [installRefusingCarStore] to have run before the launch. Shared by the behaviour test
  * and the screenshot one so both photograph and assert the same moment.
  */
 internal fun OdoTestRule.reachARefusedCarSave() {
     startFromWelcome()
-    onNodeWithText(Copy.ENTER_MANUALLY).performClick()
-    waitForText(Copy.DETAILS_TITLE)
-
-    pick(OnboardingTestTags.MAKE_FIELD, Fixtures.MAKE)
-    pick(OnboardingTestTags.MODEL_FIELD, Fixtures.MODEL)
-    confirmYear()
-    pick(OnboardingTestTags.FUEL_FIELD, Fixtures.FUEL)
-    setOdometer()
-    typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.UNKNOWN_PLATE)
+    answerTheCarStep()
 }

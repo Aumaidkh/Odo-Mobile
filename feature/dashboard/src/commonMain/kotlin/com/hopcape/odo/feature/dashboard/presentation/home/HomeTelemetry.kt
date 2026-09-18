@@ -44,15 +44,48 @@ internal class HomeTelemetry(
      * a different product problem from one opened on a scored car. [hasAttention] says how
      * often the card that drives every renewal actually has something in it.
      */
-    fun homeOpened(band: String, isNewUser: Boolean, hasAttention: Boolean, setupDone: Int) {
+    fun homeOpened(
+        band: String,
+        scoreEstimated: Boolean,
+        isNewUser: Boolean,
+        hasAttention: Boolean,
+        setupDone: Int,
+    ) {
         val fields = mapOf(
             Key.BAND to band,
+            // Without it the band is ambiguous: a modelled score has one too, and a
+            // dashboard counting "good" cars would be counting assumptions among them.
+            Key.SCORE_ESTIMATED to scoreEstimated,
             Key.IS_NEW_USER to isNewUser,
             Key.HAS_ATTENTION to hasAttention,
             Key.SETUP_DONE to setupDone,
         )
         analytics.track(Event.OPENED, fields)
         logger.info(TAG, Event.OPENED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /**
+     * The day-one attention card's "add your number" was tapped.
+     *
+     * Counted on its own because the plate is what turns Home from a screen that models
+     * things into one that checks them — insurance, PUC and challan all key on it, and this
+     * is the only place first run still asks.
+     */
+    fun addPlateTapped() {
+        analytics.track(Event.ADD_PLATE_TAPPED, emptyMap())
+        logger.info(TAG, Event.ADD_PLATE_TAPPED, tc = flowTrace.toLog())
+    }
+
+    /**
+     * The backup offer was taken.
+     *
+     * The one number worth watching against it is how many dashboards showed the offer at
+     * all — an owner with a record and no session is the only person this app can still
+     * lose everything for.
+     */
+    fun backUpTapped() {
+        analytics.track(Event.BACK_UP_TAPPED, emptyMap())
+        logger.info(TAG, Event.BACK_UP_TAPPED, tc = flowTrace.toLog())
     }
 
     /** The health card's "see breakdown" was tapped. */
@@ -191,6 +224,8 @@ internal class HomeTelemetry(
         const val RECENT_OPENED = "home_recent_opened"
         const val TIMELINE_OPENED = "home_timeline_opened"
         const val ADD_ODOMETER_TAPPED = "home_add_odometer_tapped"
+        const val ADD_PLATE_TAPPED = "home_add_plate_tapped"
+        const val BACK_UP_TAPPED = "home_back_up_tapped"
         const val ODOMETER_NUDGE_DISMISSED = "home_odometer_nudge_dismissed"
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"
@@ -204,6 +239,7 @@ internal class HomeTelemetry(
     /** Property names carried by the events above. */
     object Key {
         const val BAND = "band"
+        const val SCORE_ESTIMATED = "score_estimated"
         const val IS_NEW_USER = "is_new_user"
         const val HAS_ATTENTION = "has_attention"
         const val SETUP_DONE = "setup_done"

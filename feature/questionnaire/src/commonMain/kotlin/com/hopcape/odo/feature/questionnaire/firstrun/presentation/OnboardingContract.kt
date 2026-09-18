@@ -17,19 +17,7 @@ import kotlinx.datetime.LocalDate
  */
 internal sealed interface OnboardingEvent {
 
-    /** Step 2, plate route. */
-    sealed interface Car : OnboardingEvent {
-        /** The plate field changed; [plate] is already normalized by the input component. */
-        data class PlateChanged(val plate: String) : Car
-
-        /** "Try again" on a failed lookup — same plate, fresh attempt. */
-        data object LookupRetried : Car
-
-        /** "Not your car?" — the match (or the miss) is rejected in favour of manual entry. */
-        data object MatchRejected : Car
-    }
-
-    /** Step 2, manual route. */
+    /** Step 1 — the car. */
     sealed interface Details : OnboardingEvent {
         data class MakeSelected(val make: String) : Details
         data class ModelSelected(val model: CarModel) : Details
@@ -38,37 +26,6 @@ internal sealed interface OnboardingEvent {
 
         /** The reference data failed to load and the owner asked for another attempt. */
         data object CatalogRetried : Details
-
-        /** "Found your plate instead?" — back to the plate route. */
-        data object TryAutoFillClicked : Details
-    }
-
-    /** Step 3. */
-    sealed interface Profile : OnboardingEvent {
-        data class NameChanged(val name: String) : Profile
-        /** [value] is a stored constant name from the registry, e.g. `TRACK_COSTS`. */
-        data class GoalToggled(val value: String) : Profile
-    }
-
-    /** Step 3. */
-    sealed interface Workshop : OnboardingEvent {
-        /** [value] is a stored constant name from the registry, e.g. `AUTHORISED`. */
-        data class TierSelected(val value: String) : Workshop
-    }
-
-    /** Step 4. */
-    sealed interface LastService : OnboardingEvent {
-        data class DateChanged(val date: LocalDate) : LastService
-        data class OdometerChanged(val km: Long) : LastService
-
-        /** "Don't remember" — an answer, not an empty form. Ticking it clears both fields. */
-        data class ForgotToggled(val forgot: Boolean) : LastService
-
-        /** "Photograph the old bill" — finish setup and open the scanner on top of it. */
-        data object ScanClicked : LastService
-
-        /** Skip: finish setup with no last service recorded. */
-        data object SkipClicked : LastService
     }
 
     /**
@@ -106,19 +63,8 @@ internal sealed interface OnboardingEffect {
     data class SaveFailed(val message: UiText) : OnboardingEffect
 
     /**
-     * Setup is over. [start] is the surface the owner's goal earned them, and
-     * [signInFirst] is true when there is no session yet — the one point where signing in
-     * is offered, because by now there is something concrete worth backing up.
-     *
-     * [openScanner] is true when the owner left through the first-scan step's camera
-     * button rather than by skipping. The scan is *not* an escape from the end of setup:
-     * it still finishes here, so the sign-in offer is made first and the scanner opens on
-     * top of the dashboard afterwards. Handing off to the scanner directly is what let an owner
-     * reach the fairness report — and the profile editor behind its "set your city" —
-     * without ever being asked to sign in.
+     * The car is named. First run carries on to the value screen, which is step 3 of it —
+     * the one screen that can pay for the answers setup has just taken.
      */
-    data class Finish(
-        val signInFirst: Boolean,
-        val openScanner: Boolean = false,
-    ) : OnboardingEffect
+    data object ShowValue : OnboardingEffect
 }

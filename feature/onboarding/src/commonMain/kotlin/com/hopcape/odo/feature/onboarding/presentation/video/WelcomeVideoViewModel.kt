@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
  */
 internal class WelcomeVideoViewModel(
     config: OnboardingConfig,
+    private val telemetry: WelcomeVideoTelemetry,
 ) : ViewModel() {
 
     val pages: List<VideoPage> = listOf(
@@ -44,13 +45,37 @@ internal class WelcomeVideoViewModel(
     private val _effects = Channel<WelcomeVideoEffect>(Channel.BUFFERED)
     val effects: Flow<WelcomeVideoEffect> = _effects.receiveAsFlow()
 
+    /** Pages already counted, so a recomposition or a swipe back cannot report one twice. */
+    private val viewedPages = mutableSetOf<Int>()
+    private val failedClips = mutableSetOf<Int>()
+
+    init {
+        telemetry.shown(pages.size)
+    }
+
     fun onEvent(event: WelcomeVideoEvent) {
         when (event) {
             // Both finish the same way. Skipping the intro is not skipping onboarding —
             // there is no version of first run that does not set up a car.
-            WelcomeVideoEvent.NextClicked,
-            WelcomeVideoEvent.SkipClicked,
-            -> viewModelScope.launch { _effects.send(WelcomeVideoEffect.OpenCarSetup) }
+            WelcomeVideoEvent.NextClicked -> {
+                telemetry.completed()
+                openCarSetup()
+            }
+
+            is WelcomeVideoEvent.SkipClicked -> {
+                telemetry.skipped(event.page)
+                openCarSetup()
+            }
+
+            is WelcomeVideoEvent.PageSettled ->
+                if (viewedPages.add(event.page)) telemetry.pageViewed(event.page)
+
+            is WelcomeVideoEvent.ClipFailed ->
+                if (failedClips.add(event.page)) telemetry.clipFailed(event.page)
         }
+    }
+
+    private fun openCarSetup() {
+        viewModelScope.launch { _effects.send(WelcomeVideoEffect.OpenCarSetup) }
     }
 }

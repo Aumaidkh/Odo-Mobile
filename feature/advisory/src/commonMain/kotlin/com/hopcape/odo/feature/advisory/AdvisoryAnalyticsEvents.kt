@@ -13,8 +13,12 @@ import com.hopcape.odo.feature.advisory.presentation.AdvisoryTelemetry
 val advisoryAnalyticsEvents: List<EventSchema> = listOf(
     EventSchema(
         AdvisoryTelemetry.Event.VALUE_SHOWN,
-        mapOf(AdvisoryTelemetry.Key.HAS_RECORD to PropertyType.BOOLEAN),
+        mapOf(
+            AdvisoryTelemetry.Key.HAS_RECORD to PropertyType.BOOLEAN,
+            AdvisoryTelemetry.Key.FIRST_RUN to PropertyType.BOOLEAN,
+        ),
     ),
     EventSchema(AdvisoryTelemetry.Event.SCAN_CLICKED),
+    EventSchema(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED),
     EventSchema(AdvisoryTelemetry.Event.SHARE_CLICKED),
 )

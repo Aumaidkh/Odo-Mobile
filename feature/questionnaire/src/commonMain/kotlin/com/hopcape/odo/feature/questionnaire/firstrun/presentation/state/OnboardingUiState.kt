@@ -10,58 +10,35 @@ import androidx.compose.runtime.Immutable
  * It is a **composition of per-step slices** rather than one flat bag of fields. Each screen
  * is handed only its own slice, so the profile step cannot read the car catalog and a new
  * field on one step can't quietly change what another renders.
- *
- * [manualEntry] is a mode of the car step, not a step of its own — the owner can flip
- * between the plate route and answering by hand without losing their place in the flow.
  */
 @Immutable
 internal data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.CAR,
-    val manualEntry: Boolean = false,
-    val car: CarStepState = CarStepState(),
     val details: CarDetailsState = CarDetailsState(),
     /**
-     * The car's current reading, asked for on **both** routes of the car step and so held
-     * here rather than on either one.
+     * The car's current reading.
      *
-     * There is one odometer for the car being set up regardless of how it got named, and
-     * flipping between the plate and the manual form must not lose it — two fields that have
-     * to be kept equal is just a drift waiting to happen. It sits at the flow level rather
-     * than on a step because Odo cannot compute ₹/km, the health score, or a km anomaly
-     * without it, so it is never optional.
+     * At the flow level rather than on the car step because more than one step reads it, and
+     * two fields that have to be kept equal is a drift waiting to happen.
      */
     val odometer: FormField<Long> = FormField(),
-    val profile: ProfileState = ProfileState(),
-    val workshop: WorkshopState = WorkshopState(),
-    val lastService: LastServiceState = LastServiceState(),
 ) {
     /**
      * Continue enabled for the current step; the last step is always skippable.
      *
      * The single authority on "is this step answered" — the slices each answer only for
-     * their own fields, and the car step's answer is whichever route is showing plus the
-     * registration number, which both routes share.
+     * their own fields.
      *
-     * The plate is required on **both** routes. It used to be required only on the plate
-     * route, as a side effect of a match being what answered that route, so anyone who
-     * entered their car by hand saved it without one. That car cannot be matched to a bill,
-     * a reminder, an insurance document or a resale report afterwards, and nothing later in
-     * the app asks for the plate again.
+     * The plate is **not** part of it. Setup used to gate step 1 of 4 on a registration
+     * number, which is the most guarded thing an owner can be asked for and the first thing
+     * they were asked; it is now taken later, where the feature needing it says why.
      *
-     * The odometer is deliberately **not** part of this. It is often not in the owner's head
-     * — they are not at the car, or do not remember — and gating step 1 of 4 on it is a wall
-     * with no way around it. A car saved without one is stored pending and asked for again,
-     * on Home and at every feature that cannot work without it.
+     * Nor is the odometer. It is often not in the owner's head — they are not at the car, or
+     * do not remember — and a car saved without one is stored pending and asked again, on
+     * Home and at every feature that cannot work without it.
      */
     val canContinue: Boolean
         get() = when (step) {
-            OnboardingStep.CAR -> car.isPlateValid &&
-                if (manualEntry) details.isAnswered else car.isAnswered
-
-            OnboardingStep.PROFILE -> profile.isAnswered
-            OnboardingStep.WORKSHOP -> workshop.isAnswered
-            // Done is always live on the last step: "don't remember" is an answer, and an
-            // owner who wants neither has Skip beside it.
-            OnboardingStep.LAST_SERVICE -> true
+            OnboardingStep.CAR -> details.isAnswered
         }
 }

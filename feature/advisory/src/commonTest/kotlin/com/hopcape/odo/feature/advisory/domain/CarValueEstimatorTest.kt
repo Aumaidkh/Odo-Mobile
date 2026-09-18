@@ -1,7 +1,10 @@
 package com.hopcape.odo.feature.advisory.domain
 
 import arrow.core.getOrElse
+import com.hopcape.odo.core.domain.car.value.DepreciationCurve
+import com.hopcape.odo.core.domain.car.value.CarValueEstimator
 import com.hopcape.odo.core.domain.car.model.Car
+import com.hopcape.odo.core.domain.shared.Distance
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.model.OwnerId
@@ -209,6 +212,34 @@ class CarValueEstimatorTest {
     @Test
     fun aVeryOldCarStillHasAFloorPrice() {
         assertTrue(estimate(car(year = 1995)).today.low.paise > 0)
+    }
+
+    /**
+     * Setup asks for a reading and lets it be skipped (#429), so the estimate has to work
+     * without one — otherwise the screen that is meant to pay for setup answers it with a
+     * demand instead.
+     */
+    @Test
+    fun aCarWithNoReadingIsStillValued_atTheDistanceItsAgeImplies() {
+        val known = CarValueEstimator.estimate(
+            car = car(year = 2022, odometerKm = DepreciationCurve.typicalKm(age = 4)),
+            odometer = Distance.of(DepreciationCurve.typicalKm(age = 4)).getOrNull(),
+            logs = emptyList(),
+            cityTier = 2,
+            currentYear = CURRENT_YEAR,
+        )
+        val assumed = CarValueEstimator.estimate(
+            car = car(year = 2022),
+            odometer = null,
+            logs = emptyList(),
+            cityTier = 2,
+            currentYear = CURRENT_YEAR,
+        )
+
+        // The assumption is the segment average, so it lands exactly where a typical reading
+        // would — not on the stored zero, which would price a driven car as showroom-fresh.
+        assertEquals(known.today, assumed.today)
+        assertTrue(assumed.today.low.paise > 0)
     }
 
     /* ------------------------------ Fixtures ------------------------------ */

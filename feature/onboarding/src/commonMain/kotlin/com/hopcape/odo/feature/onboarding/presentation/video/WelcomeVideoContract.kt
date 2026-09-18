@@ -27,7 +27,15 @@ internal data class VideoPage(
 internal sealed interface WelcomeVideoEvent {
     /** Advance, or finish on the last page. */
     data object NextClicked : WelcomeVideoEvent
-    data object SkipClicked : WelcomeVideoEvent
+
+    /** [page] is the one being looked at when they gave up, which is the point of counting it. */
+    data class SkipClicked(val page: Int) : WelcomeVideoEvent
+
+    /** The pager came to rest on [page]. Observed only; nothing about the flow depends on it. */
+    data class PageSettled(val page: Int) : WelcomeVideoEvent
+
+    /** [page]'s clip did not load. The page still works — see [VideoPage.poster]. */
+    data class ClipFailed(val page: Int) : WelcomeVideoEvent
 }
 
 internal sealed interface WelcomeVideoEffect {

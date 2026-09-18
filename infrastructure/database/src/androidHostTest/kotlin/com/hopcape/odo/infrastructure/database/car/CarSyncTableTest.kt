@@ -97,18 +97,43 @@ class CarSyncTableTest {
         assertTrue(remote.fetches == 0)
     }
 
+    /**
+     * Setup stopped asking for a registration number, so a car added before sign-in usually
+     * has none — and on a reinstall it would push as a second copy of a car the account
+     * already holds. Make, model and year is the strongest thing left to match on.
+     */
     @Test
-    fun aCarWithNoPlateIsLeftAlone() = runTest {
+    fun aCarWithNoPlateIsMergedIntoTheAccountsCarOfTheSameModel() = runTest {
         val (db, _) = inMemoryDatabase()
         db.insertLocalCar(id = "local-1", plate = null)
-        val remote = RecordingRemote(listOf(serverCar(id = "server-1")))
-        val table = CarSyncTable(database = db, remote = remote, telemetry = silentSyncTelemetry(), ownerId = { owner }, restored = RecordingRestoredHistoryStore())
+        db.insertServiceLog(id = "log-1", carId = "local-1")
+        val table = table(db, server = listOf(serverCar(id = "server-1")))
 
         val rows = table.reconcileBeforePush(table.pending())
 
-        // Nothing to match on: the plate is what the server's rule is about.
+        assertEquals(listOf("server-1"), rows.map { it.id })
+        assertNull(db.carQueries.selectById("local-1").executeAsOneOrNull())
+        // The offline history follows, or the merge would throw it away.
+        assertEquals("server-1", db.serviceLogQueries.selectPending().executeAsOne().car_id)
+    }
+
+    @Test
+    fun twoServerCarsOfOneModelLeaveTheUnplatedCarAlone() = runTest {
+        val (db, _) = inMemoryDatabase()
+        db.insertLocalCar(id = "local-1", plate = null)
+        val table = table(
+            db,
+            server = listOf(
+                serverCar(id = "server-1", plate = "MH01AA1111"),
+                serverCar(id = "server-2", plate = "MH01BB2222"),
+            ),
+        )
+
+        val rows = table.reconcileBeforePush(table.pending())
+
+        // Two cars of one model and year cannot be told apart this way, and folding one
+        // car's history into another's is worse than a duplicate the owner can delete.
         assertEquals(listOf("local-1"), rows.map { it.id })
-        assertTrue(remote.fetches == 0)
     }
 
     /* --------------------- the primary flag (SYNC_DESIGN §6.1.3) --------------------- */

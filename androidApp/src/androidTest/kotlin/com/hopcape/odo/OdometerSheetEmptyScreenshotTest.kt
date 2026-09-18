@@ -32,7 +32,6 @@ class OdometerSheetEmptyScreenshotTest {
         .outerRule(
             DeviceState {
                 resetGarage()
-                installStubVehicleRegistry()
                 silenceTheCoachMarks()
             },
         )
@@ -51,10 +50,8 @@ class OdometerSheetEmptyScreenshotTest {
     @Test
     fun capturesTheSheetWithNothingRecorded() {
         rule.startFromWelcome()
-        rule.typeInto(OnboardingTestTags.PLATE_FIELD, Fixtures.KNOWN_PLATE)
-        rule.waitForText(Fixtures.MATCHED_CAR)
-        rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).performClick()
-        rule.finishSetupFromTheProfileStep()
+                rule.onNodeWithText(Copy.ODOMETER_UNKNOWN).performClick()
+        rule.finishSetupToHome()
 
         // Setup lands on the value screen over Home; step back before reaching for a tab.
         rule.waitForText(VALUE_TITLE)
