@@ -13,6 +13,7 @@ import com.hopcape.odo.feature.dashboard.presentation.home.HomeTelemetry
  * Public because the app bootstrap assembles the config (`odoAnalyticsEvents`).
  */
 val dashboardAnalyticsEvents: List<EventSchema> = listOf(
+    EventSchema(HomeTelemetry.Event.ADD_PLATE_TAPPED),
     EventSchema(
         HomeTelemetry.Event.OPENED,
         mapOf(

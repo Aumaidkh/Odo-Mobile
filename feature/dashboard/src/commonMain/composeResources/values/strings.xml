@@ -40,6 +40,11 @@
     <!-- Day one: every tile carries a modelled figure and says so, rather than an empty
          state. An assumption is worth less than proof, and the screen has to show which. -->
     <string name="hm_estimated">Estimated</string>
+    <!-- Insurance, PUC and challan are all looked up by the registration number, so without
+         one there is nothing to check and saying "all clear" would be a claim, not a
+         finding. Setup no longer asks for it; this is where it does. -->
+    <string name="hm_attention_no_plate">Nothing to check yet</string>
+    <string name="hm_attention_no_plate_body">Add your number for insurance and challan</string>
     <string name="hm_estimate_prefix">~%1$s</string>
     <string name="hm_score_modelled">Modelled from age and the maker\'s service cadence. Nothing logged yet.</string>
     <string name="hm_cost_segment">Segment average</string>

@@ -108,6 +108,8 @@ import com.hopcape.odo.feature.dashboard.resources.hm_no_car
 import com.hopcape.odo.feature.dashboard.resources.hm_no_car_body
 import com.hopcape.odo.feature.dashboard.resources.hm_cost_segment
 import com.hopcape.odo.feature.dashboard.resources.hm_estimate_prefix
+import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate
+import com.hopcape.odo.feature.dashboard.resources.hm_attention_no_plate_body
 import com.hopcape.odo.feature.dashboard.resources.hm_estimated
 import com.hopcape.odo.feature.dashboard.resources.hm_overcharge_caught
 import com.hopcape.odo.feature.dashboard.resources.hm_resale_from_day_one
@@ -447,7 +449,7 @@ private fun ScoredContent(
     if (offerAutoDetect) AutoDetectOffer(onEvent)
     if (offerAutoOdometer) AutoOdometerOffer(onEvent)
     StatsRow(content)
-    AttentionCard(content.attention, onEvent)
+    AttentionCard(content.attention, content.hasPlate, onEvent)
     if (offerChecklist) ChecklistCard(onEvent)
     content.insight?.let { InsightCard(it) }
     content.recent?.let { RecentSection(it, onEvent) }
@@ -895,15 +897,27 @@ private fun StatCard(
 
 /** The one thing to act on, or the all-clear when there is nothing. */
 @Composable
-private fun AttentionCard(attention: CarAttention?, onEvent: (HomeEvent) -> Unit) {
+private fun AttentionCard(
+    attention: CarAttention?,
+    hasPlate: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+) {
     val colors = OdoTheme.colors
+    // Nothing to check is not the same as nothing wrong. Without a registration number Odo
+    // cannot look up insurance, PUC or challan at all, so the card asks for it rather than
+    // reporting an all-clear it has not earned.
+    val invitesPlate = attention == null && !hasPlate
     val tint = when {
-        attention == null -> colors.success
+        attention == null -> if (invitesPlate) colors.textDim else colors.success
         attention.isOverdue -> colors.warning
         else -> colors.accent
     }
     OdoCard(
-        onClick = if (attention != null) ({ onEvent(HomeEvent.AttentionTapped) }) else null,
+        onClick = when {
+            attention != null -> ({ onEvent(HomeEvent.AttentionTapped) })
+            invitesPlate -> ({ onEvent(HomeEvent.AddPlateTapped) })
+            else -> null
+        },
         border = BorderStroke(1.dp, tint.copy(alpha = 0.4f)),
         modifier = Modifier.testTag(HomeTestTags.ATTENTION_CARD),
     ) {
@@ -913,14 +927,25 @@ private fun AttentionCard(attention: CarAttention?, onEvent: (HomeEvent) -> Unit
         ) {
             HomeIconTile(attentionIcon(attention), tint)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                OdoText(attentionTitle(attention), style = OdoTheme.typography.heading)
                 OdoText(
-                    attentionSubtitle(attention),
+                    if (invitesPlate) {
+                        stringResource(Res.string.hm_attention_no_plate)
+                    } else {
+                        attentionTitle(attention)
+                    },
+                    style = OdoTheme.typography.heading,
+                )
+                OdoText(
+                    if (invitesPlate) {
+                        stringResource(Res.string.hm_attention_no_plate_body)
+                    } else {
+                        attentionSubtitle(attention)
+                    },
                     style = OdoTheme.typography.bodySmall,
                     color = colors.textDim,
                 )
             }
-            if (attention != null) Chevron()
+            if (attention != null || invitesPlate) Chevron()
         }
     }
 }

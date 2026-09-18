@@ -78,6 +78,7 @@ internal fun HomeRoute(navigationManager: NavigationManager) {
                 navigationManager.navigateTo(OdoDestination.ServiceChecklist(entry = effect.entry))
 
             HomeEffect.OpenAddCar -> navigationManager.navigateTo(OdoDestination.Garage.AddCar)
+            HomeEffect.OpenEditCar -> navigationManager.navigateTo(OdoDestination.Garage.EditCar)
             HomeEffect.OpenPaywall ->
                 navigationManager.navigateTo(OdoDestination.Paywall.Plans(trigger = PAYWALL_TRIGGER_REFUEL))
         }

@@ -64,6 +64,18 @@ internal class HomeTelemetry(
         logger.info(TAG, Event.OPENED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /**
+     * The day-one attention card's "add your number" was tapped.
+     *
+     * Counted on its own because the plate is what turns Home from a screen that models
+     * things into one that checks them — insurance, PUC and challan all key on it, and this
+     * is the only place first run still asks.
+     */
+    fun addPlateTapped() {
+        analytics.track(Event.ADD_PLATE_TAPPED, emptyMap())
+        logger.info(TAG, Event.ADD_PLATE_TAPPED, tc = flowTrace.toLog())
+    }
+
     /** The health card's "see breakdown" was tapped. */
     fun breakdownOpened() {
         analytics.track(Event.BREAKDOWN_OPENED, emptyMap())
@@ -200,6 +212,7 @@ internal class HomeTelemetry(
         const val RECENT_OPENED = "home_recent_opened"
         const val TIMELINE_OPENED = "home_timeline_opened"
         const val ADD_ODOMETER_TAPPED = "home_add_odometer_tapped"
+        const val ADD_PLATE_TAPPED = "home_add_plate_tapped"
         const val ODOMETER_NUDGE_DISMISSED = "home_odometer_nudge_dismissed"
         const val SCAN_BILL_TAPPED = "home_scan_bill_tapped"
         const val ADD_DOCUMENTS_TAPPED = "home_add_documents_tapped"

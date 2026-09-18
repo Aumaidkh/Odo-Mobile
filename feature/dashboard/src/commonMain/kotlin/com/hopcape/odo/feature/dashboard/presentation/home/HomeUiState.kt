@@ -127,6 +127,15 @@ internal data class HomeContent(
     val overchargesCaught: Int = 0,
     /** The one thing to act on; `null` renders the all-clear card. */
     val attention: CarAttention? = null,
+    /**
+     * The car carries a registration number.
+     *
+     * Without one there is nothing Odo can check — insurance, PUC and challan are all
+     * looked up by it — so "nothing needs attention" would be a claim rather than a
+     * finding. Setup no longer asks for the number, which makes this the ordinary state of
+     * a day-one car and the attention slot the honest place to ask.
+     */
+    val hasPlate: Boolean = false,
     /** `null` hides the insight card rather than inventing something to say. */
     val insight: CarInsight? = null,
     /** The newest event on the car's feed; `null` hides the recent section. */

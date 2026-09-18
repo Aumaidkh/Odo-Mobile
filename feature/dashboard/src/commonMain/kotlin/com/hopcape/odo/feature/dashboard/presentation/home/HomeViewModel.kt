@@ -229,6 +229,11 @@ internal class HomeViewModel(
             send(HomeEffect.OpenHealthScore)
         }
 
+        HomeEvent.AddPlateTapped -> {
+            telemetry.addPlateTapped()
+            send(HomeEffect.OpenEditCar)
+        }
+
         HomeEvent.AttentionTapped -> openAttention()
 
         HomeEvent.ChecklistTapped -> {
@@ -405,6 +410,7 @@ private fun HomeSnapshot.toContent(): HomeContent = HomeContent(
     scoreEstimated = scoreEstimated,
     costEstimated = costEstimated,
     resale = resale,
+    hasPlate = car?.registrationNumber != null,
     odometerPending = car?.isOdometerPending == true,
     score = score.total,
     band = score.band,
