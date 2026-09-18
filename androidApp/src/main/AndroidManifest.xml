@@ -190,6 +190,23 @@
                 android:resource="@xml/refuel_widget_info" />
         </receiver>
 
+        <!-- Glance unwraps a "trampoline" intent in these two with requireNotNull, and throws
+             inside its own onCreate when the extra is missing — past any catch of ours. Both
+             are unreachable here: nothing in glance-appwidget builds an ACTIVITY trampoline,
+             and the others need a broadcast, service, callback or lambda action, none of
+             which RefuelWidget uses. Removed, a send to them fails in the launcher — which
+             already expects that from a stale widget intent — and Odo is never started.
+
+             ⚠️ Adding actionRunCallback, actionSendBroadcast, actionStartService or a
+             lambda clickable { } to any widget makes the Invisible one real again. Delete
+             that removal in the same change, or the action will silently do nothing. -->
+        <activity
+            android:name="androidx.glance.appwidget.action.ActionTrampolineActivity"
+            tools:node="remove" />
+        <activity
+            android:name="androidx.glance.appwidget.action.InvisibleActionTrampolineActivity"
+            tools:node="remove" />
+
         <!-- Lets another app read a file Odo exports — today, the service record PDF the
              share sheet sends. Odo's files live in private storage, so a receiving app
              cannot open a path; this hands it a content:// URI instead, readable only for
