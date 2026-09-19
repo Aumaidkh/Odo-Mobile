@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase.config
 
+import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.config.ChainedConfigSource
@@ -9,6 +10,7 @@ import com.hopcape.odo.core.config.ConfigSource
 import com.hopcape.odo.core.config.coreConfigModule
 import com.hopcape.odo.core.domain.auth.AccessTokenProvider
 import com.hopcape.odo.infrastructure.supabase.NoopTracer
+import com.hopcape.odo.infrastructure.supabase.NoopAnalytics
 import com.hopcape.odo.infrastructure.supabase.RecordingCrashRecorder
 import com.hopcape.odo.infrastructure.supabase.RecordingLogger
 import com.hopcape.odo.infrastructure.supabase.SupabaseEnvironment
@@ -91,6 +93,7 @@ class SupabaseConfigModuleTest {
             single<Logger> { RecordingLogger }
             single<PerformanceTracer> { NoopTracer }
             single<CrashRecorder> { RecordingCrashRecorder }
+            single<AnalyticsTracker> { NoopAnalytics }
             single<AccessTokenProvider> { AccessTokenProvider { null } }
             if (withStore) single<ConfigSnapshotStore> { ConfigSnapshotStore.None }
         }

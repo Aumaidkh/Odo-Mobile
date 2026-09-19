@@ -26,6 +26,9 @@ kotlin {
             // The ports implemented here: EntitlementSource and, from S5, the subscription
             // catalog and purchaser.
             implementation(projects.core.domain)
+            // AppInfo.installedFromStore — Play will not sell to a copy it did not install,
+            // and the paywall has to know that before it offers to sell.
+            implementation(projects.core.platform)
             // BuildInfo — the SDK's log level follows the build type, so a debug build
             // prints why a purchase failed and a release build does not.
             implementation(projects.core.common)

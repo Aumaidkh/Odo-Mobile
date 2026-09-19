@@ -1,9 +1,11 @@
 package com.hopcape.odo.infrastructure.supabase.observability
 
+import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.currentTraceContext
+import kotlinx.io.IOException
 import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.performance.api.TraceContext as PerfTrace
 
@@ -30,6 +32,7 @@ internal class SupabaseTelemetry(
     private val logger: Logger,
     private val tracer: PerformanceTracer,
     private val crash: CrashRecorder,
+    private val analytics: AnalyticsTracker,
 ) {
 
     /**
@@ -77,14 +80,22 @@ internal class SupabaseTelemetry(
 
     /**
      * A request that never got an answer — a timeout, a dropped connection, a DNS failure.
-     * Recorded as a non-fatal too, because the caller turns it into a retry and it would
-     * otherwise never reach a dashboard.
+     *
+     * A server that could not be reached is counted, not reported: Odo is offline-first, so a
+     * phone with no network is the expected state. Anything else still gets a non-fatal.
      */
     suspend fun failed(operation: String, resource: String, throwable: Throwable) {
-        crash.recordNonFatal(
-            throwable,
-            mapOf(Key.OPERATION to operation, Key.RESOURCE to resource),
-        )
+        if (throwable.isUnreachable()) {
+            analytics.track(
+                EVENT_UNREACHABLE,
+                mapOf(Key.RESOURCE to resource, Key.ERROR to throwable::class.simpleName),
+            )
+        } else {
+            crash.recordNonFatal(
+                throwable,
+                mapOf(Key.OPERATION to operation, Key.RESOURCE to resource),
+            )
+        }
         logger.error(
             TAG,
             "$operation.failed",
@@ -153,6 +164,14 @@ internal class SupabaseTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
+    /**
+     * Whether the server was never reached, as opposed to reached and disagreed with.
+     *
+     * One check covers the lot: Ktor's timeout exceptions all extend `IOException`, as do the
+     * platform's DNS and connection failures.
+     */
+    private fun Throwable.isUnreachable(): Boolean = this is IOException
+
     /** Field keys — kept here so a dashboard query never breaks on a renamed literal. */
     internal object Key {
         const val RESOURCE = "resource"
@@ -166,6 +185,9 @@ internal class SupabaseTelemetry(
 
     internal companion object {
         const val TAG = "supabase"
+
+        /** A request that got no reply. Counted, because being offline is not a bug. */
+        const val EVENT_UNREACHABLE = "request_unreachable"
 
         /** Span traceId when no caller installed a trace — grouped rather than dropped. */
         const val UNTRACED = "untraced"

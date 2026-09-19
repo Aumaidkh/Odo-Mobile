@@ -11,6 +11,7 @@ import com.hopcape.odo.infrastructure.supabase.postgrest.PostgrestClient
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -245,10 +246,10 @@ class SupabaseAdaptersTest {
     }
 
     @Test
-    fun `a request that never gets an answer is recorded as a non-fatal`() = runTest {
-        // No status, no body — the socket-level case: a timeout or a dropped connection.
-        // Sync going quiet while the app looks healthy is the failure worth seeing.
-        val harness = SupabaseTestHarness { throw IllegalStateException("connection reset") }
+    fun `a failure the server cannot explain is recorded as a non-fatal`() = runTest {
+        // Not an IOException: the server was reached and something afterwards disagreed.
+        // That is a fault somebody owns, so it still belongs on the crash dashboard.
+        val harness = SupabaseTestHarness { throw IllegalStateException("bad state") }
 
         assertFailsWith<IllegalStateException> {
             SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
@@ -256,6 +257,23 @@ class SupabaseAdaptersTest {
 
         assertEquals(1, harness.nonFatals.size)
         assertIs<IllegalStateException>(harness.nonFatals.single())
+        assertTrue(harness.analyticsEvents.isEmpty())
+    }
+
+    @Test
+    fun `a server that could not be reached is counted not recorded`() = runTest {
+        // A phone with no network. Odo is offline-first, so this is the expected state and a
+        // non-fatal per attempt would bury the dashboard under owners doing nothing wrong.
+        val harness = SupabaseTestHarness { throw IOException("Unable to resolve host") }
+
+        assertFailsWith<IOException> {
+            SupabaseServiceLogRemoteDataSource(harness.postgrest).fetchSince("owner-1", null)
+        }
+
+        assertTrue(harness.nonFatals.isEmpty(), "being offline is not a crash")
+        val (event, properties) = harness.analyticsEvents.single()
+        assertEquals("request_unreachable", event)
+        assertEquals("service_logs", properties["resource"])
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.paywall.presentation
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.subscription.BillingPeriod
+import com.hopcape.odo.core.domain.subscription.StoreReadiness
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
 
 /**
@@ -75,7 +76,16 @@ internal data class PaywallUiState(
      * was about.
      */
     val notice: UiText? = null,
+    /**
+     * Whether the store would take a payment on this device at all, read when the screen
+     * opens. Not [Loadable]: it answers instantly in the case that matters and the offer
+     * beside it already carries the loading state.
+     */
+    val storeReadiness: StoreReadiness = StoreReadiness.READY,
 ) {
     /** Whether anything is in flight, which is what stops a second tap. */
     val busy: Boolean get() = purchasing || restoring
+
+    /** Whether the CTA is drawn at all. A button that can only crash is worse than no button. */
+    val canBuy: Boolean get() = storeReadiness == StoreReadiness.READY
 }
