@@ -24,6 +24,15 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+// The schedule and the settings are in `public`, the queue is in `social`. A `public` client
+// reading content_queue gets an error and an empty result, not a throw, so the sweep below
+// went quiet for weeks rather than failing.
+const pipeline = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  { db: { schema: "social" } },
+);
+
 /** How wide a window counts as "now". The cron interval, so no slot is skipped or doubled. */
 const WINDOW_MINUTES = 15;
 
@@ -101,11 +110,12 @@ function isDue(slot: Slot, now: ReturnType<typeof localNow>): boolean {
  * would drift, and the one that drifted would be the one nobody watched.
  */
 async function publishApproved(): Promise<string[]> {
-  const { data: rows } = await supabase
+  const { data: rows, error } = await pipeline
     .from("content_queue")
     .select("id")
     .eq("status", "approved")
     .limit(10);
+  if (error) console.error(`publishApproved: ${error.message}`);
 
   const done: string[] = [];
   for (const row of rows ?? []) {
