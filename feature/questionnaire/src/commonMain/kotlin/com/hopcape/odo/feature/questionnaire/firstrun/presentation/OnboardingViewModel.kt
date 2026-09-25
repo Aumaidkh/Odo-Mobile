@@ -12,7 +12,6 @@ import com.hopcape.odo.core.platform.notification.EngagementNudge
 import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.core.domain.owner.SessionStatusProvider
 import com.hopcape.odo.core.domain.shared.DomainError
-import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingCommand
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
@@ -187,7 +186,13 @@ internal class OnboardingViewModel(
             if (!persist(current)) return@launch
             telemetry.stepAdvanced(from = current.step)
             val next = current.step.next
-            if (next == null) finish() else showStep(next)
+            if (next == null) {
+                // A failed stamp does not hold the owner here: the car is already stored.
+                telemetry.stamp { completeOnboarding() }
+                finish()
+            } else {
+                showStep(next)
+            }
         }
     }
 
@@ -248,13 +253,7 @@ internal class OnboardingViewModel(
         reportUnlisted(make, model, command.variant)
     }
 
-    /**
-     * Save the owner's answers and stamp setup as finished.
-     *
-     * The answers write is not allowed to fail the step. It is the newer of the two stores and
-     * a lost set is recoverable from the profile screen, whereas refusing to finish setup over
-     * it would strand the owner on the last step.
-     */
+    /** Tell the owner a write failed, unless a field on screen already says why. */
     private fun reportSaveFailure(errors: NonEmptyList<DomainError>) {
         val unowned = errors.filterNot(::showFieldError)
         if (unowned.isNotEmpty()) emit(OnboardingEffect.SaveFailed(UiText(Res.string.onb_save_error)))
@@ -279,9 +278,8 @@ internal class OnboardingViewModel(
     }
 
     /**
-     * The car is named, which is everything this screen was for. What pays for those answers
-     * is the value screen, and it is a step of first run rather than a screen after it — so
-     * the flow is not finished here, it moves on.
+     * The car is named and setup is stamped finished. First run still moves on to the value
+     * screen, which pays for those answers.
      */
     private fun finish() {
         flowEnded = true

@@ -15,25 +15,24 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 class CompleteOnboardingUseCaseTest {
 
     private class FakeProfileRepository(
-        private val result: (OwnerProfile) -> Either<DomainError, OwnerProfile> = { it.right() },
+        stored: OwnerProfile? = null,
+        private val saveResult: (OwnerProfile) -> Either<DomainError, OwnerProfile> = { it.right() },
     ) : OwnerProfileRepository {
         var saveCount = 0
-        var lastSaved: OwnerProfile? = null
+        var current: OwnerProfile? = stored
+
         override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> {
             saveCount++
-            lastSaved = profile
-            return result(profile)
+            return saveResult(profile).onRight { current = it }
         }
 
-        override fun observe(): Flow<OwnerProfile?> = flowOf(lastSaved)
+        override fun observe(): Flow<OwnerProfile?> = flowOf(current)
         override suspend fun recordPhone(ownerId: OwnerId, phone: PhoneNumber): Either<DomainError, Unit> =
             Unit.right()
 
@@ -42,69 +41,76 @@ class CompleteOnboardingUseCaseTest {
 
     private val ownerId = OwnerId("owner-1")
     private val now = Instant.parse("2026-07-30T10:15:00Z")
-    private val owner = CurrentOwnerProvider { ownerId }
     private val fixedClock = object : Clock {
         override fun now(): Instant = now
     }
 
     private fun useCase(profiles: OwnerProfileRepository) =
-        CompleteOnboardingUseCase(profiles = profiles, currentOwner = owner, clock = fixedClock)
+        CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { ownerId }, fixedClock)
+
+    private fun stored(completedAt: Instant? = null, id: OwnerId = ownerId) = OwnerProfile.reconstitute(
+        id = id,
+        name = "Rahul",
+        onboardingCompletedAt = completedAt,
+        city = "Pune",
+        email = "rahul@example.com",
+        avatarPath = "avatars/owner-1.jpg",
+        sharesPricesAnonymously = false,
+    )
 
     @Test
-    fun validAnswers_persistACompletedProfile() = runTest {
-        val profiles = FakeProfileRepository()
+    fun aStoredProfile_isStampedAndKeepsEverythingElse() = runTest {
+        val profiles = FakeProfileRepository(stored())
 
-        val result = useCase(profiles)(
-            CompleteOnboardingCommand(name = "  Rahul  "),
-        )
+        val result = useCase(profiles)()
 
-        assertTrue(result.isRight(), "expected Right but was $result")
-        val saved = profiles.lastSaved
-        assertEquals(1, profiles.saveCount)
-        assertEquals(ownerId, saved?.id)
-        assertEquals("Rahul", saved?.name?.value)
-        // Stamped before the save, so a stored profile never claims setup is unfinished.
-        assertEquals(now, saved?.onboardingCompletedAt)
-        assertTrue(saved?.hasCompletedOnboarding ?: false)
+        assertEquals(true, result.getOrNull())
+        val saved = profiles.current!!
+        assertEquals(now, saved.onboardingCompletedAt)
+        assertEquals("Rahul", saved.name?.value)
+        assertEquals("Pune", saved.city)
+        assertEquals("rahul@example.com", saved.email?.value)
+        assertEquals("avatars/owner-1.jpg", saved.avatarPath)
+        assertEquals(false, saved.sharesPricesAnonymously)
     }
 
+    /** A bare row would be pushed over the account's real one at sign-in. */
     @Test
-    fun aMissingName_persistsNothing() = runTest {
+    fun noStoredProfile_createsNothing() = runTest {
         val profiles = FakeProfileRepository()
 
-        val errors = useCase(profiles)(CompleteOnboardingCommand(name = " "))
-            .leftOrNull()
-            ?.toList()
-            .orEmpty()
+        val result = useCase(profiles)()
 
-        // The name is the only thing this use case validates now — goals are stored
-        // separately, before it runs.
-        assertEquals(listOf(DomainError.BlankOwnerName), errors)
+        assertEquals(false, result.getOrNull())
         assertEquals(0, profiles.saveCount)
     }
 
     @Test
-    fun invalidName_blocksCompletion() = runTest {
-        val profiles = FakeProfileRepository()
+    fun anotherOwnersProfile_isLeftAlone() = runTest {
+        val profiles = FakeProfileRepository(stored(id = OwnerId("someone-else")))
 
-        val errors = useCase(profiles)(CompleteOnboardingCommand("R"))
-            .leftOrNull()
-            ?.toList()
-            .orEmpty()
+        useCase(profiles)()
 
-        assertIs<DomainError.OwnerNameTooShort>(errors.single())
         assertEquals(0, profiles.saveCount)
     }
 
     @Test
-    fun persistenceFailure_isReportedAndNotSwallowed() = runTest {
-        val profiles = FakeProfileRepository { DomainError.PersistenceFailure("disk full").left() }
+    fun anAlreadyStampedProfile_keepsItsFirstStamp() = runTest {
+        val first = Instant.parse("2026-01-01T00:00:00Z")
+        val profiles = FakeProfileRepository(stored(completedAt = first))
 
-        val result = useCase(profiles)(
-            CompleteOnboardingCommand("Rahul"),
-        )
+        val result = useCase(profiles)()
 
-        assertIs<DomainError.PersistenceFailure>(result.leftOrNull()?.single())
-        assertNull(result.getOrNull())
+        assertEquals(false, result.getOrNull())
+        assertEquals(0, profiles.saveCount)
+    }
+
+    @Test
+    fun aFailedSave_isReportedAndNotSwallowed() = runTest {
+        val profiles = FakeProfileRepository(stored()) { DomainError.PersistenceFailure("disk full").left() }
+
+        val result = useCase(profiles)()
+
+        assertIs<DomainError.PersistenceFailure>(result.leftOrNull())
     }
 }
