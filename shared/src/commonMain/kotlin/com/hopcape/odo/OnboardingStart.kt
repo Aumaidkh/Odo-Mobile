@@ -31,6 +31,12 @@ internal fun onboardingStartDestination(
 }
 
 /**
+ * Whether this install has been set up. A stored car counts on its own: naming the car is all
+ * setup asks, and a signed-out install has no profile row to carry the stamp.
+ */
+internal fun isReturningOwner(stamped: Boolean, hasCar: Boolean): Boolean = stamped || hasCar
+
+/**
  * The same decision, but made only after the first Remote Config fetch has had a chance
  * to land.
  *
