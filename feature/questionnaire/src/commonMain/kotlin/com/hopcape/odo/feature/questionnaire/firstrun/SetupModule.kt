@@ -29,7 +29,7 @@ internal val setupModule = module {
     factory { LookupPlateUseCase(registry = get()) }
     factory { ReportUnlistedVehicleUseCase(reporter = get()) }
     factory { RecordDeclaredServiceUseCase(logs = get(), idGenerator = get(), clock = get()) }
-    factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get(), clock = get()) }
+    factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
 
     // A factory, so one instance covers one attempt at setup.
     factory { SetupTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }

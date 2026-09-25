@@ -38,8 +38,4 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(SetupTelemetry.Event.ODOMETER_SKIPPED),
     EventSchema(SetupTelemetry.Event.COMPLETED),
-    EventSchema(
-        SetupTelemetry.Event.STAMP_FAILED,
-        mapOf(SetupTelemetry.Key.ERRORS to PropertyType.STRING),
-    ),
 )

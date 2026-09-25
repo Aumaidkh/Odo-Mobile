@@ -245,35 +245,6 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingEffect.ShowValue, viewModel.effects.first())
     }
 
-    /** The stamp is what the start gate reads first, before it falls back to the car. */
-    @Test
-    fun finishingTheCarStep_stampsTheStoredProfile() = runTest(dispatcher) {
-        val profiles = FakeProfileRepository(stored = OwnerProfile.reconstitute(OWNER, name = null, onboardingCompletedAt = null))
-        val viewModel = viewModel(profiles = profiles)
-        advanceUntilIdle()
-
-        completeTheWholeFlow(viewModel)
-
-        assertTrue(profiles.saved.last().hasCompletedOnboarding)
-    }
-
-    /** The car is already stored, so a failed stamp must not strand the owner on the step. */
-    @Test
-    fun aFailedStamp_stillHandsOffToTheValueScreen() = runTest(dispatcher) {
-        val analytics = RecordingAnalytics()
-        val profiles = FakeProfileRepository(
-            failing = true,
-            stored = OwnerProfile.reconstitute(OWNER, name = null, onboardingCompletedAt = null),
-        )
-        val viewModel = viewModel(profiles = profiles, analytics = analytics)
-        advanceUntilIdle()
-
-        completeTheWholeFlow(viewModel)
-
-        assertEquals(OnboardingEffect.ShowValue, viewModel.effects.first())
-        assertTrue(SetupTelemetry.Event.STAMP_FAILED in analytics.names)
-    }
-
     /* ------------------------------ Persistence ------------------------------ */
 
     @Test
@@ -517,7 +488,7 @@ class OnboardingViewModelTest {
             clock = FixedClock(Instant.parse("2026-07-28T12:00:00Z")),
             timeZone = TimeZone.UTC,
         ),
-        completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }, FixedClock(Instant.parse("2026-07-28T12:00:00Z"))),
+        completeOnboarding = CompleteOnboardingUseCase(profiles, CurrentOwnerProvider { OWNER }),
         currentOwner = CurrentOwnerProvider { OWNER },
         sessionStatus = SessionStatusProvider { signedIn },
         // The real telemetry, so its own code runs under test; only the tracker is a fake. The
@@ -627,11 +598,8 @@ class OnboardingViewModelTest {
             flowOf(readings.orEmpty())
     }
 
-    private class FakeProfileRepository(
-        var failing: Boolean = false,
-        stored: OwnerProfile? = null,
-    ) : OwnerProfileRepository {
-        val saved = mutableListOf<OwnerProfile>().apply { stored?.let(::add) }
+    private class FakeProfileRepository(var failing: Boolean = false) : OwnerProfileRepository {
+        val saved = mutableListOf<OwnerProfile>()
 
         override suspend fun save(profile: OwnerProfile): Either<DomainError, OwnerProfile> =
             if (failing) {

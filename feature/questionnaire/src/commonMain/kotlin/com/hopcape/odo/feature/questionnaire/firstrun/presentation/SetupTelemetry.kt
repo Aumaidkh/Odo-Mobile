@@ -234,20 +234,6 @@ internal class SetupTelemetry(
         result
     }
 
-    /**
-     * Times the completion stamp and counts a failed one. The start gate falls back to the
-     * stored car, so a failure here does not strand the owner on Welcome.
-     */
-    suspend fun stamp(write: suspend () -> Either<DomainError, Boolean>): Either<DomainError, Boolean> =
-        traced(Trace.STAMP) { span ->
-            write().onLeft { error ->
-                span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to nonEmptyListOf(error).errorTypes())
-                analytics.track(Event.STAMP_FAILED, fields)
-                logger.error(TAG, Event.STAMP_FAILED, tc = currentTraceContext().toLog(), fields = fields)
-            }
-        }
-
     /* ------------------------------ Plumbing ------------------------------ */
 
     /**
@@ -316,7 +302,6 @@ internal class SetupTelemetry(
         const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
         const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
         const val COMPLETED = "onboarding_completed"
-        const val STAMP_FAILED = "onboarding_stamp_failed"
 
         const val CATALOG_LOAD_FAILED = "onboarding_catalog_load_failed"
         const val CATALOG_EMPTY = "onboarding_catalog_empty"
@@ -330,7 +315,6 @@ internal class SetupTelemetry(
         const val CATALOG_LOAD = "onboarding_catalog_load"
         const val MODELS_LOAD = "onboarding_models_load"
         const val SAVE_CAR = "onboarding_save_car"
-        const val STAMP = "onboarding_stamp"
     }
 
     /** Structured field / property keys, shared across logs, events and spans. */
