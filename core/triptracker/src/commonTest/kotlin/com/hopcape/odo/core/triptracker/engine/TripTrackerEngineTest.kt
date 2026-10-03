@@ -336,7 +336,7 @@ class TripTrackerEngineTest {
      * a broadcast that had already fired — the owner got in, the stereo connected, and only
      * then did setup finish or the app come up. Nothing was tracked until the next drive.
      *
-     * Fails without the `startIfConnected()` seed in [DefaultTripTracker.setEnabled].
+     * Fails without the `startIfConnected()` seed in `DefaultTripTracker.arm`.
      */
     @Test
     fun armFromPersistedState_startsTracking_whenTheCarIsAlreadyConnected() = runTest {
@@ -415,6 +415,45 @@ class TripTrackerEngineTest {
         assertEquals(readsAfterArming, catalog.reads, "turning tracking off has no presence to seed")
     }
 
+    /** A cold start re-arms on every launch, so counting it would count launches, not owners. */
+    @Test
+    fun armFromPersistedState_tracksNothing() = runTest {
+        val env = Env(this, parked = null)
+
+        env.tracker().armFromPersistedState()
+        env.advance()
+
+        assertEquals(emptyList(), env.analytics.switches)
+    }
+
+    @Test
+    fun setEnabled_tracksTheOwnersSwitch_onceEachWay() = runTest {
+        val env = Env(this, parked = null)
+        val tracker = env.tracker()
+
+        tracker.setEnabled(true)
+        tracker.setEnabled(true)
+        tracker.setEnabled(false)
+        env.advance()
+
+        assertEquals(
+            listOf(TripTrackerTelemetry.EVENT_TRACKING_ENABLED, TripTrackerTelemetry.EVENT_TRACKING_DISABLED),
+            env.analytics.switches,
+        )
+    }
+
+    @Test
+    fun turningTrackingOffAfterAColdStart_stillCountsAsTheOwnersSwitch() = runTest {
+        val env = Env(this, parked = null)
+        val tracker = env.tracker()
+        tracker.armFromPersistedState()
+
+        tracker.setEnabled(false)
+        env.advance()
+
+        assertEquals(listOf(TripTrackerTelemetry.EVENT_TRACKING_DISABLED), env.analytics.switches)
+    }
+
     private fun connectedCatalog(isConnectedNow: Boolean) = FakeBondedDeviceCatalog(
         listOf(BondedDevice(id = "aa:bb", name = "Car Stereo", category = DeviceCategory.CAR_AUDIO, isConnectedNow = isConnectedNow)),
     )
@@ -435,7 +474,8 @@ class TripTrackerEngineTest {
         val foregroundSession = FakeTripForegroundSession()
         val tripRepository = FakeTripRepository(parked)
         val crash = RecordingCrash()
-        val telemetry = TripTrackerTelemetry(logger = NoopLogger, analytics = NoopAnalytics, tracer = NoopTracer, crash = crash)
+        val analytics = RecordingAnalytics()
+        val telemetry = TripTrackerTelemetry(logger = NoopLogger, analytics = analytics, tracer = NoopTracer, crash = crash)
 
         val engine = TripTrackerEngine(
             locationProvider = { FakeLocationProvider(fixes) },
@@ -657,9 +697,19 @@ private object NoopLogger : Logger {
     override fun flush() = Unit
 }
 
-private object NoopAnalytics : AnalyticsTracker {
+private class RecordingAnalytics : AnalyticsTracker {
+    private val names = mutableListOf<String>()
+
+    /** The tracking on/off events, in the order they were tracked. */
+    val switches: List<String>
+        get() = names.filter {
+            it == TripTrackerTelemetry.EVENT_TRACKING_ENABLED || it == TripTrackerTelemetry.EVENT_TRACKING_DISABLED
+        }
+
     override fun identify(traits: UserTraits) = Unit
-    override fun track(eventName: String, properties: Map<String, Any?>) = Unit
+    override fun track(eventName: String, properties: Map<String, Any?>) {
+        names += eventName
+    }
     override fun setConsent(status: ConsentStatus) = Unit
     override fun flush() = Unit
 }
