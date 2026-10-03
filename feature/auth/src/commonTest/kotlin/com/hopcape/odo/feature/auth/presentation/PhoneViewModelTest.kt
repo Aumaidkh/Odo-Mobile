@@ -11,6 +11,8 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import com.hopcape.odo.feature.auth.AuthTelemetry
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -71,6 +73,45 @@ class PhoneViewModelTest {
             com.hopcape.odo.feature.auth.presentation.state.Submission.Idle,
             viewModel.state.value.submission,
         )
+    }
+
+    @Test
+    fun theNumberFieldIsCountedOncePerMilestone_notPerKeystroke() = runTest(dispatcher) {
+        val analytics = RecordingAuthAnalytics()
+        val viewModel = PhoneViewModel(requests = broker(), telemetry = recordingAuthTelemetry(analytics))
+
+        viewModel.onEvent(PhoneEvent.PhoneChanged("9"))
+        viewModel.onEvent(PhoneEvent.PhoneChanged("98"))
+        viewModel.onEvent(PhoneEvent.PhoneChanged("9812345678"))
+        viewModel.onEvent(PhoneEvent.PhoneChanged("981234567"))
+        viewModel.onEvent(PhoneEvent.PhoneChanged("9812345678"))
+        viewModel.onEvent(PhoneEvent.SendCodeClicked)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                AuthTelemetry.EVENT_PHONE_SHOWN,
+                AuthTelemetry.EVENT_PHONE_TYPING_STARTED,
+                AuthTelemetry.EVENT_PHONE_ENTERED,
+                AuthTelemetry.EVENT_SEND_CODE_CLICKED,
+            ),
+            analytics.names,
+        )
+    }
+
+    @Test
+    fun aRefusedNumberIsTrackedByItsErrorType_neverByTheNumber() = runTest(dispatcher) {
+        val analytics = RecordingAuthAnalytics()
+        val viewModel = PhoneViewModel(requests = broker(), telemetry = recordingAuthTelemetry(analytics))
+        viewModel.onEvent(PhoneEvent.PhoneChanged("98123456789"))
+
+        viewModel.onEvent(PhoneEvent.SendCodeClicked)
+        advanceUntilIdle()
+
+        val refused = analytics.events.single { it.first == AuthTelemetry.EVENT_PHONE_REFUSED }.second
+        assertEquals<Any?>("InvalidPhoneNumber", refused[AuthTelemetry.Key.REASON])
+        val tracked = analytics.events.flatMap { (_, props) -> props.values.map { it.toString() } }
+        assertTrue(tracked.none { it.contains("9812345") }, "a number was tracked: $tracked")
     }
 
     /**

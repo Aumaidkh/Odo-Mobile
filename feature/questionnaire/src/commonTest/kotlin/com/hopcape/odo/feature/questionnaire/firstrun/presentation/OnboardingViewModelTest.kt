@@ -348,7 +348,8 @@ class OnboardingViewModelTest {
                 SetupTelemetry.Event.STEP_ADVANCED,
                 SetupTelemetry.Event.COMPLETED,
             ),
-            analytics.names,
+            // The per-field events have their own tests below.
+            analytics.names.filterNot { it == SetupTelemetry.Event.FIELD_ANSWERED },
         )
     }
 
@@ -424,6 +425,85 @@ class OnboardingViewModelTest {
         store.clear()
 
         assertEquals(1, analytics.events.count { it.first == SetupTelemetry.Event.ABANDONED })
+    }
+
+    @Test
+    fun eachFieldIsCountedOnce_inTheOrderItWasAnswered() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.answerCarStep()
+        // An edit and a second drum save are not new answers.
+        viewModel.onEvent(OnboardingEvent.Details.YearSelected(2021))
+        viewModel.onEvent(OnboardingEvent.OdometerChanged(55_000))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf<Any?>(
+                SetupTelemetry.Field.MAKE,
+                SetupTelemetry.Field.MODEL,
+                SetupTelemetry.Field.YEAR,
+                SetupTelemetry.Field.FUEL,
+                SetupTelemetry.Field.ODOMETER,
+            ),
+            analytics.events
+                .filter { it.first == SetupTelemetry.Event.FIELD_ANSWERED }
+                .map { it.second[SetupTelemetry.Key.FIELD] },
+        )
+    }
+
+    @Test
+    fun leavingHalfway_saysWhichFieldTheOwnerStoppedAt() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected(MAKE))
+        viewModel.onEvent(OnboardingEvent.Details.ModelSelected(CarModel("City", "VX")))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        val abandoned = analytics.events.single { it.first == SetupTelemetry.Event.ABANDONED }.second
+        assertEquals<Any?>(2, abandoned[SetupTelemetry.Key.FIELDS_ANSWERED])
+        assertEquals<Any?>(SetupTelemetry.Field.YEAR, abandoned[SetupTelemetry.Key.STOPPED_AT])
+        assertEquals<Any?>("ready", abandoned[SetupTelemetry.Key.CATALOG])
+    }
+
+    /** Changing the make clears the model, so the model is where they stopped. */
+    @Test
+    fun aClearedField_countsAsUnanswered_whenTheOwnerLeaves() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+        viewModel.answerCarStep()
+        viewModel.onEvent(OnboardingEvent.Details.MakeSelected("Maruti Suzuki"))
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        val abandoned = analytics.events.single { it.first == SetupTelemetry.Event.ABANDONED }.second
+        assertEquals<Any?>(4, abandoned[SetupTelemetry.Key.FIELDS_ANSWERED])
+        assertEquals<Any?>(SetupTelemetry.Field.MODEL, abandoned[SetupTelemetry.Key.STOPPED_AT])
+    }
+
+    @Test
+    fun leavingAFormThatNeverLoaded_saysTheCatalogFailed() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(catalog = FakeCatalog(failing = true), analytics = analytics)
+        advanceUntilIdle()
+        viewModel.onEvent(OnboardingEvent.Details.CatalogRetried)
+        advanceUntilIdle()
+
+        viewModel.onEvent(OnboardingEvent.BackClicked)
+        advanceUntilIdle()
+
+        val abandoned = analytics.events.single { it.first == SetupTelemetry.Event.ABANDONED }.second
+        assertEquals<Any?>("failed", abandoned[SetupTelemetry.Key.CATALOG])
+        assertEquals<Any?>(0, abandoned[SetupTelemetry.Key.FIELDS_ANSWERED])
+        assertEquals(1, analytics.events.count { it.first == SetupTelemetry.Event.CATALOG_RETRIED })
     }
 
     @Test

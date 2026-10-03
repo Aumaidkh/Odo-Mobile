@@ -298,6 +298,56 @@ class OtpViewModelTest {
         assertEquals(listOf<OtpEffect>(OtpEffect.Verified), effects)
     }
 
+    /* ------------------------------ telemetry ------------------------------ */
+
+    @Test
+    fun aTypedCodeIsCountedAsStartedOnceAndEnteredByHand() = runTest(dispatcher) {
+        val analytics = RecordingAuthAnalytics()
+        val viewModel = viewModel(ScriptedGateway(), screenTelemetry = recordingAuthTelemetry(analytics))
+
+        viewModel.onEvent(OtpEvent.CodeChanged("1"))
+        viewModel.onEvent(OtpEvent.CodeChanged("12"))
+        viewModel.onEvent(OtpEvent.CodeChanged("123456"))
+        advanceTimeBy(SETTLE)
+
+        assertEquals(
+            listOf(
+                AuthTelemetry.EVENT_OTP_SHOWN,
+                AuthTelemetry.EVENT_OTP_TYPING_STARTED,
+                AuthTelemetry.EVENT_OTP_ENTERED,
+            ),
+            analytics.names,
+        )
+        val entered = analytics.events.single { it.first == AuthTelemetry.EVENT_OTP_ENTERED }.second
+        assertEquals<Any?>(false, entered[AuthTelemetry.Key.AUTO_READ])
+    }
+
+    @Test
+    fun anAutoReadCodeIsEnteredWithoutCountingAsTyping() = runTest(dispatcher) {
+        val analytics = RecordingAuthAnalytics()
+        viewModel(
+            ScriptedGateway(),
+            smsCodes = SmsCodeReader { flowOf(SmsCodeStatus.Received("123456")) },
+            screenTelemetry = recordingAuthTelemetry(analytics),
+        )
+        advanceTimeBy(SETTLE)
+
+        assertEquals(listOf(AuthTelemetry.EVENT_OTP_SHOWN, AuthTelemetry.EVENT_OTP_ENTERED), analytics.names)
+        val entered = analytics.events.single { it.first == AuthTelemetry.EVENT_OTP_ENTERED }.second
+        assertEquals<Any?>(true, entered[AuthTelemetry.Key.AUTO_READ])
+    }
+
+    @Test
+    fun askingToChangeTheNumberIsCounted() = runTest(dispatcher) {
+        val analytics = RecordingAuthAnalytics()
+        val viewModel = viewModel(ScriptedGateway(), screenTelemetry = recordingAuthTelemetry(analytics))
+
+        viewModel.onEvent(OtpEvent.ChangeNumberClicked)
+        advanceTimeBy(SETTLE)
+
+        assertTrue(AuthTelemetry.EVENT_CHANGE_NUMBER_CLICKED in analytics.names)
+    }
+
     /* ------------------------------ scaffolding ------------------------------ */
 
     /**
@@ -308,6 +358,7 @@ class OtpViewModelTest {
         gateway: AuthGateway,
         smsCodes: SmsCodeReader = SmsCodeReader { flowOf(SmsCodeStatus.Listening) },
         broker: OtpRequestBroker = startedBroker(gateway),
+        screenTelemetry: AuthTelemetry = silentTelemetry(),
     ) = OtpViewModel(
         phone = phone,
         requests = broker,
@@ -320,7 +371,7 @@ class OtpViewModelTest {
             profiles = NoopProfiles,
             clock = MovingClock(),
         ),
-        telemetry = silentTelemetry(),
+        telemetry = screenTelemetry,
         smsCodes = smsCodes,
         smsSignature = { emptyList() },
         clock = MovingClock(),

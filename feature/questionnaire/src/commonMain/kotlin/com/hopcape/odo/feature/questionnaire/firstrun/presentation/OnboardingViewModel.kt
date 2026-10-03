@@ -110,6 +110,9 @@ internal class OnboardingViewModel(
      */
     private var flowEnded: Boolean = false
 
+    /** Fields already counted as answered, so an edit or a second drum save is not a new answer. */
+    private val answeredFields = mutableSetOf<String>()
+
     init {
         telemetry.started()
         loadCatalogOptions()
@@ -126,13 +129,29 @@ internal class OnboardingViewModel(
 
     private fun onDetailsEvent(event: OnboardingEvent.Details) = when (event) {
         is OnboardingEvent.Details.MakeSelected -> onMakeSelected(event.make)
-        is OnboardingEvent.Details.ModelSelected -> selectModel(event.model)
-        is OnboardingEvent.Details.YearSelected -> updateDetails { it.copy(year = it.year.update(event.year)) }
-        is OnboardingEvent.Details.FuelSelected -> updateDetails { it.copy(fuel = it.fuel.update(event.fuel)) }
-        OnboardingEvent.Details.CatalogRetried -> loadCatalogOptions()
+        is OnboardingEvent.Details.ModelSelected -> {
+            fieldAnswered(SetupTelemetry.Field.MODEL)
+            selectModel(event.model)
+        }
+
+        is OnboardingEvent.Details.YearSelected -> {
+            fieldAnswered(SetupTelemetry.Field.YEAR)
+            updateDetails { it.copy(year = it.year.update(event.year)) }
+        }
+
+        is OnboardingEvent.Details.FuelSelected -> {
+            fieldAnswered(SetupTelemetry.Field.FUEL)
+            updateDetails { it.copy(fuel = it.fuel.update(event.fuel)) }
+        }
+
+        OnboardingEvent.Details.CatalogRetried -> {
+            telemetry.catalogRetried()
+            loadCatalogOptions()
+        }
     }
 
     private fun onMakeSelected(make: String) {
+        fieldAnswered(SetupTelemetry.Field.MAKE)
         selectMake(make)
         loadModelsFor(make) { models -> showModels(models) }
     }
@@ -274,7 +293,7 @@ internal class OnboardingViewModel(
      * host can pop past it.
      */
     private fun goBack() {
-        endAbandoned(_state.value.step)
+        endAbandoned(_state.value)
         emit(OnboardingEffect.NavigateBack)
     }
 
@@ -303,19 +322,25 @@ internal class OnboardingViewModel(
      * kills outright runs nothing at all, and no hook can change that.
      */
     override fun onCleared() {
-        if (!flowEnded) endAbandoned(_state.value.step)
+        if (!flowEnded) endAbandoned(_state.value)
         super.onCleared()
     }
 
-    private fun endAbandoned(step: OnboardingStep) {
+    private fun endAbandoned(state: OnboardingUiState) {
         flowEnded = true
-        telemetry.abandoned(step)
+        telemetry.abandoned(state.step, fields = state.fieldAnswers(), catalog = state.details.catalog)
+    }
+
+    private fun fieldAnswered(field: String) {
+        if (answeredFields.add(field)) telemetry.fieldAnswered(_state.value.step, field)
     }
 
     /* ------------------------------ State writers ------------------------------ */
 
-    private fun onOdometerChanged(km: Long) =
+    private fun onOdometerChanged(km: Long) {
+        fieldAnswered(SetupTelemetry.Field.ODOMETER)
         _state.update { it.copy(odometer = it.odometer.update(km)) }
+    }
 
     private fun showStep(step: OnboardingStep) = _state.update { it.copy(step = step) }
 
@@ -390,6 +415,15 @@ private fun OnboardingUiState.toSaveCarCommand(): SaveCarCommand {
     )
 }
 
+
+/** The car step's fields in screen order, each with whether it holds an answer. */
+private fun OnboardingUiState.fieldAnswers(): List<Pair<String, Boolean>> = listOf(
+    SetupTelemetry.Field.MAKE to !details.make.value.isNullOrBlank(),
+    SetupTelemetry.Field.MODEL to (details.model.value != null),
+    SetupTelemetry.Field.YEAR to (details.year.value != null),
+    SetupTelemetry.Field.FUEL to (details.fuel.value != null),
+    SetupTelemetry.Field.ODOMETER to (odometer.value != null),
+)
 
 /**
  * Catalog snapshot → the pickers' options. The years list becomes a range because that is

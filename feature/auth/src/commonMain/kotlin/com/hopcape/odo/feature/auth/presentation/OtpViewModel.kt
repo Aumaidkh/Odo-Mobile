@@ -73,7 +73,11 @@ internal class OtpViewModel(
     /** Whether the cooldown for the request this screen arrived with is already running. */
     private var cooldownStarted = false
 
+    /** Counted once per visit, not per digit. */
+    private var typingCounted = false
+
     init {
+        viewModelScope.launch { telemetry.otpShown() }
         watchTheRequest()
         listenForCode()
     }
@@ -181,28 +185,37 @@ internal class OtpViewModel(
         viewModelScope.launch {
             smsCodes.listen().collect { status ->
                 _state.update { it.copy(autoRead = status) }
-                if (status is SmsCodeStatus.Received) onCodeChanged(status.code)
+                if (status is SmsCodeStatus.Received) onCodeChanged(status.code, autoRead = true)
             }
         }
     }
 
     fun onEvent(event: OtpEvent) = when (event) {
-        is OtpEvent.CodeChanged -> onCodeChanged(event.value)
+        is OtpEvent.CodeChanged -> onCodeChanged(event.value, autoRead = false)
         OtpEvent.ResendClicked -> resend()
-        OtpEvent.ChangeNumberClicked -> emit(OtpEffect.ChangeNumber)
+        OtpEvent.ChangeNumberClicked -> {
+            viewModelScope.launch { telemetry.changeNumberClicked() }
+            emit(OtpEffect.ChangeNumber)
+        }
+
         OtpEvent.SkipClicked -> {
             viewModelScope.launch { telemetry.signInSkipped(AuthTelemetry.Step.OTP) }
             emit(OtpEffect.LeaveAuth)
         }
     }
 
-    private fun onCodeChanged(value: String) {
+    private fun onCodeChanged(value: String, autoRead: Boolean) {
         _state.update { it.copy(code = value, submission = Submission.Idle) }
-        if (value.length == CODE_LENGTH) verify(value)
+        if (!typingCounted && !autoRead && value.isNotEmpty()) {
+            typingCounted = true
+            viewModelScope.launch { telemetry.otpTypingStarted() }
+        }
+        if (value.length == CODE_LENGTH) verify(value, autoRead)
     }
 
-    private fun verify(code: String) {
+    private fun verify(code: String, autoRead: Boolean) {
         if (verifyJob?.isActive == true) return
+        viewModelScope.launch { telemetry.otpEntered(autoRead) }
         _state.update { it.copy(submission = Submission.InFlight) }
 
         verifyJob = viewModelScope.launch {
@@ -255,6 +268,7 @@ internal class OtpViewModel(
 
     private fun resend() {
         if (!_state.value.canResend) return
+        viewModelScope.launch { telemetry.otpResendClicked() }
         if (!throttle.canRequest()) {
             _state.update { it.copy(resendExhausted = throttle.isExhausted()) }
             return
