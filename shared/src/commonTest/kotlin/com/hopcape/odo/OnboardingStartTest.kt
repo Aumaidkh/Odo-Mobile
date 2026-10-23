@@ -19,6 +19,7 @@ class OnboardingStartTest {
     private fun config(video: Boolean = false, v2: Boolean = false) = object : OnboardingConfig {
         override val videoEnabled = video
         override val firstRunV2Enabled = v2
+        override val welcomeTitle = ""
         override val refuelVideoUrl = ""
         override val scannerVideoUrl = ""
     }
@@ -110,6 +111,7 @@ class OnboardingStartTest {
 
         override val videoEnabled: Boolean get() = fetched
         override val firstRunV2Enabled = false
+        override val welcomeTitle = ""
         override val refuelVideoUrl = ""
         override val scannerVideoUrl = ""
 

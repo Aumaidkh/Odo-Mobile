@@ -18,12 +18,8 @@ internal class VehicleCatalogImpl(
     override suspend fun makes(): List<String> =
         database.vehicleMakeQueries.selectAllMakes().executeAsList()
 
-    /**
-     * The chips shown above the full brand list — the first [POPULAR_MAKE_COUNT] makes in
-     * the same market-share ordering, so there is no second definition of "popular".
-     */
-    override suspend fun popularMakes(): List<String> =
-        database.vehicleMakeQueries.selectPopularMakes(POPULAR_MAKE_COUNT).executeAsList()
+    override suspend fun popularMakes(limit: Int): List<String> =
+        database.vehicleMakeQueries.selectPopularMakes(limit.toLong()).executeAsList()
 
     override suspend fun models(make: String): List<CarModel> =
         database.vehicleModelQueries
@@ -42,9 +38,4 @@ internal class VehicleCatalogImpl(
     }
 
     override fun fuelTypes(): List<FuelType> = FuelType.entries.toList()
-
-    private companion object {
-        /** How many brands get a one-tap chip. Four fits a row without wrapping. */
-        const val POPULAR_MAKE_COUNT = 4L
-    }
 }

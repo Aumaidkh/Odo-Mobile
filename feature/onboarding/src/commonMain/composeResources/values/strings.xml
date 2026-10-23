@@ -5,8 +5,24 @@
          :feature:questionnaire with the screens that ask it. -->
     <string name="onb_welcome_mark">ODO</string>
     <string name="onb_welcome_mark_reading">054,000</string>
-    <string name="onb_welcome_title">Know what your car really costs you.</string>
-    <string name="onb_welcome_subtitle">Stop overpaying at the garage, and sell for more when you’re done.</string>
+    <!-- v1 pitch, kept behind the first_run_v2_enabled kill switch until 1.4.6. -->
+    <string name="onb_welcome_v1_title">Know what your car really costs you.</string>
+    <string name="onb_welcome_v1_subtitle">Stop overpaying at the garage, and sell for more when you’re done.</string>
+    <!-- v2 Welcome, the make choice. -->
+    <string name="onb_welcome_title">Find out if your mechanic overcharged you</string>
+    <string name="onb_welcome_subtitle">Pick your car to start. Takes 20 seconds.</string>
+    <string name="onb_welcome_make_other">Other</string>
+    <string name="onb_welcome_make_search_hint">Search all makes</string>
+    <string name="onb_welcome_make_not_listed">Not listed? Type it</string>
+    <string name="onb_welcome_make_sheet_title">Choose make</string>
+    <string name="onb_welcome_make_sheet_subtitle">%1$d brands available</string>
+    <string name="onb_welcome_make_matches">%1$d MATCHING</string>
+    <string name="onb_welcome_make_popular">POPULAR</string>
+    <string name="onb_welcome_make_all">ALL BRANDS</string>
+    <string name="onb_welcome_make_empty">No brands match that</string>
+    <string name="onb_welcome_make_close">Close</string>
+    <string name="onb_welcome_make_type_placeholder">Type your car’s brand</string>
+    <string name="onb_welcome_make_type_confirm">Use this brand</string>
     <string name="onb_welcome_value_bill">Know in seconds if a bill is fair</string>
     <string name="onb_welcome_value_cost">See what your car really costs to run</string>
     <string name="onb_welcome_value_resale">Ask more at resale — and prove it</string>

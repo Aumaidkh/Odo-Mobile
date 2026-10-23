@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -144,8 +146,6 @@ fun OdoCarMakeField(
     notListedConfirmLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
     val isError = errorText != null
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -175,34 +175,113 @@ fun OdoCarMakeField(
     }
 
     if (open) {
-        // Animate the sheet out before dropping it, so a selection doesn't make the
-        // sheet vanish mid-gesture.
-        val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { open = false } }
-        ModalBottomSheet(
+        OdoCarMakeSheet(
             onDismissRequest = { open = false },
-            sheetState = sheetState,
-            containerColor = OdoTheme.colors.surface,
+            makes = makes,
+            onSelect = onSelect,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            popularSectionLabel = popularSectionLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            selected = selected,
+            popular = popular,
+            notListedLabel = notListedLabel,
+            notListedPlaceholder = notListedPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+        )
+    }
+}
+
+/**
+ * The searchable make sheet on its own, for callers that open it from something other than
+ * [OdoCarMakeField] (Welcome's "Other" tile). Parameters are as on [OdoCarMakeField].
+ * Selecting a make calls [onSelect], then hides the sheet and calls [onDismissRequest].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OdoCarMakeSheet(
+    onDismissRequest: () -> Unit,
+    makes: List<OdoCarMake>,
+    onSelect: (OdoCarMake) -> Unit,
+    title: String,
+    subtitle: String,
+    searchPlaceholder: String,
+    matchCountLabel: (Int) -> String,
+    popularSectionLabel: String,
+    allSectionLabel: String,
+    emptyResultsText: String,
+    closeContentDescription: String,
+    selected: OdoCarMake? = null,
+    popular: List<OdoCarMake> = emptyList(),
+    notListedLabel: String? = null,
+    notListedPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    // Animate the sheet out before dropping it, so a selection doesn't make the
+    // sheet vanish mid-gesture.
+    val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() } }
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = OdoTheme.colors.surface,
+    ) {
+        CarMakeSheet(
+            selected = selected,
+            makes = makes,
+            popular = popular,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            popularSectionLabel = popularSectionLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            notListedLabel = notListedLabel,
+            notListedPlaceholder = notListedPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+            onSelect = { make ->
+                onSelect(make)
+                dismiss()
+            },
+            onClose = { dismiss() },
+        )
+    }
+}
+
+/**
+ * One make as a square tile in a grid: the monogram over the name. Tapping it is the choice,
+ * so there is no selected state.
+ */
+@Composable
+fun OdoCarMakeTile(
+    make: OdoCarMake,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OdoCard(
+        modifier = modifier,
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.md),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
-            CarMakeSheet(
-                selected = selected,
-                makes = makes,
-                popular = popular,
-                title = title,
-                subtitle = subtitle,
-                searchPlaceholder = searchPlaceholder,
-                matchCountLabel = matchCountLabel,
-                popularSectionLabel = popularSectionLabel,
-                allSectionLabel = allSectionLabel,
-                emptyResultsText = emptyResultsText,
-                closeContentDescription = closeContentDescription,
-                notListedLabel = notListedLabel,
-                notListedPlaceholder = notListedPlaceholder,
-                notListedConfirmLabel = notListedConfirmLabel,
-                onSelect = { make ->
-                    onSelect(make)
-                    dismiss()
-                },
-                onClose = { dismiss() },
+            MakeAvatar(make = make, selected = false, size = CollapsedAvatarSize)
+            OdoText(
+                text = make.name,
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.text,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
             )
         }
     }

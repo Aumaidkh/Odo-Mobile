@@ -62,8 +62,8 @@ import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal_terms
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_sign_in
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark_reading
-import com.hopcape.odo.feature.onboarding.resources.onb_welcome_subtitle
-import com.hopcape.odo.feature.onboarding.resources.onb_welcome_title
+import com.hopcape.odo.feature.onboarding.resources.onb_welcome_v1_subtitle
+import com.hopcape.odo.feature.onboarding.resources.onb_welcome_v1_title
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_bill
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_cost
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_resale
@@ -115,12 +115,12 @@ internal fun WelcomeScreen(
             Entrance(1, visible) {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
                     OdoText(
-                        text = stringResource(Res.string.onb_welcome_title),
+                        text = stringResource(Res.string.onb_welcome_v1_title),
                         style = OdoTheme.typography.display.copy(fontSize = 32.sp, lineHeight = 38.sp),
                         color = OdoTheme.colors.text,
                     )
                     OdoText(
-                        text = stringResource(Res.string.onb_welcome_subtitle),
+                        text = stringResource(Res.string.onb_welcome_v1_subtitle),
                         style = OdoTheme.typography.body,
                         color = OdoTheme.colors.textDim,
                     )
@@ -169,7 +169,7 @@ internal fun WelcomeScreen(
  * sits at the bottom, so it reads as a dial sweeping — the odometer is the product.
  */
 @Composable
-private fun OdometerMark() {
+internal fun OdometerMark() {
     val accent = OdoTheme.colors.accent
     Box(Modifier.size(MarkSize), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
@@ -245,7 +245,7 @@ private fun ValueRow(prop: ValueProp) {
  * stay tappable wherever they land in the sentence.
  */
 @Composable
-private fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
+internal fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
     val terms = stringResource(Res.string.onb_welcome_legal_terms)
     val privacy = stringResource(Res.string.onb_welcome_legal_privacy)
     val sentence = stringResource(Res.string.onb_welcome_legal, terms, privacy)
@@ -285,7 +285,7 @@ private fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
 
 /** Staggered rise-and-fade, matching the paywall's entrance so first-run feels of a piece. */
 @Composable
-private fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Unit) {
+internal fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Unit) {
     val progress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(durationMillis = 480, delayMillis = 80 * index, easing = FastOutSlowInEasing),
@@ -300,7 +300,7 @@ private fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Un
 }
 
 private val MarkSize = 84.dp
-private val GlowHeight = 420.dp
+internal val GlowHeight = 420.dp
 
 @OdoThemePreviews
 @Composable

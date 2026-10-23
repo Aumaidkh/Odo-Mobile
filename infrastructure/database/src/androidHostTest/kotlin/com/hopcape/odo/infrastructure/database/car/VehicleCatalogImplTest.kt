@@ -31,12 +31,20 @@ class VehicleCatalogImplTest {
     fun popularMakes_areAPrefixOfTheFullList() = runTest {
         val catalog = VehicleCatalogImpl(seededDb())
 
-        val popular = catalog.popularMakes()
+        val popular = catalog.popularMakes(4)
         val all = catalog.makes()
 
         // Same ordering, just fewer — "popular" and "listed first" must never disagree.
         assertEquals(all.take(popular.size), popular)
         assertTrue(popular.size < all.size, "chips must be a subset, not the whole list")
+    }
+
+    @Test
+    fun popularMakes_honoursTheLimit() = runTest {
+        val catalog = VehicleCatalogImpl(seededDb())
+
+        assertEquals(4, catalog.popularMakes(4).size)
+        assertEquals(catalog.makes().take(8), catalog.popularMakes(8))
     }
 
     @Test

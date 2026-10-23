@@ -18,6 +18,7 @@ val onboardingAnalyticsEvents: List<EventSchema> = listOf(
     // Declared late: it was named in `Event` but never here, so strict validation dropped it
     // in exactly the builds where the funnel gets checked.
     EventSchema(OnboardingTelemetry.Event.WELCOME_SIGN_IN),
+    EventSchema(OnboardingTelemetry.Event.MAKE_OTHER_OPENED),
     EventSchema(
         OnboardingTelemetry.Event.LEGAL_OPENED,
         mapOf(OnboardingTelemetry.Key.DOCUMENT to PropertyType.STRING),

@@ -63,6 +63,7 @@ class ConfigGraphTest {
                 // Declared in :feature:onboarding — a third module contributing keys.
                 "onboarding_video_enabled",
                 "first_run_v2_enabled",
+                "onboarding_welcome_title",
                 "onboarding_video_refuel_url",
                 "onboarding_video_scanner_url",
                 "advisory_classifier_enabled",

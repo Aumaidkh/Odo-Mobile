@@ -152,7 +152,7 @@ internal class FakeVehicleCatalog(
     val modelLookups = mutableListOf<String>()
 
     override suspend fun makes(): List<String> = makes
-    override suspend fun popularMakes(): List<String> = makes.take(2)
+    override suspend fun popularMakes(limit: Int): List<String> = makes.take(minOf(2, limit))
     override suspend fun models(make: String): List<CarModel> {
         modelLookups += make
         return models[make].orEmpty()

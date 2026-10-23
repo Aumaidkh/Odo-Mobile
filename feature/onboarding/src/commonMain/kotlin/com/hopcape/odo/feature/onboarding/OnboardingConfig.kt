@@ -47,6 +47,15 @@ interface OnboardingConfig {
     )
     val firstRunV2Enabled: Boolean
 
+    /** The v2 Welcome title. Blank shows the bundled `onb_welcome_title`. */
+    @Value(
+        key = "onboarding_welcome_title",
+        default = "",
+        owner = "growth",
+        why = "Lets the v2 Welcome title change without a release",
+    )
+    val welcomeTitle: String
+
     /**
      * The Smart Refuel clip, streamed.
      *
