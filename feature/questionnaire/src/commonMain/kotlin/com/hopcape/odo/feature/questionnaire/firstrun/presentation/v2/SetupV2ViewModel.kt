@@ -7,6 +7,8 @@ import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
+import com.hopcape.odo.core.domain.setup.SetupDraft
+import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.core.platform.notification.EngagementNudge
 import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
@@ -27,18 +29,26 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 /**
  * State holder for the v2 setup: Model, then Year and fuel, then "Save my car". The make
  * comes from the Welcome tile. The car is saved with the odometer pending.
  *
  * v1's `OnboardingViewModel` stays untouched for the kill switch; both share the use cases.
+ *
+ * Every answer is kept in a [SetupDraft] so a returning owner can carry on; [resume] opens
+ * from that draft. The draft is cleared when the car is saved.
  */
 internal class SetupV2ViewModel(
     make: String,
+    private val resume: Boolean,
+    private val drafts: SetupDraftRepository,
+    private val clock: Clock,
     private val loadCatalog: LoadVehicleCatalogUseCase,
     private val loadModels: LoadCarModelsUseCase,
     private val saveCar: SaveCarUseCase,
@@ -64,7 +74,43 @@ internal class SetupV2ViewModel(
         telemetry.started()
         // The make was the Welcome tap, the first answer of setup.
         fieldAnswered(SetupTelemetry.Field.MAKE)
+        if (resume) restoreDraft()
         load()
+    }
+
+    /** Opens on the first unanswered step with the earlier answers selected. */
+    private fun restoreDraft() {
+        viewModelScope.launch {
+            val draft = drafts.observe().first() ?: return@launch
+            if (!draft.make.equals(_state.value.make, ignoreCase = true)) return@launch
+            val model = draft.modelName?.let { CarModel(it, draft.modelVariant) }
+            model?.let { answeredFields += SetupTelemetry.Field.MODEL }
+            draft.year?.let { answeredFields += SetupTelemetry.Field.YEAR }
+            draft.fuel?.let { answeredFields += SetupTelemetry.Field.FUEL }
+            _state.update {
+                it.copy(
+                    model = model,
+                    year = draft.year,
+                    fuel = draft.fuel,
+                    step = if (model == null) SetupV2Step.MODEL else SetupV2Step.YEAR_FUEL,
+                )
+            }
+        }
+    }
+
+    /** Keeps the answers so far, so killing the app mid-setup loses nothing. */
+    private fun saveDraft() {
+        val state = _state.value
+        val draft = SetupDraft(
+            make = state.make,
+            modelName = state.model?.name,
+            modelVariant = state.model?.variant,
+            year = state.year,
+            fuel = state.fuel,
+            updatedAt = clock.now(),
+        )
+        // A failed write is logged by the repository; setup carries on without it.
+        viewModelScope.launch { drafts.save(draft) }
     }
 
     fun onEvent(event: SetupV2Event) {
@@ -73,10 +119,12 @@ internal class SetupV2ViewModel(
             is SetupV2Event.YearChosen -> {
                 fieldAnswered(SetupTelemetry.Field.YEAR)
                 _state.update { it.copy(year = event.year) }
+                saveDraft()
             }
             is SetupV2Event.FuelChosen -> {
                 fieldAnswered(SetupTelemetry.Field.FUEL)
                 _state.update { it.copy(fuel = event.fuel) }
+                saveDraft()
             }
             SetupV2Event.SaveClicked -> save()
             SetupV2Event.CatalogRetried -> {
@@ -99,6 +147,7 @@ internal class SetupV2ViewModel(
         fieldAnswered(SetupTelemetry.Field.MODEL)
         telemetry.stepAdvanced(SetupTelemetry.Step.MODEL)
         _state.update { it.copy(model = model, step = SetupV2Step.YEAR_FUEL) }
+        saveDraft()
     }
 
     private fun load() {
@@ -135,6 +184,7 @@ internal class SetupV2ViewModel(
                 make = command.make,
                 fuel = command.fuelType?.name,
                 step = SetupTelemetry.Step.YEAR_FUEL,
+                resumed = resume,
             ) {
                 saveCar(command = command, ownerId = currentOwner.currentOwnerId(), existing = savedCarId)
             }
@@ -144,6 +194,7 @@ internal class SetupV2ViewModel(
                 ifRight = { car ->
                     savedCarId = car.id
                     reportIfUnlisted(current, command)
+                    drafts.clear()
                     finish()
                 },
             )

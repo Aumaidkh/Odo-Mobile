@@ -256,6 +256,7 @@ internal class SetupTelemetry(
         make: String?,
         fuel: String?,
         step: String = OnboardingStep.CAR.name,
+        resumed: Boolean = false,
         write: suspend () -> EitherNel<DomainError, Car>,
     ): EitherNel<DomainError, Car> = traced(Trace.SAVE_CAR, Key.EDIT to edit) { span ->
         val result = write()
@@ -263,7 +264,7 @@ internal class SetupTelemetry(
             ifLeft = { errors -> span.setAttribute(Key.OUTCOME, Outcome.FAILED); logSaveFailure(step, errors) },
             ifRight = { car ->
                 span.setAttribute(Key.CAR_ID, car.id.value)
-                val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel)
+                val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel, Key.RESUMED to resumed)
                 analytics.track(Event.CAR_SAVED, fields)
                 logger.info(TAG, Event.CAR_SAVED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -375,6 +376,7 @@ internal class SetupTelemetry(
         const val FIELDS_ANSWERED = "fields_answered"
         const val STOPPED_AT = "stopped_at"
         const val CATALOG = "catalog"
+        const val RESUMED = "resumed"
     }
 
     /** The values [Key.FIELD] and [Key.STOPPED_AT] take. */

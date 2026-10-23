@@ -55,6 +55,11 @@ import com.hopcape.odo.feature.onboarding.resources.onb_welcome_make_sheet_subti
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_make_sheet_title
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_make_type_confirm
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_make_type_placeholder
+import com.hopcape.odo.feature.onboarding.resources.onb_resume_body
+import com.hopcape.odo.feature.onboarding.resources.onb_resume_continue
+import com.hopcape.odo.feature.onboarding.resources.onb_resume_reset
+import com.hopcape.odo.feature.onboarding.resources.onb_resume_title_make
+import com.hopcape.odo.feature.onboarding.resources.onb_resume_title_model
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_sign_in
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_subtitle
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_title
@@ -93,22 +98,34 @@ internal fun MakeWelcomeScreen(
             Spacer(Modifier.height(OdoTheme.spacing.xl))
             Entrance(0, visible) { OdometerMark() }
             Spacer(Modifier.height(OdoTheme.spacing.lg))
+            val resume = state.resume
             Entrance(1, visible) {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
                     OdoText(
-                        text = state.title ?: stringResource(Res.string.onb_welcome_title),
+                        text = when {
+                            resume == null -> state.title ?: stringResource(Res.string.onb_welcome_title)
+                            resume.model == null -> stringResource(Res.string.onb_resume_title_make, resume.make)
+                            else -> stringResource(Res.string.onb_resume_title_model, resume.make, resume.model)
+                        },
                         style = OdoTheme.typography.display.copy(fontSize = 28.sp, lineHeight = 34.sp),
                         color = OdoTheme.colors.text,
                     )
                     OdoText(
-                        text = stringResource(Res.string.onb_welcome_subtitle),
+                        text = stringResource(
+                            if (resume == null) Res.string.onb_welcome_subtitle else Res.string.onb_resume_body,
+                        ),
                         style = OdoTheme.typography.body,
                         color = OdoTheme.colors.textDim,
                     )
                 }
             }
             Spacer(Modifier.height(OdoTheme.spacing.lg))
-            Entrance(2, visible) { MakeGrid(tiles = state.tiles, onEvent = onEvent) }
+            when {
+                // Nothing until the draft is read, so the grid never flashes before S1r.
+                !state.ready -> Unit
+                resume != null -> Entrance(2, visible) { ResumeActions(onEvent) }
+                else -> Entrance(2, visible) { MakeGrid(tiles = state.tiles, onEvent = onEvent) }
+            }
             Spacer(Modifier.height(OdoTheme.spacing.lg))
             Entrance(3, visible) {
                 Column(
@@ -132,6 +149,24 @@ internal fun MakeWelcomeScreen(
     }
 
     if (state.otherOpen) OtherMakeSheet(allMakes = state.allMakes, popular = state.tiles, onEvent = onEvent)
+}
+
+/** S1r: carry on with the draft, or drop it for the grid. */
+@Composable
+private fun ResumeActions(onEvent: (MakeWelcomeEvent) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+        OdoButton(
+            text = stringResource(Res.string.onb_resume_continue),
+            onClick = { onEvent(MakeWelcomeEvent.ContinueSetupClicked) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OdoButton(
+            text = stringResource(Res.string.onb_resume_reset),
+            onClick = { onEvent(MakeWelcomeEvent.PickDifferentCarClicked) },
+            variant = OdoButtonVariant.Tertiary,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 /** The tiles in catalog order, then "Other". */
@@ -197,7 +232,14 @@ private const val LARGE_FONT_SCALE = 1.3f
 
 private val previewState = MakeWelcomeUiState(
     tiles = listOf("Maruti Suzuki", "Hyundai", "Tata", "Mahindra", "Kia", "Toyota", "Honda", "Renault"),
+    ready = true,
 )
+
+@OdoThemePreviews
+@Composable
+private fun MakeWelcomeResumePreview() = OdoPreview(padded = false) {
+    MakeWelcomeScreen(state = previewState.copy(resume = ResumeDraft("Hyundai", "Creta")), onEvent = {})
+}
 
 @OdoThemePreviews
 @Composable

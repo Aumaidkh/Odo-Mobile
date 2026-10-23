@@ -52,6 +52,8 @@ import com.hopcape.odo.infrastructure.database.cost.FuelFillSyncable
 import com.hopcape.odo.infrastructure.database.car.SqlDelightCarLocalDataSource
 import com.hopcape.odo.infrastructure.database.car.UnlistedVehicleReporterImpl
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogImpl
+import com.hopcape.odo.infrastructure.database.setup.SqlDelightSetupDraftRepository
+import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncTable
 import com.hopcape.odo.infrastructure.database.car.VehicleCatalogSubmissionSyncable
@@ -417,6 +419,7 @@ val databaseInfrastructureModule = module {
     single<DiagnosticRequests> { SqlDelightDiagnosticRequests(database = get(), clock = get()) }
 
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
+    single<SetupDraftRepository> { SqlDelightSetupDraftRepository(database = get(), logger = get(), tracer = get()) }
 
     // Keeps the local make/model cache above current with the shared Supabase catalog.
     // `createdAtStart` so the pull kicks off at launch rather than waiting for someone to

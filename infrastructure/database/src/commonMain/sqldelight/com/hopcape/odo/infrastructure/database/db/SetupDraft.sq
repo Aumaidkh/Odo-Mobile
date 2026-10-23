@@ -1,0 +1,22 @@
+-- The answers of an unfinished first-run setup, so a returning owner can carry on.
+-- Device-local and never synced, so it has no sync columns. One row, pinned to id 1.
+CREATE TABLE setup_draft (
+    id            INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    make          TEXT NOT NULL,
+    model_name    TEXT,
+    model_variant TEXT,
+    year          INTEGER,
+    fuel_type     TEXT,
+    updated_at    TEXT NOT NULL
+);
+
+selectDraft:
+SELECT * FROM setup_draft WHERE id = 1;
+
+-- SQLite 3.18 has no UPSERT; a delete and insert in one transaction replaces the row.
+deleteDraft:
+DELETE FROM setup_draft;
+
+insertDraft:
+INSERT INTO setup_draft (id, make, model_name, model_variant, year, fuel_type, updated_at)
+VALUES (1, ?, ?, ?, ?, ?, ?);

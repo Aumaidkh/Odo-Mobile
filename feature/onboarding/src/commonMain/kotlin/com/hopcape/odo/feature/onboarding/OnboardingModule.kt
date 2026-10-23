@@ -31,7 +31,9 @@ val onboardingModule = module {
     viewModel { WelcomeVideoViewModel(config = get(), telemetry = get()) }
     viewModel { WelcomeViewModel(telemetry = get()) }
     factory { LoadMakeChoicesUseCase(catalog = get()) }
-    viewModel { MakeWelcomeViewModel(loadMakes = get(), config = get(), telemetry = get()) }
+    viewModel {
+        MakeWelcomeViewModel(loadMakes = get(), config = get(), drafts = get(), clock = get(), telemetry = get())
+    }
 
     single {
         OnboardingFeatureEntryProvider(

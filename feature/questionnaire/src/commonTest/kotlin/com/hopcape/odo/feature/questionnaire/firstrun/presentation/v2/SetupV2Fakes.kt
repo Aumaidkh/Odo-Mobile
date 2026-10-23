@@ -13,6 +13,8 @@ import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.setup.SetupDraft
+import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.core.domain.servicelog.model.OdometerReading
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -86,6 +88,23 @@ internal class V2Analytics : AnalyticsTracker {
     override fun identify(traits: UserTraits) = Unit
     override fun setConsent(status: ConsentStatus) = Unit
     override fun flush() = Unit
+}
+
+internal class V2Drafts(var current: SetupDraft? = null) : SetupDraftRepository {
+    val saves = mutableListOf<SetupDraft>()
+    var clears = 0
+
+    override fun observe(): Flow<SetupDraft?> = flowOf(current)
+    override suspend fun save(draft: SetupDraft): Either<DomainError, Unit> {
+        saves += draft
+        current = draft
+        return Unit.right()
+    }
+    override suspend fun clear(): Either<DomainError, Unit> {
+        clears++
+        current = null
+        return Unit.right()
+    }
 }
 
 internal class V2Clock(private val instant: Instant = Instant.parse("2026-10-24T12:00:00Z")) : Clock {

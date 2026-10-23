@@ -9,6 +9,7 @@ import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.odo.core.domain.car.repository.CarRepository
+import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingTestTags
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -34,6 +35,7 @@ class FirstRunV2EndToEndTest {
                 val driver = GlobalContext.get().get<SqlDriver>()
                 driver.execute(null, "DELETE FROM cars", 0)
                 driver.execute(null, "DELETE FROM profiles", 0)
+                driver.execute(null, "DELETE FROM setup_draft", 0)
                 silenceTheCoachMarks()
             },
         )
@@ -80,6 +82,44 @@ class FirstRunV2EndToEndTest {
         Espresso.pressBack()
 
         rule.waitForText(V2Copy.WELCOME_TITLE)
+    }
+
+    @Test
+    fun aKilledSetup_resumesWhereItStopped() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.waitForText(V2Copy.YEAR_FUEL_TITLE)
+
+        rule.relaunchTheApp().use {
+            rule.waitForText(V2Copy.RESUME_TITLE, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.onNodeWithText(V2Copy.CONTINUE_SETUP).performClick()
+            rule.waitForText(V2Copy.YEAR_FUEL_TITLE)
+            rule.onNodeWithText("HYUNDAI CRETA").assertExists()
+        }
+    }
+
+    @Test
+    fun pickADifferentCar_bringsBackTheGrid() {
+        rule.pickMake("Hyundai")
+        rule.waitForText(V2Copy.MODEL_TITLE)
+
+        rule.relaunchTheApp().use {
+            rule.waitForText(V2Copy.RESUME_TITLE_MAKE, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.onNodeWithText(V2Copy.PICK_DIFFERENT).performClick()
+            rule.waitForTag(V2Copy.tile("Tata"))
+        }
+    }
+
+    @Test
+    fun aSavedCar_leavesNoDraft() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.pickYearAndFuel(2022, "PETROL")
+        rule.saveTheCar()
+        rule.waitUntilPresent(Copy.VALUE_SKIP, 10_000)
+
+        val drafts = runBlocking { GlobalContext.get().get<SetupDraftRepository>().observe().first() }
+        assertEquals(null, drafts)
     }
 
     @Test

@@ -54,9 +54,12 @@ internal val setupModule = module {
         )
     }
 
-    viewModel { (make: String) ->
+    viewModel { (make: String, resume: Boolean) ->
         SetupV2ViewModel(
             make = make,
+            resume = resume,
+            drafts = get(),
+            clock = get(),
             loadCatalog = get(),
             loadModels = get(),
             saveCar = get(),

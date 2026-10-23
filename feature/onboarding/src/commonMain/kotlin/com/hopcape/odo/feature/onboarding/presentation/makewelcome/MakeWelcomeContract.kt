@@ -13,7 +13,15 @@ internal data class MakeWelcomeUiState(
     val tiles: List<String> = emptyList(),
     val allMakes: List<String> = emptyList(),
     val otherOpen: Boolean = false,
+    /** An unfinished setup to offer, which replaces the grid (S1r). Null shows the grid. */
+    val resume: ResumeDraft? = null,
+    /** False until the draft has been read, so the grid never flashes before S1r. */
+    val ready: Boolean = false,
 )
+
+/** The car named so far in an unfinished setup. */
+@Immutable
+internal data class ResumeDraft(val make: String, val model: String?)
 
 internal sealed interface MakeWelcomeEvent {
     data class MakeTapped(val make: String) : MakeWelcomeEvent
@@ -22,13 +30,15 @@ internal sealed interface MakeWelcomeEvent {
 
     /** A make picked or typed in the "Other" sheet. */
     data class OtherPicked(val make: String) : MakeWelcomeEvent
+    data object ContinueSetupClicked : MakeWelcomeEvent
+    data object PickDifferentCarClicked : MakeWelcomeEvent
     data object SignInClicked : MakeWelcomeEvent
     data object TermsClicked : MakeWelcomeEvent
     data object PrivacyClicked : MakeWelcomeEvent
 }
 
 internal sealed interface MakeWelcomeEffect {
-    data class OpenSetup(val make: String) : MakeWelcomeEffect
+    data class OpenSetup(val make: String, val resume: Boolean = false) : MakeWelcomeEffect
     data object OpenSignIn : MakeWelcomeEffect
     data object OpenTerms : MakeWelcomeEffect
     data object OpenPrivacy : MakeWelcomeEffect

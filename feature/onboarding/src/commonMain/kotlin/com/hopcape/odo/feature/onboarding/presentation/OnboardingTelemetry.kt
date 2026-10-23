@@ -44,6 +44,18 @@ internal class OnboardingTelemetry(
         logger.info(TAG, Event.WELCOME_COMPLETED, tc = flowTrace.toLog(), fields = fields)
     }
 
+    /** "Continue setup" on S1r. [step] is where setup reopens: `model` or `year_fuel`. */
+    fun resumed(step: String) {
+        analytics.track(Event.RESUMED, mapOf(Key.STEP to step))
+        logger.info(TAG, Event.RESUMED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** "Pick a different car" on S1r: the draft is dropped. */
+    fun resumeReset() {
+        analytics.track(Event.RESUME_RESET)
+        logger.info(TAG, Event.RESUME_RESET, tc = flowTrace.toLog())
+    }
+
     fun makeOtherOpened() {
         analytics.track(Event.MAKE_OTHER_OPENED)
         logger.info(TAG, Event.MAKE_OTHER_OPENED, tc = flowTrace.toLog())
@@ -103,6 +115,8 @@ internal class OnboardingTelemetry(
         const val WELCOME_SIGN_IN = "onboarding_welcome_sign_in"
         const val LEGAL_OPENED = "onboarding_legal_opened"
         const val MAKE_OTHER_OPENED = "onboarding_make_other_opened"
+        const val RESUMED = "onboarding_resumed"
+        const val RESUME_RESET = "onboarding_resume_reset"
         const val MAKES_LOAD_FAILED = "onboarding_makes_load_failed"
     }
 
@@ -113,6 +127,7 @@ internal class OnboardingTelemetry(
     object Key {
         const val DOCUMENT = "document"
         const val VARIANT = "variant"
+        const val STEP = "step"
         const val MAKE_SOURCE = "make_source"
         const val MAKE = "make"
         const val OUTCOME = "outcome"

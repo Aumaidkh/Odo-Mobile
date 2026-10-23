@@ -51,7 +51,7 @@ internal class SetupFeatureEntryProvider(
             // v2 always arrives with the Welcome tile's make; anything else is the v1 form.
             val make = key.make
             if (key.variant == FirstRunVariant.V2 && make != null) {
-                SetupV2Route(navigationManager, make)
+                SetupV2Route(navigationManager, make, key.resume)
             } else {
                 SetupRoute(navigationManager)
             }
@@ -123,8 +123,8 @@ internal fun SetupRoute(navigationManager: NavigationManager) {
 
 /** The v2 setup route. The value screen is pushed on top, so back returns to Year and fuel. */
 @Composable
-internal fun SetupV2Route(navigationManager: NavigationManager, make: String) {
-    val viewModel = koinViewModel<SetupV2ViewModel>(key = "setup-v2-$make") { parametersOf(make) }
+internal fun SetupV2Route(navigationManager: NavigationManager, make: String, resume: Boolean) {
+    val viewModel = koinViewModel<SetupV2ViewModel>(key = "setup-v2-$make-$resume") { parametersOf(make, resume) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var failure by remember { mutableStateOf<UiText?>(null) }

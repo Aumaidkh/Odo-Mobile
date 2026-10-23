@@ -113,7 +113,7 @@ internal fun MakeWelcomeRoute(navigationManager: NavigationManager, legalLinks: 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             is MakeWelcomeEffect.OpenSetup -> navigationManager.navigateTo(
-                OdoDestination.Onboarding(make = effect.make, variant = FirstRunVariant.V2),
+                OdoDestination.Onboarding(make = effect.make, variant = FirstRunVariant.V2, resume = effect.resume),
             )
             MakeWelcomeEffect.OpenSignIn -> navigationManager.finishFlow(
                 OdoDestination.Auth.Phone(next = OdoDestination.Home),

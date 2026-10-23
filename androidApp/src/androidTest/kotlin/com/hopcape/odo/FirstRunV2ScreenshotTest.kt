@@ -25,6 +25,7 @@ class FirstRunV2ScreenshotTest {
                 val driver = GlobalContext.get().get<SqlDriver>()
                 driver.execute(null, "DELETE FROM cars", 0)
                 driver.execute(null, "DELETE FROM profiles", 0)
+                driver.execute(null, "DELETE FROM setup_draft", 0)
                 silenceTheCoachMarks()
             },
         )
@@ -53,6 +54,18 @@ class FirstRunV2ScreenshotTest {
         rule.pickYearAndFuel(2022, "PETROL")
         rule.captureScreen("after-s3-year-fuel-answered")
     }
+
+    @Test
+    fun capturesTheResumeWelcome() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.waitForText(V2Copy.YEAR_FUEL_TITLE)
+
+        rule.relaunchTheApp().use {
+            rule.waitForText(V2Copy.RESUME_TITLE, START_DESTINATION_TIMEOUT_MILLIS)
+            rule.captureScreen("after-s1r-resume")
+        }
+    }
 }
 
 /** The v2 first run's copy, mirrored from the features' `strings.xml`. */
@@ -62,6 +75,10 @@ internal object V2Copy {
     const val YEAR_FUEL_TITLE = "A couple of quick taps"
     const val SAVE = "Save my car"
     const val CHANGE = "Change"
+    const val RESUME_TITLE = "Your Hyundai Creta is almost set up"
+    const val RESUME_TITLE_MAKE = "Your Hyundai is almost set up"
+    const val CONTINUE_SETUP = "Continue setup"
+    const val PICK_DIFFERENT = "Pick a different car"
     const val OTHER_SHEET_TITLE = "Choose make"
     const val OTHER_TILE = "welcome_make_tile_other"
     fun tile(make: String) = "welcome_make_tile_$make"

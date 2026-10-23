@@ -20,6 +20,11 @@ val onboardingAnalyticsEvents: List<EventSchema> = listOf(
     EventSchema(OnboardingTelemetry.Event.WELCOME_SIGN_IN),
     EventSchema(OnboardingTelemetry.Event.MAKE_OTHER_OPENED),
     EventSchema(
+        OnboardingTelemetry.Event.RESUMED,
+        mapOf(OnboardingTelemetry.Key.STEP to PropertyType.STRING),
+    ),
+    EventSchema(OnboardingTelemetry.Event.RESUME_RESET),
+    EventSchema(
         OnboardingTelemetry.Event.LEGAL_OPENED,
         mapOf(OnboardingTelemetry.Key.DOCUMENT to PropertyType.STRING),
     ),

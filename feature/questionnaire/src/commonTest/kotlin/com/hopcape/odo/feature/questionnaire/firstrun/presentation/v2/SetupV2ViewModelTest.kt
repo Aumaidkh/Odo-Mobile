@@ -6,6 +6,7 @@ import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.owner.CurrentOwnerProvider
 import com.hopcape.odo.core.domain.owner.model.OwnerId
+import com.hopcape.odo.core.domain.setup.SetupDraft
 import com.hopcape.odo.core.platform.notification.EngagementNudge
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
@@ -213,7 +214,95 @@ class SetupV2ViewModelTest {
         onEvent(SetupV2Event.SaveClicked)
     }
 
+    @Test
+    fun everyAnswerIsKeptInTheDraft() = runTest(dispatcher) {
+        val drafts = V2Drafts()
+        val viewModel = viewModel(drafts = drafts)
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.ModelChosen(CarModel("Creta")))
+        advanceUntilIdle()
+        assertEquals("Creta", drafts.current?.modelName)
+        viewModel.onEvent(SetupV2Event.YearChosen(2022))
+        advanceUntilIdle()
+        assertEquals(2022, drafts.current?.year)
+        viewModel.onEvent(SetupV2Event.FuelChosen(FuelType.DIESEL))
+        advanceUntilIdle()
+
+        assertEquals(
+            SetupDraft("Hyundai", "Creta", null, 2022, FuelType.DIESEL, V2Clock().now()),
+            drafts.current,
+        )
+    }
+
+    @Test
+    fun savingTheCar_clearsTheDraft() = runTest(dispatcher) {
+        val drafts = V2Drafts()
+        val viewModel = viewModel(drafts = drafts)
+        advanceUntilIdle()
+
+        viewModel.answer(CarModel("Creta"))
+        advanceUntilIdle()
+
+        assertEquals(SetupV2Effect.ShowValue, viewModel.effects.first())
+        assertNull(drafts.current)
+        assertEquals(1, drafts.clears)
+    }
+
+    @Test
+    fun resumeWithOnlyAMake_opensOnModel() = runTest(dispatcher) {
+        val viewModel = viewModel(resume = true, drafts = V2Drafts(draft()))
+        advanceUntilIdle()
+
+        assertEquals(SetupV2Step.MODEL, viewModel.state.value.step)
+    }
+
+    @Test
+    fun resumeWithAModel_opensOnYearAndFuel() = runTest(dispatcher) {
+        val viewModel = viewModel(resume = true, drafts = V2Drafts(draft(model = "Creta")))
+        advanceUntilIdle()
+
+        assertEquals(SetupV2Step.YEAR_FUEL, viewModel.state.value.step)
+        assertEquals(CarModel("Creta"), viewModel.state.value.model)
+        assertFalse(viewModel.state.value.canSave)
+    }
+
+    @Test
+    fun resumeWithEveryAnswer_opensOnYearAndFuelReadyToSave() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(
+            resume = true,
+            drafts = V2Drafts(draft(model = "Creta", year = 2022, fuel = FuelType.PETROL)),
+            analytics = analytics,
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(SetupV2Step.YEAR_FUEL, state.step)
+        assertEquals(2022, state.year)
+        assertEquals(FuelType.PETROL, state.fuel)
+        assertTrue(state.canSave)
+
+        viewModel.onEvent(SetupV2Event.SaveClicked)
+        advanceUntilIdle()
+        assertEquals(true, analytics.last(SetupTelemetry.Event.CAR_SAVED)[SetupTelemetry.Key.RESUMED])
+    }
+
+    @Test
+    fun aFreshSetup_doesNotReadTheDraft() = runTest(dispatcher) {
+        val viewModel = viewModel(resume = false, drafts = V2Drafts(draft(model = "Venue", year = 2020)))
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.model)
+        assertEquals(SetupV2Step.MODEL, viewModel.state.value.step)
+    }
+
+    private fun draft(model: String? = null, year: Int? = null, fuel: FuelType? = null) =
+        SetupDraft(make = "Hyundai", modelName = model, year = year, fuel = fuel, updatedAt = V2Clock().now())
+
     private fun viewModel(
+        resume: Boolean = false,
+        drafts: V2Drafts = V2Drafts(),
         catalog: V2Catalog = V2Catalog(),
         cars: V2Cars = V2Cars(),
         nudges: V2Nudges = V2Nudges(),
@@ -221,6 +310,9 @@ class SetupV2ViewModelTest {
         analytics: V2Analytics = V2Analytics(),
     ) = SetupV2ViewModel(
         make = "Hyundai",
+        resume = resume,
+        drafts = drafts,
+        clock = V2Clock(),
         loadCatalog = LoadVehicleCatalogUseCase(catalog),
         loadModels = LoadCarModelsUseCase(catalog),
         saveCar = SaveCarUseCase(
