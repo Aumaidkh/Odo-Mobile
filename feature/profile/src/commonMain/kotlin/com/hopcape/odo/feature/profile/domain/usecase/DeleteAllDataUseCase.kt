@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.first
  * erasure runs alongside it (DB_SCHEMA §13) and the copy stops saying "on this device".
  *
  * The car goes first, because removing it is what takes the service logs and documents with
- * it in one transaction. Then the profile, which is what sends the next launch back to
+ * it in one transaction. With the car and the profile both gone, the next launch opens
  * first-run setup. Settings, coach marks and the diagnostics outbox are cleared last and are
  * not allowed to fail the wipe: the owner asked for their data gone, and a leftover theme is
  * not their data.

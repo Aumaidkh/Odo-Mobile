@@ -22,39 +22,33 @@ internal class DefaultTripTracker(
 
     private val enabled = MutableStateFlow(false)
 
-    /**
-     * Turns the engine on or off, and on the way on asks Android what the car is doing right
-     * now rather than only waiting to be told.
-     *
-     * Presence is otherwise event-only: `AclVehiclePresenceSource` carries nothing but ACL
-     * connect/disconnect broadcasts. Arming while the phone is already connected therefore
-     * used to mean waiting for a broadcast that had already fired — the owner got in the car,
-     * the stereo connected, and only then did anything arm, so the next connect was a whole
-     * drive away. That is issue #271, and it is the reason the seed lives here rather than at
-     * each caller: every way of arming runs through this one method (cold start and OS wake
-     * via [armFromPersistedState], finishing setup, resuming from a pause, the settings
-     * toggle), and the bug was a call site that forgot. One place cannot forget.
-     *
-     * [TripTrackerEngine.startIfConnected] raises the same `PresenceConnected` a broadcast
-     * would, so the speed gate still decides whether this is a drive — a car parked with the
-     * stereo on does not become a trip. Firing it a second time when the real broadcast
-     * arrives moments later costs nothing: the state machine treats a repeat in Standby as a
-     * no-op.
-     */
+    /** The owner's own switch, so it is the only path that counts as turning tracking on or off. */
     override suspend fun setEnabled(enabled: Boolean) {
-        if (this.enabled.value == enabled) return
-        this.enabled.value = enabled
-        engine.setEnabled(enabled)
+        if (!arm(enabled)) return
         if (enabled) telemetry.enabled() else telemetry.disabled()
-        if (enabled) engine.startIfConnected()
     }
 
+    /** Re-arms after a cold start or OS wake. Not an owner decision, so nothing is tracked. */
     override suspend fun armFromPersistedState() {
         if (enabled.value) return
         vehicleBondStore.bond() ?: return
         val stored = settings.observe().first()
         if (!stored.trackerEnabled || stored.autoOdoPausedUntil != null) return
-        setEnabled(true)
+        arm(true)
+    }
+
+    /**
+     * Starts or stops the engine, answering false when nothing changed.
+     *
+     * Turning on also asks whether the car is already connected: presence is otherwise
+     * event-only, so arming inside a connected car would wait a whole drive (#271).
+     */
+    private suspend fun arm(enabled: Boolean): Boolean {
+        if (this.enabled.value == enabled) return false
+        this.enabled.value = enabled
+        engine.setEnabled(enabled)
+        if (enabled) engine.startIfConnected()
+        return true
     }
 
     override val isEnabled: StateFlow<Boolean> get() = enabled

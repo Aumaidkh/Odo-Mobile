@@ -117,6 +117,16 @@ internal class BillingTelemetry(
 
     /* ---- Purchase ---- */
 
+    /**
+     * The store would refuse to sell here, so no sheet was opened.
+     *
+     * A crash key as well as a log line: it tells a refused device from a broken paywall.
+     */
+    fun storeUnavailable(reason: String) {
+        logger.warn(TAG, "$PURCHASE.unavailable", fields = mapOf(Key.REASON to reason))
+        crash.setCustomKey(KEY_STORE_READINESS, reason)
+    }
+
     /** The store's purchase sheet is about to open. */
     fun purchaseStarted(planId: String) {
         logger.info(TAG, "$PURCHASE.started", fields = mapOf(Key.PLAN to planId))
@@ -201,6 +211,9 @@ internal class BillingTelemetry(
 
     internal companion object {
         const val TAG = "billing"
+
+        /** Carried on every later crash report, so a store refusal is visible in Crashlytics. */
+        const val KEY_STORE_READINESS = "store_readiness"
         const val CONFIGURE = "configure"
         const val OFFERINGS = "offerings"
         const val ENTITLEMENT = "entitlement"

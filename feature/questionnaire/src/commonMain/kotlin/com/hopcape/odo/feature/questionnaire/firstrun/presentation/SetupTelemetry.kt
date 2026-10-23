@@ -14,6 +14,7 @@ import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
@@ -76,12 +77,31 @@ internal class SetupTelemetry(
     }
 
     /**
-     * The owner left setup from [step]. Tracked because where people give up is the single most
-     * actionable thing about a first-run flow.
+     * The owner left setup from [step]. [fields] is the step's fields in screen order, each
+     * with whether it held an answer, so the event says which one they stopped at.
      */
-    fun abandoned(step: OnboardingStep) {
-        analytics.track(Event.ABANDONED, mapOf(Key.STEP to step.name))
-        logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step.name))
+    fun abandoned(step: OnboardingStep, fields: List<Pair<String, Boolean>>, catalog: Loadable<*>) {
+        val properties = mapOf(
+            Key.STEP to step.name,
+            Key.FIELDS_ANSWERED to fields.count { it.second },
+            Key.STOPPED_AT to (fields.firstOrNull { !it.second }?.first ?: Field.NONE),
+            Key.CATALOG to catalog.label(),
+        )
+        analytics.track(Event.ABANDONED, properties)
+        logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = properties)
+    }
+
+    /** A field got its first answer. [field] is a [Field] name, never what was entered. */
+    fun fieldAnswered(step: OnboardingStep, field: String) {
+        val properties = mapOf(Key.STEP to step.name, Key.FIELD to field)
+        analytics.track(Event.FIELD_ANSWERED, properties)
+        logger.debug(TAG, Event.FIELD_ANSWERED, tc = flowTrace.toLog(), fields = properties)
+    }
+
+    /** The pickers failed to load and the owner asked for another attempt. */
+    fun catalogRetried() {
+        analytics.track(Event.CATALOG_RETRIED)
+        logger.info(TAG, Event.CATALOG_RETRIED, tc = flowTrace.toLog())
     }
 
     fun goalSelected(goal: OnboardingGoal) {
@@ -291,6 +311,8 @@ internal class SetupTelemetry(
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
         const val ABANDONED = "onboarding_abandoned"
+        const val FIELD_ANSWERED = "onboarding_field_answered"
+        const val CATALOG_RETRIED = "onboarding_catalog_retried"
         const val GOAL_SELECTED = "onboarding_goal_selected"
         const val CAR_SAVED = "onboarding_car_saved"
         const val SAVE_FAILED = "onboarding_save_failed"
@@ -333,12 +355,22 @@ internal class SetupTelemetry(
         const val WORKSHOP_TIER = "workshop_tier"
         const val FORGOT = "forgot"
         const val FIELD = "field"
+        const val FIELDS_ANSWERED = "fields_answered"
+        const val STOPPED_AT = "stopped_at"
+        const val CATALOG = "catalog"
     }
 
-    /** The values [Key.FIELD] takes — which half of the last-service answer was missing. */
+    /** The values [Key.FIELD] and [Key.STOPPED_AT] take. */
     object Field {
+        const val MAKE = "make"
+        const val MODEL = "model"
+        const val YEAR = "year"
+        const val FUEL = "fuel"
         const val DATE = "date"
         const val ODOMETER = "odometer"
+
+        /** [Key.STOPPED_AT] when every field was answered and only Continue was left. */
+        const val NONE = "none"
     }
 
     /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */
@@ -349,6 +381,13 @@ internal class SetupTelemetry(
         /** [Key.SOURCE] when nothing matched — the tier names come from `VehicleSource`. */
         const val NO_MATCH = "none"
     }
+}
+
+/** Whether the pickers were on screen: an owner cannot answer a form that never loaded. */
+private fun Loadable<*>.label(): String = when (this) {
+    Loadable.Loading -> "loading"
+    is Loadable.Ready -> "ready"
+    is Loadable.Failed -> "failed"
 }
 
 /**

@@ -99,7 +99,7 @@ internal fun seedAScoredDashboard() {
  * Mark every coach mark seen. They dim the screen behind them, and a picture of Home under a
  * scrim is a picture of the coach mark rather than of the dashboard.
  */
-private fun silenceTheCoachMarks() {
+internal fun silenceTheCoachMarks() {
     val store = GlobalContext.get().get<ShowcaseSeenStore>()
     runBlocking { ShowcaseHookId.entries.forEach { store.markSeen(it) } }
 }

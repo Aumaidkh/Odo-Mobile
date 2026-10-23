@@ -20,8 +20,21 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(
         SetupTelemetry.Event.ABANDONED,
-        mapOf(SetupTelemetry.Key.STEP to PropertyType.STRING),
+        mapOf(
+            SetupTelemetry.Key.STEP to PropertyType.STRING,
+            SetupTelemetry.Key.FIELDS_ANSWERED to PropertyType.INT,
+            SetupTelemetry.Key.STOPPED_AT to PropertyType.STRING,
+            SetupTelemetry.Key.CATALOG to PropertyType.STRING,
+        ),
     ),
+    EventSchema(
+        SetupTelemetry.Event.FIELD_ANSWERED,
+        mapOf(
+            SetupTelemetry.Key.STEP to PropertyType.STRING,
+            SetupTelemetry.Key.FIELD to PropertyType.STRING,
+        ),
+    ),
+    EventSchema(SetupTelemetry.Event.CATALOG_RETRIED),
     // Make and fuel are nullable at the call site, so they are declared by absence rather
     // than as required properties — a required property with a null value is exactly what
     // strict validation throws on.

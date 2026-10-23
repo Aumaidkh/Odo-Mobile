@@ -18,4 +18,12 @@ interface AppInfo {
      * cannot be read, which never satisfies a real minimum and so never blocks anything.
      */
     val versionCode: Long
+
+    /**
+     * Whether the platform's own store installed this build.
+     *
+     * Play will not sell to a copy it did not install, so the paywall asks before it offers.
+     * Defaults to `true`: a platform that cannot tell must not block a real buyer.
+     */
+    val installedFromStore: Boolean get() = true
 }

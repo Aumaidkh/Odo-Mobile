@@ -5,6 +5,8 @@ import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.awaitCancellation
@@ -118,5 +120,21 @@ class OnboardingStartTest {
             onboardingStartDestination(returning = true, config = remote, refresher = remote),
         )
         assertEquals(0, remote.refreshCalls)
+    }
+
+    @Test
+    fun aStampedProfileIsReturning() {
+        assertTrue(isReturningOwner(stamped = true, hasCar = false))
+    }
+
+    /** 1.4.3 and 1.4.4 stored the car without the stamp; those owners must still open Home. */
+    @Test
+    fun aCarWithoutTheStampIsReturning() {
+        assertTrue(isReturningOwner(stamped = false, hasCar = true))
+    }
+
+    @Test
+    fun noStampAndNoCarIsANewInstall() {
+        assertFalse(isReturningOwner(stamped = false, hasCar = false))
     }
 }

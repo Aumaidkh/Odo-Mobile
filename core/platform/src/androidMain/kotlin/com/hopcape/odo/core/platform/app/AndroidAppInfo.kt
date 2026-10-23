@@ -31,8 +31,29 @@ internal class AndroidAppInfo(private val context: Context) : AppInfo {
         }
     }
 
+    /**
+     * `getInstallSourceInfo` needs API 30; below it the deprecated lookup is all there is.
+     *
+     * A read that throws counts as Play: blocking a real buyer would cost more than the
+     * crash this prevents.
+     */
+    override val installedFromStore: Boolean by lazy {
+        runCatching {
+            val installer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getInstallerPackageName(context.packageName)
+            }
+            installer == PLAY_STORE_PACKAGE
+        }.getOrDefault(true)
+    }
+
     private companion object {
         const val UNKNOWN_VERSION = "—"
         const val UNKNOWN_VERSION_CODE = 0L
+
+        /** The Play Store's own package — the only installer Play will sell to. */
+        const val PLAY_STORE_PACKAGE = "com.android.vending"
     }
 }
