@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -57,6 +58,7 @@ import org.jetbrains.compose.resources.stringResource
  * rather than four screens in a row — the header and CTA never move between steps.
  *
  * @param step 1-based position used for the progress fill.
+ * @param primaryLabel null hides the pinned action, for a step answered by a tap.
  * @param onBack `null` hides the back button.
  * @param skipLabel when non-null (with [onSkip]), puts a Skip action in the header.
  * @param secondaryLabel when non-null (with [onSecondary]), sits beside the CTA as a second
@@ -66,7 +68,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun OnboardingStepScaffold(
     step: Int,
-    primaryLabel: String,
+    primaryLabel: String?,
     onPrimary: () -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
@@ -78,6 +80,7 @@ internal fun OnboardingStepScaffold(
     secondaryLabel: String? = null,
     onSecondary: (() -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
+    primaryTag: String = "",
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -125,13 +128,15 @@ internal fun OnboardingStepScaffold(
                         variant = OdoButtonVariant.Secondary,
                     )
                 }
-                OdoButton(
-                    text = primaryLabel,
-                    onClick = onPrimary,
-                    modifier = Modifier.weight(1f).accentGlow(enabled = primaryEnabled),
-                    enabled = primaryEnabled,
-                    leadingIcon = primaryLeadingIcon,
-                )
+                if (primaryLabel != null) {
+                    OdoButton(
+                        text = primaryLabel,
+                        onClick = onPrimary,
+                        modifier = Modifier.weight(1f).accentGlow(enabled = primaryEnabled).testTag(primaryTag),
+                        enabled = primaryEnabled,
+                        leadingIcon = primaryLeadingIcon,
+                    )
+                }
             }
             footer?.invoke()
         }
@@ -196,7 +201,7 @@ private fun StepHeader(
 @Composable
 internal fun StepHeadline(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
     centered: Boolean = false,
@@ -220,12 +225,14 @@ internal fun StepHeadline(
             color = OdoTheme.colors.text,
             textAlign = if (centered) TextAlign.Center else TextAlign.Start,
         )
-        OdoText(
-            text = subtitle,
-            style = OdoTheme.typography.body,
-            color = OdoTheme.colors.textDim,
-            textAlign = if (centered) TextAlign.Center else TextAlign.Start,
-        )
+        if (subtitle != null) {
+            OdoText(
+                text = subtitle,
+                style = OdoTheme.typography.body,
+                color = OdoTheme.colors.textDim,
+                textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            )
+        }
     }
 }
 

@@ -23,4 +23,13 @@ object OnboardingTestTags {
     const val NAME_FIELD = "onboarding:name"
     const val LAST_SERVICE_DATE_FIELD = "onboarding:lastServiceDate"
     const val LAST_SERVICE_ODOMETER_FIELD = "onboarding:lastServiceOdometer"
+
+    // v2 setup
+    const val CHANGE_MAKE = "onboarding:v2:changeMake"
+    const val MODEL_SEARCH = "onboarding:v2:modelSearch"
+    const val YEAR_OLDER = "onboarding:v2:yearOlder"
+    const val SAVE_CAR = "onboarding:v2:save"
+    fun modelTile(name: String): String = "onboarding:v2:model:$name"
+    fun yearChip(year: Int): String = "onboarding:v2:year:$year"
+    fun fuelChip(fuel: String): String = "onboarding:v2:fuel:$fuel"
 }

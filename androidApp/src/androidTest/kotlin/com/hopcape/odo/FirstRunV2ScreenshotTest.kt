@@ -39,11 +39,29 @@ class FirstRunV2ScreenshotTest {
         rule.waitForText(V2Copy.OTHER_SHEET_TITLE)
         rule.captureScreen("after-s1b-other-sheet")
     }
+
+    @Test
+    fun capturesModelThenYearAndFuel() {
+        rule.pickMake("Hyundai")
+        rule.waitForText(V2Copy.MODEL_TITLE)
+        rule.captureScreen("after-s2-model")
+
+        rule.pickModel("Creta")
+        rule.waitForText(V2Copy.YEAR_FUEL_TITLE)
+        rule.captureScreen("after-s3-year-fuel-empty")
+
+        rule.pickYearAndFuel(2022, "PETROL")
+        rule.captureScreen("after-s3-year-fuel-answered")
+    }
 }
 
 /** The v2 first run's copy, mirrored from the features' `strings.xml`. */
 internal object V2Copy {
     const val WELCOME_TITLE = "Find out if your mechanic overcharged you"
+    const val MODEL_TITLE = "Which model?"
+    const val YEAR_FUEL_TITLE = "A couple of quick taps"
+    const val SAVE = "Save my car"
+    const val CHANGE = "Change"
     const val OTHER_SHEET_TITLE = "Choose make"
     const val OTHER_TILE = "welcome_make_tile_other"
     fun tile(make: String) = "welcome_make_tile_$make"

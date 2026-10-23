@@ -101,8 +101,6 @@ fun OdoModelYearField(
     enabled: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
     val isError = errorText != null
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -132,29 +130,61 @@ fun OdoModelYearField(
     }
 
     if (open && !years.isEmpty()) {
-        // Animate the sheet out before dropping it, so committing doesn't make the
-        // sheet vanish mid-gesture.
-        val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { open = false } }
-        ModalBottomSheet(
+        OdoModelYearSheet(
             onDismissRequest = { open = false },
-            sheetState = sheetState,
-            containerColor = OdoTheme.colors.surface,
-        ) {
-            ModelYearSheet(
-                selected = selected,
-                years = years,
-                title = title,
-                subtitle = subtitle,
-                hint = hint,
-                cancelLabel = cancelLabel,
-                confirmLabel = confirmLabel,
-                onConfirm = { year ->
-                    onSelect(year)
-                    dismiss()
-                },
-                onCancel = { dismiss() },
-            )
-        }
+            selected = selected,
+            years = years,
+            onSelect = onSelect,
+            title = title,
+            cancelLabel = cancelLabel,
+            confirmLabel = confirmLabel,
+            subtitle = subtitle,
+            hint = hint,
+        )
+    }
+}
+
+/**
+ * The year wheel sheet on its own, for callers that open it from something other than
+ * [OdoModelYearField] (setup's "Older" chip). Parameters are as on [OdoModelYearField].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OdoModelYearSheet(
+    onDismissRequest: () -> Unit,
+    selected: Int?,
+    years: IntRange,
+    onSelect: (Int) -> Unit,
+    title: String,
+    cancelLabel: String,
+    confirmLabel: String,
+    subtitle: String? = null,
+    hint: String? = null,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    // Animate the sheet out before dropping it, so committing doesn't make the
+    // sheet vanish mid-gesture.
+    val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() } }
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = OdoTheme.colors.surface,
+    ) {
+        ModelYearSheet(
+            selected = selected,
+            years = years,
+            title = title,
+            subtitle = subtitle,
+            hint = hint,
+            cancelLabel = cancelLabel,
+            confirmLabel = confirmLabel,
+            onConfirm = { year ->
+                onSelect(year)
+                dismiss()
+            },
+            onCancel = { dismiss() },
+        )
     }
 }
 

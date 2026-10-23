@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarUseC
 import com.hopcape.odo.feature.questionnaire.firstrun.navigation.SetupFeatureEntryProvider
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.OnboardingViewModel
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.SetupTelemetry
+import com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2.SetupV2ViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -48,6 +49,19 @@ internal val setupModule = module {
             // Published by :feature:auth via the shared :core:domain port — setup asks whether
             // to offer sign-in without knowing auth exists.
             sessionStatus = get(),
+            telemetry = get(),
+            nudges = get(),
+        )
+    }
+
+    viewModel { (make: String) ->
+        SetupV2ViewModel(
+            make = make,
+            loadCatalog = get(),
+            loadModels = get(),
+            saveCar = get(),
+            reportUnlisted = get(),
+            currentOwner = get(),
             telemetry = get(),
             nudges = get(),
         )

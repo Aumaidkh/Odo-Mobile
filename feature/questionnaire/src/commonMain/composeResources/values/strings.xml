@@ -61,7 +61,17 @@
     <string name="onb_details_odometer_label">ODOMETER</string>
     <string name="onb_details_catalog_loading">Loading the car list…</string>
     <string name="onb_details_catalog_error_title">Couldn’t load the car list</string>
-    <string name="onb_details_catalog_error_body">We couldn’t read the list of cars on this phone. Try again, or use your number plate instead.</string>
+    <string name="onb_details_catalog_error_body">We couldn’t read the list of cars on this phone. Please try again.</string>
+    <!-- v2 setup (1.4.5): Model, then Year and fuel, as taps. -->
+    <string name="onb_model_title">Which model?</string>
+    <string name="onb_model_change_make">Change</string>
+    <string name="onb_model_search_hint">Search all %1$s models</string>
+    <string name="onb_year_fuel_title">A couple of quick taps</string>
+    <string name="onb_year_label">Year</string>
+    <string name="onb_year_older">Older</string>
+    <string name="onb_fuel_label">Fuel</string>
+    <string name="onb_save_car">Save my car</string>
+    <string name="onb_save_car_helper">You can add your number plate and odometer later.</string>
     <string name="onb_make_sheet_title">Choose make</string>
     <string name="onb_make_sheet_subtitle">%1$d brands available</string>
     <string name="onb_make_search">Search brands</string>

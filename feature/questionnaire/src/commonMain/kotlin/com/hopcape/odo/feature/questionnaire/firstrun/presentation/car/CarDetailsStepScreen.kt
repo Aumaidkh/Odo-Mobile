@@ -300,7 +300,7 @@ private fun CarDetailsForm(
 
 /** The wait for the brand/year/fuel lists — a local read, so this is usually a blink. */
 @Composable
-private fun CatalogLoadingCard() {
+internal fun CatalogLoadingCard() {
     OdoCard(color = OdoTheme.colors.surface, border = BorderStroke(1.dp, OdoTheme.colors.border)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
@@ -321,7 +321,7 @@ private fun CatalogLoadingCard() {
  * owner's car — and it offers the way out: try again.
  */
 @Composable
-private fun CatalogFailedCard(message: UiText, onRetry: () -> Unit) {
+internal fun CatalogFailedCard(message: UiText, onRetry: () -> Unit) {
     val tone = OdoTheme.colors.warning
     OdoCard(
         color = tone.copy(alpha = 0.08f),

@@ -67,33 +67,49 @@ internal class SetupTelemetry(
         logger.info(TAG, Event.STARTED, tc = flowTrace.toLog())
     }
 
-    fun stepAdvanced(from: OnboardingStep) {
-        analytics.track(Event.STEP_ADVANCED, mapOf(Key.STEP to from.name))
-        logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
+    fun stepAdvanced(from: OnboardingStep) = stepAdvanced(from.name)
+
+    /** [step] is the step being left, as its event name (`model`, `year_fuel` on v2). */
+    fun stepAdvanced(step: String) {
+        analytics.track(Event.STEP_ADVANCED, mapOf(Key.STEP to step))
+        logger.info(TAG, Event.STEP_ADVANCED, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
     }
 
-    fun stepBack(from: OnboardingStep) {
-        logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to from.name))
+    fun stepBack(from: OnboardingStep) = stepBack(from.name)
+
+    fun stepBack(step: String) {
+        logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** The v2 catalog read failed; the step shows a retry. */
+    fun catalogLoadFailed() {
+        logger.error(TAG, Event.CATALOG_LOAD_FAILED, tc = flowTrace.toLog())
     }
 
     /**
      * The owner left setup from [step]. [fields] is the step's fields in screen order, each
      * with whether it held an answer, so the event says which one they stopped at.
      */
-    fun abandoned(step: OnboardingStep, fields: List<Pair<String, Boolean>>, catalog: Loadable<*>) {
+    fun abandoned(step: OnboardingStep, fields: List<Pair<String, Boolean>>, catalog: Loadable<*>) =
+        abandoned(step.name, fields, catalog.label())
+
+    /** The same, with [step] as its event name and [catalog] already labelled. */
+    fun abandoned(step: String, fields: List<Pair<String, Boolean>>, catalog: String) {
         val properties = mapOf(
-            Key.STEP to step.name,
+            Key.STEP to step,
             Key.FIELDS_ANSWERED to fields.count { it.second },
             Key.STOPPED_AT to (fields.firstOrNull { !it.second }?.first ?: Field.NONE),
-            Key.CATALOG to catalog.label(),
+            Key.CATALOG to catalog,
         )
         analytics.track(Event.ABANDONED, properties)
         logger.info(TAG, Event.ABANDONED, tc = flowTrace.toLog(), fields = properties)
     }
 
     /** A field got its first answer. [field] is a [Field] name, never what was entered. */
-    fun fieldAnswered(step: OnboardingStep, field: String) {
-        val properties = mapOf(Key.STEP to step.name, Key.FIELD to field)
+    fun fieldAnswered(step: OnboardingStep, field: String) = fieldAnswered(step.name, field)
+
+    fun fieldAnswered(step: String, field: String) {
+        val properties = mapOf(Key.STEP to step, Key.FIELD to field)
         analytics.track(Event.FIELD_ANSWERED, properties)
         logger.debug(TAG, Event.FIELD_ANSWERED, tc = flowTrace.toLog(), fields = properties)
     }
@@ -239,11 +255,12 @@ internal class SetupTelemetry(
         edit: Boolean,
         make: String?,
         fuel: String?,
+        step: String = OnboardingStep.CAR.name,
         write: suspend () -> EitherNel<DomainError, Car>,
     ): EitherNel<DomainError, Car> = traced(Trace.SAVE_CAR, Key.EDIT to edit) { span ->
         val result = write()
         result.fold(
-            ifLeft = { errors -> span.setAttribute(Key.OUTCOME, Outcome.FAILED); logSaveFailure(OnboardingStep.CAR, errors) },
+            ifLeft = { errors -> span.setAttribute(Key.OUTCOME, Outcome.FAILED); logSaveFailure(step, errors) },
             ifRight = { car ->
                 span.setAttribute(Key.CAR_ID, car.id.value)
                 val fields = mapOf(Key.EDIT to edit, Key.MAKE to make, Key.FUEL_TYPE to fuel)
@@ -280,8 +297,8 @@ internal class SetupTelemetry(
      * A failed write, named by the *types* of the errors that caused it — never by the values
      * that failed validation, which are the owner's answers.
      */
-    private suspend fun logSaveFailure(step: OnboardingStep, errors: NonEmptyList<DomainError>) {
-        val fields = mapOf(Key.STEP to step.name, Key.ERRORS to errors.errorTypes())
+    private suspend fun logSaveFailure(step: String, errors: NonEmptyList<DomainError>) {
+        val fields = mapOf(Key.STEP to step, Key.ERRORS to errors.errorTypes())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
     }
@@ -373,6 +390,12 @@ internal class SetupTelemetry(
         const val NONE = "none"
     }
 
+    /** The v2 setup steps, as [Key.STEP] reports them. */
+    object Step {
+        const val MODEL = "model"
+        const val YEAR_FUEL = "year_fuel"
+    }
+
     /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */
     object Outcome {
         const val MATCHED = "matched"
@@ -384,7 +407,7 @@ internal class SetupTelemetry(
 }
 
 /** Whether the pickers were on screen: an owner cannot answer a form that never loaded. */
-private fun Loadable<*>.label(): String = when (this) {
+internal fun Loadable<*>.label(): String = when (this) {
     Loadable.Loading -> "loading"
     is Loadable.Ready -> "ready"
     is Loadable.Failed -> "failed"
