@@ -109,7 +109,8 @@ class OdoDestinationSerializationTest {
         OdoDestination.ServiceLog.Share(carId = "car-1", logId = "log-1"),
         // Bill scanner
         OdoDestination.BillScanner.Capture(target = ScanTarget.Document, documentType = "INSURANCE"),
-        OdoDestination.BillScanner.Review(photoKey = "scans/bill-1.jpg"),
+        OdoDestination.BillScanner.Review(photoKey = "scans/bill-1.jpg", firstRun = true),
+        OdoDestination.BillScanner.Capture(firstRun = true),
         OdoDestination.BillScanner.DocumentReview(
             photoKey = "scans/rc-1.jpg",
             documentType = "RC",
@@ -183,7 +184,7 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue(),
-        OdoDestination.CarValue(firstRun = true),
+        OdoDestination.CarValue(firstRun = true, variant = FirstRunVariant.V2),
         OdoDestination.ServiceChecklist(entry = "HOME_CARD"),
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
         OdoDestination.BillCheck.Result(billId = "bill-1"),

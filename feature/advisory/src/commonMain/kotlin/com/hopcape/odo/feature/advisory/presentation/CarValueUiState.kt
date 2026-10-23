@@ -26,6 +26,10 @@ internal data class CarValueUiState(
      * out are the scan and "not now" rather than share.
      */
     val firstRun: Boolean = false,
+    /** Whether the first-run screen offers the auto-odometer card. */
+    val offerAutoOdometer: Boolean = false,
+    /** Progress segments on the first-run screen: 3 in v2, 4 in v1. */
+    val firstRunSteps: Int = 4,
 ) {
     /** Nothing loading and nothing to value: no car has been added yet. */
     val isEmpty: Boolean get() = !isLoading && valued == null
@@ -40,8 +44,10 @@ internal data class CarValueUiState(
  */
 @Immutable
 internal data class CarValueDisplay(
-    /** Just the model, for the first-run headline: "What your Swift is worth today". */
+    /** Just the model, for the first-run headline: "Your 2022 Swift is worth about". */
     val shortName: String,
+    /** The model year, for the same headline. */
+    val year: Int,
     /** "2019 Swift · Petrol · hatchback segment" — what the estimate was actually read off. */
     val basis: String,
     /** How many services have a bill behind them. The record card counts them out loud. */
@@ -62,6 +68,7 @@ internal fun CarValued.toDisplay(
 ): CarValueDisplay =
     CarValueDisplay(
         shortName = car.model,
+        year = car.year.value,
         basis = listOf("${car.year.value} ${car.model}", fuelLabel, segmentLabel).joinToString(separator),
         provenServices = value.provenServices,
         carSummary = listOfNotNull(

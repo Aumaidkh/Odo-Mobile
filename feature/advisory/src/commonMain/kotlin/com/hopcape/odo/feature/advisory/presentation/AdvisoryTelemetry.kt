@@ -65,6 +65,18 @@ internal class AdvisoryTelemetry(
         logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog())
     }
 
+    /** The first-run auto-odometer card was shown. */
+    fun autoOdoOffered() {
+        analytics.track(Event.AUTO_ODO_OFFERED)
+        logger.info(TAG, Event.AUTO_ODO_OFFERED, tc = flowTrace.toLog())
+    }
+
+    /** "Turn on" on the first-run auto-odometer card. */
+    fun autoOdoOfferAccepted() {
+        analytics.track(Event.AUTO_ODO_OFFER_ACCEPTED)
+        logger.info(TAG, Event.AUTO_ODO_OFFER_ACCEPTED, tc = flowTrace.toLog())
+    }
+
     fun shareClicked() {
         analytics.track(Event.SHARE_CLICKED)
         logger.info(TAG, Event.SHARE_CLICKED, tc = flowTrace.toLog())
@@ -220,6 +232,8 @@ internal class AdvisoryTelemetry(
         const val SCAN_CLICKED = "advisory_value_scan_clicked"
         const val FIRST_RUN_SKIPPED = "advisory_value_first_run_skipped"
         const val SHARE_CLICKED = "advisory_value_share_clicked"
+        const val AUTO_ODO_OFFERED = "auto_odo_offered"
+        const val AUTO_ODO_OFFER_ACCEPTED = "auto_odo_offer_accepted"
         const val NO_CAR = "advisory_value_no_car"
         const val CITY_CATALOG_UNAVAILABLE = "advisory_city_catalog_unavailable"
         const val CITY_NOT_LISTED = "advisory_city_not_listed"

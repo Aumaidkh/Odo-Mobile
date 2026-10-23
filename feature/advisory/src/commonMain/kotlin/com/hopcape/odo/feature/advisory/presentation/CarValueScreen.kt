@@ -79,6 +79,9 @@ import com.hopcape.odo.feature.advisory.resources.adv_value_fr_fuel_petrol
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_record_body
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_record_label
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_scan
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_cta
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_body
+import com.hopcape.odo.feature.advisory.resources.adv_value_fr_odo_title
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_hatchback
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_muv
 import com.hopcape.odo.feature.advisory.resources.adv_value_fr_segment_sedan
@@ -122,7 +125,7 @@ internal fun CarValueScreen(
     // First run owns its own chrome: the flow is still running, so the progress carries on
     // and the two ways out are the scan and "not now" rather than a title bar and share.
     if (state.firstRun && display != null) {
-        FirstRunEstimate(display, state.odometerAssumed, onEvent, modifier)
+        FirstRunEstimate(display, state, onEvent, modifier)
         return
     }
 
@@ -300,6 +303,7 @@ private fun CarValueNoRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             shortName = "Swift",
+            year = 2019,
             basis = "2019 Swift · Petrol · hatchback segment",
             provenServices = 0,
             carSummary = "2022 Baleno Zeta · 38,400 km · Srinagar",
@@ -317,6 +321,7 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
     PreviewScreen(
         CarValueDisplay(
             shortName = "Swift",
+            year = 2019,
             basis = "2019 Swift · Petrol · hatchback segment",
             provenServices = 0,
             carSummary = "2019 Creta SX · 71,200 km · Pune",
@@ -325,6 +330,27 @@ private fun CarValueWithRecordPreview() = OdoPreview(padded = false) {
             hasNoRecord = false,
             isRecordComplete = false,
         ),
+    )
+}
+
+/** First run in v2: three steps, the new title, and the auto-odometer card. */
+@OdoThemePreviews
+@Composable
+private fun CarValueFirstRunPreview() = OdoPreview(padded = false) {
+    FirstRunEstimate(
+        display = CarValueDisplay(
+            shortName = "Creta",
+            year = 2022,
+            basis = "2022 Creta · Petrol · SUV segment",
+            provenServices = 0,
+            carSummary = "2022 Creta",
+            today = "Rs. 11.2L–12.6L",
+            recordWorth = "+Rs. 62,000",
+            hasNoRecord = true,
+            isRecordComplete = false,
+        ),
+        state = CarValueUiState(firstRun = true, offerAutoOdometer = true, firstRunSteps = 3),
+        onEvent = {},
     )
 }
 
@@ -356,7 +382,7 @@ private fun PreviewScreen(display: CarValueDisplay) {
 @Composable
 private fun FirstRunEstimate(
     display: CarValueDisplay,
-    odometerAssumed: Boolean,
+    state: CarValueUiState,
     onEvent: (CarValueEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -374,11 +400,11 @@ private fun FirstRunEstimate(
         )
         OdoSegmentedProgress(
             current = FIRST_RUN_STEP,
-            total = FIRST_RUN_TOTAL,
+            total = state.firstRunSteps,
             contentDescription = stringResource(
                 Res.string.adv_value_fr_cd_progress,
                 FIRST_RUN_STEP,
-                FIRST_RUN_TOTAL,
+                state.firstRunSteps,
             ),
         )
 
@@ -391,7 +417,7 @@ private fun FirstRunEstimate(
             Spacer(Modifier.height(OdoTheme.spacing.xl))
 
             OdoText(
-                text = stringResource(Res.string.adv_value_fr_title, display.shortName),
+                text = stringResource(Res.string.adv_value_fr_title, display.year, display.shortName),
                 style = OdoTheme.typography.display,
                 color = OdoTheme.colors.text,
             )
@@ -452,7 +478,7 @@ private fun FirstRunEstimate(
                 color = OdoTheme.colors.textDim,
             )
 
-            if (odometerAssumed) OdoText(
+            if (state.odometerAssumed) OdoText(
                 text = stringResource(Res.string.adv_value_assumed_reading),
                 style = OdoTheme.typography.body,
                 color = OdoTheme.colors.textDim,
@@ -468,12 +494,43 @@ private fun FirstRunEstimate(
             onClick = { onEvent(CarValueEvent.ScanClicked) },
             modifier = Modifier.fillMaxWidth().accentGlow(),
         )
+        // Absent, not hidden, when the feature is off, so the layout has no gap.
+        if (state.offerAutoOdometer) AutoOdometerCard(onTurnOn = { onEvent(CarValueEvent.TurnOnAutoOdometerClicked) })
         OdoButton(
             text = stringResource(Res.string.adv_value_fr_skip),
             onClick = { onEvent(CarValueEvent.SkipClicked) },
             modifier = Modifier.fillMaxWidth().padding(vertical = OdoTheme.spacing.sm),
             variant = OdoButtonVariant.Tertiary,
         )
+    }
+}
+
+/** The first-run offer to log drives automatically. */
+@Composable
+private fun AutoOdometerCard(onTurnOn: () -> Unit) {
+    OdoCard(
+        modifier = Modifier.fillMaxWidth().padding(top = OdoTheme.spacing.sm).testTag(CarValueTestTags.AUTO_ODO_CARD),
+        verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(
+                    text = stringResource(Res.string.adv_value_fr_odo_title),
+                    style = OdoTheme.typography.heading,
+                    color = OdoTheme.colors.text,
+                )
+                OdoText(
+                    text = stringResource(Res.string.adv_value_fr_odo_body),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoButton(
+                text = stringResource(Res.string.adv_value_fr_odo_cta),
+                onClick = onTurnOn,
+                variant = OdoButtonVariant.Secondary,
+            )
+        }
     }
 }
 
@@ -498,6 +555,5 @@ private fun VehicleSegment.label() = when (this) {
     VehicleSegment.MUV -> Res.string.adv_value_fr_segment_muv
 }
 
-/** First run is Welcome, the car step, this screen, then the scan. */
+/** This screen's position in first run, in both variants. */
 private const val FIRST_RUN_STEP = 3
-private const val FIRST_RUN_TOTAL = 4

@@ -3,6 +3,7 @@ package com.hopcape.odo
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -14,6 +15,10 @@ private typealias V2Rule = AndroidComposeTestRule<ActivityScenarioRule<MainActiv
 
 internal fun V2Rule.waitForTag(tag: String, timeoutMillis: Long = 5_000L) {
     waitUntil(timeoutMillis) { onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
+}
+
+internal fun V2Rule.waitUntilGone(text: String, timeoutMillis: Long = 10_000L) {
+    waitUntil(timeoutMillis) { onAllNodesWithText(text).fetchSemanticsNodes().isEmpty() }
 }
 
 internal fun V2Rule.tapTag(tag: String) {

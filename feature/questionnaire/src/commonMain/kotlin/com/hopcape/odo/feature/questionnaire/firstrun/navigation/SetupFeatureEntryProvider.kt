@@ -133,7 +133,9 @@ internal fun SetupV2Route(navigationManager: NavigationManager, make: String, re
         when (effect) {
             SetupV2Effect.NavigateBack -> navigationManager.back()
             is SetupV2Effect.SaveFailed -> failure = effect.message
-            SetupV2Effect.ShowValue -> navigationManager.navigateTo(OdoDestination.CarValue(firstRun = true))
+            SetupV2Effect.ShowValue -> navigationManager.navigateTo(
+                OdoDestination.CarValue(firstRun = true, variant = FirstRunVariant.V2),
+            )
         }
     }
 

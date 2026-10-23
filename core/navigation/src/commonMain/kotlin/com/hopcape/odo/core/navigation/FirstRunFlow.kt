@@ -26,3 +26,19 @@ fun isFirstRunStep(destination: OdoDestination): Boolean = when (destination) {
 
     else -> false
 }
+
+/** A first-run step, or the scanner the value screen opened during first run. */
+fun isFirstRunExitStep(destination: OdoDestination): Boolean = when (destination) {
+    is OdoDestination.BillScanner.Capture -> destination.firstRun
+    is OdoDestination.BillScanner.Review -> destination.firstRun
+    else -> isFirstRunStep(destination)
+}
+
+/**
+ * Ends first run with Home at the bottom of the stack and [destination] on top, so back from
+ * [destination] lands on Home and never re-enters first run.
+ */
+fun NavigationManager.leaveFirstRunTo(destination: OdoDestination) {
+    finishFlow(OdoDestination.Home, ::isFirstRunExitStep)
+    if (destination != OdoDestination.Home) navigateTo(destination)
+}

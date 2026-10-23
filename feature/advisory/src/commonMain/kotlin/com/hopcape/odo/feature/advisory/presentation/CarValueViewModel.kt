@@ -29,9 +29,17 @@ internal class CarValueViewModel(
     private val observeCarValue: ObserveCarValueUseCase,
     private val telemetry: AdvisoryTelemetry,
     firstRun: Boolean = false,
+    firstRunSteps: Int = 4,
+    autoOdometerEnabled: Boolean = false,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CarValueUiState(firstRun = firstRun))
+    private val _state = MutableStateFlow(
+        CarValueUiState(
+            firstRun = firstRun,
+            offerAutoOdometer = firstRun && autoOdometerEnabled,
+            firstRunSteps = firstRunSteps,
+        ),
+    )
     val state: StateFlow<CarValueUiState> = _state.asStateFlow()
 
     private val _effects = Channel<CarValueEffect>(Channel.BUFFERED)
@@ -47,7 +55,7 @@ internal class CarValueViewModel(
     fun onEvent(event: CarValueEvent) = when (event) {
         CarValueEvent.ScanClicked -> {
             telemetry.scanClicked()
-            emit(CarValueEffect.OpenScanner)
+            emit(CarValueEffect.OpenScanner(firstRun = _state.value.firstRun))
         }
 
         is CarValueEvent.ShareClicked -> {
@@ -60,6 +68,11 @@ internal class CarValueViewModel(
         CarValueEvent.AddCarClicked -> emit(CarValueEffect.OpenAddCar)
 
         CarValueEvent.BackClicked -> emit(CarValueEffect.NavigateBack)
+
+        CarValueEvent.TurnOnAutoOdometerClicked -> {
+            telemetry.autoOdoOfferAccepted()
+            emit(CarValueEffect.OpenAutoOdometer)
+        }
 
         CarValueEvent.SkipClicked -> {
             telemetry.firstRunSkipped()
@@ -100,6 +113,7 @@ internal class CarValueViewModel(
             return
         }
         telemetry.valueShown(hasRecord = !valued.value.hasNoRecord, firstRun = _state.value.firstRun)
+        if (_state.value.offerAutoOdometer) telemetry.autoOdoOffered()
         when (val city = valued.cityTier) {
             is CityTier.Unavailable -> telemetry.cityCatalogUnavailable(city.cause)
             is CityTier.NotListed -> telemetry.cityNotListed(city.catalogSize)

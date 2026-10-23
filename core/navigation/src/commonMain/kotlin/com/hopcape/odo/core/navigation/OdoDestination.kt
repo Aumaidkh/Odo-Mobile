@@ -320,10 +320,12 @@ sealed interface OdoDestination : NavKey {
          * string because a key is serialized into the back stack, and because
          * `:core:navigation` holds no domain types.
          */
+        /** [firstRun] is set when the value screen opened it, so a save leaves first run. */
         @Serializable
         data class Capture(
             val target: ScanTarget = ScanTarget.Bill,
             val documentType: String? = null,
+            val firstRun: Boolean = false,
         ) : BillScanner
 
         /**
@@ -333,7 +335,7 @@ sealed interface OdoDestination : NavKey {
          * `PlatformFileStore` key. Null when the flow was reached without a photo.
          */
         @Serializable
-        data class Review(val photoKey: String? = null) : BillScanner
+        data class Review(val photoKey: String? = null, val firstRun: Boolean = false) : BillScanner
 
         /**
          * Confirm a scanned paper's type and dates before it is filed in the vault.
@@ -435,7 +437,11 @@ sealed interface OdoDestination : NavKey {
      * are the scan and "not now". The garage arrival gets the ordinary screen.
      */
     @Serializable
-    data class CarValue(val firstRun: Boolean = false) : OdoDestination
+    data class CarValue(
+        val firstRun: Boolean = false,
+        /** Which first run reached it; v2 draws three progress steps, v1 four. */
+        val variant: FirstRunVariant = FirstRunVariant.V1,
+    ) : OdoDestination
 
     /**
      * "Before you go in" — what this service should cover, what it should not, roughly what

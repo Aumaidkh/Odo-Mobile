@@ -11,6 +11,7 @@ import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
 import com.hopcape.odo.feature.advisory.presentation.checklist.ChecklistViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
+import com.hopcape.odo.core.config.FeatureConfig
 import org.koin.dsl.module
 
 /**
@@ -52,8 +53,14 @@ val advisoryModule = module {
     // A factory, so one instance covers one visit to the screen.
     factory { AdvisoryTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
 
-    viewModel { (firstRun: Boolean) ->
-        CarValueViewModel(observeCarValue = get(), telemetry = get(), firstRun = firstRun)
+    viewModel { (firstRun: Boolean, firstRunSteps: Int) ->
+        CarValueViewModel(
+            observeCarValue = get(),
+            telemetry = get(),
+            firstRun = firstRun,
+            firstRunSteps = firstRunSteps,
+            autoOdometerEnabled = get<FeatureConfig>().autoOdometerEnabled,
+        )
     }
 
     viewModel { (entry: String) ->

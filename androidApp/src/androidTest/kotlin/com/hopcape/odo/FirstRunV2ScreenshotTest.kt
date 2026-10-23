@@ -56,6 +56,16 @@ class FirstRunV2ScreenshotTest {
     }
 
     @Test
+    fun capturesTheValueScreen() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.pickYearAndFuel(2022, "PETROL")
+        rule.saveTheCar()
+        rule.waitForText(V2Copy.VALUE_TITLE, 10_000)
+        rule.captureScreen("after-s4-value")
+    }
+
+    @Test
     fun capturesTheResumeWelcome() {
         rule.pickMake("Hyundai")
         rule.pickModel("Creta")
@@ -79,6 +89,8 @@ internal object V2Copy {
     const val RESUME_TITLE_MAKE = "Your Hyundai is almost set up"
     const val CONTINUE_SETUP = "Continue setup"
     const val PICK_DIFFERENT = "Pick a different car"
+    const val TURN_ON = "Turn on"
+    const val VALUE_TITLE = "Your 2022 Creta is worth about"
     const val OTHER_SHEET_TITLE = "Choose make"
     const val OTHER_TILE = "welcome_make_tile_other"
     fun tile(make: String) = "welcome_make_tile_$make"
