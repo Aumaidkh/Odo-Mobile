@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billscanner.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.EntryProviderScope
@@ -33,6 +34,7 @@ import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewS
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewViewModel
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
 import com.hopcape.odo.feature.billscanner.presentation.permission.CameraRationaleScreen
+import com.hopcape.odo.feature.billscanner.presentation.permission.GalleryOnlyScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewEffect
@@ -84,9 +86,7 @@ internal class BillScannerFeatureEntryProvider(
  *
  * The rationale is shown **before** the system prompt, not after a refusal: Android gives one
  * second chance and iOS gives none, so the single prompt an owner sees should follow an
- * explanation. "Not now" and the X both leave the flow. Without the camera there is no
- * viewfinder to show, so dropping through to the scan screen would only ask for the permission
- * a second time on a screen that cannot work without it.
+ * explanation. "Not now" or a denied prompt shows the gallery state; only the X leaves.
  */
 @Composable
 internal fun BillScanRoute(
@@ -112,8 +112,15 @@ internal fun BillScanRoute(
         if (permission.status == CameraPermissionStatus.Blocked) {
             permission.openAppSettings()
         } else {
+            viewModel.onEvent(BillScanEvent.CameraRequested)
             permission.request()
         }
+    }
+
+    // The system prompt pauses the screen; coming back without a grant is a denial.
+    LifecycleResumeEffect(Unit) {
+        viewModel.onEvent(BillScanEvent.Resumed)
+        onPauseOrDispose { }
     }
 
     CollectEffects(viewModel.effects) { effect ->
@@ -155,7 +162,17 @@ internal fun BillScanRoute(
         CameraRationaleScreen(
             blocked = state.cameraBlocked,
             onAllow = grant,
+            onGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
             onNotNow = { viewModel.onEvent(BillScanEvent.PermissionDeclined) },
+            onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
+        )
+        return
+    }
+
+    if (state.showGalleryOnly) {
+        GalleryOnlyScreen(
+            onGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
+            onOpenSettings = permission::openAppSettings,
             onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
         )
         return

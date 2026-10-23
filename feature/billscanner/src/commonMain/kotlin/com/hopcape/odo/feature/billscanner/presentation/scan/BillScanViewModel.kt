@@ -98,6 +98,33 @@ internal class BillScanViewModel(
         is BillScanEvent.GalleryPicked -> event.pickedRef?.let(::galleryPicked) ?: Unit
         BillScanEvent.ManualTapped -> emit(BillScanEffect.OpenManualEntry)
         BillScanEvent.CloseTapped -> emit(BillScanEffect.NavigateBack)
+        BillScanEvent.CameraRequested -> awaitingAnswer = true
+        BillScanEvent.Resumed -> resumed()
+    }
+
+    /** Set while the system prompt is up, so its answer can be told from any other resume. */
+    private var awaitingAnswer = false
+
+    /** Whether the real permission has been read, so the default is never reported. */
+    private var permissionKnown = false
+
+    /** The `blocked` value last reported with the rationale, so each look is counted once. */
+    private var rationaleReportedBlocked: Boolean? = null
+
+    /** The prompt closed without a grant: that is a denial, so show the gallery state. */
+    private fun resumed() {
+        if (!awaitingAnswer) return
+        awaitingAnswer = false
+        if (_state.value.cameraGranted) return
+        declined()
+    }
+
+    private fun reportRationaleIfShown() {
+        val state = _state.value
+        if (!permissionKnown || !state.showRationale) return
+        if (rationaleReportedBlocked == state.cameraBlocked) return
+        rationaleReportedBlocked = state.cameraBlocked
+        telemetry.cameraRationaleShown(blocked = state.cameraBlocked)
     }
 
     /**
@@ -157,21 +184,21 @@ internal class BillScanViewModel(
     }
 
     private fun permissionChanged(status: CameraPermissionStatus) {
-        if (status == _state.value.cameraPermission) return
-        telemetry.cameraPermissionAnswered(status.name)
-        _state.update { it.copy(cameraPermission = status) }
+        permissionKnown = true
+        if (status != _state.value.cameraPermission) {
+            telemetry.cameraPermissionAnswered(status.name)
+            _state.update { it.copy(cameraPermission = status) }
+        }
+        reportRationaleIfShown()
     }
 
     /**
-     * "Not now" means no: leave the flow, the same as the X in the corner.
-     *
-     * It stays a separate event from [BillScanEvent.CloseTapped] even though both end up back
-     * where the owner came from, because telemetry needs to tell "declined the camera" apart
-     * from "closed the scanner".
+     * "Not now", or a denied prompt: the scanner stays open on the gallery state. Only the X
+     * leaves, because a bill photo can still come from the gallery.
      */
     private fun declined() {
         telemetry.cameraDeclined()
-        emit(BillScanEffect.NavigateBack)
+        _state.update { it.copy(galleryOnly = true) }
     }
 
     private fun photoCaptured(storageKey: String) {
@@ -216,7 +243,13 @@ internal class BillScanViewModel(
         )
 
     private fun galleryTapped() {
-        telemetry.galleryOpened(_state.value.target.name)
+        val state = _state.value
+        val source = when {
+            state.cameraGranted -> BillScannerTelemetry.GallerySource.VIEWFINDER
+            state.galleryOnly -> BillScannerTelemetry.GallerySource.DENIED
+            else -> BillScannerTelemetry.GallerySource.RATIONALE
+        }
+        telemetry.galleryOpened(state.target.name, source)
         _state.update { it.copy(failure = null) }
         emit(BillScanEffect.PickFromGallery)
     }
