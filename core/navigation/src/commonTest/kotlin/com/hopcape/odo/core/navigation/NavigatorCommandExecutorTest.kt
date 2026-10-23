@@ -130,7 +130,20 @@ class NavigatorCommandExecutorTest {
         // First run rooted at the video intro (issue #352): every entry on the stack
         // belongs to the flow, so finishing must not leave the intro underneath the
         // landing destination — back from there would replay the whole first run.
-        val nav = navigator(OdoDestination.WelcomeVideo, OdoDestination.Onboarding)
+        val nav = navigator(OdoDestination.WelcomeVideo, OdoDestination.Onboarding())
+
+        nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunStep))
+
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
+    fun finishFlow_popsEveryV2Step_whateverItsArguments() {
+        val nav = navigator(
+            OdoDestination.Welcome(FirstRunVariant.V2),
+            OdoDestination.Onboarding(make = "Hyundai", variant = FirstRunVariant.V2),
+            OdoDestination.CarValue(firstRun = true),
+        )
 
         nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunStep))
 

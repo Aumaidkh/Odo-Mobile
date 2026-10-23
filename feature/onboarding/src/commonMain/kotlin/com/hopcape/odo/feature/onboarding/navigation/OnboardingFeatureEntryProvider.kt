@@ -61,7 +61,7 @@ internal fun WelcomeRoute(navigationManager: NavigationManager, legalLinks: Lega
     val uriHandler = LocalUriHandler.current
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            WelcomeEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding())
             // Home, not car setup: sync restores the returning owner's car, so setup would
             // only make a second one.
             //
@@ -102,7 +102,7 @@ internal fun WelcomeVideoRoute(navigationManager: NavigationManager) {
     val viewModel = koinViewModel<WelcomeVideoViewModel>()
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
-            WelcomeVideoEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding)
+            WelcomeVideoEffect.OpenCarSetup -> navigationManager.navigateTo(OdoDestination.Onboarding())
         }
     }
     WelcomeVideoScreen(pages = viewModel.pages, onEvent = viewModel::onEvent)

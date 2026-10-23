@@ -17,9 +17,9 @@ package com.hopcape.odo.core.navigation
  * lands can never replay the first run (issue #352).
  */
 fun isFirstRunStep(destination: OdoDestination): Boolean = when (destination) {
-    OdoDestination.Welcome,
+    is OdoDestination.Welcome,
     OdoDestination.WelcomeVideo,
-    OdoDestination.Onboarding,
+    is OdoDestination.Onboarding,
     -> true
 
     is OdoDestination.CarValue -> destination.firstRun

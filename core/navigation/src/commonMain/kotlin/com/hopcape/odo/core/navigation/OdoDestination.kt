@@ -774,9 +774,14 @@ sealed interface OdoDestination : NavKey {
     }
 
     // --- Onboarding flow (first-run car setup) ---
-    /** Intro carousel shown on first launch, before car setup. */
+    /**
+     * The first-run Welcome page.
+     *
+     * [variant] is fixed when the app opens, so a late config fetch cannot switch the flow.
+     * Null means the screen resolves it from config on arrival, as after a sign-out.
+     */
     @Serializable
-    data object Welcome : OdoDestination
+    data class Welcome(val variant: FirstRunVariant? = null) : OdoDestination
 
     /**
      * The video intro — the variant [Welcome] is replaced by when
@@ -785,8 +790,17 @@ sealed interface OdoDestination : NavKey {
      */
     @Serializable
     data object WelcomeVideo : OdoDestination
+
+    /**
+     * First-run car setup. [make] is the Welcome tile the owner tapped; v1 never passes one.
+     * [resume] opens setup from the saved draft. The defaults decode a 1.4.4.x saved stack.
+     */
     @Serializable
-    data object Onboarding : OdoDestination
+    data class Onboarding(
+        val make: String? = null,
+        val variant: FirstRunVariant = FirstRunVariant.V1,
+        val resume: Boolean = false,
+    ) : OdoDestination
 
     /**
      * Asks the owner a set of questions (#394) and stores the answers.

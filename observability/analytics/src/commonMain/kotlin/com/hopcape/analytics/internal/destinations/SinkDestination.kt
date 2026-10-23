@@ -21,6 +21,8 @@ internal class SinkDestination(
 
     override fun forget() = sink.forget()
 
+    override fun setUserProperty(name: String, value: String) = sink.setUserProperty(name, value)
+
     override fun track(event: AnalyticsEvent): Boolean =
         sink.track(event.name, event.properties, event.timestampMs)
 

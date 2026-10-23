@@ -36,6 +36,18 @@ interface OnboardingConfig {
     val videoEnabled: Boolean
 
     /**
+     * The kill switch for the 1.4.5 first run (the make grid, then taps to a saved car).
+     * Off restores the 1.4.4.2 flow. When on, it takes precedence over [videoEnabled].
+     */
+    @Flag(
+        key = "first_run_v2_enabled",
+        default = true,
+        owner = "growth",
+        why = "Shows new installs the make-grid first run; off restores the 1.4.4.2 flow",
+    )
+    val firstRunV2Enabled: Boolean
+
+    /**
      * The Smart Refuel clip, streamed.
      *
      * Remote rather than bundled so the clip can be re-cut without a release, which is the

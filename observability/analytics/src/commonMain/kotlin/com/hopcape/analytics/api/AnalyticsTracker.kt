@@ -18,6 +18,9 @@ interface AnalyticsTracker {
      */
     fun forget() {}
 
+    /** Sets one user property without changing identity. Defaulted to nothing. */
+    fun setUserProperty(name: String, value: String) {}
+
     /**
      * Records a single event. [properties] are validated against the registered
      * [EventSchema] (when one exists) before the event is queued for delivery.

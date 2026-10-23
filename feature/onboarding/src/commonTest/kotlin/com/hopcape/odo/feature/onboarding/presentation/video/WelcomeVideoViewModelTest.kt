@@ -207,6 +207,7 @@ class WelcomeVideoViewModelTest {
             private set
 
         override val videoEnabled = true
+        override val firstRunV2Enabled = false
         override val refuelVideoUrl: String get() = refuelUrl.also { refuelReads++ }
         override val scannerVideoUrl: String get() = scannerUrl.also { scannerReads++ }
     }

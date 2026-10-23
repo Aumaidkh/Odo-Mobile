@@ -65,6 +65,15 @@ class OdoTestRunner : AndroidJUnitRunner() {
         // `default` is already held in the raw string form the override store parses, which
         // is why this needs no per-type branch.
         registry.keys.forEach { overrides.set(it.key, it.default.toString()) }
+        SUITE_PINS.forEach { (key, value) -> overrides.set(key, value) }
+    }
+
+    companion object {
+        /**
+         * Keys the suite runs at something other than the compiled default. The first-run
+         * suites were written against v1; v2 suites opt in with [PinnedConfig].
+         */
+        val SUITE_PINS = mapOf(FIRST_RUN_V2 to "false")
     }
 
     /**

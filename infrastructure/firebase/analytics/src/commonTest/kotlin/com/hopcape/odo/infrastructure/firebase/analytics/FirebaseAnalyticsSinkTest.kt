@@ -40,6 +40,16 @@ class FirebaseAnalyticsSinkTest {
     }
 
     @Test
+    fun setUserProperty_reachesTheGatewayWithoutTouchingTheUserId() {
+        val gateway = FakeFirebaseAnalyticsGateway()
+
+        FirebaseAnalyticsSink(gateway = gateway).setUserProperty("first_run_variant", "v2")
+
+        assertEquals(mapOf("first_run_variant" to "v2"), gateway.userProperties)
+        assertEquals("unset", gateway.capturedUserId)
+    }
+
+    @Test
     fun track_sanitizesThenForwardsToTheGateway() {
         val gateway = FakeFirebaseAnalyticsGateway()
         val sink = FirebaseAnalyticsSink(gateway = gateway)

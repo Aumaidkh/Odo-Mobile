@@ -44,6 +44,11 @@ class FirebaseAnalyticsSink internal constructor(
         }
     }
 
+    override fun setUserProperty(name: String, value: String) {
+        val sanitizedKey = sanitizer.sanitizeUserPropertyName(name) ?: return
+        gateway.setUserProperty(sanitizedKey, sanitizer.sanitizeUserPropertyValue(value))
+    }
+
     /** Firebase clears its user id when handed null, which is what a sign-out means here. */
     override fun forget() = gateway.setUserId(null)
 
