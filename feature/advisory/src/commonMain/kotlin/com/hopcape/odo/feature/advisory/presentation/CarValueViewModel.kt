@@ -67,7 +67,13 @@ internal class CarValueViewModel(
 
         CarValueEvent.AddCarClicked -> emit(CarValueEffect.OpenAddCar)
 
-        CarValueEvent.BackClicked -> emit(CarValueEffect.NavigateBack)
+        // In first run the car is already saved, so back ends first run like Skip does.
+        CarValueEvent.BackClicked -> if (_state.value.firstRun) {
+            telemetry.firstRunSkipped(viaBack = true)
+            emit(CarValueEffect.FinishFirstRun)
+        } else {
+            emit(CarValueEffect.NavigateBack)
+        }
 
         CarValueEvent.TurnOnAutoOdometerClicked -> {
             telemetry.autoOdoOfferAccepted()
@@ -75,7 +81,7 @@ internal class CarValueViewModel(
         }
 
         CarValueEvent.SkipClicked -> {
-            telemetry.firstRunSkipped()
+            telemetry.firstRunSkipped(viaBack = false)
             emit(CarValueEffect.FinishFirstRun)
         }
     }

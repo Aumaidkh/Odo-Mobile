@@ -58,11 +58,12 @@ internal class AdvisoryTelemetry(
      *
      * Its share against [scanClicked] is what says whether the value screen is an argument
      * or a wall — and it is the one number that decides whether the screen earns its place
-     * in first run at all.
+     * in first run at all. [viaBack] separates back from the button.
      */
-    fun firstRunSkipped() {
-        analytics.track(Event.FIRST_RUN_SKIPPED)
-        logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog())
+    fun firstRunSkipped(viaBack: Boolean) {
+        val fields = mapOf(Key.VIA to if (viaBack) VIA_BACK else VIA_BUTTON)
+        analytics.track(Event.FIRST_RUN_SKIPPED, fields)
+        logger.info(TAG, Event.FIRST_RUN_SKIPPED, tc = flowTrace.toLog(), fields = fields)
     }
 
     /** The first-run auto-odometer card was shown. */
@@ -214,6 +215,8 @@ internal class AdvisoryTelemetry(
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
     private companion object {
+        const val VIA_BACK = "back"
+        const val VIA_BUTTON = "button"
         const val TAG = "ADVISORY"
         const val FLOW = "advisory"
 
@@ -257,5 +260,6 @@ internal class AdvisoryTelemetry(
         const val DUE = "due"
         const val PRICED = "priced"
         const val ENTRY = "entry"
+        const val VIA = "via"
     }
 }

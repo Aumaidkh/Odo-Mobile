@@ -116,6 +116,19 @@ class CarValueViewModelTest {
         assertEquals(CarValueEffect.FinishFirstRun, viewModel.effects.first())
     }
 
+    @Test
+    fun backInFirstRun_finishesFirstRunAndCountsAsSkip() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val firstRun = viewModel(firstRun = true, analytics = analytics)
+        firstRun.onEvent(CarValueEvent.BackClicked)
+        assertEquals(CarValueEffect.FinishFirstRun, firstRun.effects.first())
+        assertEquals(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED, analytics.names.last())
+
+        val garage = viewModel(firstRun = false)
+        garage.onEvent(CarValueEvent.BackClicked)
+        assertEquals(CarValueEffect.NavigateBack, garage.effects.first())
+    }
+
     private fun viewModel(
         firstRun: Boolean,
         autoOdometer: Boolean = true,

@@ -85,6 +85,16 @@ class FirstRunExitsEndToEndTest {
     }
 
     @Test
+    fun back_landsOnHome_notInSetup() {
+        reachTheValueScreen()
+
+        Espresso.pressBack()
+
+        rule.waitForText(HomeCopy.HEALTH_SCORE, 10_000)
+        rule.onNodeWithText(V2Copy.YEAR_FUEL_TITLE).assertDoesNotExist()
+    }
+
+    @Test
     fun turnOnAutoOdometer_thenBack_landsOnHome() {
         reachTheValueScreen()
 

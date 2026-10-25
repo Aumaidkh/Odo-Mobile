@@ -5,6 +5,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -24,6 +26,7 @@ import com.hopcape.odo.feature.advisory.resources.adv_check_save_failed
 import com.hopcape.odo.feature.advisory.resources.adv_check_saved
 import org.jetbrains.compose.resources.stringResource
 import com.hopcape.odo.feature.advisory.presentation.CarValueEffect
+import com.hopcape.odo.feature.advisory.presentation.CarValueEvent
 import com.hopcape.odo.feature.advisory.presentation.CarValueScreen
 import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
 import com.hopcape.odo.feature.advisory.presentation.checklist.ChecklistEffect
@@ -53,6 +56,7 @@ internal class AdvisoryFeatureEntryProvider(
  * owner just read is "scanning moves this number", and they have to be able to come back
  * and watch it move.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun CarValueRoute(
     navigationManager: NavigationManager,
@@ -87,6 +91,9 @@ internal fun CarValueRoute(
             is CarValueEffect.Share -> share(effect.text)
         }
     }
+
+    // Otherwise the system back pops straight into the setup steps of a car already saved.
+    BackHandler(enabled = firstRun) { viewModel.onEvent(CarValueEvent.BackClicked) }
 
     CarValueScreen(state = state, onEvent = viewModel::onEvent)
 }
