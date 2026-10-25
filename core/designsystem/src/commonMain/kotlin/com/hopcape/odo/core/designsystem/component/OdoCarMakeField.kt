@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -364,6 +366,9 @@ private fun CarMakeSheet(
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     val searching = trimmed.isNotEmpty()
+    val listState = rememberLazyListState()
+    // Matches are inserted above the list, so without this they open scrolled out of view.
+    LaunchedEffect(trimmed) { listState.scrollToItem(0) }
     var enteringCustom by remember { mutableStateOf(false) }
 
     if (enteringCustom && notListedPlaceholder != null && notListedConfirmLabel != null) {
@@ -428,6 +433,7 @@ private fun CarMakeSheet(
         )
 
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxWidth().heightIn(max = SheetListMaxHeight),
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
