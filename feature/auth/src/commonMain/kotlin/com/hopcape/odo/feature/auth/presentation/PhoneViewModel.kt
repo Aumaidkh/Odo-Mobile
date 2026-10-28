@@ -48,11 +48,22 @@ internal class PhoneViewModel(
     private val _effects = Channel<PhoneEffect>(Channel.BUFFERED)
     val effects: Flow<PhoneEffect> = _effects.receiveAsFlow()
 
+    /** Each is counted once per visit, not per keystroke. */
+    private var typingCounted = false
+    private var entryCounted = false
+
+    init {
+        viewModelScope.launch { telemetry.phoneShown() }
+    }
+
     fun onEvent(event: PhoneEvent) = when (event) {
-        is PhoneEvent.PhoneChanged -> _state.update {
-            // Typing clears the last failure: the number on screen is no longer the one
-            // that failed.
-            it.copy(phone = event.value, submission = Submission.Idle)
+        is PhoneEvent.PhoneChanged -> {
+            _state.update {
+                // Typing clears the last failure: the number on screen is no longer the one
+                // that failed.
+                it.copy(phone = event.value, submission = Submission.Idle)
+            }
+            countTyping()
         }
 
         PhoneEvent.SendCodeClicked -> sendCode()
@@ -72,17 +83,33 @@ internal class PhoneViewModel(
      */
     private fun sendCode() {
         if (!_state.value.canSubmit) return
+        viewModelScope.launch { telemetry.sendCodeClicked() }
 
         // Parsed here rather than per keystroke: this is the first moment the owner has
         // said they are finished typing. The parsed number travels, not what was typed —
         // the next screen has to show a result for the same thing the code was issued for.
         PhoneNumber.of(_state.value.phone).fold(
-            ifLeft = { error -> _state.update { it.copy(submission = Submission.Failed(error.toMessage())) } },
+            ifLeft = { error ->
+                viewModelScope.launch { telemetry.phoneRefused(error) }
+                _state.update { it.copy(submission = Submission.Failed(error.toMessage())) }
+            },
             ifRight = { parsed ->
                 requests.request(parsed)
                 emit(PhoneEffect.CodeSent(parsed.value))
             },
         )
+    }
+
+    private fun countTyping() {
+        val state = _state.value
+        if (!typingCounted && state.phone.isNotEmpty()) {
+            typingCounted = true
+            viewModelScope.launch { telemetry.phoneTypingStarted() }
+        }
+        if (!entryCounted && state.canSubmit) {
+            entryCounted = true
+            viewModelScope.launch { telemetry.phoneEntered() }
+        }
     }
 
     private fun emit(effect: PhoneEffect) {

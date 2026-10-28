@@ -37,6 +37,9 @@ kotlin {
             implementation(projects.observability.logging)
             // APM tracer (spans/traces) wired via performanceModule.
             implementation(projects.observability.performance)
+            // AnalyticsTracker wired via analyticsModule — a server that could not be
+            // reached is counted here rather than reported as a crash.
+            implementation(projects.observability.analytics)
             // CrashRecorder wired via crashReportingModule — a request that throws is a
             // non-fatal, not an expected DomainError.
             implementation(projects.observability.crashreporting)

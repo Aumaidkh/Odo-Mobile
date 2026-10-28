@@ -86,6 +86,19 @@ class AnalyticsTrackerImplTest {
     }
 
     @Test
+    fun setUserProperty_isGatedOnConsent_thenReachesDestinations() {
+        val destination = RecordingDestination()
+        val tracker = tracker(store = RecordingStore(), destinations = listOf(destination))
+
+        tracker.setUserProperty("first_run_variant", "v2")
+        assertTrue(destination.userProperties.isEmpty(), "a property before consent is dropped")
+
+        tracker.setConsent(ConsentStatus.GRANTED)
+        tracker.setUserProperty("first_run_variant", "v2")
+        assertEquals(mapOf("first_run_variant" to "v2"), destination.userProperties)
+    }
+
+    @Test
     fun forget_reachesDestinations_evenWithoutConsent() {
         // No consent gate on the way out: someone who never granted it is exactly who
         // must not stay named.

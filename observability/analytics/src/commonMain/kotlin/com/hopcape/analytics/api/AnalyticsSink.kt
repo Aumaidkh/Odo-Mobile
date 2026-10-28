@@ -19,6 +19,9 @@ interface AnalyticsSink {
     /** Drops the identity. Defaulted, so an existing sink needs no change. */
     fun forget() {}
 
+    /** Sets one user property. Defaulted, so an existing sink needs no change. */
+    fun setUserProperty(name: String, value: String) {}
+
     /** Returns whether the vendor SDK accepted the event — decides whether it is retried. */
     fun track(eventName: String, properties: Map<String, Any?>, timestampMs: Long): Boolean
     fun flush()

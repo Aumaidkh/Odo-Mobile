@@ -25,6 +25,8 @@ kotlin {
             // The shared kernel this feature's estimator reads: Car, ServiceLogEntry,
             // their repository ports, City, and DomainError.
             implementation(projects.core.domain)
+            // FeatureConfig.autoOdometerEnabled gates the first-run auto-odometer card.
+            implementation(projects.core.config)
             // Sharing the value card is a platform action, so the feature needs the port.
             implementation(projects.core.platform)
             implementation(projects.observability.logging)

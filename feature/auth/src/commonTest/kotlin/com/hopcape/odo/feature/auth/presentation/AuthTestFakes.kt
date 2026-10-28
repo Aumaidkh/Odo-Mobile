@@ -51,6 +51,21 @@ internal fun testBroker(gateway: AuthGateway, scope: CoroutineScope) =
 
 internal fun silentAuthTelemetry() = AuthTelemetry(SilentAuthLogger, SilentAuthAnalytics)
 
+/** Captures event names and properties, so the screen funnel and the PII rule can be asserted. */
+internal class RecordingAuthAnalytics : AnalyticsTracker {
+    val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+    val names: List<String> get() = events.map { it.first }
+
+    override fun identify(traits: UserTraits) = Unit
+    override fun track(eventName: String, properties: Map<String, Any?>) {
+        events += eventName to properties
+    }
+    override fun setConsent(status: ConsentStatus) = Unit
+    override fun flush() = Unit
+}
+
+internal fun recordingAuthTelemetry(analytics: RecordingAuthAnalytics) = AuthTelemetry(SilentAuthLogger, analytics)
+
 internal fun testSession() = AuthSession(
     accessToken = "access-1",
     refreshToken = "refresh-1",

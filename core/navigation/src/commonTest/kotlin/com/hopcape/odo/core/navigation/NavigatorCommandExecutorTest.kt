@@ -130,11 +130,49 @@ class NavigatorCommandExecutorTest {
         // First run rooted at the video intro (issue #352): every entry on the stack
         // belongs to the flow, so finishing must not leave the intro underneath the
         // landing destination — back from there would replay the whole first run.
-        val nav = navigator(OdoDestination.WelcomeVideo, OdoDestination.Onboarding)
+        val nav = navigator(OdoDestination.WelcomeVideo, OdoDestination.Onboarding())
 
         nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunStep))
 
         assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
+    fun finishFlow_popsEveryV2Step_whateverItsArguments() {
+        val nav = navigator(
+            OdoDestination.Welcome(FirstRunVariant.V2),
+            OdoDestination.Onboarding(make = "Hyundai", variant = FirstRunVariant.V2),
+            OdoDestination.CarValue(firstRun = true),
+        )
+
+        nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunStep))
+
+        assertEquals(listOf(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
+    fun aBillSavedFromAFirstRunScan_hasHomeUnderTheResult() {
+        val nav = navigator(
+            OdoDestination.Welcome(FirstRunVariant.V2),
+            OdoDestination.Onboarding(make = "Hyundai", variant = FirstRunVariant.V2),
+            OdoDestination.CarValue(firstRun = true, variant = FirstRunVariant.V2),
+            OdoDestination.BillScanner.Capture(firstRun = true),
+            OdoDestination.BillScanner.Review(photoKey = "p", firstRun = true),
+        )
+
+        nav.execute(NavigationCommand.FinishFlow(OdoDestination.Home, ::isFirstRunExitStep))
+        nav.execute(NavigationCommand.NavigateTo(OdoDestination.BillCheck.Result("bill-1")))
+        assertEquals(listOf(OdoDestination.Home, OdoDestination.BillCheck.Result("bill-1")), nav.backStack.toList())
+
+        nav.execute(NavigationCommand.Back)
+        assertEquals(listOf<OdoDestination>(OdoDestination.Home), nav.backStack.toList())
+    }
+
+    @Test
+    fun aScanOpenedOutsideFirstRun_isNotAFirstRunExitStep() {
+        assertEquals(false, isFirstRunExitStep(OdoDestination.BillScanner.Capture()))
+        assertEquals(false, isFirstRunExitStep(OdoDestination.CarValue(firstRun = false)))
+        assertEquals(true, isFirstRunExitStep(OdoDestination.CarValue(firstRun = true)))
     }
 
     @Test

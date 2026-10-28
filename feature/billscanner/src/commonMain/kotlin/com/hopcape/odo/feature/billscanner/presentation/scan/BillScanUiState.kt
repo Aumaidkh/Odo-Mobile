@@ -32,6 +32,8 @@ internal data class BillScanUiState(
     val freeRemaining: Int = 0,
     val freeTotal: Int = 0,
     val cameraPermission: CameraPermissionStatus = CameraPermissionStatus.Askable,
+    /** The owner declined the camera; the gallery state (S6) shows instead of the rationale. */
+    val galleryOnly: Boolean = false,
     val cameraFailure: CameraFailure? = null,
     /** The paper outline the live frames currently hold, for the corner markers. */
     val detectedQuad: DetectedQuad? = null,
@@ -58,7 +60,10 @@ internal data class BillScanUiState(
      * owner allows and then denies the system prompt, this stays true and the rationale comes
      * back offering settings — which is the only thing left that can help.
      */
-    val showRationale: Boolean get() = !cameraGranted
+    val showRationale: Boolean get() = !cameraGranted && !galleryOnly
+
+    /** No camera, but a bill can still come from the gallery. Only the X leaves. */
+    val showGalleryOnly: Boolean get() = !cameraGranted && galleryOnly
 
     /**
      * What the live frames are analysed for.

@@ -46,3 +46,9 @@ internal class PinnedConfig(
 
     override fun after() = unpinConfig(key, compiledDefault)
 }
+
+/** The 1.4.5 first-run kill switch. The runner pins it off, so a v2 suite pins it on. */
+internal const val FIRST_RUN_V2 = "first_run_v2_enabled"
+
+/** Runs a suite on the v2 first run, then puts the runner's v1 pin back. */
+internal fun firstRunV2(): PinnedConfig = PinnedConfig(FIRST_RUN_V2, value = "true", compiledDefault = "false")

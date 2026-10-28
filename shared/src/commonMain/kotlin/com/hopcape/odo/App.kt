@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import com.hopcape.analytics.api.AnalyticsTracker
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import com.hopcape.odo.core.designsystem.units.LocalOdoDistanceFormat
 import com.hopcape.odo.core.domain.appstatus.AppAvailability
 import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.car.model.CarId
+import com.hopcape.odo.core.domain.car.repository.CarRepository
 import com.hopcape.odo.core.domain.history.RestoredHistoryStore
 import com.hopcape.odo.core.domain.owner.repository.OwnerProfileRepository
 import com.hopcape.odo.core.domain.settings.model.AppSettings
@@ -80,8 +82,8 @@ private inline fun <T> timed(step: String, block: () -> T): T {
  * and distance unit are read here and provided to everything below, because they are one
  * setting each for the whole app rather than a field on a dozen screens' state. **Where it
  * opens**: a returning owner goes straight to [OdoDestination.Home], a new one to the
- * [OdoDestination.Welcome] intro — navigation wiring, not business logic, since the fact
- * behind it (`OwnerProfile.hasCompletedOnboarding`) is already owned by the domain.
+ * [OdoDestination.Welcome] intro. A returning owner is one with a completion stamp or a stored
+ * car (see [isReturningOwner]).
  *
  * @param onExit closes the app. Only the maintenance sheet uses it: there is nothing to retry
  *  against while the server is down, so leaving is the honest action. Defaults to doing
@@ -189,12 +191,17 @@ private fun OdoAppContent(
             // Both measured at ~0-8ms, despite the comment above. The gate's real cost is
             // the config fetch below.
             val profiles = timed("open_database") { koin.get<OwnerProfileRepository>() }
-            timed("read_profile") { profiles.observe().first()?.hasCompletedOnboarding == true }
+            val stamped = timed("read_profile") { profiles.observe().first()?.hasCompletedOnboarding == true }
+            val hasCar = !stamped && timed("read_car") { koin.get<CarRepository>().observePrimaryCar().first() != null }
+            if (hasCar) HLogger.tag("STARTUP").i("returning_by_car")
+            isReturningOwner(stamped, hasCar)
         }
         onboarded = returning
         // A new install waits (bounded) for the first Remote Config fetch before the
         // video-onboarding flag is read — issue #351; a returning owner resolves at once.
-        startDestination = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
+        val resolved = onboardingStartDestination(returning, onboardingConfig, koin.get<ConfigRefresher>())
+        firstRunVariantOf(resolved)?.let { koin.get<AnalyticsTracker>().setUserProperty(FIRST_RUN_VARIANT_PROPERTY, it) }
+        startDestination = resolved
     }
 
     // Its own effect, not folded into the one above: that one returns early on the

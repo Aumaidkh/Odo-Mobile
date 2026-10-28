@@ -120,8 +120,6 @@ fun OdoCarModelField(
     notListedConfirmLabel: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope = rememberCoroutineScope()
     val isError = errorText != null
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
@@ -151,35 +149,80 @@ fun OdoCarModelField(
     }
 
     if (open) {
-        // Animate the sheet out before dropping it, so a selection doesn't make the
-        // sheet vanish mid-gesture.
-        val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { open = false } }
-        ModalBottomSheet(
+        OdoCarModelSheet(
             onDismissRequest = { open = false },
-            sheetState = sheetState,
-            containerColor = OdoTheme.colors.surface,
-        ) {
-            CarModelSheet(
-                selected = selected,
-                models = models,
-                title = title,
-                subtitle = subtitle,
-                searchPlaceholder = searchPlaceholder,
-                matchCountLabel = matchCountLabel,
-                allSectionLabel = allSectionLabel,
-                emptyResultsText = emptyResultsText,
-                closeContentDescription = closeContentDescription,
-                notListedLabel = notListedLabel,
-                notListedNamePlaceholder = notListedNamePlaceholder,
-                notListedVariantPlaceholder = notListedVariantPlaceholder,
-                notListedConfirmLabel = notListedConfirmLabel,
-                onSelect = { model ->
-                    onSelect(model)
-                    dismiss()
-                },
-                onClose = { dismiss() },
-            )
-        }
+            models = models,
+            onSelect = onSelect,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            selected = selected,
+            notListedLabel = notListedLabel,
+            notListedNamePlaceholder = notListedNamePlaceholder,
+            notListedVariantPlaceholder = notListedVariantPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+        )
+    }
+}
+
+/**
+ * The searchable model sheet on its own, for callers that open it from something other than
+ * [OdoCarModelField] (setup's model search). Parameters are as on [OdoCarModelField].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OdoCarModelSheet(
+    onDismissRequest: () -> Unit,
+    models: List<OdoCarModel>,
+    onSelect: (OdoCarModel) -> Unit,
+    title: String,
+    subtitle: String,
+    searchPlaceholder: String,
+    matchCountLabel: (Int) -> String,
+    allSectionLabel: String,
+    emptyResultsText: String,
+    closeContentDescription: String,
+    selected: OdoCarModel? = null,
+    notListedLabel: String? = null,
+    notListedNamePlaceholder: String? = null,
+    notListedVariantPlaceholder: String? = null,
+    notListedConfirmLabel: String? = null,
+) {
+    // Fully open: a half-open sheet leaves its list running under the navigation bar.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    // Animate the sheet out before dropping it, so a selection doesn't make the
+    // sheet vanish mid-gesture.
+    val dismiss = { scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() } }
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        containerColor = OdoTheme.colors.surface,
+    ) {
+        CarModelSheet(
+            selected = selected,
+            models = models,
+            title = title,
+            subtitle = subtitle,
+            searchPlaceholder = searchPlaceholder,
+            matchCountLabel = matchCountLabel,
+            allSectionLabel = allSectionLabel,
+            emptyResultsText = emptyResultsText,
+            closeContentDescription = closeContentDescription,
+            notListedLabel = notListedLabel,
+            notListedNamePlaceholder = notListedNamePlaceholder,
+            notListedVariantPlaceholder = notListedVariantPlaceholder,
+            notListedConfirmLabel = notListedConfirmLabel,
+            onSelect = { model ->
+                onSelect(model)
+                dismiss()
+            },
+            onClose = { dismiss() },
+        )
     }
 }
 

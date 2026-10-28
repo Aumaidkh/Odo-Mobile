@@ -1,10 +1,13 @@
 package com.hopcape.odo
 
 import com.hopcape.odo.core.config.ConfigRefresher
+import com.hopcape.odo.core.navigation.FirstRunVariant
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.awaitCancellation
@@ -13,8 +16,10 @@ import kotlinx.coroutines.test.runTest
 
 class OnboardingStartTest {
 
-    private fun config(video: Boolean = false) = object : OnboardingConfig {
+    private fun config(video: Boolean = false, v2: Boolean = false) = object : OnboardingConfig {
         override val videoEnabled = video
+        override val firstRunV2Enabled = v2
+        override val welcomeTitle = ""
         override val refuelVideoUrl = ""
         override val scannerVideoUrl = ""
     }
@@ -26,7 +31,40 @@ class OnboardingStartTest {
 
     @Test
     fun aNewInstallOpensAtWelcome() {
-        assertEquals(OdoDestination.Welcome, onboardingStartDestination(returning = false, config()))
+        assertEquals(OdoDestination.Welcome(FirstRunVariant.V1), onboardingStartDestination(returning = false, config()))
+    }
+
+    @Test
+    fun everyFlagCombination_picksV2ThenVideoThenV1() {
+        val cases = mapOf(
+            (false to false) to OdoDestination.Welcome(FirstRunVariant.V1),
+            (false to true) to OdoDestination.WelcomeVideo,
+            (true to false) to OdoDestination.Welcome(FirstRunVariant.V2),
+            // v2 wins over the video intro.
+            (true to true) to OdoDestination.Welcome(FirstRunVariant.V2),
+        )
+        cases.forEach { (flags, expected) ->
+            val (v2, video) = flags
+            assertEquals(expected, onboardingStartDestination(returning = false, config(video = video, v2 = v2)))
+        }
+    }
+
+    @Test
+    fun anInstallWithACar_opensHomeWhateverTheFlagsSay() {
+        val returning = isReturningOwner(stamped = false, hasCar = true)
+        listOf(false, true).forEach { v2 ->
+            listOf(false, true).forEach { video ->
+                assertEquals(OdoDestination.Home, onboardingStartDestination(returning, config(video, v2)))
+            }
+        }
+    }
+
+    @Test
+    fun theVariantPropertyNamesTheFlow() {
+        assertEquals("v2", firstRunVariantOf(OdoDestination.Welcome(FirstRunVariant.V2)))
+        assertEquals("v1", firstRunVariantOf(OdoDestination.Welcome(FirstRunVariant.V1)))
+        assertEquals("v1", firstRunVariantOf(OdoDestination.WelcomeVideo))
+        assertEquals(null, firstRunVariantOf(OdoDestination.Home))
     }
 
     @Test
@@ -72,6 +110,8 @@ class OnboardingStartTest {
             private set
 
         override val videoEnabled: Boolean get() = fetched
+        override val firstRunV2Enabled = false
+        override val welcomeTitle = ""
         override val refuelVideoUrl = ""
         override val scannerVideoUrl = ""
 
@@ -104,7 +144,7 @@ class OnboardingStartTest {
             override suspend fun refresh() = awaitCancellation()
         }
         assertEquals(
-            OdoDestination.Welcome,
+            OdoDestination.Welcome(FirstRunVariant.V1),
             onboardingStartDestination(returning = false, config(), neverCompletes),
         )
     }
@@ -118,5 +158,21 @@ class OnboardingStartTest {
             onboardingStartDestination(returning = true, config = remote, refresher = remote),
         )
         assertEquals(0, remote.refreshCalls)
+    }
+
+    @Test
+    fun aStampedProfileIsReturning() {
+        assertTrue(isReturningOwner(stamped = true, hasCar = false))
+    }
+
+    /** 1.4.3 and 1.4.4 stored the car without the stamp; those owners must still open Home. */
+    @Test
+    fun aCarWithoutTheStampIsReturning() {
+        assertTrue(isReturningOwner(stamped = false, hasCar = true))
+    }
+
+    @Test
+    fun noStampAndNoCarIsANewInstall() {
+        assertFalse(isReturningOwner(stamped = false, hasCar = false))
     }
 }

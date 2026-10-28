@@ -3,8 +3,9 @@ package com.hopcape.odo.feature.onboarding.presentation.welcome
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,12 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.LinkAnnotation
@@ -44,7 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
+import com.hopcape.odo.core.designsystem.component.OdoEntrance
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.component.OdoTickGauge
 import com.hopcape.odo.core.designsystem.icons.IcBarChart
 import com.hopcape.odo.core.designsystem.icons.IcCamera
 import com.hopcape.odo.core.designsystem.icons.IcRupee
@@ -62,8 +61,8 @@ import com.hopcape.odo.feature.onboarding.resources.onb_welcome_legal_terms
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_sign_in
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_mark_reading
-import com.hopcape.odo.feature.onboarding.resources.onb_welcome_subtitle
-import com.hopcape.odo.feature.onboarding.resources.onb_welcome_title
+import com.hopcape.odo.feature.onboarding.resources.onb_welcome_v1_subtitle
+import com.hopcape.odo.feature.onboarding.resources.onb_welcome_v1_title
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_bill
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_cost
 import com.hopcape.odo.feature.onboarding.resources.onb_welcome_value_resale
@@ -115,12 +114,12 @@ internal fun WelcomeScreen(
             Entrance(1, visible) {
                 Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md)) {
                     OdoText(
-                        text = stringResource(Res.string.onb_welcome_title),
+                        text = stringResource(Res.string.onb_welcome_v1_title),
                         style = OdoTheme.typography.display.copy(fontSize = 32.sp, lineHeight = 38.sp),
                         color = OdoTheme.colors.text,
                     )
                     OdoText(
-                        text = stringResource(Res.string.onb_welcome_subtitle),
+                        text = stringResource(Res.string.onb_welcome_v1_subtitle),
                         style = OdoTheme.typography.body,
                         color = OdoTheme.colors.textDim,
                     )
@@ -164,49 +163,24 @@ internal fun WelcomeScreen(
 
 /* ------------------------------ Brand mark ------------------------------ */
 
-/**
- * The Odo mark: a gauge ring around the wordmark and a stand-in reading. The ring's gap
- * sits at the bottom, so it reads as a dial sweeping — the odometer is the product.
- */
+/** The Odo mark as the splash ends: the tick dial, the wordmark, and a boxed reading. */
 @Composable
-private fun OdometerMark() {
-    val accent = OdoTheme.colors.accent
-    Box(Modifier.size(MarkSize), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val stroke = 5.dp.toPx()
-            val inset = stroke / 2
-            val arcSize = Size(size.width - stroke, size.height - stroke)
-            val topLeft = Offset(inset, inset)
-            // Track first, then the live sweep over it — same construction as the health dial.
-            drawArc(
-                color = accent.copy(alpha = 0.18f),
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-            drawArc(
-                color = accent,
-                startAngle = 128f,
-                sweepAngle = 300f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-        }
+internal fun OdometerMark() {
+    OdoTickGauge(size = MarkSize) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             OdoText(
                 text = stringResource(Res.string.onb_welcome_mark),
-                style = OdoTheme.typography.heading.copy(fontSize = 20.sp, letterSpacing = 0.5.sp),
+                style = OdoTheme.typography.heading.copy(fontSize = 20.sp, letterSpacing = 3.sp),
                 color = OdoTheme.colors.text,
             )
             OdoText(
                 text = stringResource(Res.string.onb_welcome_mark_reading),
-                style = OdoTheme.typography.caption.copy(fontSize = 9.sp),
-                color = accent,
+                style = OdoTheme.typography.caption.copy(fontSize = 8.sp, letterSpacing = 1.5.sp),
+                color = OdoTheme.colors.textDim,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .border(1.dp, OdoTheme.colors.border, RoundedCornerShape(3.dp))
+                    .padding(horizontal = 5.dp, vertical = 1.dp),
             )
         }
     }
@@ -245,7 +219,7 @@ private fun ValueRow(prop: ValueProp) {
  * stay tappable wherever they land in the sentence.
  */
 @Composable
-private fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
+internal fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
     val terms = stringResource(Res.string.onb_welcome_legal_terms)
     val privacy = stringResource(Res.string.onb_welcome_legal_privacy)
     val sentence = stringResource(Res.string.onb_welcome_legal, terms, privacy)
@@ -285,22 +259,11 @@ private fun LegalFooter(onTerms: () -> Unit, onPrivacy: () -> Unit) {
 
 /** Staggered rise-and-fade, matching the paywall's entrance so first-run feels of a piece. */
 @Composable
-private fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Unit) {
-    val progress by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 480, delayMillis = 80 * index, easing = FastOutSlowInEasing),
-        label = "welcomeEntrance$index",
-    )
-    Box(
-        Modifier.graphicsLayer {
-            alpha = progress
-            translationY = (1f - progress) * 24.dp.toPx()
-        },
-    ) { content() }
-}
+internal fun Entrance(index: Int, visible: Boolean, content: @Composable () -> Unit) =
+    OdoEntrance(index = index, visible = visible, content = content)
 
-private val MarkSize = 84.dp
-private val GlowHeight = 420.dp
+private val MarkSize = 120.dp
+internal val GlowHeight = 420.dp
 
 @OdoThemePreviews
 @Composable

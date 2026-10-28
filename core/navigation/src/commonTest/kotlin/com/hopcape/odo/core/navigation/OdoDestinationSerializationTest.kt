@@ -3,6 +3,7 @@ package com.hopcape.odo.core.navigation
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.descriptors.PolymorphicKind
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.elementDescriptors
@@ -32,11 +33,13 @@ class OdoDestinationSerializationTest {
      */
     private val allDestinations: List<OdoDestination> = listOf(
         OdoDestination.Home,
-        OdoDestination.Welcome,
+        OdoDestination.Welcome(FirstRunVariant.V2),
+        OdoDestination.Welcome(),
         // The video intro is a start destination too, so a key it cannot write back is a
         // first run that restarts itself on a dark-mode switch.
         OdoDestination.WelcomeVideo,
-        OdoDestination.Onboarding,
+        OdoDestination.Onboarding(make = "Hyundai", variant = FirstRunVariant.V2, resume = true),
+        OdoDestination.Onboarding(),
         OdoDestination.CarDetail(carId = "car-1"),
         OdoDestination.Paywall.Plans(trigger = "SCAN_LIMIT", amountPaise = 4_999L, freeScans = 2),
         OdoDestination.FilePreview(
@@ -106,7 +109,8 @@ class OdoDestinationSerializationTest {
         OdoDestination.ServiceLog.Share(carId = "car-1", logId = "log-1"),
         // Bill scanner
         OdoDestination.BillScanner.Capture(target = ScanTarget.Document, documentType = "INSURANCE"),
-        OdoDestination.BillScanner.Review(photoKey = "scans/bill-1.jpg"),
+        OdoDestination.BillScanner.Review(photoKey = "scans/bill-1.jpg", firstRun = true),
+        OdoDestination.BillScanner.Capture(firstRun = true),
         OdoDestination.BillScanner.DocumentReview(
             photoKey = "scans/rc-1.jpg",
             documentType = "RC",
@@ -180,7 +184,7 @@ class OdoDestinationSerializationTest {
         // Questionnaire — the keys are a list, so this also covers a collection argument.
         OdoDestination.Questionnaire(keys = listOf("goal.v1")),
         OdoDestination.CarValue(),
-        OdoDestination.CarValue(firstRun = true),
+        OdoDestination.CarValue(firstRun = true, variant = FirstRunVariant.V2),
         OdoDestination.ServiceChecklist(entry = "HOME_CARD"),
         OdoDestination.Paywall.OneTimeOffers(context = "BILL_CHECK"),
         OdoDestination.BillCheck.Result(billId = "bill-1"),
@@ -231,6 +235,33 @@ class OdoDestinationSerializationTest {
         assertEquals(stack.toList(), restored.toList())
     }
 
+    @Test
+    fun aSetupStackSavedBy144_restoresIntoV1() {
+        // 1.4.4.x wrote Welcome and Onboarding as objects. Mid-setup during the update, the
+        // owner finishes the flow they started.
+        val saved = """[{"type":"$ONBOARDING"},{"type":"$WELCOME"}]"""
+
+        val restored = json.decodeFromString(ListSerializer(OdoDestination.serializer()), saved)
+
+        assertEquals(
+            listOf(OdoDestination.Onboarding(variant = FirstRunVariant.V1), OdoDestination.Welcome()),
+            restored,
+        )
+    }
+
+    @Test
+    fun aStackThatNoLongerDecodes_startsOverInsteadOfCrashing() {
+        val serializer = RestoreOrStartOver(NavBackStackSerializer(OdoDestination.serializer())) {
+            NavBackStack<OdoDestination>(OdoDestination.Welcome(FirstRunVariant.V2))
+        }
+        val saved = """[{"type":"com.hopcape.odo.core.navigation.OdoDestination.Gone"}]"""
+
+        // A tree decode, like saved state: no end-of-input check after the fallback returns.
+        val restored = json.decodeFromJsonElement(serializer, json.parseToJsonElement(saved))
+
+        assertEquals(listOf<OdoDestination>(OdoDestination.Welcome(FirstRunVariant.V2)), restored.toList())
+    }
+
     private val json = Json
 
     /** The type discriminator a destination is written under. */
@@ -259,5 +290,7 @@ class OdoDestinationSerializationTest {
     private companion object {
         /** kotlinx-serialization's default discriminator for a polymorphic value. */
         const val TYPE_KEY = "type"
+        const val ONBOARDING = "com.hopcape.odo.core.navigation.OdoDestination.Onboarding"
+        const val WELCOME = "com.hopcape.odo.core.navigation.OdoDestination.Welcome"
     }
 }

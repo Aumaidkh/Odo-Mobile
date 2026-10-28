@@ -2,6 +2,7 @@ package com.hopcape.odo.infrastructure.supabase
 
 import arrow.core.left
 import arrow.core.right
+import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.data.cost.FuelFillRemoteDataSource
@@ -191,6 +192,7 @@ class SupabaseModuleTest {
                     single<Logger> { RecordingLogger }
                     single<PerformanceTracer> { NoopTracer }
                     single<CrashRecorder> { RecordingCrashRecorder }
+                    single<AnalyticsTracker> { NoopAnalytics }
                     // The session lives in :feature:auth now; this module only consumes the
                     // token through the domain port.
                     single<AccessTokenProvider> { AccessTokenProvider { null } }

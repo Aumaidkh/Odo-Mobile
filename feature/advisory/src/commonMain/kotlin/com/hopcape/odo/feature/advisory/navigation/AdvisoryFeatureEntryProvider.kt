@@ -5,6 +5,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -13,7 +15,9 @@ import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isFirstRunStep
+import com.hopcape.odo.core.navigation.FirstRunVariant
 import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.leaveFirstRunTo
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.navigateTo
 import com.hopcape.odo.core.platform.share.rememberTextSharer
@@ -22,6 +26,7 @@ import com.hopcape.odo.feature.advisory.resources.adv_check_save_failed
 import com.hopcape.odo.feature.advisory.resources.adv_check_saved
 import org.jetbrains.compose.resources.stringResource
 import com.hopcape.odo.feature.advisory.presentation.CarValueEffect
+import com.hopcape.odo.feature.advisory.presentation.CarValueEvent
 import com.hopcape.odo.feature.advisory.presentation.CarValueScreen
 import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
 import com.hopcape.odo.feature.advisory.presentation.checklist.ChecklistEffect
@@ -36,7 +41,10 @@ internal class AdvisoryFeatureEntryProvider(
     private val navigationManager: NavigationManager,
 ) : FeatureEntryProvider {
     override fun EntryProviderScope<NavKey>.registerEntries() {
-        entry<OdoDestination.CarValue> { CarValueRoute(navigationManager, it.firstRun) }
+        entry<OdoDestination.CarValue> { key ->
+            val steps = if (key.variant == FirstRunVariant.V2) V2_FIRST_RUN_STEPS else V1_FIRST_RUN_STEPS
+            CarValueRoute(navigationManager, key.firstRun, steps)
+        }
         entry<OdoDestination.ServiceChecklist> { ChecklistRoute(navigationManager, it.entry) }
     }
 }
@@ -48,9 +56,14 @@ internal class AdvisoryFeatureEntryProvider(
  * owner just read is "scanning moves this number", and they have to be able to come back
  * and watch it move.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun CarValueRoute(navigationManager: NavigationManager, firstRun: Boolean = false) {
-    val viewModel = koinViewModel<CarValueViewModel> { parametersOf(firstRun) }
+internal fun CarValueRoute(
+    navigationManager: NavigationManager,
+    firstRun: Boolean = false,
+    firstRunSteps: Int = V1_FIRST_RUN_STEPS,
+) {
+    val viewModel = koinViewModel<CarValueViewModel> { parametersOf(firstRun, firstRunSteps) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val share = rememberTextSharer()
 
@@ -62,8 +75,12 @@ internal fun CarValueRoute(navigationManager: NavigationManager, firstRun: Boole
             // — first run does not repeat — and the dashboard is what is left underneath.
             CarValueEffect.FinishFirstRun ->
                 navigationManager.finishFlow(OdoDestination.Home, ::isFirstRunStep)
-            CarValueEffect.OpenScanner ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.Capture())
+            is CarValueEffect.OpenScanner ->
+                navigationManager.navigateTo(OdoDestination.BillScanner.Capture(firstRun = effect.firstRun))
+
+            // Home goes under the permission flow, so back or completion lands there.
+            CarValueEffect.OpenAutoOdometer ->
+                navigationManager.leaveFirstRunTo(OdoDestination.AutoOdometer.PermissionSetup())
 
             CarValueEffect.OpenUpdateOdometer ->
                 navigationManager.navigateTo(OdoDestination.Garage.UpdateOdometer)
@@ -74,6 +91,9 @@ internal fun CarValueRoute(navigationManager: NavigationManager, firstRun: Boole
             is CarValueEffect.Share -> share(effect.text)
         }
     }
+
+    // Otherwise the system back pops straight into the setup steps of a car already saved.
+    BackHandler(enabled = firstRun) { viewModel.onEvent(CarValueEvent.BackClicked) }
 
     CarValueScreen(state = state, onEvent = viewModel::onEvent)
 }
@@ -108,3 +128,7 @@ internal fun ChecklistRoute(navigationManager: NavigationManager, entry: String)
         snackbarHostState = snackbarHostState,
     )
 }
+
+/** First run is Welcome, setup, this screen and the scan in v1; Model, Year and fuel, this in v2. */
+private const val V1_FIRST_RUN_STEPS = 4
+private const val V2_FIRST_RUN_STEPS = 3

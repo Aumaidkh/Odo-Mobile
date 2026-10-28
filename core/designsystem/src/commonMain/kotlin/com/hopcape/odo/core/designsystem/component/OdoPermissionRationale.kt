@@ -94,6 +94,8 @@ data class OdoPermissionAssurance(
  *   an owner on the first of three is told so before they start rather than after.
  * @param assurancesLabel the small heading over the assurance card, e.g. "WHAT ODO READS". It
  *   turns a list of claims into an answer to a question the owner is already asking.
+ * @param secondaryLabel when non-null (with [onSecondary]), a full-width Secondary button under
+ *   the confirm, for a way forward that needs no permission.
  * @param content anything this particular ask needs that the fixed layout has no slot for — a
  *   worked example, a preview of the thing being offered. Rendered last, above the buttons.
  */
@@ -119,6 +121,8 @@ fun OdoPermissionRationale(
     stepTotal: Int = 0,
     stepLabel: String = "",
     assurancesLabel: String? = null,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     OdoScreen(
@@ -169,6 +173,14 @@ fun OdoPermissionRationale(
                     onClick = onConfirm,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (secondaryLabel != null && onSecondary != null) {
+                    OdoButton(
+                        text = secondaryLabel,
+                        onClick = onSecondary,
+                        variant = OdoButtonVariant.Secondary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 OdoButton(
                     text = dismissLabel,
                     onClick = onDismiss,

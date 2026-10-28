@@ -61,6 +61,9 @@
 
     <!-- Nothing to show -->
     <string name="pw_error_store_unavailable">Couldn’t reach the store. Check your connection and try again.</string>
+    <string name="pw_store_not_from_play">Odo wasn’t installed from the Play Store, so Google can’t take a payment for it. Install Odo from Play to subscribe — your cars and logs stay exactly as they are.</string>
+    <string name="pw_store_payments_unavailable">Google Play can’t take a payment on this device right now. Open the Play Store, check you’re signed in and up to date, then try again.</string>
+    <string name="pw_store_open_play">Get Odo on Play Store</string>
     <string name="pw_error_nothing_for_sale">Odo Pro isn’t available to buy right now. Please try again later.</string>
     <string name="pw_retry">Try again</string>
 

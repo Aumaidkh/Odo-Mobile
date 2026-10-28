@@ -7,19 +7,23 @@
          prints the backslash. -->
     <string name="adv_value_title">My car’s value</string>
 
-    <!-- First run, step 3 of 4: the screen that pays for the answers setup just took. -->
-    <string name="adv_value_fr_title">What your %1$s is worth today</string>
+    <!-- First run's value screen: the screen that pays for the answers setup just took. -->
+    <string name="adv_value_fr_title">Your %1$d %2$s is worth about</string>
     <string name="adv_value_fr_today_label">TODAY, WITH NO RECORD</string>
     <string name="adv_value_fr_today_label_partial">TODAY, WITH YOUR RECORD</string>
     <string name="adv_value_fr_record_label">WITH A PROVEN SERVICE RECORD</string>
-    <string name="adv_value_fr_record_body">That is what buyers usually pay extra for a car with its history on paper. You have %1$s so far.</string>
-    <string name="adv_value_fr_bills_none">0 bills logged</string>
-    <string name="adv_value_fr_bills_one">1 bill logged</string>
-    <string name="adv_value_fr_bills_many">%1$d bills logged</string>
-    <string name="adv_value_fr_band_note">It is a band, not one number, because the estimate runs off the segment average. A single figure would claim a precision we don’t have.</string>
+    <string name="adv_value_fr_record_body">Buyers usually pay this much more for a car whose service history is on paper. %1$s</string>
+    <string name="adv_value_fr_bills_none">Your first bill starts it.</string>
+    <string name="adv_value_fr_bills_one">1 bill logged so far.</string>
+    <string name="adv_value_fr_bills_many">%1$d bills logged so far.</string>
+    <string name="adv_value_fr_band_note">It’s worked out from cars like yours, not this exact one, so it’s a range. Your bills narrow it.</string>
+    <string name="adv_value_fr_why">Why a range?</string>
     <string name="adv_value_fr_basis">Estimated · your bills will tighten this</string>
-    <string name="adv_value_fr_scan">Scan your first bill</string>
-    <string name="adv_value_fr_skip">Not now — let me look around</string>
+    <string name="adv_value_fr_scan">Scan a service bill</string>
+    <string name="adv_value_fr_skip">Skip for now</string>
+    <string name="adv_value_fr_odo_title">Turn on auto odometer</string>
+    <string name="adv_value_fr_odo_body">Every drive logged for you. Your location never leaves the phone; only km are saved.</string>
+    <string name="adv_value_fr_odo_cta">Turn on</string>
     <string name="adv_value_fr_cd_progress">Step %1$d of %2$d</string>
     <string name="adv_value_fr_fuel_petrol">Petrol</string>
     <string name="adv_value_fr_fuel_diesel">Diesel</string>

@@ -20,6 +20,10 @@ internal class ConsoleDestination(
         sink("[analytics] identify userId=${traits.userId} traits=${traits.traits}")
     }
 
+    override fun setUserProperty(name: String, value: String) {
+        sink("[analytics] user_property $name=$value")
+    }
+
     override fun track(event: AnalyticsEvent): Boolean {
         sink("[analytics] track ${event.name} seq=${event.sequenceNumber} props=${event.properties}")
         return true

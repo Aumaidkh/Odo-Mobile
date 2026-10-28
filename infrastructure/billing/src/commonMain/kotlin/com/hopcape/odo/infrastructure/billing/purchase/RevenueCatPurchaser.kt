@@ -5,6 +5,8 @@ import arrow.core.left
 import arrow.core.right
 import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.RestoreOutcome
+import com.hopcape.odo.core.domain.subscription.StoreAvailability
+import com.hopcape.odo.core.domain.subscription.StoreReadiness
 import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
 import com.hopcape.odo.infrastructure.billing.entitlement.RevenueCatEntitlementSource.Companion.PRO_ENTITLEMENT
 import com.hopcape.odo.infrastructure.billing.observability.BillingTelemetry
@@ -29,9 +31,12 @@ import com.revenuecat.purchases.kmp.models.Package
  */
 internal class RevenueCatPurchaser(
     private val telemetry: BillingTelemetry,
+    private val availability: StoreAvailability,
 ) : SubscriptionPurchaser {
 
+    /** Refuses before the store's sheet can open on a device it would not sell to. */
     override suspend fun purchase(planId: String): Either<DomainError, Unit> {
+        if (availability.check() != StoreReadiness.READY) return DomainError.StoreUnavailable.left()
         val plan = findPackage(planId) ?: return DomainError.NothingForSale.left()
 
         telemetry.purchaseStarted(planId)

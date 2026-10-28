@@ -8,20 +8,22 @@
     <string name="bs_scan_edges_pinned">Edges locked — capture, or tap to unlock</string>
     <string name="bs_scan_manual">Manual</string>
 
-    <!-- Camera permission rationale, shown before the system prompt -->
-    <string name="bs_camera_title">Odo needs your camera to read things</string>
-    <string name="bs_camera_subtitle">Everything Odo checks starts as a photo. Grant once and both work.</string>
-    <string name="bs_camera_bills_title">Service bills</string>
-    <string name="bs_camera_bills_body">Read the amounts and check them against real city prices.</string>
-    <string name="bs_camera_papers_title">Insurance, PUC &amp; RC</string>
-    <string name="bs_camera_papers_body">Pull the expiry date so renewals never catch you out.</string>
-    <string name="bs_camera_no_background">No photos or video in the background</string>
-    <string name="bs_camera_no_library">No access to your photo library</string>
-    <string name="bs_camera_only_on_scan">Only when you tap Scan</string>
-    <string name="bs_camera_allow">Allow camera</string>
+    <!-- Camera permission rationale, shown before the system prompt. Printed bills are the
+         claim; nothing here promises accuracy on handwritten ones. -->
+    <string name="bs_camera_title">Snap your bill</string>
+    <string name="bs_camera_subtitle">Odo checks every line against what others in your city paid, so you know if a charge is fair.</string>
+    <string name="bs_camera_tick_printed">Printed bills work best</string>
+    <string name="bs_camera_tick_private">Photos stay private to your account</string>
+    <string name="bs_camera_tick_fast">Takes about 10 seconds</string>
+    <string name="bs_camera_allow">Use camera</string>
+    <string name="bs_camera_gallery">Choose from gallery</string>
     <string name="bs_camera_open_settings">Open settings</string>
     <string name="bs_camera_not_now">Not now</string>
-    <string name="bs_camera_blocked_subtitle">The camera is switched off for Odo. Turn it back on in settings and scanning works again.</string>
+    <string name="bs_camera_blocked_subtitle">The camera is switched off for Odo. Turn it back on in settings, or pick a bill photo from your gallery.</string>
+    <!-- The scanner after the camera was declined (S6). -->
+    <string name="bs_no_camera_title">No camera access</string>
+    <string name="bs_no_camera_body">You can still pick a bill photo from your gallery.</string>
+    <string name="bs_no_camera_settings">Allow camera in Settings</string>
 
     <string name="bs_camera_unavailable">The camera could not be opened. Enter the details yourself instead.</string>
     <string name="bs_camera_capture_failed">That photo did not save. Try again.</string>

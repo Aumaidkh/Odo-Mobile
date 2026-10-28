@@ -15,6 +15,8 @@ import com.hopcape.odo.core.domain.subscription.CompletedPurchase
 import com.hopcape.odo.core.domain.subscription.OneTimeProducts
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.PlanOption
+import com.hopcape.odo.core.domain.subscription.StoreAvailability
+import com.hopcape.odo.core.domain.subscription.StoreReadiness
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import org.koin.core.context.GlobalContext
 import org.koin.dsl.module
@@ -137,6 +139,19 @@ internal fun installNoStore() {
  * sees whatever the test last installed, which is what "the store came back" actually looks
  * like.
  */
+/**
+ * What the store says about whether it would sell here at all.
+ *
+ * Bound READY by default: an emulator install did not come from Play, so the real adapter
+ * would hide every CTA and each purchase test would fail on a missing button.
+ */
+private object SwitchableStoreAvailability : StoreAvailability {
+    @Volatile
+    var readiness: StoreReadiness = StoreReadiness.READY
+
+    override suspend fun check(): StoreReadiness = readiness
+}
+
 private object SwitchableCatalog : SubscriptionCatalog {
     @Volatile
     var answer: () -> Either<DomainError, Offer> = { DomainError.NothingForSale.left() }
@@ -208,6 +223,11 @@ internal fun installNoOneTimeProducts() {
     installOneTimePrices(null, null, null)
 }
 
+/** A device the store will not sell to — a clone, a transfer copy, an APK off a website. */
+internal fun installStoreThatWillNotSell() {
+    SwitchableStoreAvailability.readiness = StoreReadiness.NOT_FROM_STORE
+}
+
 /** A store that cannot be asked at all — which must not read as an empty catalogue. */
 internal fun installUnreachableOneTimeStore() {
     installOneTimePrices(null, null, null)
@@ -218,9 +238,17 @@ private var catalogBound = false
 
 private fun installCatalog(answer: () -> Either<DomainError, Offer>) {
     SwitchableCatalog.answer = answer
+    // Reset, not left: the switchables are objects that outlive a test, so a run that made
+    // the store refuse would otherwise photograph the refusal in every test after it.
+    SwitchableStoreAvailability.readiness = StoreReadiness.READY
     if (catalogBound) return
     GlobalContext.get().loadModules(
-        listOf(module { single<SubscriptionCatalog> { SwitchableCatalog } }),
+        listOf(
+            module {
+                single<SubscriptionCatalog> { SwitchableCatalog }
+                single<StoreAvailability> { SwitchableStoreAvailability }
+            },
+        ),
         allowOverride = true,
     )
     catalogBound = true

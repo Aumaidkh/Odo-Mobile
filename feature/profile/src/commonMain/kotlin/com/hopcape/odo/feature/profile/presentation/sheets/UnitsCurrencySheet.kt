@@ -16,7 +16,7 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoIcon
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.icons.IcCheck
-import com.hopcape.odo.core.designsystem.icons.IcCurrencyDollar
+import com.hopcape.odo.core.designsystem.icons.IcRupee
 import com.hopcape.odo.core.designsystem.text.asString
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
@@ -112,7 +112,7 @@ internal fun UnitsCurrencySheetContent(
         SectionLabel(stringResource(Res.string.pf_units_currency))
         OdoCard {
             Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                IconTile(IcCurrencyDollar)
+                IconTile(IcRupee)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     OdoText(stringResource(Res.string.pf_units_inr), style = OdoTheme.typography.heading)
                     OdoText(

@@ -5,6 +5,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.serialization.NavBackStackSerializer
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encoding.Decoder
 
 /**
  * Create (and remember) a [Navigator] rooted at [startDestination]. Called once in the host
@@ -31,9 +33,28 @@ import androidx.navigation3.runtime.serialization.NavBackStackSerializer
 @Composable
 fun rememberNavigator(startDestination: OdoDestination): Navigator {
     val backStack = rememberSerializable(
-        serializer = NavBackStackSerializer(OdoDestination.serializer()),
+        serializer = RestoreOrStartOver(NavBackStackSerializer(OdoDestination.serializer())) {
+            NavBackStack(startDestination)
+        },
     ) {
         NavBackStack(startDestination)
     }
     return remember(backStack) { OdoNavigator(backStack) }
+}
+
+/**
+ * Restores a saved back stack, or starts over at the start destination when a key saved by an
+ * older build no longer decodes. A lost stack is better than a crash on launch.
+ */
+internal class RestoreOrStartOver<T>(
+    private val delegate: KSerializer<T>,
+    private val startOver: () -> T,
+) : KSerializer<T> by delegate {
+    override fun deserialize(decoder: Decoder): T =
+        // SerializationException is an IllegalArgumentException.
+        try {
+            delegate.deserialize(decoder)
+        } catch (_: IllegalArgumentException) {
+            startOver()
+        }
 }

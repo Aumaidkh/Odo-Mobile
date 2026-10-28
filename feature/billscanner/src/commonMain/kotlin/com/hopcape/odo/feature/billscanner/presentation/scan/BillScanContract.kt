@@ -56,6 +56,12 @@ internal sealed interface BillScanEvent {
     data object ManualTapped : BillScanEvent
 
     data object CloseTapped : BillScanEvent
+
+    /** "Use camera" on the rationale, which shows the system prompt. */
+    data object CameraRequested : BillScanEvent
+
+    /** The screen came back to the foreground, as it does when the system prompt closes. */
+    data object Resumed : BillScanEvent
 }
 
 /** One-shot handoffs the route host performs. */

@@ -19,6 +19,11 @@ val advisoryAnalyticsEvents: List<EventSchema> = listOf(
         ),
     ),
     EventSchema(AdvisoryTelemetry.Event.SCAN_CLICKED),
-    EventSchema(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED),
+    EventSchema(AdvisoryTelemetry.Event.AUTO_ODO_OFFERED),
+    EventSchema(AdvisoryTelemetry.Event.AUTO_ODO_OFFER_ACCEPTED),
+    EventSchema(
+        AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED,
+        mapOf(AdvisoryTelemetry.Key.VIA to PropertyType.STRING),
+    ),
     EventSchema(AdvisoryTelemetry.Event.SHARE_CLICKED),
 )

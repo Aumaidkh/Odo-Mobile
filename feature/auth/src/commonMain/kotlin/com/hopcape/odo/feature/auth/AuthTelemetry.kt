@@ -26,11 +26,39 @@ internal class AuthTelemetry(
 ) {
 
     /** A code was asked for. Not which number it went to. */
-    suspend fun otpRequested() = log(EVENT_OTP_REQUESTED)
+    suspend fun otpRequested() = logAndTrack(EVENT_OTP_REQUESTED)
 
     /** A code was rejected — wrong, expired, or asked for too often. */
     suspend fun otpRejected(reason: Any) =
-        log(EVENT_OTP_REJECTED, mapOf(Key.REASON to reason::class.simpleName))
+        logAndTrack(EVENT_OTP_REJECTED, mapOf(Key.REASON to reason::class.simpleName))
+
+    /* ------------------------------ Screen funnel ------------------------------ */
+
+    suspend fun phoneShown() = logAndTrack(EVENT_PHONE_SHOWN)
+
+    /** The first digit was typed. Seen-but-never-typed is a different drop-off from a half number. */
+    suspend fun phoneTypingStarted() = logAndTrack(EVENT_PHONE_TYPING_STARTED)
+
+    /** A full-length number is in the field. Never the number itself. */
+    suspend fun phoneEntered() = logAndTrack(EVENT_PHONE_ENTERED)
+
+    suspend fun sendCodeClicked() = logAndTrack(EVENT_SEND_CODE_CLICKED)
+
+    /** The typed number could not be parsed, so nothing was requested. */
+    suspend fun phoneRefused(reason: Any) =
+        logAndTrack(EVENT_PHONE_REFUSED, mapOf(Key.REASON to reason::class.simpleName))
+
+    suspend fun otpShown() = logAndTrack(EVENT_OTP_SHOWN)
+
+    suspend fun otpTypingStarted() = logAndTrack(EVENT_OTP_TYPING_STARTED)
+
+    /** A full code was submitted. [autoRead] says the SMS reader filled it, not the owner. */
+    suspend fun otpEntered(autoRead: Boolean) =
+        logAndTrack(EVENT_OTP_ENTERED, mapOf(Key.AUTO_READ to autoRead))
+
+    suspend fun otpResendClicked() = logAndTrack(EVENT_OTP_RESEND_CLICKED)
+
+    suspend fun changeNumberClicked() = logAndTrack(EVENT_CHANGE_NUMBER_CLICKED)
 
     /**
      * Name this install's owner to analytics, so a support answer can be found there.
@@ -115,6 +143,11 @@ internal class AuthTelemetry(
     private suspend fun log(event: String, fields: Map<String, Any?> = emptyMap()) =
         logger.info(TAG, event, tc = currentTraceContext().toLog(), fields = fields)
 
+    private suspend fun logAndTrack(event: String, fields: Map<String, Any?> = emptyMap()) {
+        log(event, fields)
+        analytics.track(event, fields)
+    }
+
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
@@ -122,6 +155,7 @@ internal class AuthTelemetry(
         const val REASON = "reason"
         const val STEP = "step"
         const val HASHES = "hashes"
+        const val AUTO_READ = "auto_read"
     }
 
     /** Which screen the owner walked away from. */
@@ -145,5 +179,15 @@ internal class AuthTelemetry(
         const val EVENT_SKIPPED = "auth_skipped"
         const val EVENT_ATTEMPTS_EXHAUSTED = "auth_attempts_exhausted"
         const val EVENT_SMS_SIGNATURE = "auth_sms_signature"
+        const val EVENT_PHONE_SHOWN = "auth_phone_shown"
+        const val EVENT_PHONE_TYPING_STARTED = "auth_phone_typing_started"
+        const val EVENT_PHONE_ENTERED = "auth_phone_entered"
+        const val EVENT_SEND_CODE_CLICKED = "auth_send_code_clicked"
+        const val EVENT_PHONE_REFUSED = "auth_phone_refused"
+        const val EVENT_OTP_SHOWN = "auth_otp_shown"
+        const val EVENT_OTP_TYPING_STARTED = "auth_otp_typing_started"
+        const val EVENT_OTP_ENTERED = "auth_otp_entered"
+        const val EVENT_OTP_RESEND_CLICKED = "auth_otp_resend_clicked"
+        const val EVENT_CHANGE_NUMBER_CLICKED = "auth_change_number_clicked"
     }
 }

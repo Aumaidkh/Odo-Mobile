@@ -1,5 +1,8 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import com.hopcape.analytics.api.AnalyticsTracker
+import com.hopcape.analytics.api.ConsentStatus
+import com.hopcape.analytics.api.UserTraits
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
@@ -36,6 +39,9 @@ internal class SupabaseTestHarness(
 
     /** Every log line's event name and fields, for the few assertions that are about logging. */
     val logs = mutableListOf<Pair<String, Map<String, Any?>>>()
+
+    /** Analytics events the stack tracked, in order — where an unreachable server lands now. */
+    val analyticsEvents = mutableListOf<Pair<String, Map<String, Any?>>>()
 
     /** Every request the adapters made, in order — the assertions read these. */
     val requests = mutableListOf<HttpRequestData>()
@@ -78,6 +84,15 @@ internal class SupabaseTestHarness(
             override fun leaveBreadcrumb(tag: String, message: String) = Unit
             override fun setCustomKey(key: String, value: Any?) = Unit
             override fun setUserId(userId: String?) = Unit
+        },
+        analytics = object : AnalyticsTracker {
+            override fun track(eventName: String, properties: Map<String, Any?>) {
+                analyticsEvents += eventName to properties
+            }
+
+            override fun identify(traits: UserTraits) = Unit
+            override fun setConsent(status: ConsentStatus) = Unit
+            override fun flush() = Unit
         },
     )
 
@@ -140,6 +155,14 @@ internal object NoopTracer : PerformanceTracer {
         }
 
     override fun endSpan(span: Span) = Unit
+    override fun flush() = Unit
+}
+
+/** For graph tests, which only need the binding to resolve. */
+internal object NoopAnalytics : AnalyticsTracker {
+    override fun identify(traits: UserTraits) = Unit
+    override fun track(eventName: String, properties: Map<String, Any?>) = Unit
+    override fun setConsent(status: ConsentStatus) = Unit
     override fun flush() = Unit
 }
 

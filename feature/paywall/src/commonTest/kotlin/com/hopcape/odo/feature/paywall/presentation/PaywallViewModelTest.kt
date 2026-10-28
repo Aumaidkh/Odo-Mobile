@@ -14,6 +14,8 @@ import com.hopcape.odo.core.domain.subscription.BillingPeriod
 import com.hopcape.odo.core.domain.subscription.Offer
 import com.hopcape.odo.core.domain.subscription.PlanOption
 import com.hopcape.odo.core.domain.subscription.RestoreOutcome
+import com.hopcape.odo.core.domain.subscription.StoreAvailability
+import com.hopcape.odo.core.domain.subscription.StoreReadiness
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
@@ -32,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -87,6 +90,27 @@ class PaywallViewModelTest {
         advanceUntilIdle()
 
         assertIs<Loadable.Failed>(viewModel.state.value.offer)
+    }
+
+    @Test
+    fun aStoreThatWillNotSellHidesTheCta_butStillShowsThePrices() = runTest {
+        // Play answers a product query for a copy it will not sell to, then fails only once
+        // the flow starts.
+        val viewModel = viewModel(readiness = StoreReadiness.NOT_FROM_STORE)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.canBuy, "a button that can only crash must not be drawn")
+        assertEquals(StoreReadiness.NOT_FROM_STORE, viewModel.state.value.storeReadiness)
+        // The offer still loads: the price is worth seeing even where it cannot be paid.
+        assertIs<Loadable.Ready<PaywallOffer>>(viewModel.state.value.offer)
+    }
+
+    @Test
+    fun aReadyStoreLeavesTheCtaAlone() = runTest {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.canBuy)
     }
 
     @Test
@@ -279,9 +303,11 @@ class PaywallViewModelTest {
         catalog: SubscriptionCatalog = SubscriptionCatalog { offer().right() },
         purchaser: SubscriptionPurchaser = RecordingPurchaser(mutableListOf()),
         trigger: PaywallTrigger = PaywallTrigger.GENERIC,
+        readiness: StoreReadiness = StoreReadiness.READY,
     ) = PaywallViewModel(
         catalog = catalog,
         purchaser = purchaser,
+        availability = StoreAvailability { readiness },
         telemetry = PaywallTelemetry(logger = NoopLogger, analytics = tracked, ids = { "id" }),
         trigger = trigger,
         amountPaise = 0L,

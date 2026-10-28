@@ -7,6 +7,7 @@ import com.hopcape.odo.core.domain.shared.DomainError
 import com.hopcape.odo.core.domain.subscription.Offer
 import com.hopcape.odo.core.domain.subscription.PlanOption
 import com.hopcape.odo.core.domain.subscription.RestoreOutcome
+import com.hopcape.odo.core.domain.subscription.StoreAvailability
 import com.hopcape.odo.core.domain.subscription.SubscriptionCatalog
 import com.hopcape.odo.core.domain.subscription.SubscriptionPurchaser
 import com.hopcape.odo.feature.paywall.presentation.state.Loadable
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 internal class PaywallViewModel(
     private val catalog: SubscriptionCatalog,
     private val purchaser: SubscriptionPurchaser,
+    private val availability: StoreAvailability,
     private val telemetry: PaywallTelemetry,
     private val trigger: PaywallTrigger,
     amountPaise: Long,
@@ -85,6 +87,9 @@ internal class PaywallViewModel(
     private fun loadOffer() {
         _state.value = _state.value.copy(offer = Loadable.Loading, notice = null)
         viewModelScope.launch {
+            // Before the offer, because the answer decides whether a CTA is drawn over it.
+            // Prices still load either way: knowing what Pro costs is useful even here.
+            _state.value = _state.value.copy(storeReadiness = availability.check())
             catalog.current().fold(
                 ifLeft = { error ->
                     telemetry.offerUnavailable(from, error.reasonName())

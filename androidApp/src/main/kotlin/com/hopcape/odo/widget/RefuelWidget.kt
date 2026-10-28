@@ -40,6 +40,10 @@ import com.hopcape.odo.MainActivity
  * are therefore restated rather than themed, and the layout uses Glance's own primitives.
  * That is a real duplication, and it is the cost of the widget existing at all.
  *
+ * **Only `actionStartActivity` here.** The manifest strips Glance's two trampoline
+ * activities, which crash on an intent they cannot unwrap; a broadcast, service, callback or
+ * lambda action would need one of them back.
+ *
  * Nothing here reads the database. A widget that showed the car's odometer would need a
  * background read on every home-screen redraw, and the three destinations do not depend on it.
  */

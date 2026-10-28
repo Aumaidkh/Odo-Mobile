@@ -52,7 +52,14 @@ internal class BillScannerTelemetry(
         logger.info(TAG, Event.CAMERA_PERMISSION_ANSWERED, tc = flowTrace.toLog(), fields = fields)
     }
 
-    /** The owner declined, which ends the scan: there is no viewfinder without the camera. */
+    /** The rationale was shown. [blocked] means the system will no longer prompt. */
+    fun cameraRationaleShown(blocked: Boolean) {
+        val fields = mapOf(Key.BLOCKED to blocked)
+        analytics.track(Event.CAMERA_RATIONALE_SHOWN, fields)
+        logger.info(TAG, Event.CAMERA_RATIONALE_SHOWN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** The owner declined, by "Not now" or the system prompt. The gallery state follows. */
     fun cameraDeclined() {
         analytics.track(Event.CAMERA_DECLINED)
         logger.info(TAG, Event.CAMERA_DECLINED, tc = flowTrace.toLog())
@@ -100,8 +107,9 @@ internal class BillScannerTelemetry(
      * viewfinder, and how often that happens decides whether the camera is even the primary
      * path. The picked file's reference is never recorded — it names a file on the device.
      */
-    fun galleryOpened(target: String) {
-        val fields = mapOf(Key.TARGET to target)
+    /** [source] is a [GallerySource] value: where the gallery was opened from. */
+    fun galleryOpened(target: String, source: String) {
+        val fields = mapOf(Key.TARGET to target, Key.SOURCE to source)
         analytics.track(Event.GALLERY_OPENED, fields)
         logger.info(TAG, Event.GALLERY_OPENED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -359,6 +367,7 @@ internal class BillScannerTelemetry(
     object Event {
         const val CAMERA_PERMISSION_ANSWERED = "scanner_camera_permission_answered"
         const val CAMERA_DECLINED = "scanner_camera_declined"
+        const val CAMERA_RATIONALE_SHOWN = "scanner_camera_rationale_shown"
         const val READ_FAILED = "scanner_read_failed"
         const val SCANNER_OPENED = "scanner_opened"
         const val QUOTA_TAPPED = "scanner_quota_tapped"
@@ -412,6 +421,7 @@ internal class BillScannerTelemetry(
         const val TYPE = "type"
         const val ORIGIN = "origin"
         const val QR_HAS_AMOUNT = "qr_has_amount"
+        const val BLOCKED = "blocked"
     }
 
     /** Values for [Key.SOURCE] when it names what was being read. */
@@ -422,5 +432,12 @@ internal class BillScannerTelemetry(
     /** Values for [Key.OUTCOME]. */
     object Outcome {
         const val FAILED = "failed"
+    }
+
+    /** The values [Key.SOURCE] takes on `scanner_gallery_opened`. */
+    object GallerySource {
+        const val RATIONALE = "rationale"
+        const val DENIED = "denied"
+        const val VIEWFINDER = "viewfinder"
     }
 }

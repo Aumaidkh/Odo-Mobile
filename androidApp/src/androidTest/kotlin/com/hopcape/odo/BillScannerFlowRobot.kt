@@ -54,17 +54,19 @@ import java.io.File
 internal object ScanCopy {
 
     /* Camera permission rationale. */
-    const val CAMERA_TITLE = "Odo needs your camera to read things"
-    const val CAMERA_SUBTITLE = "Everything Odo checks starts as a photo. Grant once and both work."
-    const val CAMERA_BILLS = "Service bills"
-    const val CAMERA_PAPERS = "Insurance, PUC & RC"
-    const val CAMERA_NO_BACKGROUND = "No photos or video in the background"
-    const val CAMERA_ONLY_ON_SCAN = "Only when you tap Scan"
-    const val CAMERA_ALLOW = "Allow camera"
+    const val CAMERA_TITLE = "Snap your bill"
+    const val CAMERA_SUBTITLE =
+        "Odo checks every line against what others in your city paid, so you know if a charge is fair."
+    const val CAMERA_TICK_PRINTED = "Printed bills work best"
+    const val CAMERA_TICK_PRIVATE = "Photos stay private to your account"
+    const val CAMERA_TICK_FAST = "Takes about 10 seconds"
+    const val CAMERA_ALLOW = "Use camera"
     const val CAMERA_NOT_NOW = "Not now"
     const val CLOSE_LABEL = "Close"
     const val CAMERA_BLOCKED_SUBTITLE =
-        "The camera is switched off for Odo. Turn it back on in settings and scanning works again."
+        "The camera is switched off for Odo. Turn it back on in settings, or pick a bill photo from your gallery."
+    const val NO_CAMERA_TITLE = "No camera access"
+    const val NO_CAMERA_SETTINGS = "Allow camera in Settings"
 
     /* Viewfinder. */
     const val SCAN_TITLE_BILL = "Scan bill"

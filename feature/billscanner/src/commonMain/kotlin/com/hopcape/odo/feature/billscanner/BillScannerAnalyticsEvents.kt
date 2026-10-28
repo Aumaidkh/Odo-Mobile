@@ -24,6 +24,14 @@ val billScannerAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(BillScannerTelemetry.Event.CAMERA_DECLINED),
     EventSchema(
+        BillScannerTelemetry.Event.GALLERY_OPENED,
+        mapOf(BillScannerTelemetry.Key.SOURCE to PropertyType.STRING),
+    ),
+    EventSchema(
+        BillScannerTelemetry.Event.CAMERA_RATIONALE_SHOWN,
+        mapOf(BillScannerTelemetry.Key.BLOCKED to PropertyType.BOOLEAN),
+    ),
+    EventSchema(
         BillScannerTelemetry.Event.READ_FAILED,
         mapOf(
             BillScannerTelemetry.Key.SOURCE to PropertyType.STRING,

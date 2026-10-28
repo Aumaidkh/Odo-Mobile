@@ -1,7 +1,9 @@
 package com.hopcape.odo.feature.onboarding
 
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
+import com.hopcape.odo.feature.onboarding.domain.usecase.LoadMakeChoicesUseCase
 import com.hopcape.odo.feature.onboarding.navigation.OnboardingFeatureEntryProvider
+import com.hopcape.odo.feature.onboarding.presentation.makewelcome.MakeWelcomeViewModel
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoTelemetry
 import com.hopcape.odo.feature.onboarding.presentation.video.WelcomeVideoViewModel
@@ -23,17 +25,22 @@ val onboardingModule = module {
     includes(onboardingConfigModule)
 
     // A factory, so one instance covers one visit to the pitch.
-    factory { OnboardingTelemetry(logger = get(), analytics = get(), ids = get()) }
+    factory { OnboardingTelemetry(logger = get(), analytics = get(), tracer = get(), ids = get()) }
     factory { WelcomeVideoTelemetry(logger = get(), analytics = get(), ids = get()) }
 
     viewModel { WelcomeVideoViewModel(config = get(), telemetry = get()) }
     viewModel { WelcomeViewModel(telemetry = get()) }
+    factory { LoadMakeChoicesUseCase(catalog = get(), assetUrls = get()) }
+    viewModel {
+        MakeWelcomeViewModel(loadMakes = get(), config = get(), drafts = get(), clock = get(), telemetry = get())
+    }
 
     single {
         OnboardingFeatureEntryProvider(
             navigationManager = get(),
             // Where the hosted Terms and Privacy Policy live, for the welcome footer's links.
             legalLinks = get(),
+            config = get(),
         )
     } bind FeatureEntryProvider::class
 }

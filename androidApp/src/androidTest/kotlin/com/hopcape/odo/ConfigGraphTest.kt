@@ -62,8 +62,13 @@ class ConfigGraphTest {
                 "plate_lookup_enabled",
                 // Declared in :feature:onboarding — a third module contributing keys.
                 "onboarding_video_enabled",
+                "first_run_v2_enabled",
+                "onboarding_welcome_title",
                 "onboarding_video_refuel_url",
                 "onboarding_video_scanner_url",
+                "advisory_classifier_enabled",
+                "bill_check_enabled",
+                "service_checklist_enabled",
             ),
             keys,
         )
@@ -88,6 +93,12 @@ class ConfigGraphTest {
         // lands and what it keeps forever if that fetch never does. Both intros are built
         // and both work; this is only about which one an unreached device opens.
         assertEquals(false, koin.get<OnboardingConfig>().videoEnabled)
+    }
+
+    @Test
+    fun theFirstRunKillSwitchIsPinnedToV1ForTheSuite() {
+        // Compiled default is true; the runner pins it off because the suites test v1.
+        assertEquals(false, koin.get<OnboardingConfig>().firstRunV2Enabled)
     }
 
     @Test

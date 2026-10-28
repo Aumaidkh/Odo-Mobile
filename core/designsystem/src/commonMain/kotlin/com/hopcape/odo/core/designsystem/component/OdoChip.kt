@@ -1,5 +1,14 @@
 package com.hopcape.odo.core.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -7,11 +16,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.hopcape.odo.core.designsystem.icons.IcCheck
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
@@ -23,8 +35,8 @@ import com.hopcape.odo.core.designsystem.theme.OdoTheme
  * The [selected] flag switches it between the two looks; leave it `false` for a
  * plain prompt/assist chip.
  *
- * Unselected it's a neutral outlined pill; selected it fills with a low-alpha
- * accent wash and an accent outline, so an active filter reads at a glance.
+ * Unselected it's a neutral outlined pill; selected it fills with the accent and
+ * shows a tick, so the choice reads at a glance in both themes.
  *
  * ```
  * // Prompt chip:
@@ -47,17 +59,26 @@ fun OdoChip(
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     val colors = OdoTheme.colors
-    val contentColor = when {
-        !enabled -> colors.textMuted
-        selected -> colors.accent
-        else -> colors.text
-    }
-    val containerColor = if (selected) colors.accent.copy(alpha = 0.16f) else colors.surface
-    val borderColor = when {
-        !enabled -> colors.border.copy(alpha = 0.5f)
-        selected -> colors.accent
-        else -> colors.border
-    }
+    val spec = tween<Color>(OdoTheme.motion.baseMillis, easing = OdoTheme.motion.easeStandard)
+    val contentColor by animateColorAsState(
+        when {
+            !enabled -> colors.textMuted
+            selected -> colors.onAccent
+            else -> colors.text
+        },
+        spec,
+        label = "chipContent",
+    )
+    val containerColor by animateColorAsState(if (selected) colors.accent else colors.surface, spec, label = "chipFill")
+    val borderColor by animateColorAsState(
+        when {
+            !enabled -> colors.border.copy(alpha = 0.5f)
+            selected -> colors.accent
+            else -> colors.border
+        },
+        spec,
+        label = "chipBorder",
+    )
     Surface(
         onClick = onClick,
         // Selected is a colour change and nothing else without this, so a screen reader
@@ -77,7 +98,17 @@ fun OdoChip(
             horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            leadingIcon?.invoke()
+            if (leadingIcon != null) {
+                leadingIcon()
+            } else {
+                AnimatedVisibility(
+                    visible = selected,
+                    enter = expandHorizontally() + fadeIn() + scaleIn(),
+                    exit = shrinkHorizontally() + fadeOut() + scaleOut(),
+                ) {
+                    OdoIcon(IcCheck, contentDescription = null, size = OdoTheme.iconSizes.small)
+                }
+            }
             OdoText(label, style = OdoTheme.typography.label)
         }
     }

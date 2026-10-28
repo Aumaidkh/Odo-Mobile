@@ -1,6 +1,7 @@
 package com.hopcape.odo
 
 import com.hopcape.odo.core.config.ConfigRefresher
+import com.hopcape.odo.core.navigation.FirstRunVariant
 import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.feature.onboarding.OnboardingConfig
 import kotlin.time.Duration
@@ -26,9 +27,27 @@ internal fun onboardingStartDestination(
     config: OnboardingConfig,
 ): OdoDestination = when {
     returning -> OdoDestination.Home
+    // The 1.4.5 kill switch outranks the video intro, which only ever fronted v1.
+    config.firstRunV2Enabled -> OdoDestination.Welcome(FirstRunVariant.V2)
     config.videoEnabled -> OdoDestination.WelcomeVideo
-    else -> OdoDestination.Welcome
+    else -> OdoDestination.Welcome(FirstRunVariant.V1)
 }
+
+/** The `first_run_variant` user property for a start destination, or null for Home. */
+internal fun firstRunVariantOf(destination: OdoDestination): String? = when (destination) {
+    is OdoDestination.Welcome -> if (destination.variant == FirstRunVariant.V2) "v2" else "v1"
+    OdoDestination.WelcomeVideo -> "v1"
+    else -> null
+}
+
+/** The analytics user property naming which first run this install was shown. */
+internal const val FIRST_RUN_VARIANT_PROPERTY = "first_run_variant"
+
+/**
+ * Whether this install has been set up. A stored car counts on its own: naming the car is all
+ * setup asks, and a signed-out install has no profile row to carry the stamp.
+ */
+internal fun isReturningOwner(stamped: Boolean, hasCar: Boolean): Boolean = stamped || hasCar
 
 /**
  * The same decision, but made only after the first Remote Config fetch has had a chance

@@ -5,6 +5,7 @@ import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.performance.api.APM
 import com.hopcape.odo.feature.onboarding.presentation.OnboardingTelemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -94,6 +95,7 @@ class WelcomeViewModelTest {
         telemetry = OnboardingTelemetry(
             logger = HLogger.asLogger(),
             analytics = analytics,
+            tracer = APM.asTracer(),
             ids = IdGenerator { "trace-1" },
         ),
     )

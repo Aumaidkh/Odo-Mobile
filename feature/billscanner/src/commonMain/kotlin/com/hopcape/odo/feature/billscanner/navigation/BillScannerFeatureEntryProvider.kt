@@ -2,6 +2,7 @@ package com.hopcape.odo.feature.billscanner.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.EntryProviderScope
@@ -14,6 +15,7 @@ import com.hopcape.odo.core.navigation.DocumentOrigin
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.core.navigation.OdoDestination
+import com.hopcape.odo.core.navigation.leaveFirstRunTo
 import com.hopcape.odo.core.navigation.back
 import com.hopcape.odo.core.navigation.finishFlow
 import com.hopcape.odo.core.navigation.isAddDocumentFlowStep
@@ -32,6 +34,7 @@ import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewS
 import com.hopcape.odo.feature.billscanner.presentation.document.DocumentReviewViewModel
 import com.hopcape.odo.feature.billscanner.presentation.error.ScanErrorScreen
 import com.hopcape.odo.feature.billscanner.presentation.permission.CameraRationaleScreen
+import com.hopcape.odo.feature.billscanner.presentation.permission.GalleryOnlyScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.ReportSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.result.SaveSuccessScreen
 import com.hopcape.odo.feature.billscanner.presentation.review.BillReviewEffect
@@ -62,7 +65,7 @@ internal class BillScannerFeatureEntryProvider(
     override fun EntryProviderScope<NavKey>.registerEntries() {
         entry<OdoDestination.BillScanner.Capture> { key -> BillScanRoute(navigationManager, key) }
         entry<OdoDestination.BillScanner.Review> { key ->
-            BillReviewRoute(navigationManager, photoKey = key.photoKey)
+            BillReviewRoute(navigationManager, key)
         }
         entry<OdoDestination.BillScanner.DocumentReview> { key ->
             DocumentReviewRoute(
@@ -83,9 +86,7 @@ internal class BillScannerFeatureEntryProvider(
  *
  * The rationale is shown **before** the system prompt, not after a refusal: Android gives one
  * second chance and iOS gives none, so the single prompt an owner sees should follow an
- * explanation. "Not now" and the X both leave the flow. Without the camera there is no
- * viewfinder to show, so dropping through to the scan screen would only ask for the permission
- * a second time on a screen that cannot work without it.
+ * explanation. "Not now" or a denied prompt shows the gallery state; only the X leaves.
  */
 @Composable
 internal fun BillScanRoute(
@@ -111,14 +112,21 @@ internal fun BillScanRoute(
         if (permission.status == CameraPermissionStatus.Blocked) {
             permission.openAppSettings()
         } else {
+            viewModel.onEvent(BillScanEvent.CameraRequested)
             permission.request()
         }
+    }
+
+    // The system prompt pauses the screen; coming back without a grant is a denial.
+    LifecycleResumeEffect(Unit) {
+        viewModel.onEvent(BillScanEvent.Resumed)
+        onPauseOrDispose { }
     }
 
     CollectEffects(viewModel.effects) { effect ->
         when (effect) {
             is BillScanEffect.OpenBillReview ->
-                navigationManager.navigateTo(OdoDestination.BillScanner.Review(effect.photoKey))
+                navigationManager.navigateTo(OdoDestination.BillScanner.Review(effect.photoKey, firstRun = key.firstRun))
             is BillScanEffect.OpenDocumentReview -> navigationManager.navigateTo(
                 OdoDestination.BillScanner.DocumentReview(effect.photoKey, key.documentType),
             )
@@ -154,7 +162,17 @@ internal fun BillScanRoute(
         CameraRationaleScreen(
             blocked = state.cameraBlocked,
             onAllow = grant,
+            onGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
             onNotNow = { viewModel.onEvent(BillScanEvent.PermissionDeclined) },
+            onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
+        )
+        return
+    }
+
+    if (state.showGalleryOnly) {
+        GalleryOnlyScreen(
+            onGallery = { viewModel.onEvent(BillScanEvent.GalleryTapped) },
+            onOpenSettings = permission::openAppSettings,
             onClose = { viewModel.onEvent(BillScanEvent.CloseTapped) },
         )
         return
@@ -186,7 +204,8 @@ internal fun BillScanRoute(
  * hands the lines to the fairness check.
  */
 @Composable
-internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: String?) {
+internal fun BillReviewRoute(navigationManager: NavigationManager, key: OdoDestination.BillScanner.Review) {
+    val photoKey = key.photoKey
     val viewModel: BillReviewViewModel = koinViewModel { parametersOf(photoKey) }
     val state by viewModel.state.collectAsState()
     val carId by koinInject<ActiveCarProvider>().activeCarId.collectAsState()
@@ -202,22 +221,26 @@ internal fun BillReviewRoute(navigationManager: NavigationManager, photoKey: Str
             // **The review comes off the stack on the way.** It is a form for a bill that no
             // longer needs reviewing: the entry exists, and going back to it offered a Save
             // button that would have written the same bill a second time.
-            is BillReviewEffect.OpenFairness -> navigationManager.navigateTo(
-                if (config.billCheckEnabled) {
+            is BillReviewEffect.OpenFairness -> {
+                val landing = if (config.billCheckEnabled) {
                     OdoDestination.BillCheck.Result(billId = effect.logId)
                 } else {
                     OdoDestination.BillScanner.SaveSuccess
-                },
-                popUpTo = OdoDestination.BillScanner.Review(photoKey),
-                inclusive = true,
-            )
+                }
+                // A first-run scan ends first run: Home goes under the result.
+                if (key.firstRun) {
+                    navigationManager.leaveFirstRunTo(landing)
+                } else {
+                    navigationManager.navigateTo(landing, popUpTo = key, inclusive = true)
+                }
+            }
             BillReviewEffect.Retake -> navigationManager.back()
             // Same as the scanner's "Manual": the form takes this screen's place, so nothing
             // sends the owner back to a photo that could not be read.
             BillReviewEffect.OpenManualEntry -> carId?.let {
                 navigationManager.navigateTo(
                     OdoDestination.ServiceLog.AddEdit(it.value),
-                    popUpTo = OdoDestination.BillScanner.Review(photoKey),
+                    popUpTo = key,
                     inclusive = true,
                 )
             }

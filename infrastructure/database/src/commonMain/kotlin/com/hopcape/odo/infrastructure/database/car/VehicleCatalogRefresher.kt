@@ -55,6 +55,7 @@ internal class VehicleCatalogRefresher(
                                 id = make.id,
                                 name = make.name,
                                 display_order = make.displayOrder,
+                                logo_path = make.logoPath,
                             )
                         }
                         models.forEach { model ->
@@ -72,7 +73,10 @@ internal class VehicleCatalogRefresher(
                 } catch (e: Exception) {
                     // The bundled/local-bootstrap catalog stays exactly as it was — a
                     // failed refresh is a missed opportunity, never a broken picker.
-                    telemetry.crashed(DataTelemetry.VEHICLE_CATALOG, OP_REFRESH, e)
+                    //
+                    // Logged, not recorded: PostgrestClient already reported whatever went
+                    // wrong on the wire.
+                    telemetry.failed(DataTelemetry.VEHICLE_CATALOG, OP_REFRESH, e)
                 }
             }
         }

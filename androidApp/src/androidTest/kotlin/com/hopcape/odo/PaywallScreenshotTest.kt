@@ -55,6 +55,18 @@ class PaywallScreenshotTest {
         rule.captureScreen("one-time-offers-sheet")
     }
 
+    /** What a device Play will not sell to sees where the CTA would be. */
+    @Test
+    fun capturesThePaywallOnADeviceTheStoreWillNotSellTo() {
+        installOffer()
+        installStoreThatWillNotSell()
+
+        rule.openProfile()
+        rule.goPro()
+        rule.awaitText(PaywallCopy.HEADLINE)
+        rule.captureScreen("paywall-store-will-not-sell")
+    }
+
     /**
      * The bill-check framing: its own heading, only the two packs, the better one put
      * forward, and the line about a failed check refunding its credit.

@@ -25,6 +25,15 @@ internal sealed interface CarValueEvent {
 
     /** "Add your car" on the no-car state — the only way past that one. */
     data object AddCarClicked : CarValueEvent
+
+    /** "Turn on" on the first-run auto-odometer card. */
+    data object TurnOnAutoOdometerClicked : CarValueEvent
+
+    /** The first-run auto-odometer card scrolled into view. */
+    data object AutoOdometerCardSeen : CarValueEvent
+
+    /** "Why a range?" opened or closed. */
+    data class WhyRangeToggled(val expanded: Boolean) : CarValueEvent
 }
 
 /**
@@ -40,7 +49,11 @@ internal sealed interface CarValueEffect {
     /** Open the odometer sheet, which is the one place a reading is typed. */
     data object OpenUpdateOdometer : CarValueEffect
 
-    data object OpenScanner : CarValueEffect
+    /** [firstRun] marks the scan so its save ends first run. */
+    data class OpenScanner(val firstRun: Boolean) : CarValueEffect
+
+    /** End first run with Home underneath, then open the auto-odometer permission flow. */
+    data object OpenAutoOdometer : CarValueEffect
 
     /**
      * First run is over and nothing is being scanned: pop its steps and land on the

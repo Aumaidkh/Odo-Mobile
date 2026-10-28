@@ -14,7 +14,7 @@ class VehicleCatalogUseCasesTest {
         var modelsCallCount = 0
         var lastMake: String? = null
         override suspend fun makes(): List<String> = listOf("Maruti Suzuki", "Honda")
-        override suspend fun popularMakes(): List<String> = listOf("Maruti Suzuki")
+        override suspend fun popularMakes(limit: Int): List<String> = listOf("Maruti Suzuki").take(limit)
         override suspend fun models(make: String): List<CarModel> {
             modelsCallCount++
             lastMake = make

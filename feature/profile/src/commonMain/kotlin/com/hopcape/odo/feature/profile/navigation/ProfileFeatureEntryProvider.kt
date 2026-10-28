@@ -132,7 +132,7 @@ private fun EditProfileRoute(navigationManager: NavigationManager) {
             // in-app stack goes with it: every screen behind this one is about data that
             // no longer exists.
             EditProfileEffect.DataDeleted -> navigationManager.navigateTo(
-                OdoDestination.Welcome,
+                OdoDestination.Welcome(),
                 popUpTo = OdoDestination.Home,
                 inclusive = true,
             )
@@ -205,7 +205,7 @@ private fun DeleteAccountRoute(navigationManager: NavigationManager) {
             // whole in-app stack goes with it: every screen behind this one is about data
             // that no longer exists, and back must not be able to re-enter it.
             DeleteAccountEffect.Deleted -> navigationManager.navigateTo(
-                OdoDestination.Welcome,
+                OdoDestination.Welcome(),
                 popUpTo = OdoDestination.Home,
                 inclusive = true,
             )
@@ -287,7 +287,7 @@ private fun SignOutRoute(navigationManager: NavigationManager) {
             // Nothing of the owner's is left, so the app is back to first run. The whole
             // in-app stack goes with it (popUpTo Home inclusive), so back can't re-enter.
             SignOutEffect.SignedOut -> navigationManager.navigateTo(
-                OdoDestination.Welcome,
+                OdoDestination.Welcome(),
                 popUpTo = OdoDestination.Home,
                 inclusive = true,
             )
