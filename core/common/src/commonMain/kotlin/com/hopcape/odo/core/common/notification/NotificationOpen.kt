@@ -4,6 +4,9 @@ package com.hopcape.odo.core.common.notification
 object NotificationOpen {
     const val EXTRA_KIND = "notif_kind"
 
+    /** On an engagement nudge, which nudge it was, so a tap can open its screen. */
+    const val EXTRA_NUDGE = "nudge"
+
     const val DOCUMENT_REMINDER = "document_reminder"
     const val CUSTOM_REMINDER = "custom_reminder"
     const val ENGAGEMENT_NUDGE = "engagement_nudge"

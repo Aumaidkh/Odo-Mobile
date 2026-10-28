@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
             navigationManager.navigate(NavigationCommand.NavigateTo(confirm))
             return
         }
+        if (NudgeLaunch.handle(intent, navigationManager)) return
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner
         // every time the activity was rebuilt.
         if (WidgetLaunch.handle(intent, navigationManager)) intent?.action = null
