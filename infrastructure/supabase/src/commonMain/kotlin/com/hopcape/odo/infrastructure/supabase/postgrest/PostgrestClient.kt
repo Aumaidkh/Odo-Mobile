@@ -219,7 +219,7 @@ internal class PostgrestClient(
     private suspend fun <T> call(operation: String, resource: String, block: suspend () -> T): T =
         telemetry.span(operation = operation, resource = resource) {
             try {
-                block()
+                block().also { telemetry.succeeded(operation, resource) }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (throwable: Throwable) {

@@ -103,7 +103,9 @@ internal class SupabaseRemoteFileStorage(
                     contentType(ContentType.Application.Json)
                     setBody(SupabaseJson.encodeToString(RemoveRequest.serializer(), RemoveRequest(paths)))
                 }
-                if (!response.status.isSuccess()) {
+                if (response.status.isSuccess()) {
+                    telemetry.succeeded(SupabaseTelemetry.REMOVE, bucket.bucketName)
+                } else {
                     telemetry.rejected(SupabaseTelemetry.REMOVE, bucket.bucketName, response.status.value)
                 }
             }.onFailure { telemetry.failed(SupabaseTelemetry.REMOVE, bucket.bucketName, it) }
@@ -122,6 +124,7 @@ internal class SupabaseRemoteFileStorage(
         block: suspend () -> T,
     ): Either<DomainError, T> = telemetry.span(operation = operation, resource = bucket.bucketName) {
         Either.catch { block() }
+            .onRight { telemetry.succeeded(operation, bucket.bucketName) }
             .onLeft { telemetry.failed(operation, bucket.bucketName, it) }
             .mapLeft { DomainError.PersistenceFailure(it::class.simpleName) }
     }

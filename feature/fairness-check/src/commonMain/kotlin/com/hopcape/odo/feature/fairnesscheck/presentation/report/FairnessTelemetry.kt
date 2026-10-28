@@ -2,11 +2,13 @@ package com.hopcape.odo.feature.fairnesscheck.presentation.report
 
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
-import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.performance.api.PerformanceTracer
-import kotlin.coroutines.CoroutineContext
 import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
+import com.hopcape.odo.core.domain.shared.failureCode
+import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.TraceContext as PerfTrace
+import kotlin.coroutines.CoroutineContext
 
 /**
  * All observability for the fairness check, behind intent-named methods, so the ViewModel
@@ -17,7 +19,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * three data points for a city, produces a screen that admits it knows nothing — and how
  * often that happens is what decides where seed data goes next.
  *
- * **No PII.** Outcome type names, sample sizes and counts only — never a workshop, a line
+ * **No PII.** Outcome names, sample sizes and counts only — never a workshop, a line
  * item's wording, or what a bill came to.
  *
  * Every method is fire-and-forget: nothing here returns a decision, so instrumentation
@@ -37,7 +39,7 @@ internal class FairnessTelemetry(
     fun op(name: String): CoroutineContext = flowTrace.withNewTrace("${name}_${ids.newId()}")
 
     /**
-     * A check finished. [outcome] is the result's type name, [sampleSize] the weakest
+     * A check finished. [outcome] is the result's name, [sampleSize] the weakest
      * comparison behind it, [lineCount] how many lines were sent and [benchmarkedLines] how
      * many of them the pool could actually price.
      *
@@ -70,7 +72,7 @@ internal class FairnessTelemetry(
      * broke that nobody expected.
      */
     fun checkFailed(cause: Throwable) {
-        val fields = mapOf(Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.REASON to failureCode(cause))
         analytics.track(Event.FAILED, fields)
         logger.error(TAG, Event.FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -93,7 +95,6 @@ internal class FairnessTelemetry(
     private companion object {
         const val TAG = "FAIRNESS"
         const val FLOW = "fairness"
-        const val UNKNOWN = "Unknown"
     }
 
     /*
@@ -119,4 +120,13 @@ internal class FairnessTelemetry(
         const val BENCHMARKED_LINES = "benchmarked_lines"
         const val REASON = "reason"
     }
+}
+
+/** The outcome's analytics name, written out so R8 cannot shorten it. */
+internal fun FairnessOutcome.analyticsName(): String = when (this) {
+    is FairnessOutcome.Over -> "Over"
+    FairnessOutcome.Fair -> "Fair"
+    is FairnessOutcome.Under -> "Under"
+    is FairnessOutcome.TooLittleData -> "TooLittleData"
+    FairnessOutcome.NoBenchmark -> "NoBenchmark"
 }

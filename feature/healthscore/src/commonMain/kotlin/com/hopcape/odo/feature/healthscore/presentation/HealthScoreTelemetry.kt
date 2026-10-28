@@ -2,9 +2,10 @@ package com.hopcape.odo.feature.healthscore.presentation
 
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
-import com.hopcape.odo.core.common.id.IdGenerator
-import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.shared.failureCode
+import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.TraceContext as PerfTrace
 import kotlin.coroutines.CoroutineContext
 
@@ -84,7 +85,7 @@ internal class HealthScoreTelemetry(
      * showing, and an unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(cause: Throwable) {
-        val fields = mapOf(Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -95,7 +96,6 @@ internal class HealthScoreTelemetry(
     private companion object {
         const val TAG = "HEALTH"
         const val FLOW = "health"
-        const val UNKNOWN = "Unknown"
     }
 
     /*

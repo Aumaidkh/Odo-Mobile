@@ -117,6 +117,7 @@ internal class SupabaseLogUploader(
             }
         }
 
+        telemetry.succeeded(SupabaseTelemetry.UPLOAD, BUCKET)
         insertIndexRow(path, file, reference)
         return LogUploadResult.DELIVERED
     }

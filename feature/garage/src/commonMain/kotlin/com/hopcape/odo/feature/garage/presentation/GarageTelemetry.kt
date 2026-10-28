@@ -5,15 +5,17 @@ import arrow.core.EitherNel
 import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.model.Car
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the garage, behind intent-named methods, so the ViewModels read as
@@ -28,7 +30,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *    methods read [currentTraceContext] themselves, so a span and its log lines match
  *    without the caller passing anything.
  *
- * **No PII.** Counts, booleans, ids and error *type* names only — never a registration
+ * **No PII.** Counts, booleans, ids and error codes only — never a registration
  * number, a nickname, a workshop name or an odometer reading. A plate identifies a person's
  * vehicle, and a nickname is text they wrote about their own car.
  *
@@ -83,7 +85,7 @@ internal class GarageTelemetry(
      * showing, and an unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -159,7 +161,7 @@ internal class GarageTelemetry(
 
                     else -> Event.ODOMETER_FAILED
                 }
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(event, fields)
                 logger.error(TAG, event, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -186,7 +188,7 @@ internal class GarageTelemetry(
      * number that would show it starting to work.
      */
     fun plateLookedUp(found: Boolean, error: DomainError?) {
-        val fields = mapOf(Key.FOUND to found, Key.ERRORS to (error?.typeName() ?: NONE))
+        val fields = mapOf(Key.FOUND to found, Key.ERRORS to (error?.code() ?: NONE))
         analytics.track(Event.PLATE_LOOKED_UP, fields)
         logger.info(TAG, Event.PLATE_LOOKED_UP, tc = flowTrace.toLog(), fields = fields)
     }
@@ -201,7 +203,7 @@ internal class GarageTelemetry(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
                 // The error *types*, never the values that failed validation.
-                val fields = mapOf(Key.SOURCE to source, Key.ERRORS to errors.typeNames())
+                val fields = mapOf(Key.SOURCE to source, Key.ERRORS to errors.errorCodes())
                 analytics.track(Event.CAR_SAVE_FAILED, fields)
                 logger.error(TAG, Event.CAR_SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -228,7 +230,7 @@ internal class GarageTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.CAR_REMOVE_FAILED, fields)
                 logger.error(TAG, Event.CAR_REMOVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -294,14 +296,12 @@ internal class GarageTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
-    private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
 
-    private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
+    private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }
 
     private companion object {
         const val TAG = "GARAGE"
         const val FLOW = "garage"
-        const val UNKNOWN = "Unknown"
         const val NONE = "none"
     }
 

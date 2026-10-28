@@ -72,7 +72,7 @@ class FairnessViewModelTest {
 
         assertIs<FairnessUiState.Content.Failed>(content)
         val failure = analytics.events.single { it.first == FairnessTelemetry.Event.FAILED }
-        assertEquals("IllegalStateException", failure.second[FairnessTelemetry.Key.REASON])
+        assertEquals("unexpected", failure.second[FairnessTelemetry.Key.REASON])
     }
 
     @Test

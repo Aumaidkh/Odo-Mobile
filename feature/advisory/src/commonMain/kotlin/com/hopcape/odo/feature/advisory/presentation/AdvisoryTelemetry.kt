@@ -48,9 +48,17 @@ internal class AdvisoryTelemetry(
     }
 
     /** Bills scanned per month is the North Star, so every launch point is worth naming. */
-    fun scanClicked() {
-        analytics.track(Event.SCAN_CLICKED)
-        logger.info(TAG, Event.SCAN_CLICKED, tc = flowTrace.toLog())
+    fun scanClicked(firstRun: Boolean) {
+        val fields = mapOf(Key.FIRST_RUN to firstRun)
+        analytics.track(Event.SCAN_CLICKED, fields)
+        logger.info(TAG, Event.SCAN_CLICKED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** First run ended on the value screen. [via] is one of [Via]: the funnel's last step. */
+    fun firstRunFinished(via: String) {
+        val fields = mapOf(Key.VIA to via)
+        analytics.track(Event.FIRST_RUN_FINISHED, fields)
+        logger.info(TAG, Event.FIRST_RUN_FINISHED, tc = flowTrace.toLog(), fields = fields)
     }
 
     /**
@@ -247,6 +255,7 @@ internal class AdvisoryTelemetry(
         const val VALUE_SHOWN = "advisory_value_shown"
         const val SCAN_CLICKED = "advisory_value_scan_clicked"
         const val FIRST_RUN_SKIPPED = "advisory_value_first_run_skipped"
+        const val FIRST_RUN_FINISHED = "first_run_finished"
         const val SHARE_CLICKED = "advisory_value_share_clicked"
         const val AUTO_ODO_OFFERED = "auto_odo_offered"
         const val AUTO_ODO_OFFER_ACCEPTED = "auto_odo_offer_accepted"
@@ -260,6 +269,14 @@ internal class AdvisoryTelemetry(
         const val CHECKLIST_UNAVAILABLE = "advisory_checklist_unavailable"
         const val CHECKLIST_SAVE_CLICKED = "advisory_checklist_save_clicked"
         const val CHECKLIST_SAVE_FAILED = "advisory_checklist_save_failed"
+    }
+
+    /** How first run ended, the values of [Key.VIA] on [Event.FIRST_RUN_FINISHED]. */
+    object Via {
+        const val SCAN = "scan"
+        const val SKIP = "skip"
+        const val BACK = "back"
+        const val AUTO_ODOMETER = "auto_odometer"
     }
 
     object Trace {

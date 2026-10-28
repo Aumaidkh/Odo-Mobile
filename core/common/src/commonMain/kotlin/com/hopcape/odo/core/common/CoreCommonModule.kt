@@ -2,6 +2,8 @@ package com.hopcape.odo.core.common
 
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.common.id.UuidIdGenerator
+import com.hopcape.odo.core.common.session.AppSession
+import com.hopcape.odo.core.common.session.FixedAppSession
 import org.koin.dsl.module
 import kotlin.time.Clock
 
@@ -18,4 +20,6 @@ import kotlin.time.Clock
 val coreCommonModule = module {
     single<IdGenerator> { UuidIdGenerator() }
     single<Clock> { Clock.System }
+    // Replaced on Android by a session that follows the process lifecycle.
+    single<AppSession> { FixedAppSession }
 }

@@ -5,15 +5,18 @@ import arrow.core.EitherNel
 import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.reminder.model.ReminderCadence
 import com.hopcape.odo.core.domain.reminder.model.ReminderKind
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the reminders feature, behind intent-named methods, so the
@@ -23,7 +26,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * [flowTrace] is minted per instance. Registered as a Koin `factory`, so one instance
  * covers one visit to reminders and every screen of that visit shares one flow id.
  *
- * **No PII.** Kinds, cadence names, counts, booleans and error *type* names only — never
+ * **No PII.** Kinds, cadence names, counts, booleans and error codes only — never
  * a reminder's title. A title is text the owner typed about their own car.
  *
  * Every method is fire-and-forget: nothing here returns a decision, and the wrapping
@@ -61,7 +64,7 @@ internal class RemindersTelemetry(
      * source of truth, so this is a broken record, and otherwise invisible.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -77,7 +80,7 @@ internal class RemindersTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                failed(Event.DISMISS_FAILED, Key.KIND to kind.name, Key.ERRORS to error.typeName())
+                failed(Event.DISMISS_FAILED, Key.KIND to kind.name, Key.ERRORS to error.code())
             },
             ifRight = {
                 val fields = mapOf(Key.KIND to kind.name)
@@ -98,7 +101,7 @@ internal class RemindersTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                failed(Event.TURN_OFF_FAILED, Key.KIND to kind.name, Key.ERRORS to error.typeName())
+                failed(Event.TURN_OFF_FAILED, Key.KIND to kind.name, Key.ERRORS to error.code())
             },
             ifRight = {
                 val fields = mapOf(Key.KIND to kind.name, Key.CUSTOM to custom)
@@ -113,7 +116,7 @@ internal class RemindersTelemetry(
 
     /**
      * Times a custom reminder save and records the outcome. [cadence] is the cadence's
-     * type name; [viaSuggestion] separates the one-tap opt-in from the full form.
+     * name; [viaSuggestion] separates the one-tap opt-in from the full form.
      */
     suspend fun <T> reminderSave(
         cadence: String,
@@ -126,7 +129,7 @@ internal class RemindersTelemetry(
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                failed(Event.SAVE_FAILED, Key.CADENCE to cadence, Key.ERRORS to errors.typeNames())
+                failed(Event.SAVE_FAILED, Key.CADENCE to cadence, Key.ERRORS to errors.errorCodes())
             },
             ifRight = {
                 val event = if (edit) Event.CUSTOM_EDITED else Event.CUSTOM_CREATED
@@ -160,7 +163,7 @@ internal class RemindersTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                failed(Event.SETTINGS_FAILED, Key.FIELD to field, Key.ERRORS to error.typeName())
+                failed(Event.SETTINGS_FAILED, Key.FIELD to field, Key.ERRORS to error.code())
             },
             ifRight = {
                 val fields = mapOf(Key.FIELD to field, Key.ENABLED to enabled)
@@ -198,14 +201,12 @@ internal class RemindersTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
-    private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
 
-    private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
+    private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }
 
     private companion object {
         const val TAG = "REMINDERS"
         const val FLOW = "reminders"
-        const val UNKNOWN = "Unknown"
         const val NONE = "none"
     }
 
@@ -266,4 +267,12 @@ internal class RemindersTelemetry(
         const val NEW = "new"
         const val SETTINGS = "settings"
     }
+}
+
+/** The cadence's analytics name, written out so R8 cannot shorten it. */
+internal fun ReminderCadence.analyticsName(): String = when (this) {
+    ReminderCadence.Once -> "Once"
+    is ReminderCadence.EveryDays -> "EveryDays"
+    ReminderCadence.Monthly -> "Monthly"
+    is ReminderCadence.EveryDistance -> "EveryDistance"
 }

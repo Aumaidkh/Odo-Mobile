@@ -2,10 +2,11 @@ package com.hopcape.odo.feature.paywall.presentation.onetime
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import arrow.core.left
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
 import com.hopcape.odo.core.designsystem.text.UiText
-import arrow.core.left
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.odo.core.domain.subscription.OneTimeGrant
 import com.hopcape.odo.core.domain.subscription.OneTimePurchaser
 import com.hopcape.odo.core.domain.subscription.PurchaseReconciler
@@ -106,7 +107,7 @@ internal class OneTimeOffersViewModel(
     }
 
     private fun failed(error: DomainError) {
-        telemetry.oneTimeOffersUnavailable(error::class.simpleName ?: UNKNOWN)
+        telemetry.oneTimeOffersUnavailable(failureCode(error))
         _state.update { it.copy(offers = Loadable.Failed(UiText(Res.string.pw_ot_error))) }
     }
 
@@ -172,10 +173,5 @@ internal class OneTimeOffersViewModel(
     private fun leaveErrand() {
         telemetry.offersDeclined(context.name)
         _effects.trySend(OneTimeOffersEffect.DismissErrand)
-    }
-
-    private companion object {
-        /** Stands in for a failure whose class has no name, so a field is never missing. */
-        const val UNKNOWN = "Unknown"
     }
 }

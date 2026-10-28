@@ -10,6 +10,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.hopcape.odo.core.common.notification.NotificationOpen
+import com.hopcape.odo.core.common.notification.notificationLaunchIntent
 import com.hopcape.odo.core.platform.R
 
 /**
@@ -66,10 +68,10 @@ internal object CustomReminderNotification {
 
     /** Opens the app, the same way the document reminder does. */
     private fun openAppIntent(context: Context): PendingIntent? {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
+        val intent = context.notificationLaunchIntent(NotificationOpen.CUSTOM_REMINDER) ?: return null
         return PendingIntent.getActivity(
             context,
-            0,
+            NotificationOpen.requestCode(NotificationOpen.CUSTOM_REMINDER),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

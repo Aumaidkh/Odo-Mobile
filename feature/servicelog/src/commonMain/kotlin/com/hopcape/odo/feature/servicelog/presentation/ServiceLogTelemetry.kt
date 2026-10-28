@@ -5,7 +5,9 @@ import arrow.core.EitherNel
 import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.fairness.model.FairnessOutcome
 import com.hopcape.odo.core.domain.fairness.model.OverchargeReason
 import com.hopcape.odo.core.domain.servicelog.model.ServiceCategory
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
@@ -13,13 +15,14 @@ import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
 import com.hopcape.odo.core.domain.servicelog.model.VerificationStatus
 import com.hopcape.odo.core.domain.servicelog.model.verification
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.odo.feature.servicelog.presentation.list.model.ServiceLogDirection
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the service log, behind intent-named methods — so the five
@@ -37,7 +40,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *    its log lines match that op without the caller threading anything.
  *
  * **Only non-PII context is emitted** — counts, booleans, enum names, entry ids and error
- * *type* names. Never a workshop's name, an amount, an odometer reading or a note: what an
+ * codes. Never a workshop's name, an amount, an odometer reading or a note: what an
  * owner paid and how far they have driven is their financial and resale-relevant data, and
  * reports are anonymous to the workshop by design. Instrumentation stays at this
  * presentation layer; `:core:domain` remains framework-free.
@@ -75,7 +78,7 @@ internal class ServiceLogTelemetry(
      * `collect` would take the ViewModel's scope down with it.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -156,7 +159,7 @@ internal class ServiceLogTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.code())
                 analytics.track(Event.DELETE_FAILED, fields)
                 logger.error(TAG, Event.DELETE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -183,7 +186,7 @@ internal class ServiceLogTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.code())
                 analytics.track(Event.ATTACH_FAILED, fields)
                 logger.error(TAG, Event.ATTACH_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -196,7 +199,7 @@ internal class ServiceLogTelemetry(
     }
 
     /**
-     * A verdict was stored on an entry. [outcome] is the result's type name, or `null` when
+     * A verdict was stored on an entry. [outcome] is the result's name, or `null` when
      * the check found nothing to compare against — the gap the fairness pool has to close,
      * and invisible unless it is counted.
      */
@@ -211,7 +214,7 @@ internal class ServiceLogTelemetry(
      * missing badge rather than lost work — but it is silent, which is why it is logged.
      */
     fun fairnessRecordFailed(id: ServiceLogId, error: DomainError) {
-        val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.typeName())
+        val fields = mapOf(Key.LOG_ID to id.value, Key.ERRORS to error.code())
         analytics.track(Event.FAIRNESS_FAILED, fields)
         logger.error(TAG, Event.FAIRNESS_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -235,7 +238,7 @@ internal class ServiceLogTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.REASON to reason.name, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.REASON to reason.name, Key.ERRORS to error.code())
                 analytics.track(Event.REPORT_FAILED, fields)
                 logger.error(TAG, Event.REPORT_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -314,7 +317,7 @@ internal class ServiceLogTelemetry(
      * values that failed validation, which are the owner's own answers.
      */
     private suspend fun saveFailed(edit: Boolean, errors: NonEmptyList<DomainError>) {
-        val fields = mapOf(Key.EDIT to edit, Key.ERRORS to errors.typeNames())
+        val fields = mapOf(Key.EDIT to edit, Key.ERRORS to errors.errorCodes())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
     }
@@ -326,7 +329,6 @@ internal class ServiceLogTelemetry(
     private companion object {
         const val TAG = "SERVICELOG"
         const val FLOW = "servicelog"
-        const val UNKNOWN = "Unknown"
 
         /** No verdict at all — the check ran and found nothing to compare against. */
         const val NONE = "None"
@@ -398,7 +400,7 @@ internal class ServiceLogTelemetry(
         const val ERRORS = "errors"
     }
 
-    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */
+    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own code. */
     object Outcome {
         const val FAILED = "failed"
     }
@@ -416,10 +418,15 @@ internal class ServiceLogTelemetry(
     }
 }
 
-private fun DomainError.typeName(): String = this::class.simpleName ?: "Unknown"
 
-/**
- * A comma-joined list of the accumulated errors' *type* names — safe to emit (no user input,
- * no PII) and enough for a dashboard to see which rule failed.
- */
-private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
+/** The accumulated errors' codes, comma-joined: no user input, and enough to see which rule failed. */
+private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }
+
+/** The outcome's analytics name, written out so R8 cannot shorten it. */
+internal fun FairnessOutcome.analyticsName(): String = when (this) {
+    is FairnessOutcome.Over -> "Over"
+    FairnessOutcome.Fair -> "Fair"
+    is FairnessOutcome.Under -> "Under"
+    is FairnessOutcome.TooLittleData -> "TooLittleData"
+    FairnessOutcome.NoBenchmark -> "NoBenchmark"
+}

@@ -10,6 +10,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
+import com.hopcape.odo.core.common.notification.NotificationOpen
+import com.hopcape.odo.core.common.notification.notificationLaunchIntent
 import com.hopcape.odo.core.triptracker.R
 
 /**
@@ -109,9 +111,10 @@ internal object TripTrackingNotification {
 
     /** Tapping the notification body (live or fallback) just foregrounds the app — no deep link into a specific screen. */
     private fun openAppIntent(context: Context): PendingIntent? {
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
+        val launchIntent = context.notificationLaunchIntent(NotificationOpen.TRIP_TRACKING) ?: return null
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.getActivity(context, REQUEST_CODE_OPEN_APP, launchIntent, flags)
+        val requestCode = NotificationOpen.requestCode(NotificationOpen.TRIP_TRACKING)
+        return PendingIntent.getActivity(context, requestCode, launchIntent, flags)
     }
 
     private fun formatDistance(context: Context, distanceMeters: Long): String =
@@ -120,5 +123,4 @@ internal object TripTrackingNotification {
     private const val REQUEST_CODE_PAUSE = 4_211
     private const val REQUEST_CODE_RESUME = 4_212
     private const val REQUEST_CODE_DISCARD = 4_213
-    private const val REQUEST_CODE_OPEN_APP = 4_214
 }

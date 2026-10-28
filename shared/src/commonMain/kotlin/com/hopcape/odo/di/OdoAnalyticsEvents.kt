@@ -26,6 +26,8 @@ import com.hopcape.odo.core.triptracker.observability.tripTrackerAnalyticsEvents
 import com.hopcape.odo.feature.auth.authAnalyticsEvents
 import com.hopcape.odo.feature.billscanner.billScannerAnalyticsEvents
 import com.hopcape.odo.feature.timeline.timelineAnalyticsEvents
+import com.hopcape.odo.infrastructure.supabase.supabaseAnalyticsEvents
+import com.hopcape.odo.telemetry.appAnalyticsEvents
 
 /**
  * The app's analytics taxonomy — every feature's declared events, assembled in one place
@@ -48,4 +50,4 @@ val odoAnalyticsEvents: List<EventSchema> =
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
         showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents +
         billCheckAnalyticsEvents +
-        paywallAnalyticsEvents
+        paywallAnalyticsEvents + supabaseAnalyticsEvents + appAnalyticsEvents

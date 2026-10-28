@@ -3,12 +3,13 @@ package com.hopcape.odo.core.sync.observability
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.common.error.errorCode
 import com.hopcape.odo.core.sync.SyncEntity
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
-import com.hopcape.performance.api.currentTraceContext
-import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.performance.api.TraceContext as PerfTrace
+import com.hopcape.performance.api.currentTraceContext
 
 /**
  * Observability for a sync run, behind one intent-named surface.
@@ -18,7 +19,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * (SYNC_DESIGN §11). A run reports: which entities moved how many rows, how long it took,
  * and how it ended.
  *
- * **Never log row contents.** Entity names, counts, durations and error *type* names only —
+ * **Never log row contents.** Entity names, counts, durations and error codes only —
  * these tables are the owner's service history and papers.
  *
  * Fire-and-forget by contract: nothing here returns a decision, and [entity] hands back its
@@ -94,7 +95,7 @@ class SyncTelemetry(
         )
         analytics.track(
             EVENT_RUN_FAILED,
-            mapOf(Key.ENTITY to entity.name, Key.ERROR to (cause?.let { it::class.simpleName } ?: UNKNOWN)),
+            mapOf(Key.ENTITY to entity.name, Key.ERROR to (cause?.let { errorCode(it) } ?: UNKNOWN)),
         )
     }
 

@@ -4,17 +4,19 @@ import arrow.core.Either
 import arrow.core.EitherNel
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentId
 import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the document vault, behind intent-named methods, so the ViewModels
@@ -29,7 +31,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *    methods read [currentTraceContext] themselves, so a span and its log lines match
  *    without the caller passing anything.
  *
- * **No PII.** Document types, counts, booleans, ids and error *type* names only — never a
+ * **No PII.** Document types, counts, booleans, ids and error codes only — never a
  * title, a policy number, a file path or a date. A title is text the owner typed about
  * their own insurance.
  *
@@ -75,7 +77,7 @@ internal class DocumentVaultTelemetry(
      * showing, and an unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -190,7 +192,7 @@ internal class DocumentVaultTelemetry(
         result.fold(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val failure = fields + (Key.ERRORS to errors.joinToString(",") { it.typeName() })
+                val failure = fields + (Key.ERRORS to errors.joinToString(",") { it.code() })
                 analytics.track(Event.SAVE_FAILED, failure)
                 logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = failure)
             },
@@ -211,7 +213,7 @@ internal class DocumentVaultTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.DOCUMENT_ID to id.value, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.DOCUMENT_ID to id.value, Key.ERRORS to error.code())
                 analytics.track(Event.REPLACE_FAILED, fields)
                 logger.error(TAG, Event.REPLACE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -233,7 +235,7 @@ internal class DocumentVaultTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.DOCUMENT_ID to id.value, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.DOCUMENT_ID to id.value, Key.ERRORS to error.code())
                 analytics.track(Event.DELETE_FAILED, fields)
                 logger.error(TAG, Event.DELETE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -293,7 +295,7 @@ internal class DocumentVaultTelemetry(
             logger.info(TAG, Event.LIMIT_REACHED, tc = flowTrace.toLog(), fields = fields)
             return
         }
-        val fields = mapOf(Key.TYPE to type.name, Key.ERRORS to error.typeName())
+        val fields = mapOf(Key.TYPE to type.name, Key.ERRORS to error.code())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -302,12 +304,10 @@ internal class DocumentVaultTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
-    private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
 
     private companion object {
         const val TAG = "DOCUMENTS"
         const val FLOW = "documents"
-        const val UNKNOWN = "Unknown"
     }
 
     /*

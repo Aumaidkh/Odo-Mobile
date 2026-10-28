@@ -3,9 +3,10 @@ package com.hopcape.odo.feature.auth
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.UserTraits
 import com.hopcape.logging.api.Logger
-import com.hopcape.performance.api.currentTraceContext
 import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.TraceContext as PerfTrace
+import com.hopcape.performance.api.currentTraceContext
 
 /**
  * Observability for auth, behind one intent-named surface — the same shape as the other
@@ -18,7 +19,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *
  * **Never log a token, a code or a phone number.** TDD §12 puts OTPs and tokens in the same
  * bucket as bill contents. Nothing below takes a value: only that something happened, and
- * for a failure its error *type*.
+ * for a failure its error code.
  */
 internal class AuthTelemetry(
     private val logger: Logger,
@@ -30,7 +31,7 @@ internal class AuthTelemetry(
 
     /** A code was rejected — wrong, expired, or asked for too often. */
     suspend fun otpRejected(reason: Any) =
-        logAndTrack(EVENT_OTP_REJECTED, mapOf(Key.REASON to reason::class.simpleName))
+        logAndTrack(EVENT_OTP_REJECTED, mapOf(Key.REASON to failureCode(reason)))
 
     /* ------------------------------ Screen funnel ------------------------------ */
 
@@ -46,7 +47,7 @@ internal class AuthTelemetry(
 
     /** The typed number could not be parsed, so nothing was requested. */
     suspend fun phoneRefused(reason: Any) =
-        logAndTrack(EVENT_PHONE_REFUSED, mapOf(Key.REASON to reason::class.simpleName))
+        logAndTrack(EVENT_PHONE_REFUSED, mapOf(Key.REASON to failureCode(reason)))
 
     suspend fun otpShown() = logAndTrack(EVENT_OTP_SHOWN)
 

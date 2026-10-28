@@ -120,6 +120,15 @@ class SetupV2ViewModelTest {
     }
 
     @Test
+    fun aFailedCatalogRead_reachesAnalytics() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        viewModel(catalog = V2Catalog(failing = true), analytics = analytics)
+        advanceUntilIdle()
+
+        assertTrue(SetupTelemetry.Event.CATALOG_LOAD_FAILED in analytics.names)
+    }
+
+    @Test
     fun aFailedSave_keepsTheOwnerOnTheStep() = runTest(dispatcher) {
         val viewModel = viewModel(cars = V2Cars(failing = true))
         advanceUntilIdle()

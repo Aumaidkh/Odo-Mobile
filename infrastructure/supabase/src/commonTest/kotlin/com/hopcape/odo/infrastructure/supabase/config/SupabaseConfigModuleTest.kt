@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase.config
 
+import com.hopcape.odo.core.common.session.AppSession
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
@@ -94,6 +95,7 @@ class SupabaseConfigModuleTest {
             single<PerformanceTracer> { NoopTracer }
             single<CrashRecorder> { RecordingCrashRecorder }
             single<AnalyticsTracker> { NoopAnalytics }
+            single<AppSession> { TestAppSession }
             single<AccessTokenProvider> { AccessTokenProvider { null } }
             if (withStore) single<ConfigSnapshotStore> { ConfigSnapshotStore.None }
         }
@@ -104,4 +106,9 @@ class SupabaseConfigModuleTest {
         }
         modules(ordered)
     }.koin
+}
+
+private object TestAppSession : AppSession {
+    override val isForeground: Boolean = true
+    override val sessionId: String = "test"
 }

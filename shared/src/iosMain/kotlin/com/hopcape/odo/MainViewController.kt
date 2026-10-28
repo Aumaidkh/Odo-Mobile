@@ -10,9 +10,11 @@ import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.LoggerConfig
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
+import com.hopcape.odo.core.domain.appstatus.AppStatusProvider
 import com.hopcape.odo.core.domain.settings.repository.AppSettingsRepository
 import com.hopcape.odo.core.platform.corePlatformIosModule
 import com.hopcape.odo.core.triptracker.tripTrackerIosModule
+import com.hopcape.odo.infrastructure.database.car.VehicleCatalogRefresher
 import com.hopcape.odo.infrastructure.database.db.DriverFactory
 import com.hopcape.odo.infrastructure.firebase.analytics.FirebaseAnalyticsSink
 import com.hopcape.odo.infrastructure.firebase.analytics.configureFirebaseForIos
@@ -81,7 +83,14 @@ fun MainViewController() = ComposeUIViewController {
             name = UIApplicationDidBecomeActiveNotification,
             `object` = null,
             queue = null,
-        ) { HAnalytics.flush() }
+        ) {
+            HAnalytics.flush()
+            // Shared data refreshes on foreground only, as on Android. Neither call throws.
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                KoinPlatform.getKoin().get<VehicleCatalogRefresher>().refreshInBackground()
+                KoinPlatform.getKoin().get<AppStatusProvider>().refresh()
+            }
+        }
     }
     App()
 }

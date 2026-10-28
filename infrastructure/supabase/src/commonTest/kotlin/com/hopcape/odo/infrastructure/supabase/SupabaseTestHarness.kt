@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import com.hopcape.odo.core.common.session.AppSession
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.analytics.api.ConsentStatus
 import com.hopcape.analytics.api.UserTraits
@@ -73,6 +74,9 @@ internal class SupabaseTestHarness(
         override fun flush() = Unit
     }
 
+    /** The app session the request events read; tests move it to start a new session. */
+    val session = TestSession()
+
     val telemetry = SupabaseTelemetry(
         logger = capturingLogger,
         tracer = NoopTracer,
@@ -94,6 +98,7 @@ internal class SupabaseTestHarness(
             override fun setConsent(status: ConsentStatus) = Unit
             override fun flush() = Unit
         },
+        session = session,
     )
 
     val client: HttpClient = supabaseHttpClient(engine, environment, telemetry)
@@ -171,4 +176,10 @@ internal object RecordingCrashRecorder : CrashRecorder {
     override fun leaveBreadcrumb(tag: String, message: String) = Unit
     override fun setCustomKey(key: String, value: Any?) = Unit
     override fun setUserId(userId: String?) = Unit
+}
+
+/** An [AppSession] a test can move by hand. */
+internal class TestSession : AppSession {
+    override var isForeground: Boolean = true
+    override var sessionId: String = "session-1"
 }

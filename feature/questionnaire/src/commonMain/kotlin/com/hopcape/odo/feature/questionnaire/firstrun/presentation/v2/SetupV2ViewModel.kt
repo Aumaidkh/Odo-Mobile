@@ -209,6 +209,7 @@ internal class SetupV2ViewModel(
                 )
             }.getOrNull()
             if (catalog == null) telemetry.catalogLoadFailed()
+            else if (catalog.makes.isEmpty()) telemetry.catalogEmpty()
             _state.update {
                 it.copy(
                     catalog = catalog?.let { c -> Loadable.Ready(c) }

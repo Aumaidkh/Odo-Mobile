@@ -3,11 +3,15 @@ package com.hopcape.odo.infrastructure.supabase.observability
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.Logger
-import com.hopcape.performance.api.PerformanceTracer
-import com.hopcape.performance.api.currentTraceContext
-import kotlinx.io.IOException
 import com.hopcape.logging.api.TraceContext as LogTrace
+import com.hopcape.odo.core.common.error.errorCode
+import com.hopcape.odo.core.common.session.AppSession
+import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.TraceContext as PerfTrace
+import com.hopcape.performance.api.currentTraceContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.io.IOException
 
 /**
  * Observability for every call that leaves the device, behind one intent-named surface — the
@@ -33,7 +37,14 @@ internal class SupabaseTelemetry(
     private val tracer: PerformanceTracer,
     private val crash: CrashRecorder,
     private val analytics: AnalyticsTracker,
+    private val session: AppSession,
 ) {
+
+    /** Resources already counted in [countedSession], so each outcome is sent once per session. */
+    private val counting = Mutex()
+    private var countedSession: String? = null
+    private val countedOk = mutableSetOf<String>()
+    private val countedUnreachable = mutableSetOf<String>()
 
     /**
      * Run [block] inside a span named `supabase.<operation>`, on the caller's trace.
@@ -79,17 +90,28 @@ internal class SupabaseTelemetry(
     }
 
     /**
+     * A request the server answered with success. Sent once per resource per session, so
+     * [EVENT_UNREACHABLE] divided by attempts is a failure rate.
+     */
+    suspend fun succeeded(operation: String, resource: String) {
+        if (!firstInSession(countedOk, resource)) return
+        analytics.track(EVENT_OK, outcomeFields(operation, resource))
+    }
+
+    /**
      * A request that never got an answer — a timeout, a dropped connection, a DNS failure.
      *
-     * A server that could not be reached is counted, not reported: Odo is offline-first, so a
-     * phone with no network is the expected state. Anything else still gets a non-fatal.
+     * A server that could not be reached is counted once per resource per session, not
+     * reported: Odo is offline-first, so no network is expected. Anything else gets a non-fatal.
      */
     suspend fun failed(operation: String, resource: String, throwable: Throwable) {
         if (throwable.isUnreachable()) {
-            analytics.track(
-                EVENT_UNREACHABLE,
-                mapOf(Key.RESOURCE to resource, Key.ERROR to throwable::class.simpleName),
-            )
+            if (firstInSession(countedUnreachable, resource)) {
+                analytics.track(
+                    EVENT_UNREACHABLE,
+                    outcomeFields(operation, resource) + (Key.ERROR to errorCode(throwable)),
+                )
+            }
         } else {
             crash.recordNonFatal(
                 throwable,
@@ -160,6 +182,25 @@ internal class SupabaseTelemetry(
         logger.warn(TAG, "auth.unavailable")
     }
 
+    private suspend fun firstInSession(counted: MutableSet<String>, resource: String): Boolean =
+        counting.withLock {
+            val current = session.sessionId
+            if (current != countedSession) {
+                countedSession = current
+                countedOk.clear()
+                countedUnreachable.clear()
+            }
+            counted.add(resource)
+        }
+
+    /** [Key.SESSION] keeps a later session's event from matching the tracker's dedup window. */
+    private fun outcomeFields(operation: String, resource: String): Map<String, Any?> = mapOf(
+        Key.RESOURCE to resource,
+        Key.OPERATION to operationKind(operation),
+        Key.FOREGROUND to session.isForeground,
+        Key.SESSION to session.sessionId,
+    )
+
     /** Bridges the performance module's coroutine-carried trace to the logging module's. */
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
@@ -181,6 +222,8 @@ internal class SupabaseTelemetry(
         const val ERROR = "error"
         const val ATTEMPT = "attempt"
         const val COUNT = "count"
+        const val FOREGROUND = "foreground"
+        const val SESSION = "session"
     }
 
     internal companion object {
@@ -188,6 +231,9 @@ internal class SupabaseTelemetry(
 
         /** A request that got no reply. Counted, because being offline is not a bug. */
         const val EVENT_UNREACHABLE = "request_unreachable"
+
+        /** A request the server answered with success; the denominator for [EVENT_UNREACHABLE]. */
+        const val EVENT_OK = "request_ok"
 
         /** Span traceId when no caller installed a trace — grouped rather than dropped. */
         const val UNTRACED = "untraced"
@@ -202,5 +248,18 @@ internal class SupabaseTelemetry(
         const val DOWNLOAD = "download"
         const val SIGN = "sign"
         const val REMOVE = "remove"
+
+        /* Values of [Key.OPERATION] in the request events, beyond the PostgREST verbs. */
+        const val KIND_STORAGE = "storage"
+        const val KIND_AUTH = "auth"
+        const val KIND_FUNCTION = "function"
+
+        /** The request's kind: a PostgREST verb, or storage, auth or function. */
+        fun operationKind(operation: String): String = when {
+            operation in setOf(SELECT, UPSERT, INSERT, UPDATE, RPC) -> operation
+            operation in setOf(UPLOAD, DOWNLOAD, SIGN, REMOVE) -> KIND_STORAGE
+            operation.startsWith(KIND_AUTH) -> KIND_AUTH
+            else -> KIND_FUNCTION
+        }
     }
 }

@@ -123,6 +123,11 @@ import com.hopcape.odo.infrastructure.database.trip.TripSyncable
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
+/** Keeps the local make/model cache current. The app refreshes it on foreground, never here. */
+internal val vehicleCatalogRefresherModule = module {
+    single { VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get()) }
+}
+
 /**
  * The SQLDelight database and the local-data-source adapters that implement the ports
  * `:core:data`'s repositories depend on.
@@ -421,14 +426,7 @@ val databaseInfrastructureModule = module {
     single<VehicleCatalog> { VehicleCatalogImpl(database = get()) }
     single<SetupDraftRepository> { SqlDelightSetupDraftRepository(database = get(), logger = get(), tracer = get()) }
 
-    // Keeps the local make/model cache above current with the shared Supabase catalog.
-    // `createdAtStart` so the pull kicks off at launch rather than waiting for someone to
-    // open a car picker first; `refreshInBackground()` returns immediately regardless, so
-    // this never delays anything else Koin resolves at startup.
-    single(createdAtStart = true) {
-        VehicleCatalogRefresher(database = get(), remote = get(), telemetry = get())
-            .also { it.refreshInBackground() }
-    }
+    includes(vehicleCatalogRefresherModule)
 
     // The client half of "my car isn't listed" — writes locally first (like every other
     // pre-auth-safe table) and asks for a sync; VehicleCatalogSubmissionSyncable below is

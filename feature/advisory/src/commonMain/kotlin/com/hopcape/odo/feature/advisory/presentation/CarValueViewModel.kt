@@ -60,9 +60,13 @@ internal class CarValueViewModel(
     /** The card's first appearance is counted once per screen. */
     private var autoOdoCardSeen = false
 
+    /** The end of first run is counted once, by whichever exit the owner took first. */
+    private var firstRunFinished = false
+
     fun onEvent(event: CarValueEvent) = when (event) {
         CarValueEvent.ScanClicked -> {
-            telemetry.scanClicked()
+            telemetry.scanClicked(firstRun = _state.value.firstRun)
+            finishFirstRun(AdvisoryTelemetry.Via.SCAN)
             emit(CarValueEffect.OpenScanner(firstRun = _state.value.firstRun))
         }
 
@@ -78,6 +82,7 @@ internal class CarValueViewModel(
         // In first run the car is already saved, so back ends first run like Skip does.
         CarValueEvent.BackClicked -> if (_state.value.firstRun) {
             telemetry.firstRunSkipped(viaBack = true)
+            finishFirstRun(AdvisoryTelemetry.Via.BACK)
             emit(CarValueEffect.FinishFirstRun)
         } else {
             emit(CarValueEffect.NavigateBack)
@@ -85,6 +90,7 @@ internal class CarValueViewModel(
 
         CarValueEvent.TurnOnAutoOdometerClicked -> {
             telemetry.autoOdoOfferAccepted()
+            finishFirstRun(AdvisoryTelemetry.Via.AUTO_ODOMETER)
             emit(CarValueEffect.OpenAutoOdometer)
         }
 
@@ -97,8 +103,15 @@ internal class CarValueViewModel(
 
         CarValueEvent.SkipClicked -> {
             telemetry.firstRunSkipped(viaBack = false)
+            finishFirstRun(AdvisoryTelemetry.Via.SKIP)
             emit(CarValueEffect.FinishFirstRun)
         }
+    }
+
+    private fun finishFirstRun(via: String) {
+        if (!_state.value.firstRun || firstRunFinished) return
+        firstRunFinished = true
+        telemetry.firstRunFinished(via)
     }
 
     private fun observe() {

@@ -17,7 +17,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * This is *not* part of the `Syncable`/`Synchronizer` engine (SYNC_DESIGN's per-owner
  * push/pull): `vehicle_makes`/`vehicle_models` carry no `owner_id` and every account reads the
  * same rows, so there is nothing to scope a pull to. It is a plain one-way refresh — fetch,
- * then replace — run once per process at startup and never awaited by anything, because the
+ * then replace — run each time the app comes to the foreground and never awaited, because the
  * picker has to stay usable from [VehicleCatalogImpl]'s local cache whether this succeeds,
  * fails, or (on a build with no Supabase configuration) fetches nothing at all.
  *
@@ -26,7 +26,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * these tables, so replacing every reference row can never touch a car someone has already
  * saved.
  */
-internal class VehicleCatalogRefresher(
+class VehicleCatalogRefresher internal constructor(
     private val database: OdoDatabase,
     private val remote: VehicleCatalogRemoteDataSource,
     private val telemetry: DataTelemetry,

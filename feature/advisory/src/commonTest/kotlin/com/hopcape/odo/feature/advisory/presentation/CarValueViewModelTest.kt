@@ -145,11 +145,45 @@ class CarValueViewModelTest {
         val firstRun = viewModel(firstRun = true, analytics = analytics)
         firstRun.onEvent(CarValueEvent.BackClicked)
         assertEquals(CarValueEffect.FinishFirstRun, firstRun.effects.first())
-        assertEquals(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED, analytics.names.last())
+        assertTrue(AdvisoryTelemetry.Event.FIRST_RUN_SKIPPED in analytics.names)
 
         val garage = viewModel(firstRun = false)
         garage.onEvent(CarValueEvent.BackClicked)
         assertEquals(CarValueEffect.NavigateBack, garage.effects.first())
+    }
+
+    @Test
+    fun eachFirstRunExit_finishesFirstRunOnceWithItsVia() = runTest(dispatcher) {
+        val exits = mapOf(
+            CarValueEvent.ScanClicked to "scan",
+            CarValueEvent.SkipClicked to "skip",
+            CarValueEvent.BackClicked to "back",
+            CarValueEvent.TurnOnAutoOdometerClicked to "auto_odometer",
+        )
+        exits.forEach { (exit, via) ->
+            val analytics = RecordingAnalytics()
+            val viewModel = viewModel(firstRun = true, analytics = analytics)
+            viewModel.onEvent(exit)
+            viewModel.onEvent(CarValueEvent.SkipClicked)
+            assertEquals(listOf<Any?>(via), analytics.finishedVia(), "for $exit")
+        }
+    }
+
+    @Test
+    fun theGarageArrival_neverFinishesFirstRun() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(firstRun = false, analytics = analytics)
+        viewModel.onEvent(CarValueEvent.ScanClicked)
+        viewModel.onEvent(CarValueEvent.BackClicked)
+        assertTrue(analytics.finishedVia().isEmpty())
+    }
+
+    @Test
+    fun aScanClick_saysWhetherItCameFromFirstRun() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        viewModel(firstRun = true, analytics = analytics).onEvent(CarValueEvent.ScanClicked)
+        val (_, fields) = analytics.events.first { it.first == AdvisoryTelemetry.Event.SCAN_CLICKED }
+        assertEquals(true, fields[AdvisoryTelemetry.Key.FIRST_RUN])
     }
 
     private fun viewModel(
@@ -214,9 +248,12 @@ class CarValueViewModelTest {
     }
 
     private class RecordingAnalytics : AnalyticsTracker {
-        val names = mutableListOf<String>()
+        val events = mutableListOf<Pair<String, Map<String, Any?>>>()
+        val names get() = events.map { it.first }
+        fun finishedVia() = events.filter { it.first == AdvisoryTelemetry.Event.FIRST_RUN_FINISHED }
+            .map { it.second[AdvisoryTelemetry.Key.VIA] }
         override fun track(eventName: String, properties: Map<String, Any?>) {
-            names += eventName
+            events += eventName to properties
         }
         override fun identify(traits: UserTraits) = Unit
         override fun setConsent(status: ConsentStatus) = Unit
