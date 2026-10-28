@@ -231,6 +231,8 @@ private class FakeSubscriptionOption(trial: Period, fullPrice: Price) : Subscrip
         ),
     )
     override val tags: List<String> = emptyList()
+    // Deprecated upstream for presentedOfferingContext, but still required by the interface.
+    @Suppress("OVERRIDE_DEPRECATION")
     override val presentedOfferingIdentifier: String? = null
     override val presentedOfferingContext = PresentedOfferingContext("default", null, null)
     override val purchasingData = FakePurchasingData("trial")
