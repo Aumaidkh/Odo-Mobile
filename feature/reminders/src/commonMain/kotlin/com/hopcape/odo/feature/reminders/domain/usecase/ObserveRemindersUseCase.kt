@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.reminders.domain.usecase
 
+import kotlinx.coroutines.flow.flowOf
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
 import com.hopcape.odo.core.domain.odometer.CurrentOdometerProvider
@@ -30,14 +32,15 @@ internal class ObserveRemindersUseCase(
     private val currentOdometer: CurrentOdometerProvider,
     private val clock: Clock,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    private val declaredExpiries: DeclaredExpiryRepository? = null,
 ) {
     operator fun invoke(carId: CarId): Flow<ReminderFeed> = combine(
         documents.observe(carId),
         serviceLogs.observe(carId),
         currentOdometer.observeCurrent(carId),
         reminders.observeCustom(carId),
-        reminders.observeDismissals(carId),
-    ) { docs, entries, odometer, customs, dismissals ->
+        combine(reminders.observeDismissals(carId), declaredExpiries?.observe(carId) ?: flowOf(emptyList()), ::Pair),
+    ) { docs, entries, odometer, customs, (dismissals, declared) ->
         val today = clock.now().toLocalDateTime(timeZone).date
         val last = entries.maxWithOrNull(compareBy({ it.serviceDate }, { it.odometer.km }))
         ReminderFeedPolicy.feedFor(
@@ -52,6 +55,7 @@ internal class ObserveRemindersUseCase(
             dismissals = dismissals,
             today = today,
             currentKm = odometer?.km,
+            declared = declared,
         )
     }
 }

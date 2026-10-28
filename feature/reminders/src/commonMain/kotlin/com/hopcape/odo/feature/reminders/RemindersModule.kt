@@ -48,6 +48,7 @@ val remindersModule = module {
             reminders = get(),
             currentOdometer = get(),
             clock = get(),
+            declaredExpiries = get(),
         )
     }
     factory {

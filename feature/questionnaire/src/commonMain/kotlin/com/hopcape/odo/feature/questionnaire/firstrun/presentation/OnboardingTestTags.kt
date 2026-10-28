@@ -15,6 +15,9 @@ package com.hopcape.odo.feature.questionnaire.firstrun.presentation
  * what the test is about to change.
  */
 object OnboardingTestTags {
+    const val INSURANCE_CONFIRM = "onboarding:insurance_confirm"
+    fun insuranceMonth(month: String) = "onboarding:insurance_month:$month"
+
     const val ODOMETER_FIELD = "onboarding:odometer"
     const val MAKE_FIELD = "onboarding:make"
     const val MODEL_FIELD = "onboarding:model"

@@ -104,6 +104,7 @@ val corePlatformAndroidModule = module {
         WorkManagerDocumentReminderScheduler(
             context = get<Context>(),
             documents = get(),
+            declaredExpiries = get(),
             activeCar = get(),
             settings = get(),
             clock = get(),

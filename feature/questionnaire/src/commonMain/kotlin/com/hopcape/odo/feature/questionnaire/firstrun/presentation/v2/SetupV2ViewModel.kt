@@ -1,5 +1,11 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.plus
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.DateTimeUnit
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.DeclareInsuranceExpiryUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.common.runCatchingCancellableSuspend
@@ -60,6 +66,8 @@ internal class SetupV2ViewModel(
     private val telemetry: SetupTelemetry,
     private val nudges: EngagementNudgeScheduler,
     private val loadMakeLogo: LoadMakeLogoUseCase? = null,
+    private val declareInsurance: DeclareInsuranceExpiryUseCase? = null,
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SetupV2UiState(make = make))
@@ -175,6 +183,17 @@ internal class SetupV2ViewModel(
                     telemetry.stepBack(stepName(SetupV2Step.YEAR_FUEL))
                     _state.update { it.copy(step = SetupV2Step.MODEL) }
                 }
+                // The car is saved; going back lets the owner fix it, and a second save edits it.
+                SetupV2Step.INSURANCE -> {
+                    telemetry.stepBack(stepName(SetupV2Step.INSURANCE))
+                    _state.update { it.copy(step = SetupV2Step.YEAR_FUEL) }
+                }
+            }
+            is SetupV2Event.InsuranceMonthChosen -> _state.update { it.copy(insuranceMonth = event.month) }
+            SetupV2Event.InsuranceConfirmed -> confirmInsurance()
+            SetupV2Event.InsuranceSkipped -> {
+                telemetry.insuranceSkipped()
+                emit(SetupV2Effect.ShowValue)
             }
         }
     }
@@ -257,12 +276,33 @@ internal class SetupV2ViewModel(
         if (!knownMake || !knownModel) reportUnlisted(make, model, command.variant)
     }
 
+    /** The car is saved, so first run is past abandoning; the insurance month comes next. */
     private fun finish() {
         flowEnded = true
         telemetry.stepAdvanced(SetupTelemetry.Step.YEAR_FUEL)
         telemetry.completed()
         viewModelScope.launch { nudges.schedule(EngagementNudge.FIRST_SCORE) }
-        emit(SetupV2Effect.ShowValue)
+        if (declareInsurance == null) {
+            emit(SetupV2Effect.ShowValue)
+            return
+        }
+        val thisMonth = clock.now().toLocalDateTime(timeZone).date.let { LocalDate(it.year, it.month, 1) }
+        val months = (0 until INSURANCE_MONTHS).map { thisMonth.plus(it, DateTimeUnit.MONTH) }
+        telemetry.insuranceShown()
+        _state.update { it.copy(step = SetupV2Step.INSURANCE, insuranceMonths = months) }
+    }
+
+    /** A failed write is logged by the repository; the owner still reaches the value screen. */
+    private fun confirmInsurance() {
+        val state = _state.value
+        val month = state.insuranceMonth ?: return
+        val carId = savedCarId ?: return
+        val declare = declareInsurance ?: return
+        telemetry.insuranceAnswered(monthsAhead = state.insuranceMonths.indexOf(month))
+        viewModelScope.launch {
+            declare(carId, currentOwner.currentOwnerId(), month)
+            emit(SetupV2Effect.ShowValue)
+        }
     }
 
     private fun leave() {
@@ -294,7 +334,11 @@ internal class SetupV2ViewModel(
 private fun stepName(step: SetupV2Step): String = when (step) {
     SetupV2Step.MODEL -> SetupTelemetry.Step.MODEL
     SetupV2Step.YEAR_FUEL -> SetupTelemetry.Step.YEAR_FUEL
+    SetupV2Step.INSURANCE -> SetupTelemetry.Step.INSURANCE
 }
+
+/** This month and the next 11: a policy runs a year, so its end is never further out. */
+private const val INSURANCE_MONTHS = 12
 
 /** No odometer: v2 saves the car pending a reading, asked for later on Home. */
 private fun SetupV2UiState.toCommand(): SaveCarCommand = SaveCarCommand(

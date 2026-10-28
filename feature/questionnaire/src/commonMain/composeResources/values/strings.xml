@@ -75,6 +75,11 @@
     <string name="onb_fuel_label">Fuel</string>
     <string name="onb_save_car">Save my car</string>
     <string name="onb_save_car_helper">You can add your number plate and odometer later.</string>
+    <string name="onb_insurance_title">When does your insurance expire?</string>
+    <string name="onb_insurance_subtitle">Pick the month. Odo reminds you 30, 7 and 1 day before.</string>
+    <string name="onb_insurance_confirm">Remind me</string>
+    <string name="onb_insurance_skip">Skip for now</string>
+    <string name="onb_insurance_helper">Add the policy later and its exact date takes over.</string>
     <string name="onb_make_sheet_title">Choose make</string>
     <string name="onb_make_sheet_subtitle">%1$d brands available</string>
     <string name="onb_make_search">Search brands</string>

@@ -47,6 +47,20 @@ sealed interface UpcomingReminder {
             get() = currentNudgeOn?.let { ReminderDismissal(kind, it) }
     }
 
+    /** An expiry the owner declared without a document. Chased like the paper would be. */
+    data class DeclaredRenewal(
+        override val kind: ReminderKind,
+        val declaredId: String,
+        val type: DocumentType,
+        val expiresOn: LocalDate,
+        val daysLeft: Int,
+        override val urgency: ReminderUrgency,
+        val currentNudgeOn: LocalDate?,
+    ) : UpcomingReminder {
+        override val dismissalKey: ReminderDismissal?
+            get() = currentNudgeOn?.let { ReminderDismissal(kind, it) }
+    }
+
     /**
      * Where the car stands against its service interval. [status] carries the days/km
      * numbers; [dueOn] is the calendar day the time half of the interval ends, which is
