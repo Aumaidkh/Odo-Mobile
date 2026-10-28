@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
             navigationManager.navigate(NavigationCommand.NavigateTo(confirm))
             return
         }
+        if (NudgeLaunch.handle(intent, navigationManager)) return
         if (openedFrom == NotificationOpen.SERVICE_DUE) {
             navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Reminders.List))
             return
