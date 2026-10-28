@@ -130,6 +130,10 @@ class MainActivity : ComponentActivity() {
             navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Garage.Home))
             return
         }
+        if (openedFrom == NotificationOpen.WEEKLY_SUMMARY) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.CostTracker.Home))
+            return
+        }
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner
         // every time the activity was rebuilt.
         if (WidgetLaunch.handle(intent, navigationManager)) intent?.action = null

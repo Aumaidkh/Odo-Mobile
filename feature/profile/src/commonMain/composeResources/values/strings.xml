@@ -135,8 +135,8 @@
     <string name="pf_notif_insights">INSIGHTS</string>
     <string name="pf_notif_overcharge">Overcharge alerts</string>
     <string name="pf_notif_overcharge_sub">When a bill is above average</string>
-    <string name="pf_notif_monthly">Monthly cost summary</string>
-    <string name="pf_notif_monthly_sub">1st of every month</string>
+    <string name="pf_notif_monthly">Weekly and monthly summaries</string>
+    <string name="pf_notif_monthly_sub">Sunday 7 PM, and the 1st of every month</string>
     <string name="pf_notif_drive_summary">Drive summary</string>
     <string name="pf_notif_drive_summary_sub">9 PM on days you drove, with auto odometer on</string>
     <string name="pf_notif_health">Health Score changes</string>
