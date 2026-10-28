@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.platform.notification
 
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.DayOfWeek
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -16,7 +18,10 @@ import kotlinx.datetime.toLocalDateTime
 import java.util.concurrent.TimeUnit
 import kotlin.time.Clock
 
-/** [DriveSummaryNotifier] on WorkManager: one job at the next 21:00, re-queued by each run. */
+/**
+ * [DriveSummaryNotifier] on WorkManager: the daily summary at 21:00 and the weekly recap on
+ * Sunday at 19:00, each one job re-queued by its own run.
+ */
 internal class WorkManagerDriveSummaryNotifier(
     context: Context,
     private val settings: AppSettingsRepository,
@@ -27,10 +32,36 @@ internal class WorkManagerDriveSummaryNotifier(
 
     private val workManager = WorkManager.getInstance(context.applicationContext)
 
-    override suspend fun rearm() = schedule(ExistingWorkPolicy.REPLACE)
+    override suspend fun rearm() {
+        schedule(ExistingWorkPolicy.REPLACE)
+        scheduleWeekly(ExistingWorkPolicy.REPLACE)
+    }
 
     /** From inside a run: append, because replacing would cancel the run doing the asking. */
     suspend fun rearmFromRun() = schedule(ExistingWorkPolicy.APPEND_OR_REPLACE)
+
+    suspend fun rearmWeeklyFromRun() = scheduleWeekly(ExistingWorkPolicy.APPEND_OR_REPLACE)
+
+    private suspend fun scheduleWeekly(policy: ExistingWorkPolicy) {
+        runCatching {
+            val notifications = settings.observe().first().notifications
+            if (!notifications.push || !notifications.monthlySummary) {
+                workManager.cancelUniqueWork(WEEKLY_WORK_NAME)
+                return
+            }
+            val now = clock.now()
+            val today = now.toLocalDateTime(timeZone).date
+            val daysToSunday = (DayOfWeek.SUNDAY.isoDayNumber - today.dayOfWeek.isoDayNumber + 7) % 7
+            var next = today.plus(daysToSunday, DateTimeUnit.DAY).atTime(WEEKLY_HOUR, 0).toInstant(timeZone)
+            if (next <= now) next = today.plus(daysToSunday + 7, DateTimeUnit.DAY).atTime(WEEKLY_HOUR, 0).toInstant(timeZone)
+            val request = OneTimeWorkRequestBuilder<WeeklySummaryWorker>()
+                .setInitialDelay((next - now).inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                .build()
+            workManager.enqueueUniqueWork(WEEKLY_WORK_NAME, policy, request)
+        }.onFailure { cause ->
+            logger.error(TAG, "weekly_summary_schedule_failed", fields = mapOf("reason" to cause::class.simpleName))
+        }
+    }
 
     private suspend fun schedule(policy: ExistingWorkPolicy) {
         runCatching {
@@ -54,7 +85,9 @@ internal class WorkManagerDriveSummaryNotifier(
 
     companion object {
         const val HOUR = 21
+        const val WEEKLY_HOUR = 19
         private const val WORK_NAME = "odo_drive_summary"
+        private const val WEEKLY_WORK_NAME = "odo_weekly_summary"
         private const val TAG = "DRIVE_SUMMARY"
     }
 }

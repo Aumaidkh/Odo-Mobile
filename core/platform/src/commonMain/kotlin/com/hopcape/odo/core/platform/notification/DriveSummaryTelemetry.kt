@@ -15,9 +15,20 @@ internal class DriveSummaryTelemetry(private val analytics: AnalyticsTracker) {
         analytics.track(Event.SKIPPED, mapOf(Key.REASON to reason, Key.DAY to day))
     }
 
+    /** [parts] lists the figures shown, such as "km,per_km". */
+    fun weeklyPosted(parts: String, day: String) {
+        analytics.track(Event.WEEKLY_POSTED, mapOf(Key.PARTS to parts, Key.DAY to day))
+    }
+
+    fun weeklySkipped(reason: String, day: String) {
+        analytics.track(Event.WEEKLY_SKIPPED, mapOf(Key.REASON to reason, Key.DAY to day))
+    }
+
     object Event {
         const val POSTED = "drive_summary_posted"
         const val SKIPPED = "drive_summary_skipped"
+        const val WEEKLY_POSTED = "weekly_summary_posted"
+        const val WEEKLY_SKIPPED = "weekly_summary_skipped"
     }
 
     object Key {
@@ -25,6 +36,7 @@ internal class DriveSummaryTelemetry(private val analytics: AnalyticsTracker) {
         const val KM = "km"
         const val REASON = "reason"
         const val DAY = "day"
+        const val PARTS = "parts"
     }
 }
 
@@ -40,6 +52,14 @@ val driveSummaryAnalyticsEvents: List<EventSchema> = listOf(
     ),
     EventSchema(
         DriveSummaryTelemetry.Event.SKIPPED,
+        mapOf(DriveSummaryTelemetry.Key.REASON to PropertyType.STRING, DriveSummaryTelemetry.Key.DAY to PropertyType.STRING),
+    ),
+    EventSchema(
+        DriveSummaryTelemetry.Event.WEEKLY_POSTED,
+        mapOf(DriveSummaryTelemetry.Key.PARTS to PropertyType.STRING, DriveSummaryTelemetry.Key.DAY to PropertyType.STRING),
+    ),
+    EventSchema(
+        DriveSummaryTelemetry.Event.WEEKLY_SKIPPED,
         mapOf(DriveSummaryTelemetry.Key.REASON to PropertyType.STRING, DriveSummaryTelemetry.Key.DAY to PropertyType.STRING),
     ),
 )
