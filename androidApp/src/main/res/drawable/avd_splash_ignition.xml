@@ -1,0 +1,970 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Odo · Ignition Sweep · splash icon (Android SplashScreen API).
+  288dp canvas; everything sits inside the 192dp safe circle. Colours come from
+  @color/odo_splash_*, so values / values-night give light and dark.
+  Timeline: sweep 0-650 · hold -770 · fall -1320 · needle fade -1420 · ODO in -1680.
+  ODO (DM Sans Bold) and the reading (DM Sans Medium) are glyph outlines, not text.
+-->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="288dp"
+            android:height="288dp"
+            android:viewportWidth="288"
+            android:viewportHeight="288">
+
+            <path
+                android:name="tick_00"
+                android:pathData="M 90.54,197.46 L 80.36,207.64"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_01"
+                android:pathData="M 79.74,193.31 L 72.60,198.79"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_02"
+                android:pathData="M 73.85,184.50 L 66.06,189.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_03"
+                android:pathData="M 69.17,175.00 L 60.85,178.44"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_04"
+                android:pathData="M 70.98,163.57 L 57.07,167.29"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_05"
+                android:pathData="M 63.69,154.57 L 54.77,155.75"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_06"
+                android:pathData="M 63.00,144.00 L 54.00,144.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_07"
+                android:pathData="M 63.69,133.43 L 54.77,132.25"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_08"
+                android:pathData="M 70.98,124.43 L 57.07,120.71"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_09"
+                android:pathData="M 69.17,113.00 L 60.85,109.56"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_10"
+                android:pathData="M 73.85,103.50 L 66.06,99.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_11"
+                android:pathData="M 79.74,94.69 L 72.60,89.21"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_12"
+                android:pathData="M 90.54,90.54 L 80.36,80.36"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_13"
+                android:pathData="M 94.69,79.74 L 89.21,72.60"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_14"
+                android:pathData="M 103.50,73.85 L 99.00,66.06"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_15"
+                android:pathData="M 113.00,69.17 L 109.56,60.85"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_16"
+                android:pathData="M 124.43,70.98 L 120.71,57.07"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_17"
+                android:pathData="M 133.43,63.69 L 132.25,54.77"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_18"
+                android:pathData="M 144.00,63.00 L 144.00,54.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_19"
+                android:pathData="M 154.57,63.69 L 155.75,54.77"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_20"
+                android:pathData="M 163.57,70.98 L 167.29,57.07"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_21"
+                android:pathData="M 175.00,69.17 L 178.44,60.85"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_22"
+                android:pathData="M 184.50,73.85 L 189.00,66.06"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_23"
+                android:pathData="M 193.31,79.74 L 198.79,72.60"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_24"
+                android:pathData="M 197.46,90.54 L 207.64,80.36"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_25"
+                android:pathData="M 208.26,94.69 L 215.40,89.21"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_26"
+                android:pathData="M 214.15,103.50 L 221.94,99.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_27"
+                android:pathData="M 218.83,113.00 L 227.15,109.56"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_28"
+                android:pathData="M 217.02,124.43 L 230.93,120.71"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_29"
+                android:pathData="M 224.31,133.43 L 233.23,132.25"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_30"
+                android:pathData="M 225.00,144.00 L 234.00,144.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_31"
+                android:pathData="M 224.31,154.57 L 233.23,155.75"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_32"
+                android:pathData="M 217.02,163.57 L 230.93,167.29"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_33"
+                android:pathData="M 218.83,175.00 L 227.15,178.44"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_34"
+                android:pathData="M 214.15,184.50 L 221.94,189.00"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_35"
+                android:pathData="M 208.26,193.31 L 215.40,198.79"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="1.5"
+                android:strokeLineCap="round" />
+            <path
+                android:name="tick_36"
+                android:pathData="M 197.46,197.46 L 207.64,207.64"
+                android:strokeColor="@color/odo_splash_border"
+                android:strokeWidth="2.5"
+                android:strokeLineCap="round" />
+
+            <group
+                android:name="mark"
+                android:pivotX="144"
+                android:pivotY="160"
+                android:scaleX="0.94"
+                android:scaleY="0.94">
+                <path
+                    android:name="odo_0"
+                    android:pathData="M117.14 153.36Q114.08 153.36 111.73 151.98Q109.39 150.60 108.07 148.16Q106.75 145.71 106.75 142.50Q106.75 139.29 108.07 136.84Q109.39 134.40 111.73 133.02Q114.08 131.64 117.14 131.64Q120.22 131.64 122.56 133.02Q124.91 134.40 126.21 136.84Q127.52 139.29 127.52 142.50Q127.52 145.71 126.21 148.16Q124.91 150.60 122.56 151.98Q120.22 153.36 117.14 153.36ZM117.14 149.73Q119.06 149.73 120.45 148.84Q121.84 147.96 122.62 146.34Q123.41 144.72 123.41 142.50Q123.41 140.25 122.62 138.64Q121.84 137.04 120.45 136.17Q119.06 135.30 117.14 135.30Q115.25 135.30 113.84 136.17Q112.42 137.04 111.64 138.64Q110.86 140.25 110.86 142.50Q110.86 144.72 111.64 146.34Q112.42 147.96 113.84 148.84Q115.25 149.73 117.14 149.73Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="odo_1"
+                    android:pathData="M135.47 153.00V132.00H142.49Q146.15 132.00 148.53 133.31Q150.92 134.61 152.07 136.97Q153.23 139.32 153.23 142.50Q153.23 145.68 152.07 148.03Q150.92 150.39 148.55 151.69Q146.18 153.00 142.49 153.00ZM139.52 149.52H142.28Q144.86 149.52 146.34 148.68Q147.83 147.84 148.46 146.26Q149.09 144.69 149.09 142.50Q149.09 140.28 148.46 138.70Q147.83 137.13 146.34 136.29Q144.86 135.45 142.28 135.45H139.52Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="odo_2"
+                    android:pathData="M170.87 153.36Q167.81 153.36 165.47 151.98Q163.13 150.60 161.81 148.16Q160.49 145.71 160.49 142.50Q160.49 139.29 161.81 136.84Q163.13 134.40 165.47 133.02Q167.81 131.64 170.87 131.64Q173.96 131.64 176.30 133.02Q178.64 134.40 179.94 136.84Q181.25 139.29 181.25 142.50Q181.25 145.71 179.94 148.16Q178.64 150.60 176.30 151.98Q173.96 153.36 170.87 153.36ZM170.87 149.73Q172.79 149.73 174.18 148.84Q175.58 147.96 176.36 146.34Q177.14 144.72 177.14 142.50Q177.14 140.25 176.36 138.64Q175.58 137.04 174.18 136.17Q172.79 135.30 170.87 135.30Q168.98 135.30 167.57 136.17Q166.16 137.04 165.38 138.64Q164.60 140.25 164.60 142.50Q164.60 144.72 165.38 146.34Q166.16 147.96 167.57 148.84Q168.98 149.73 170.87 149.73Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_box"
+                    android:pathData="M 110.25,173.50 h 67.51 a 3,3 0 0 1 3,3 v 13.00 a 3,3 0 0 1 -3,3 h -67.51 a 3,3 0 0 1 -3,-3 v -13.00 a 3,3 0 0 1 3,-3 Z"
+                    android:strokeColor="@color/odo_splash_border"
+                    android:strokeWidth="1"
+                    android:strokeAlpha="0" />
+                <path
+                    android:name="reading_0"
+                    android:pathData="M118.05 186.63Q117.03 186.63 116.29 186.13Q115.55 185.63 115.16 184.73Q114.76 183.84 114.76 182.65Q114.76 181.46 115.16 180.57Q115.55 179.67 116.29 179.17Q117.03 178.67 118.05 178.67Q119.07 178.67 119.81 179.17Q120.54 179.67 120.93 180.57Q121.32 181.46 121.32 182.65Q121.32 183.84 120.93 184.73Q120.54 185.63 119.81 186.13Q119.07 186.63 118.05 186.63ZM118.05 185.65Q118.67 185.65 119.16 185.29Q119.65 184.93 119.92 184.26Q120.20 183.59 120.20 182.65Q120.20 181.72 119.92 181.04Q119.65 180.37 119.16 180.02Q118.67 179.66 118.05 179.66Q117.42 179.66 116.93 180.02Q116.43 180.37 116.16 181.04Q115.88 181.72 115.88 182.65Q115.88 183.59 116.16 184.26Q116.43 184.93 116.93 185.29Q117.42 185.65 118.05 185.65Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_1"
+                    android:pathData="M127.49 186.63Q126.67 186.63 126.09 186.34Q125.51 186.05 125.17 185.55Q124.83 185.05 124.75 184.42H125.83Q125.94 184.98 126.38 185.34Q126.82 185.70 127.49 185.70Q127.99 185.70 128.36 185.45Q128.72 185.21 128.92 184.81Q129.12 184.40 129.12 183.90Q129.12 183.38 128.91 182.99Q128.71 182.59 128.35 182.38Q127.99 182.16 127.52 182.16Q126.95 182.16 126.54 182.41Q126.12 182.67 125.94 183.07H124.87L125.51 178.80H129.66V179.76H126.36L125.95 181.91Q126.21 181.62 126.66 181.43Q127.10 181.24 127.68 181.24Q128.26 181.24 128.72 181.45Q129.18 181.65 129.51 182.01Q129.83 182.38 130.00 182.86Q130.17 183.34 130.17 183.88Q130.17 184.47 129.99 184.96Q129.80 185.46 129.45 185.83Q129.11 186.21 128.61 186.42Q128.10 186.63 127.49 186.63Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_2"
+                    android:pathData="M137.29 186.50V184.93H133.43V184.07L137.11 178.80H138.38V183.97H139.48V184.93H138.38V186.50ZM134.63 183.97H137.36V180.01Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_3"
+                    android:pathData="M143.21 186.56Q142.89 186.56 142.69 186.35Q142.48 186.15 142.48 185.86Q142.48 185.56 142.69 185.36Q142.89 185.16 143.21 185.16Q143.53 185.16 143.73 185.36Q143.92 185.56 143.92 185.86Q143.92 186.15 143.73 186.35Q143.53 186.56 143.21 186.56Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_4"
+                    android:pathData="M150.39 186.63Q149.37 186.63 148.63 186.13Q147.89 185.63 147.50 184.73Q147.10 183.84 147.10 182.65Q147.10 181.46 147.50 180.57Q147.89 179.67 148.63 179.17Q149.37 178.67 150.39 178.67Q151.41 178.67 152.15 179.17Q152.88 179.67 153.27 180.57Q153.66 181.46 153.66 182.65Q153.66 183.84 153.27 184.73Q152.88 185.63 152.15 186.13Q151.41 186.63 150.39 186.63ZM150.39 185.65Q151.01 185.65 151.50 185.29Q151.99 184.93 152.26 184.26Q152.54 183.59 152.54 182.65Q152.54 181.72 152.26 181.04Q151.99 180.37 151.50 180.02Q151.01 179.66 150.39 179.66Q149.76 179.66 149.27 180.02Q148.77 180.37 148.50 181.04Q148.22 181.72 148.22 182.65Q148.22 183.59 148.50 184.26Q148.77 184.93 149.27 185.29Q149.76 185.65 150.39 185.65Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_5"
+                    android:pathData="M160.18 186.63Q159.16 186.63 158.42 186.13Q157.68 185.63 157.29 184.73Q156.89 183.84 156.89 182.65Q156.89 181.46 157.29 180.57Q157.68 179.67 158.42 179.17Q159.16 178.67 160.18 178.67Q161.20 178.67 161.94 179.17Q162.67 179.67 163.06 180.57Q163.45 181.46 163.45 182.65Q163.45 183.84 163.06 184.73Q162.67 185.63 161.94 186.13Q161.20 186.63 160.18 186.63ZM160.18 185.65Q160.80 185.65 161.29 185.29Q161.78 184.93 162.05 184.26Q162.33 183.59 162.33 182.65Q162.33 181.72 162.05 181.04Q161.78 180.37 161.29 180.02Q160.80 179.66 160.18 179.66Q159.55 179.66 159.06 180.02Q158.56 180.37 158.29 181.04Q158.01 181.72 158.01 182.65Q158.01 183.59 158.29 184.26Q158.56 184.93 159.06 185.29Q159.55 185.65 160.18 185.65Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+                <path
+                    android:name="reading_6"
+                    android:pathData="M169.97 186.63Q168.95 186.63 168.21 186.13Q167.47 185.63 167.08 184.73Q166.68 183.84 166.68 182.65Q166.68 181.46 167.08 180.57Q167.47 179.67 168.21 179.17Q168.95 178.67 169.97 178.67Q170.99 178.67 171.73 179.17Q172.46 179.67 172.85 180.57Q173.24 181.46 173.24 182.65Q173.24 183.84 172.85 184.73Q172.46 185.63 171.73 186.13Q170.99 186.63 169.97 186.63ZM169.97 185.65Q170.59 185.65 171.08 185.29Q171.57 184.93 171.84 184.26Q172.12 183.59 172.12 182.65Q172.12 181.72 171.84 181.04Q171.57 180.37 171.08 180.02Q170.59 179.66 169.97 179.66Q169.34 179.66 168.85 180.02Q168.35 180.37 168.08 181.04Q167.80 181.72 167.80 182.65Q167.80 183.59 168.08 184.26Q168.35 184.93 168.85 185.29Q169.34 185.65 169.97 185.65Z"
+                    android:fillColor="@color/odo_splash_text"
+                    android:fillAlpha="0" />
+            </group>
+
+            <group
+                android:name="needle"
+                android:pivotX="144"
+                android:pivotY="144"
+                android:rotation="-135">
+                <path
+                    android:name="needle_line"
+                    android:pathData="M 144,154.80 L 144,72.00"
+                    android:strokeColor="@color/odo_splash_text"
+                    android:strokeWidth="2.5"
+                    android:strokeLineCap="round" />
+                <path
+                    android:name="needle_hub"
+                    android:pathData="M 139.50,144 a 4.50,4.50 0 1,0 9.00,0 a 4.50,4.50 0 1,0 -9.00,0 Z"
+                    android:fillColor="@color/odo_splash_text" />
+            </group>
+        </vector>
+    </aapt:attr>
+
+    <target android:name="needle">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:valueType="floatType"
+                    android:valueFrom="-135"
+                    android:valueTo="135"
+                    android:startOffset="0"
+                    android:duration="650"
+                    android:interpolator="@interpolator/odo_cubic_in_out" />
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:valueType="floatType"
+                    android:valueFrom="135"
+                    android:valueTo="-135"
+                    android:startOffset="770"
+                    android:duration="550"
+                    android:interpolator="@interpolator/odo_cubic_in_out" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="needle_line">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:valueType="floatType"
+                android:valueFrom="1"
+                android:valueTo="0"
+                android:startOffset="1320"
+                android:duration="100"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="needle_hub">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="1"
+                android:valueTo="0"
+                android:startOffset="1320"
+                android:duration="100"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_00">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="0"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_01">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="109"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_02">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="147"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_03">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="174"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_04">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="194"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_05">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="211"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_06">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="226"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_07">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="238"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_08">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="249"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_09">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="259"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_10">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="268"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_11">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="277"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_12">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="285"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_13">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="292"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_14">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="299"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_15">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="306"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_16">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="312"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_17">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="319"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_18">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="325"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_19">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="331"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_20">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="338"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_21">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="344"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_22">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="351"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_23">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="358"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_24">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="365"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_25">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="373"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_26">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="382"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_27">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="391"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_28">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="401"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_29">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="412"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_30">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="424"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_31">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="439"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_32">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="456"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_33">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="476"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_34">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="503"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_35">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="541"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="tick_36">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeColor"
+                android:valueType="colorType"
+                android:valueFrom="@color/odo_splash_border"
+                android:valueTo="@color/odo_splash_text"
+                android:startOffset="650"
+                android:duration="16"
+                android:interpolator="@android:interpolator/linear" />
+        </aapt:attr>
+    </target>
+    <target android:name="mark">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueType="floatType"
+                    android:valueFrom="0.94"
+                    android:valueTo="1"
+                    android:startOffset="1350"
+                    android:duration="330"
+                    android:interpolator="@android:interpolator/decelerate_cubic" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueType="floatType"
+                    android:valueFrom="0.94"
+                    android:valueTo="1"
+                    android:startOffset="1350"
+                    android:duration="330"
+                    android:interpolator="@android:interpolator/decelerate_cubic" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="odo_0">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1350"
+                android:duration="330"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="odo_1">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1350"
+                android:duration="330"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="odo_2">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1350"
+                android:duration="330"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_box">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_0">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_1">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_2">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_3">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_4">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_5">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+    <target android:name="reading_6">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="fillAlpha"
+                android:valueType="floatType"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:startOffset="1410"
+                android:duration="270"
+                android:interpolator="@android:interpolator/decelerate_cubic" />
+        </aapt:attr>
+    </target>
+</animated-vector>

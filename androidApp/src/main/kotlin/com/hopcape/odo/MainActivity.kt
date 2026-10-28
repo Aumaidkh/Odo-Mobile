@@ -10,6 +10,7 @@ import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.navigation.NavigationCommand
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.feature.refuel.RefuelDeepLinks
+import com.hopcape.odo.splash.IgnitionSplashExit
 import com.hopcape.odo.widget.WidgetLaunch
 import com.hopcape.performance.api.APM
 import org.koin.android.ext.android.inject
@@ -26,6 +27,12 @@ class MainActivity : ComponentActivity() {
         // condition holds the branded window through the startup gate (#473).
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { !contentReady }
+        splashScreen.setOnExitAnimationListener { splash ->
+            // The library resets the bars from the theme here and again on remove(), so
+            // edge-to-edge is applied again after each.
+            enableEdgeToEdge()
+            IgnitionSplashExit.play(splash, onRemoved = { enableEdgeToEdge() })
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 

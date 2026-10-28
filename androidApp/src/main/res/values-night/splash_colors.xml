@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash-only mirrors of Odo design tokens (dark). Keep in sync with TeslaPalette:
+     LightBg/DarkBg, LightText/DarkText, LightBorder/DarkBorder. -->
+<resources>
+    <color name="odo_splash_bg">#000000</color>
+    <color name="odo_splash_text">#FFFFFF</color>
+    <color name="odo_splash_border">#2E2E2E</color>
+    <!-- Dark status-bar icons on the light palette, light ones on the dark. -->
+    <bool name="odo_light_system_bars">false</bool>
+</resources>
