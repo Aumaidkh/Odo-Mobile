@@ -1,5 +1,10 @@
 package com.hopcape.odo
 
+import kotlinx.coroutines.launch
+import com.hopcape.odo.core.platform.review.ReviewTrigger
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import androidx.lifecycle.withResumed
+import androidx.lifecycle.lifecycleScope
 import com.hopcape.odo.core.navigation.OdoDestination
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
     private val navigationManager: NavigationManager by inject()
     private val appTelemetry: AppTelemetry by inject()
+    private val reviewPrompter: ReviewPrompter by inject()
 
     /** Whether a real screen is composed. The splash polls this every frame. */
     private var contentReady = false
@@ -95,7 +101,19 @@ class MainActivity : ComponentActivity() {
         intent.removeExtra(NotificationOpen.EXTRA_KIND)
         if (!count) return null
         appTelemetry.notificationOpened(kind)
+        if (kind in REMINDER_KINDS) {
+            // After resume, so the review sheet has an Activity to attach to.
+            lifecycleScope.launch {
+                lifecycle.withResumed {}
+                reviewPrompter.maybeAsk(ReviewTrigger.FIRST_REMINDER)
+            }
+        }
         return kind
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { reviewPrompter.maybeAskForTripDays() }
     }
 
     /**
@@ -124,6 +142,11 @@ class MainActivity : ComponentActivity() {
             // this mutates exactly the copy a later recreation would read.
             intent?.removeExtra(RefuelDeepLinks.EXTRA_DRAFT)
             navigationManager.navigate(NavigationCommand.NavigateTo(confirm))
+            return
+        }
+        if (NudgeLaunch.handle(intent, navigationManager)) return
+        if (openedFrom == NotificationOpen.SERVICE_DUE) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Reminders.List))
             return
         }
         if (openedFrom == NotificationOpen.DRIVE_SUMMARY) {
@@ -165,5 +188,8 @@ class MainActivity : ComponentActivity() {
     private companion object {
         /** How long the splash may hold before it gives up on the gate and shows the app. */
         const val SPLASH_TIMEOUT_MS = 5_000L
+
+        /** Notification kinds that count as a reminder for the review prompt. */
+        val REMINDER_KINDS = setOf(NotificationOpen.DOCUMENT_REMINDER, NotificationOpen.CUSTOM_REMINDER)
     }
 }

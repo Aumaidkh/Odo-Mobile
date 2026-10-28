@@ -1,5 +1,6 @@
 package com.hopcape.odo
 
+import androidx.compose.ui.test.onNodeWithText
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
@@ -42,8 +43,27 @@ internal fun V2Rule.pickYearAndFuel(year: Int, fuel: String) {
     tapTag(OnboardingTestTags.fuelChip(fuel))
 }
 
-/** The pinned action sits outside the scrolling body, so it is tapped without scrolling. */
+/** Saves, then skips the insurance step, so callers land on the value screen as before. */
 internal fun V2Rule.saveTheCar() {
+    saveTheCarOnly()
+    waitForTag(OnboardingTestTags.INSURANCE_CONFIRM, 10_000)
+    onNodeWithText(V2Copy.INSURANCE_SKIP).performClick()
+}
+
+/** The pinned action sits outside the scrolling body, so it is tapped without scrolling. */
+internal fun V2Rule.saveTheCarOnly() {
     waitForTag(OnboardingTestTags.SAVE_CAR)
     onNodeWithTag(OnboardingTestTags.SAVE_CAR).performClick()
+}
+
+/** The tag of the first month chip on the insurance step, whatever month the device is in. */
+internal fun V2Rule.firstInsuranceMonthTag(): String {
+    val prefix = OnboardingTestTags.insuranceMonth("")
+    waitUntil(5_000) { onAllNodes(hasTestTagPrefix(prefix)).fetchSemanticsNodes().isNotEmpty() }
+    return onAllNodes(hasTestTagPrefix(prefix)).fetchSemanticsNodes().first()
+        .config[androidx.compose.ui.semantics.SemanticsProperties.TestTag]
+}
+
+private fun hasTestTagPrefix(prefix: String) = androidx.compose.ui.test.SemanticsMatcher("tag starts with $prefix") {
+    androidx.compose.ui.semantics.SemanticsProperties.TestTag in it.config && it.config[androidx.compose.ui.semantics.SemanticsProperties.TestTag].startsWith(prefix)
 }

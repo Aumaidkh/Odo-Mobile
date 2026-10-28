@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.paywall.presentation
 
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.NoopReviewPrompter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.core.designsystem.text.UiText
@@ -44,6 +46,7 @@ internal class PaywallViewModel(
     private val trigger: PaywallTrigger,
     amountPaise: Long,
     freeScans: Int,
+    private val reviewPrompter: ReviewPrompter = NoopReviewPrompter,
 ) : ViewModel() {
 
     /** Which surface sent the owner here, on every event. The paywall cannot see it itself. */
@@ -59,6 +62,7 @@ internal class PaywallViewModel(
 
     init {
         telemetry.shown(from)
+        reviewPrompter.paywallShown()
         loadOffer()
     }
 

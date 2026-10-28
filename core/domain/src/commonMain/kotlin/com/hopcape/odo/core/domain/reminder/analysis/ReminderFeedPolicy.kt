@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.domain.reminder.analysis
 
+import com.hopcape.odo.core.domain.reminder.model.DeclaredExpiry
 import com.hopcape.odo.core.domain.document.model.Document
 import com.hopcape.odo.core.domain.document.model.DocumentValidity
 import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
@@ -63,10 +64,12 @@ object ReminderFeedPolicy {
         dismissals: List<ReminderDismissal>,
         today: LocalDate,
         currentKm: Int? = null,
+        declared: List<DeclaredExpiry> = emptyList(),
     ): ReminderFeed {
         val dismissed = dismissals.toSet()
         val rows = buildList {
             addAll(documentRows(documents, today))
+            addAll(declaredRows(DeclaredExpiryPolicy.applicable(declared, documents), today))
             serviceRow(serviceStatus, today)?.let(::add)
             addAll(customRows(customs, dismissed, today, currentKm))
         }.filterNot { it.dismissalKey in dismissed }
@@ -121,6 +124,30 @@ object ReminderFeedPolicy {
                     .firstOrNull()?.on,
             )
         }
+
+    /** One row per declared expiry still ahead, with the same urgency a paper would get. */
+    private fun declaredRows(
+        declared: List<DeclaredExpiry>,
+        today: LocalDate,
+    ): List<UpcomingReminder.DeclaredRenewal> = declared.mapNotNull { expiry ->
+        val type = DeclaredExpiryPolicy.documentTypeFor(expiry.kind) ?: return@mapNotNull null
+        val daysLeft = today.daysUntil(expiry.dueOn)
+        val urgency = when {
+            daysLeft < 0 -> return@mapNotNull null
+            daysLeft <= THIS_WEEK_DAYS -> ReminderUrgency.DUE_THIS_WEEK
+            daysLeft <= DocumentValidity.RENEWAL_WINDOW_DAYS -> ReminderUrgency.DUE_SOON
+            else -> ReminderUrgency.ON_TRACK
+        }
+        UpcomingReminder.DeclaredRenewal(
+            kind = expiry.kind,
+            declaredId = expiry.id,
+            type = type,
+            expiresOn = expiry.dueOn,
+            daysLeft = daysLeft,
+            urgency = urgency,
+            currentNudgeOn = DocumentReminderPolicy.scheduleFor(type, expiry.dueOn, today).firstOrNull()?.on,
+        )
+    }
 
     /**
      * The service row. A never-serviced car yields none: there is no interval to be
@@ -237,6 +264,7 @@ object ReminderFeedPolicy {
     /** Orders rows inside a bucket: dated ones by date, distance targets last. */
     private fun UpcomingReminder.sortKey(today: LocalDate): Int = when (this) {
         is UpcomingReminder.DocumentRenewal -> daysLeft
+        is UpcomingReminder.DeclaredRenewal -> daysLeft
         is UpcomingReminder.ServiceDue -> today.daysUntil(dueOn)
         is UpcomingReminder.Custom -> when (val occ = occurrence) {
             is ReminderOccurrence.OnDate -> today.daysUntil(occ.date)

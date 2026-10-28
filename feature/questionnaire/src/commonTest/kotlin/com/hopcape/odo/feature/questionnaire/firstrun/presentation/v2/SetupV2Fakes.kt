@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
+import com.hopcape.odo.core.domain.reminder.model.DeclaredExpiry
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -109,4 +111,13 @@ internal class V2Drafts(var current: SetupDraft? = null) : SetupDraftRepository 
 
 internal class V2Clock(private val instant: Instant = Instant.parse("2026-10-24T12:00:00Z")) : Clock {
     override fun now(): Instant = instant
+}
+
+internal class V2DeclaredExpiries : DeclaredExpiryRepository {
+    val declared = mutableListOf<DeclaredExpiry>()
+    override fun observe(carId: CarId): Flow<List<DeclaredExpiry>> = flowOf(declared.toList())
+    override suspend fun declare(expiry: DeclaredExpiry): Either<DomainError, Unit> {
+        declared += expiry
+        return Unit.right()
+    }
 }

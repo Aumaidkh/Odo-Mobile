@@ -50,4 +50,18 @@ class ReminderSettingsUseCasesTest {
 
         assertTrue(result.isLeft())
     }
+
+    @Test
+    fun aSavedChangeRefreshesEverySchedule_aFailedOneDoesNot() = runTest {
+        var refreshes = 0
+        val schedulers = listOf<suspend () -> Unit>({ refreshes++ }, { refreshes++ })
+
+        UpdateReminderSettingsUseCase(FakeAppSettingsRepository(AppSettings()), schedulers).invoke(NotificationPreferences())
+        UpdateReminderSettingsUseCase(
+            FakeAppSettingsRepository(failWith = DomainError.PersistenceFailure("disk full")),
+            schedulers,
+        ).invoke(NotificationPreferences())
+
+        assertEquals(2, refreshes)
+    }
 }
