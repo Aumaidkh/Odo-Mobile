@@ -9,6 +9,7 @@ import android.content.Intent
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.notification.NotificationOpen
 import com.hopcape.odo.core.navigation.NavigationCommand
+import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.feature.refuel.RefuelDeepLinks
 import com.hopcape.odo.splash.IgnitionSplashExit
@@ -56,8 +57,8 @@ class MainActivity : ComponentActivity() {
         // The manager buffers, so the ordering is belt and braces rather than load-bearing.
         // A restore after process death replays the original intent, extras and all, so only a
         // fresh launch counts its notification.
-        countNotificationOpen(intent, count = savedInstanceState == null)
-        handleLaunchIntent(intent)
+        val openedFrom = countNotificationOpen(intent, count = savedInstanceState == null)
+        handleLaunchIntent(intent, openedFrom)
 
         // The cold-start span closes only once the first meaningful frame has
         // actually been drawn — not at Application.onCreate() — so it measures the
@@ -81,15 +82,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        countNotificationOpen(intent, count = true)
-        handleLaunchIntent(intent)
+        val openedFrom = countNotificationOpen(intent, count = true)
+        handleLaunchIntent(intent, openedFrom)
     }
 
-    /** Sends one `notification_opened` per tap, then drops the extra so recreation cannot. */
-    private fun countNotificationOpen(intent: Intent?, count: Boolean) {
-        val kind = intent?.getStringExtra(NotificationOpen.EXTRA_KIND) ?: return
+    /**
+     * Sends one `notification_opened` per tap and drops the extra. Returns the kind on a fresh
+     * open only, so a restore cannot count or route twice.
+     */
+    private fun countNotificationOpen(intent: Intent?, count: Boolean): String? {
+        val kind = intent?.getStringExtra(NotificationOpen.EXTRA_KIND) ?: return null
         intent.removeExtra(NotificationOpen.EXTRA_KIND)
-        if (count) appTelemetry.notificationOpened(kind)
+        if (!count) return null
+        appTelemetry.notificationOpened(kind)
+        return kind
     }
 
     /**
@@ -100,7 +106,7 @@ class MainActivity : ComponentActivity() {
      * mid-flow, and dropping them on the home screen loses the fill they were about to
      * confirm.
      */
-    private fun handleLaunchIntent(intent: Intent?) {
+    private fun handleLaunchIntent(intent: Intent?, openedFrom: String?) {
         val confirm = RefuelDeepLinks.confirmDestinationFor(
             intent?.getStringExtra(RefuelDeepLinks.EXTRA_DRAFT),
         )
@@ -118,6 +124,11 @@ class MainActivity : ComponentActivity() {
             // this mutates exactly the copy a later recreation would read.
             intent?.removeExtra(RefuelDeepLinks.EXTRA_DRAFT)
             navigationManager.navigate(NavigationCommand.NavigateTo(confirm))
+            return
+        }
+        if (NudgeLaunch.handle(intent, navigationManager)) return
+        if (openedFrom == NotificationOpen.SERVICE_DUE) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Reminders.List))
             return
         }
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner

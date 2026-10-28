@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.profile.domain.usecase
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import arrow.core.Either
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.AppSettings
@@ -31,6 +32,7 @@ internal class UpdateSettingsUseCase(
     private val settings: AppSettingsRepository,
     private val documentReminders: DocumentReminderScheduler,
     private val customReminders: CustomReminderScheduler,
+    private val serviceReminders: ServiceDueReminderScheduler = ServiceDueReminderScheduler { },
 ) {
 
     /** Theme and text size, from the appearance sheet. */
@@ -66,7 +68,7 @@ internal class UpdateSettingsUseCase(
         settings.save(change(settings.observe().first()))
 
     /**
-     * Rebuild both schedules from what was just stored.
+     * Rebuild every schedule from what was just stored.
      *
      * Without this a lead time the owner moved would only reach the OS the next time they
      * touched a document — so the screen would say 60 days while the phone still had 30
@@ -75,5 +77,6 @@ internal class UpdateSettingsUseCase(
     private suspend fun rescheduleReminders() {
         documentReminders.refresh()
         customReminders.refresh()
+        serviceReminders.refresh()
     }
 }
