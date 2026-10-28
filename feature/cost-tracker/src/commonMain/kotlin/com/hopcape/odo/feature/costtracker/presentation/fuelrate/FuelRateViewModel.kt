@@ -8,6 +8,7 @@ import com.hopcape.odo.core.domain.car.model.FuelType
 import com.hopcape.odo.core.domain.cost.fuel.FuelPriceSource
 import com.hopcape.odo.core.domain.shared.Amount
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.odo.feature.costtracker.domain.usecase.ClearFuelRateUseCase
 import com.hopcape.odo.feature.costtracker.domain.usecase.FuelRateSnapshot
 import com.hopcape.odo.feature.costtracker.domain.usecase.GetFuelRateUseCase
@@ -105,7 +106,7 @@ internal class FuelRateViewModel(
                     _effects.trySend(FuelRateEffect.Dismiss)
                 }
                 .onLeft { error ->
-                    telemetry.fuelRateRefused(error::class.simpleName ?: UNKNOWN)
+                    telemetry.fuelRateRefused(failureCode(error))
                     _state.update { it.copy(saving = false, error = error.toMessage()) }
                 }
         }
@@ -121,7 +122,7 @@ internal class FuelRateViewModel(
                     _effects.trySend(FuelRateEffect.Dismiss)
                 }
                 .onLeft { error ->
-                    telemetry.fuelRateRefused(error::class.simpleName ?: UNKNOWN)
+                    telemetry.fuelRateRefused(failureCode(error))
                     _state.update { it.copy(error = UiText(Res.string.ct_fuel_rate_error_save)) }
                 }
         }
@@ -140,7 +141,6 @@ internal class FuelRateViewModel(
         const val OP_LOAD = "fuel_rate_load"
         const val OP_SAVE = "fuel_rate_save"
         const val OP_CLEAR = "fuel_rate_clear"
-        const val UNKNOWN = "Unknown"
     }
 }
 

@@ -35,6 +35,8 @@ kotlin {
             api(projects.observability.analytics)
             api(projects.observability.performance)
             api(projects.observability.crashreporting)
+            // For errorCode(), so a failed run reaches analytics as a code, not a class name.
+            implementation(projects.core.common)
         }
         commonTest.dependencies {
             implementation(libs.kotlinx.coroutines.test)

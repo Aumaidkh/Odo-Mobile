@@ -1,5 +1,6 @@
 package com.hopcape.odo.infrastructure.supabase
 
+import com.hopcape.odo.core.common.session.AppSession
 import arrow.core.left
 import arrow.core.right
 import com.hopcape.analytics.api.AnalyticsTracker
@@ -193,6 +194,7 @@ class SupabaseModuleTest {
                     single<PerformanceTracer> { NoopTracer }
                     single<CrashRecorder> { RecordingCrashRecorder }
                     single<AnalyticsTracker> { NoopAnalytics }
+                    single<AppSession> { TestAppSession }
                     // The session lives in :feature:auth now; this module only consumes the
                     // token through the domain port.
                     single<AccessTokenProvider> { AccessTokenProvider { null } }
@@ -209,4 +211,9 @@ class SupabaseModuleTest {
         override suspend fun completeAutoVerification() = VerifiedPhoneToken("token").right()
         override suspend fun forget() = Unit
     }
+}
+
+private object TestAppSession : AppSession {
+    override val isForeground: Boolean = true
+    override val sessionId: String = "test"
 }

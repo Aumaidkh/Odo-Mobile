@@ -130,7 +130,7 @@ internal class SupabaseTokenEndpoint(
         block: suspend () -> Either<DomainError, T>,
     ): Either<DomainError, T> = telemetry.span(operation, RESOURCE) {
         try {
-            block()
+            block().onRight { telemetry.succeeded(operation, RESOURCE) }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (e: Exception) {

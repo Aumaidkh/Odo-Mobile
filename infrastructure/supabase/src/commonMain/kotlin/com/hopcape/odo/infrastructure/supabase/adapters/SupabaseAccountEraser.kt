@@ -48,7 +48,7 @@ internal class SupabaseAccountEraser(
     override suspend fun erase(token: VerifiedPhoneToken): Either<DomainError, EraseOutcome> =
         telemetry.span(OP_ERASE, RESOURCE) {
             try {
-                send(token)
+                send(token).onRight { telemetry.succeeded(OP_ERASE, RESOURCE) }
             } catch (cancellation: CancellationException) {
                 // The owner navigated away mid-request. Not a failure, and re-reporting it as
                 // one would show an error over a screen that is already gone.

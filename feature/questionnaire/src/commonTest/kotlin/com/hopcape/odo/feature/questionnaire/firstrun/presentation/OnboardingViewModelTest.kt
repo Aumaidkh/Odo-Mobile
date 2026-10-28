@@ -519,7 +519,7 @@ class OnboardingViewModelTest {
         val failure = analytics.events.last { it.first == SetupTelemetry.Event.SAVE_FAILED }
         assertEquals(OnboardingStep.CAR.name, failure.second[SetupTelemetry.Key.STEP])
         // The *type* that failed, never the answer that failed it.
-        assertEquals("PersistenceFailure", failure.second[SetupTelemetry.Key.ERRORS])
+        assertEquals("persistence_failure", failure.second[SetupTelemetry.Key.ERRORS])
     }
 
     @Test

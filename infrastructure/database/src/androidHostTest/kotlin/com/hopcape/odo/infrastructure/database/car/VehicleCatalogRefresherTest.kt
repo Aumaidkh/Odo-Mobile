@@ -10,10 +10,13 @@ import com.hopcape.odo.core.data.car.VehicleMakeDto
 import com.hopcape.odo.core.data.car.VehicleModelDto
 import com.hopcape.odo.core.data.observability.DataTelemetry
 import com.hopcape.odo.infrastructure.database.db.OdoDatabase
+import com.hopcape.odo.infrastructure.database.vehicleCatalogRefresherModule
 import com.hopcape.odo.infrastructure.database.sync.NoopCrash
 import com.hopcape.odo.infrastructure.database.sync.NoopTracer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -68,6 +71,32 @@ class VehicleCatalogRefresherTest {
 
         assertEquals(before, db.vehicleMakeQueries.countMakes().executeAsOne())
         assertTrue(before > 0)
+    }
+
+    @Test
+    fun resolvingTheRefresherFetchesNothing() {
+        val remote = CountingRemote()
+        val koin = koinApplication {
+            modules(
+                module {
+                    single { seededDb() }
+                    single<VehicleCatalogRemoteDataSource> { remote }
+                    single { telemetry }
+                },
+                vehicleCatalogRefresherModule,
+            )
+        }.koin
+
+        koin.get<VehicleCatalogRefresher>()
+
+        assertEquals(0, remote.calls)
+    }
+
+    private class CountingRemote : VehicleCatalogRemoteDataSource {
+        var calls = 0
+        override suspend fun fetchMakes(): List<VehicleMakeDto> = emptyList<VehicleMakeDto>().also { calls++ }
+        override suspend fun fetchModels(): List<VehicleModelDto> = emptyList<VehicleModelDto>().also { calls++ }
+        override suspend fun push(submissions: List<VehicleCatalogSubmissionDto>) = submissions
     }
 
     private class FakeRemote(

@@ -135,3 +135,11 @@
 # the release build outright rather than warning.
 -dontwarn com.google.android.gms.ads.identifier.AdvertisingIdClient
 -dontwarn com.google.android.gms.ads.identifier.AdvertisingIdClient$Info
+
+# ---------------------------------------------------------------------------
+# Readable failure names
+# ---------------------------------------------------------------------------
+# Logs and crash keys name failures by class, and errorCode() matches library exceptions by
+# name. Keeping names does not stop shrinking or optimising.
+-keepnames class * extends java.lang.Throwable
+-keepnames class * implements com.hopcape.odo.core.domain.shared.DomainError

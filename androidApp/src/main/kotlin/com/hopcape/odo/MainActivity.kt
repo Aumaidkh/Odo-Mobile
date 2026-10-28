@@ -7,10 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.Intent
 import com.hopcape.logging.api.HLogger
+import com.hopcape.odo.core.common.notification.NotificationOpen
 import com.hopcape.odo.core.navigation.NavigationCommand
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.feature.refuel.RefuelDeepLinks
 import com.hopcape.odo.splash.IgnitionSplashExit
+import com.hopcape.odo.telemetry.AppTelemetry
 import com.hopcape.odo.widget.WidgetLaunch
 import com.hopcape.performance.api.APM
 import org.koin.android.ext.android.inject
@@ -18,6 +20,7 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
 
     private val navigationManager: NavigationManager by inject()
+    private val appTelemetry: AppTelemetry by inject()
 
     /** Whether a real screen is composed. The splash polls this every frame. */
     private var contentReady = false
@@ -51,6 +54,9 @@ class MainActivity : ComponentActivity() {
 
         // After setContent, so the host is already collecting when the command is emitted.
         // The manager buffers, so the ordering is belt and braces rather than load-bearing.
+        // A restore after process death replays the original intent, extras and all, so only a
+        // fresh launch counts its notification.
+        countNotificationOpen(intent, count = savedInstanceState == null)
         handleLaunchIntent(intent)
 
         // The cold-start span closes only once the first meaningful frame has
@@ -75,7 +81,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        countNotificationOpen(intent, count = true)
         handleLaunchIntent(intent)
+    }
+
+    /** Sends one `notification_opened` per tap, then drops the extra so recreation cannot. */
+    private fun countNotificationOpen(intent: Intent?, count: Boolean) {
+        val kind = intent?.getStringExtra(NotificationOpen.EXTRA_KIND) ?: return
+        intent.removeExtra(NotificationOpen.EXTRA_KIND)
+        if (count) appTelemetry.notificationOpened(kind)
     }
 
     /**

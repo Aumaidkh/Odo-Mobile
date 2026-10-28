@@ -2,10 +2,11 @@ package com.hopcape.odo.feature.costtracker.presentation
 
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.TraceContext as PerfTrace
-import com.hopcape.logging.api.TraceContext as LogTrace
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -80,7 +81,7 @@ internal class CostTrackerTelemetry(
     }
 
     /**
-     * A rate was refused, by [reason] — the error's type name, never the number they typed.
+     * A rate was refused, by [reason] — the error's code, never the number they typed.
      * A field that keeps rejecting what owners enter is a broken field, and this is the only
      * way to see it happening.
      */
@@ -98,7 +99,7 @@ internal class CostTrackerTelemetry(
      * showing, and an unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(cause: Throwable) {
-        val fields = mapOf(Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -109,7 +110,6 @@ internal class CostTrackerTelemetry(
     private companion object {
         const val TAG = "COST"
         const val FLOW = "cost"
-        const val UNKNOWN = "Unknown"
     }
 
     /*

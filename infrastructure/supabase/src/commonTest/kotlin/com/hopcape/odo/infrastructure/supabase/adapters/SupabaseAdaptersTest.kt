@@ -277,6 +277,66 @@ class SupabaseAdaptersTest {
     }
 
     @Test
+    fun `repeated failures in one session are counted once with their context`() = runTest {
+        val harness = SupabaseTestHarness { throw IOException("Unable to resolve host") }
+        val source = SupabaseServiceLogRemoteDataSource(harness.postgrest)
+
+        repeat(5) { assertFailsWith<IOException> { source.fetchSince("owner-1", null) } }
+
+        val (event, properties) = harness.analyticsEvents.single()
+        assertEquals("request_unreachable", event)
+        assertEquals("select", properties["operation"])
+        assertEquals(true, properties["foreground"])
+        assertEquals("io", properties["error"])
+    }
+
+    @Test
+    fun `a new session counts the same failure again`() = runTest {
+        val harness = SupabaseTestHarness { throw IOException("Unable to resolve host") }
+        val source = SupabaseServiceLogRemoteDataSource(harness.postgrest)
+
+        assertFailsWith<IOException> { source.fetchSince("owner-1", null) }
+        harness.session.sessionId = "session-2"
+        harness.session.isForeground = false
+        assertFailsWith<IOException> { source.fetchSince("owner-1", null) }
+
+        assertEquals(listOf("request_unreachable", "request_unreachable"), harness.analyticsEvents.map { it.first })
+        assertEquals(false, harness.analyticsEvents.last().second["foreground"])
+        // The tracker drops exact repeats, so the two sessions' events must differ.
+        assertEquals(listOf("session-1", "session-2"), harness.analyticsEvents.map { it.second["session"] })
+    }
+
+    @Test
+    fun `the first success of a session is counted and repeats are not`() = runTest {
+        val harness = SupabaseTestHarness { MockResponse("[]") }
+        val source = SupabaseServiceLogRemoteDataSource(harness.postgrest)
+
+        repeat(3) { source.fetchSince("owner-1", null) }
+
+        val (event, properties) = harness.analyticsEvents.single()
+        assertEquals("request_ok", event)
+        assertEquals("service_logs", properties["resource"])
+        assertEquals("select", properties["operation"])
+        assertEquals(true, properties["foreground"])
+    }
+
+    @Test
+    fun `a failure then a success sends one of each`() = runTest {
+        var offline = true
+        val harness = SupabaseTestHarness {
+            if (offline) throw IOException("Unable to resolve host") else MockResponse("[]")
+        }
+        val source = SupabaseServiceLogRemoteDataSource(harness.postgrest)
+
+        assertFailsWith<IOException> { source.fetchSince("owner-1", null) }
+        offline = false
+        source.fetchSince("owner-1", null)
+        source.fetchSince("owner-1", null)
+
+        assertEquals(listOf("request_unreachable", "request_ok"), harness.analyticsEvents.map { it.first })
+    }
+
+    @Test
     fun `a rejected request is reported once not twice`() = runTest {
         val harness = SupabaseTestHarness { MockResponse("""{"message":"nope"}""", HttpStatusCode.Forbidden) }
 

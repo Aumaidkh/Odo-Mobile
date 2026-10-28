@@ -46,6 +46,7 @@ import com.hopcape.odo.feature.reminders.resources.rm_row_insurance
 import com.hopcape.odo.feature.reminders.resources.rm_row_licence
 import com.hopcape.odo.feature.reminders.resources.rm_row_puc
 import com.hopcape.odo.feature.reminders.resources.rm_row_service
+import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -64,7 +65,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 
 /**
  * State holder for the reminders home. Holds [RemindersUiState], consumes
@@ -159,7 +159,7 @@ internal class RemindersViewModel(
         viewModelScope.launch(telemetry.op(OP_SUGGESTION)) {
             val cadence = preset.defaultCadence
             telemetry.reminderSave(
-                cadence = cadence::class.simpleName ?: "",
+                cadence = cadence.analyticsName(),
                 preset = preset.name,
                 viaSuggestion = true,
                 edit = false,

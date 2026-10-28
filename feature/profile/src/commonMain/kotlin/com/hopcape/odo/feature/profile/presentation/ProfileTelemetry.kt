@@ -5,14 +5,16 @@ import arrow.core.EitherNel
 import arrow.core.NonEmptyList
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
+import com.hopcape.odo.core.domain.shared.failureCode
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for the profile, behind intent-named methods, so the ViewModels read as
@@ -23,7 +25,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  * `factory`, so one instance covers one visit to the profile and every screen and sheet of
  * that visit shares one flow id.
  *
- * **No PII.** Booleans, counts, enum names and error *type* names only — never the owner's
+ * **No PII.** Booleans, counts, enum names and error codes only — never the owner's
  * name, email, city or the path of their photo. A city is the one that comes closest: it is
  * sent as "was one set", never as which one.
  *
@@ -66,7 +68,7 @@ internal class ProfileTelemetry(
      * unhandled failure inside a `collect` takes the ViewModel's scope down.
      */
     fun readFailed(source: String, cause: Throwable) {
-        val fields = mapOf(Key.SOURCE to source, Key.REASON to (cause::class.simpleName ?: UNKNOWN))
+        val fields = mapOf(Key.SOURCE to source, Key.REASON to failureCode(cause))
         analytics.track(Event.READ_FAILED, fields)
         logger.error(TAG, Event.READ_FAILED, tc = flowTrace.toLog(), fields = fields)
     }
@@ -93,7 +95,7 @@ internal class ProfileTelemetry(
             ifLeft = { errors ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
                 // The error *types*, never the values that failed validation.
-                val fields = mapOf(Key.ERRORS to errors.typeNames())
+                val fields = mapOf(Key.ERRORS to errors.errorCodes())
                 analytics.track(Event.DETAILS_SAVE_FAILED, fields)
                 logger.error(TAG, Event.DETAILS_SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -114,7 +116,7 @@ internal class ProfileTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.AVATAR_FAILED, fields)
                 logger.error(TAG, Event.AVATAR_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -141,7 +143,7 @@ internal class ProfileTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.SETTING to setting, Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.SETTING to setting, Key.ERRORS to error.code())
                 analytics.track(Event.SETTING_FAILED, fields)
                 logger.error(TAG, Event.SETTING_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -189,7 +191,7 @@ internal class ProfileTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.DELETE_FAILED, fields)
                 logger.error(TAG, Event.DELETE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -231,7 +233,7 @@ internal class ProfileTelemetry(
         result.fold(
             ifLeft = { error ->
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
-                val fields = mapOf(Key.ERRORS to error.typeName())
+                val fields = mapOf(Key.ERRORS to error.code())
                 analytics.track(Event.ACCOUNT_ERASE_FAILED, fields)
                 logger.error(TAG, Event.ACCOUNT_ERASE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
             },
@@ -269,14 +271,12 @@ internal class ProfileTelemetry(
     private fun PerfTrace.toLog(): LogTrace =
         LogTrace(sessionId = sessionId, flowId = flowId, traceId = traceId)
 
-    private fun DomainError.typeName(): String = this::class.simpleName ?: UNKNOWN
 
-    private fun NonEmptyList<DomainError>.typeNames(): String = joinToString(",") { it.typeName() }
+    private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }
 
     private companion object {
         const val TAG = "PROFILE"
         const val FLOW = "profile"
-        const val UNKNOWN = "Unknown"
     }
 
     /*

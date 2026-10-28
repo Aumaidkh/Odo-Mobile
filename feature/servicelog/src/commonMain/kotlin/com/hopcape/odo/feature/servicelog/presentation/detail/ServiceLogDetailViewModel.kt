@@ -2,8 +2,8 @@ package com.hopcape.odo.feature.servicelog.presentation.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.config.FeatureConfig
+import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.model.CarId
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogId
@@ -14,9 +14,10 @@ import com.hopcape.odo.feature.servicelog.domain.usecase.AttachBillPhotoUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.DeleteServiceLogUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.ObserveEntryDetailUseCase
 import com.hopcape.odo.feature.servicelog.domain.usecase.RecordEntryFairnessUseCase
-import com.hopcape.odo.feature.servicelog.domain.usecase.fairnessItems
 import com.hopcape.odo.feature.servicelog.domain.usecase.ServiceEntryDetail
+import com.hopcape.odo.feature.servicelog.domain.usecase.fairnessItems
 import com.hopcape.odo.feature.servicelog.presentation.ServiceLogTelemetry
+import com.hopcape.odo.feature.servicelog.presentation.analyticsName
 import com.hopcape.odo.feature.servicelog.resources.Res
 import com.hopcape.odo.feature.servicelog.resources.sl_error_attach_failed
 import com.hopcape.odo.feature.servicelog.resources.sl_error_delete_failed
@@ -187,7 +188,7 @@ internal class ServiceLogDetailViewModel(
     private suspend fun recordVerdict(attached: ServiceLogEntry) {
         recordFairness(attached).fold(
             ifLeft = { telemetry.fairnessRecordFailed(logId, it) },
-            ifRight = { judged -> telemetry.fairnessRecorded(judged.fairness?.outcome?.let { it::class.simpleName }) },
+            ifRight = { judged -> telemetry.fairnessRecorded(judged.fairness?.outcome?.analyticsName()) },
         )
     }
 

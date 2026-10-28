@@ -6,6 +6,7 @@ import arrow.core.NonEmptyList
 import arrow.core.nonEmptyListOf
 import com.hopcape.analytics.api.AnalyticsTracker
 import com.hopcape.logging.api.Logger
+import com.hopcape.logging.api.TraceContext as LogTrace
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
 import com.hopcape.odo.core.domain.car.model.Car
@@ -13,15 +14,15 @@ import com.hopcape.odo.core.domain.owner.model.OnboardingGoal
 import com.hopcape.odo.core.domain.owner.model.OwnerProfile
 import com.hopcape.odo.core.domain.servicelog.model.ServiceLogEntry
 import com.hopcape.odo.core.domain.shared.DomainError
+import com.hopcape.odo.core.domain.shared.code
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.CatalogOptions
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
 import com.hopcape.performance.api.PerformanceTracer
 import com.hopcape.performance.api.Span
+import com.hopcape.performance.api.TraceContext as PerfTrace
 import com.hopcape.performance.api.currentTraceContext
 import kotlin.coroutines.CoroutineContext
-import com.hopcape.logging.api.TraceContext as LogTrace
-import com.hopcape.performance.api.TraceContext as PerfTrace
 
 /**
  * All observability for first-run setup, behind intent-named methods — so the ViewModels read
@@ -38,7 +39,7 @@ import com.hopcape.performance.api.TraceContext as PerfTrace
  *    `suspend` methods then read [currentTraceContext] themselves, so a span's traceId and its
  *    log lines match that op without the caller threading anything.
  *
- * **Only non-PII context is emitted** — make, fuel, goal, step, counts, and error *type* names.
+ * **Only non-PII context is emitted** — make, fuel, goal, step, counts, and error codes.
  * Never a registration number, an owner's name, or an odometer reading: a plate identifies a
  * person's car and a reading is resale-relevant, and neither belongs in an analytics warehouse.
  * Instrumentation stays at this presentation layer; `:core:domain` remains framework-free.
@@ -134,7 +135,14 @@ internal class SetupTelemetry(
 
     /** The v2 catalog read failed; the step shows a retry. */
     fun catalogLoadFailed() {
+        analytics.track(Event.CATALOG_LOAD_FAILED)
         logger.error(TAG, Event.CATALOG_LOAD_FAILED, tc = flowTrace.toLog())
+    }
+
+    /** The v2 catalog loaded with no makes, so the owner has nothing to pick. */
+    fun catalogEmpty() {
+        analytics.track(Event.CATALOG_EMPTY)
+        logger.warn(TAG, Event.CATALOG_EMPTY, tc = flowTrace.toLog())
     }
 
     /**
@@ -238,23 +246,9 @@ internal class SetupTelemetry(
         )
     }
 
-    fun firstScanClicked() {
-        analytics.track(Event.FIRST_SCAN_CLICKED)
-        logger.info(TAG, Event.FIRST_SCAN_CLICKED, tc = flowTrace.toLog())
-    }
-
-    fun firstScanSkipped() {
-        analytics.track(Event.FIRST_SCAN_SKIPPED)
-        logger.info(TAG, Event.FIRST_SCAN_SKIPPED, tc = flowTrace.toLog())
-    }
-
     /**
-     * Every question setup asks has been answered and the car is stored.
-     *
-     * Kept under its shipped name: it is the activation metric every dashboard already
-     * queries, and renaming it would break the history it is measured against. It carries no
-     * properties now — the goal and the sign-in offer both left first run with the steps
-     * that asked for them.
+     * The car was saved. Not the end of first run, which is `first_run_finished` on the value
+     * screen. Kept under its shipped name because dashboards already query it.
      */
     fun completed() {
         analytics.track(Event.COMPLETED)
@@ -269,12 +263,14 @@ internal class SetupTelemetry(
             val options = read()
             if (options == null) {
                 span.setAttribute(Key.OUTCOME, Outcome.FAILED)
+                analytics.track(Event.CATALOG_LOAD_FAILED)
                 logger.error(TAG, Event.CATALOG_LOAD_FAILED, tc = currentTraceContext().toLog())
             } else {
                 span.setAttribute(Key.MAKE_COUNT, options.makes.size)
                 if (options.makes.isEmpty()) {
                     // An empty catalog renders as a form with nothing to pick, which looks like
                     // a bug to the owner and is one to us — the seed data didn't land.
+                    analytics.track(Event.CATALOG_EMPTY)
                     logger.warn(TAG, Event.CATALOG_EMPTY, tc = currentTraceContext().toLog())
                 }
             }
@@ -287,6 +283,7 @@ internal class SetupTelemetry(
             val models = read()
             span.setAttribute(Key.COUNT, models.size)
             if (models.isEmpty()) {
+                analytics.track(Event.MODELS_EMPTY, mapOf(Key.MAKE to make))
                 logger.warn(
                     TAG,
                     Event.MODELS_EMPTY,
@@ -350,7 +347,7 @@ internal class SetupTelemetry(
      * that failed validation, which are the owner's answers.
      */
     private suspend fun logSaveFailure(step: String, errors: NonEmptyList<DomainError>) {
-        val fields = mapOf(Key.STEP to step, Key.ERRORS to errors.errorTypes())
+        val fields = mapOf(Key.STEP to step, Key.ERRORS to errors.errorCodes())
         analytics.track(Event.SAVE_FAILED, fields)
         logger.error(TAG, Event.SAVE_FAILED, tc = currentTraceContext().toLog(), fields = fields)
     }
@@ -398,8 +395,6 @@ internal class SetupTelemetry(
         const val ODOMETER_SKIPPED = "onboarding_odometer_skipped"
         const val LAST_SERVICE_SKIPPED = "onboarding_last_service_skipped"
         const val LAST_SERVICE_REFUSED = "onboarding_last_service_refused"
-        const val FIRST_SCAN_CLICKED = "onboarding_first_scan_clicked"
-        const val FIRST_SCAN_SKIPPED = "onboarding_first_scan_skipped"
         const val COMPLETED = "onboarding_completed"
 
         const val CATALOG_LOAD_FAILED = "onboarding_catalog_load_failed"
@@ -474,7 +469,7 @@ internal class SetupTelemetry(
         const val OLDER = "older"
     }
 
-    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */
+    /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own code. */
     object Outcome {
         const val MATCHED = "matched"
         const val FAILED = "failed"
@@ -491,9 +486,5 @@ internal fun Loadable<*>.label(): String = when (this) {
     is Loadable.Failed -> "failed"
 }
 
-/**
- * A comma-joined list of the accumulated errors' *type* names — safe to emit (no user input, no
- * PII) and enough for a dashboard to see which rule failed.
- */
-private fun NonEmptyList<DomainError>.errorTypes(): String =
-    joinToString(",") { it::class.simpleName ?: "Unknown" }
+/** The accumulated errors' codes, comma-joined: no user input, and enough to see which rule failed. */
+private fun NonEmptyList<DomainError>.errorCodes(): String = joinToString(",") { it.code() }

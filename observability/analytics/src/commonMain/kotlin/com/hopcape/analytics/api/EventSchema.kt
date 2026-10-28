@@ -15,6 +15,8 @@ package com.hopcape.analytics.api
 data class EventSchema(
     val eventName: String,
     val requiredProperties: Map<String, PropertyType> = emptyMap(),
+    /** Properties sent only sometimes. Type-checked when present, never required. */
+    val optionalProperties: Map<String, PropertyType> = emptyMap(),
 )
 
 /** The value types an event property can be constrained to. */
