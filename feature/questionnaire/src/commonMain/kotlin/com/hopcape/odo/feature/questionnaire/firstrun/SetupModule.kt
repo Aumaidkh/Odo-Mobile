@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.questionnaire.firstrun
 
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.DeclareInsuranceExpiryUseCase
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.CompleteOnboardingUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
@@ -32,6 +33,7 @@ internal val setupModule = module {
     factory { LookupPlateUseCase(registry = get()) }
     factory { ReportUnlistedVehicleUseCase(reporter = get()) }
     factory { RecordDeclaredServiceUseCase(logs = get(), idGenerator = get(), clock = get()) }
+    factory { DeclareInsuranceExpiryUseCase(expiries = get(), documentReminders = get(), ids = get()) }
     factory { CompleteOnboardingUseCase(profiles = get(), currentOwner = get()) }
 
     // A factory, so one instance covers one attempt at setup.
@@ -70,6 +72,7 @@ internal val setupModule = module {
             telemetry = get(),
             nudges = get(),
             loadMakeLogo = get(),
+            declareInsurance = get(),
         )
     }
 

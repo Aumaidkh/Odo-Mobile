@@ -66,6 +66,9 @@ class SetupAnalyticsEventsTest {
             lastServiceSkipped()
             lastServiceRefused(field = "date")
             completed()
+            insuranceShown()
+            insuranceAnswered(monthsAhead = 3)
+            insuranceSkipped()
             catalogLoad { null }
             catalogLoad { CatalogOptions(emptyList(), emptyList(), 2000..2026, emptyList()) }
             modelsLoad("Hyundai") { emptyList() }

@@ -56,6 +56,16 @@ class FirstRunV2ScreenshotTest {
     }
 
     @Test
+    fun capturesTheInsuranceStep() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.pickYearAndFuel(2022, "PETROL")
+        rule.saveTheCarOnly()
+        rule.waitForText(V2Copy.INSURANCE_TITLE, 10_000)
+        rule.captureScreen("after-s3b-insurance")
+    }
+
+    @Test
     fun capturesTheValueScreen() {
         rule.pickMake("Hyundai")
         rule.pickModel("Creta")
@@ -83,6 +93,8 @@ internal object V2Copy {
     const val WELCOME_TITLE = "Find out if your mechanic overcharged you"
     const val MODEL_TITLE = "Which model?"
     const val YEAR_FUEL_TITLE = "A couple of quick taps"
+    const val INSURANCE_TITLE = "When does your insurance expire?"
+    const val INSURANCE_SKIP = "Skip for now"
     const val SAVE = "Save my car"
     const val CHANGE = "Change"
     const val RESUME_TITLE = "Your Hyundai Creta is almost set up"

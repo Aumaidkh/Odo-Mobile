@@ -1,5 +1,8 @@
 package com.hopcape.odo.core.platform.notification
 
+import kotlinx.datetime.LocalDate
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
+import com.hopcape.odo.core.domain.reminder.analysis.DeclaredExpiryPolicy
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -7,7 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.hopcape.logging.api.Logger
 import com.hopcape.odo.core.domain.car.ActiveCarProvider
-import com.hopcape.odo.core.domain.document.model.Document
+import com.hopcape.odo.core.domain.document.model.DocumentType
 import com.hopcape.odo.core.domain.document.policy.DocumentReminder
 import com.hopcape.odo.core.domain.document.policy.DocumentReminderPolicy
 import com.hopcape.odo.core.domain.document.repository.DocumentRepository
@@ -46,6 +49,7 @@ import kotlin.time.Instant
 internal class WorkManagerDocumentReminderScheduler(
     context: Context,
     private val documents: DocumentRepository,
+    private val declaredExpiries: DeclaredExpiryRepository,
     private val activeCar: ActiveCarProvider,
     private val settings: AppSettingsRepository,
     private val clock: Clock,
@@ -97,7 +101,16 @@ internal class WorkManagerDocumentReminderScheduler(
                 // promised them, and both read the same schedule.
                 val leads = schedule.leadDaysFor(document.type)
                 DocumentReminderPolicy.scheduleFor(document, today, leads).forEach { reminder ->
-                    enqueue(document, reminder, now, schedule.notifyAtHour)
+                    enqueue(document.id.value, document.type, document.expiresOn, reminder, now, schedule.notifyAtHour)
+                    scheduled++
+                }
+            }
+            // A date declared in setup reminds like the paper would, until the paper is filed.
+            val declared = DeclaredExpiryPolicy.applicable(declaredExpiries.observe(carId).first(), onFile)
+            declared.forEach { expiry ->
+                val type = DeclaredExpiryPolicy.documentTypeFor(expiry.kind) ?: return@forEach
+                DocumentReminderPolicy.scheduleFor(type, expiry.dueOn, today, schedule.leadDaysFor(type)).forEach { reminder ->
+                    enqueue(expiry.id, type, expiry.dueOn, reminder, now, schedule.notifyAtHour)
                     scheduled++
                 }
             }
@@ -115,8 +128,15 @@ internal class WorkManagerDocumentReminderScheduler(
         }
     }
 
-    private fun enqueue(document: Document, reminder: DocumentReminder, now: Instant, hour: Int) {
-        val expiresOn = document.expiresOn ?: return
+    private fun enqueue(
+        id: String,
+        type: DocumentType,
+        expiresOn: LocalDate?,
+        reminder: DocumentReminder,
+        now: Instant,
+        hour: Int,
+    ) {
+        expiresOn ?: return
         val fireAt = reminder.on.atTime(hour, 0).toInstant(timeZone)
         // A nudge whose hour has already passed today still fires: the owner added the
         // document this afternoon, and telling them tomorrow about "expires tomorrow" is late.
@@ -127,8 +147,8 @@ internal class WorkManagerDocumentReminderScheduler(
             .addTag(TAG)
             .setInputData(
                 workDataOf(
-                    DocumentReminderWorker.KEY_DOCUMENT_ID to document.id.value,
-                    DocumentReminderWorker.KEY_TYPE to document.type.name,
+                    DocumentReminderWorker.KEY_DOCUMENT_ID to id,
+                    DocumentReminderWorker.KEY_TYPE to type.name,
                     DocumentReminderWorker.KEY_DAYS_BEFORE to reminder.daysBefore,
                     DocumentReminderWorker.KEY_EXPIRES_ON to expiresOn.toString(),
                 ),
@@ -136,16 +156,13 @@ internal class WorkManagerDocumentReminderScheduler(
             .build()
 
         workManager.enqueueUniqueWork(
-            workNameFor(document, reminder),
+            "$TAG:$id:${reminder.daysBefore}",
             ExistingWorkPolicy.REPLACE,
             request,
         )
     }
 
     /** One job per document and lead, so re-running a refresh replaces rather than doubles. */
-    private fun workNameFor(document: Document, reminder: DocumentReminder): String =
-        "$TAG:${document.id.value}:${reminder.daysBefore}"
-
     private companion object {
         const val TAG = "OdoDocumentReminder"
         const val TAG_LOG = "REMINDERS"

@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
+import com.hopcape.odo.core.data.reminder.DeclaredExpiryRepositoryImpl
 import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
 import com.hopcape.odo.core.data.support.BuiltInSupportContacts
 import com.hopcape.odo.core.domain.support.SupportContacts
@@ -263,6 +265,7 @@ val coreDataModule = module {
         ReminderRepositoryImpl(local = get(), telemetry = get(), scheduler = get(), ids = get(), owners = get())
     }
     single<ReminderRepository> { get<ReminderRepositoryImpl>() }
+    single<DeclaredExpiryRepository> { DeclaredExpiryRepositoryImpl(local = get(), telemetry = get(), scheduler = get()) }
     // The owner's city, read from their profile — null until they set it, which is what
     // keeps fairness silent rather than guessing.
     single<CurrentCityProvider> { ProfileCityProvider(local = get(), telemetry = get()) }
