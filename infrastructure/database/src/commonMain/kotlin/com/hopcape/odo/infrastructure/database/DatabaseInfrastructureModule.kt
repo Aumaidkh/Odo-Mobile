@@ -1,5 +1,7 @@
 package com.hopcape.odo.infrastructure.database
 
+import com.hopcape.odo.infrastructure.database.reminder.SqlDelightDeclaredExpiryLocalDataSource
+import com.hopcape.odo.core.data.reminder.DeclaredExpiryLocalDataSource
 import app.cash.sqldelight.db.SqlDriver
 import com.hopcape.analytics.api.AnalyticsEventStore
 import com.hopcape.logging.api.DiagnosticRequests
@@ -356,6 +358,7 @@ val databaseInfrastructureModule = module {
     // Custom reminders + dismissals. The derived reminders have no rows — the feed
     // recomputes them — so this table only carries what cannot be recomputed.
     single<ReminderLocalDataSource> { SqlDelightReminderLocalDataSource(database = get(), telemetry = get()) }
+    single<DeclaredExpiryLocalDataSource> { SqlDelightDeclaredExpiryLocalDataSource(database = get()) }
     single {
         ReminderSyncable(
             runner = SyncRunner(

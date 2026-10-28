@@ -1,5 +1,7 @@
 package com.hopcape.odo
 
+import com.hopcape.odo.core.domain.reminder.repository.DeclaredExpiryRepository
+import com.hopcape.odo.core.domain.reminder.model.ReminderKind
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -53,6 +55,24 @@ class FirstRunV2EndToEndTest {
         assertEquals("Hyundai", car?.make)
         assertEquals("Creta", car?.model)
         assertTrue("v2 saves with the odometer pending", car?.isOdometerPending == true)
+    }
+
+    @Test
+    fun anInsuranceMonth_becomesAnInsuranceReminder() {
+        rule.pickMake("Hyundai")
+        rule.pickModel("Creta")
+        rule.pickYearAndFuel(2022, "PETROL")
+        rule.saveTheCarOnly()
+        rule.waitForText(V2Copy.INSURANCE_TITLE, 10_000)
+        val month = rule.firstInsuranceMonthTag()
+        rule.tapTag(month)
+        rule.onNodeWithTag(OnboardingTestTags.INSURANCE_CONFIRM).performClick()
+
+        rule.waitUntilPresent(Copy.VALUE_SKIP, 10_000)
+        val koin = GlobalContext.get()
+        val car = runBlocking { koin.get<CarRepository>().observePrimaryCar().first() }!!
+        val declared = runBlocking { koin.get<DeclaredExpiryRepository>().observe(car.id).first() }
+        assertEquals(listOf(ReminderKind.INSURANCE_EXPIRY), declared.map { it.kind })
     }
 
     @Test

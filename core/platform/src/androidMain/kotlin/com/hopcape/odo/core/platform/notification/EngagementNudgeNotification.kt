@@ -39,7 +39,7 @@ internal object EngagementNudgeNotification {
             // Below a reminder on purpose: a nudge is Odo's idea, not the owner's.
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(context))
+            .setContentIntent(openAppIntent(context, nudge))
             .build()
 
         // Keyed on the kind, so a second nudge of one kind replaces the unread first rather
@@ -64,11 +64,13 @@ internal object EngagementNudgeNotification {
         context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
 
-    private fun openAppIntent(context: Context): PendingIntent? {
-        val intent = context.notificationLaunchIntent(NotificationOpen.ENGAGEMENT_NUDGE) ?: return null
+    private fun openAppIntent(context: Context, nudge: String): PendingIntent? {
+        val intent = context.notificationLaunchIntent(NotificationOpen.ENGAGEMENT_NUDGE)
+            ?.putExtra(NotificationOpen.EXTRA_NUDGE, nudge) ?: return null
+        // Per nudge, so a second nudge in the shade cannot rewrite the first one's extra.
         return PendingIntent.getActivity(
             context,
-            NotificationOpen.requestCode(NotificationOpen.ENGAGEMENT_NUDGE),
+            nudge.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

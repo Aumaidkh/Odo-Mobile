@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data.servicelog
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import com.hopcape.crashreporting.api.CrashRecorder
 import com.hopcape.logging.api.LogLevel
 import com.hopcape.logging.api.Logger
@@ -141,10 +142,12 @@ class ServiceLogRepositoryImplTest {
         local: ServiceLogLocalDataSource,
         crash: CrashRecorder = RecordingCrash(),
         scheduler: SyncScheduler = RecordingScheduler(),
+        serviceReminders: ServiceDueReminderScheduler = ServiceDueReminderScheduler { },
     ) = ServiceLogRepositoryImpl(
         local = local,
         telemetry = DataTelemetry(logger = NoopLogger, tracer = NoopTracer, crash = crash),
         scheduler = scheduler,
+        serviceReminders = serviceReminders,
     )
 
     private fun entry(id: String = "log-1") = ServiceLogEntry.reconstitute(
@@ -181,6 +184,18 @@ class ServiceLogRepositoryImplTest {
         assertTrue(result.isRight(), "expected Right but was $result")
         assertEquals("log-1", local.inserted?.id?.value)
         assertEquals(listOf(SyncReason.LocalWrite), scheduler.requested)
+    }
+
+    @Test
+    fun writes_refreshTheServiceReminders_failuresDoNot() = runTest {
+        var refreshes = 0
+        val reminders = ServiceDueReminderScheduler { refreshes++ }
+
+        repo(FakeServiceLogLocalDataSource(), serviceReminders = reminders).add(entry())
+        repo(FakeServiceLogLocalDataSource(), serviceReminders = reminders).softDelete(ServiceLogId("log-1"))
+        repo(FakeServiceLogLocalDataSource(updateResult = false), serviceReminders = reminders).update(entry())
+
+        assertEquals(2, refreshes)
     }
 
     @Test

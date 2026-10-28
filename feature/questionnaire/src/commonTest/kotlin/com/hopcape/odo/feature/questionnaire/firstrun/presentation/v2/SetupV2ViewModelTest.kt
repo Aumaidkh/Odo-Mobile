@@ -1,5 +1,7 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
+import kotlinx.datetime.LocalDate
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.DeclareInsuranceExpiryUseCase
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.id.IdGenerator
 import com.hopcape.odo.core.domain.car.catalog.CarModel
@@ -89,6 +91,69 @@ class SetupV2ViewModelTest {
         assertEquals("Creta", car.model)
         assertTrue(car.isOdometerPending)
         assertEquals(listOf(EngagementNudge.FIRST_SCORE), nudges.scheduled)
+    }
+
+    @Test
+    fun afterSave_theInsuranceStepOffersTheNextTwelveMonths() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(insurance = V2DeclaredExpiries(), analytics = analytics)
+        advanceUntilIdle()
+        viewModel.saveACreta()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(SetupV2Step.INSURANCE, state.step)
+        assertEquals(LocalDate(2026, 10, 1), state.insuranceMonths.first())
+        assertEquals(12, state.insuranceMonths.size)
+        assertTrue(SetupTelemetry.Event.COMPLETED in analytics.names, "car saved still counts at save")
+        assertTrue(SetupTelemetry.Event.INSURANCE_SHOWN in analytics.names)
+    }
+
+    @Test
+    fun answeringTheMonth_declaresItsLastDay_thenShowsValue() = runTest(dispatcher) {
+        val insurance = V2DeclaredExpiries()
+        val analytics = V2Analytics()
+        val viewModel = viewModel(insurance = insurance, analytics = analytics)
+        advanceUntilIdle()
+        viewModel.saveACreta()
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.InsuranceMonthChosen(LocalDate(2027, 2, 1)))
+        viewModel.onEvent(SetupV2Event.InsuranceConfirmed)
+        advanceUntilIdle()
+
+        assertEquals(SetupV2Effect.ShowValue, viewModel.effects.first())
+        assertEquals(LocalDate(2027, 2, 28), insurance.declared.single().dueOn)
+        assertEquals(4, analytics.last(SetupTelemetry.Event.INSURANCE_ANSWERED)[SetupTelemetry.Key.MONTHS_AHEAD])
+    }
+
+    @Test
+    fun skippingTheMonth_declaresNothing_thenShowsValue() = runTest(dispatcher) {
+        val insurance = V2DeclaredExpiries()
+        val analytics = V2Analytics()
+        val viewModel = viewModel(insurance = insurance, analytics = analytics)
+        advanceUntilIdle()
+        viewModel.saveACreta()
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.InsuranceSkipped)
+        advanceUntilIdle()
+
+        assertEquals(SetupV2Effect.ShowValue, viewModel.effects.first())
+        assertTrue(insurance.declared.isEmpty())
+        assertTrue(SetupTelemetry.Event.INSURANCE_SKIPPED in analytics.names)
+    }
+
+    @Test
+    fun backFromInsurance_returnsToYearAndFuel() = runTest(dispatcher) {
+        val viewModel = viewModel(insurance = V2DeclaredExpiries())
+        advanceUntilIdle()
+        viewModel.saveACreta()
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.BackClicked)
+
+        assertEquals(SetupV2Step.YEAR_FUEL, viewModel.state.value.step)
     }
 
     @Test
@@ -408,6 +473,7 @@ class SetupV2ViewModelTest {
         nudges: V2Nudges = V2Nudges(),
         unlisted: V2Unlisted = V2Unlisted(),
         analytics: V2Analytics = V2Analytics(),
+        insurance: V2DeclaredExpiries? = null,
     ) = SetupV2ViewModel(
         make = "Hyundai",
         resume = resume,
@@ -431,5 +497,16 @@ class SetupV2ViewModelTest {
             ids = IdGenerator { "trace-1" },
         ),
         nudges = nudges,
+        declareInsurance = insurance?.let {
+            DeclareInsuranceExpiryUseCase(expiries = it, documentReminders = {}, ids = IdGenerator { "dec-1" })
+        },
+        timeZone = TimeZone.UTC,
     )
+
+    private suspend fun SetupV2ViewModel.saveACreta() {
+        onEvent(SetupV2Event.ModelChosen(CarModel("Creta")))
+        onEvent(SetupV2Event.YearChosen(2022))
+        onEvent(SetupV2Event.FuelChosen(FuelType.PETROL))
+        onEvent(SetupV2Event.SaveClicked)
+    }
 }

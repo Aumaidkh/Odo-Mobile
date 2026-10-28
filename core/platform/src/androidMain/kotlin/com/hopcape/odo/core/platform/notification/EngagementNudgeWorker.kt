@@ -23,6 +23,9 @@ internal class EngagementNudgeWorker(
 
     private val logger: Logger by inject()
     private val sessions: SessionStatusProvider by inject()
+    private val billGate: BillNudgeGate by inject()
+    private val sentStore: NudgeSentStore by inject()
+    private val telemetry: NudgeTelemetry by inject()
 
     override suspend fun doWork(): Result {
         val nudge = inputData.getString(KEY_NUDGE)
@@ -40,6 +43,14 @@ internal class EngagementNudgeWorker(
             return Result.success()
         }
 
+        if (nudge == EngagementNudge.FIRST_SCORE) {
+            val check = billGate.check()
+            if (check != BillNudgeCheck.POST) {
+                telemetry.skipped(nudge, check)
+                return Result.success()
+            }
+        }
+
         val posted = EngagementNudgeNotification.show(
             context = applicationContext,
             nudge = nudge.name,
@@ -47,6 +58,10 @@ internal class EngagementNudgeWorker(
             body = applicationContext.getString(nudge.bodyRes()),
         )
         logger.info(TAG, if (posted) "nudge_shown_${nudge.name}" else "nudge_suppressed_${nudge.name}")
+        if (posted) {
+            if (nudge == EngagementNudge.FIRST_SCORE) sentStore.markSent(nudge)
+            telemetry.posted(nudge)
+        }
         return Result.success()
     }
 

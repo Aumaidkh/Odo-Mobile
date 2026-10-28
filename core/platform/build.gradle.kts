@@ -30,7 +30,7 @@ kotlin {
             implementation(projects.core.sync)
             // LocalDate arithmetic behind the document-reminder schedule.
             implementation(libs.kotlinx.datetime)
-            // Review prompt telemetry in common code.
+            // Nudge, reminder and review telemetry in common code, where the decisions are made.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
         }

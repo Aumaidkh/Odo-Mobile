@@ -1,5 +1,6 @@
 package com.hopcape.odo.di
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import com.hopcape.odo.telemetry.appTelemetryModule
 import com.hopcape.analytics.api.analyticsModule
 import com.hopcape.crashreporting.api.CrashRecorder
@@ -201,6 +202,7 @@ fun initKoin(
         // a reinstall or a restore-from-backup, and a document filed before this existed has
         // no job at all — so every launch re-derives the whole schedule from the database.
         application.koin.get<DocumentReminderScheduler>().refresh()
+        application.koin.get<ServiceDueReminderScheduler>().refresh()
         // Unconditional: LogUploadCoordinator gates on consent per run (D3, plan §1), so
         // there is nothing to toggle here when consent changes — the next scheduled run
         // just starts working once it is granted. KEEP-policy inside the scheduler makes a

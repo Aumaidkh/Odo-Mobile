@@ -1,5 +1,8 @@
 package com.hopcape.odo.core.platform
 
+import com.hopcape.odo.core.platform.notification.WorkManagerServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.ServiceReminderTelemetry
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import com.hopcape.odo.core.platform.review.ReviewTelemetry
 import com.hopcape.odo.core.platform.review.ReviewPrompter
 import com.hopcape.odo.core.platform.review.PlayReviewPrompter
@@ -33,7 +36,11 @@ import com.hopcape.odo.core.platform.notification.PaymentNotices
 import com.hopcape.odo.core.domain.refuel.PaymentNoticeSource
 import com.hopcape.odo.core.platform.notification.AndroidSystemNotificationSettings
 import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
+import com.hopcape.odo.core.platform.notification.BillNudgeGate
 import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
+import com.hopcape.odo.core.platform.notification.NudgeSentStore
+import com.hopcape.odo.core.platform.notification.NudgeTelemetry
+import com.hopcape.odo.core.platform.notification.PrefsNudgeSentStore
 import com.hopcape.odo.core.platform.notification.WorkManagerEngagementNudgeScheduler
 import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.platform.notification.WorkManagerCustomReminderScheduler
@@ -100,6 +107,7 @@ val corePlatformAndroidModule = module {
         WorkManagerDocumentReminderScheduler(
             context = get<Context>(),
             documents = get(),
+            declaredExpiries = get(),
             activeCar = get(),
             settings = get(),
             clock = get(),
@@ -108,6 +116,20 @@ val corePlatformAndroidModule = module {
     }
     // Replaces :core:data's no-op — the line that turns the owner's own reminders from a
     // list they have to open the app to see into notifications that arrive.
+    single<NudgeSentStore> { PrefsNudgeSentStore(context = get<Context>()) }
+    single { BillNudgeGate(serviceLogs = get(), activeCar = get(), sent = get()) }
+    single { NudgeTelemetry(logger = get(), analytics = get()) }
+    single<ServiceDueReminderScheduler> {
+        WorkManagerServiceDueReminderScheduler(
+            context = get<Context>(),
+            serviceLogs = get(),
+            activeCar = get(),
+            settings = get(),
+            clock = get(),
+            logger = get(),
+        )
+    }
+    single { ServiceReminderTelemetry(analytics = get()) }
     single { ReviewTelemetry(analytics = get()) }
     single<ReviewPrompter> {
         PlayReviewPrompter(
