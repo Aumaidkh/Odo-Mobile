@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
+import kotlinx.datetime.LocalDate
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +56,11 @@ import com.hopcape.odo.feature.questionnaire.resources.onb_cancel
 import com.hopcape.odo.feature.questionnaire.resources.onb_car_summary_pending
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_close
 import com.hopcape.odo.feature.questionnaire.resources.onb_done
+import com.hopcape.odo.feature.questionnaire.resources.onb_insurance_confirm
+import com.hopcape.odo.feature.questionnaire.resources.onb_insurance_helper
+import com.hopcape.odo.feature.questionnaire.resources.onb_insurance_skip
+import com.hopcape.odo.feature.questionnaire.resources.onb_insurance_subtitle
+import com.hopcape.odo.feature.questionnaire.resources.onb_insurance_title
 import com.hopcape.odo.feature.questionnaire.resources.onb_fuel_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_match_count
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_all
@@ -89,6 +95,7 @@ internal fun SetupV2Screen(
         when (step) {
             SetupV2Step.MODEL -> ModelStep(state, onEvent)
             SetupV2Step.YEAR_FUEL -> YearFuelStep(state, onEvent)
+            SetupV2Step.INSURANCE -> InsuranceStep(state, onEvent)
         }
     }
 }
@@ -316,6 +323,58 @@ private fun YearFuelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit)
         )
     }
 }
+
+/** After save: the insurance expiry month as chips over the next 12 months. Skippable. */
+@Composable
+private fun InsuranceStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit) {
+    OnboardingStepScaffold(
+        step = SetupV2Step.INSURANCE.position,
+        totalSteps = SetupV2Step.TOTAL,
+        primaryLabel = stringResource(Res.string.onb_insurance_confirm),
+        onPrimary = { onEvent(SetupV2Event.InsuranceConfirmed) },
+        primaryEnabled = state.insuranceMonth != null,
+        primaryTag = OnboardingTestTags.INSURANCE_CONFIRM,
+        onBack = { onEvent(SetupV2Event.BackClicked) },
+        skipLabel = stringResource(Res.string.onb_insurance_skip),
+        onSkip = { onEvent(SetupV2Event.InsuranceSkipped) },
+        footer = {
+            OdoText(
+                text = stringResource(Res.string.onb_insurance_helper),
+                style = OdoTheme.typography.bodySmall,
+                color = OdoTheme.colors.textMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+    ) {
+        OdoEntrance(0) { CarSummaryCard(state) }
+        OdoEntrance(1) {
+            StepHeadline(
+                title = stringResource(Res.string.onb_insurance_title),
+                subtitle = stringResource(Res.string.onb_insurance_subtitle),
+            )
+        }
+        OdoEntrance(2) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            ) {
+                state.insuranceMonths.forEach { month ->
+                    OdoChip(
+                        label = monthLabel(month),
+                        selected = state.insuranceMonth == month,
+                        onClick = { onEvent(SetupV2Event.InsuranceMonthChosen(month)) },
+                        modifier = Modifier.testTag(OnboardingTestTags.insuranceMonth(month.toString())),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** "Nov 2026", in English like the rest of the app. */
+private fun monthLabel(month: LocalDate): String =
+    month.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() } + " " + month.year
 
 /** The car being built, filling in as the year and fuel are tapped. */
 @Composable

@@ -79,6 +79,7 @@ val billScannerModule = module {
             activeCar = get(),
             currentOwner = get(),
             telemetry = get(),
+            reviewPrompter = get(),
         )
     }
     viewModel { params ->

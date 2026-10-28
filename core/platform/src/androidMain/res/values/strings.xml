@@ -16,7 +16,12 @@
     <string name="custom_reminder_channel_description">The reminders you set yourself</string>
     <string name="custom_reminder_body">Tap to open Odo.</string>
 
-    <!-- The document vault's own labels, repeated for the notification. -->
+    <string name="service_reminder_channel_name">Service reminders</string>
+    <string name="service_reminder_channel_description">When your car’s next service is coming up</string>
+    <string name="service_reminder_due_soon_title">Service due soon</string>
+    <string name="service_reminder_due_soon_body">Your next service is due by %1$s. Book a slot before it slips.</string>
+    <string name="service_reminder_overdue_title">Service overdue</string>
+    <string name="service_reminder_overdue_body">Your service was due on %1$s. Log it once it is done.</string>
     <string name="drive_summary_channel_name">Drive summary</string>
     <string name="drive_summary_channel_description">An evening note of the day’s drives</string>
     <plurals name="drive_summary_drives">
@@ -28,6 +33,7 @@
     <string name="drive_summary_body">Logged on their own. Tap to see them.</string>
     <string name="drive_summary_body_estimate">Fuel is an estimate from your car’s average. Tap to see the drives.</string>
 
+    <!-- The document vault's own labels, repeated for the notification. -->
     <string name="document_kind_insurance">Insurance</string>
     <string name="document_kind_puc">PUC certificate</string>
     <string name="document_kind_rc">RC</string>
@@ -41,8 +47,8 @@
          not lose a PUC expiry with it. -->
     <string name="nudge_channel_name">Nudges from Odo</string>
     <string name="nudge_channel_description">Occasional suggestions — never a deadline</string>
-    <string name="nudge_first_score_title">Your car’s first health score is ready</string>
-    <string name="nudge_first_score_body">It is modelled for now. Scan one bill and it becomes your car’s own.</string>
+    <string name="nudge_first_score_title">Got your last service bill?</string>
+    <string name="nudge_first_score_body">Scan it in 30 seconds.</string>
     <string name="nudge_back_up_title">Your record is only on this phone</string>
     <string name="nudge_back_up_body">Lose the phone and it goes with it. Add your number and Odo keeps it for you.</string>
     <string name="nudge_scan_follow_up_title">Got another bill lying around?</string>

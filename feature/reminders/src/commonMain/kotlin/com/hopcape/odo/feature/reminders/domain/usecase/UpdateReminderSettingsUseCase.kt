@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
  */
 internal class UpdateReminderSettingsUseCase(
     private val appSettings: AppSettingsRepository,
+    private val schedulers: List<suspend () -> Unit> = emptyList(),
 ) {
     suspend operator fun invoke(
         preferences: NotificationPreferences,
@@ -19,5 +20,7 @@ internal class UpdateReminderSettingsUseCase(
         val current = appSettings.observe().first()
         return appSettings.save(current.copy(notifications = preferences))
             .map { it.notifications }
+            // A topic switched here must reach the OS now, not on the next write.
+            .onRight { schedulers.forEach { refresh -> refresh() } }
     }
 }

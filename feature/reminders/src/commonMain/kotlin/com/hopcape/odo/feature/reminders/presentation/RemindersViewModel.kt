@@ -240,6 +240,15 @@ private fun UpcomingReminder.toRow(today: LocalDate): ReminderRow = when (this) 
         status = urgency.toStatus(),
     )
 
+    // Declared in setup without a paper: same row and tap as the paper would get.
+    is UpcomingReminder.DeclaredRenewal -> ReminderRow(
+        id = ReminderRowId(kind, dismissalKey?.dueOn, customId = null),
+        icon = if (type == DocumentType.PUC) ReminderIcon.LEAF else ReminderIcon.SHIELD,
+        title = RowText.Res(UiText(kind.rowTitle())),
+        line = renewalLine(urgency, daysLeft, expiresOn),
+        status = urgency.toStatus(),
+    )
+
     is UpcomingReminder.ServiceDue -> ReminderRow(
         id = ReminderRowId(kind, dueOn, customId = null),
         icon = ReminderIcon.OIL,
@@ -263,7 +272,9 @@ private fun ReminderKind.rowTitle() = when (this) {
     else -> Res.string.rm_row_insurance
 }
 
-private fun UpcomingReminder.DocumentRenewal.documentLine(): UiText = when {
+private fun UpcomingReminder.DocumentRenewal.documentLine(): UiText = renewalLine(urgency, daysLeft, expiresOn)
+
+private fun renewalLine(urgency: ReminderUrgency, daysLeft: Int, expiresOn: LocalDate): UiText = when {
     urgency == ReminderUrgency.ON_TRACK -> UiText(Res.string.rm_line_valid_till, listOf(formatDate(expiresOn)))
     daysLeft == 0 -> UiText(Res.string.rm_line_due_today, listOf(formatDate(expiresOn)))
     else -> UiText(Res.string.rm_line_due_in_days, listOf(daysLeft, formatDate(expiresOn)))

@@ -1,5 +1,6 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
+import kotlinx.datetime.LocalDate
 import androidx.compose.runtime.Immutable
 import com.hopcape.odo.core.designsystem.text.UiText
 import com.hopcape.odo.core.domain.car.catalog.CarModel
@@ -8,15 +9,18 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadabl
 
 /**
  * The v2 setup steps. [position] counts first run as the progress bar draws it: Model,
- * Year and fuel, then the value screen.
+ * Year and fuel, the insurance month, then the value screen.
  */
 internal enum class SetupV2Step(val position: Int) {
     MODEL(1),
     YEAR_FUEL(2),
+
+    /** After the car is saved: the insurance expiry month, skippable. */
+    INSURANCE(3),
     ;
 
     companion object {
-        const val TOTAL: Int = 3
+        const val TOTAL: Int = 4
     }
 }
 
@@ -65,6 +69,9 @@ internal data class SetupV2UiState(
     val searchOpen: Boolean = false,
     /** The year wheel behind "Older". */
     val olderOpen: Boolean = false,
+    /** The insurance step's choices: the first day of this month and the next 11. */
+    val insuranceMonths: List<LocalDate> = emptyList(),
+    val insuranceMonth: LocalDate? = null,
 ) {
     /** "Save my car" is live only with a year and a fuel, and never while a save runs. */
     val canSave: Boolean get() = model != null && year != null && fuel != null && !saving
@@ -87,6 +94,10 @@ internal sealed interface SetupV2Event {
     /** "Change" on the Model step: back to the make grid. */
     data object ChangeMakeClicked : SetupV2Event
     data object BackClicked : SetupV2Event
+
+    data class InsuranceMonthChosen(val month: LocalDate) : SetupV2Event
+    data object InsuranceConfirmed : SetupV2Event
+    data object InsuranceSkipped : SetupV2Event
 }
 
 internal sealed interface SetupV2Effect {

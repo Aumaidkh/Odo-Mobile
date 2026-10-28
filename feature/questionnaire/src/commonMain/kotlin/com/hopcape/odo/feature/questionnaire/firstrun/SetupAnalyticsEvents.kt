@@ -102,5 +102,11 @@ val setupAnalyticsEvents: List<EventSchema> = listOf(
         ),
     ),
     EventSchema(SetupTelemetry.Event.ODOMETER_SKIPPED),
+    EventSchema(SetupTelemetry.Event.INSURANCE_SHOWN),
+    EventSchema(
+        SetupTelemetry.Event.INSURANCE_ANSWERED,
+        mapOf(SetupTelemetry.Key.MONTHS_AHEAD to PropertyType.INT),
+    ),
+    EventSchema(SetupTelemetry.Event.INSURANCE_SKIPPED),
     EventSchema(SetupTelemetry.Event.COMPLETED),
 )

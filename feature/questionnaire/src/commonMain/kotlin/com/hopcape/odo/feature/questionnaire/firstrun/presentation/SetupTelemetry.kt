@@ -133,6 +133,23 @@ internal class SetupTelemetry(
         logger.debug(TAG, Event.FUEL_CHOSEN, tc = flowTrace.toLog(), fields = fields)
     }
 
+    fun insuranceShown() {
+        analytics.track(Event.INSURANCE_SHOWN)
+        logger.info(TAG, Event.INSURANCE_SHOWN, tc = flowTrace.toLog())
+    }
+
+    /** [monthsAhead] is 0 for this month; the month itself is not sent. */
+    fun insuranceAnswered(monthsAhead: Int) {
+        val fields = mapOf(Key.MONTHS_AHEAD to monthsAhead)
+        analytics.track(Event.INSURANCE_ANSWERED, fields)
+        logger.info(TAG, Event.INSURANCE_ANSWERED, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    fun insuranceSkipped() {
+        analytics.track(Event.INSURANCE_SKIPPED)
+        logger.info(TAG, Event.INSURANCE_SKIPPED, tc = flowTrace.toLog())
+    }
+
     /** The v2 catalog read failed; the step shows a retry. */
     fun catalogLoadFailed() {
         analytics.track(Event.CATALOG_LOAD_FAILED)
@@ -400,6 +417,9 @@ internal class SetupTelemetry(
         const val CATALOG_LOAD_FAILED = "onboarding_catalog_load_failed"
         const val CATALOG_EMPTY = "onboarding_catalog_empty"
         const val MODELS_EMPTY = "onboarding_models_empty"
+        const val INSURANCE_SHOWN = "onboarding_insurance_shown"
+        const val INSURANCE_ANSWERED = "onboarding_insurance_answered"
+        const val INSURANCE_SKIPPED = "onboarding_insurance_skipped"
     }
 
     /** Span / child-trace names — only genuine durations (catalog, registry, DB writes). */
@@ -433,6 +453,7 @@ internal class SetupTelemetry(
         const val RESUMED = "resumed"
         const val YEAR = "year"
         const val CHANGED = "changed"
+        const val MONTHS_AHEAD = "months_ahead"
     }
 
     /** The values [Key.FIELD] and [Key.STOPPED_AT] take. */
@@ -452,6 +473,7 @@ internal class SetupTelemetry(
     object Step {
         const val MODEL = "model"
         const val YEAR_FUEL = "year_fuel"
+        const val INSURANCE = "insurance"
     }
 
     /** Where a model came from, as [Key.SOURCE] reports it. */

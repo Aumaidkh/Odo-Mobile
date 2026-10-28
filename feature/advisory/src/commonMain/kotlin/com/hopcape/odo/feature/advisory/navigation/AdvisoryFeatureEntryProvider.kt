@@ -131,4 +131,4 @@ internal fun ChecklistRoute(navigationManager: NavigationManager, entry: String)
 
 /** First run is Welcome, setup, this screen and the scan in v1; Model, Year and fuel, this in v2. */
 private const val V1_FIRST_RUN_STEPS = 4
-private const val V2_FIRST_RUN_STEPS = 3
+private const val V2_FIRST_RUN_STEPS = 4
