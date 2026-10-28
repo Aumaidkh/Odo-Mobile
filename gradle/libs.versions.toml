@@ -82,7 +82,7 @@ kotlinxCoroutines = "1.10.2"
 # Billing and StoreKit behind one API and validates receipts server-side. The KMP
 # SDK rather than two platform SDKs, so the purchase and entitlement code is
 # commonMain; 3.x needs no manual iOS framework linking.
-purchasesKmp = "3.5.0"
+purchasesKmp = "3.10.1"
 
 # Local-first persistence (:core:data) — SQLDelight is the source of truth.
 sqldelight = "2.0.2"
