@@ -1,5 +1,7 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.NoopReviewPrompter
 import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
 import com.hopcape.odo.core.data.support.BuiltInSupportContacts
 import com.hopcape.odo.core.domain.support.SupportContacts
@@ -211,6 +213,8 @@ val coreDataModule = module {
     // change, and the platform module binds the scheduler that delivers them.
     single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
     single<CustomReminderScheduler> { NoopCustomReminderScheduler() }
+    // Replaced on Android by Play In-App Review.
+    single<ReviewPrompter> { NoopReviewPrompter }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the

@@ -1,5 +1,8 @@
 package com.hopcape.odo.core.platform
 
+import com.hopcape.odo.core.platform.review.ReviewTelemetry
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.PlayReviewPrompter
 import android.app.Application
 import android.content.Context
 import com.hopcape.odo.core.platform.app.ActivityTracker
@@ -105,6 +108,18 @@ val corePlatformAndroidModule = module {
     }
     // Replaces :core:data's no-op — the line that turns the owner's own reminders from a
     // list they have to open the app to see into notifications that arrive.
+    single { ReviewTelemetry(analytics = get()) }
+    single<ReviewPrompter> {
+        PlayReviewPrompter(
+            context = get<Context>(),
+            currentActivity = get(),
+            trips = get(),
+            activeCar = get(),
+            clock = get(),
+            telemetry = get(),
+            logger = get(),
+        )
+    }
     single<EngagementNudgeScheduler> {
         WorkManagerEngagementNudgeScheduler(context = get(), logger = get())
     }

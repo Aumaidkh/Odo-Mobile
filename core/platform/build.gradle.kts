@@ -30,6 +30,9 @@ kotlin {
             implementation(projects.core.sync)
             // LocalDate arithmetic behind the document-reminder schedule.
             implementation(libs.kotlinx.datetime)
+            // Review prompt telemetry in common code.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
         }
         commonTest.dependencies {
             // runTest + the virtual clock the scheduler's debounce is tested against.
@@ -44,6 +47,7 @@ kotlin {
             implementation(libs.androidx.media3.exoplayer)
             implementation(libs.androidx.media3.ui)
             implementation(libs.androidx.work.runtime)
+            implementation(libs.play.review)
             // NotificationCompat + NotificationManagerCompat — the document-expiry reminders.
             implementation(libs.androidx.core.ktx)
             // LogFileStore — this module supplies AndroidLogFileStore, the on-disk

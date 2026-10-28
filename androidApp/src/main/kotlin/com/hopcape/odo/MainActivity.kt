@@ -1,5 +1,10 @@
 package com.hopcape.odo
 
+import kotlinx.coroutines.launch
+import com.hopcape.odo.core.platform.review.ReviewTrigger
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import androidx.lifecycle.withResumed
+import androidx.lifecycle.lifecycleScope
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +26,7 @@ class MainActivity : ComponentActivity() {
 
     private val navigationManager: NavigationManager by inject()
     private val appTelemetry: AppTelemetry by inject()
+    private val reviewPrompter: ReviewPrompter by inject()
 
     /** Whether a real screen is composed. The splash polls this every frame. */
     private var contentReady = false
@@ -89,7 +95,20 @@ class MainActivity : ComponentActivity() {
     private fun countNotificationOpen(intent: Intent?, count: Boolean) {
         val kind = intent?.getStringExtra(NotificationOpen.EXTRA_KIND) ?: return
         intent.removeExtra(NotificationOpen.EXTRA_KIND)
-        if (count) appTelemetry.notificationOpened(kind)
+        if (!count) return
+        appTelemetry.notificationOpened(kind)
+        if (kind in REMINDER_KINDS) {
+            // After resume, so the review sheet has an Activity to attach to.
+            lifecycleScope.launch {
+                lifecycle.withResumed {}
+                reviewPrompter.maybeAsk(ReviewTrigger.FIRST_REMINDER)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch { reviewPrompter.maybeAskForTripDays() }
     }
 
     /**
@@ -151,5 +170,8 @@ class MainActivity : ComponentActivity() {
     private companion object {
         /** How long the splash may hold before it gives up on the gate and shows the app. */
         const val SPLASH_TIMEOUT_MS = 5_000L
+
+        /** Notification kinds that count as a reminder for the review prompt. */
+        val REMINDER_KINDS = setOf(NotificationOpen.DOCUMENT_REMINDER, NotificationOpen.CUSTOM_REMINDER)
     }
 }
