@@ -57,6 +57,7 @@ val profileModule = module {
             settings = get(),
             documentReminders = get(),
             customReminders = get(),
+            driveSummary = get(),
         )
     }
     factory { SetAvatarUseCase(profiles = get(), files = get()) }

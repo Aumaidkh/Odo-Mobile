@@ -1,5 +1,6 @@
 package com.hopcape.odo.di
 
+import com.hopcape.odo.core.platform.notification.driveSummaryAnalyticsEvents
 import com.hopcape.analytics.api.EventSchema
 import com.hopcape.odo.core.data.appstatus.observability.appStatusAnalyticsEvents
 import com.hopcape.odo.core.data.showcase.observability.showcaseAnalyticsEvents
@@ -50,4 +51,4 @@ val odoAnalyticsEvents: List<EventSchema> =
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
         showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents +
         billCheckAnalyticsEvents +
-        paywallAnalyticsEvents + supabaseAnalyticsEvents + appAnalyticsEvents
+        paywallAnalyticsEvents + supabaseAnalyticsEvents + appAnalyticsEvents + driveSummaryAnalyticsEvents

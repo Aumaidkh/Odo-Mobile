@@ -27,6 +27,8 @@ data class NotificationPreferences(
     val partnerOffers: Boolean = false,
     val push: Boolean = true,
     val whatsapp: Boolean = false,
+    /** The 21:00 summary of the day's drives. */
+    val driveSummary: Boolean = true,
 ) {
 
     /**
@@ -44,5 +46,6 @@ data class NotificationPreferences(
             monthlySummary,
             healthScoreDrops,
             partnerOffers,
+            driveSummary,
         ).count { it }
 }

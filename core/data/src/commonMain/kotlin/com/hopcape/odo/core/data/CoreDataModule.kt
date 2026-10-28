@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data
 
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
 import com.hopcape.odo.core.data.appstatus.AlwaysAvailableAppStatusSource
 import com.hopcape.odo.core.data.support.BuiltInSupportContacts
 import com.hopcape.odo.core.domain.support.SupportContacts
@@ -211,6 +212,7 @@ val coreDataModule = module {
     // change, and the platform module binds the scheduler that delivers them.
     single<DocumentReminderScheduler> { NoopDocumentReminderScheduler() }
     single<CustomReminderScheduler> { NoopCustomReminderScheduler() }
+    single<DriveSummaryNotifier> { DriveSummaryNotifier { } }
 
     // Whether a run may happen at all, and whether this install's rows belong to the
     // account yet. Asking for a token rather than a boolean refreshes a stale one on the

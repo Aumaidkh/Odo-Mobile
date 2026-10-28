@@ -14,6 +14,7 @@ internal sealed interface NotificationsEvent {
     data class CustomRemindersToggled(val enabled: Boolean) : NotificationsEvent
     data class OverchargeAlertsToggled(val enabled: Boolean) : NotificationsEvent
     data class MonthlySummaryToggled(val enabled: Boolean) : NotificationsEvent
+    data class DriveSummaryToggled(val enabled: Boolean) : NotificationsEvent
     data class HealthScoreDropsToggled(val enabled: Boolean) : NotificationsEvent
     data class PushToggled(val enabled: Boolean) : NotificationsEvent
 

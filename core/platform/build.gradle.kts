@@ -30,6 +30,9 @@ kotlin {
             implementation(projects.core.sync)
             // LocalDate arithmetic behind the document-reminder schedule.
             implementation(libs.kotlinx.datetime)
+            // Drive summary telemetry in common code.
+            implementation(projects.observability.logging)
+            implementation(projects.observability.analytics)
         }
         commonTest.dependencies {
             // runTest + the virtual clock the scheduler's debounce is tested against.
