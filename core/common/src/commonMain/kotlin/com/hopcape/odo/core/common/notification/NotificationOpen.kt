@@ -12,9 +12,11 @@ object NotificationOpen {
     const val ENGAGEMENT_NUDGE = "engagement_nudge"
     const val TRIP_TRACKING = "trip_tracking"
     const val DETECTED_FILL = "detected_fill"
+    const val SERVICE_DUE = "service_due"
 
+    /** Append only: a kind's position is its request code. */
     val kinds: List<String> =
-        listOf(DOCUMENT_REMINDER, CUSTOM_REMINDER, ENGAGEMENT_NUDGE, TRIP_TRACKING, DETECTED_FILL)
+        listOf(DOCUMENT_REMINDER, CUSTOM_REMINDER, ENGAGEMENT_NUDGE, TRIP_TRACKING, DETECTED_FILL, SERVICE_DUE)
 
     /**
      * A PendingIntent request code per kind. Intents that differ only in extras are equal, so

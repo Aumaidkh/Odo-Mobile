@@ -30,7 +30,7 @@ kotlin {
             implementation(projects.core.sync)
             // LocalDate arithmetic behind the document-reminder schedule.
             implementation(libs.kotlinx.datetime)
-            // Nudge telemetry in common code: the post/skip decision is made there.
+            // Nudge and reminder telemetry in common code, where the decisions are made.
             implementation(projects.observability.logging)
             implementation(projects.observability.analytics)
         }

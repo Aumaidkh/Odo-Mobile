@@ -1,5 +1,6 @@
 package com.hopcape.odo.core.data.servicelog
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -31,6 +32,7 @@ internal class ServiceLogRepositoryImpl(
     private val local: ServiceLogLocalDataSource,
     private val telemetry: DataTelemetry,
     private val scheduler: SyncScheduler,
+    private val serviceReminders: ServiceDueReminderScheduler = ServiceDueReminderScheduler { },
 ) : ServiceLogRepository {
 
     /**
@@ -52,6 +54,8 @@ internal class ServiceLogRepositoryImpl(
         } catch (e: Exception) {
             telemetry.crashed(DataTelemetry.SERVICE_LOG, "$operation.schedule", e, id)
         }
+        // The latest service decides when the next one is due. Refresh never throws.
+        serviceReminders.refresh()
     }
 
     override fun observe(carId: CarId): Flow<List<ServiceLogEntry>> =

@@ -1,5 +1,8 @@
 package com.hopcape.odo.core.platform
 
+import com.hopcape.odo.core.platform.notification.WorkManagerServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.ServiceReminderTelemetry
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import android.app.Application
 import android.content.Context
 import com.hopcape.odo.core.platform.app.ActivityTracker
@@ -112,6 +115,17 @@ val corePlatformAndroidModule = module {
     single<NudgeSentStore> { PrefsNudgeSentStore(context = get<Context>()) }
     single { BillNudgeGate(serviceLogs = get(), activeCar = get(), sent = get()) }
     single { NudgeTelemetry(logger = get(), analytics = get()) }
+    single<ServiceDueReminderScheduler> {
+        WorkManagerServiceDueReminderScheduler(
+            context = get<Context>(),
+            serviceLogs = get(),
+            activeCar = get(),
+            settings = get(),
+            clock = get(),
+            logger = get(),
+        )
+    }
+    single { ServiceReminderTelemetry(analytics = get()) }
     single<EngagementNudgeScheduler> {
         WorkManagerEngagementNudgeScheduler(context = get(), logger = get())
     }

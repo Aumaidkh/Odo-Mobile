@@ -1,5 +1,8 @@
 package com.hopcape.odo.feature.reminders
 
+import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.CustomReminderScheduler
+import com.hopcape.odo.core.platform.notification.DocumentReminderScheduler
 import com.hopcape.odo.core.navigation.FeatureEntryProvider
 import com.hopcape.odo.feature.reminders.domain.usecase.CreateCustomReminderUseCase
 import com.hopcape.odo.feature.reminders.domain.usecase.DeleteCustomReminderUseCase
@@ -60,7 +63,15 @@ val remindersModule = module {
     factory { DeleteCustomReminderUseCase(reminders = get(), scheduler = get()) }
     factory { DismissReminderUseCase(reminders = get()) }
     factory { ObserveReminderSettingsUseCase(appSettings = get()) }
-    factory { UpdateReminderSettingsUseCase(appSettings = get()) }
+    factory {
+        val documents = get<DocumentReminderScheduler>()
+        val custom = get<CustomReminderScheduler>()
+        val service = get<ServiceDueReminderScheduler>()
+        UpdateReminderSettingsUseCase(
+            appSettings = get(),
+            schedulers = listOf(documents::refresh, custom::refresh, service::refresh),
+        )
+    }
     factory { ObserveCurrentOdometerUseCase(currentOdometer = get()) }
     factory { ObserveCustomReminderUseCase(reminders = get()) }
 
