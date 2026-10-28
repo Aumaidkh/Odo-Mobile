@@ -4,7 +4,7 @@
     <!-- The Welcome pitch and the video intro. Everything the setup flow asks moved to
          :feature:questionnaire with the screens that ask it. -->
     <string name="onb_welcome_mark">ODO</string>
-    <string name="onb_welcome_mark_reading">054,000</string>
+    <string name="onb_welcome_mark_reading">054.000</string>
     <!-- v1 pitch, kept behind the first_run_v2_enabled kill switch until 1.4.6. -->
     <string name="onb_welcome_v1_title">Know what your car really costs you.</string>
     <string name="onb_welcome_v1_subtitle">Stop overpaying at the garage, and sell for more when you’re done.</string>

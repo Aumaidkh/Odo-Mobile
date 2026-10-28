@@ -109,6 +109,7 @@ kotlinxBrowser = "0.3"
 # below DEX version 040 ("Space characters in SimpleName 'use streaming syntax' are not
 # allowed"). Odo's minSdk is 26, so the app would not dex at all.
 ktor = "3.5.2"
+coil = "3.5.0"
 
 # ML Kit on-device text recognition — the interim bill-scanner OCR
 # (:infrastructure:ai, androidMain). The bundled artifact, not the Play-Services
@@ -220,6 +221,8 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 # MockEngine — drives the adapter tests without a network or a Supabase project.
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 
 # ML Kit OCR + the Task.await() bridge + EXIF — :infrastructure:ai androidMain only.
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitTextRecognition" }

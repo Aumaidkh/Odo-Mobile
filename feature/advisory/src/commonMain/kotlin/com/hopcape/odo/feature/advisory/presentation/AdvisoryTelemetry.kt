@@ -72,6 +72,19 @@ internal class AdvisoryTelemetry(
         logger.info(TAG, Event.AUTO_ODO_OFFERED, tc = flowTrace.toLog())
     }
 
+    /** The auto-odometer card scrolled into view, since the offer can sit below the fold. */
+    fun autoOdoCardSeen() {
+        analytics.track(Event.AUTO_ODO_CARD_SEEN)
+        logger.debug(TAG, Event.AUTO_ODO_CARD_SEEN, tc = flowTrace.toLog())
+    }
+
+    /** "Why a range?" opened or closed on the first-run value screen. */
+    fun whyRangeToggled(expanded: Boolean) {
+        val fields = mapOf(Key.EXPANDED to expanded)
+        analytics.track(Event.WHY_RANGE_TOGGLED, fields)
+        logger.debug(TAG, Event.WHY_RANGE_TOGGLED, tc = flowTrace.toLog(), fields = fields)
+    }
+
     /** "Turn on" on the first-run auto-odometer card. */
     fun autoOdoOfferAccepted() {
         analytics.track(Event.AUTO_ODO_OFFER_ACCEPTED)
@@ -237,6 +250,8 @@ internal class AdvisoryTelemetry(
         const val SHARE_CLICKED = "advisory_value_share_clicked"
         const val AUTO_ODO_OFFERED = "auto_odo_offered"
         const val AUTO_ODO_OFFER_ACCEPTED = "auto_odo_offer_accepted"
+        const val AUTO_ODO_CARD_SEEN = "auto_odo_card_seen"
+        const val WHY_RANGE_TOGGLED = "advisory_value_why_range_toggled"
         const val NO_CAR = "advisory_value_no_car"
         const val CITY_CATALOG_UNAVAILABLE = "advisory_city_catalog_unavailable"
         const val CITY_NOT_LISTED = "advisory_city_not_listed"
@@ -261,5 +276,6 @@ internal class AdvisoryTelemetry(
         const val PRICED = "priced"
         const val ENTRY = "entry"
         const val VIA = "via"
+        const val EXPANDED = "expanded"
     }
 }

@@ -61,6 +61,12 @@ internal class OnboardingTelemetry(
         logger.info(TAG, Event.MAKE_OTHER_OPENED, tc = flowTrace.toLog())
     }
 
+    /** The "Other" sheet closed without a make: the owner gave up on finding their brand. */
+    fun makeOtherDismissed() {
+        analytics.track(Event.MAKE_OTHER_DISMISSED)
+        logger.info(TAG, Event.MAKE_OTHER_DISMISSED, tc = flowTrace.toLog())
+    }
+
     /** Times the make read, answering null and logging when it fails. */
     suspend fun <T> makesLoad(read: suspend () -> T): T? {
         val span = tracer.startSpan(Trace.MAKES_LOAD, flowTrace.traceId ?: FLOW)
@@ -115,6 +121,7 @@ internal class OnboardingTelemetry(
         const val WELCOME_SIGN_IN = "onboarding_welcome_sign_in"
         const val LEGAL_OPENED = "onboarding_legal_opened"
         const val MAKE_OTHER_OPENED = "onboarding_make_other_opened"
+        const val MAKE_OTHER_DISMISSED = "onboarding_make_other_dismissed"
         const val RESUMED = "onboarding_resumed"
         const val RESUME_RESET = "onboarding_resume_reset"
         const val MAKES_LOAD_FAILED = "onboarding_makes_load_failed"
@@ -144,5 +151,8 @@ internal class OnboardingTelemetry(
     object MakeSource {
         const val TILE = "tile"
         const val OTHER = "other"
+
+        /** Typed into the "Other" sheet because the brand was not listed. */
+        const val OTHER_TYPED = "other_typed"
     }
 }

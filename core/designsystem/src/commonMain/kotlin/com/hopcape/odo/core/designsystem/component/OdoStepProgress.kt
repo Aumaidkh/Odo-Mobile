@@ -1,6 +1,6 @@
 package com.hopcape.odo.core.designsystem.component
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
+import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 
 /**
  * Where the owner is in a flow that asks for several things in a row.
@@ -47,6 +51,10 @@ fun OdoStepProgress(
     modifier: Modifier = Modifier,
 ) {
     if (total <= 0) return
+    // A flow's steps are often separate screens, each with its own bar. Starting from what the
+    // last bar showed lets the new one fill (or drain) the segment that changed.
+    val from = remember(total) { lastShownStep[total] ?: (current - 1).coerceAtLeast(0) }
+    SideEffect { lastShownStep[total] = current }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -87,6 +95,10 @@ fun OdoSegmentedProgress(
     contentDescription: String? = null,
 ) {
     if (total <= 0) return
+    // A flow's steps are often separate screens, each with its own bar. Starting from what the
+    // last bar showed lets the new one fill (or drain) the segment that changed.
+    val from = remember(total) { lastShownStep[total] ?: (current - 1).coerceAtLeast(0) }
+    SideEffect { lastShownStep[total] = current }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -100,7 +112,7 @@ fun OdoSegmentedProgress(
         horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
     ) {
         repeat(total) { index ->
-            Segment(filled = index < current, modifier = Modifier.weight(1f))
+            Segment(filled = index < current, startFilled = index < from, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -114,15 +126,13 @@ fun OdoSegmentedProgress(
  * page slide beside it, so the two read as one movement rather than two.
  */
 @Composable
-private fun Segment(filled: Boolean, modifier: Modifier = Modifier) {
-    val fill by animateFloatAsState(
-        targetValue = if (filled) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = OdoTheme.motion.flowMillis,
-            easing = OdoTheme.motion.easeFlow,
-        ),
-        label = "segmentFill",
-    )
+private fun Segment(filled: Boolean, startFilled: Boolean, modifier: Modifier = Modifier) {
+    val fill = remember { Animatable(if (startFilled) 1f else 0f) }
+    val easing = OdoTheme.motion.easeStandard
+    LaunchedEffect(filled) {
+        // Delayed so the fill lands after the page transition rather than under it.
+        fill.animateTo(if (filled) 1f else 0f, tween(SEGMENT_MILLIS, delayMillis = SEGMENT_DELAY_MILLIS, easing = easing))
+    }
     Box(
         modifier = modifier
             .height(SEGMENT_HEIGHT)
@@ -132,7 +142,7 @@ private fun Segment(filled: Boolean, modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(fill)
+                .fillMaxWidth(fill.value)
                 .clip(OdoTheme.shapes.pill)
                 .background(OdoTheme.colors.text),
         )
@@ -140,6 +150,11 @@ private fun Segment(filled: Boolean, modifier: Modifier = Modifier) {
 }
 
 private val SEGMENT_HEIGHT = 3.dp
+private const val SEGMENT_MILLIS = 450
+private const val SEGMENT_DELAY_MILLIS = 150
+
+/** The step each segmented bar last showed, keyed by its segment count. UI thread only. */
+private val lastShownStep = mutableMapOf<Int, Int>()
 
 @OdoThemePreviews
 @Composable
@@ -154,5 +169,44 @@ private fun OdoStepProgressPreview() = OdoPreview {
 private fun OdoSegmentedProgressPreview() = OdoPreview {
     Box(modifier = Modifier.width(320.dp)) {
         OdoSegmentedProgress(current = 3, total = 4, contentDescription = "Step 3 of 4")
+    }
+}
+
+/**
+ * The header of a multi-step flow: a back disc and the segmented progress in one row.
+ * Every step of a flow uses it, so the chrome does not move between screens.
+ */
+@Composable
+fun OdoStepHeader(
+    current: Int,
+    total: Int,
+    onBack: (() -> Unit)?,
+    backContentDescription: String,
+    progressContentDescription: String,
+    modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+    ) {
+        if (onBack != null) {
+            OdoCircularIconButton(
+                IcArrowLeft,
+                contentDescription = backContentDescription,
+                onClick = onBack,
+                size = OdoTheme.spacing.minTouchTarget,
+            )
+        }
+        OdoSegmentedProgress(
+            current = current,
+            total = total,
+            modifier = Modifier.weight(1f),
+            contentDescription = progressContentDescription,
+        )
+        trailing?.invoke()
     }
 }

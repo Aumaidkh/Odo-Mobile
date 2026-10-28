@@ -1,9 +1,10 @@
 package com.hopcape.odo.feature.questionnaire.firstrun.presentation.v2
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,10 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -28,9 +25,16 @@ import com.hopcape.odo.core.designsystem.component.OdoCard
 import com.hopcape.odo.core.designsystem.component.OdoCarModel
 import com.hopcape.odo.core.designsystem.component.OdoCarModelSheet
 import com.hopcape.odo.core.designsystem.component.OdoChip
+import com.hopcape.odo.core.designsystem.component.OdoEntrance
+import com.hopcape.odo.core.designsystem.component.OdoStepTransition
 import com.hopcape.odo.core.designsystem.component.OdoIcon
+import com.hopcape.odo.core.designsystem.component.OdoIconTile
+import com.hopcape.odo.core.designsystem.component.OdoCarMake
+import com.hopcape.odo.core.designsystem.component.OdoMakeLogo
+import androidx.compose.ui.unit.dp
 import com.hopcape.odo.core.designsystem.component.OdoModelYearSheet
 import com.hopcape.odo.core.designsystem.component.OdoText
+import com.hopcape.odo.core.designsystem.icons.IcChevronRight
 import com.hopcape.odo.core.designsystem.icons.IcMagnifier
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -48,11 +52,14 @@ import com.hopcape.odo.feature.questionnaire.firstrun.presentation.components.wi
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.Loadable
 import com.hopcape.odo.feature.questionnaire.resources.Res
 import com.hopcape.odo.feature.questionnaire.resources.onb_cancel
+import com.hopcape.odo.feature.questionnaire.resources.onb_car_summary_pending
 import com.hopcape.odo.feature.questionnaire.resources.onb_cd_close
 import com.hopcape.odo.feature.questionnaire.resources.onb_done
 import com.hopcape.odo.feature.questionnaire.resources.onb_fuel_label
 import com.hopcape.odo.feature.questionnaire.resources.onb_match_count
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_all
+import com.hopcape.odo.feature.questionnaire.resources.onb_model_cant_find
+import com.hopcape.odo.feature.questionnaire.resources.onb_model_cant_find_body
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_change_make
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_empty
 import com.hopcape.odo.feature.questionnaire.resources.onb_model_not_listed
@@ -78,16 +85,7 @@ internal fun SetupV2Screen(
     onEvent: (SetupV2Event) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val motion = OdoTheme.motion
-    AnimatedContent(
-        targetState = state.step,
-        modifier = modifier,
-        transitionSpec = {
-            fadeIn(tween(motion.baseMillis, easing = motion.easeStandard)) togetherWith
-                fadeOut(tween(motion.baseMillis / 2))
-        },
-        label = "setupV2Step",
-    ) { step ->
+    OdoStepTransition(target = state.step, position = state.step.ordinal, modifier = modifier, label = "setupV2Step") { step ->
         when (step) {
             SetupV2Step.MODEL -> ModelStep(state, onEvent)
             SetupV2Step.YEAR_FUEL -> YearFuelStep(state, onEvent)
@@ -98,7 +96,6 @@ internal fun SetupV2Screen(
 /** S2: the make in the eyebrow, a grid of base models, and search over every trim. */
 @Composable
 private fun ModelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit) {
-    var searching by remember { mutableStateOf(false) }
     OnboardingStepScaffold(
         step = SetupV2Step.MODEL.position,
         totalSteps = SetupV2Step.TOTAL,
@@ -106,40 +103,48 @@ private fun ModelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit) {
         onPrimary = {},
         onBack = { onEvent(SetupV2Event.BackClicked) },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        OdoEntrance(0) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            ) {
+                OdoMakeLogo(make = state.makeBadge(), width = BADGE_WIDTH, height = BADGE_HEIGHT)
+                OdoText(
+                    text = state.make,
+                    style = OdoTheme.typography.heading,
+                    color = OdoTheme.colors.text,
+                    modifier = Modifier.weight(1f),
+                )
+                OdoButton(
+                    text = stringResource(Res.string.onb_model_change_make),
+                    onClick = { onEvent(SetupV2Event.ChangeMakeClicked) },
+                    variant = OdoButtonVariant.Tertiary,
+                    modifier = Modifier.testTag(OnboardingTestTags.CHANGE_MAKE),
+                )
+            }
+        }
+        OdoEntrance(1) {
             OdoText(
-                text = state.make.uppercase(),
-                style = OdoTheme.typography.caption,
-                color = OdoTheme.colors.textMuted,
-                modifier = Modifier.weight(1f),
-            )
-            OdoButton(
-                text = stringResource(Res.string.onb_model_change_make),
-                onClick = { onEvent(SetupV2Event.ChangeMakeClicked) },
-                variant = OdoButtonVariant.Tertiary,
-                modifier = Modifier.testTag(OnboardingTestTags.CHANGE_MAKE),
+                text = stringResource(Res.string.onb_model_title),
+                style = OdoTheme.typography.title,
+                color = OdoTheme.colors.text,
             )
         }
-        OdoText(
-            text = stringResource(Res.string.onb_model_title),
-            style = OdoTheme.typography.title,
-            color = OdoTheme.colors.text,
-        )
         when (val catalog = state.catalog) {
             Loadable.Loading -> CatalogLoadingCard()
             is Loadable.Failed -> CatalogFailedCard(catalog.message) { onEvent(SetupV2Event.CatalogRetried) }
             is Loadable.Ready -> {
-                ModelGrid(catalog.value.baseModels) { onEvent(SetupV2Event.ModelChosen(it)) }
-                SearchRow(
-                    hint = stringResource(Res.string.onb_model_search_hint, state.make),
-                    onClick = { searching = true },
-                )
-                if (searching) {
+                val models = catalog.value.baseModels
+                ModelGrid(models) { onEvent(SetupV2Event.ModelChosen(it)) }
+                OdoEntrance(2 + (models.size + 1) / 2) {
+                    CantFindCard(make = state.make, onClick = { onEvent(SetupV2Event.ModelSearchOpened) })
+                }
+                if (state.searchOpen) {
                     ModelSearchSheet(
                         make = state.make,
                         models = catalog.value.models,
-                        onDismiss = { searching = false },
-                        onSelect = { onEvent(SetupV2Event.ModelChosen(it)) },
+                        onDismiss = { onEvent(SetupV2Event.ModelSearchDismissed) },
+                        onSelect = { onEvent(SetupV2Event.ModelChosen(it, fromSearch = true)) },
                     )
                 }
             }
@@ -150,42 +155,56 @@ private fun ModelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit) {
 @Composable
 private fun ModelGrid(models: List<CarModel>, onChoose: (CarModel) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-        models.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                row.forEach { model ->
-                    OdoCard(
-                        onClick = { onChoose(model) },
-                        modifier = Modifier.weight(1f).testTag(OnboardingTestTags.modelTile(model.name)),
-                        contentPadding = PaddingValues(OdoTheme.spacing.md),
-                    ) {
-                        OdoText(
-                            text = model.displayName,
-                            style = OdoTheme.typography.heading,
-                            color = OdoTheme.colors.text,
-                            maxLines = 2,
-                        )
+        models.chunked(2).forEachIndexed { rowIndex, row ->
+            OdoEntrance(2 + rowIndex) {
+                Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                    row.forEach { model ->
+                        OdoCard(
+                            onClick = { onChoose(model) },
+                            modifier = Modifier.weight(1f).testTag(OnboardingTestTags.modelTile(model.name)),
+                            contentPadding = PaddingValues(OdoTheme.spacing.md),
+                        ) {
+                            OdoText(
+                                text = model.displayName,
+                                style = OdoTheme.typography.heading,
+                                color = OdoTheme.colors.text,
+                                maxLines = 2,
+                            )
+                        }
                     }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
-/** Looks like a search field; a tap opens the full searchable sheet. */
+/** The way to every other model: opens the full list, where a missing one can be typed. */
 @Composable
-private fun SearchRow(hint: String, onClick: () -> Unit) {
+private fun CantFindCard(make: String, onClick: () -> Unit) {
     OdoCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().testTag(OnboardingTestTags.MODEL_SEARCH),
         contentPadding = PaddingValues(OdoTheme.spacing.md),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OdoIcon(IcMagnifier, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.medium)
-            OdoText(text = hint, style = OdoTheme.typography.body, color = OdoTheme.colors.textMuted)
+            OdoIconTile(IcMagnifier)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(
+                    text = stringResource(Res.string.onb_model_cant_find),
+                    style = OdoTheme.typography.heading,
+                    color = OdoTheme.colors.text,
+                )
+                OdoText(
+                    text = stringResource(Res.string.onb_model_cant_find_body, make),
+                    style = OdoTheme.typography.bodySmall,
+                    color = OdoTheme.colors.textDim,
+                )
+            }
+            OdoIcon(IcChevronRight, contentDescription = null, tint = OdoTheme.colors.textDim, size = OdoTheme.iconSizes.medium)
         }
     }
 }
@@ -220,7 +239,6 @@ private fun ModelSearchSheet(
 @Composable
 private fun YearFuelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit) {
     val catalog = state.catalog.let { (it as? Loadable.Ready)?.value } ?: return
-    var olderOpen by remember { mutableStateOf(false) }
     val olderChosen = state.year != null && state.year !in catalog.recentYears
     OnboardingStepScaffold(
         step = SetupV2Step.YEAR_FUEL.position,
@@ -240,56 +258,57 @@ private fun YearFuelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit)
             )
         },
     ) {
-        StepHeadline(
-            eyebrow = listOfNotNull(state.make, state.model?.displayName).joinToString(" ").uppercase(),
-            title = stringResource(Res.string.onb_year_fuel_title),
-            subtitle = null,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-            FieldLabel(stringResource(Res.string.onb_year_label).uppercase())
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
-                catalog.recentYears.forEach { year ->
+        OdoEntrance(0) { CarSummaryCard(state) }
+        OdoEntrance(1) { StepHeadline(title = stringResource(Res.string.onb_year_fuel_title), subtitle = null) }
+        OdoEntrance(2) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                FieldLabel(stringResource(Res.string.onb_year_label).uppercase())
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                ) {
+                    catalog.recentYears.forEach { year ->
+                        OdoChip(
+                            label = year.toString(),
+                            selected = state.year == year,
+                            onClick = { onEvent(SetupV2Event.YearChosen(year)) },
+                            modifier = Modifier.testTag(OnboardingTestTags.yearChip(year)),
+                        )
+                    }
                     OdoChip(
-                        label = year.toString(),
-                        selected = state.year == year,
-                        onClick = { onEvent(SetupV2Event.YearChosen(year)) },
-                        modifier = Modifier.testTag(OnboardingTestTags.yearChip(year)),
+                        label = if (olderChosen) state.year.toString() else stringResource(Res.string.onb_year_older),
+                        selected = olderChosen,
+                        onClick = { onEvent(SetupV2Event.OlderYearsOpened) },
+                        modifier = Modifier.testTag(OnboardingTestTags.YEAR_OLDER),
                     )
                 }
-                OdoChip(
-                    label = if (olderChosen) state.year.toString() else stringResource(Res.string.onb_year_older),
-                    selected = olderChosen,
-                    onClick = { olderOpen = true },
-                    modifier = Modifier.testTag(OnboardingTestTags.YEAR_OLDER),
-                )
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-            FieldLabel(stringResource(Res.string.onb_fuel_label).uppercase())
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
-            ) {
-                catalog.fuels.forEach { fuel ->
-                    OdoChip(
-                        label = fuelLabel(fuel),
-                        selected = state.fuel == fuel,
-                        onClick = { onEvent(SetupV2Event.FuelChosen(fuel)) },
-                        modifier = Modifier.testTag(OnboardingTestTags.fuelChip(fuel.name)),
-                    )
+        OdoEntrance(3) {
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                FieldLabel(stringResource(Res.string.onb_fuel_label).uppercase())
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
+                ) {
+                    catalog.fuels.forEach { fuel ->
+                        OdoChip(
+                            label = fuelLabel(fuel),
+                            selected = state.fuel == fuel,
+                            onClick = { onEvent(SetupV2Event.FuelChosen(fuel)) },
+                            modifier = Modifier.testTag(OnboardingTestTags.fuelChip(fuel.name)),
+                        )
+                    }
                 }
             }
         }
     }
-    if (olderOpen) {
+    if (state.olderOpen) {
         OdoModelYearSheet(
-            onDismissRequest = { olderOpen = false },
+            onDismissRequest = { onEvent(SetupV2Event.OlderYearsDismissed) },
             selected = state.year,
             years = catalog.yearRange,
-            onSelect = { onEvent(SetupV2Event.YearChosen(it)) },
+            onSelect = { onEvent(SetupV2Event.YearChosen(it, fromOlder = true)) },
             title = stringResource(Res.string.onb_year_sheet_title),
             subtitle = stringResource(Res.string.onb_year_sheet_subtitle),
             cancelLabel = stringResource(Res.string.onb_cancel),
@@ -297,6 +316,48 @@ private fun YearFuelStep(state: SetupV2UiState, onEvent: (SetupV2Event) -> Unit)
         )
     }
 }
+
+/** The car being built, filling in as the year and fuel are tapped. */
+@Composable
+private fun CarSummaryCard(state: SetupV2UiState) {
+    val details = listOfNotNull(state.year?.toString(), state.fuel?.let { fuelLabel(it) })
+    OdoCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(OdoTheme.spacing.md)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OdoMakeLogo(make = state.makeBadge(), width = BADGE_WIDTH, height = BADGE_HEIGHT)
+            Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.xs)) {
+                OdoText(
+                    text = listOfNotNull(state.make, state.model?.displayName).joinToString(" "),
+                    style = OdoTheme.typography.heading,
+                    color = OdoTheme.colors.text,
+                )
+                val pending = stringResource(Res.string.onb_car_summary_pending)
+                // Each answer rolls the line up into place, so the card visibly fills in.
+                AnimatedContent(
+                    targetState = details.joinToString(" · "),
+                    transitionSpec = {
+                        (slideInVertically { it / 2 } + fadeIn()) togetherWith (slideOutVertically { -it / 2 } + fadeOut())
+                    },
+                    label = "carSummary",
+                ) { line ->
+                    OdoText(
+                        text = line.ifEmpty { pending },
+                        style = OdoTheme.typography.bodySmall,
+                        color = if (line.isEmpty()) OdoTheme.colors.textMuted else OdoTheme.colors.textDim,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The make as the design system's logo plate takes it. */
+private fun SetupV2UiState.makeBadge() = OdoCarMake(id = make, name = make, logoUrl = makeLogoUrl)
+
+private val BADGE_WIDTH = 64.dp
+private val BADGE_HEIGHT = 40.dp
 
 private val previewCatalog = SetupV2Catalog(
     makes = listOf("Hyundai"),

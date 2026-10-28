@@ -97,6 +97,29 @@ class CarValueViewModelTest {
     }
 
     @Test
+    fun theAutoOdometerCard_isCountedSeenOnce() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(firstRun = true, autoOdometer = true, analytics = analytics)
+        advanceUntilIdle()
+
+        repeat(3) { viewModel.onEvent(CarValueEvent.AutoOdometerCardSeen) }
+
+        assertEquals(1, analytics.names.count { it == AdvisoryTelemetry.Event.AUTO_ODO_CARD_SEEN })
+    }
+
+    @Test
+    fun whyARange_reportsOpenAndClose() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(firstRun = true, analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(CarValueEvent.WhyRangeToggled(expanded = true))
+        viewModel.onEvent(CarValueEvent.WhyRangeToggled(expanded = false))
+
+        assertEquals(2, analytics.names.count { it == AdvisoryTelemetry.Event.WHY_RANGE_TOGGLED })
+    }
+
+    @Test
     fun aFirstRunScan_isMarkedFirstRun() = runTest(dispatcher) {
         val firstRun = viewModel(firstRun = true)
         firstRun.onEvent(CarValueEvent.ScanClicked)

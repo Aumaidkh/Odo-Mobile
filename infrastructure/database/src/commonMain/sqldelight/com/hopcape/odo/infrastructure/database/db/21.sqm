@@ -1,0 +1,2 @@
+-- The make's logo, as a Storage path the app turns into a URL. Null shows the monogram.
+ALTER TABLE vehicle_make ADD COLUMN logo_path TEXT;

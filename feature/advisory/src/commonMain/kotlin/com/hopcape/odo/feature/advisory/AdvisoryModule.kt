@@ -8,6 +8,7 @@ import com.hopcape.odo.feature.advisory.domain.checklist.ServiceChecklistReader
 import com.hopcape.odo.feature.advisory.navigation.AdvisoryFeatureEntryProvider
 import com.hopcape.odo.feature.advisory.presentation.AdvisoryTelemetry
 import com.hopcape.odo.feature.advisory.presentation.CarValueViewModel
+import com.hopcape.odo.feature.advisory.domain.LoadMakeLogoUseCase
 import com.hopcape.odo.feature.advisory.presentation.checklist.ChecklistViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
@@ -60,8 +61,11 @@ val advisoryModule = module {
             firstRun = firstRun,
             firstRunSteps = firstRunSteps,
             autoOdometerEnabled = get<FeatureConfig>().autoOdometerEnabled,
+            loadMakeLogo = get(),
         )
     }
+
+    factory { LoadMakeLogoUseCase(catalog = get(), assetUrls = get()) }
 
     viewModel { (entry: String) ->
         ChecklistViewModel(

@@ -192,7 +192,8 @@ fun OdoCarModelSheet(
     notListedVariantPlaceholder: String? = null,
     notListedConfirmLabel: String? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    // Fully open: a half-open sheet leaves its list running under the navigation bar.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     // Animate the sheet out before dropping it, so a selection doesn't make the
     // sheet vanish mid-gesture.

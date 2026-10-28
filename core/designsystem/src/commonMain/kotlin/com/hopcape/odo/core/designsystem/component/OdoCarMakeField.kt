@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
@@ -65,6 +68,8 @@ data class OdoCarMake(
     val name: String,
     val subtitle: String? = null,
     val monogram: String? = null,
+    /** The brand's logo image. Null, still loading, or failed shows the monogram instead. */
+    val logoUrl: String? = null,
 ) {
     /** The avatar letter — [monogram] if given, else [name]'s first character, uppercased. */
     val avatarText: String
@@ -223,7 +228,8 @@ fun OdoCarMakeSheet(
     notListedPlaceholder: String? = null,
     notListedConfirmLabel: String? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    // Fully open: a half-open sheet leaves its list running under the navigation bar.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     // Animate the sheet out before dropping it, so a selection doesn't make the
     // sheet vanish mid-gesture.
@@ -277,7 +283,7 @@ fun OdoCarMakeTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm),
         ) {
-            MakeAvatar(make = make, selected = false, size = CollapsedAvatarSize)
+            MakeAvatar(make = make, selected = false, size = OdoMakeLogoDefaults.Height, width = OdoMakeLogoDefaults.Width)
             OdoText(
                 text = make.name,
                 style = OdoTheme.typography.bodySmall,
@@ -622,24 +628,65 @@ private fun MakeRow(
 
 /** The rounded monogram tile at the head of a make row; fills with accent when chosen. */
 @Composable
-private fun MakeAvatar(make: OdoCarMake, selected: Boolean, size: Dp) {
+private fun MakeAvatar(make: OdoCarMake, selected: Boolean, size: Dp, width: Dp = size) =
+    OdoMakeLogo(make = make, width = width, height = size, selected = selected)
+
+/**
+ * A make's logo on a white plate, so brand colours read in both themes. Shows the
+ * monogram while the image loads, when it fails, or when the make has none.
+ */
+@Composable
+fun OdoMakeLogo(
+    make: OdoCarMake,
+    modifier: Modifier = Modifier,
+    width: Dp = OdoMakeLogoDefaults.Width,
+    height: Dp = OdoMakeLogoDefaults.Height,
+    selected: Boolean = false,
+) {
     val colors = OdoTheme.colors
+    var logoShown by remember(make.logoUrl) { mutableStateOf(false) }
+    val fill = when {
+        logoShown -> Color.White
+        selected -> colors.accent.copy(alpha = SelectedGlyphFill)
+        else -> colors.surface
+    }
     Box(
-        modifier = Modifier
-            .size(size)
+        modifier = modifier
+            .size(width = width, height = height)
             .clip(OdoTheme.shapes.small)
-            .background(if (selected) colors.accent.copy(alpha = SelectedGlyphFill) else colors.surface)
+            .background(fill)
             .border(1.dp, if (selected) colors.accent.copy(alpha = SelectedFill) else colors.border, OdoTheme.shapes.small),
         contentAlignment = Alignment.Center,
     ) {
-        OdoText(
-            text = make.avatarText,
-            style = OdoTheme.typography.heading,
-            color = if (selected) colors.accent else colors.textDim,
-            maxLines = 1,
-        )
+        if (make.logoUrl != null) {
+            AsyncImage(
+                model = make.logoUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                onSuccess = { logoShown = true },
+                onError = { logoShown = false },
+                modifier = Modifier.fillMaxSize().padding(height * LOGO_INSET_RATIO),
+            )
+        }
+        if (!logoShown) {
+            OdoText(
+                text = make.avatarText,
+                style = OdoTheme.typography.heading,
+                color = if (selected) colors.accent else colors.textDim,
+                maxLines = 1,
+            )
+        }
     }
 }
+
+/** Sizes for [OdoMakeLogo]: wide enough that a wordmark stays legible. */
+object OdoMakeLogoDefaults {
+    val Width: Dp = 72.dp
+    val Height: Dp = 40.dp
+}
+
+/** Padding inside the plate, as a share of its height. */
+private const val LOGO_INSET_RATIO = 0.14f
 
 /**
  * Emphasises the matched span of [name] against [query] — the matched characters render in

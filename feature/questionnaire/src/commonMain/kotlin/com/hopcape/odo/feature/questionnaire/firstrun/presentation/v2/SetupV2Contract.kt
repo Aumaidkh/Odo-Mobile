@@ -53,20 +53,33 @@ internal data class SetupV2Catalog(
 @Immutable
 internal data class SetupV2UiState(
     val make: String,
+    /** The make's logo; null shows its monogram. */
+    val makeLogoUrl: String? = null,
     val step: SetupV2Step = SetupV2Step.MODEL,
     val catalog: Loadable<SetupV2Catalog> = Loadable.Loading,
     val model: CarModel? = null,
     val year: Int? = null,
     val fuel: FuelType? = null,
     val saving: Boolean = false,
+    /** The full model list, opened from "Can't find your car?". */
+    val searchOpen: Boolean = false,
+    /** The year wheel behind "Older". */
+    val olderOpen: Boolean = false,
 ) {
     /** "Save my car" is live only with a year and a fuel, and never while a save runs. */
     val canSave: Boolean get() = model != null && year != null && fuel != null && !saving
 }
 
 internal sealed interface SetupV2Event {
-    data class ModelChosen(val model: CarModel) : SetupV2Event
-    data class YearChosen(val year: Int) : SetupV2Event
+    /** [fromSearch] is true when the model came from the full list rather than the grid. */
+    data class ModelChosen(val model: CarModel, val fromSearch: Boolean = false) : SetupV2Event
+    data object ModelSearchOpened : SetupV2Event
+    data object ModelSearchDismissed : SetupV2Event
+
+    /** [fromOlder] is true when the year came from the "Older" wheel. */
+    data class YearChosen(val year: Int, val fromOlder: Boolean = false) : SetupV2Event
+    data object OlderYearsOpened : SetupV2Event
+    data object OlderYearsDismissed : SetupV2Event
     data class FuelChosen(val fuel: FuelType) : SetupV2Event
     data object SaveClicked : SetupV2Event
     data object CatalogRetried : SetupV2Event

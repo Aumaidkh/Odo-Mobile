@@ -28,6 +28,17 @@ class VehicleCatalogImplTest {
     }
 
     @Test
+    fun makeLogoPaths_coverEverySeededMakeButPremier() = runTest {
+        val catalog = VehicleCatalogImpl(seededDb())
+
+        val logos = catalog.makeLogoPaths()
+
+        assertEquals("vehicle-logos/makes/make-hyundai.png", logos["Hyundai"])
+        assertEquals(catalog.makes().size - 1, logos.size)
+        assertTrue("Premier" !in logos)
+    }
+
+    @Test
     fun popularMakes_areAPrefixOfTheFullList() = runTest {
         val catalog = VehicleCatalogImpl(seededDb())
 
@@ -142,7 +153,7 @@ class VehicleCatalogImplTest {
         val db = seededDb()
         // A row an ordinary reseed would never insert — proof that a matching version
         // short-circuits before the delete-and-reinsert runs at all.
-        db.vehicleMakeQueries.insertMake(id = "sentinel", name = "Sentinel Motors", display_order = 999L)
+        db.vehicleMakeQueries.insertMake(id = "sentinel", name = "Sentinel Motors", display_order = 999L, logo_path = null)
 
         seedVehicleReferenceData(db)
 

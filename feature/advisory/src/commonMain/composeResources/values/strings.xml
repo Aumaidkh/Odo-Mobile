@@ -12,11 +12,12 @@
     <string name="adv_value_fr_today_label">TODAY, WITH NO RECORD</string>
     <string name="adv_value_fr_today_label_partial">TODAY, WITH YOUR RECORD</string>
     <string name="adv_value_fr_record_label">WITH A PROVEN SERVICE RECORD</string>
-    <string name="adv_value_fr_record_body">That is what buyers usually pay extra for a car with its history on paper. You have %1$s so far.</string>
-    <string name="adv_value_fr_bills_none">0 bills logged</string>
-    <string name="adv_value_fr_bills_one">1 bill logged</string>
-    <string name="adv_value_fr_bills_many">%1$d bills logged</string>
-    <string name="adv_value_fr_band_note">It is a band, not one number, because the estimate runs off the segment average. A single figure would claim a precision we don’t have.</string>
+    <string name="adv_value_fr_record_body">Buyers usually pay this much more for a car whose service history is on paper. %1$s</string>
+    <string name="adv_value_fr_bills_none">Your first bill starts it.</string>
+    <string name="adv_value_fr_bills_one">1 bill logged so far.</string>
+    <string name="adv_value_fr_bills_many">%1$d bills logged so far.</string>
+    <string name="adv_value_fr_band_note">It’s worked out from cars like yours, not this exact one, so it’s a range. Your bills narrow it.</string>
+    <string name="adv_value_fr_why">Why a range?</string>
     <string name="adv_value_fr_basis">Estimated · your bills will tighten this</string>
     <string name="adv_value_fr_scan">Scan a service bill</string>
     <string name="adv_value_fr_skip">Skip for now</string>

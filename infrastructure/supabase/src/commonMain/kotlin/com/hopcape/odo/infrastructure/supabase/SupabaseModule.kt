@@ -70,6 +70,8 @@ import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCityRemoteDataSo
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseEntitlementOverrideRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseCitySubmissionRemoteDataSource
 import com.hopcape.odo.infrastructure.supabase.adapters.SupabaseVehicleCatalogRemoteDataSource
+import com.hopcape.odo.infrastructure.supabase.adapters.SupabasePublicAssetUrls
+import com.hopcape.odo.core.domain.shared.PublicAssetUrls
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClient
 import com.hopcape.odo.infrastructure.supabase.http.supabaseHttpClientEngine
 import com.hopcape.odo.infrastructure.supabase.observability.SupabaseTelemetry
@@ -120,6 +122,9 @@ internal fun supabaseModule(environment: SupabaseEnvironment) = module {
     // with. Koin's later-wins override replaces only the second.
     single<LegalLinks>(named(LegalLinks.BUILT_IN)) { SupabaseLegalLinks(environment = get()) }
     single<LegalLinks> { get(named(LegalLinks.BUILT_IN)) }
+
+    // Also just the project URL, so it is bound whether or not the build is configured.
+    single<PublicAssetUrls> { SupabasePublicAssetUrls(environment = get()) }
 
     // The session itself lives in :feature:auth behind AccessTokenProvider. Only minting
     // one is a Supabase concern, and that is this:

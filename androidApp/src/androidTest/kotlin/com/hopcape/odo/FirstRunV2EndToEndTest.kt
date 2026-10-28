@@ -60,7 +60,7 @@ class FirstRunV2EndToEndTest {
         rule.pickMake("Hyundai")
         rule.waitForText(V2Copy.MODEL_TITLE)
 
-        rule.onNodeWithText("HYUNDAI").assertExists()
+        rule.onNodeWithText("Hyundai").assertExists()
         rule.onNodeWithText(Copy.CONTINUE).assertDoesNotExist()
     }
 
@@ -94,7 +94,7 @@ class FirstRunV2EndToEndTest {
             rule.waitForText(V2Copy.RESUME_TITLE, START_DESTINATION_TIMEOUT_MILLIS)
             rule.onNodeWithText(V2Copy.CONTINUE_SETUP).performClick()
             rule.waitForText(V2Copy.YEAR_FUEL_TITLE)
-            rule.onNodeWithText("HYUNDAI CRETA").assertExists()
+            rule.onNodeWithText("Hyundai Creta").assertExists()
         }
     }
 

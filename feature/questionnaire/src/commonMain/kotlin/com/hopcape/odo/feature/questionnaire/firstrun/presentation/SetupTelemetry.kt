@@ -78,7 +78,58 @@ internal class SetupTelemetry(
     fun stepBack(from: OnboardingStep) = stepBack(from.name)
 
     fun stepBack(step: String) {
+        analytics.track(Event.STEP_BACK, mapOf(Key.STEP to step))
         logger.debug(TAG, Event.STEP_BACK, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** A v2 step came on screen, including on the way back. [step] is a [Step] value. */
+    fun stepShown(step: String) {
+        analytics.track(Event.STEP_SHOWN, mapOf(Key.STEP to step))
+        logger.debug(TAG, Event.STEP_SHOWN, tc = flowTrace.toLog(), fields = mapOf(Key.STEP to step))
+    }
+
+    /** A model was picked. [source] is a [ModelSource] value. */
+    fun modelChosen(source: String) {
+        analytics.track(Event.MODEL_CHOSEN, mapOf(Key.SOURCE to source))
+        logger.info(TAG, Event.MODEL_CHOSEN, tc = flowTrace.toLog(), fields = mapOf(Key.SOURCE to source))
+    }
+
+    /** "Can't find your car?" opened the full model list. */
+    fun modelSearchOpened() {
+        analytics.track(Event.MODEL_SEARCH_OPENED)
+        logger.info(TAG, Event.MODEL_SEARCH_OPENED, tc = flowTrace.toLog())
+    }
+
+    /** The model list closed without a pick. */
+    fun modelSearchDismissed() {
+        analytics.track(Event.MODEL_SEARCH_DISMISSED)
+        logger.info(TAG, Event.MODEL_SEARCH_DISMISSED, tc = flowTrace.toLog())
+    }
+
+    /** "Change" on the Model step, back to the make grid. */
+    fun changeMakeClicked() {
+        analytics.track(Event.CHANGE_MAKE_CLICKED)
+        logger.info(TAG, Event.CHANGE_MAKE_CLICKED, tc = flowTrace.toLog())
+    }
+
+    /** "Older" opened the year wheel. */
+    fun olderYearsOpened() {
+        analytics.track(Event.YEAR_OLDER_OPENED)
+        logger.debug(TAG, Event.YEAR_OLDER_OPENED, tc = flowTrace.toLog())
+    }
+
+    /** A year was tapped. [source] is a [YearSource] value; [changed] means it replaced one. */
+    fun yearChosen(year: Int, source: String, changed: Boolean) {
+        val fields = mapOf(Key.YEAR to year, Key.SOURCE to source, Key.CHANGED to changed)
+        analytics.track(Event.YEAR_CHOSEN, fields)
+        logger.debug(TAG, Event.YEAR_CHOSEN, tc = flowTrace.toLog(), fields = fields)
+    }
+
+    /** A fuel was tapped; [changed] means it replaced one. */
+    fun fuelChosen(fuel: String, changed: Boolean) {
+        val fields = mapOf(Key.FUEL_TYPE to fuel, Key.CHANGED to changed)
+        analytics.track(Event.FUEL_CHOSEN, fields)
+        logger.debug(TAG, Event.FUEL_CHOSEN, tc = flowTrace.toLog(), fields = fields)
     }
 
     /** The v2 catalog read failed; the step shows a retry. */
@@ -328,6 +379,14 @@ internal class SetupTelemetry(
         const val STARTED = "onboarding_started"
         const val STEP_ADVANCED = "onboarding_step_advanced"
         const val STEP_BACK = "onboarding_step_back"
+        const val STEP_SHOWN = "onboarding_step_shown"
+        const val MODEL_CHOSEN = "onboarding_model_chosen"
+        const val MODEL_SEARCH_OPENED = "onboarding_model_search_opened"
+        const val MODEL_SEARCH_DISMISSED = "onboarding_model_search_dismissed"
+        const val CHANGE_MAKE_CLICKED = "onboarding_change_make_clicked"
+        const val YEAR_OLDER_OPENED = "onboarding_year_older_opened"
+        const val YEAR_CHOSEN = "onboarding_year_chosen"
+        const val FUEL_CHOSEN = "onboarding_fuel_chosen"
         const val ABANDONED = "onboarding_abandoned"
         const val FIELD_ANSWERED = "onboarding_field_answered"
         const val CATALOG_RETRIED = "onboarding_catalog_retried"
@@ -377,6 +436,8 @@ internal class SetupTelemetry(
         const val STOPPED_AT = "stopped_at"
         const val CATALOG = "catalog"
         const val RESUMED = "resumed"
+        const val YEAR = "year"
+        const val CHANGED = "changed"
     }
 
     /** The values [Key.FIELD] and [Key.STOPPED_AT] take. */
@@ -396,6 +457,21 @@ internal class SetupTelemetry(
     object Step {
         const val MODEL = "model"
         const val YEAR_FUEL = "year_fuel"
+    }
+
+    /** Where a model came from, as [Key.SOURCE] reports it. */
+    object ModelSource {
+        const val GRID = "grid"
+        const val SEARCH = "search"
+
+        /** Typed because the model was not listed. */
+        const val TYPED = "typed"
+    }
+
+    /** Where a year came from, as [Key.SOURCE] reports it. */
+    object YearSource {
+        const val CHIP = "chip"
+        const val OLDER = "older"
     }
 
     /** The values [Key.OUTCOME] takes, beyond a `DomainError`'s own type name. */

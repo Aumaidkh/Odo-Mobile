@@ -28,6 +28,12 @@ internal sealed interface CarValueEvent {
 
     /** "Turn on" on the first-run auto-odometer card. */
     data object TurnOnAutoOdometerClicked : CarValueEvent
+
+    /** The first-run auto-odometer card scrolled into view. */
+    data object AutoOdometerCardSeen : CarValueEvent
+
+    /** "Why a range?" opened or closed. */
+    data class WhyRangeToggled(val expanded: Boolean) : CarValueEvent
 }
 
 /**

@@ -12,6 +12,7 @@ import com.hopcape.odo.core.domain.setup.SetupDraftRepository
 import com.hopcape.odo.core.platform.notification.EngagementNudge
 import com.hopcape.odo.core.platform.notification.EngagementNudgeScheduler
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadCarModelsUseCase
+import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadMakeLogoUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.LoadVehicleCatalogUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.ReportUnlistedVehicleUseCase
 import com.hopcape.odo.feature.questionnaire.firstrun.domain.usecase.SaveCarCommand
@@ -31,6 +32,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -56,6 +59,7 @@ internal class SetupV2ViewModel(
     private val currentOwner: CurrentOwnerProvider,
     private val telemetry: SetupTelemetry,
     private val nudges: EngagementNudgeScheduler,
+    private val loadMakeLogo: LoadMakeLogoUseCase? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SetupV2UiState(make = make))
@@ -74,27 +78,35 @@ internal class SetupV2ViewModel(
         telemetry.started()
         // The make was the Welcome tap, the first answer of setup.
         fieldAnswered(SetupTelemetry.Field.MAKE)
-        if (resume) restoreDraft()
         load()
+        loadMakeLogo?.let { logo ->
+            viewModelScope.launch {
+                val url = logo(make) ?: return@launch
+                _state.update { it.copy(makeLogoUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            // Restored first, so a resume reports the step it opens on and not Model.
+            if (resume) restoreDraft()
+            _state.map { it.step }.distinctUntilChanged().collect { telemetry.stepShown(stepName(it)) }
+        }
     }
 
     /** Opens on the first unanswered step with the earlier answers selected. */
-    private fun restoreDraft() {
-        viewModelScope.launch {
-            val draft = drafts.observe().first() ?: return@launch
-            if (!draft.make.equals(_state.value.make, ignoreCase = true)) return@launch
-            val model = draft.modelName?.let { CarModel(it, draft.modelVariant) }
-            model?.let { answeredFields += SetupTelemetry.Field.MODEL }
-            draft.year?.let { answeredFields += SetupTelemetry.Field.YEAR }
-            draft.fuel?.let { answeredFields += SetupTelemetry.Field.FUEL }
-            _state.update {
-                it.copy(
-                    model = model,
-                    year = draft.year,
-                    fuel = draft.fuel,
-                    step = if (model == null) SetupV2Step.MODEL else SetupV2Step.YEAR_FUEL,
-                )
-            }
+    private suspend fun restoreDraft() {
+        val draft = drafts.observe().first() ?: return
+        if (!draft.make.equals(_state.value.make, ignoreCase = true)) return
+        val model = draft.modelName?.let { CarModel(it, draft.modelVariant) }
+        model?.let { answeredFields += SetupTelemetry.Field.MODEL }
+        draft.year?.let { answeredFields += SetupTelemetry.Field.YEAR }
+        draft.fuel?.let { answeredFields += SetupTelemetry.Field.FUEL }
+        _state.update {
+            it.copy(
+                model = model,
+                year = draft.year,
+                fuel = draft.fuel,
+                step = if (model == null) SetupV2Step.MODEL else SetupV2Step.YEAR_FUEL,
+            )
         }
     }
 
@@ -115,14 +127,36 @@ internal class SetupV2ViewModel(
 
     fun onEvent(event: SetupV2Event) {
         when (event) {
-            is SetupV2Event.ModelChosen -> chooseModel(event.model)
+            is SetupV2Event.ModelChosen -> chooseModel(event.model, event.fromSearch)
+            SetupV2Event.ModelSearchOpened -> {
+                telemetry.modelSearchOpened()
+                _state.update { it.copy(searchOpen = true) }
+            }
+            SetupV2Event.ModelSearchDismissed -> {
+                // The sheet also reports a close after a pick, when it is already shut.
+                if (_state.value.searchOpen) telemetry.modelSearchDismissed()
+                _state.update { it.copy(searchOpen = false) }
+            }
             is SetupV2Event.YearChosen -> {
+                val previous = _state.value.year
                 fieldAnswered(SetupTelemetry.Field.YEAR)
-                _state.update { it.copy(year = event.year) }
+                telemetry.yearChosen(
+                    year = event.year,
+                    source = if (event.fromOlder) SetupTelemetry.YearSource.OLDER else SetupTelemetry.YearSource.CHIP,
+                    changed = previous != null && previous != event.year,
+                )
+                _state.update { it.copy(year = event.year, olderOpen = false) }
                 saveDraft()
             }
+            SetupV2Event.OlderYearsOpened -> {
+                telemetry.olderYearsOpened()
+                _state.update { it.copy(olderOpen = true) }
+            }
+            SetupV2Event.OlderYearsDismissed -> _state.update { it.copy(olderOpen = false) }
             is SetupV2Event.FuelChosen -> {
+                val previous = _state.value.fuel
                 fieldAnswered(SetupTelemetry.Field.FUEL)
+                telemetry.fuelChosen(event.fuel.name, changed = previous != null && previous != event.fuel)
                 _state.update { it.copy(fuel = event.fuel) }
                 saveDraft()
             }
@@ -131,7 +165,10 @@ internal class SetupV2ViewModel(
                 telemetry.catalogRetried()
                 load()
             }
-            SetupV2Event.ChangeMakeClicked -> leave()
+            SetupV2Event.ChangeMakeClicked -> {
+                telemetry.changeMakeClicked()
+                leave()
+            }
             SetupV2Event.BackClicked -> when (_state.value.step) {
                 SetupV2Step.MODEL -> leave()
                 SetupV2Step.YEAR_FUEL -> {
@@ -143,10 +180,18 @@ internal class SetupV2ViewModel(
     }
 
     /** A model tap is the answer and the advance: there is no Continue button. */
-    private fun chooseModel(model: CarModel) {
+    private fun chooseModel(model: CarModel, fromSearch: Boolean) {
+        val listed = _state.value.catalog.valueOrNull?.models.orEmpty().contains(model)
         fieldAnswered(SetupTelemetry.Field.MODEL)
+        telemetry.modelChosen(
+            when {
+                !fromSearch -> SetupTelemetry.ModelSource.GRID
+                listed -> SetupTelemetry.ModelSource.SEARCH
+                else -> SetupTelemetry.ModelSource.TYPED
+            },
+        )
         telemetry.stepAdvanced(SetupTelemetry.Step.MODEL)
-        _state.update { it.copy(model = model, step = SetupV2Step.YEAR_FUEL) }
+        _state.update { it.copy(model = model, step = SetupV2Step.YEAR_FUEL, searchOpen = false) }
         saveDraft()
     }
 

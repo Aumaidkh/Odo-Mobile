@@ -4,12 +4,19 @@
 CREATE TABLE vehicle_make (
     id            TEXT NOT NULL PRIMARY KEY,
     name          TEXT NOT NULL UNIQUE,
-    display_order INTEGER NOT NULL
+    display_order INTEGER NOT NULL,
+    -- A Storage path such as `vehicle-logos/makes/make-kia.png`; null shows the monogram.
+    logo_path     TEXT
 );
 
 insertMake:
-INSERT OR IGNORE INTO vehicle_make (id, name, display_order)
-VALUES (?, ?, ?);
+INSERT OR IGNORE INTO vehicle_make (id, name, display_order, logo_path)
+VALUES (?, ?, ?, ?);
+
+selectMakeLogos:
+SELECT name, logo_path
+FROM vehicle_make
+WHERE logo_path IS NOT NULL;
 
 selectAllMakes:
 SELECT name

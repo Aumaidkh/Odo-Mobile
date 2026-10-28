@@ -119,7 +119,38 @@ class MakeWelcomeViewModelTest {
             ),
             analytics.events.map { it.first },
         )
+        // Lexus is not in the catalog, so it was typed.
+        assertEquals("other_typed", analytics.events.last().second[OnboardingTelemetry.Key.MAKE_SOURCE])
+    }
+
+    @Test
+    fun other_aListedPick_isCountedAsOther() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(MakeWelcomeEvent.OtherTapped)
+        viewModel.onEvent(MakeWelcomeEvent.OtherPicked("skoda"))
+        advanceUntilIdle()
+
         assertEquals("other", analytics.events.last().second[OnboardingTelemetry.Key.MAKE_SOURCE])
+    }
+
+    @Test
+    fun other_closedWithoutAPick_isCountedOnce_andNotAfterAPick() = runTest(dispatcher) {
+        val analytics = RecordingAnalytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(MakeWelcomeEvent.OtherTapped)
+        viewModel.onEvent(MakeWelcomeEvent.OtherDismissed)
+        viewModel.onEvent(MakeWelcomeEvent.OtherTapped)
+        viewModel.onEvent(MakeWelcomeEvent.OtherPicked("Skoda"))
+        // The sheet reports a close after the pick as well.
+        viewModel.onEvent(MakeWelcomeEvent.OtherDismissed)
+        advanceUntilIdle()
+
+        assertEquals(1, analytics.events.count { it.first == OnboardingTelemetry.Event.MAKE_OTHER_DISMISSED })
     }
 
     @Test

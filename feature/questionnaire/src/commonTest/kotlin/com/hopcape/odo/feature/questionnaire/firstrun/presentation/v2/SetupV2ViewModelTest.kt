@@ -194,6 +194,97 @@ class SetupV2ViewModelTest {
     }
 
     @Test
+    fun eachStepIsReportedAsShown_includingOnTheWayBack() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.ModelChosen(CarModel("Creta")))
+        advanceUntilIdle()
+        viewModel.onEvent(SetupV2Event.BackClicked)
+        advanceUntilIdle()
+
+        assertEquals(listOf("model", "year_fuel", "model"), analytics.shownSteps())
+    }
+
+    @Test
+    fun aResume_reportsOnlyTheStepItOpensOn() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        viewModel(resume = true, drafts = V2Drafts(draft(model = "Creta")), analytics = analytics)
+        advanceUntilIdle()
+
+        assertEquals(listOf("year_fuel"), analytics.shownSteps())
+    }
+
+    @Test
+    fun aModelPick_saysWhereItCameFrom() = runTest(dispatcher) {
+        fun sourceOf(event: SetupV2Event): Any? {
+            val analytics = V2Analytics()
+            val viewModel = viewModel(analytics = analytics)
+            advanceUntilIdle()
+            viewModel.onEvent(event)
+            return analytics.events.last { it.first == SetupTelemetry.Event.MODEL_CHOSEN }.second[SetupTelemetry.Key.SOURCE]
+        }
+
+        assertEquals("grid", sourceOf(SetupV2Event.ModelChosen(CarModel("Creta"))))
+        assertEquals("search", sourceOf(SetupV2Event.ModelChosen(CarModel("Creta", "SX"), fromSearch = true)))
+        assertEquals("typed", sourceOf(SetupV2Event.ModelChosen(CarModel("Stargazer"), fromSearch = true)))
+    }
+
+    @Test
+    fun theModelList_countsAClose_butNotTheCloseAfterAPick() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.ModelSearchOpened)
+        viewModel.onEvent(SetupV2Event.ModelSearchDismissed)
+        viewModel.onEvent(SetupV2Event.ModelSearchOpened)
+        viewModel.onEvent(SetupV2Event.ModelChosen(CarModel("Creta", "SX"), fromSearch = true))
+        viewModel.onEvent(SetupV2Event.ModelSearchDismissed)
+
+        assertEquals(2, analytics.events.count { it.first == SetupTelemetry.Event.MODEL_SEARCH_OPENED })
+        assertEquals(1, analytics.events.count { it.first == SetupTelemetry.Event.MODEL_SEARCH_DISMISSED })
+        assertFalse(viewModel.state.value.searchOpen)
+    }
+
+    @Test
+    fun yearAndFuel_reportTheirSource_andAChangedAnswer() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+        viewModel.onEvent(SetupV2Event.ModelChosen(CarModel("Creta")))
+
+        viewModel.onEvent(SetupV2Event.YearChosen(2022))
+        viewModel.onEvent(SetupV2Event.OlderYearsOpened)
+        viewModel.onEvent(SetupV2Event.YearChosen(2012, fromOlder = true))
+        viewModel.onEvent(SetupV2Event.FuelChosen(FuelType.PETROL))
+        viewModel.onEvent(SetupV2Event.FuelChosen(FuelType.DIESEL))
+
+        val years = analytics.events.filter { it.first == SetupTelemetry.Event.YEAR_CHOSEN }.map { it.second }
+        assertEquals(listOf("chip", "older"), years.map { it[SetupTelemetry.Key.SOURCE] })
+        assertEquals(listOf(false, true), years.map { it[SetupTelemetry.Key.CHANGED] })
+        val fuels = analytics.events.filter { it.first == SetupTelemetry.Event.FUEL_CHOSEN }.map { it.second }
+        assertEquals(listOf(false, true), fuels.map { it[SetupTelemetry.Key.CHANGED] })
+        assertTrue(SetupTelemetry.Event.YEAR_OLDER_OPENED in analytics.names)
+        assertFalse(viewModel.state.value.olderOpen)
+    }
+
+    @Test
+    fun changeMake_isReported() = runTest(dispatcher) {
+        val analytics = V2Analytics()
+        val viewModel = viewModel(analytics = analytics)
+        advanceUntilIdle()
+
+        viewModel.onEvent(SetupV2Event.ChangeMakeClicked)
+
+        assertTrue(SetupTelemetry.Event.CHANGE_MAKE_CLICKED in analytics.names)
+    }
+
+    private fun V2Analytics.shownSteps(): List<Any?> =
+        events.filter { it.first == SetupTelemetry.Event.STEP_SHOWN }.map { it.second[SetupTelemetry.Key.STEP] }
+
+    @Test
     fun aFailedCatalogRead_offersARetry() = runTest(dispatcher) {
         val catalog = V2Catalog(failing = true)
         val viewModel = viewModel(catalog = catalog)

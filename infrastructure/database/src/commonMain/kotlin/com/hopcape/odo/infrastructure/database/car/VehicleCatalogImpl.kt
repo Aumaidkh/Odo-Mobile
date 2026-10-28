@@ -21,6 +21,11 @@ internal class VehicleCatalogImpl(
     override suspend fun popularMakes(limit: Int): List<String> =
         database.vehicleMakeQueries.selectPopularMakes(limit.toLong()).executeAsList()
 
+    override suspend fun makeLogoPaths(): Map<String, String> =
+        database.vehicleMakeQueries.selectMakeLogos().executeAsList()
+            .mapNotNull { row -> row.logo_path?.let { row.name to it } }
+            .toMap()
+
     override suspend fun models(make: String): List<CarModel> =
         database.vehicleModelQueries
             .selectModelsByMakeName(make)

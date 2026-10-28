@@ -3,6 +3,7 @@ package com.hopcape.odo.feature.advisory.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hopcape.odo.feature.advisory.domain.CarValued
+import com.hopcape.odo.feature.advisory.domain.LoadMakeLogoUseCase
 import com.hopcape.odo.feature.advisory.domain.CityTier
 import com.hopcape.odo.feature.advisory.domain.ObserveCarValueUseCase
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +32,7 @@ internal class CarValueViewModel(
     firstRun: Boolean = false,
     firstRunSteps: Int = 4,
     autoOdometerEnabled: Boolean = false,
+    private val loadMakeLogo: LoadMakeLogoUseCase? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -48,9 +50,15 @@ internal class CarValueViewModel(
     /** Whether the screen has already reported itself as shown. */
     private var reported = false
 
+    /** The make whose logo was last looked up. */
+    private var logoMake: String? = null
+
     init {
         observe()
     }
+
+    /** The card's first appearance is counted once per screen. */
+    private var autoOdoCardSeen = false
 
     fun onEvent(event: CarValueEvent) = when (event) {
         CarValueEvent.ScanClicked -> {
@@ -80,6 +88,13 @@ internal class CarValueViewModel(
             emit(CarValueEffect.OpenAutoOdometer)
         }
 
+        CarValueEvent.AutoOdometerCardSeen -> {
+            if (!autoOdoCardSeen) telemetry.autoOdoCardSeen()
+            autoOdoCardSeen = true
+        }
+
+        is CarValueEvent.WhyRangeToggled -> telemetry.whyRangeToggled(event.expanded)
+
         CarValueEvent.SkipClicked -> {
             telemetry.firstRunSkipped(viaBack = false)
             emit(CarValueEffect.FinishFirstRun)
@@ -97,7 +112,19 @@ internal class CarValueViewModel(
                     )
                 }
                 report(snapshot.valued)
+                snapshot.valued?.car?.make?.let(::resolveLogo)
             }
+        }
+    }
+
+    /** Looks the logo up once per make, since the estimate re-emits on every log change. */
+    private fun resolveLogo(make: String) {
+        if (make == logoMake) return
+        logoMake = make
+        val load = loadMakeLogo ?: return
+        viewModelScope.launch {
+            val url = load(make)
+            _state.update { it.copy(makeLogoUrl = url) }
         }
     }
 

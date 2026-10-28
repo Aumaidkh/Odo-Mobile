@@ -23,6 +23,12 @@ interface VehicleCatalog {
      */
     suspend fun popularMakes(limit: Int): List<String>
 
+    /**
+     * Logo locations by make name, as Storage paths. Makes without a logo are absent.
+     * Defaulted so catalogs that have no logos need not implement it.
+     */
+    suspend fun makeLogoPaths(): Map<String, String> = emptyMap()
+
     /** Selectable models (with trims) for [make], in display order; empty if the make is unknown. */
     suspend fun models(make: String): List<CarModel>
 

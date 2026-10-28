@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
@@ -98,7 +99,7 @@ class FirstRunExitsEndToEndTest {
     fun turnOnAutoOdometer_thenBack_landsOnHome() {
         reachTheValueScreen()
 
-        rule.onNodeWithText(V2Copy.TURN_ON).performClick()
+        rule.onNodeWithText(V2Copy.TURN_ON).performScrollTo().performClick()
         rule.waitUntilGone(Copy.VALUE_SKIP)
         Espresso.pressBack()
 

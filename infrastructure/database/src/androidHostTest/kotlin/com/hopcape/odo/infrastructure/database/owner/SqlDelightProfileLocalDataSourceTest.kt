@@ -319,6 +319,19 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
+        // The make reference table is in every real install, and 21.sqm adds a column to it.
+        driver.execute(
+            identifier = null,
+            sql = """
+                CREATE TABLE vehicle_make (
+                    id            TEXT NOT NULL PRIMARY KEY,
+                    name          TEXT NOT NULL UNIQUE,
+                    display_order INTEGER NOT NULL
+                )
+            """.trimIndent(),
+            parameters = 0,
+        )
+
         // All the way to current, not just to 6. The generated queries select every column
         // the schema has, so stopping at the migration under test leaves them asking for
         // columns a later one adds — which is a failure about the newest column rather

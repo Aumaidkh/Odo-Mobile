@@ -50,7 +50,7 @@ internal class MakeWelcomeViewModel(
         viewModelScope.launch {
             // The catalog is bundled, so a failed read only leaves the grid with "Other".
             val choices = telemetry.makesLoad { loadMakes() }
-            if (choices != null) _state.update { it.copy(tiles = choices.tiles, allMakes = choices.all) }
+            if (choices != null) _state.update { it.copy(tiles = choices.tiles, allMakes = choices.all, logos = choices.logos) }
         }
     }
 
@@ -61,10 +61,18 @@ internal class MakeWelcomeViewModel(
                 telemetry.makeOtherOpened()
                 _state.update { it.copy(otherOpen = true) }
             }
-            MakeWelcomeEvent.OtherDismissed -> _state.update { it.copy(otherOpen = false) }
-            is MakeWelcomeEvent.OtherPicked -> {
+            MakeWelcomeEvent.OtherDismissed -> {
+                // The sheet also reports a close after a pick, when it is already shut.
+                if (_state.value.otherOpen) telemetry.makeOtherDismissed()
                 _state.update { it.copy(otherOpen = false) }
-                chooseMake(event.make, OnboardingTelemetry.MakeSource.OTHER)
+            }
+            is MakeWelcomeEvent.OtherPicked -> {
+                val listed = _state.value.allMakes.any { it.equals(event.make.trim(), ignoreCase = true) }
+                _state.update { it.copy(otherOpen = false) }
+                chooseMake(
+                    event.make,
+                    if (listed) OnboardingTelemetry.MakeSource.OTHER else OnboardingTelemetry.MakeSource.OTHER_TYPED,
+                )
             }
             MakeWelcomeEvent.ContinueSetupClicked -> {
                 val resumed = draft ?: return

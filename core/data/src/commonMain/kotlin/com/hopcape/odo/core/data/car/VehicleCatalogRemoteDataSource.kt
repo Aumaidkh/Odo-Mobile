@@ -40,6 +40,8 @@ data class VehicleMakeDto(
     @SerialName("id") val id: String,
     @SerialName("name") val name: String,
     @SerialName("display_order") val displayOrder: Long,
+    /** A Storage path to the make's logo. Defaulted, so a server without the column still parses. */
+    @SerialName("logo_path") val logoPath: String? = null,
 )
 
 /** The wire shape of one row of `vehicle_models` — snake_case to match the Postgres columns. */

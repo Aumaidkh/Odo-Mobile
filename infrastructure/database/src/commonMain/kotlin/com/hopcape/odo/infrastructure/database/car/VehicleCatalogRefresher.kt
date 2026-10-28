@@ -55,6 +55,7 @@ internal class VehicleCatalogRefresher(
                                 id = make.id,
                                 name = make.name,
                                 display_order = make.displayOrder,
+                                logo_path = make.logoPath,
                             )
                         }
                         models.forEach { model ->

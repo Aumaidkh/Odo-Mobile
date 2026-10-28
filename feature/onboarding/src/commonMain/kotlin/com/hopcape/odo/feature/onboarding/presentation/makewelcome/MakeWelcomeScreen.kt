@@ -34,6 +34,7 @@ import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
 import com.hopcape.odo.core.designsystem.component.OdoCarMake
 import com.hopcape.odo.core.designsystem.component.OdoCarMakeSheet
 import com.hopcape.odo.core.designsystem.component.OdoCarMakeTile
+import com.hopcape.odo.core.designsystem.component.OdoEntrance
 import com.hopcape.odo.core.designsystem.component.OdoText
 import com.hopcape.odo.core.designsystem.preview.OdoPreview
 import com.hopcape.odo.core.designsystem.preview.OdoThemePreviews
@@ -91,64 +92,74 @@ internal fun MakeWelcomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = OdoTheme.spacing.screenEdge),
+                .navigationBarsPadding(),
         ) {
-            Spacer(Modifier.height(OdoTheme.spacing.xl))
-            Entrance(0, visible) { OdometerMark() }
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
-            val resume = state.resume
-            Entrance(1, visible) {
-                Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                    OdoText(
-                        text = when {
-                            resume == null -> state.title ?: stringResource(Res.string.onb_welcome_title)
-                            resume.model == null -> stringResource(Res.string.onb_resume_title_make, resume.make)
-                            else -> stringResource(Res.string.onb_resume_title_model, resume.make, resume.model)
-                        },
-                        style = OdoTheme.typography.display.copy(fontSize = 28.sp, lineHeight = 34.sp),
-                        color = OdoTheme.colors.text,
-                    )
-                    OdoText(
-                        text = stringResource(
-                            if (resume == null) Res.string.onb_welcome_subtitle else Res.string.onb_resume_body,
-                        ),
-                        style = OdoTheme.typography.body,
-                        color = OdoTheme.colors.textDim,
-                    )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = OdoTheme.spacing.screenEdge),
+            ) {
+                Spacer(Modifier.height(OdoTheme.spacing.xl))
+                Entrance(0, visible) { OdometerMark() }
+                Spacer(Modifier.height(OdoTheme.spacing.lg))
+                val resume = state.resume
+                Entrance(1, visible) {
+                    Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                        OdoText(
+                            text = when {
+                                resume == null -> state.title ?: stringResource(Res.string.onb_welcome_title)
+                                resume.model == null -> stringResource(Res.string.onb_resume_title_make, resume.make)
+                                else -> stringResource(Res.string.onb_resume_title_model, resume.make, resume.model)
+                            },
+                            style = OdoTheme.typography.display.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                            color = OdoTheme.colors.text,
+                        )
+                        OdoText(
+                            text = stringResource(
+                                if (resume == null) Res.string.onb_welcome_subtitle else Res.string.onb_resume_body,
+                            ),
+                            style = OdoTheme.typography.body,
+                            color = OdoTheme.colors.textDim,
+                        )
+                    }
                 }
-            }
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
-            when {
-                // Nothing until the draft is read, so the grid never flashes before S1r.
-                !state.ready -> Unit
-                resume != null -> Entrance(2, visible) { ResumeActions(onEvent) }
-                else -> Entrance(2, visible) { MakeGrid(tiles = state.tiles, onEvent = onEvent) }
-            }
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
-            Entrance(3, visible) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
+                Spacer(Modifier.height(OdoTheme.spacing.lg))
+                when {
+                    // Nothing until the draft is read, so the grid never flashes before S1r.
+                    !state.ready -> Unit
+                    resume != null -> Entrance(2, visible) { ResumeActions(onEvent) }
+                    else -> Entrance(2, visible) { MakeGrid(tiles = state.tiles, logos = state.logos, onEvent = onEvent) }
+                }
+                Spacer(Modifier.height(OdoTheme.spacing.lg))
+                Entrance(3, visible) {
                     OdoButton(
                         text = stringResource(Res.string.onb_welcome_sign_in),
                         onClick = { onEvent(MakeWelcomeEvent.SignInClicked) },
                         variant = OdoButtonVariant.Tertiary,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                Spacer(Modifier.height(OdoTheme.spacing.lg))
+            }
+            // Pinned to the bottom edge, below the scrolling content.
+            Entrance(4, visible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
+                    contentAlignment = Alignment.Center,
+                ) {
                     LegalFooter(
                         onTerms = { onEvent(MakeWelcomeEvent.TermsClicked) },
                         onPrivacy = { onEvent(MakeWelcomeEvent.PrivacyClicked) },
                     )
                 }
             }
-            Spacer(Modifier.height(OdoTheme.spacing.lg))
         }
     }
 
-    if (state.otherOpen) OtherMakeSheet(allMakes = state.allMakes, popular = state.tiles, onEvent = onEvent)
+    if (state.otherOpen) OtherMakeSheet(allMakes = state.allMakes, popular = state.tiles, logos = state.logos, onEvent = onEvent)
 }
 
 /** S1r: carry on with the draft, or drop it for the grid. */
@@ -171,41 +182,48 @@ private fun ResumeActions(onEvent: (MakeWelcomeEvent) -> Unit) {
 
 /** The tiles in catalog order, then "Other". */
 @Composable
-private fun MakeGrid(tiles: List<String>, onEvent: (MakeWelcomeEvent) -> Unit) {
+private fun MakeGrid(tiles: List<String>, logos: Map<String, String>, onEvent: (MakeWelcomeEvent) -> Unit) {
     val columns = if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) 2 else 3
     val other = OdoCarMake(id = OTHER_ID, name = stringResource(Res.string.onb_welcome_make_other), monogram = "+")
-    val cells = tiles.map { OdoCarMake(id = it, name = it) } + other
+    val cells = tiles.map { OdoCarMake(id = it, name = it, logoUrl = logos[it]) } + other
     Column(verticalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-        cells.chunked(columns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
-                row.forEach { make ->
-                    OdoCarMakeTile(
-                        make = make,
-                        onClick = {
-                            onEvent(
-                                if (make.id == OTHER_ID) MakeWelcomeEvent.OtherTapped
-                                else MakeWelcomeEvent.MakeTapped(make.name),
-                            )
-                        },
-                        modifier = Modifier.weight(1f).testTag(MakeWelcomeTestTags.tile(make.id)),
-                    )
+        cells.chunked(columns).forEachIndexed { rowIndex, row ->
+            OdoEntrance(rowIndex) {
+                Row(horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.sm)) {
+                    row.forEach { make ->
+                        OdoCarMakeTile(
+                            make = make,
+                            onClick = {
+                                onEvent(
+                                    if (make.id == OTHER_ID) MakeWelcomeEvent.OtherTapped
+                                    else MakeWelcomeEvent.MakeTapped(make.name),
+                                )
+                            },
+                            modifier = Modifier.weight(1f).testTag(MakeWelcomeTestTags.tile(make.id)),
+                        )
+                    }
+                    // Keeps a short last row's tiles the same width as the rows above.
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                // Keeps a short last row's tiles the same width as the rows above.
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
 }
 
 @Composable
-private fun OtherMakeSheet(allMakes: List<String>, popular: List<String>, onEvent: (MakeWelcomeEvent) -> Unit) {
-    val makes = allMakes.map { OdoCarMake(id = it, name = it) }
+private fun OtherMakeSheet(
+    allMakes: List<String>,
+    popular: List<String>,
+    logos: Map<String, String>,
+    onEvent: (MakeWelcomeEvent) -> Unit,
+) {
+    val makes = allMakes.map { OdoCarMake(id = it, name = it, logoUrl = logos[it]) }
     // A template rather than a resolved string: the count is only known inside the sheet.
     val matches = stringResource(Res.string.onb_welcome_make_matches)
     OdoCarMakeSheet(
         onDismissRequest = { onEvent(MakeWelcomeEvent.OtherDismissed) },
         makes = makes,
-        popular = popular.map { OdoCarMake(id = it, name = it) },
+        popular = popular.map { OdoCarMake(id = it, name = it, logoUrl = logos[it]) },
         onSelect = { onEvent(MakeWelcomeEvent.OtherPicked(it.name)) },
         title = stringResource(Res.string.onb_welcome_make_sheet_title),
         subtitle = stringResource(Res.string.onb_welcome_make_sheet_subtitle, makes.size),

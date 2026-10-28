@@ -35,11 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hopcape.odo.core.designsystem.component.OdoButton
 import com.hopcape.odo.core.designsystem.component.OdoButtonVariant
-import com.hopcape.odo.core.designsystem.component.OdoCircularIconButton
 import com.hopcape.odo.core.designsystem.component.OdoIcon
-import com.hopcape.odo.core.designsystem.component.OdoSegmentedProgress
+import com.hopcape.odo.core.designsystem.component.OdoStepHeader
 import com.hopcape.odo.core.designsystem.component.OdoText
-import com.hopcape.odo.core.designsystem.icons.IcArrowLeft
 import com.hopcape.odo.core.designsystem.modifier.accentGlow
 import com.hopcape.odo.core.designsystem.theme.OdoTheme
 import com.hopcape.odo.feature.questionnaire.firstrun.presentation.state.OnboardingStep
@@ -155,41 +153,28 @@ private fun StepHeader(
     skipLabel: String?,
     onSkip: (() -> Unit)?,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = OdoTheme.spacing.screenEdge, vertical = OdoTheme.spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(OdoTheme.spacing.md),
-    ) {
-        if (onBack != null) {
-            OdoCircularIconButton(
-                IcArrowLeft,
-                contentDescription = stringResource(Res.string.onb_cd_back),
-                onClick = onBack,
-                // Onboarding's chrome sits on a bare screen, so the disc is the full
-                // touch-target size rather than the 40dp default.
-                size = OdoTheme.spacing.minTouchTarget,
-            )
-        }
-        OdoSegmentedProgress(
-            current = step,
-            total = totalSteps,
-            modifier = Modifier.weight(1f),
-            contentDescription = stringResource(Res.string.onb_step_counter, step, totalSteps),
-        )
-        if (skipLabel != null && onSkip != null) {
-            OdoText(
-                text = skipLabel,
-                style = OdoTheme.typography.heading.copy(fontSize = 16.sp),
-                color = OdoTheme.colors.text,
-                modifier = Modifier
-                    .clip(OdoTheme.shapes.pill)
-                    .clickable(role = Role.Button, onClick = onSkip)
-                    .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
-            )
-        }
-    }
+    OdoStepHeader(
+        current = step,
+        total = totalSteps,
+        onBack = onBack,
+        backContentDescription = stringResource(Res.string.onb_cd_back),
+        progressContentDescription = stringResource(Res.string.onb_step_counter, step, totalSteps),
+        trailing = if (skipLabel != null && onSkip != null) {
+            {
+                OdoText(
+                    text = skipLabel,
+                    style = OdoTheme.typography.heading.copy(fontSize = 16.sp),
+                    color = OdoTheme.colors.text,
+                    modifier = Modifier
+                        .clip(OdoTheme.shapes.pill)
+                        .clickable(role = Role.Button, onClick = onSkip)
+                        .padding(horizontal = OdoTheme.spacing.sm, vertical = OdoTheme.spacing.xs),
+                )
+            }
+        } else {
+            null
+        },
+    )
 }
 
 /**

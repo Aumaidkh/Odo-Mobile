@@ -12,6 +12,8 @@ internal data class MakeWelcomeUiState(
     val title: String? = null,
     val tiles: List<String> = emptyList(),
     val allMakes: List<String> = emptyList(),
+    /** Logo URL by make name; a make without one shows its monogram. */
+    val logos: Map<String, String> = emptyMap(),
     val otherOpen: Boolean = false,
     /** An unfinished setup to offer, which replaces the grid (S1r). Null shows the grid. */
     val resume: ResumeDraft? = null,
