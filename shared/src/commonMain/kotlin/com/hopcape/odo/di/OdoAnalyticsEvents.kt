@@ -21,6 +21,7 @@ import com.hopcape.odo.feature.profile.profileAnalyticsEvents
 import com.hopcape.odo.feature.refuel.refuelAnalyticsEvents
 import com.hopcape.odo.feature.reminders.remindersAnalyticsEvents
 import com.hopcape.odo.feature.servicelog.serviceLogAnalyticsEvents
+import com.hopcape.odo.core.platform.notification.nudgeAnalyticsEvents
 import com.hopcape.odo.core.sync.observability.syncAnalyticsEvents
 import com.hopcape.odo.core.triptracker.observability.tripTrackerAnalyticsEvents
 import com.hopcape.odo.feature.auth.authAnalyticsEvents
@@ -50,4 +51,4 @@ val odoAnalyticsEvents: List<EventSchema> =
         autoOdometerAnalyticsEvents + appStatusAnalyticsEvents + refuelAnalyticsEvents +
         showcaseAnalyticsEvents + challanAnalyticsEvents + advisoryAnalyticsEvents +
         billCheckAnalyticsEvents +
-        paywallAnalyticsEvents + supabaseAnalyticsEvents + appAnalyticsEvents
+        paywallAnalyticsEvents + supabaseAnalyticsEvents + appAnalyticsEvents + nudgeAnalyticsEvents
