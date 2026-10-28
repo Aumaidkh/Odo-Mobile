@@ -43,6 +43,7 @@ import com.hopcape.odo.infrastructure.firebase.crashlytics.FirebaseCrashlyticsSi
 import com.hopcape.odo.infrastructure.firebase.performance.FirebasePerformanceSink
 import com.hopcape.odo.di.initKoin
 import com.hopcape.odo.di.odoAnalyticsEvents
+import com.hopcape.odo.splash.SplashNightMode
 import com.hopcape.performance.api.APM
 import com.hopcape.performance.api.PerformanceConfig
 import com.hopcape.performance.api.Span
@@ -174,6 +175,7 @@ class OdoApplication : Application(), Configuration.Provider {
         KoinPlatform.getKoin().get<LogUploadRunner>().setAutoUploadConsent(granted = BuildConfig.DEBUG)
 
         applyAnalyticsConsent()
+        applySplashNightMode()
 
         armTripTracking()
 
@@ -288,6 +290,16 @@ class OdoApplication : Application(), Configuration.Provider {
     private fun armTripTracking() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             KoinPlatform.getKoin().get<TripTracker>().armFromPersistedState()
+        }
+    }
+
+    /** Keeps the system splash in the palette the owner picked, from the next launch on. */
+    private fun applySplashNightMode() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            KoinPlatform.getKoin().get<AppSettingsRepository>().observe()
+                .map { it.theme }
+                .distinctUntilChanged()
+                .collect { SplashNightMode.apply(this@OdoApplication, it) }
         }
     }
 
