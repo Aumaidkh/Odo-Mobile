@@ -72,6 +72,7 @@ internal class NotificationsViewModel(
             is NotificationsEvent.CustomRemindersToggled -> current.copy(customReminders = event.enabled)
             is NotificationsEvent.OverchargeAlertsToggled -> current.copy(overchargeAlerts = event.enabled)
             is NotificationsEvent.MonthlySummaryToggled -> current.copy(monthlySummary = event.enabled)
+            is NotificationsEvent.DriveSummaryToggled -> current.copy(driveSummary = event.enabled)
             is NotificationsEvent.HealthScoreDropsToggled -> current.copy(healthScoreDrops = event.enabled)
             is NotificationsEvent.PushToggled -> current.copy(push = event.enabled)
             // Handled in onEvent; a schedule change is not a topic.

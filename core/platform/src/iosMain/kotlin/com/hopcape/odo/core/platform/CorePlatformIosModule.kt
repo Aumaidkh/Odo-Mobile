@@ -1,6 +1,7 @@
 package com.hopcape.odo.core.platform
 
 import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
 import com.hopcape.odo.core.platform.app.AppInfo
 import com.hopcape.odo.core.platform.app.DefaultsInstallationId
 import com.hopcape.odo.core.platform.app.DeviceInfo
@@ -87,6 +88,7 @@ val corePlatformIosModule = module {
     // shows every expiry, so nothing is lost beyond the push itself.
     single<DocumentReminderScheduler> { DocumentReminderScheduler { } }
     single<ServiceDueReminderScheduler> { ServiceDueReminderScheduler { } }
+    single<DriveSummaryNotifier> { DriveSummaryNotifier { } }
     single<EngagementNudgeScheduler> { EngagementNudgeScheduler { } }
     // Unlike the file store, this one is real: the Keychain needs nothing Phase 2 has not
     // already shipped, and a session has to survive a relaunch on iOS as much as on Android.

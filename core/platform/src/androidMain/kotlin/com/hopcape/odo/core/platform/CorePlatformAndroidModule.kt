@@ -6,6 +6,9 @@ import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
 import com.hopcape.odo.core.platform.review.ReviewTelemetry
 import com.hopcape.odo.core.platform.review.ReviewPrompter
 import com.hopcape.odo.core.platform.review.PlayReviewPrompter
+import com.hopcape.odo.core.platform.notification.WorkManagerDriveSummaryNotifier
+import com.hopcape.odo.core.platform.notification.DriveSummaryTelemetry
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
 import android.app.Application
 import android.content.Context
 import com.hopcape.odo.core.platform.app.ActivityTracker
@@ -142,6 +145,9 @@ val corePlatformAndroidModule = module {
             logger = get(),
         )
     }
+    single { WorkManagerDriveSummaryNotifier(context = get<Context>(), settings = get(), clock = get(), logger = get()) }
+    single<DriveSummaryNotifier> { get<WorkManagerDriveSummaryNotifier>() }
+    single { DriveSummaryTelemetry(analytics = get()) }
     single<EngagementNudgeScheduler> {
         WorkManagerEngagementNudgeScheduler(context = get(), logger = get())
     }

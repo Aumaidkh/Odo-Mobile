@@ -163,6 +163,7 @@ class SqlDelightAppSettingsLocalDataSourceTest {
             notifDocLeads = "INSURANCE=30,7;SPACESHIP=5;PUC=x",
             notifHour = 99,
             updatedAt = "2026-08-01T10:00:00Z",
+            notifDriveSummary = 1,
         )
 
         val stored = local(db).observe().first()

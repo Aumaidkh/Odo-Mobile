@@ -1,6 +1,7 @@
 package com.hopcape.odo.feature.profile.domain.usecase
 
 import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.notification.DriveSummaryNotifier
 import arrow.core.Either
 import com.hopcape.odo.core.domain.cost.fuel.FuelEfficiencyUnit
 import com.hopcape.odo.core.domain.settings.model.AppSettings
@@ -33,6 +34,7 @@ internal class UpdateSettingsUseCase(
     private val documentReminders: DocumentReminderScheduler,
     private val customReminders: CustomReminderScheduler,
     private val serviceReminders: ServiceDueReminderScheduler = ServiceDueReminderScheduler { },
+    private val driveSummary: DriveSummaryNotifier = DriveSummaryNotifier { },
 ) {
 
     /** Theme and text size, from the appearance sheet. */
@@ -78,5 +80,6 @@ internal class UpdateSettingsUseCase(
         documentReminders.refresh()
         customReminders.refresh()
         serviceReminders.refresh()
+        driveSummary.rearm()
     }
 }

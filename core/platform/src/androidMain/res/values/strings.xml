@@ -16,14 +16,24 @@
     <string name="custom_reminder_channel_description">The reminders you set yourself</string>
     <string name="custom_reminder_body">Tap to open Odo.</string>
 
-    <!-- The document vault's own labels, repeated for the notification. -->
     <string name="service_reminder_channel_name">Service reminders</string>
     <string name="service_reminder_channel_description">When your car’s next service is coming up</string>
     <string name="service_reminder_due_soon_title">Service due soon</string>
     <string name="service_reminder_due_soon_body">Your next service is due by %1$s. Book a slot before it slips.</string>
     <string name="service_reminder_overdue_title">Service overdue</string>
     <string name="service_reminder_overdue_body">Your service was due on %1$s. Log it once it is done.</string>
+    <string name="drive_summary_channel_name">Drive summary</string>
+    <string name="drive_summary_channel_description">An evening note of the day’s drives</string>
+    <plurals name="drive_summary_drives">
+        <item quantity="one">%d drive</item>
+        <item quantity="other">%d drives</item>
+    </plurals>
+    <string name="drive_summary_title">Today: %1$s · %2$d km</string>
+    <string name="drive_summary_title_cost">Today: %1$s · %2$d km · ~₹%3$d fuel</string>
+    <string name="drive_summary_body">Logged on their own. Tap to see them.</string>
+    <string name="drive_summary_body_estimate">Fuel is an estimate from your car’s average. Tap to see the drives.</string>
 
+    <!-- The document vault's own labels, repeated for the notification. -->
     <string name="document_kind_insurance">Insurance</string>
     <string name="document_kind_puc">PUC certificate</string>
     <string name="document_kind_rc">RC</string>

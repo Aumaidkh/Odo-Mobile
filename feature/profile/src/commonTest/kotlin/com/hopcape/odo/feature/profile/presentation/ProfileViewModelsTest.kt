@@ -107,7 +107,7 @@ class ProfileViewModelsTest {
         assertEquals(ThemePreference.DARK, content.theme)
         assertEquals(DistanceUnit.MILE, content.distanceUnit)
         // Four defaults plus the custom reminders this test switched on.
-        assertEquals(5, content.notificationTopicsOn)
+        assertEquals(6, content.notificationTopicsOn)
         assertEquals("2.0.0", viewModel.state.value.version)
         // The build number is a debug/stage detail, so what is expected depends on the
         // flavor these tests were compiled as rather than on anything the test set up.
@@ -263,6 +263,22 @@ class ProfileViewModelsTest {
 
         assertTrue(settings.stored.value.notifications.healthScoreDrops)
         assertTrue(viewModel.state.value.preferences.healthScoreDrops)
+    }
+
+    @Test
+    fun notifications_turningOffTheDriveSummaryStoresItAndReplansIt() = runTest {
+        val settings = FakeSettingsRepository()
+        var rearms = 0
+        val viewModel = NotificationsViewModel(
+            settings = settings,
+            updateSettings = UpdateSettingsUseCase(settings, documentReminders = {}, customReminders = {}, driveSummary = { rearms++ }),
+            telemetry = testTelemetry(),
+        )
+
+        viewModel.onEvent(NotificationsEvent.DriveSummaryToggled(false))
+
+        assertTrue(!settings.stored.value.notifications.driveSummary)
+        assertEquals(1, rearms)
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.hopcape.odo.core.platform.review.ReviewTrigger
 import com.hopcape.odo.core.platform.review.ReviewPrompter
 import androidx.lifecycle.withResumed
 import androidx.lifecycle.lifecycleScope
+import com.hopcape.odo.core.navigation.OdoDestination
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,7 +15,6 @@ import android.content.Intent
 import com.hopcape.logging.api.HLogger
 import com.hopcape.odo.core.common.notification.NotificationOpen
 import com.hopcape.odo.core.navigation.NavigationCommand
-import com.hopcape.odo.core.navigation.OdoDestination
 import com.hopcape.odo.core.navigation.NavigationManager
 import com.hopcape.odo.feature.refuel.RefuelDeepLinks
 import com.hopcape.odo.splash.IgnitionSplashExit
@@ -147,6 +147,10 @@ class MainActivity : ComponentActivity() {
         if (NudgeLaunch.handle(intent, navigationManager)) return
         if (openedFrom == NotificationOpen.SERVICE_DUE) {
             navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Reminders.List))
+            return
+        }
+        if (openedFrom == NotificationOpen.DRIVE_SUMMARY) {
+            navigationManager.navigate(NavigationCommand.NavigateTo(OdoDestination.Garage.Home))
             return
         }
         // Same reasoning for the widget: its action would otherwise reopen the pump scanner

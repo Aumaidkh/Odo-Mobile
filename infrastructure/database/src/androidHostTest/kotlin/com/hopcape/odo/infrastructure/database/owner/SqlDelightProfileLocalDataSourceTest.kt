@@ -332,6 +332,13 @@ class SqlDelightProfileLocalDataSourceTest {
             parameters = 0,
         )
 
+        // Every real install has settings, and 22.sqm adds a column to them.
+        driver.execute(
+            identifier = null,
+            sql = "CREATE TABLE app_settings (id INTEGER NOT NULL PRIMARY KEY, updated_at TEXT NOT NULL)",
+            parameters = 0,
+        )
+
         // All the way to current, not just to 6. The generated queries select every column
         // the schema has, so stopping at the migration under test leaves them asking for
         // columns a later one adds — which is a failure about the newest column rather
