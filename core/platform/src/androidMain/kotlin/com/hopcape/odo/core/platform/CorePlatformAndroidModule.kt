@@ -3,6 +3,9 @@ package com.hopcape.odo.core.platform
 import com.hopcape.odo.core.platform.notification.WorkManagerServiceDueReminderScheduler
 import com.hopcape.odo.core.platform.notification.ServiceReminderTelemetry
 import com.hopcape.odo.core.platform.notification.ServiceDueReminderScheduler
+import com.hopcape.odo.core.platform.review.ReviewTelemetry
+import com.hopcape.odo.core.platform.review.ReviewPrompter
+import com.hopcape.odo.core.platform.review.PlayReviewPrompter
 import android.app.Application
 import android.content.Context
 import com.hopcape.odo.core.platform.app.ActivityTracker
@@ -127,6 +130,18 @@ val corePlatformAndroidModule = module {
         )
     }
     single { ServiceReminderTelemetry(analytics = get()) }
+    single { ReviewTelemetry(analytics = get()) }
+    single<ReviewPrompter> {
+        PlayReviewPrompter(
+            context = get<Context>(),
+            currentActivity = get(),
+            trips = get(),
+            activeCar = get(),
+            clock = get(),
+            telemetry = get(),
+            logger = get(),
+        )
+    }
     single<EngagementNudgeScheduler> {
         WorkManagerEngagementNudgeScheduler(context = get(), logger = get())
     }
